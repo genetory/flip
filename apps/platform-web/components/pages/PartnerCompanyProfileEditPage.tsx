@@ -443,7 +443,9 @@ export function PartnerCompanyProfileEditPage({
                       "파트너 회원으로 가입했는데 기업에 속해있지 않거나 기업이 등록되어 있지 않으면 로그인 후 기업 등록 절차가 필요합니다.",
                       "If a partner account is not linked to a company or no company is registered, company registration is required after login.",
                       "如果合作伙伴账号未关联公司或尚未注册公司,登录后需要进行公司注册流程。",
-                      "Nếu tài khoản đối tác chưa liên kết với công ty hoặc chưa có công ty được đăng ký, cần đăng ký công ty sau khi đăng nhập."
+                      "Nếu tài khoản đối tác chưa liên kết với công ty hoặc chưa có công ty được đăng ký, cần đăng ký công ty sau khi đăng nhập.",
+                      "パートナー会員として登録したものの企業に所属していない、または企業が登録されていない場合は、ログイン後に企業登録の手続きが必要です。",
+                      "Jika akun mitra belum terhubung dengan perusahaan atau belum ada perusahaan yang terdaftar, pendaftaran perusahaan diperlukan setelah masuk."
                     )}
                   </div>
                 ) : null}

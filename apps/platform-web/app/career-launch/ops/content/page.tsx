@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { WEEKS } from "../../../../lib/launch/data";
-import { fetchOpsCareerContent, saveOpsCareerContent, type CareerContent } from "../../../../lib/launch/content-client";
+import { fetchOpsCareerContent, saveOpsCareerContent, fetchOpsCareerContentHistory, rollbackOpsCareerContent, type CareerContent, type ContentHistoryEntry } from "../../../../lib/launch/content-client";
 import { useLaunchT, type LT } from "../../../../lib/launch/i18n";
 
 const LOCALES = [
@@ -122,6 +122,29 @@ export default function LaunchOpsContentPage() {
     }
   };
 
+  // 이전 버전 이력 + 롤백(오변경 복구).
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<ContentHistoryEntry[]>([]);
+  const toggleHistory = async () => {
+    if (showHistory) { setShowHistory(false); return; }
+    setShowHistory(true);
+    setHistory([]);
+    try { setHistory(await fetchOpsCareerContentHistory()); } catch { /* ignore */ }
+  };
+  const doRollback = async (index: number) => {
+    setSaving(true);
+    try {
+      await rollbackOpsCareerContent(index);
+      setContent((await fetchOpsCareerContent()) ?? {});
+      setShowHistory(false);
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("되돌리지 못했어요.", "Couldn't roll back.", "回滚失败。", "Không thể hoàn tác.", "戻せませんでした。", "Gagal mengembalikan."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const week = WEEKS.find((w) => w.week === openWeek) ?? WEEKS[0];
 
   return (
@@ -155,6 +178,9 @@ export default function LaunchOpsContentPage() {
                 </span>
               </h2>
               <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="ops-btn" disabled={saving} onClick={() => void toggleHistory()}>
+                  {showHistory ? t("이전 버전 닫기", "Close history", "关闭历史", "Đóng lịch sử", "履歴を閉じる", "Tutup riwayat") : t("이전 버전", "History", "历史版本", "Lịch sử", "以前の版", "Riwayat")}
+                </button>
                 <button type="button" className="ops-btn ops-btn-danger" disabled={saving} onClick={() => void resetAll()}>
                   {t("전체 기본값 복원", "Restore all defaults", "恢复全部默认", "Khôi phục mặc định", "すべて既定値に戻す", "Pulihkan default")}
                 </button>
@@ -163,6 +189,23 @@ export default function LaunchOpsContentPage() {
                 </button>
               </div>
             </div>
+
+            {showHistory ? (
+              <div style={{ marginTop: 10, borderTop: "1px solid #EEF1F5", paddingTop: 10 }}>
+                {history.length === 0 ? (
+                  <p style={{ fontSize: 12.5, color: "#8B95A1" }}>{t("이전 버전이 없어요. (저장할 때마다 자동으로 쌓여요)", "No previous versions yet. (Saved automatically on each edit)", "暂无历史版本。（每次保存自动记录）", "Chưa có phiên bản cũ. (Tự động lưu mỗi lần chỉnh)", "以前の版はありません。（保存ごとに自動記録）", "Belum ada versi lama. (Otomatis tiap simpan)")}</p>
+                ) : (
+                  <ul style={{ display: "flex", flexDirection: "column", gap: 8, listStyle: "none", padding: 0, margin: 0 }}>
+                    {history.map((h, idx) => (
+                      <li key={idx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: "#F7F9FC", borderRadius: 10, padding: "8px 10px" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#4E5968" }} suppressHydrationWarning>{new Date(h.at).toLocaleString("ko-KR")}</span>
+                        <button type="button" className="ops-btn" disabled={saving} onClick={() => void doRollback(idx)}>{t("이 버전으로 되돌리기", "Restore this", "回滚到此版本", "Khôi phục bản này", "この版に戻す", "Pulihkan ini")}</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
 
             {error ? <p className="ops-form-error">{error}</p> : null}
             {saved ? (

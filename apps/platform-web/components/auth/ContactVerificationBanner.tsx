@@ -71,7 +71,7 @@ const TOAST_FAIL: Copy = {
 // 로그인했지만 "연락 가능한 검증 이메일"이 없는 사용자에게 상시 노출되는 상단 배너.
 // 소프트 게이트 정책: 서비스 이용은 막지 않되, 지원 등 핵심 액션 전에 연락처 확보를 유도한다.
 export function ContactVerificationBanner() {
-  const { user, isReady, isAuthenticated } = useAuthSession();
+  const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
   const toast = useToast();
   const { locale } = useLanguage();
   const [sending, setSending] = useState(false);
@@ -114,7 +114,7 @@ export function ContactVerificationBanner() {
           </button>
         ) : (
           <Link
-            href="/profile"
+            href={getAccountUrl()}
             className="shrink-0 whitespace-nowrap rounded-full bg-amber-500 px-3 py-1 text-[12px] font-bold text-white transition hover:bg-amber-600"
           >
             {pick(BTN_ADD_EMAIL, locale)}

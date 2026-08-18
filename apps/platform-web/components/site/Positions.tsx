@@ -6,6 +6,7 @@ import { Button } from "../ui/button";
 import { MapPin, Briefcase, Bookmark } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
+import { usePlatformT } from "../../lib/i18n";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { Reveal } from "./Reveal";
 import { paperlogy } from "../../lib/fonts";
@@ -63,6 +64,7 @@ function mapItemToHomeCard(item: PublicPositionListItem, copy: HomePositionsCopy
 
 export const Positions = () => {
   const { locale } = useLanguage();
+  const t = usePlatformT();
   const copy = getSiteMessages(locale).positions;
   const [latestPositions, setLatestPositions] = useState<HomePositionCardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -156,7 +158,7 @@ export const Positions = () => {
             className="h-11 rounded-xl border-0 bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
             asChild
           >
-            <Link href="/positions">
+            <Link href="/talent/jobs">
               {copy.viewAll}
             </Link>
           </Button>
@@ -169,7 +171,7 @@ export const Positions = () => {
                 key={`${position.id}-list`}
                 className="relative rounded-2xl border border-slate-200 bg-[#f8fafc] p-3 shadow-[0_12px_26px_-20px_rgba(15,23,42,0.4)] transition-all duration-300"
               >
-                <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
+                <Link href="/talent/jobs" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
                 <div className="flex items-start gap-2.5">
                   <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
                     {position.thumbnailUrl ? (
@@ -187,12 +189,8 @@ export const Positions = () => {
                         <p className="mt-0.5 truncate">{position.category}</p>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[10px] text-slate-400">{
-                          locale === "ko" ? "15시간 전" : locale === "zh-CN" ? "15 小时前" : locale === "vi" ? "15 giờ trước" : locale === "ja" ? "15時間前" : locale === "id" ? "15 jam lalu" : "15h ago"
-                        }</p>
-                        <p className="mt-0.5 text-[10px] font-semibold text-rose-500">{
-                          locale === "ko" ? "채용시 마감" : locale === "zh-CN" ? "招满即止" : locale === "vi" ? "Đóng khi đủ" : locale === "ja" ? "採用時締切" : locale === "id" ? "Tutup setelah terisi" : "Closes when filled"
-                        }</p>
+                        <p className="text-[10px] text-slate-400">{t("15시간 전", "15h ago", "15 小时前", "15 giờ trước", "15時間前", "15 jam lalu")}</p>
+                        <p className="mt-0.5 text-[10px] font-semibold text-rose-500">{t("채용시 마감", "Closes when filled", "招满即止", "Đóng khi đủ", "採用時締切", "Tutup setelah terisi")}</p>
                       </div>
                     </div>
                     <h3 className="mt-1 line-clamp-2 font-display text-[13px] font-extrabold leading-snug text-[#0B1227]">{position.title}</h3>
@@ -215,7 +213,7 @@ export const Positions = () => {
                         className="h-8 rounded-xl bg-[#111827] px-3 text-xs font-semibold text-white pointer-events-none"
                         aria-disabled="true"
                       >
-                        {locale === "ko" ? "Buddies로 보러가기" : locale === "zh-CN" ? "在 Buddies 查看" : locale === "vi" ? "Xem trên Buddies" : locale === "ja" ? "Buddiesで見る" : locale === "id" ? "Lihat di Buddies" : "View on Buddies"}
+                        {t("Buddies로 보러가기", "View on Buddies", "在 Buddies 查看", "Xem trên Buddies", "Buddiesで見る", "Lihat di Buddies")}
                       </Button>
                     </div>
                   </div>
@@ -243,7 +241,7 @@ export const Positions = () => {
                   zIndex: deckItems.length - visualIndex
                 }}
               >
-                <Link href="/positions" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
+                <Link href="/talent/jobs" aria-label={copy.viewAll} className="absolute inset-0 z-10 rounded-xl" />
                 <div className="mb-2 overflow-hidden rounded-lg border border-[#DBEAFE] bg-slate-50">
                   {position.thumbnailUrl ? (
                     <img src={position.thumbnailUrl} alt={position.title} className="aspect-video w-full object-cover" />

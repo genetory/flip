@@ -8,12 +8,14 @@ import { Footer } from "../site/Footer";
 import { Button } from "../ui/button";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { resendVerificationEmail } from "../../lib/auth-client";
+import { usePlatformT } from "../../lib/i18n";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 const SUPPORT_EMAIL = "info@flip-ers.com";
 
 export function SignupVerifyEmailPage() {
   const { locale } = useLanguage();
+  const t = usePlatformT();
   const params = useSearchParams();
   const email = useMemo(() => params.get("email")?.trim() ?? "", [params]);
   const initialVerifyUrl = useMemo(() => params.get("verifyUrl")?.trim() ?? "", [params]);
@@ -220,12 +222,24 @@ export function SignupVerifyEmailPage() {
   }
 
   const supportSubject = encodeURIComponent(
-    locale === "ko" ? "Aply 인증 메일 미수신 문의" : "Aply verification email not received"
+    t(
+      "Aply 인증 메일 미수신 문의",
+      "Aply verification email not received",
+      "Aply 验证邮件未收到咨询",
+      "Aply email xác minh chưa nhận được",
+      "Aply 認証メール未受信のお問い合わせ",
+      "Aply email verifikasi tidak diterima"
+    )
   );
   const supportBody = encodeURIComponent(
-    (locale === "ko"
-      ? "가입 이메일 주소: "
-      : "Signup email address: ") + (email || "")
+    t(
+      "가입 이메일 주소: ",
+      "Signup email address: ",
+      "注册邮箱地址：",
+      "Địa chỉ email đăng ký: ",
+      "登録メールアドレス: ",
+      "Alamat email pendaftaran: "
+    ) + (email || "")
   );
   const supportMailto = `mailto:${SUPPORT_EMAIL}?subject=${supportSubject}&body=${supportBody}`;
 

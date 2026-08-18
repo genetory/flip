@@ -77,6 +77,19 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
+// 선택적 인증 — 유효한 토큰이 있으면 req.auth 를 세팅하고, 없거나 무효면 그냥 게스트로 진행.
+// 마스킹된 공개 데이터(예: 인재검색)를 비회원도 열람할 수 있게 할 때 사용.
+export function authenticateOptional(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    const payload = verifyAccessToken(header.slice("Bearer ".length));
+    if (payload) {
+      req.auth = { userId: payload.sub, role: payload.role, partnerType: payload.partnerType };
+    }
+  }
+  return next();
+}
+
 export function requireRoles(allowed: MemberRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.auth) {

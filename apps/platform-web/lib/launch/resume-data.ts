@@ -57,6 +57,17 @@ export async function requestResumeChat(messages: ResumeChatMsg[], data: ResumeD
   };
 }
 
+// 편집형 빌더 — 구조화 이력서 데이터를 직접 저장(교체). emptyDone: 내용이 없어도
+// 완료로 표시할 섹션(예: 경력/활동 없음). 갱신된 정규화 데이터를 돌려준다.
+export async function saveResumeData(data: ResumeData, emptyDone: ResumeSection[] = []): Promise<ResumeData> {
+  const d = await req("/career-launch/resume-data", {
+    method: "PUT",
+    headers: authHeaders(true),
+    body: JSON.stringify({ data, emptyDone })
+  });
+  return (d.data as ResumeData) ?? {};
+}
+
 // 저장된 이력서 데이터 조회(미리보기·복원용).
 export async function fetchResumeData(): Promise<{ data: ResumeData; updatedAt: string | null }> {
   const d = await req("/career-launch/resume-data", { headers: authHeaders() });

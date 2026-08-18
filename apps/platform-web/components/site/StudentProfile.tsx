@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import { Check } from "@phosphor-icons/react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
+import { usePlatformT } from "../../lib/i18n";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { Reveal } from "./Reveal";
 import { paperlogy } from "../../lib/fonts";
@@ -20,36 +21,15 @@ const AVATAR_SQUIRCLE_STYLE = {
 
 export const StudentProfile = () => {
   const { locale } = useLanguage();
+  const t = usePlatformT();
   const { isAuthenticated } = useAuthSession();
   const copy = getSiteMessages(locale).studentProfile;
   const ctaHref = isAuthenticated ? "/profile" : "/login";
-  const profileCompletionLabel =
-    locale === "ko" ? "프로필 완성도" : locale === "zh-CN" ? "档案完成度" : locale === "vi" ? "Mức hoàn thiện hồ sơ" : locale === "ja" ? "プロフィール完成度" : locale === "id" ? "Kelengkapan profil" : "Profile completion";
-  const matchChanceLabel =
-    locale === "ko" ? "매칭 가능성" : locale === "zh-CN" ? "匹配可能性" : locale === "vi" ? "Khả năng phù hợp" : locale === "ja" ? "マッチング可能性" : locale === "id" ? "Peluang kecocokan" : "Match chance";
+  const profileCompletionLabel = t("프로필 완성도", "Profile completion", "档案完成度", "Mức hoàn thiện hồ sơ", "プロフィール完成度", "Kelengkapan profil");
+  const matchChanceLabel = t("매칭 가능성", "Match chance", "匹配可能性", "Khả năng phù hợp", "マッチング可能性", "Peluang kecocokan");
   const ctaLabel = isAuthenticated
-    ? locale === "ko"
-      ? "내 프로필 완성하기"
-      : locale === "zh-CN"
-        ? "完善我的档案"
-        : locale === "vi"
-          ? "Hoàn thiện hồ sơ của tôi"
-          : locale === "ja"
-            ? "プロフィールを完成させる"
-            : locale === "id"
-              ? "Lengkapi profil saya"
-      : "Complete my profile"
-    : locale === "ko"
-      ? "내 프로필 시작하기"
-      : locale === "zh-CN"
-        ? "开始我的档案"
-        : locale === "vi"
-          ? "Bắt đầu hồ sơ của tôi"
-          : locale === "ja"
-            ? "プロフィールを作成する"
-            : locale === "id"
-              ? "Mulai profil saya"
-      : "Start my profile";
+    ? t("내 프로필 완성하기", "Complete my profile", "完善我的档案", "Hoàn thiện hồ sơ của tôi", "プロフィールを完成させる", "Lengkapi profil saya")
+    : t("내 프로필 시작하기", "Start my profile", "开始我的档案", "Bắt đầu hồ sơ của tôi", "プロフィールを作成する", "Mulai profil saya");
   const [activeSlot, setActiveSlot] = useState(0);
   const slotCards = useMemo(
     () =>

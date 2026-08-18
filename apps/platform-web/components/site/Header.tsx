@@ -10,6 +10,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { getHeaderMessages, PLATFORM_LOCALES, type PlatformLocale } from "../../lib/auth-messages";
+import { usePlatformT } from "../../lib/i18n";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
@@ -25,6 +26,7 @@ const HEADER_SQUIRCLE_STYLE = {
 // 비즈니스 GNB — /business 랜딩의 섹션 앵커. 순서는 페이지 섹션 등장 순서와
 // 동일하게 유지(도입 사례 → 서비스 → 검증 → 인재풀 → 요금).
 const BUSINESS_NAV: { key: keyof typeof BUSINESS_NAV_LABELS; href: string }[] = [
+  { key: "talentSearch", href: "/business/talent" },
   { key: "cases", href: "/business#trust" },
   { key: "service", href: "/business#problem" },
   { key: "verify", href: "/business#verify" },
@@ -32,6 +34,7 @@ const BUSINESS_NAV: { key: keyof typeof BUSINESS_NAV_LABELS; href: string }[] = 
   { key: "pricing", href: "/business#pricing" }
 ];
 const BUSINESS_NAV_LABELS: Record<string, Record<PlatformLocale, string>> = {
+  talentSearch: { ko: "인재 탐색", en: "Find talent", "zh-CN": "人才探索", vi: "Tìm nhân tài", ja: "人材探索", id: "Cari talenta" },
   cases: { ko: "도입 사례", en: "Customers", "zh-CN": "合作案例", vi: "Khách hàng", ja: "導入事例", id: "Studi Kasus" },
   service: { ko: "서비스", en: "Service", "zh-CN": "服务", vi: "Dịch vụ", ja: "サービス", id: "Layanan" },
   verify: { ko: "검증", en: "Verification", "zh-CN": "验证", vi: "Xác minh", ja: "検証", id: "Verifikasi" },
@@ -68,6 +71,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
     return () => mq.removeEventListener("change", sync);
   }, []);
   const { locale, setLocale } = useLanguage();
+  const t = usePlatformT();
   const { user, isReady, isAuthenticated, getAccountUrl } = useAuthSession();
   const avatarFallback = user?.name?.trim()?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "U";
 
@@ -81,21 +85,15 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
   const copy = getHeaderMessages(locale);
   const roleBadgeLabel =
     user?.role === "PARTNER" ? copy.auth.rolePartner : user?.role === "OPERATOR" ? copy.auth.roleOperator : null;
-  const loginButtonLabel = locale === "ko" ? "로그인하기" : locale === "zh-CN" ? "去登录" : locale === "vi" ? "Đăng nhập" : locale === "ja" ? "ログイン" : locale === "id" ? "Masuk" : "Sign in";
-  const partnerDashLabel = locale === "ko" ? "관리 콘솔" : locale === "zh-CN" ? "管理控制台" : locale === "vi" ? "Bảng quản trị" : locale === "ja" ? "管理コンソール" : locale === "id" ? "Konsol Manajemen" : "Admin console";
-  const opsDashLabel = locale === "ko" ? "운영 콘솔" : locale === "zh-CN" ? "运营控制台" : locale === "vi" ? "Bảng điều khiển vận hành" : locale === "ja" ? "運営コンソール" : locale === "id" ? "Konsol Operasional" : "Ops console";
+  const loginButtonLabel = t("로그인하기", "Sign in", "去登录", "Đăng nhập", "ログイン", "Masuk");
+  const partnerDashLabel = t("관리 콘솔", "Admin console", "管理控制台", "Bảng quản trị", "管理コンソール", "Konsol Manajemen");
+  const opsDashLabel = t("운영 콘솔", "Ops console", "运营控制台", "Bảng điều khiển vận hành", "運営コンソール", "Konsol Operasional");
   // Career Launch 운영 콘솔 — 운영자에게만, '운영 콘솔' 바로 오른쪽에 노출.
-  const careerOpsLabel = locale === "ko" ? "커리어 콘솔" : locale === "zh-CN" ? "职业控制台" : locale === "vi" ? "Bảng điều khiển Career" : locale === "ja" ? "キャリアコンソール" : locale === "id" ? "Konsol Karier" : "Career console";
-  const eventLabel = locale === "ko" ? "이벤트" : locale === "zh-CN" ? "活动" : locale === "vi" ? "Sự kiện" : locale === "ja" ? "イベント" : locale === "id" ? "Acara" : "Events";
+  const careerOpsLabel = t("커리어 콘솔", "Career console", "职业控制台", "Bảng điều khiển Career", "キャリアコンソール", "Konsol Karier");
+  const eventLabel = t("이벤트", "Events", "活动", "Sự kiện", "イベント", "Acara");
   // 이력서 — STUDENT / 비로그인 사용자에게만 노출. 누르면 AI 이력서(/resume-maker)를 새 탭으로 연다.
   // (기존 '이력서 코칭'(/resume)은 잠시 가려둠 — 라벨/링크를 이력서로 교체.)
-  const resumeLabel = locale === "ko"
-    ? "이력서"
-    : locale === "zh-CN" ? "简历"
-    : locale === "vi" ? "Hồ sơ"
-    : locale === "ja" ? "履歴書"
-    : locale === "id" ? "Resume"
-    : "Resume";
+  const resumeLabel = t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume");
   // 데스크탑 GNB: 이벤트 · 포지션 탐색 · 이력서 · 커뮤니티 를 "더보기" 왼쪽에 노출(primary).
   // 맞춤 지원(/pricing) · 자료실(/resources) 은 "더보기" 드롭다운으로. 모바일은 전부 펼침.
   const defaultNavItems: { label: string; href: string; external?: boolean; promoted?: boolean; primary?: boolean }[] = [
@@ -117,7 +115,9 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
       : [])
   ];
   // 비즈니스 변형 GNB — 페이지 섹션 순서대로, 로케일별 라벨 적용.
-  const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.map((n) => ({
+  // '인재 탐색'은 파트너/운영자에게만 노출(그 외엔 숨김).
+  const canSeeTalentSearch = user?.role === "PARTNER" || user?.role === "OPERATOR";
+  const businessNavItems: typeof defaultNavItems = BUSINESS_NAV.filter((n) => n.key !== "talentSearch" || canSeeTalentSearch).map((n) => ({
     label: BUSINESS_NAV_LABELS[n.key][locale],
     href: n.href
   }));
@@ -140,8 +140,7 @@ export const Header = ({ variant = "default" }: HeaderProps = {}) => {
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
   }, [moreOpen]);
-  const moreLabel =
-    locale === "ko" ? "더보기" : locale === "zh-CN" ? "更多" : locale === "vi" ? "Thêm" : locale === "ja" ? "その他" : locale === "id" ? "Lainnya" : "More";
+  const moreLabel = t("더보기", "More", "更多", "Thêm", "その他", "Lainnya");
   const useMoreMenu = variant !== "business";
   const primaryItems = useMoreMenu ? navItems.filter((i) => i.primary) : navItems;
   const moreItems = useMoreMenu ? navItems.filter((i) => !i.primary) : [];

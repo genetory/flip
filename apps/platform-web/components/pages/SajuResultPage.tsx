@@ -1015,7 +1015,7 @@ export function SajuResultPage({ slug }: { slug: string }) {
                   </div>
                   {details?.specificRoles && details.specificRoles.length > 0 ? (
                     <a
-                      href={`/positions?search=${encodeURIComponent(details.specificRoles.join(" "))}`}
+                      href={`/talent/jobs?search=${encodeURIComponent(details.specificRoles.join(" "))}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-yellow-300 to-amber-400 text-[14px] font-semibold text-[#1a1340] shadow-[0_8px_24px_-12px_rgba(250,204,21,0.6)] transition active:from-yellow-200 active:to-amber-300"

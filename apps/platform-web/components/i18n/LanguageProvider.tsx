@@ -8,10 +8,8 @@ import {
   useState
 } from "react";
 import {
-  DEFAULT_PLATFORM_LOCALE,
   PLATFORM_LOCALES,
   PLATFORM_LOCALE_STORAGE_KEY,
-  resolveLocaleFromAcceptLanguage,
   type PlatformLocale
 } from "../../lib/auth-messages";
 
@@ -22,41 +20,31 @@ type LanguageContextValue = {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+// 기본 언어는 항상 한국어. 브라우저/서버 로케일로 자동 전환하지 않고, 사용자가
+// 명시적으로 고른 값(localStorage)만 반영한다.
+const DEFAULT_LOCALE: PlatformLocale = "ko";
+
 export function LanguageProvider({
   children,
-  initialLocale
+  // 하위호환용(더는 자동 적용하지 않음 — 기본 한국어).
+  initialLocale: _initialLocale
 }: {
   children: React.ReactNode;
-  /**
-   * Locale resolved from the server (typically Accept-Language). Used as the
-   * starting value so SSR and the first client render agree, avoiding a flash
-   * of the default English when the visitor actually wants another language.
-   */
   initialLocale?: PlatformLocale;
 }) {
-  const [locale, setLocaleState] = useState<PlatformLocale>(initialLocale ?? DEFAULT_PLATFORM_LOCALE);
+  const [locale, setLocaleState] = useState<PlatformLocale>(DEFAULT_LOCALE);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    // Stored preference (explicit user choice) wins over server-detected locale.
+    // 사용자가 직접 고른 언어만 반영. 없으면 기본(한국어) 유지.
     const storedLocale = window.localStorage.getItem(PLATFORM_LOCALE_STORAGE_KEY);
     if (storedLocale && (PLATFORM_LOCALES as readonly string[]).includes(storedLocale)) {
       setLocaleState(storedLocale as PlatformLocale);
       document.documentElement.lang = storedLocale;
-      return;
+    } else {
+      document.documentElement.lang = DEFAULT_LOCALE;
     }
-
-    // Otherwise stick with the server-resolved initialLocale (no flash). If
-    // SSR didn't pass one (e.g. legacy callers), fall back to navigator.
-    if (initialLocale) {
-      document.documentElement.lang = initialLocale;
-      return;
-    }
-    const browserLocale = resolveLocaleFromAcceptLanguage(window.navigator.language);
-    setLocaleState(browserLocale);
-    document.documentElement.lang = browserLocale;
-  }, [initialLocale]);
+  }, []);
 
   function setLocale(nextLocale: PlatformLocale) {
     setLocaleState(nextLocale);

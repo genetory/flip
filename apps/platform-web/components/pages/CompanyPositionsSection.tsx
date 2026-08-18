@@ -353,11 +353,11 @@ const PositionRow = ({
   return (
     <article className="group relative rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
-        href={`/positions/${p.id}`}
+        href={`/talent/jobs/${p.id}`}
         aria-label={`${p.role} ${copy.viewDetailSuffix}`}
         className="absolute inset-0 z-10 rounded-xl"
       />
-      <p className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
+      <p suppressHydrationWarning className="absolute right-4 top-3 text-[11px] text-muted-foreground">{formatPostedDate(p, locale)}</p>
       <div className="flex flex-col gap-2 md:grid md:grid-cols-[180px_1fr_auto] md:items-stretch md:gap-3">
         <div className="relative aspect-[16/9] w-full shrink-0 self-start overflow-hidden rounded-xl md:w-[180px] md:self-auto">
           <span className={`absolute left-2 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusBadge.className}`}>
@@ -416,7 +416,7 @@ const PositionRow = ({
               </Button>
             ) : (
               <Button variant="dark" size="sm" asChild>
-                <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+                <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
               </Button>
             )}
           </div>
@@ -452,7 +452,7 @@ const PositionGridCard = ({
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-elevated">
       <Link
-        href={`/positions/${p.id}`}
+        href={`/talent/jobs/${p.id}`}
         aria-label={`${p.role} ${copy.viewDetailSuffix}`}
         className="absolute inset-0 z-10 rounded-xl"
       />
@@ -504,7 +504,7 @@ const PositionGridCard = ({
           </Button>
         ) : (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+            <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
           </Button>
         )}
       </div>

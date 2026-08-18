@@ -1,4 +1,5 @@
 "use client";
+import { CaretLeft } from "@phosphor-icons/react";
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -6,8 +7,8 @@ import Link from "next/link";
 import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-client";
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
-import { Header } from "../../../../components/site/Header";
-import { Footer } from "../../../../components/site/Footer";
+import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
+import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
 // Week 별 '한국 기업문화·예절' 학습 카드. 핵심 포인트를 읽고 '학습 완료'로 체크하면
@@ -55,11 +56,11 @@ export default function CultureLessonPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-3xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
+          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
           </Link>
 
           {!lesson ? (
@@ -268,7 +269,7 @@ export default function CultureLessonPage() {
           )}
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

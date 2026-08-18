@@ -8,18 +8,13 @@ import { Button } from "../ui/button";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { AuthApiError, finalizeSocialSignup, type SocialProvider } from "../../lib/auth-client";
+import { usePlatformT } from "../../lib/i18n";
 
 export function SocialAccountTypePage() {
   const router = useRouter();
   const { setAuthenticatedUser } = useAuthSession();
   const { locale } = useLanguage();
-  const isKo = locale === "ko";
-  const isZh = locale === "zh-CN";
-  const isVi = locale === "vi";
-  const isJa = locale === "ja";
-  const isId = locale === "id";
-  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
-    isKo ? ko : isZh ? zh : isVi ? vi : isJa ? ja : isId ? id : en;
+  const t = usePlatformT();
 
   const [ctx, setCtx] = useState<string | null>(null);
   const [provider, setProvider] = useState<SocialProvider | null>(null);
@@ -52,7 +47,7 @@ export function SocialAccountTypePage() {
     if (nextValue && nextValue.startsWith("/") && !nextValue.startsWith("//")) {
       setNextPath(nextValue);
     }
-  }, [isKo, isZh, isVi, isJa, isId]);
+  }, [locale]);
 
   // Event-landing flows (e.g. /events/saju) skip the account-type picker
   // — just register as GENERAL automatically so the viral funnel is one

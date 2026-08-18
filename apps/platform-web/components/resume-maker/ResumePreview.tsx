@@ -48,13 +48,13 @@ const SECTION_LABELS: Record<PlatformLocale, Record<SectionKey, string>> = {
 };
 
 // 미리보기 크롬(이름 자리표시·비자 접두어·기간 '현재'·페이지 안내) — 6개 언어.
-const CHROME: Record<PlatformLocale, { name: string; visa: string; present: string; a4: (n: number) => string; pageWarn: (n: number) => string }> = {
-  ko: { name: "이름", visa: "비자", present: "현재", a4: (n) => `A4 · ${n}페이지`, pageWarn: (n) => `현재 내용이 ${n}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.` },
-  en: { name: "Name", visa: "Visa", present: "Present", a4: (n) => `A4 · ${n} page${n > 1 ? "s" : ""}`, pageWarn: (n) => `Your content is ${n} pages. Trimming some lines can fit it on 1 page.` },
-  "zh-CN": { name: "姓名", visa: "签证", present: "至今", a4: (n) => `A4 · ${n}页`, pageWarn: (n) => `当前内容有 ${n} 页。精简部分语句可整理为 1 页。` },
-  vi: { name: "Tên", visa: "Visa", present: "Hiện tại", a4: (n) => `A4 · ${n} trang`, pageWarn: (n) => `Nội dung hiện dài ${n} trang. Rút gọn một số câu có thể gói gọn trong 1 trang.` },
-  ja: { name: "氏名", visa: "ビザ", present: "現在", a4: (n) => `A4 · ${n}ページ`, pageWarn: (n) => `現在の内容は${n}ページです。一部の文を減らすと1ページにまとめられます。` },
-  id: { name: "Nama", visa: "Visa", present: "Sekarang", a4: (n) => `A4 · ${n} halaman`, pageWarn: (n) => `Konten Anda ${n} halaman. Memangkas beberapa kalimat bisa memuatnya dalam 1 halaman.` }
+const CHROME: Record<PlatformLocale, { name: string; visa: string; present: string; contact: string; a4: (n: number) => string; pageWarn: (n: number) => string }> = {
+  ko: { name: "이름", visa: "비자", present: "현재", contact: "연락처", a4: (n) => `A4 · ${n}페이지`, pageWarn: (n) => `현재 내용이 ${n}페이지입니다. 일부 문장을 줄이면 1페이지로 정리할 수 있어요.` },
+  en: { name: "Name", visa: "Visa", present: "Present", contact: "Contact", a4: (n) => `A4 · ${n} page${n > 1 ? "s" : ""}`, pageWarn: (n) => `Your content is ${n} pages. Trimming some lines can fit it on 1 page.` },
+  "zh-CN": { name: "姓名", visa: "签证", present: "至今", contact: "联系方式", a4: (n) => `A4 · ${n}页`, pageWarn: (n) => `当前内容有 ${n} 页。精简部分语句可整理为 1 页。` },
+  vi: { name: "Tên", visa: "Visa", present: "Hiện tại", contact: "Liên hệ", a4: (n) => `A4 · ${n} trang`, pageWarn: (n) => `Nội dung hiện dài ${n} trang. Rút gọn một số câu có thể gói gọn trong 1 trang.` },
+  ja: { name: "氏名", visa: "ビザ", present: "現在", contact: "連絡先", a4: (n) => `A4 · ${n}ページ`, pageWarn: (n) => `現在の内容は${n}ページです。一部の文を減らすと1ページにまとめられます。` },
+  id: { name: "Nama", visa: "Visa", present: "Sekarang", contact: "Kontak", a4: (n) => `A4 · ${n} halaman`, pageWarn: (n) => `Konten Anda ${n} halaman. Memangkas beberapa kalimat bisa memuatnya dalam 1 halaman.` }
 };
 
 export function ResumeSheet({
@@ -63,7 +63,8 @@ export function ResumeSheet({
   highlightSection,
   innerRef,
   lang = "ko",
-  noVerticalPad = false
+  noVerticalPad = false,
+  preserveOrder = false
 }: {
   content: ResumeContent;
   design: ResumeDesignSettings;
@@ -72,6 +73,8 @@ export function ResumeSheet({
   lang?: PlatformLocale;
   // 페이지 분할 미리보기·인쇄에서는 세로 패딩을 시트가 아니라 각 페이지가 준다.
   noVerticalPad?: boolean;
+  // true 면 학력을 날짜로 재정렬하지 않고 입력(배열) 순서를 그대로 따른다(사용자 재정렬 반영).
+  preserveOrder?: boolean;
 }) {
   const accent = design.accentColor || "#0B46E8";
   const baseFont = 13.5 * design.fontScale;
@@ -206,10 +209,8 @@ export function ResumeSheet({
       // 최신이 위로 — 진행 중(졸업월 비움)을 가장 위, 그다음 졸업월·입학월 내림차순.
       const recency = (e: { startDate?: string | null; endDate?: string | null }) =>
         `${(e.endDate ?? "").trim() || "9999-99"}|${(e.startDate ?? "").trim() || "0000-00"}`;
-      const items = (content.educations ?? [])
-        .filter((e) => nonEmpty(e.schoolName))
-        .slice()
-        .sort((a, b) => recency(b).localeCompare(recency(a)));
+      const filteredEdu = (content.educations ?? []).filter((e) => nonEmpty(e.schoolName));
+      const items = preserveOrder ? filteredEdu : filteredEdu.slice().sort((a, b) => recency(b).localeCompare(recency(a)));
       if (items.length === 0) return null;
       return (
         <section key={key} style={{ marginTop: design.sectionGap }}>
@@ -343,7 +344,7 @@ export function ResumeSheet({
               {contactItems.length ? (
                 <div>
                   <h4 className="mb-2 text-[11px] font-extrabold uppercase tracking-wide" style={{ color: accent }}>
-                    연락처
+                    {chrome.contact}
                   </h4>
                   <div className="space-y-0.5 text-slate-700">
                     {contactItems.map((it, i) => (
@@ -449,11 +450,13 @@ export function computePageBreaks(root: HTMLElement, pageH: number): { starts: n
 export function ResumePreview({
   content,
   design,
-  highlightSection
+  highlightSection,
+  preserveOrder = false
 }: {
   content: ResumeContent;
   design: ResumeDesignSettings;
   highlightSection?: SectionKey | null;
+  preserveOrder?: boolean;
 }) {
   const { locale } = useLanguage();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -489,7 +492,7 @@ export function ResumePreview({
     <div>
       {/* 높이 측정·블록 위치 계산용 숨김 시트(세로 패딩 없음 — 패딩은 각 페이지가 준다) */}
       <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: A4_W, visibility: "hidden" }}>
-        <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad />
+        <ResumeSheet innerRef={sheetRef} content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad preserveOrder={preserveOrder} />
       </div>
 
       {/* 실제 A4 페이지 — 각 페이지 위·아래 동일 패딩, 넘치는 블록은 다음 장으로. */}
@@ -517,7 +520,7 @@ export function ResumePreview({
                     transformOrigin: "top left"
                   }}
                 >
-                  <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad />
+                  <ResumeSheet content={content} design={design} highlightSection={highlightSection} lang={locale} noVerticalPad preserveOrder={preserveOrder} />
                 </div>
               </div>
             </div>

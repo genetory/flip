@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowClockwise, ArrowRight, Check, Lock } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
+import { fetchDocsSummary } from "../../lib/launch/feedback-client";
+import { useLanguage } from "../i18n/LanguageProvider";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
@@ -22,25 +25,27 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
   const [ready, setReady] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  // 진행 상태 로드/재동기화 — 자동수집(이력서·자소서)이 늦게 반영될 때 수동 새로고침용.
+  const load = async () => {
+    setSyncing(true);
+    try {
+      const [p, r, c] = await Promise.all([fetchProgress(), fetchResumeData().catch(() => ({ data: {} })), fetchCoverData().catch(() => ({ data: {} }))]);
+      setProg(p);
+      setResume(r.data ?? {});
+      setCover(c.data ?? {});
+    } catch {
+      // 조회 실패 시 빈 상태 유지
+    } finally {
+      setReady(true);
+      setSyncing(false);
+    }
+  };
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const [p, r, c] = await Promise.all([fetchProgress(), fetchResumeData().catch(() => ({ data: {} })), fetchCoverData().catch(() => ({ data: {} }))]);
-        if (!alive) return;
-        setProg(p);
-        setResume(r.data ?? {});
-        setCover(c.data ?? {});
-      } catch {
-        // 조회 실패 시 빈 상태
-      } finally {
-        if (alive) setReady(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const eduN = resume.educations?.length ?? 0;
@@ -72,7 +77,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
 
     // 경력/활동 결과 아이템 공통 렌더러.
     const renderExpItem = (x: ResumeExperience, i: number) => (
-      <li key={i} className="rounded-lg bg-white/70 p-2.5">
+      <li key={i} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
         <p className="text-[13px] font-bold text-[#191F28]">{[x.title, x.org].filter(Boolean).join(" · ")}{x.period ? <span className="font-normal text-[#8B95A1]"> ({x.period})</span> : null}</p>
         {x.bullets?.length ? (
           <ul className="mt-1 space-y-0.5">
@@ -121,7 +126,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             {prog.selectedJobs!.map((role) => {
               const job = RECOMMENDED_JOBS.find((x) => x.role === role);
               return (
-                <li key={role} className="rounded-lg bg-white/70 p-2.5">
+                <li key={role} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
                   <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
                   {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                 </li>
@@ -137,7 +142,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <p className="text-[13.5px] font-bold text-[#191F28]">{t("선정 직무 정보", "Selected job info", "所选职位信息", "Thông tin công việc đã chọn", "選んだ職務の情報", "Info pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${prog.materials!.length}개`, `${prog.materials!.length}`, `${prog.materials!.length} 条`, `${prog.materials!.length}`, `${prog.materials!.length}件`, `${prog.materials!.length}`)}</span> {t("정리", "organized", "整理", "đã sắp xếp", "整理", "dirapikan")}</p>
           <ul className="mt-2 space-y-1.5">
             {prog.materials!.map((m, i) => (
-              <li key={i} className="flex gap-1.5 break-keep rounded-lg bg-white/70 px-2.5 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">•</span>{m}</li>
+              <li key={i} className="flex gap-1.5 break-keep rounded-xl border border-[#EEF1F5] bg-white px-3 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#3A6B00]">•</span>{m}</li>
             ))}
           </ul>
         </ResultCard>
@@ -197,7 +202,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keterampilan")} <span className="text-[#0B46E8]">{t(`${skillN}개`, `${skillN}`, `${skillN} 项`, `${skillN}`, `${skillN}件`, `${skillN}`)}</span></p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {resume.skills!.map((s, i) => (
-              <span key={i} className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
+              <span key={i} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11.5px] font-semibold text-[#0B46E8]">{s}</span>
             ))}
           </div>
         </ResultCard>
@@ -237,50 +242,18 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
             ? t("직무 면접", "Job interview", "职务面试", "Phỏng vấn công việc", "職務面接", "Wawancara pekerjaan")
             : t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya");
       return (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+        <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 연습 완료`, `${label} practice done`, `${label} 练习完成`, `Đã luyện tập ${label}`, `${label} 練習完了`, `Latihan ${label} selesai`)}</p>
-            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
+            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
           </div>
           <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">{t("면접관과 실전처럼 주고받으며 연습을 마쳤어요. 필요하면 다시 연습해봐요.", "You practiced a realistic back-and-forth with the interviewer. Practice again anytime you need.", "你与面试官进行了实战般的问答练习。需要的话可以再练习。", "Bạn đã luyện tập hỏi đáp thực tế với người phỏng vấn. Cần thì hãy luyện lại nhé.", "面接官と実践のようにやり取りしながら練習を終えました。必要ならまた練習してみましょう。", "Anda berlatih tanya-jawab layaknya nyata dengan pewawancara. Latih lagi kapan pun perlu.")}</p>
         </div>
       );
     }
-    // 이력서 + 자기소개서 최종 점검 — 요약을 보여주고, 고칠 곳은 각각 week2/week3 로 이동해 수정.
+    // 이력서 + 자기소개서 최종 점검 — 내용을 AI로 요약해 보여주고, 고칠 곳은 week2/week3 에서 수정.
     if (kind === "both" && (resumeReady || coverReady)) {
-      const filledCover = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
-      return (
-        <div className="mt-3 space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-          {resumeReady ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold text-[#191F28]">📄 {t(`이력서 — 경력 ${expN} · 스킬 ${skillN}`, `Resume — Experience ${expN} · Skills ${skillN}`, `简历 — 经历 ${expN} · 技能 ${skillN}`, `CV — Kinh nghiệm ${expN} · Kỹ năng ${skillN}`, `履歴書 — 職歴 ${expN} · スキル ${skillN}`, `Resume — Pengalaman ${expN} · Keterampilan ${skillN}`)}</p>
-                <Link href="/career-launch/week/2" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("이력서 수정하기", "Edit resume", "编辑简历", "Chỉnh sửa CV", "履歴書を修正", "Edit resume")}</Link>
-              </div>
-              {expN > 0 ? (
-                <ul className="mt-1.5 space-y-1">
-                  {resume.experiences!.map((x, i) => (
-                    <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{[x.title, x.org].filter(Boolean).join(" · ")}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          ) : null}
-          {coverReady ? (
-            <div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold text-[#191F28]">📝 {t(`자기소개서 — 문항 ${coverN}개`, `Cover letter — ${coverN} questions`, `自我介绍书 — ${coverN} 道题`, `Thư giới thiệu bản thân — ${coverN} câu hỏi`, `自己紹介書 — 設問 ${coverN}件`, `Surat lamaran — ${coverN} pertanyaan`)}{cover.company ? ` · ${cover.company}` : ""}</p>
-                <Link href="/career-launch/week/3" className="shrink-0 text-[12.5px] font-bold text-[#0B46E8] underline">{t("자기소개서 수정하기", "Edit cover letter", "编辑自我介绍书", "Chỉnh sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran")}</Link>
-              </div>
-              <ul className="mt-1.5 space-y-1">
-                {filledCover.map((it, i) => (
-                  <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]"><span className="text-[#3A6B00]">•</span>{it.question}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      );
+      return <FinalDocsSummary resumeReady={resumeReady} coverReady={coverReady} />;
     }
     return null;
   };
@@ -294,6 +267,16 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
           <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${steps.length ? (doneN / steps.length) * 100 : 0}%` }} />
         </div>
         <span className="shrink-0 text-[12px] font-bold text-[#4E5968]">{t(`${doneN}/${steps.length} 완료`, `${doneN}/${steps.length} done`, `${doneN}/${steps.length} 完成`, `${doneN}/${steps.length} hoàn thành`, `${doneN}/${steps.length} 完了`, `${doneN}/${steps.length} selesai`)}</span>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={syncing}
+          title={t("최신 상태로 동기화", "Sync latest", "同步最新", "Đồng bộ mới nhất", "最新に同期", "Sinkron terbaru")}
+          aria-label={t("동기화", "Sync", "同步", "Đồng bộ", "同期", "Sinkron")}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-50"
+        >
+          <ArrowClockwise className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} weight="bold" />
+        </button>
       </div>
     <ol className="space-y-1">
       {steps.map((s, i) => {
@@ -312,7 +295,7 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                 disabled={!toggleable}
                 onClick={toggleable ? () => toggle(s.id) : undefined}
                 aria-label={toggleable ? (done ? t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai") : t("완료로 표시", "Mark as complete", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")) : undefined}
-                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
+                className={`flex h-10 w-10 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
                   done
                     ? "bg-[#0B46E8] text-white"
                     : locked
@@ -320,20 +303,20 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                       : "border-2 border-[#D7DCE3] bg-white text-[#4E5968]"
                 } ${toggleable ? "hover:border-[#0B46E8] hover:text-[#0B46E8]" : "cursor-default"}`}
               >
-                {done ? "✓" : locked ? "🔒" : i + 1}
+                {done ? <Check className="h-[15px] w-[15px]" weight="bold" aria-hidden /> : locked ? <Lock className="h-3.5 w-3.5" weight="fill" aria-hidden /> : i + 1}
               </button>
               {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
             </div>
-            <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
+            <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-9"}`}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#191F28]"}`}>
+                <p className={`break-keep text-[17px] font-black leading-[1.25] tracking-[-0.02em] md:text-[18.5px] ${done ? "text-[#8B95A1]" : locked ? "text-[#B0B8C1]" : "text-[#0B1227]"}`}>
                   {stepText(s.id, "title")}
                 </p>
                 {!done && !locked && s.minutes ? (
                   <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#8B95A1]">⏱ {t(`약 ${s.minutes}분`, `about ${s.minutes} min`, `约 ${s.minutes} 分钟`, `khoảng ${s.minutes} phút`, `約 ${s.minutes}分`, `sekitar ${s.minutes} mnt`)}</span>
                 ) : null}
               </div>
-              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
+              <p className={`mt-2 max-w-[560px] break-keep text-[14px] leading-[1.8] ${done ? "text-[#B0B8C1]" : locked ? "text-[#C9CDD2]" : "text-[#4E5968]"}`}>
                 {stepText(s.id, "desc")
                   .split(/(?<=\.)\s+/)
                   .filter(Boolean)
@@ -344,18 +327,18 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                   ))}
               </p>
               {locked ? (
-                <p className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#B0B8C1]">🔒 {t("이전 단계를 완료하면 시작할 수 있어요", "Finish the previous step to start this one.", "完成上一步后即可开始。", "Hoàn thành bước trước để bắt đầu bước này.", "前のステップを完了すると始められます。", "Selesaikan langkah sebelumnya untuk memulai.")}</p>
+                <p className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-medium text-[#B0B8C1]"><Lock className="h-3.5 w-3.5" weight="fill" aria-hidden /> {t("이전 단계를 완료하면 시작할 수 있어요", "Finish the previous step to start this one.", "完成上一步后即可开始。", "Hoàn thành bước trước để bắt đầu bước này.", "前のステップを完了すると始められます。", "Selesaikan langkah sebelumnya untuk memulai.")}</p>
               ) : panel ? (
                 panel
               ) : done ? (
-                <div className="mt-2 flex items-center gap-2 text-[12.5px]">
-                  <span className="font-bold text-emerald-600">✓ {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-[#E7F7EF] px-2.5 py-1.5 text-[12px] font-bold text-[#0A9B59]">✓ {t("완료", "Done", "已完成", "Hoàn thành", "完了", "Selesai")}</span>
                   {toggleable ? (
-                    <button type="button" onClick={() => toggle(s.id)} className="font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">
+                    <button type="button" onClick={() => toggle(s.id)} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]">
                       {t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai")}
                     </button>
                   ) : s.action ? (
-                    <Link href={s.action.href} className="font-semibold text-[#0B46E8] underline">
+                    <Link href={s.action.href} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">
                       {t("다시 하기", "Do again", "重新做", "Làm lại", "もう一度する", "Ulangi")}
                     </Link>
                   ) : null}
@@ -363,9 +346,9 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
               ) : s.action ? (
                 <Link
                   href={s.action.href}
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                  className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
-                  {actionLabel(s.action.label)} <span aria-hidden>→</span>
+                  {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
                 </Link>
               ) : null}
             </div>
@@ -377,16 +360,74 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
   );
 }
 
+// 최종 점검 — 이력서·자소서 내용을 AI로 각각 따로 요약해 자동 표시(무료·캐시).
+function FinalDocsSummary({ resumeReady, coverReady }: { resumeReady: boolean; coverReady: boolean }) {
+  const t = useLaunchT();
+  const { locale } = useLanguage();
+  const [state, setState] = useState<"loading" | "done" | "error">("loading");
+  const [resumeSum, setResumeSum] = useState("");
+  const [coverSum, setCoverSum] = useState("");
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    let alive = true;
+    void (async () => {
+      try {
+        const r = await fetchDocsSummary({ generate: true, locale }); // 무료 — 자동 생성/캐시
+        if (!alive) return;
+        setResumeSum(r.resume ?? "");
+        setCoverSum(r.cover ?? "");
+        setState("done");
+      } catch {
+        if (alive) setState("error");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const block = (emoji: string, title: string, summary: string, editHref: string, editLabel: string) => (
+    <div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] font-bold text-[#191F28]">{emoji} {title}</p>
+        <Link href={editHref} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{editLabel}</Link>
+      </div>
+      {state === "loading" ? (
+        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약하는 중…", "Summarizing…", "摘要中…", "Đang tóm tắt…", "要約中…", "Meringkas…")}</p>
+      ) : summary.trim() ? (
+        <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-[1.75] text-[#4E5968]">{summary}</p>
+      ) : (
+        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약을 불러오지 못했어요.", "Couldn't load the summary.", "无法加载摘要。", "Không thể tải tóm tắt.", "要約を読み込めませんでした。", "Tidak dapat memuat ringkasan.")}</p>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="mt-3 space-y-3.5 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
+      {resumeReady
+        ? block("📄", t("이력서 요약", "Resume summary", "简历摘要", "Tóm tắt CV", "履歴書の要約", "Ringkasan resume"), resumeSum, "/career-launch/week/2", t("이력서 수정", "Edit resume", "编辑简历", "Sửa CV", "履歴書を修正", "Edit resume"))
+        : null}
+      {coverReady
+        ? block("📝", t("자기소개서 요약", "Cover letter summary", "自我介绍书摘要", "Tóm tắt thư giới thiệu", "自己紹介書の要約", "Ringkasan surat lamaran"), coverSum, "/career-launch/week/3", t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran"))
+        : null}
+    </div>
+  );
+}
+
 // 결과 카드 — 진단/직무/이력서 섹션 공통 래퍼. 우상단에 이어하기 + 다시하기 링크.
 function ResultCard({ continueHref, continueLabel, restartHref, children }: { continueHref: string; continueLabel: string; restartHref: string; children: React.ReactNode }) {
   const t = useLaunchT();
   return (
-    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
+    <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">{children}</div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Link href={continueHref} className="text-[12.5px] font-bold text-[#0B46E8] underline">{continueLabel}</Link>
-          <Link href={restartHref} className="text-[12px] font-semibold text-[#8B95A1] underline hover:text-[#4E5968]">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link href={continueHref} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-center text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{continueLabel}</Link>
+          <Link href={restartHref} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-center text-[12px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]">{t("다시하기", "Start over", "重新开始", "Làm lại", "やり直す", "Mulai ulang")}</Link>
         </div>
       </div>
     </div>

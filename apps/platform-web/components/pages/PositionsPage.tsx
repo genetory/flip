@@ -87,9 +87,13 @@ function formatEligibleVisasForList(codes: string[], locale: PlatformLocale) {
     locale === "ko" ? "무관" : locale === "zh-CN" ? "不限" : locale === "vi" ? "Không giới hạn" : locale === "ja" ? "制限なし" : locale === "id" ? "Tidak ada batasan" : "No restriction";
   if (codes.length === 0) return noRestriction;
   const set = new Set(codes);
+  // NO_VISA_REQUIRED 센티넬은 '무관'으로(원시 코드 노출 방지).
+  if (set.has("NO_VISA_REQUIRED")) return noRestriction;
   const isAllSelected = ALL_VISA_CODES.every((code) => set.has(code));
   if (isAllSelected) return noRestriction;
-  return codes.join(", ");
+  // FOREIGNER_FRIENDLY 는 비자 종류가 아니므로 목록에서 제외.
+  const shown = codes.filter((c) => c !== "FOREIGNER_FRIENDLY");
+  return shown.length ? shown.join(", ") : noRestriction;
 }
 
 function mapVisaTypeToCode(visaType: string | null | undefined) {
@@ -110,7 +114,7 @@ function mapVisaTypeToCode(visaType: string | null | undefined) {
 function companySizeLabel(value: string, locale: PlatformLocale) {
   const pick = (ko: string, en: string, zh: string, vi: string, ja: string = en, id: string = en) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
-  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10", "10名以下", "Maksimal 10");
+  if (value === "SIZE_1_10") return pick("1~10인", "1–10", "1~10人", "1–10", "1~10名", "1–10");
   if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30", "30名以下", "Maksimal 30");
   if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50", "50名以下", "Maksimal 50");
   if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100", "100名以上", "100+");
@@ -784,7 +788,7 @@ export function PositionsPage() {
                     {premiumBanners.map((banner) => (
                       <Link
                         key={banner.id}
-                        href={`/positions/${banner.positionId}`}
+                        href={`/talent/jobs/${banner.positionId}`}
                         className="block w-[calc(160px*16/9)] shrink-0 rounded-xl border border-border/60 bg-card p-4"
                       >
                         <div className="h-[160px] overflow-hidden rounded-lg bg-muted">
@@ -1397,7 +1401,7 @@ export const PositionRow = ({
             />
           )
           : copy.externalLink;
-  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/talent/jobs/${p.id}`;
   return (
     <article className={`group relative rounded-xl border bg-card ${selected ? "border-primary ring-2 ring-inset ring-primary" : "border-border/60"} ${compact ? "p-2.5" : "p-3 md:p-4"}`}>
       {onSelect ? (
@@ -1423,7 +1427,7 @@ export const PositionRow = ({
         />
       )}
       <div className={`absolute z-20 text-right ${compact ? "right-2.5 top-2" : "right-3 top-2.5 md:right-4 md:top-3"}`}>
-        <p className={`${compact ? "text-[10px]" : "text-[11px]"} text-muted-foreground`}>{formatPostedDate(p, locale)}</p>
+        <p suppressHydrationWarning className={`${compact ? "text-[10px]" : "text-[11px]"} text-muted-foreground`}>{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
           <p className={`mt-0.5 font-medium text-rose-600 ${compact ? "text-[10px]" : "text-[11px]"}`}>
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}
@@ -1566,7 +1570,7 @@ export const PositionRow = ({
               )
             ) : (
               <Button variant="dark" size="sm" asChild>
-                <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+                <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
               </Button>
             )}
           </div>
@@ -1633,7 +1637,7 @@ export const PositionGridCard = ({
             />
           )
           : copy.externalLink;
-  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/positions/${p.id}`;
+  const detailHref = externalGoHref(p.id, p.sourceKind, p.sourceUrl) ?? `/talent/jobs/${p.id}`;
   return (
     <article className="group relative flex h-full flex-col rounded-xl border border-border/60 bg-card p-4">
       {isExternalSource(p.sourceKind) && p.sourceUrl ? (
@@ -1652,7 +1656,7 @@ export const PositionGridCard = ({
         />
       )}
       <div className="mb-2 flex items-center gap-2 text-[11px]">
-        <p className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
+        <p suppressHydrationWarning className="text-muted-foreground">{formatPostedDate(p, locale)}</p>
         {p.sourceDeadlineDate ? (
           <p className="font-medium text-rose-600">
             {formatDeadlineDday(p.sourceDeadlineDate, locale)}
@@ -1736,7 +1740,7 @@ export const PositionGridCard = ({
           </Button>
         ) : (
           <Button variant="dark" className="h-10 flex-1 text-sm" asChild>
-            <Link href={`/positions/${p.id}`}>{copy.apply}</Link>
+            <Link href={`/talent/jobs/${p.id}`}>{copy.apply}</Link>
           </Button>
         )}
       </div>

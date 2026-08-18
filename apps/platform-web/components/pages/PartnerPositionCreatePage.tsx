@@ -105,11 +105,11 @@ function RequiredMark() {
   return <span className="ml-1 text-red-500">*</span>;
 }
 
-async function readFileAsDataUrl(file: File) {
+async function readFileAsDataUrl(file: File, readFailed: string) {
   return await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("썸네일 파일을 읽지 못했습니다."));
+    reader.onerror = () => reject(new Error(readFailed));
     reader.readAsDataURL(file);
   });
 }
@@ -128,7 +128,7 @@ async function convertImageFileToWebpDataUrl(
   file: File,
   readFailed: string
 ) {
-  const originalDataUrl = await readFileAsDataUrl(file);
+  const originalDataUrl = await readFileAsDataUrl(file, readFailed);
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -419,7 +419,7 @@ export function PartnerPositionCreatePage({
               ? t("수정사항이 저장되었습니다.", "Changes saved.", "修改已保存。", "Đã lưu thay đổi.", "変更が保存されました。", "Perubahan disimpan.")
               : t("수정사항이 저장되어 바로 반영되었습니다.", "Changes saved and published right away.", "修改已保存并立即生效。", "Các thay đổi đã được lưu và áp dụng ngay.", "変更が保存され、すぐに反映されました。", "Perubahan disimpan dan langsung diterapkan.")
           );
-          router.push(`/positions/${encodeURIComponent(positionId)}`);
+          router.push(`/partner/positions/${encodeURIComponent(positionId)}`);
         }
       } else {
         const created = await createMyPartnerPosition(payload);
@@ -431,7 +431,7 @@ export function PartnerPositionCreatePage({
               ? t("포지션이 즉시 게시되었습니다.", "Position published.", "职位已立即发布。", "Vị trí đã được đăng ngay.", "ポジションが即時公開されました。", "Posisi langsung diterbitkan.")
               : t("포지션이 등록되어 바로 게시되었습니다.", "Position created and published right away.", "职位已创建并立即发布。", "Vị trí đã được tạo và đăng ngay.", "ポジションが登録され、すぐに公開されました。", "Posisi dibuat dan langsung diterbitkan.")
           );
-          router.push(`/positions/${encodeURIComponent(created.id)}`);
+          router.push(`/partner/positions/${encodeURIComponent(created.id)}`);
         }
       }
       router.refresh();
@@ -477,7 +477,7 @@ export function PartnerPositionCreatePage({
       let failedCount = 0;
       for (const file of selected.slice(0, remain)) {
         try {
-          let data = await readFileAsDataUrl(file);
+          let data = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."));
           if (estimateDataUrlBytes(data) > 5 * 1024 * 1024) {
             data = await convertImageFileToWebpDataUrl(
               file,
@@ -491,7 +491,7 @@ export function PartnerPositionCreatePage({
           converted.push(data);
         } catch {
           try {
-            const fallback = await readFileAsDataUrl(file);
+            const fallback = await readFileAsDataUrl(file, t("파일을 읽지 못했습니다.", "Failed to read file.", "无法读取文件。", "Không thể đọc tệp.", "ファイルを読み込めませんでした。", "Gagal membaca file."));
             if (fallback && estimateDataUrlBytes(fallback) <= 5 * 1024 * 1024) {
               converted.push(fallback);
             } else {
@@ -512,7 +512,9 @@ export function PartnerPositionCreatePage({
             "이미지 변환에 실패했어요. 다른 이미지로 다시 시도해주세요.",
             "Image conversion failed. Please try with a different image.",
             "图片转换失败。请尝试使用其他图片。",
-            "Chuyển đổi hình ảnh thất bại. Vui lòng thử với hình ảnh khác."
+            "Chuyển đổi hình ảnh thất bại. Vui lòng thử với hình ảnh khác.",
+            "画像の変換に失敗しました。別の画像でもう一度お試しください。",
+            "Konversi gambar gagal. Silakan coba dengan gambar lain."
           )
         );
       } else if (failedCount > 0) {
@@ -521,7 +523,9 @@ export function PartnerPositionCreatePage({
             "일부 이미지는 변환되지 않아 제외되었어요.",
             "Some images could not be converted and were skipped.",
             "部分图片未能转换已被跳过。",
-            "Một số hình ảnh không thể chuyển đổi và đã bị bỏ qua."
+            "Một số hình ảnh không thể chuyển đổi và đã bị bỏ qua.",
+            "一部の画像は変換できず除外されました。",
+            "Beberapa gambar tidak dapat dikonversi dan dilewati."
           )
         );
       }
@@ -555,7 +559,7 @@ export function PartnerPositionCreatePage({
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">{t("파트너회원·운영자만 포지션을 생성할 수 있습니다.", "Only partner or operator accounts can create positions.", "只有合作伙伴或运营账户可以创建职位。", "Chỉ tài khoản đối tác hoặc vận hành mới có thể tạo vị trí.", "パートナー会員・運営者のみポジションを作成できます。", "Hanya akun mitra atau operator yang dapat membuat posisi.")}</p>
               <Button variant="outline" asChild>
-                <Link href="/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
+                <Link href="/partner/positions">{t("포지션 목록으로", "Go to positions", "前往职位列表", "Đi đến danh sách vị trí", "ポジション一覧へ", "Ke daftar posisi")}</Link>
               </Button>
             </div>
           ) : mode === "edit" && isLoadingPosition ? (

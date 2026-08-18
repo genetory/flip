@@ -25,21 +25,37 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return data;
 }
 
-// 학생: 주차(1~3) 자동 코치 피드백 — 그 주차 결과물 기반으로 자동 생성/갱신. 결과물 없으면 null.
-export async function fetchWeekFeedback(week: number): Promise<string | null> {
+// 학생: 주차(1~3) 코치 피드백. generate=false 면 캐시만 조회(생성·과금 없음, 없으면 needsGenerate).
+// generate=true 면 실제 생성(AI 포인트 차감). 결과물 없으면 text=null.
+export async function fetchWeekFeedback(week: number, generate = false): Promise<{ text: string | null; needsGenerate: boolean }> {
   const data = await req("/career-launch/week-feedback", {
     method: "POST",
     headers: authHeaders(true),
-    body: JSON.stringify({ week })
+    body: JSON.stringify({ week, generate })
   });
-  return typeof data.feedback === "string" ? data.feedback : null;
+  if (generate && typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  return { text: typeof data.feedback === "string" ? data.feedback : null, needsGenerate: data.needsGenerate === true };
 }
 
-// 학생: 완주 최종 피드백 — 이력서+자소서+면접 결과 종합. 완주 전이면 text=null.
-// 생성은 1회 후 저장·재사용(토큰 절약). 결과물이 바뀌면 stale=true(다시 받기 버튼). force=true면 강제 재생성.
-export async function fetchFinalFeedback(force = false): Promise<{ text: string | null; stale: boolean }> {
-  const data = await req("/career-launch/final-feedback", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force }) });
-  return { text: typeof data.feedback === "string" ? data.feedback : null, stale: data.stale === true };
+// 학생: 이력서·자소서 '내용' AI 요약(최종 점검 섹션) — 각각 따로. 무료(포인트 없음).
+export async function fetchDocsSummary(opts: { force?: boolean; generate?: boolean; locale?: string } = {}): Promise<{ resume: string | null; cover: string | null; stale: boolean; needsGenerate: boolean }> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/docs-summary", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate, locale: opts.locale }) });
+  return {
+    resume: typeof data.resumeSummary === "string" ? data.resumeSummary : null,
+    cover: typeof data.coverSummary === "string" ? data.coverSummary : null,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true
+  };
+}
+
+// 학생: 완주 최종 피드백 — 이력서+자소서+면접 종합. generate=false 면 캐시만(없으면 needsGenerate).
+// generate=true 면 생성(AI 포인트 차감). 결과물이 바뀌면 stale=true. force=true면 강제 재생성.
+export async function fetchFinalFeedback(opts: { force?: boolean; generate?: boolean } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/final-feedback", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  if (generate && typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  return { text: typeof data.feedback === "string" ? data.feedback : null, stale: data.stale === true, needsGenerate: data.needsGenerate === true };
 }
 
 // 학생: 내게 온 피드백 조회

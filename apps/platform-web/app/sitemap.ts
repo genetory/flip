@@ -20,7 +20,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:
 
 const STATIC_PATHS: Array<{ path: string; priority: number; changeFrequency: "daily" | "weekly" | "monthly" | "yearly" }> = [
   { path: "/", priority: 1.0, changeFrequency: "daily" },
-  { path: "/positions", priority: 0.9, changeFrequency: "daily" },
+  { path: "/talent/jobs", priority: 0.9, changeFrequency: "daily" },
   { path: "/matching-probability", priority: 0.7, changeFrequency: "weekly" },
   { path: "/community", priority: 0.7, changeFrequency: "daily" },
   { path: "/resources", priority: 0.7, changeFrequency: "weekly" },
@@ -92,7 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const positions = await fetchAllPublicPositionIds();
     positionEntries = positions.map((position) => ({
-      url: `${siteUrl}/positions/${position.id}`,
+      url: `${siteUrl}/talent/jobs/${position.id}`,
       lastModified: position.updatedAt ? new Date(position.updatedAt) : now,
       changeFrequency: "weekly",
       priority: 0.8

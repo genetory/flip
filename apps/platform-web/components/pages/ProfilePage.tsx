@@ -31,6 +31,7 @@ import {
 } from "../../lib/member-profile-client";
 import { createDraftResume } from "../../lib/resume-maker-client";
 import { getMyCoverLetters, type CoverLetter } from "../../lib/cover-letter-client";
+import { listMyConnections, respondConnection, setTalentPool, type MyConnection } from "../../lib/candidate-connect-client";
 import { getPublicPositionStatusBadge } from "../../lib/position-status-meta";
 import { partnerIndustryLabel } from "../../lib/partner-industry-labels";
 import type { ApplicationStatus } from "../../lib/status-labels";
@@ -157,7 +158,7 @@ export function ProfilePage() {
   const [partnerOrg, setPartnerOrg] = useState<MyPartnerOrganization | null>(null);
   const [partnerOrgChecked, setPartnerOrgChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "positions" | "notifications">("info");
-  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites">("info");
+  const [studentTab, setStudentTab] = useState<"info" | "resume" | "applied" | "favorites" | "connections">("info");
   const [postedPositions, setPostedPositions] = useState<PublicPositionListItem[]>([]);
   const [partnerPositions, setPartnerPositions] = useState<PartnerPosition[]>([]);
   const [positionsError, setPositionsError] = useState<string | null>(null);
@@ -175,7 +176,7 @@ export function ProfilePage() {
     params.set("tab", tab);
     resumeRouter.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-  const selectStudentTab = (tab: "info" | "resume" | "applied" | "favorites") => {
+  const selectStudentTab = (tab: "info" | "resume" | "applied" | "favorites" | "connections") => {
     setStudentTab(tab);
     writeTabParam(tab);
   };
@@ -192,7 +193,14 @@ export function ProfilePage() {
 
   async function handleWithdraw(app: MyApplication) {
     const confirmed = window.confirm(
-      `'${app.positionTitle}' 지원을 철회하시겠습니까? 철회 후에는 다시 지원하기 어려울 수 있어요.`
+      tr(
+        `'${app.positionTitle}' 지원을 철회하시겠습니까? 철회 후에는 다시 지원하기 어려울 수 있어요.`,
+        `Withdraw your application to '${app.positionTitle}'? You may not be able to apply again.`,
+        `确定撤回对“${app.positionTitle}”的申请吗？撤回后可能难以再次申请。`,
+        `Rút đơn ứng tuyển vào '${app.positionTitle}'? Bạn có thể khó ứng tuyển lại.`,
+        `'${app.positionTitle}'への応募を取り下げますか？取り下げ後は再応募が難しい場合があります。`,
+        `Tarik lamaran Anda untuk '${app.positionTitle}'? Anda mungkin tidak bisa melamar lagi.`
+      )
     );
     if (!confirmed) return;
     setWithdrawingId(app.id);
@@ -202,7 +210,7 @@ export function ProfilePage() {
         prev.map((a) => (a.id === app.id ? { ...a, status: "WITHDRAWN" as const } : a))
       );
     } catch (err) {
-      window.alert(err instanceof Error ? err.message : "철회에 실패했습니다.");
+      window.alert(err instanceof Error ? err.message : tr("철회에 실패했습니다.", "Failed to withdraw.", "撤回失败。", "Không thể rút đơn.", "取り下げに失敗しました。", "Gagal menarik lamaran."));
     } finally {
       setWithdrawingId(null);
     }
@@ -541,7 +549,7 @@ export function ProfilePage() {
 
     if (
       tabParam === "resume" || tabParam === "applied" || tabParam === "favorites" ||
-      tabParam === "info"
+      tabParam === "connections" || tabParam === "info"
     ) {
       setStudentTab(tabParam);
     } else {
@@ -1002,7 +1010,9 @@ export function ProfilePage() {
                               "파트너 정보를 등록하거나 초대 코드로 합류하면 정보·포지션·알림을 관리할 수 있어요.",
                               "Register your partner info or join via invite code to manage details, positions, and notifications.",
                               "注册合作伙伴信息或通过邀请码加入后，即可管理信息、职位和通知。",
-                              "Đăng ký thông tin đối tác hoặc tham gia bằng mã mời để quản lý thông tin, vị trí và thông báo."
+                              "Đăng ký thông tin đối tác hoặc tham gia bằng mã mời để quản lý thông tin, vị trí và thông báo.",
+                              "パートナー情報を登録するか、招待コードで参加すると、情報・ポジション・通知を管理できます。",
+                              "Daftarkan informasi mitra atau bergabung dengan kode undangan untuk mengelola informasi, posisi, dan notifikasi."
                             )}
                           </p>
                         </div>
@@ -1358,6 +1368,15 @@ export function ProfilePage() {
                       >
                         {tr("즐겨찾기한 포지션", "Favorite positions", "收藏的职位", "Vị trí đã lưu", "お気に入りのポジション", "Posisi favorit")}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => selectStudentTab("connections")}
+                        className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors ${
+                          studentTab === "connections" ? "text-[#0B46E8] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[#0B46E8]" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {tr("기업 연결", "Company connections", "企业连接", "Kết nối doanh nghiệp", "企業とのつながり", "Koneksi perusahaan")}
+                      </button>
                     </div>
                     <div className="space-y-5 p-5 md:p-6">
 
@@ -1542,6 +1561,8 @@ export function ProfilePage() {
                           </div>
                         )}
                       </div>
+                    ) : studentTab === "connections" ? (
+                      <StudentConnectionsTab tr={tr} resumes={myResumes} />
                     ) : (
                       <div className="space-y-3">
                         <div className="flex items-center justify-between gap-3">
@@ -1577,7 +1598,7 @@ export function ProfilePage() {
                                     : tr("아직 즐겨찾기한 포지션이 없습니다.", "No favorite positions yet.", "尚未收藏任何职位。", "Chưa có vị trí yêu thích nào.", "まだお気に入りのポジションはありません。", "Belum ada posisi favorit.")}
                                 </p>
                                 <Link
-                                  href="/positions"
+                                  href="/talent/jobs"
                                   className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#0A3FCF]"
                                 >
                                   {tr("포지션 둘러보기", "Browse positions", "浏览职位", "Xem vị trí", "ポジションを見る", "Lihat posisi")}
@@ -1770,6 +1791,147 @@ export function ProfilePage() {
           void getMyApplications().then(setApplications).catch(() => {});
         }}
       />
+    </div>
+  );
+}
+
+// 학생 프로필 '기업 연결' 탭 — 인재풀 등록(동의) 토글 + 받은 연결 요청 수락/거절.
+function StudentConnectionsTab({
+  tr,
+  resumes
+}: {
+  tr: (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string;
+  resumes: Resume[];
+}) {
+  const primary = resumes.find((r) => r.isPrimary) ?? resumes[0];
+  const initialOptIn = Boolean((primary?.content as { poolOptIn?: unknown } | undefined)?.poolOptIn);
+  const [optIn, setOptIn] = useState(initialOptIn);
+  const [poolBusy, setPoolBusy] = useState(false);
+  const [conns, setConns] = useState<MyConnection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    void listMyConnections()
+      .then((c) => {
+        if (alive) setConns(c);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const toggle = async () => {
+    if (!primary) return;
+    setPoolBusy(true);
+    setErr("");
+    const next = !optIn;
+    try {
+      await setTalentPool(next);
+      setOptIn(next);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : tr("변경에 실패했어요.", "Failed to update.", "更新失败。", "Cập nhật thất bại.", "更新に失敗しました。", "Gagal memperbarui."));
+    } finally {
+      setPoolBusy(false);
+    }
+  };
+
+  const respond = async (id: string, action: "accept" | "decline") => {
+    setBusyId(id);
+    try {
+      await respondConnection(id, action);
+      setConns((prev) => prev.map((c) => (c.id === id ? { ...c, status: action === "accept" ? "ACCEPTED" : "DECLINED", respondedAt: new Date().toISOString() } : c)));
+    } catch {
+      // 무시 — 재시도 가능
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 인재풀 등록(동의) */}
+      <div className="rounded-2xl border border-border/60 bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">{tr("인재풀 등록", "Join the talent pool", "加入人才库", "Tham gia nhóm nhân tài", "人材プールに登録", "Gabung talent pool")}</p>
+            <p className="mt-1 break-keep text-[13px] leading-relaxed text-muted-foreground">
+              {tr(
+                "동의하면 대표 이력서가 기업 인재 검색에 노출돼요. 연락처는 내가 연결을 수락할 때만 공개되고, 언제든 끌 수 있어요.",
+                "When on, your primary resume appears in companies' candidate search. Your contact is shared only when you accept a connection, and you can turn this off anytime.",
+                "开启后，你的代表简历将出现在企业人才搜索中。仅在你接受连接时才会公开联系方式，可随时关闭。",
+                "Khi bật, hồ sơ đại diện của bạn xuất hiện trong tìm kiếm ứng viên của doanh nghiệp. Liên hệ chỉ được chia sẻ khi bạn chấp nhận kết nối, và có thể tắt bất cứ lúc nào.",
+                "オンにすると代表履歴書が企業の人材検索に表示されます。連絡先はあなたが接続を承認したときのみ公開され、いつでもオフにできます。",
+                "Saat aktif, resume utama Anda muncul di pencarian kandidat perusahaan. Kontak hanya dibagikan saat Anda menerima koneksi, dan bisa dimatikan kapan saja."
+              )}
+            </p>
+            <p className="mt-1.5 text-[12px] text-muted-foreground">
+              {tr(
+                "이력서와 자기소개서가 어느정도 채워져 있어야 검색 결과에 노출돼요.",
+                "Your resume and cover letter need to be reasonably complete to appear in search results.",
+                "简历和自我介绍需要填写得较为完整，才会出现在搜索结果中。",
+                "Hồ sơ và thư giới thiệu cần được điền tương đối đầy đủ mới xuất hiện trong kết quả tìm kiếm.",
+                "検索結果に表示されるには、履歴書と自己紹介書がある程度埋まっている必要があります。",
+                "Resume dan surat pengantar perlu cukup lengkap agar muncul di hasil pencarian."
+              )}
+            </p>
+            {!primary ? <p className="mt-1.5 text-[12px] font-medium text-amber-600">{tr("대표 이력서가 있어야 등록할 수 있어요.", "You need a primary resume to join.", "需要有代表简历才能加入。", "Bạn cần hồ sơ đại diện để tham gia.", "登録には代表履歴書が必要です。", "Perlu resume utama untuk bergabung.")}</p> : null}
+            {err ? <p className="mt-1.5 text-[12px] text-rose-600">{err}</p> : null}
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={optIn}
+            disabled={!primary || poolBusy}
+            onClick={() => void toggle()}
+            className={`relative mt-0.5 h-7 w-12 flex-none rounded-full transition ${optIn ? "bg-[#0B46E8]" : "bg-[#D7DCE3]"} disabled:opacity-50`}
+          >
+            <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${optIn ? "left-[22px]" : "left-0.5"}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* 받은 연결 요청 */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold text-foreground">{tr("받은 연결 요청", "Connection requests", "收到的连接请求", "Yêu cầu kết nối", "受け取った接続リクエスト", "Permintaan koneksi")}</h3>
+        {loading ? (
+          <p className="py-8 text-center text-[13px] text-muted-foreground">{tr("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+        ) : conns.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/60 bg-white px-5 py-10 text-center">
+            <p className="text-[13px] text-muted-foreground">{tr("아직 받은 연결 요청이 없어요.", "No connection requests yet.", "还没有连接请求。", "Chưa có yêu cầu kết nối.", "まだ接続リクエストはありません。", "Belum ada permintaan koneksi.")}</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/50 bg-white">
+            {conns.map((c) => (
+              <div key={c.id} className="flex flex-col gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold text-foreground">{c.orgName}</p>
+                  {c.message ? <p className="mt-0.5 break-keep text-[13px] text-muted-foreground">“{c.message}”</p> : null}
+                  {c.status === "ACCEPTED" && c.partnerEmail ? <p className="mt-1 text-[12.5px] text-[#0B46E8]">{tr("담당자", "Contact", "负责人", "Người phụ trách", "担当者", "Kontak")}: {c.partnerEmail}</p> : null}
+                </div>
+                <div className="flex flex-none items-center gap-2">
+                  {c.status === "PENDING" ? (
+                    <>
+                      <button type="button" disabled={busyId === c.id} onClick={() => void respond(c.id, "accept")} className="rounded-lg bg-[#0B46E8] px-3.5 py-1.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{tr("수락", "Accept", "接受", "Chấp nhận", "承認", "Terima")}</button>
+                      <button type="button" disabled={busyId === c.id} onClick={() => void respond(c.id, "decline")} className="rounded-lg px-3 py-1.5 text-[13px] font-semibold text-muted-foreground ring-1 ring-border transition hover:text-foreground disabled:opacity-50">{tr("거절", "Decline", "拒绝", "Từ chối", "却下", "Tolak")}</button>
+                    </>
+                  ) : c.status === "ACCEPTED" ? (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-700 ring-1 ring-emerald-200">{tr("수락함", "Accepted", "已接受", "Đã chấp nhận", "承認済み", "Diterima")}</span>
+                  ) : (
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[12px] font-semibold text-gray-500 ring-1 ring-gray-200">{tr("거절함", "Declined", "已拒绝", "Đã từ chối", "却下済み", "Ditolak")}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

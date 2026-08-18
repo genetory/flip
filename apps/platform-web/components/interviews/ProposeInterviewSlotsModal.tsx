@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { readAccessToken } from "../../lib/auth-client";
+import { usePlatformT } from "../../lib/i18n";
 
 type SlotInput = {
   date: string;
@@ -50,6 +51,7 @@ function toIsoString(date: string, time: string) {
 }
 
 export function ProposeInterviewSlotsModal({ open, applicationId, applicantName, positionTitle, onClose, onProposed }: Props) {
+  const t = usePlatformT();
   const [slots, setSlots] = useState<SlotInput[]>([emptySlot(), emptySlot()]);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -102,23 +104,23 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
       const startsAt = toIsoString(s.date, s.startTime);
       const endsAt = toIsoString(s.date, s.endTime);
       if (!startsAt || !endsAt) {
-        setError("모든 일정의 날짜와 시간을 입력해 주세요.");
+        setError(t("모든 일정의 날짜와 시간을 입력해 주세요.", "Please enter the date and time for all slots.", "请输入所有时段的日期和时间。", "Vui lòng nhập ngày và giờ cho tất cả các khung giờ.", "すべての候補の日付と時間を入力してください。", "Harap masukkan tanggal dan waktu untuk semua slot."));
         return;
       }
       // 30분 그리드 확인(안전장치 — 셀렉트로만 입력되면 항상 통과).
       if (timeToMinutes(s.startTime) % 30 !== 0 || timeToMinutes(s.endTime) % 30 !== 0) {
-        setError("면접 시간은 30분 단위로 선택해 주세요.");
+        setError(t("면접 시간은 30분 단위로 선택해 주세요.", "Please choose interview times in 30-minute increments.", "请以30分钟为单位选择面试时间。", "Vui lòng chọn thời gian phỏng vấn theo mốc 30 phút.", "面接時間は30分単位で選択してください。", "Silakan pilih waktu wawancara dalam kelipatan 30 menit."));
         return;
       }
       const startMs = new Date(startsAt).getTime();
       const endMs = new Date(endsAt).getTime();
       if (endMs <= startMs) {
-        setError("종료 시간이 시작 시간보다 늦어야 합니다.");
+        setError(t("종료 시간이 시작 시간보다 늦어야 합니다.", "The end time must be later than the start time.", "结束时间必须晚于开始时间。", "Thời gian kết thúc phải muộn hơn thời gian bắt đầu.", "終了時間は開始時間より後でなければなりません。", "Waktu selesai harus lebih lambat dari waktu mulai."));
         return;
       }
       // 앞선 옵션들과 시간대가 겹치는지 확인(반열림 구간 [start, end)).
       if (ranges.some((r) => startMs < r.end && endMs > r.start)) {
-        setError("제안한 면접 시간이 서로 겹칩니다. 겹치지 않게 조정해 주세요.");
+        setError(t("제안한 면접 시간이 서로 겹칩니다. 겹치지 않게 조정해 주세요.", "The proposed interview times overlap. Please adjust them so they don't overlap.", "提议的面试时间相互重叠。请调整以避免重叠。", "Các khung giờ phỏng vấn đề xuất bị trùng nhau. Vui lòng điều chỉnh để không trùng.", "提案した面接時間が重複しています。重複しないよう調整してください。", "Waktu wawancara yang diusulkan tumpang tindih. Harap sesuaikan agar tidak tumpang tindih."));
         return;
       }
       ranges.push({ start: startMs, end: endMs });
@@ -145,7 +147,7 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
       onProposed?.();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "일정 제안에 실패했습니다.");
+      setError(err instanceof Error ? err.message : t("일정 제안에 실패했습니다.", "Failed to propose the schedule.", "提议日程失败。", "Không thể đề xuất lịch.", "日程の提案に失敗しました。", "Gagal mengusulkan jadwal."));
     } finally {
       setSubmitting(false);
     }
@@ -180,9 +182,9 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
         }}
       >
         <header style={{ marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0B1227", margin: 0 }}>면접 일정 제안</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0B1227", margin: 0 }}>{t("면접 일정 제안", "Propose Interview Schedule", "提议面试日程", "Đề xuất lịch phỏng vấn", "面接日程の提案", "Usulkan Jadwal Wawancara")}</h2>
           <p style={{ fontSize: 13, color: "#6b7280", margin: "4px 0 0" }}>
-            {applicantName ?? "지원자"} · {positionTitle ?? "포지션"}
+            {applicantName ?? t("지원자", "Applicant", "申请人", "Ứng viên", "応募者", "Pelamar")} · {positionTitle ?? t("포지션", "Position", "职位", "Vị trí", "ポジション", "Posisi")}
           </p>
         </header>
 
@@ -193,20 +195,20 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
               style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, background: "#f9fafb" }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#0B1227" }}>옵션 {index + 1}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#0B1227" }}>{t("옵션", "Option", "选项", "Tùy chọn", "オプション", "Opsi")} {index + 1}</span>
                 {slots.length > 1 ? (
                   <button
                     type="button"
                     onClick={() => removeSlot(index)}
                     style={{ fontSize: 12, color: "#dc2626", background: "none", border: "none", cursor: "pointer" }}
                   >
-                    삭제
+                    {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                   </button>
                 ) : null}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 <label style={{ fontSize: 11, color: "#6b7280" }}>
-                  날짜
+                  {t("날짜", "Date", "日期", "Ngày", "日付", "Tanggal")}
                   <input
                     type="date"
                     value={slot.date}
@@ -215,7 +217,7 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
                   />
                 </label>
                 <label style={{ fontSize: 11, color: "#6b7280" }}>
-                  시작
+                  {t("시작", "Start", "开始", "Bắt đầu", "開始", "Mulai")}
                   <select
                     value={slot.startTime}
                     onChange={(e) => changeStart(index, e.target.value)}
@@ -227,7 +229,7 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
                   </select>
                 </label>
                 <label style={{ fontSize: 11, color: "#6b7280" }}>
-                  종료
+                  {t("종료", "End", "结束", "Kết thúc", "終了", "Selesai")}
                   <select
                     value={slot.endTime}
                     onChange={(e) => updateSlot(index, { endTime: e.target.value })}
@@ -240,12 +242,12 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
                 </label>
               </div>
               <label style={{ fontSize: 11, color: "#6b7280", marginTop: 8, display: "block" }}>
-                장소 / 화상회의 링크 (선택)
+                {t("장소 / 화상회의 링크 (선택)", "Location / video call link (optional)", "地点 / 视频会议链接（可选）", "Địa điểm / liên kết cuộc gọi video (tùy chọn)", "場所 / ビデオ通話リンク（任意）", "Lokasi / tautan panggilan video (opsional)")}
                 <input
                   type="text"
                   value={slot.location}
                   onChange={(e) => updateSlot(index, { location: e.target.value })}
-                  placeholder="서울시 강남구 ... 또는 Zoom 링크"
+                  placeholder={t("서울시 강남구 ... 또는 Zoom 링크", "e.g. address or Zoom link", "例如：地址或 Zoom 链接", "vd: địa chỉ hoặc liên kết Zoom", "例：住所または Zoom リンク", "mis. alamat atau tautan Zoom")}
                   style={{ marginTop: 4, width: "100%", padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13 }}
                 />
               </label>
@@ -267,17 +269,17 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
                 cursor: "pointer"
               }}
             >
-              + 옵션 추가 (최대 5개)
+              {t("+ 옵션 추가 (최대 5개)", "+ Add option (up to 5)", "+ 添加选项（最多5个）", "+ Thêm tùy chọn (tối đa 5)", "+ オプション追加（最大5件）", "+ Tambah opsi (maks. 5)")}
             </button>
           ) : null}
 
           <label style={{ fontSize: 11, color: "#6b7280" }}>
-            지원자에게 전달할 메모 (선택)
+            {t("지원자에게 전달할 메모 (선택)", "Note for the applicant (optional)", "给申请人的备注（可选）", "Ghi chú cho ứng viên (tùy chọn)", "応募者へのメモ（任意）", "Catatan untuk pelamar (opsional)")}
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="간단한 안내 사항을 입력해 주세요"
+              placeholder={t("간단한 안내 사항을 입력해 주세요", "Enter a brief message", "请输入简短的说明", "Nhập hướng dẫn ngắn gọn", "簡単な案内を入力してください", "Masukkan pesan singkat")}
               style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: "1px solid #e5e7eb", borderRadius: 6, fontSize: 13, resize: "vertical" }}
             />
           </label>
@@ -292,7 +294,7 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
             disabled={submitting}
             style={{ padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#0B1227", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, cursor: "pointer" }}
           >
-            취소
+            {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
           </button>
           <button
             type="button"
@@ -300,7 +302,7 @@ export function ProposeInterviewSlotsModal({ open, applicationId, applicantName,
             disabled={submitting}
             style={{ padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#fff", background: "#0B1227", border: "1px solid #0B1227", borderRadius: 8, cursor: submitting ? "wait" : "pointer" }}
           >
-            {submitting ? "전송 중..." : "일정 제안하기"}
+            {submitting ? t("전송 중...", "Sending...", "发送中...", "Đang gửi...", "送信中...", "Mengirim...") : t("일정 제안하기", "Propose schedule", "提议日程", "Đề xuất lịch", "日程を提案", "Usulkan jadwal")}
           </button>
         </footer>
       </div>

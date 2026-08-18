@@ -33,7 +33,10 @@ const siteDescription = "Apply your next move. Connect with Korean companies hir
 // 접근성을 위해 막지 않는다.
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1
+  initialScale: 1,
+  // 모바일 확대/축소(핀치 줌) 방지 + iOS 입력 포커스 시 자동 확대(폰트<16px) 방지.
+  maximumScale: 1,
+  userScalable: false
 };
 
 export const metadata: Metadata = {
@@ -101,7 +104,7 @@ const siteJsonLd = [
     url: siteUrl,
     potentialAction: {
       "@type": "SearchAction",
-      target: `${siteUrl}/positions?q={search_term_string}`,
+      target: `${siteUrl}/talent/jobs?q={search_term_string}`,
       "query-input": "required name=search_term_string"
     }
   },

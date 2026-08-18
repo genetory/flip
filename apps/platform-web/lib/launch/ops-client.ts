@@ -45,6 +45,16 @@ export async function resetOpsPrompt(key: string): Promise<string> {
   return (d.default as string) ?? "";
 }
 
+// 프롬프트 버전 이력 + 롤백(오변경 복구용).
+export type PromptHistoryEntry = { value: string; at: string };
+export async function fetchOpsPromptHistory(key: string): Promise<PromptHistoryEntry[]> {
+  const d = await req(`/career-launch/ops/prompts/${encodeURIComponent(key)}/history`, { headers: authHeaders() });
+  return Array.isArray(d.history) ? (d.history as PromptHistoryEntry[]) : [];
+}
+export async function rollbackOpsPrompt(key: string, index: number): Promise<void> {
+  await req(`/career-launch/ops/prompts/${encodeURIComponent(key)}/rollback`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ index }) });
+}
+
 // ── 학생 ──
 export type OpsStudentCohort = { id: string; university: string; name: string };
 export type OpsStudent = {

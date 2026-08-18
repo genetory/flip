@@ -1,259 +1,246 @@
 "use client";
 
+// Week 3 — 자기소개서 편집 빌더(탤런트 '내 커리어'와 동일한 형태).
+// 4개 고정 문항(지원동기·성장과정·성격 장단점·입사 후 포부)을 직접 작성하고, 실시간 A4 미리보기.
+// 변경은 디바운스 자동저장(PUT). 문항(question)은 백엔드 COVER_LABELS 와 매칭되도록 한국어 표준값으로 저장.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { RichText } from "../../../components/launch/rich-text";
-import { STUDENT } from "../../../lib/launch/data";
-import { requestCoverChat, fetchCoverData, resetCoverData, hasCoverContent, type CoverChatMsg, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
-import { Header } from "../../../components/site/Header";
-import { Footer } from "../../../components/site/Footer";
+import { useSearchParams } from "next/navigation";
+import { Check, CircleNotch, Eye, Sparkle, ArrowUpRight } from "@phosphor-icons/react";
+import { CoverRender } from "../../../components/launch/cover-render";
+import { SectionTitle } from "../../../components/launch/ui";
+import { SectionChatModal } from "../../../components/launch/SectionChatModal";
+import { fetchCoverData, saveCoverData, requestCoverChat, type CoverData, type CoverSection } from "../../../lib/launch/cover-data";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
-import { trackCareerStepComplete } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-// Week 3 — 별도 빌더로 가지 않고 AI와 대화하며 자기소개서를 채운다. 백엔드에 자동 저장.
-type Msg = { role: "bot" | "user"; text: string };
+type SaveState = "idle" | "saving" | "saved";
+
+// 백엔드 COVER_LABELS 와 정확히 일치해야 스텝 완료가 반영됨(문항 저장값=한국어 표준).
+const SECTIONS: { key: CoverSection; ko: string }[] = [
+  { key: "motive", ko: "지원 동기" },
+  { key: "growth", ko: "성장 과정" },
+  { key: "strength", ko: "성격의 장단점" },
+  { key: "aspiration", ko: "입사 후 포부" }
+];
 
 export default function CoverCollectPage() {
   const t = useLaunchT();
-  const { user, isReady } = useAuthSession();
-  // 현재 작성하는 문항 표시용 라벨.
-  const SECTION_LABEL: Record<CoverSection, string> = {
-    motive: t("지원 동기", "Motivation to apply", "应聘动机", "Động lực ứng tuyển", "志望動機", "Motivasi melamar"),
-    growth: t("성장 과정", "Personal background", "成长经历", "Quá trình trưởng thành", "成長過程", "Latar belakang"),
-    strength: t("성격의 장단점·강점", "Strengths & weaknesses", "性格优缺点·强项", "Điểm mạnh & điểm yếu", "性格の長所・短所", "Kelebihan & kekurangan"),
-    aspiration: t("입사 후 포부", "Aspirations after joining", "入职后的抱负", "Định hướng sau khi vào làm", "入社後の抱負", "Aspirasi setelah bergabung")
+  const { isReady } = useAuthSession();
+  const params = useSearchParams();
+  const focus = (params.get("section") as CoverSection | null) ?? null;
+
+  const label: Record<CoverSection, string> = {
+    motive: t("지원 동기", "Motivation", "申请动机", "Động lực ứng tuyển", "志望動機", "Motivasi melamar"),
+    growth: t("성장 과정", "Background", "成长经历", "Quá trình trưởng thành", "成長過程", "Latar belakang"),
+    strength: t("성격의 장단점", "Strengths & weaknesses", "性格优缺点", "Điểm mạnh & yếu", "性格の長所・短所", "Kelebihan & kekurangan"),
+    aspiration: t("입사 후 포부", "Goals after joining", "入职后的抱负", "Mục tiêu sau khi vào", "入社後の抱負", "Aspirasi setelah bergabung")
   };
-  const displayName = user?.name?.trim() || user?.email || STUDENT.name;
+  const hint: Record<CoverSection, string> = {
+    motive: t("이 회사·직무에 지원하는 이유를 구체적으로 적어요.", "Why you're applying to this company and role.", "具体写出申请该公司和岗位的理由。", "Lý do bạn ứng tuyển công ty và vị trí này.", "この会社・職務に応募する理由を具体的に。", "Alasan kamu melamar perusahaan dan posisi ini."),
+    growth: t("경험을 통해 어떻게 성장했는지 이야기해요.", "How you grew through your experiences.", "讲述你通过经历如何成长。", "Bạn đã trưởng thành thế nào qua trải nghiệm.", "経験を通してどう成長したか。", "Bagaimana kamu tumbuh lewat pengalaman."),
+    strength: t("강점과 보완할 점을 솔직하게 적어요.", "Your strengths and areas to improve.", "坦诚写出优点与需改进之处。", "Điểm mạnh và điều cần cải thiện.", "強みと補うべき点を率直に。", "Kelebihan dan hal yang perlu diperbaiki."),
+    aspiration: t("입사 후 이루고 싶은 목표를 적어요.", "What you want to achieve after joining.", "写出入职后想实现的目标。", "Mục tiêu bạn muốn đạt sau khi vào.", "入社後に成し遂げたい目標を。", "Tujuan yang ingin dicapai setelah bergabung.")
+  };
 
-  const startedRef = useRef(false);
-  const [data, setData] = useState<CoverData>({});
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  // 전송 완료(loading true→false) 시 입력창 포커스를 되돌려, 채팅 중 포커스가 풀리지 않게 한다.
-  const prevLoadingRef = useRef(false);
-  useEffect(() => {
-    if (prevLoadingRef.current && !loading) inputRef.current?.focus();
-    prevLoadingRef.current = loading;
-  }, [loading]);
-  const [done, setDone] = useState(false);
-  const [focus, setFocus] = useState<CoverSection | undefined>(undefined); // 이 스텝이 집중할 문항
-  const endRef = useRef<HTMLDivElement>(null);
+  const [company, setCompany] = useState("");
+  const [answers, setAnswers] = useState<Record<CoverSection, string>>({ motive: "", growth: "", strength: "", aspiration: "" });
+  const [loaded, setLoaded] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [showPreview, setShowPreview] = useState(false);
+  const [chatFocus, setChatFocus] = useState<CoverSection | null>(null);
 
   useEffect(() => {
-    if (!isReady || startedRef.current) return;
-    startedRef.current = true;
-    setLoading(true);
-    // ?section=motive|growth|strength|aspiration 이 스텝의 집중 문항(= 리셋 스코프). ?restart=1 이면 그 문항부터 초기화.
-    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
-    const restart = params.get("restart") === "1";
-    const sectionRaw = params.get("section");
-    const section = (["motive", "growth", "strength", "aspiration"] as const).find((s) => s === sectionRaw);
-    setFocus(section);
+    if (!isReady) return;
+    let alive = true;
     void (async () => {
-      let seed: CoverData = {};
-      if (restart && section) {
-        try {
-          await resetCoverData(section);
-        } catch {
-          // 초기화 실패해도 남은 데이터로 진행
-        }
-      }
-      // 초기화 후 남은 문항(부분 초기화 시)은 seed 로 이어간다. 전체 초기화면 빈 seed.
       try {
-        const saved = await fetchCoverData();
-        seed = saved.data ?? {};
-        setData(seed);
+        const { data } = await fetchCoverData();
+        if (!alive) return;
+        setCompany(data.company ?? "");
+        const items = data.items ?? [];
+        const next: Record<CoverSection, string> = { motive: "", growth: "", strength: "", aspiration: "" };
+        SECTIONS.forEach((s, idx) => {
+          const match = items.find((it) => (it.question ?? "").trim() === s.ko) ?? items[idx];
+          next[s.key] = match?.answer ?? "";
+        });
+        setAnswers(next);
       } catch {
-        // 저장분 없음
-      }
-      // 이어하기(저장분 있음) — 즉시 반기고 미리보기를 띄운다.
-      const continuing = hasCoverContent(seed);
-      if (continuing) {
-        setMessages([{ role: "bot", text: t(`${displayName}님, 다시 오셨네요 👋 이어서 마저 써볼게요!`, `Welcome back, ${displayName} 👋 Let's pick up where we left off!`, `${displayName}，欢迎回来 👋 我们接着把剩下的写完吧！`, `Chào mừng trở lại, ${displayName} 👋 Cùng tiếp tục viết nốt nhé!`, `${displayName}さん、おかえりなさい 👋 続きを一緒に書いていきましょう！`, `Selamat datang kembali, ${displayName} 👋 Ayo lanjutkan menulis yang belum selesai!`) }]);
-      }
-      try {
-        const { reply, data: merged } = await requestCoverChat([], seed, section);
-        setData(merged);
-        setMessages((m) =>
-          continuing
-            ? [...m, { role: "bot", text: reply }]
-            : [{ role: "bot", text: reply || t(`${displayName}님, 반가워요 👋 대화하면서 자기소개서를 함께 채워볼까요?`, `Hi ${displayName} 👋 Shall we write your cover letter together through a chat?`, `${displayName}，你好 👋 我们边聊边一起完成自我介绍书吧？`, `Chào ${displayName} 👋 Cùng trò chuyện và hoàn thiện thư giới thiệu của bạn nhé?`, `${displayName}さん、こんにちは 👋 会話しながら自己紹介書を一緒に書いていきましょうか？`, `Hai ${displayName} 👋 Yuk kita tulis cover letter-mu bersama sambil mengobrol?`) }]
-        );
-      } catch {
-        setMessages((m) => (continuing ? [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 시도해줄래요?", "Something went wrong 😥 Could you try once more?", "出了点问题 😥 可以再试一次吗？", "Có chút trục trặc 😥 Bạn thử lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度試していただけますか？", "Ada sedikit masalah 😥 Bisa coba sekali lagi?") }] : [{ role: "bot", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]));
+        // 빈 상태
       } finally {
-        setLoading(false);
+        if (alive) setLoaded(true);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      alive = false;
+    };
   }, [isReady]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, loading]);
+    if (!loaded || !focus) return;
+    const el = document.getElementById(`sec-${focus}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [loaded, focus]);
 
-  const send = (raw: string) => {
-    const a = raw.trim();
-    if (!a || loading || done) return;
-    setInput("");
-    const nextMsgs: Msg[] = [...messages, { role: "user", text: a }];
-    setMessages(nextMsgs);
-    setLoading(true);
-    void (async () => {
+  const buildData = (c: string, a: Record<CoverSection, string>): CoverData => ({
+    company: c.trim() || null,
+    items: SECTIONS.map((s) => ({ question: s.ko, answer: a[s.key] }))
+  });
+
+  const preview: CoverData = buildData(company, answers);
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSave = (c: string, a: Record<CoverSection, string>) => {
+    if (!loaded) return;
+    setSaveState("saving");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
       try {
-        const history: CoverChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, data: merged, done: isDone } = await requestCoverChat(history, data, focus);
-        setData(merged);
-        setMessages((m) => [...m, { role: "bot", text: reply }]);
-        if (isDone) {
-          trackCareerStepComplete("cover");
-          setDone(true);
-        }
+        await saveCoverData(buildData(c, a));
+        setSaveState("saved");
       } catch {
-        setMessages((m) => [...m, { role: "bot", text: t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
-      } finally {
-        setLoading(false);
+        setSaveState("idle");
       }
-    })();
+    }, 700);
   };
 
+  const setAnswer = (key: CoverSection, v: string) => {
+    const next = { ...answers, [key]: v };
+    setAnswers(next);
+    scheduleSave(company, next);
+  };
+  const setCompanyVal = (v: string) => {
+    setCompany(v);
+    scheduleSave(v, answers);
+  };
+
+  const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
+  // AI 챗 — 해당 문항 focus 로 대화하고, 갱신된 답변을 반영 + 저장(스텝 완료).
+  const chatRequest = async (history: { role: "bot" | "user"; text: string }[]) => {
+    const focus = chatFocus ?? "motive";
+    const { reply, data: d, done } = await requestCoverChat(history, buildData(company, answers), focus);
+    const items = d.items ?? [];
+    const nextAnswers = { ...answers };
+    // 정식 질문(question === s.ko) 매칭만 — 포커스 문항만 온 경우 다른 문항 오염 방지.
+    SECTIONS.forEach((s) => {
+      const match = items.find((it) => (it.question ?? "").trim() === s.ko);
+      if (match && typeof match.answer === "string") nextAnswers[s.key] = match.answer;
+    });
+    const nextCompany = d.company ?? company;
+    setCompany(nextCompany);
+    setAnswers(nextAnswers);
+    void saveCoverData(buildData(nextCompany, nextAnswers)).catch(() => {});
+    return { reply, done };
+  };
+
+  if (!isReady || !loaded) {
+    return (
+      <div className="flex min-h-screen flex-col bg-white">
+        <CareerLaunchHeader />
+        <main className="flex flex-1 items-center justify-center">
+          <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>
+        </main>
+        <AplyFooter />
+      </div>
+    );
+  }
+
+  const taClass = "min-h-[120px] w-full resize-y rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] leading-relaxed text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
+
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
-      <main className="flex-1">
-        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-3xl flex-col px-5 pb-4 pt-4 md:pt-6">
+    <div className="flex min-h-screen flex-col bg-white">
+      <CareerLaunchHeader />
+      <main className="flex-1 pb-16">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/3" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              ← {t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3")}
+              {t("← 3주차", "← Week 3", "← 第3周", "← Tuần 3", "← Week 3", "← Minggu 3")}
             </Link>
-            <Link href="/career-launch/week/3" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
-          </div>
-          <div className="mt-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1.5" /></span>
-            <div>
-              <p className="text-[12px] font-bold text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Cover letter")}{focus ? t(" 작성 중", " in progress", " 编写中", " đang viết", " 作成中", " sedang dibuat") : ""}</p>
-              <p className="text-[15px] font-black text-[#0B1227]">{focus ? SECTION_LABEL[focus] : t("대화로 자기소개서 채우기", "Write your cover letter through a chat", "边聊边填写自我介绍书", "Hoàn thiện thư giới thiệu qua trò chuyện", "会話で自己紹介書を埋める", "Isi cover letter lewat obrolan")}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
-            {messages.map((m, i) =>
-              m.role === "bot" ? (
-                <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                    <RichText text={m.text} />
-                  </div>
-                </div>
-              ) : (
-                <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
-                </div>
-              )
-            )}
-            {loading ? (
-              <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="aply" className="h-full w-full object-contain p-1" /></span>
-                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
-                </div>
-              </div>
-            ) : null}
-            <div ref={endRef} />
-          </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 진행 내용은 자동 저장돼요", "💬 Feel free to answer in your own language · 💾 Your progress saves automatically", "💬 可以用你的母语回答 · 💾 进度会自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 Tiến trình được lưu tự động", "💬 母国語で答えても大丈夫です · 💾 進行内容は自動保存されます", "💬 Boleh menjawab dalam bahasa ibumu · 💾 Progres tersimpan otomatis")}</p>
-
-          {done ? (
-            <div className="mt-3">
-              <div className="mb-2 flex items-center gap-2.5 rounded-2xl border border-[#A6EF3F] bg-[#EAFFD1] px-4 py-3">
-                <span className="text-[22px]">🎉</span>
-                <div className="min-w-0">
-                  <p className="text-[13.5px] font-black text-[#0B1227]">{t(`${focus ? SECTION_LABEL[focus] : t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Cover letter")} 정리 완료!`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} done!`, `${focus ? SECTION_LABEL[focus] : "自我介绍书"} 整理完成！`, `Hoàn thành ${focus ? SECTION_LABEL[focus] : "thư giới thiệu"}!`, `${focus ? SECTION_LABEL[focus] : "自己紹介書"} 整理完了！`, `${focus ? SECTION_LABEL[focus] : "Cover letter"} selesai!`)}</p>
-                  <p className="mt-0.5 text-[12px] text-[#3A6B00]">{t("잘하고 있어요 — 다음 단계로 이어가 볼까요?", "Great work — ready for the next step?", "做得很好 — 继续下一步吧？", "Làm tốt lắm — sang bước tiếp theo nhé?", "その調子です — 次のステップに進みましょうか？", "Kerja bagus — lanjut ke langkah berikutnya?")}</p>
-                </div>
-              </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setDone(false)}
-                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
-              >
-                {t("계속 작성하기", "Keep writing", "继续编写", "Tiếp tục viết", "続けて作成する", "Lanjut menulis")}
+            <div className="flex items-center gap-3">
+              <SaveIndicator state={saveState} t={t} />
+              <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
+                <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
               </button>
-              <Link
-                href="/career-launch/week/3"
-                className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
-              >
-                {t("3주차 페이지로", "To Week 3 page", "前往第3周页面", "Đến trang Tuần 3", "3週目のページへ", "Ke halaman Minggu 3")} →
-              </Link>
             </div>
-            <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-2.5 block text-center text-[12.5px] font-bold text-[#0B46E8] underline">
-              {t("완성된 자기소개서 전체 보기 · PDF ↗", "View & download full cover letter · PDF ↗", "查看完整自我介绍书 · PDF ↗", "Xem toàn bộ thư giới thiệu · PDF ↗", "完成した自己紹介書を全体表示 · PDF ↗", "Lihat cover letter lengkap · PDF ↗")}
-            </Link>
-            </div>
-          ) : (
-            <div className="mt-3">
-              {messages.length > 0 && !loading ? (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {[
-                    { label: t("잘 모르겠어요", "I'm not sure", "我不太清楚", "Tôi không chắc", "よく分かりません", "Saya kurang yakin"), send: "잘 모르겠어요" },
-                    { label: t("예시를 보여주세요", "Show me an example", "给我看个例子", "Cho tôi xem ví dụ", "例を見せてください", "Tunjukkan contohnya"), send: "예시를 보여주세요" },
-                    { label: t("다음 문항으로", "To the next question", "进入下一题", "Sang câu hỏi tiếp theo", "次の項目へ", "Ke pertanyaan berikutnya") , send: "다음 문항으로" }
-                  ].map((q) => (
-                    <button
-                      key={q.send}
-                      type="button"
-                      onClick={() => send(q.send)}
-                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
-                    >
-                      {q.label}
-                    </button>
-                  ))}
+          </div>
+
+          <div className="mt-3.5">
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{focus ? label[focus] : t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
+            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 문항만 작성하면 돼요. 직접 쓰거나 'AI로 채우기'로 대화하며 완성하세요.", "Just write this section — type it or use 'Fill with AI' to complete it by chatting.", "只需撰写此文项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần viết mục này — tự viết hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ書けばOK。直接書くか『AIで埋める』で会話しながら完成させましょう。", "Cukup tulis bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("네 문항을 직접 작성하면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Write the four sections and they update the preview instantly. Everything saves automatically.", "撰写四个部分，右侧预览即时更新。内容自动保存。", "Viết bốn mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "4つの項目を書くと右のプレビューに即反映。内容は自動保存されます。", "Tulis empat bagian dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
+          </div>
+
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex flex-col gap-8">
+              {/* 지원 회사(선택) — 특정 문항으로 진입 시엔 숨김 */}
+              {!focus ? (
+                <div>
+                  <SectionTitle>{t("지원 회사", "Target company", "目标公司", "Công ty ứng tuyển", "応募先", "Perusahaan tujuan")}</SectionTitle>
+                  <input value={company} onChange={(e) => setCompanyVal(e.target.value)} placeholder={t("예: OO전자 (선택)", "e.g., OO Corp (optional)", "例：OO电子（可选）", "VD: Công ty OO (tùy chọn)", "例：OO電子（任意）", "Cth: OO Corp (opsional)")} className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
                 </div>
               ) : null}
-              <div className="flex items-end gap-2">
-                <form
-                  className="flex flex-1 items-end gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    send(input);
-                  }}
-                >
-                  <textarea ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        send(input);
-                      }
-                    }}
-                    rows={1}
-                    placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
-                    disabled={loading}
-                    className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!input.trim() || loading}
-                    className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                      input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
-                    }`}
-                  >
-                    {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
-                  </button>
-                </form>
+
+              {SECTIONS.map((s, i) => ({ s, i })).filter(({ s }) => !focus || focus === s.key).map(({ s, i }) => (
+                <section key={s.key} id={`sec-${s.key}`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
+                      <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[18px]">{label[s.key]}</h2>
+                    </div>
+                    <button type="button" onClick={() => setChatFocus(s.key)} className="inline-flex items-center gap-1 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0B1227]">
+                      <Sparkle className="h-3.5 w-3.5" weight="fill" /> {aiLabel}
+                    </button>
+                  </div>
+                  <p className="mb-2.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{hint[s.key]}</p>
+                  <textarea value={answers[s.key]} onChange={(e) => setAnswer(s.key, e.target.value)} rows={5} placeholder={hint[s.key]} className={taClass} />
+                </section>
+              ))}
+
+            </div>
+
+            {/* 실시간 A4 미리보기 */}
+            <div className={`${showPreview ? "block" : "hidden"} lg:block`}>
+              <div className="lg:sticky lg:top-20">
+                <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
+                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
+                  <CoverRender data={preview} />
+                </div>
+                <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
+                  {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} <ArrowUpRight className="inline h-3.5 w-3.5 align-text-bottom" weight="bold" aria-hidden />
+                </Link>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
+      {chatFocus ? (
+        <SectionChatModal
+          title={`${label[chatFocus]} · ${t("대화로 채우기", "Fill by chat", "对话填写", "Điền qua chat", "会話で入力", "Isi via chat")}`}
+          request={chatRequest}
+          onClose={() => setChatFocus(null)}
+        />
+      ) : null}
     </div>
   );
+}
+
+function SaveIndicator({ state, t }: { state: SaveState; t: ReturnType<typeof useLaunchT> }) {
+  if (state === "saving") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
+        <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")}
+      </span>
+    );
+  }
+  if (state === "saved") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#12B76A]">
+        <Check className="h-3.5 w-3.5" weight="bold" /> {t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}
+      </span>
+    );
+  }
+  return null;
 }

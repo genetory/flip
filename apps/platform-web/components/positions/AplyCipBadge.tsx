@@ -35,7 +35,7 @@ export function AplyCipBadgeButton({
         e.stopPropagation();
         onClick();
       }}
-      className={`relative z-20 inline-flex items-center gap-1 rounded-full bg-[#b7ff5a] font-bold text-[#111111] transition hover:bg-[#a3eb43] ${sizeCls} ${className}`}
+      className={`relative z-20 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#b7ff5a] font-bold leading-none text-[#111111] transition hover:bg-[#a3eb43] ${sizeCls} ${className}`}
     >
       <Star className={iconSize} weight="fill" />
       Aply CIP
@@ -47,7 +47,7 @@ export function AplyCipBadgeButton({
 // "Aply CIP" 배지를 누르면 뜨는 안내 모달.
 // 6개 로케일(ko/en/zh-CN/vi/ja/id) 모두 번역 — 알 수 없는 로케일은 영어로 폴백.
 // "자세한 내용 확인" 버튼은 /pricing 페이지(브랜드명 Customized Support)로 새 탭 이동.
-const CIP_COPY: Record<PlatformLocale, {
+export const CIP_COPY: Record<PlatformLocale, {
   title: string;
   body: string;
   benefitsTitle: string;

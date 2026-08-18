@@ -176,7 +176,7 @@ export function ResumeDetailPage({ resumeId }: { resumeId: string }) {
         <main className="container flex flex-col items-center gap-4 py-24 text-center">
           <p className="text-sm text-muted-foreground">{tr("로그인이 필요해요.", "Please sign in.", "请先登录。", "Vui lòng đăng nhập.", "ログインが必要です。", "Silakan masuk.")}</p>
           <Button asChild className="h-12">
-            <Link href="/login?next=/profile?tab=resume">{tr("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
+            <Link href="/login?next=/profile?tab=resume">{tr("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</Link>
           </Button>
         </main>
       </div>

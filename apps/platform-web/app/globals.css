@@ -232,3 +232,31 @@ All colors MUST be HSL.
 .group:hover .card-hover-drift-c {
   animation: card-hover-drift-c 1.55s ease-in-out infinite;
 }
+
+/* 랜딩 배경 앰비언트 — 은은한 블롭이 아주 천천히 부유해 깊이감을 준다. */
+@keyframes landing-float-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, -28px, 0) scale(1.07); }
+}
+@keyframes landing-float-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-28px, 22px, 0) scale(1.09); }
+}
+.landing-blob-a { animation: landing-float-a 16s ease-in-out infinite; }
+.landing-blob-b { animation: landing-float-b 19s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .landing-blob-a, .landing-blob-b { animation: none !important; }
+}
+
+/* 접근성 — 키보드 탐색 시 포커스 가시화(마우스 클릭에는 표시되지 않음). */
+:focus-visible {
+  outline: 2px solid #0B46E8;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* 자체 focus 링(ring)을 이미 쓰는 입력 요소는 이중 표시 방지. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}

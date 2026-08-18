@@ -25,6 +25,8 @@ async function postCareerChat(path: string, body: unknown): Promise<Record<strin
   if (!res.ok || data?.ok !== true) {
     throw new Error((data?.message as string) ?? "대화를 이어가지 못했어요.");
   }
+  // AI 티켓 소모 → GNB 잔량 뱃지 갱신.
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
   return data;
 }
 

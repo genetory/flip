@@ -501,7 +501,7 @@ export function MatchingProbabilityPage() {
         next.delete(positionId);
         return next;
       });
-      window.alert(error instanceof Error ? error.message : "지원 처리에 실패했습니다.");
+      window.alert(error instanceof Error ? error.message : t("지원 처리에 실패했습니다.", "Failed to submit your application.", "申请提交失败。", "Gửi đơn ứng tuyển thất bại.", "応募の送信に失敗しました。", "Gagal mengirim lamaran Anda."));
     } finally {
       setApplying(false);
     }
@@ -585,7 +585,7 @@ export function MatchingProbabilityPage() {
                       </div>
                       {gainBadge !== null ? (
                         <div className="pointer-events-none absolute -right-1 top-0 animate-bounce rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white shadow-lg">
-                          +{gainBadge}점
+                          +{gainBadge}{t("점", "pts", "分", "đ", "点", "poin")}
                         </div>
                       ) : null}
                     </div>
@@ -988,7 +988,7 @@ export function MatchingProbabilityPage() {
 
                       <div className="mt-4">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href="/positions">{t("열린 포지션 둘러보기", "Browse open positions", "浏览开放职位", "Xem các vị trí đang mở", "募集中のポジションを見る", "Lihat posisi yang tersedia")}</Link>
+                          <Link href="/talent/jobs">{t("열린 포지션 둘러보기", "Browse open positions", "浏览开放职位", "Xem các vị trí đang mở", "募集中のポジションを見る", "Lihat posisi yang tersedia")}</Link>
                         </Button>
                       </div>
                     </article>

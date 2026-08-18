@@ -58,7 +58,7 @@ function pickLocale(acceptLanguage: string): Locale {
 function companySizeLabel(value: string | null | undefined, locale: Locale) {
   const pick = (ko: string, en: string, zh: string, vi: string, ja?: string, id?: string) =>
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? (ja ?? en) : locale === "id" ? (id ?? en) : en;
-  if (value === "SIZE_1_10") return pick("10인 이하", "Up to 10", "10人以下", "Tối đa 10", "10名以下", "Hingga 10");
+  if (value === "SIZE_1_10") return pick("1~10인", "1–10", "1~10人", "1–10", "1~10名", "1–10");
   if (value === "SIZE_UNDER_30") return pick("30인 이하", "Up to 30", "30人以下", "Tối đa 30", "30名以下", "Hingga 30");
   if (value === "SIZE_UNDER_50") return pick("50인 이하", "Up to 50", "50人以下", "Tối đa 50", "50名以下", "Hingga 50");
   if (value === "SIZE_OVER_100") return pick("100인 이상", "100+", "100人以上", "Trên 100", "100名以上", "Lebih dari 100");
@@ -99,7 +99,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const countSuffix = isKo ? "개" : isZh ? " 个" : isJa ? "件" : "";
 
   const referer = headerStore.get("referer");
-  const backHref = referer && referer.trim() ? referer : "/positions";
+  const backHref = referer && referer.trim() ? referer : "/talent/jobs";
   const { id } = await params;
   const companyId = decodeURIComponent(id).trim();
 

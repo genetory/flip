@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, CircleNotch, Sparkle } from "@phosphor-icons/react/dist/ssr";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { paperlogy } from "../../lib/fonts";
+import { usePlatformT } from "../../lib/i18n";
 import { useShellCopy } from "../../lib/resume-maker-i18n/shell";
 import { useQuotaCopy } from "../../lib/resume-maker-i18n/quota";
 import { useAiUsage } from "../../lib/resume-maker-ai-usage";
@@ -23,10 +24,11 @@ import { RESUME_TOOLS_WIP } from "../../lib/resume-maker-flags";
 
 // GNB 우측 — 공용 AI 티켓 잔량(전 화면 공통). 잔량을 모르면(비STUDENT 등) 숨김.
 function GnbTicket() {
-  const { remaining, resetAt, dailyGrant } = useAiUsage();
+  const { remaining, resetAt, dailyGrant, hidePoints } = useAiUsage();
   const q = useQuotaCopy();
   const [open, setOpen] = useState(false);
-  if (remaining === null) return null;
+  // Career Launch 등 포인트 비노출 컨텍스트에서는 잔량 배지 자체를 숨긴다.
+  if (hidePoints || remaining === null) return null;
   return (
     <>
       <button
@@ -67,6 +69,7 @@ export function ResumeMakerShell({
   const router = useRouter();
   const pathname = usePathname();
   const t = useShellCopy();
+  const pt = usePlatformT();
   const { hasResume } = useResumePresence(); // 이력서가 없으면(=false) 도구 메뉴를 잠근다.
 
   // 현재 이력서(세 도구 공유) — 이력서 화면에 들어가면 그 id 를 활성으로 기억하고,
@@ -156,8 +159,8 @@ export function ResumeMakerShell({
                 Career Launch
               </Link>
             ) : (
-              <Link href="/" className="flex shrink-0 items-center" title="aply.global 홈으로">
-                <Image src="/img_logo.webp" alt="aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
+              <Link href="/" className="flex shrink-0 items-center" title={pt("aply.global 홈으로", "To aply.global home", "前往 aply.global 首页", "Về trang chủ aply.global", "aply.global ホームへ", "Ke beranda aply.global")}>
+                <Image src="/img_logo.webp" alt="Aply logo" width={180} height={48} className="h-6 w-auto md:h-7" priority />
               </Link>
             )}
             {left ? <div className="flex shrink-0 items-center">{left}</div> : null}

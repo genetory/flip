@@ -3,12 +3,12 @@
 import Image from "next/image";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getSiteMessages } from "../../lib/site-messages";
+import { usePlatformT } from "../../lib/i18n";
 
 export const Footer = () => {
   const { locale } = useLanguage();
   const copy = getSiteMessages(locale).footer;
-  const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const t = usePlatformT();
   const currentYear = new Date().getUTCFullYear();
 
   return (

@@ -5,10 +5,10 @@ import Link from "next/link";
 import { MapPin, Briefcase, ArrowRight } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { usePlatformT } from "../../lib/i18n";
 import { getMyCandidateProfile, getPublicPositionsPage } from "../../lib/member-profile-client";
 import { mapPublicPositionToCard } from "../pages/PositionsPage";
 import { paperlogy } from "../../lib/fonts";
-import type { PlatformLocale } from "../../lib/auth-messages";
 
 // 후보 비자 enum → 코드(포지션 eligibleVisas 와 매칭).
 function visaCode(visaType?: string | null): string | null {
@@ -34,12 +34,10 @@ type Card = ReturnType<typeof mapPublicPositionToCard>;
 export function RecommendedForYou() {
   const { user, isReady, isAuthenticated } = useAuthSession();
   const { locale } = useLanguage();
+  const tr = usePlatformT();
   const [cards, setCards] = useState<Card[] | null>(null);
 
   const isStudent = isReady && isAuthenticated && user?.role === "STUDENT";
-
-  const tr = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) =>
-    (({ ko, en, "zh-CN": zh, vi, ja, id }) as Record<PlatformLocale, string>)[locale] ?? en;
 
   useEffect(() => {
     if (!isStudent) {
@@ -83,7 +81,7 @@ export function RecommendedForYou() {
             {tr("비자로 지원 가능한 최신 공고예요.", "Latest positions you're eligible to apply with your visa.", "根据您的签证可申请的最新职位。", "Vị trí mới nhất phù hợp visa của bạn.", "ビザで応募できる最新の求人です。", "Posisi terbaru yang sesuai visa Anda.")}
           </p>
         </div>
-        <Link href="/positions" className="hidden flex-none items-center gap-1 text-sm font-semibold text-[#0B46E8] hover:underline sm:inline-flex">
+        <Link href="/talent/jobs" className="hidden flex-none items-center gap-1 text-sm font-semibold text-[#0B46E8] hover:underline sm:inline-flex">
           {tr("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}
           <ArrowRight className="h-4 w-4" weight="bold" aria-hidden />
         </Link>
@@ -93,7 +91,7 @@ export function RecommendedForYou() {
         {cards.map((c) => (
           <Link
             key={c.id}
-            href={`/positions/${c.id}`}
+            href={`/talent/jobs/${c.id}`}
             className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_1px_2px_rgba(11,18,39,0.04),0_10px_28px_rgba(11,18,39,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(11,18,39,0.05),0_16px_40px_rgba(11,18,39,0.10)]"
           >
             {c.thumbnailUrl ? (

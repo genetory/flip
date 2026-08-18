@@ -26,7 +26,7 @@ import type { PlatformLocale } from "../../lib/auth-messages";
 import { paperlogy } from "../../lib/fonts";
 
 // ---------------------------------------------------------------------------
-// /business — "aply, for Business" 기업 대상 랜딩 페이지.
+// /business — "Aply, for Business" 기업 대상 랜딩 페이지.
 // 기본(홈) 페이지와 동일한 디자인 시스템: 표준 Header/Footer, font-sans 본문 +
 // paperlogy/font-display 헤딩, deep-navy(#0B1227) 제목 · blue(#0B46E8) 액센트,
 // Button + Reveal. 6개 로케일 다국어(ko/en/zh-CN/vi/ja/id).
@@ -92,7 +92,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     heroChips: ["검증된 인재", "안전한 계약", "합리적 비용"],
     ctaPrimary: "무료로 포지션 등록하기",
     ctaSecondary: "인재 풀 살펴보기",
-    trustSub: "대학 · 기관 · 기업이 aply와 함께하고 있습니다.",
+    trustSub: "대학 · 기관 · 기업이 Aply와 함께하고 있습니다.",
     trustMoreUniv: "외 13개",
     trustMoreInst: "외 다수",
     trustMoreCorp: "and more…",
@@ -161,7 +161,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     faqs: [
       { q: "비용이 드나요?", a: "포지션 등록과 인재 열람은 무료입니다. 채용 전환 시에만 단계별 수수료(5~15%)가 발생합니다." },
       { q: "인재 검증은 어떻게 하나요?", a: "서류 · AI 사전 면접 · 사전 교육 · 5주 스코어링의 4단계를 거쳐 상위 인재만 추천합니다." },
-      { q: "비자 · 행정은 어디까지 지원되나요?", a: "체류자격 변경 · 4대보험 · 근로계약 등 채용 행정 전 과정을 aply가 대행합니다." },
+      { q: "비자 · 행정은 어디까지 지원되나요?", a: "체류자격 변경 · 4대보험 · 근로계약 등 채용 행정 전 과정을 Aply가 대행합니다." },
       { q: "어떤 직군에 적합한가요?", a: "개발 · 마케팅 · 영업 · 디자인 등 다양한 직군의 검증된 글로벌 인재를 보유하고 있습니다." },
       { q: "정착 보장은 있나요?", a: "조기 3주 내 이탈 시 추가 비용 없이 재매칭하는 Re-match Guarantee를 제공합니다." }
     ],
@@ -174,11 +174,11 @@ const COPY: Record<PlatformLocale, Copy> = {
     heroTitleA: "Meet verified global talent,",
     heroTitleHighlight: "with no cost & no hiring risk",
     heroTitleB: "",
-    heroSub: "We recommend only talent who has passed document review · AI interview · pre-training · 5-week scoring. aply handles everything from visa · administration · legal.",
+    heroSub: "We recommend only talent who has passed document review · AI interview · pre-training · 5-week scoring. Aply handles everything from visa · administration · legal.",
     heroChips: ["Verified Talent", "Secure Contracts", "Reasonable Cost"],
     ctaPrimary: "Post a Position for Free",
     ctaSecondary: "Explore the Talent Pool",
-    trustSub: "Universities · institutions · companies are partnering with aply.",
+    trustSub: "Universities · institutions · companies are partnering with Aply.",
     trustMoreUniv: "+13 more",
     trustMoreInst: "and many more",
     trustMoreCorp: "and more…",
@@ -333,7 +333,7 @@ const COPY: Record<PlatformLocale, Copy> = {
     faqs: [
       { q: "需要费用吗？", a: "发布职位与查阅人才均免费。仅在招聘转化时才会产生分阶段手续费（5~15%）。" },
       { q: "如何进行人才验证？", a: "经过简历 · AI 预面试 · 岗前培训 · 5 周评分的 4 个阶段，只推荐顶尖人才。" },
-      { q: "签证 · 行政支持到什么程度？", a: "居留资格变更 · 四大保险 · 劳动合同等招聘行政全流程，均由 aply 代办。" },
+      { q: "签证 · 行政支持到什么程度？", a: "居留资格变更 · 四大保险 · 劳动合同等招聘行政全流程，均由 Aply 代办。" },
       { q: "适合哪些岗位？", a: "我们拥有开发 · 市场 · 销售 · 设计等多种岗位经过验证的全球人才。" },
       { q: "有落地保障吗？", a: "我们提供 Re-match Guarantee：若在入职 3 周内离职，将免费重新匹配。" }
     ],

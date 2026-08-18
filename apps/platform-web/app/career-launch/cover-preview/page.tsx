@@ -1,12 +1,13 @@
 "use client";
+import { CaretLeft, CircleNotch } from "@phosphor-icons/react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
 import type { ResumeCoverLetterItem } from "../../../lib/member-profile-client";
 import { CoverLetterPreviewPage } from "../../../components/resume-maker/CoverLetterPreviewPage";
-import { Header } from "../../../components/site/Header";
-import { Footer } from "../../../components/site/Footer";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { trackCareerPdfDownload } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -53,15 +54,15 @@ export default function CoverPreviewPage() {
   // 로딩·빈 상태 — 사이트 셸로 안내.
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-3xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            ← {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
+          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
           </Link>
           <div className="mt-6">
             {state === "loading" ? (
-              <div className="rounded-2xl border border-[#E5E8EB] bg-white p-8 text-center text-[14px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+              <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-8 text-[14px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
             ) : (
               <div className="rounded-2xl border border-dashed border-[#D7DCE3] bg-white p-8 text-center">
                 <p className="text-[14px] font-semibold text-[#4E5968]">{t("아직 작성한 자기소개서가 없어요.", "You haven't written a cover letter yet.", "你还没有写自我介绍信。", "Bạn chưa viết thư giới thiệu bản thân nào.", "まだ作成した自己紹介書がありません。", "Kamu belum menulis cover letter apa pun.")}</p>
@@ -77,7 +78,7 @@ export default function CoverPreviewPage() {
           </div>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
   );
 }

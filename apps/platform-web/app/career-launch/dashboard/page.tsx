@@ -3,24 +3,29 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Lock, CaretRight, ArrowRight, Monitor, MapPin, CircleNotch, ChatCircleText, GraduationCap, PenNib } from "@phosphor-icons/react";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
-import { Card, Pill, ProgressBar, SectionTitle } from "../../../components/launch/ui";
+import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
-import { ResumeRender } from "../../../components/launch/resume-render";
-import { CoverRender } from "../../../components/launch/cover-render";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent } from "../../../lib/launch/cover-data";
-import { weekDoneCount, weekUnlocked, type LaunchData } from "../../../lib/launch/step-status";
-import { Header } from "../../../components/site/Header";
-import { Footer } from "../../../components/site/Footer";
+import { weekDoneCount, weekUnlocked, isWeekComplete, type LaunchData } from "../../../lib/launch/step-status";
+import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { CohortPulseCard } from "../../../components/launch/CohortPulseCard";
+import { AplyFooter } from "../../../components/AplyFooter";
+import { Reveal } from "../../../components/site/Reveal";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { useWeekText, useCompletionCriteria } from "../../../lib/launch/data-i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
-import { CareerSurveyCta } from "../../../components/launch/survey-cta";
+import { addLaunchNotification, ensureLaunchNotificationsOwner } from "../../../lib/launch/notifications";
+
+// 베타 설문 링크(env 주입) — 설문 CTA 카드 대신 알림으로 발송.
+const SURVEY_MID_URL = process.env.NEXT_PUBLIC_CAREER_SURVEY_MID_URL?.trim() || "";
+const SURVEY_FINAL_URL = process.env.NEXT_PUBLIC_CAREER_SURVEY_FINAL_URL?.trim() || "";
 
 // 4. 학생 로그인 후 대시보드 — 4주 여정 퍼널 + 진행 + 결과물 + 피드백 개요.
 export default function LaunchDashboardPage() {
@@ -100,185 +105,209 @@ export default function LaunchDashboardPage() {
     }
   }, [overall]);
 
+  // Career Launch 전용 알림 생성 — 주차 열림·세미나·결과물·완주. 멱등(dedupeKey)이라 중복 없이 쌓인다.
+  useEffect(() => {
+    if (!isReady || !isAuthenticated) return;
+    ensureLaunchNotificationsOwner(user?.id ?? null); // 계정 바뀌면 이전 알림 제거
+    // 주차 열림
+    WEEKS.forEach((w) => {
+      if (!weekUnlocked(w.week, data, schedule, serverNow)) return;
+      addLaunchNotification({
+        dedupeKey: `week-open-${w.week}`,
+        emoji: "🔓",
+        title: t(`${w.week}주차 미션이 열렸어요`, `Week ${w.week} is now open`, `第${w.week}周任务已开放`, `Tuần ${w.week} đã mở`, `Week ${w.week}のミッションが開きました`, `Minggu ${w.week} telah dibuka`),
+        body: `${weekText(w.week, "title")} · ${WEEK_DELIVERABLE[w.week]}`,
+        href: `/career-launch/week/${w.week}`
+      });
+    });
+    // 예정된 세미나
+    seminars.forEach((s) => {
+      const dt = new Date(s.startsAt);
+      if (Number.isNaN(dt.getTime()) || dt.getTime() < Date.now()) return;
+      const when = dt.toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" });
+      const title = s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`);
+      addLaunchNotification({
+        dedupeKey: `seminar-${s.week}-${s.startsAt}`,
+        emoji: "🎓",
+        title: t("세미나 일정이 잡혔어요", "A seminar is scheduled", "研讨会已安排", "Đã có lịch hội thảo", "セミナーが予定されました", "Seminar telah dijadwalkan"),
+        body: `${title} · ${when}`,
+        href: "/career-launch/dashboard"
+      });
+    });
+    // 결과물 완성
+    if (resumeReady) {
+      addLaunchNotification({
+        dedupeKey: "resume-ready",
+        emoji: "📄",
+        title: t("이력서가 완성됐어요", "Your resume is ready", "简历已完成", "Hồ sơ đã hoàn thành", "履歴書が完成しました", "Resume sudah siap"),
+        body: t("미리보기에서 확인해보세요.", "Check it in the preview.", "在预览中查看吧。", "Xem trong bản xem trước nhé.", "プレビューで確認しましょう。", "Cek di pratinjau."),
+        href: "/career-launch/resume-preview"
+      });
+    }
+    if (coverReady) {
+      addLaunchNotification({
+        dedupeKey: "cover-ready",
+        emoji: "📝",
+        title: t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap"),
+        body: t("미리보기에서 확인해보세요.", "Check it in the preview.", "在预览中查看吧。", "Xem trong bản xem trước nhé.", "プレビューで確認しましょう。", "Cek di pratinjau."),
+        href: "/career-launch/cover-preview"
+      });
+    }
+    // 완주 → talent(APLY) 서비스로 이어가기
+    if (overall === 100) {
+      addLaunchNotification({
+        dedupeKey: "completed",
+        emoji: "🎉",
+        title: t("4주 프로그램을 완주했어요!", "You finished the 4-week program!", "你完成了4周项目！", "Bạn đã hoàn thành chương trình 4 tuần!", "4週間プログラムを完走しました！", "Kamu menyelesaikan program 4 minggu!"),
+        body: t("이제 실제 공고에 지원해볼까요? APLY에서 이어가요.", "Ready to apply to real jobs? Continue on APLY.", "现在去投递真实职位吧，在 APLY 继续。", "Sẵn sàng ứng tuyển việc thật? Tiếp tục trên APLY.", "実際の求人に応募してみましょう。APLYで続けます。", "Siap melamar pekerjaan nyata? Lanjutkan di APLY."),
+        href: "/talent/jobs"
+      });
+    }
+    // 베타 설문 — 주차 완료 시점에 알림으로(카드 대신). W4 완료 시 전체 설문, 아니면 W2 완료 시 중간 설문.
+    if (isWeekComplete(4, data) && SURVEY_FINAL_URL) {
+      const added = addLaunchNotification({
+        dedupeKey: "survey-final",
+        emoji: "📋",
+        external: true,
+        href: SURVEY_FINAL_URL,
+        title: t("전체 설문에 참여해주세요", "Please take the full program survey", "请参与整体问卷", "Vui lòng tham gia khảo sát tổng thể", "全体アンケートにご協力ください", "Mohon ikuti survei keseluruhan"),
+        body: t("4주 프로그램 피드백으로 바로 개선돼요. 3분이면 충분해요.", "Your feedback improves the program right away. About 3 minutes.", "你的反馈将即刻改进项目。约3分钟。", "Phản hồi giúp cải thiện chương trình ngay. Khoảng 3 phút.", "フィードバックですぐ改善します。3分ほどです。", "Masukanmu langsung memperbaiki program. Sekitar 3 menit.")
+      });
+      if (added) trackCareerFunnel("survey_final_prompted");
+    } else if (isWeekComplete(2, data) && SURVEY_MID_URL) {
+      const added = addLaunchNotification({
+        dedupeKey: "survey-mid",
+        emoji: "📋",
+        external: true,
+        href: SURVEY_MID_URL,
+        title: t("1·2주차 설문에 참여해주세요", "Please take the Week 1–2 survey", "请参与第1·2周问卷", "Vui lòng tham gia khảo sát Tuần 1–2", "1・2週目アンケートにご協力ください", "Mohon ikuti survei Minggu 1–2"),
+        body: t("진단·이력서 경험 피드백을 남겨주세요. 3분이면 충분해요.", "Share feedback on the diagnosis and resume. About 3 minutes.", "请留下诊断和简历体验反馈。约3分钟。", "Chia sẻ phản hồi về chẩn đoán và hồ sơ. Khoảng 3 phút.", "診断・履歴書の体験フィードバックをお願いします。3分ほどです。", "Beri masukan soal diagnosis dan resume. Sekitar 3 menit.")
+      });
+      if (added) trackCareerFunnel("survey_mid_prompted");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady, isAuthenticated, data, schedule, serverNow, seminars, resumeReady, coverReady, overall]);
+
   if (!isReady || !isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </main>
     );
   }
 
   return (
     <EnrollmentGate>
-    <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+    <div className="flex min-h-screen flex-col bg-white">
+      <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:pt-10">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           {/* 운영자는 학생 화면을 본인 계정으로 전부 체험할 수 있음 — 콘솔 복귀 링크 */}
           {user?.role === "OPERATOR" ? (
             <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-[#F0B429]/40 bg-[#FFF9EC] px-3 py-1.5 text-[12.5px] font-bold text-[#B7791F] transition hover:bg-[#FEF3D6]">
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
           ) : null}
-          {/* 인사 + 전체 진행률 (완주 시 축하 히어로로 전환) */}
-          {overall === 100 ? (
-            <Card className="!border-[#A6EF3F] !bg-[#B7FF5A] md:!p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-bold text-[#3A6B00]">{t("🎉 4주 프로그램 완주", "🎉 4-week program complete", "🎉 完成4周项目", "🎉 Hoàn thành chương trình 4 tuần", "🎉 4週間プログラム完走", "🎉 Menyelesaikan program 4 minggu")}</p>
-                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 완주를 축하해요! 🎉`, `Congrats on finishing, ${displayName}! 🎉`, `${displayName}，恭喜你顺利完成！🎉`, `Chúc mừng bạn đã hoàn thành, ${displayName}! 🎉`, `${displayName}さん、完走おめでとうございます！🎉`, `Selamat telah menyelesaikan, ${displayName}! 🎉`)}</h1>
-                  <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#4E5968]">{t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요!", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence!", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧！", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé!", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう！", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri!")}</p>
-                </div>
-                <Pill tone="green">{t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai")}</Pill>
+          {/* 인사 히어로 — 카드 없이, 원형 진행 링(완주 시 문구만 전환) */}
+          <Reveal>
+          <div className="pt-2 md:pt-4">
+            <div className="flex items-center gap-4 md:gap-6">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{overall === 100 ? t("수료 완료", "Completed", "已结业", "Đã hoàn thành", "修了", "Selesai") : (cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch"))}</p>
+                <h1 className="mt-2 break-keep text-[23px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{overall === 100 ? t(`${displayName}님, 완주를 축하해요`, `Congrats on finishing, ${displayName}`, `${displayName}，恭喜你顺利完成`, `Chúc mừng bạn đã hoàn thành, ${displayName}`, `${displayName}さん、完走おめでとうございます`, `Selamat telah menyelesaikan, ${displayName}`) : t(`${displayName}님, 반가워요`, `Welcome, ${displayName}`, `${displayName}，欢迎你`, `Chào mừng bạn, ${displayName}`, `${displayName}さん、ようこそ`, `Selamat datang, ${displayName}`)}</h1>
+                <p className="mt-2.5 break-keep text-[14px] leading-relaxed text-[#4E5968] md:text-[15px]">{overall === 100 ? t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요.", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence.", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧。", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé.", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう。", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri.") : t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
               </div>
-              <div className="mt-5 flex items-center gap-3 rounded-2xl bg-white p-4 md:mt-6 md:p-5">
-                <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-[#EAFFD1] text-[22px]">🏁</span>
-                <div>
-                  <p className="text-[14px] font-black text-[#0B1227]">{t("전체 진행률 100% · 모든 스텝 완료", "Overall progress 100% · All steps complete", "总进度100% · 所有步骤完成", "Tiến độ tổng thể 100% · Hoàn thành mọi bước", "全体進捗100% · すべてのステップ完了", "Progres keseluruhan 100% · Semua langkah selesai")}</p>
-                  <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            <Card className="md:!p-7">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12.5px] font-semibold text-[#8B95A1]">{cohortLabel || t("글로벌 커리어 런치", "Global Career Launch", "全球职业启航", "Global Career Launch", "グローバルキャリアローンチ", "Global Career Launch")}</p>
-                  <h1 className="mt-1 text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[27px]">{t(`${displayName}님, 반가워요 👋`, `Welcome, ${displayName} 👋`, `${displayName}，欢迎你 👋`, `Chào mừng bạn, ${displayName} 👋`, `${displayName}さん、ようこそ 👋`, `Selamat datang, ${displayName} 👋`)}</h1>
-                  <p className="mt-1.5 text-[14px] leading-relaxed text-[#4E5968]">{t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
-                </div>
-                <Pill tone="blue">{t(`${doneSteps}/${totalSteps} 스텝`, `${doneSteps}/${totalSteps} steps`, `${doneSteps}/${totalSteps} 步骤`, `${doneSteps}/${totalSteps} bước`, `${doneSteps}/${totalSteps} ステップ`, `${doneSteps}/${totalSteps} langkah`)}</Pill>
-              </div>
-              <div className="mt-5 rounded-2xl bg-[#F6F8FB] p-4 md:mt-6 md:p-5">
-                <div className="mb-2.5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[13px] font-bold text-[#333D4B]">{t("전체 진행률", "Overall progress", "总进度", "Tiến độ tổng thể", "全体進捗", "Progres keseluruhan")}</p>
-                    <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t(`완료한 스텝 ${doneSteps}/${totalSteps}`, `Steps completed ${doneSteps}/${totalSteps}`, `已完成步骤 ${doneSteps}/${totalSteps}`, `Bước đã hoàn thành ${doneSteps}/${totalSteps}`, `完了したステップ ${doneSteps}/${totalSteps}`, `Langkah selesai ${doneSteps}/${totalSteps}`)}</p>
-                  </div>
-                  <span className="text-[26px] font-black leading-none text-[#0B46E8] md:text-[30px]">
-                    {overall}<span className="text-[16px]">%</span>
-                  </span>
-                </div>
-                <ProgressBar value={overall} height={12} />
-              </div>
-            </Card>
-          )}
+              <HeroProgress pct={overall} />
+            </div>
+          </div>
+          </Reveal>
 
-          {/* 다음 할 일 — 열려 있고 미완료인 첫 주차로 바로 이동 */}
+          {/* 다음 할 일 — 흑백 다크 CTA(주 액션 강조), 미완료 첫 주차로 이동 */}
           {overall < 100 && nextWeek ? (
+            <Reveal delayMs={80}>
             <Link
               href={`/career-launch/week/${nextWeek.week}`}
-              className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#0B46E8]/20 bg-[#EDF1FD] px-5 py-4 transition hover:bg-[#E3EAFD]"
+              className="group mt-3 flex items-center justify-between gap-4 rounded-2xl bg-[#191F28] p-5 transition hover:bg-[#0B1227] md:p-6"
             >
               <div className="min-w-0">
-                <p className="text-[12px] font-bold text-[#0B46E8]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
-                <p className="mt-0.5 truncate text-[15px] font-black text-[#0B1227]">
-                  Week {nextWeek.week} · {WEEK_DELIVERABLE[nextWeek.week]}
+                <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 할 일", "Your next step", "下一步", "Việc tiếp theo", "次にやること", "Langkah berikutnya")}</p>
+                <p className="mt-1.5 truncate text-[16.5px] font-bold text-white md:text-[18px]">
+                  {t(`${nextWeek.week}주차`, `Week ${nextWeek.week}`, `第${nextWeek.week}周`, `Tuần ${nextWeek.week}`, `${nextWeek.week}週目`, `Minggu ${nextWeek.week}`)} · {WEEK_DELIVERABLE[nextWeek.week]}
                 </p>
               </div>
-              <span className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2 text-[13.5px] font-bold text-white">
-                {t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjut")} →
-              </span>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20 group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
             </Link>
+            </Reveal>
           ) : null}
 
-          {/* 베타 설문 CTA — 1·2주차 완료 / 전체 완료 시점에 자동 노출(링크는 env 주입) */}
-          <CareerSurveyCta data={data} />
+          {/* 내 기수와 함께 — 익명 진행률(동기부여). 동기 2명 이상일 때만 노출 */}
+          {overall < 100 ? <div className="mt-3"><CohortPulseCard /></div> : null}
 
-          {/* 완주 시 — 이력서·자소서·면접 종합 최종 피드백(프로그램 소개처럼 섹션) */}
-          {overall === 100 ? (
-            <div className="mt-7">
-              <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
-              <FinalFeedbackCard />
+          {/* 최종 피드백·다음 행동 섹션은 아래 '내 결과물' 섹션 다음으로 이동함 */}
 
-              {/* 다음 행동 — 분석으로 끝내지 말고 실제 지원 행동으로 연결 */}
-              <div className="mt-6">
-                <SectionTitle sub={t("결과물을 실제 지원으로 이어가요", "Turn your results into real applications", "把成果转化为实际投递", "Biến kết quả thành ứng tuyển thực tế", "成果を実際の応募につなげましょう", "Ubah hasil menjadi lamaran nyata")}>{t("다음 행동", "Next actions", "下一步行动", "Hành động tiếp theo", "次のアクション", "Aksi berikutnya")}</SectionTitle>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                  {[
-                    { href: "/positions", emoji: "🔎", label: t("지금 지원할 공고 보기", "Browse jobs to apply", "查看可投递的职位", "Xem vị trí để ứng tuyển", "今すぐ応募できる求人を見る", "Lihat lowongan untuk dilamar"), action: "browse_positions", external: false },
-                    { href: "/resume-maker", emoji: "📄", label: t("이력서 최종 수정하기", "Polish your resume", "最终修改简历", "Hoàn thiện hồ sơ", "履歴書を仕上げる", "Sempurnakan resume"), action: "edit_resume", external: true },
-                    { href: "/career-launch/interview", emoji: "🎤", label: t("모의면접 한 번 더", "One more mock interview", "再来一次模拟面试", "Phỏng vấn thử lần nữa", "模擬面接をもう一度", "Wawancara simulasi lagi"), action: "mock_interview", external: false }
-                  ].map((a) => (
-                    <Link
-                      key={a.action}
-                      href={a.href}
-                      target={a.external ? "_blank" : undefined}
-                      rel={a.external ? "noopener noreferrer" : undefined}
-                      onClick={() => trackCareerFunnel("next_action_clicked", { action: a.action })}
-                      className="flex items-center gap-3 rounded-2xl border border-[#E5E8EB] bg-white px-4 py-4 transition hover:border-[#0B46E8]/40 hover:bg-[#F7F9FF]"
-                    >
-                      <span className="text-[22px]">{a.emoji}</span>
-                      <span className="text-[14px] font-bold text-[#0B1227]">{a.label}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-7 grid gap-7 md:mt-9 lg:grid-cols-[1.55fr_1fr] lg:gap-8">
-            {/* ── 메인: 프로그램 소개 + 4주 여정 퍼널 ── */}
-            <div className="min-w-0 space-y-7 md:space-y-8">
-              {/* 프로그램 소개 */}
-              <div>
+          <Reveal delayMs={120}>
+          <div className="mt-8 flex flex-col gap-10 md:mt-10">
+            {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
+            <div>
                 <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
-                <Card className="md:!p-6">
+                <article className="rounded-3xl border border-[#EEF1F5] bg-white p-5 md:p-7">
+                  <p className="text-[11.5px] font-bold uppercase tracking-[0.16em] text-[#0B46E8]">Global Career Launch</p>
+                  <h3 className="mt-2 break-keep text-[20px] font-black leading-[1.32] tracking-[-0.02em] text-[#0B1227] md:text-[23px]">{t("AI 코치와 함께하는 4주 취업 완성 부트캠프", "A 4-week job-prep bootcamp with your AI coach", "与AI教练一起完成的4周求职训练营", "Bootcamp chuẩn bị việc làm 4 tuần cùng AI coach", "AIコーチと一緒に取り組む4週間就職完成ブートキャンプ", "Bootcamp persiapan kerja 4 minggu bersama AI coach")}</h3>
+                  {/* 프로그램 이미지 — 원본 비율 유지하며 축소 노출(크롭 없음) */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mb-4 h-auto w-full rounded-xl" />
-                  <p className="text-[15px] font-black text-[#0B1227] md:text-[16px]">{t("AI 코치와 함께하는 4주 취업 완성 부트캠프", "A 4-week job-prep bootcamp with your AI coach", "与AI教练一起完成的4周求职训练营", "Bootcamp chuẩn bị việc làm 4 tuần cùng AI coach", "AIコーチと一緒に取り組む4週間就職完成ブートキャンプ", "Bootcamp persiapan kerja 4 minggu bersama AI coach")}</p>
-                  <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
+                  <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mt-5 h-auto w-full max-w-[400px] rounded-2xl" />
+                  <p className="mt-5 break-keep text-[14px] leading-[1.75] text-[#4E5968] md:text-[14.5px]">
                     {t("한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 유형별 모의면접까지 — 4주 동안 하나씩 밟아가며 완주해요.", "This program is for international students preparing to work in Korea. Job prep can feel overwhelming on your own, so an AI coach guides you every step of the way. From diagnosing where you stand and setting your career direction, to building your resume and cover letter just by chatting, to mock interviews by type — you'll complete it step by step over 4 weeks.", "这是为准备在韩国就业的外国留学生打造的项目。独自准备求职难免感到迷茫，AI教练会一路陪伴引导你。从诊断你的求职准备状态、确定职业方向，到只需对话就能完成的简历与求职信，再到分类型的模拟面试——4周内一步步完成。", "Đây là chương trình dành cho du học sinh nước ngoài chuẩn bị làm việc tại Hàn Quốc. Chuẩn bị việc làm một mình có thể rất mông lung, nên AI coach sẽ đồng hành và dẫn dắt bạn từng bước. Từ chẩn đoán tình trạng chuẩn bị, định hướng nghề nghiệp, hoàn thành hồ sơ và thư tự giới thiệu chỉ bằng trò chuyện, đến phỏng vấn thử theo từng loại — bạn sẽ hoàn thành từng bước trong 4 tuần.", "韓国での就職を目指す外国人留学生のためのプログラムです。一人では途方に暮れがちな就職準備を、AIコーチが隣で導いてくれます。就職準備状況の診断から職務の方向性設定、会話だけで完成する履歴書・自己紹介書、そしてタイプ別の模擬面接まで — 4週間で一つずつ進めて完走します。", "Program ini untuk mahasiswa asing yang bersiap bekerja di Korea. Persiapan kerja bisa terasa membingungkan jika sendirian, jadi AI coach akan membimbingmu di setiap langkah. Mulai dari diagnosis kesiapan, menentukan arah karier, menyusun resume dan cover letter hanya lewat percakapan, hingga simulasi wawancara per jenis — kamu akan menyelesaikannya langkah demi langkah selama 4 minggu.")}
                   </p>
-                  <div className="mt-3.5 flex flex-wrap gap-2">
+                  <div className="mt-5 flex flex-wrap gap-2">
                     {[
-                      { e: "💬", t: t("대화로 만드는 이력서·자기소개서", "Resume & cover letter built through conversation", "对话即可完成简历与求职信", "Hồ sơ & thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書・自己紹介書", "Resume & cover letter dari percakapan") },
-                      { e: "🎓", t: t("주간 세미나", "Weekly seminar", "每周研讨会", "Hội thảo hằng tuần", "週間セミナー", "Seminar mingguan") },
-                      { e: "✍️", t: t("코치 1:1 피드백", "1:1 coach feedback", "教练一对一反馈", "Phản hồi 1:1 từ coach", "コーチ1:1フィードバック", "Umpan balik coach 1:1") }
+                      { Icon: ChatCircleText, t: t("대화로 만드는 이력서·자기소개서", "Resume & cover letter built through conversation", "对话即可完成简历与求职信", "Hồ sơ & thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書・自己紹介書", "Resume & cover letter dari percakapan") },
+                      { Icon: GraduationCap, t: t("주간 세미나", "Weekly seminar", "每周研讨会", "Hội thảo hằng tuần", "週間セミナー", "Seminar mingguan") },
+                      { Icon: PenNib, t: t("코치 1:1 피드백", "1:1 coach feedback", "教练一对一反馈", "Phản hồi 1:1 từ coach", "コーチ1:1フィードバック", "Umpan balik coach 1:1") }
                     ].map((f) => (
                       <span key={f.t} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12px] font-semibold text-[#4E5968]">
-                        <span>{f.e}</span>
+                        <f.Icon className="h-3.5 w-3.5 text-[#0B46E8]" weight="fill" aria-hidden />
                         {f.t}
                       </span>
                     ))}
                   </div>
 
-                  {/* 4주 후 얻는 것 */}
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[12.5px] font-bold text-[#0B46E8]">{t("🎯 4주 후, 이런 걸 완성해요", "🎯 After 4 weeks, here's what you'll have", "🎯 4周后，你将完成这些", "🎯 Sau 4 tuần, đây là những gì bạn có", "🎯 4週間後、こんなものが完成します", "🎯 Setelah 4 minggu, inilah yang kamu miliki")}</p>
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                  {/* 4주 후 얻는 것 — 넘버드 매거진 리스트 */}
+                  <div className="mt-7 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("4주 후, 이런 걸 완성해요", "After 4 weeks, here's what you'll have", "4周后，你将完成这些", "Sau 4 tuần, đây là những gì bạn có", "4週間後、こんなものが完成します", "Setelah 4 minggu, inilah yang kamu miliki")}</p>
+                    <ol className="mt-3.5 space-y-3.5">
                       {[
-                        { e: "🧭", t: t("취업 준비도 진단 · 직무 방향", "Job-readiness diagnosis · Career direction", "求职准备度诊断 · 职业方向", "Chẩn đoán mức độ sẵn sàng · Định hướng nghề nghiệp", "就職準備度診断・職務の方向性", "Diagnosis kesiapan kerja · Arah karier") },
-                        { e: "📄", t: t("기업에 낼 대표 이력서", "A master resume to send to companies", "可投递企业的标准简历", "Hồ sơ chính để gửi cho công ty", "企業に提出するメイン履歴書", "Resume utama untuk dikirim ke perusahaan") },
-                        { e: "📝", t: t("회사 맞춤 자기소개서", "A cover letter tailored to each company", "针对公司量身定制的求职信", "Thư tự giới thiệu phù hợp từng công ty", "会社に合わせた自己紹介書", "Cover letter yang disesuaikan tiap perusahaan") },
-                        { e: "🎤", t: t("유형별 모의면접 · 실전 준비", "Mock interviews by type · Real-world prep", "分类型模拟面试 · 实战准备", "Phỏng vấn thử theo loại · Chuẩn bị thực chiến", "タイプ別模擬面接・実践準備", "Simulasi wawancara per jenis · Persiapan nyata") }
-                      ].map((o) => (
-                        <div key={o.t} className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3 py-2.5">
-                          <span className="text-[16px]">{o.e}</span>
-                          <span className="break-keep text-[12.5px] font-semibold text-[#333D4B]">{o.t}</span>
-                        </div>
+                        t("취업 준비도 진단 · 직무 방향", "Job-readiness diagnosis · Career direction", "求职准备度诊断 · 职业方向", "Chẩn đoán mức độ sẵn sàng · Định hướng nghề nghiệp", "就職準備度診断・職務の方向性", "Diagnosis kesiapan kerja · Arah karier"),
+                        t("기업에 낼 대표 이력서", "A master resume to send to companies", "可投递企业的标准简历", "Hồ sơ chính để gửi cho công ty", "企業に提出するメイン履歴書", "Resume utama untuk dikirim ke perusahaan"),
+                        t("회사 맞춤 자기소개서", "A cover letter tailored to each company", "针对公司量身定制的求职信", "Thư tự giới thiệu phù hợp từng công ty", "会社に合わせた自己紹介書", "Cover letter yang disesuaikan tiap perusahaan"),
+                        t("유형별 모의면접 · 실전 준비", "Mock interviews by type · Real-world prep", "分类型模拟面试 · 实战准备", "Phỏng vấn thử theo loại · Chuẩn bị thực chiến", "タイプ別模擬面接・実践準備", "Simulasi wawancara per jenis · Persiapan nyata")
+                      ].map((label, i) => (
+                        <li key={label} className="flex gap-4">
+                          <span className="mt-px w-6 shrink-0 text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
+                          <span className="break-keep text-[13.5px] leading-relaxed text-[#333D4B] md:text-[14px]">{label}</span>
+                        </li>
                       ))}
-                    </div>
+                    </ol>
                   </div>
 
                   {/* 수료 조건 */}
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[12.5px] font-bold text-[#3A6B00]">{t("✅ 수료 조건", "✅ Completion requirements", "✅ 结业条件", "✅ Điều kiện hoàn thành", "✅ 修了条件", "✅ Syarat kelulusan")}</p>
-                    <ul className="mt-2 space-y-1.5 text-[13px] text-[#333D4B]">
+                  <div className="mt-6 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("수료 조건", "Completion requirements", "结业条件", "Điều kiện hoàn thành", "修了条件", "Syarat kelulusan")}</p>
+                    <ul className="mt-3 space-y-2 text-[13px] text-[#333D4B]">
                       {completionCriteria().map((c, i) => (
-                        <li key={i} className="flex gap-2">
-                          <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-[#B7FF5A] text-[10px] font-black text-[#111]">{i + 1}</span>
-                          <span className="break-keep">{c}</span>
+                        <li key={i} className="flex gap-2.5">
+                          <span className="mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full bg-[#F2F4F6] text-[10px] font-black text-[#4E5968]">{i + 1}</span>
+                          <span className="break-keep leading-relaxed">{c}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
-                </Card>
-              </div>
+                </article>
+            </div>
 
-              <div>
+            <div>
                 <SectionTitle sub={t("각 주차를 눌러 진행하세요 · 완료할수록 결과물이 완성돼요", "Tap each week to get started · Your deliverables come together as you finish", "点击每一周开始 · 完成越多，成果越完整", "Nhấn vào từng tuần để bắt đầu · Hoàn thành càng nhiều, kết quả càng đầy đủ", "各週をタップして進めましょう · 完了するほど成果物が仕上がります", "Ketuk tiap minggu untuk mulai · Semakin selesai, hasilnya makin lengkap")}>{t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")}</SectionTitle>
-                <ol className="space-y-3">
+                <ol className="divide-y divide-[#EEF1F5] border-y border-[#EEF1F5]">
                   {WEEKS.map((w) => {
                     const done = weekDoneCount(w.steps, data);
                     const total = w.steps.length;
@@ -290,45 +319,26 @@ export default function LaunchDashboardPage() {
                       : done > 0
                       ? t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Sedang berjalan")
                       : t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未開始", "Belum mulai");
-                    const tone = !unlocked ? "grey" : done === total ? "green" : done > 0 ? "blue" : "grey";
-                    const card = (
-                      <Card className={`!p-4 md:!p-5 ${unlocked ? "transition hover:border-[#0B46E8]/40" : "opacity-60"}`}>
-                        <div className="flex items-start gap-3.5">
-                          <span
-                            className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12.5px] font-black leading-none ${
-                              !unlocked ? "bg-[#F2F4F6] text-[#B0B8C1]" : done === total ? "bg-emerald-500 text-white" : done > 0 ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#8B95A1]"
-                            }`}
-                          >
-                            {unlocked ? `W${w.week}` : "🔒"}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-                              <p className={`text-[15.5px] font-black tracking-[-0.01em] md:text-[16.5px] ${unlocked ? "text-[#191F28]" : "text-[#8B95A1]"}`}>{weekText(w.week, "title")}</p>
-                              <Pill tone={tone}>{status}</Pill>
-                            </div>
-                            <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{weekText(w.week, "subtitle")}</p>
-                            {unlocked ? (
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-bold text-[#0B46E8]">📦 {WEEK_DELIVERABLE[w.week]}</span>
-                                <span className="text-[11.5px] font-semibold text-[#8B95A1]">{t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}</span>
-                              </div>
-                            ) : (
-                              <p className="mt-2 text-[11.5px] font-medium text-[#B0B8C1]">{t(`🔒 Week ${w.week - 1}를 완료하면 열려요`, `🔒 Unlocks after you finish Week ${w.week - 1}`, `🔒 完成第${w.week - 1}周后解锁`, `🔒 Mở khóa sau khi hoàn thành Tuần ${w.week - 1}`, `🔒 Week ${w.week - 1}を完了すると開きます`, `🔒 Terbuka setelah menyelesaikan Minggu ${w.week - 1}`)}</p>
-                            )}
-                          </div>
+                    const inner = (
+                      <div className="flex items-center gap-4 py-5">
+                        <span className={`flex w-14 shrink-0 items-center text-[13px] font-black ${unlocked ? "text-[#191F28]" : "text-[#C4CAD2]"}`}>{unlocked ? t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`) : <Lock className="h-4 w-4" weight="fill" aria-hidden />}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-[15.5px] font-bold tracking-[-0.01em] ${unlocked ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{weekText(w.week, "title")}</p>
+                          <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">
+                            {unlocked ? `${WEEK_DELIVERABLE[w.week]} · ${t(`스텝 ${done}/${total}`, `Steps ${done}/${total}`, `步骤 ${done}/${total}`, `Bước ${done}/${total}`, `ステップ ${done}/${total}`, `Langkah ${done}/${total}`)}` : weekText(w.week, "subtitle")}
+                          </p>
                         </div>
-                      </Card>
+                        <span className={`shrink-0 text-[12.5px] font-medium ${unlocked && done === total ? "text-[#191F28]" : "text-[#B0B8C1]"}`}>{status}</span>
+                        {unlocked ? <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5" weight="bold" aria-hidden /> : null}
+                      </div>
                     );
-                    return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="block">{card}</Link> : card}</li>;
+                    return <li key={w.week}>{unlocked ? <Link href={`/career-launch/week/${w.week}`} className="group -mx-2 block rounded-xl px-2 transition hover:bg-[#FAFBFC]">{inner}</Link> : inner}</li>;
                   })}
                 </ol>
-              </div>
             </div>
 
-            {/* ── 사이드바 ── */}
-            <div className="min-w-0 space-y-7 md:space-y-8">
-              {/* 다가오는 세미나 */}
-              <div>
+            {/* ── 다가오는 세미나 ── */}
+            <div>
                 <SectionTitle>{t("세미나 일정", "Seminar schedule", "研讨会日程", "Lịch hội thảo", "セミナー日程", "Jadwal seminar")}</SectionTitle>
                 {seminars.length === 0 ? (
                   <Card className="!p-5 text-center">
@@ -344,7 +354,7 @@ export default function LaunchDashboardPage() {
                       const time = valid ? dt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }) : "";
                       return (
                         <Card key={s.week} className="flex items-start gap-3 !p-4">
-                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[18px]">{s.online ? "💻" : "📍"}</span>
+                          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-[#EDF1FD] text-[#0B46E8]">{s.online ? <Monitor className="h-5 w-5" weight="fill" aria-hidden /> : <MapPin className="h-5 w-5" weight="fill" aria-hidden />}</span>
                           <div className="min-w-0">
                             <p className="text-[13.5px] font-bold text-[#191F28]">{s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`)}</p>
                             <p className="mt-0.5 text-[12.5px] text-[#4E5968]">{[date, time].filter(Boolean).join(" · ")}</p>
@@ -363,61 +373,120 @@ export default function LaunchDashboardPage() {
               </div>
 
               {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
-              <div className="space-y-4">
+              <div id="deliverables" className="scroll-mt-20 space-y-4">
                 <SectionTitle sub={t("대화로 만드는 이력서와 자기소개서", "A resume and cover letter built through conversation", "对话即可完成的简历与求职信", "Hồ sơ và thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書と自己紹介書", "Resume dan cover letter dari percakapan")}>{t("내 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</SectionTitle>
-                <DocPreview title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")} ready={resumeReady} previewHref="/career-launch/resume-preview" emptyTitle={t("아직 이력서가 없어요", "You don't have a resume yet", "还没有简历", "Bạn chưa có hồ sơ", "まだ履歴書がありません", "Belum ada resume")} emptySub={t("2주차에 대화로 만들어요", "You'll build it through conversation in Week 2", "第2周通过对话完成", "Bạn sẽ tạo qua trò chuyện ở Tuần 2", "Week 2に会話で作ります", "Kamu membuatnya lewat percakapan di Minggu 2")}>
-                  {resumeReady ? <ResumeRender data={data.resume} /> : null}
-                </DocPreview>
-                <DocPreview title={t("내 자기소개서", "My cover letter", "我的求职信", "Thư tự giới thiệu của tôi", "私の自己紹介書", "Cover letter saya")} ready={coverReady} previewHref="/career-launch/cover-preview" emptyTitle={t("아직 자기소개서가 없어요", "You don't have a cover letter yet", "还没有求职信", "Bạn chưa có thư tự giới thiệu", "まだ自己紹介書がありません", "Belum ada cover letter")} emptySub={t("3주차에 대화로 만들어요", "You'll build it through conversation in Week 3", "第3周通过对话完成", "Bạn sẽ tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Kamu membuatnya lewat percakapan di Minggu 3")}>
-                  {coverReady ? <CoverRender data={data.cover} /> : null}
-                </DocPreview>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DeliverableCard
+                    title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")}
+                    ready={resumeReady}
+                    previewHref="/career-launch/resume-preview"
+                    doneMsg={t("이력서가 완성됐어요", "Your resume is ready", "简历已完成", "Hồ sơ đã hoàn thành", "履歴書が完成しました", "Resume sudah siap")}
+                    emptyMsg={t("2주차에 대화로 만들어요", "Built through conversation in Week 2", "第2周通过对话完成", "Tạo qua trò chuyện ở Tuần 2", "Week 2に会話で作ります", "Dibuat lewat percakapan di Minggu 2")}
+                  />
+                  <DeliverableCard
+                    title={t("내 자기소개서", "My cover letter", "我的求职信", "Thư tự giới thiệu của tôi", "私の自己紹介書", "Cover letter saya")}
+                    ready={coverReady}
+                    previewHref="/career-launch/cover-preview"
+                    doneMsg={t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap")}
+                    emptyMsg={t("3주차에 대화로 만들어요", "Built through conversation in Week 3", "第3周通过对话完成", "Tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Dibuat lewat percakapan di Minggu 3")}
+                  />
+                </div>
               </div>
-            </div>
+
+            {/* ── 완주 시 — 최종 피드백 + 다음 행동 ('내 결과물' 아래) ── */}
+            {overall === 100 ? (
+              <div>
+                <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
+                <FinalFeedbackCard />
+
+                {/* APLY(탤런트)로 이어가기 — 완주 후 실제 취업 활동으로 연결 */}
+                <Link
+                  href="/talent/home"
+                  onClick={() => trackCareerFunnel("next_action_clicked", { action: "go_talent" })}
+                  className="group mt-6 flex items-center justify-between gap-4 rounded-2xl bg-[#0B1227] px-5 py-5 text-left transition hover:bg-[#1A2440]"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-black text-white">{t("APLY에서 취업 이어가기", "Continue your job search on APLY", "在 APLY 继续求职", "Tiếp tục tìm việc trên APLY", "APLYで就職活動を続ける", "Lanjutkan pencarian kerja di APLY")}</p>
+                    <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-white/70">{t("완성한 이력서·자기소개서로 실제 공고에 지원하고 취업을 이어가요.", "Apply to real jobs with your finished resume and cover letter.", "用完成的简历与求职信投递真实职位。", "Ứng tuyển việc thật với hồ sơ và thư đã hoàn thành.", "完成した履歴書・自己紹介書で実際の求人に応募しましょう。", "Lamar pekerjaan nyata dengan resume dan surat lamaranmu.")}</p>
+                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+                </Link>
+              </div>
+            ) : null}
           </div>
+          </Reveal>
         </div>
       </main>
-      <Footer />
+      <AplyFooter />
     </div>
     </EnrollmentGate>
   );
 }
 
-// 결과물 미리보기 — 있으면 실제 문서 렌더 + 크게보기, 없으면 점선 placeholder(안내만, 버튼 없음).
-function DocPreview({
-  title,
-  ready,
-  previewHref,
-  emptyTitle,
-  emptySub,
-  children
-}: {
-  title: string;
-  ready: boolean;
-  previewHref: string;
-  emptyTitle: string;
-  emptySub: string;
-  children?: React.ReactNode;
-}) {
+// 결과물 카드 — talent '내 커리어'와 동일한 형태. 문서를 인라인으로 펼치지 않고,
+// 완성 링 + 상태 메시지 + '미리보기'(새 탭) 링크만 노출.
+function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string }) {
   const t = useLaunchT();
+  const shell = ready
+    ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
+    : "border border-dashed border-[#DCE3F0] bg-transparent";
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between">
-        <p className="text-[13.5px] font-bold text-[#191F28]">{title}</p>
+    <div className={`flex flex-col rounded-2xl p-5 transition ${shell}`}>
+      <DocRing ready={ready} />
+      <p className="mt-3 text-[15px] font-bold text-[#191F28]">{title}</p>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{ready ? doneMsg : emptyMsg}</p>
         {ready ? (
-          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[#0B46E8] transition hover:underline">
-            {t("열기 · PDF ↗", "Open · PDF ↗", "打开 · PDF ↗", "Mở · PDF ↗", "開く · PDF ↗", "Buka · PDF ↗")}
+          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
           </Link>
         ) : null}
       </div>
-      {ready ? (
-        children
-      ) : (
-        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D7DCE3] bg-[#FAFBFC] p-6 text-center">
-          <span className="text-[22px] opacity-40">📄</span>
-          <p className="mt-2 text-[13px] font-semibold text-[#8B95A1]">{emptyTitle}</p>
-          <p className="mt-0.5 text-[12px] text-[#B0B8C1]">{emptySub}</p>
-        </div>
-      )}
     </div>
+  );
+}
+
+// 히어로 원형 진행 링 — 흑백, 중앙에 전체 %만 표시.
+function HeroProgress({ pct }: { pct: number }) {
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const offset = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  return (
+    <div className="relative flex h-[76px] w-[76px] shrink-0 items-center justify-center md:h-[88px] md:w-[88px]">
+      <svg viewBox="0 0 72 72" className="h-full w-full -rotate-90" aria-hidden>
+        <circle cx="36" cy="36" r={r} fill="none" stroke="#E5E8EB" strokeWidth="6" />
+        <circle
+          cx="36"
+          cy="36"
+          r={r}
+          fill="none"
+          stroke="#191F28"
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className="transition-[stroke-dashoffset] duration-700"
+        />
+      </svg>
+      <div className="absolute flex items-center justify-center leading-none">
+        <span className="text-[18px] font-black tabular-nums text-[#191F28] md:text-[20px]">{pct}%</span>
+      </div>
+    </div>
+  );
+}
+
+// 완성 상태 링 — 완료 시 파란 링 + 체크, 미완성은 빈 트랙.
+function DocRing({ ready }: { ready: boolean }) {
+  const color = "#0B46E8";
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" className="shrink-0" aria-hidden>
+      <circle cx="26" cy="26" r="20" fill="none" stroke="#EDF1FD" strokeWidth="5" />
+      {ready ? (
+        <>
+          <circle cx="26" cy="26" r="20" fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" transform="rotate(-90 26 26)" />
+          <path d="M18.5 26.5 l4.5 4.5 l10 -11" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : null}
+    </svg>
   );
 }

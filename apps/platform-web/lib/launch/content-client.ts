@@ -49,3 +49,13 @@ export async function fetchOpsCareerContent(): Promise<CareerContent> {
 export async function saveOpsCareerContent(content: CareerContent): Promise<void> {
   await req("/career-launch/ops/content", { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ content }) });
 }
+
+// 문구 버전 이력 + 롤백(오변경 복구용). value 는 전체 문구 JSON 문자열.
+export type ContentHistoryEntry = { value: string; at: string };
+export async function fetchOpsCareerContentHistory(): Promise<ContentHistoryEntry[]> {
+  const d = await req("/career-launch/ops/content/history", { headers: authHeaders() });
+  return Array.isArray(d.history) ? (d.history as ContentHistoryEntry[]) : [];
+}
+export async function rollbackOpsCareerContent(index: number): Promise<void> {
+  await req("/career-launch/ops/content/rollback", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ index }) });
+}

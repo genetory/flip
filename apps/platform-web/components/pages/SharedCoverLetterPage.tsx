@@ -5,6 +5,7 @@ import { DownloadSimple } from "@phosphor-icons/react/dist/ssr";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
 import { computePageBreaks } from "../resume-maker/ResumePreview";
 import { getSharedCoverLetter, type SharedCoverLetter } from "../../lib/cover-letter-client";
+import { usePlatformT } from "../../lib/i18n";
 
 // 공개(로그인 불필요) 자기소개서 읽기 전용 뷰. 이력서 공유 페이지의 자소서 버전.
 // resume-maker 와 동일한 CoverLetterSheet 로 렌더 → 언제나 최신·동일한 모습.
@@ -14,6 +15,7 @@ const PAGE_PAD = 56;
 const PAGE_CONTENT_H = A4_H - PAGE_PAD * 2;
 
 export function SharedCoverLetterPage({ slug }: { slug: string }) {
+  const t = usePlatformT();
   const [cl, setCl] = useState<SharedCoverLetter | null>(null);
   const [error, setError] = useState<string | null>(null);
   const outerRef = useRef<HTMLDivElement>(null);
@@ -29,7 +31,7 @@ export function SharedCoverLetterPage({ slug }: { slug: string }) {
         const r = await getSharedCoverLetter(slug);
         if (alive) setCl(r);
       } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : "자기소개서를 불러오지 못했어요.");
+        if (alive) setError(e instanceof Error ? e.message : t("자기소개서를 불러오지 못했어요.", "Couldn't load the cover letter.", "无法加载求职信。", "Không thể tải thư giới thiệu.", "自己紹介書を読み込めませんでした。", "Gagal memuat surat lamaran."));
       }
     })();
     return () => {
@@ -68,12 +70,12 @@ export function SharedCoverLetterPage({ slug }: { slug: string }) {
   if (!cl) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F2F4F6]">
-        <span className="text-sm text-muted-foreground">불러오는 중...</span>
+        <span className="text-sm text-muted-foreground">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </div>
     );
   }
 
-  const title = "자기소개서";
+  const title = t("자기소개서", "Cover letter", "求职信", "Thư giới thiệu", "自己紹介書", "Surat lamaran");
 
   return (
     <div className="min-h-screen bg-[#F2F4F6]">
@@ -146,7 +148,7 @@ export function SharedCoverLetterPage({ slug }: { slug: string }) {
               <div style={{ position: "absolute", left: 0, right: 0, bottom: "5mm", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/img_logo.webp" alt="Aply" style={{ height: 12, width: "auto", opacity: 0.7 }} />
-                <span style={{ fontSize: 9.5, letterSpacing: "0.02em", color: "#94a3b8" }}>커리어의 시작 · aply.global</span>
+                <span style={{ fontSize: 9.5, letterSpacing: "0.02em", color: "#94a3b8" }}>{t("커리어의 시작", "Start your career", "职业起点", "Khởi đầu sự nghiệp", "キャリアの始まり", "Awal karier")} · aply.global</span>
               </div>
             </div>
           );

@@ -26,6 +26,7 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   const res = await fetch(`${apiBase()}${path}`, init);
   const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
   if (!res.ok || d?.ok !== true) throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
   return d;
 }
 

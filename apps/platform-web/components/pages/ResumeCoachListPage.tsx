@@ -32,18 +32,21 @@ function useTr() {
   };
 }
 
-function formatUpdatedAt(value: string): string {
+function formatUpdatedAt(
+  value: string,
+  t: (ko: string, en: string, zh: string, vi: string, ja: string, id: string) => string
+): string {
   try {
     const d = new Date(value);
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const minutes = Math.floor(diffMs / 60_000);
-    if (minutes < 1) return "방금 전";
-    if (minutes < 60) return `${minutes}분 전`;
+    if (minutes < 1) return t("방금 전", "Just now", "刚刚", "Vừa xong", "たった今", "Baru saja");
+    if (minutes < 60) return t(`${minutes}분 전`, `${minutes}m ago`, `${minutes}分钟前`, `${minutes} phút trước`, `${minutes}分前`, `${minutes} menit lalu`);
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}시간 전`;
+    if (hours < 24) return t(`${hours}시간 전`, `${hours}h ago`, `${hours}小时前`, `${hours} giờ trước`, `${hours}時間前`, `${hours} jam lalu`);
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days}일 전`;
+    if (days < 30) return t(`${days}일 전`, `${days}d ago`, `${days}天前`, `${days} ngày trước`, `${days}日前`, `${days} hari lalu`);
     return d.toLocaleDateString("ko-KR");
   } catch {
     return value;
@@ -95,7 +98,7 @@ export function ResumeCoachListPage({ selectedResumeId }: { selectedResumeId?: s
         const initial = pickInitialId(list, selectedResumeId);
         if (initial) setCurrentId(initial);
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : "이력서 목록을 불러오지 못했어요.");
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : tr("이력서 목록을 불러오지 못했어요.", "Couldn't load resume list.", "无法加载简历列表。", "Không tải được danh sách hồ sơ.", "履歴書リストを読み込めませんでした。", "Tidak dapat memuat daftar resume."));
       }
     })();
     return () => {
@@ -371,7 +374,7 @@ function ResumeListRow({
           <span className={`h-1.5 w-1.5 rounded-full ${dotMeta.dot}`} />
           <span>{levelLabel}</span>
           <span className="text-muted-foreground/60">·</span>
-          <span>{formatUpdatedAt(resume.updatedAt)}</span>
+          <span>{formatUpdatedAt(resume.updatedAt, tr)}</span>
         </p>
       </div>
 

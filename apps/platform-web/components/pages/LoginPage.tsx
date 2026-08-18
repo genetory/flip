@@ -12,6 +12,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { Button } from "../ui/button";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
+import { usePlatformT } from "../../lib/i18n";
 
 // `?next=` 만 신뢰. open-redirect 방지를 위해 same-origin 내부 경로(`/...`)만
 // 허용 — `//evil.com` 같은 protocol-relative 입력도 거른다.
@@ -47,8 +48,7 @@ export function LoginPage({
   const copy = useMemo(() => getAuthPageMessages(locale).login, [locale]);
   // 학생/파트너 안내용 토글(UI·카피·가입 링크만 바꾼다 — 로그인 동작·역할은 계정이 결정).
   const [role, setRole] = useState<"student" | "partner">("student");
-  const L = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) =>
-    locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
+  const t = usePlatformT();
   const signupHref = (() => {
     const params = new URLSearchParams();
     if (role === "partner") params.set("type", "business");
@@ -120,7 +120,7 @@ export function LoginPage({
             <div className="mx-auto mb-8 text-center">
               <Image
                 src="/img_logo.webp"
-                alt="aply logo"
+                alt="Aply logo"
                 width={180}
                 height={48}
                 className="mx-auto mb-5 h-8 w-auto md:h-9"
@@ -137,7 +137,7 @@ export function LoginPage({
           <div className="mx-auto max-w-md rounded-2xl border border-border/60 bg-card p-6 md:p-8">
             {showRoleToggle ? (
               <div className="mb-5">
-                <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label={L("로그인 유형", "Login type", "登录类型", "Loại đăng nhập", "ログイン種別", "Tipe login")}>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1" role="tablist" aria-label={t("로그인 유형", "Login type", "登录类型", "Loại đăng nhập", "ログイン種別", "Tipe login")}>
                   <button
                     type="button"
                     role="tab"
@@ -145,7 +145,7 @@ export function LoginPage({
                     onClick={() => setRole("student")}
                     className={`h-9 rounded-lg text-sm font-bold transition ${role === "student" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
                   >
-                    {L("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}
+                    {t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa")}
                   </button>
                   <button
                     type="button"
@@ -154,12 +154,12 @@ export function LoginPage({
                     onClick={() => setRole("partner")}
                     className={`h-9 rounded-lg text-sm font-bold transition ${role === "partner" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
                   >
-                    {L("파트너(기업)", "Partner (company)", "合作伙伴（企业）", "Đối tác (doanh nghiệp)", "パートナー（企業）", "Mitra (perusahaan)")}
+                    {t("파트너(기업)", "Partner (company)", "合作伙伴（企业）", "Đối tác (doanh nghiệp)", "パートナー（企業）", "Mitra (perusahaan)")}
                   </button>
                 </div>
                 <p className="mt-2 text-center text-xs text-muted-foreground">
                   {role === "student"
-                    ? L(
+                    ? t(
                         "구직·커리어런치는 학생 계정으로 로그인하세요.",
                         "Log in with your student account for jobs & Career Launch.",
                         "求职·Career Launch 请使用学生账号登录。",
@@ -167,7 +167,7 @@ export function LoginPage({
                         "求職・Career Launchは学生アカウントでログインしてください。",
                         "Masuk dengan akun siswa untuk lowongan & Career Launch."
                       )
-                    : L(
+                    : t(
                         "채용·기업 관리는 파트너(기업) 계정으로 로그인하세요.",
                         "Log in with your partner account to manage hiring.",
                         "招聘·企业管理请使用合作伙伴账号登录。",
@@ -211,7 +211,7 @@ export function LoginPage({
             <div className="mt-6 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
               <span className="text-xs text-muted-foreground">
-                {locale === "ko" ? "또는" : locale === "zh-CN" ? "或" : locale === "vi" ? "hoặc" : locale === "ja" ? "または" : locale === "id" ? "atau" : "or"}
+                {t("또는", "or", "或", "hoặc", "または", "atau")}
               </span>
               <span className="h-px flex-1 bg-border" />
             </div>
@@ -222,17 +222,7 @@ export function LoginPage({
                 className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-[#03C75A] text-sm font-semibold text-white transition hover:bg-[#02b551]"
               >
                 <span aria-hidden className="font-black">N</span>
-                {locale === "ko"
-                  ? "네이버로 로그인"
-                  : locale === "zh-CN"
-                    ? "使用 Naver 登录"
-                    : locale === "vi"
-                      ? "Đăng nhập với Naver"
-                      : locale === "ja"
-                        ? "Naverでログイン"
-                        : locale === "id"
-                          ? "Masuk dengan Naver"
-                          : "Continue with Naver"}
+                {t("네이버로 로그인", "Continue with Naver", "使用 Naver 登录", "Đăng nhập với Naver", "Naverでログイン", "Masuk dengan Naver")}
               </a>
               <a
                 href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/auth/kakao/start`}
@@ -241,17 +231,7 @@ export function LoginPage({
                 <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z"/>
                 </svg>
-                {locale === "ko"
-                  ? "카카오로 로그인"
-                  : locale === "zh-CN"
-                    ? "使用 Kakao 登录"
-                    : locale === "vi"
-                      ? "Đăng nhập với Kakao"
-                      : locale === "ja"
-                        ? "Kakaoでログイン"
-                        : locale === "id"
-                          ? "Masuk dengan Kakao"
-                          : "Continue with Kakao"}
+                {t("카카오로 로그인", "Continue with Kakao", "使用 Kakao 登录", "Đăng nhập với Kakao", "Kakaoでログイン", "Masuk dengan Kakao")}
               </a>
               <a
                 href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/auth/google/start`}
@@ -263,17 +243,7 @@ export function LoginPage({
                   <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
                   <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571.001-.001.002-.001.003-.002l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
                 </svg>
-                {locale === "ko"
-                  ? "구글로 로그인"
-                  : locale === "zh-CN"
-                    ? "使用 Google 登录"
-                    : locale === "vi"
-                      ? "Đăng nhập với Google"
-                      : locale === "ja"
-                        ? "Googleでログイン"
-                        : locale === "id"
-                          ? "Masuk dengan Google"
-                          : "Continue with Google"}
+                {t("구글로 로그인", "Continue with Google", "使用 Google 登录", "Đăng nhập với Google", "Googleでログイン", "Masuk dengan Google")}
               </a>
             </div>
 
@@ -282,7 +252,7 @@ export function LoginPage({
               {/* 파트너 토글이면 기업 가입으로, 아니면 일반 가입으로. next 는 유지. */}
               <Link href={signupHref} className="font-semibold text-foreground">
                 {showRoleToggle && role === "partner"
-                  ? L("기업 계정 만들기", "Create a company account", "创建企业账号", "Tạo tài khoản doanh nghiệp", "企業アカウントを作成", "Buat akun perusahaan")
+                  ? t("기업 계정 만들기", "Create a company account", "创建企业账号", "Tạo tài khoản doanh nghiệp", "企業アカウントを作成", "Buat akun perusahaan")
                   : copy.signupLink}
               </Link>
             </p>
