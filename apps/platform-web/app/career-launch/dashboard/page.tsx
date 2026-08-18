@@ -217,7 +217,7 @@ export default function LaunchDashboardPage() {
                 <h1 className="mt-2 break-keep text-[23px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{overall === 100 ? t(`${displayName}님, 완주를 축하해요`, `Congrats on finishing, ${displayName}`, `${displayName}，恭喜你顺利完成`, `Chúc mừng bạn đã hoàn thành, ${displayName}`, `${displayName}さん、完走おめでとうございます`, `Selamat telah menyelesaikan, ${displayName}`) : t(`${displayName}님, 반가워요`, `Welcome, ${displayName}`, `${displayName}，欢迎你`, `Chào mừng bạn, ${displayName}`, `${displayName}さん、ようこそ`, `Selamat datang, ${displayName}`)}</h1>
                 <p className="mt-2.5 break-keep text-[14px] leading-relaxed text-[#4E5968] md:text-[15px]">{overall === 100 ? t("이력서·자기소개서를 완성하고 면접 준비까지 마쳤어요. 이제 자신 있게 지원해봐요.", "You've finished your resume and cover letter, and prepped for interviews. Now apply with confidence.", "你已完成简历和求职信，也做好了面试准备。现在充满信心地去投递吧。", "Bạn đã hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị xong cho phỏng vấn. Giờ hãy tự tin ứng tuyển nhé.", "履歴書・自己紹介書を完成させ、面接準備まで終えました。これからは自信を持って応募しましょう。", "Kamu sudah menyelesaikan resume dan cover letter, serta menyiapkan wawancara. Sekarang lamar dengan percaya diri.") : t("4주 동안 이력서·자기소개서를 완성하고 면접까지 준비해요.", "Over 4 weeks, you'll complete your resume and cover letter, and prepare for interviews.", "在4周内完成简历和求职信，并准备好面试。", "Trong 4 tuần, bạn sẽ hoàn thành hồ sơ và thư tự giới thiệu, và chuẩn bị cho phỏng vấn.", "4週間で履歴書・自己紹介書を完成させ、面接まで準備します。", "Selama 4 minggu, kamu akan menyelesaikan resume dan cover letter, serta menyiapkan wawancara.")}</p>
               </div>
-              <HeroProgress pct={overall} done={doneSteps} total={totalSteps} />
+              <HeroProgress pct={overall} />
             </div>
           </div>
           </Reveal>
@@ -446,8 +446,8 @@ function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { tit
   );
 }
 
-// 히어로 원형 진행 링 — 흑백, 중앙에 전체 % + 스텝 수.
-function HeroProgress({ pct, done, total }: { pct: number; done: number; total: number }) {
+// 히어로 원형 진행 링 — 흑백, 중앙에 전체 %만 표시.
+function HeroProgress({ pct }: { pct: number }) {
   const r = 30;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
@@ -468,9 +468,8 @@ function HeroProgress({ pct, done, total }: { pct: number; done: number; total: 
           className="transition-[stroke-dashoffset] duration-700"
         />
       </svg>
-      <div className="absolute flex flex-col items-center leading-none">
-        <span className="text-[16px] font-black tabular-nums text-[#191F28] md:text-[18px]">{pct}%</span>
-        <span className="mt-1 text-[10px] font-semibold tabular-nums text-[#B0B8C1]">{done}/{total}</span>
+      <div className="absolute flex items-center justify-center leading-none">
+        <span className="text-[18px] font-black tabular-nums text-[#191F28] md:text-[20px]">{pct}%</span>
       </div>
     </div>
   );

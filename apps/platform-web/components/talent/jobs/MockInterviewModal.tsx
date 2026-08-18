@@ -64,6 +64,10 @@ type Slot = { answer: string; fb: InterviewFeedback | null };
 function isQuota(err: unknown): boolean {
   return !!err && typeof err === "object" && (err as { status?: number }).status === 402;
 }
+// 하루 이용 한도(gpt-4o 캡, 서버 code=AI_DAILY_LIMIT) — 티켓 부족과 구분해 다른 안내를 보인다.
+function isDailyLimit(err: unknown): boolean {
+  return !!err && typeof err === "object" && (err as { code?: string }).code === "AI_DAILY_LIMIT";
+}
 
 export function MockInterviewModal({ item, onClose }: { item?: PublicPositionListItem; onClose: () => void }) {
   const t = usePlatformT();
@@ -98,6 +102,7 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
   const [usage, setUsage] = useState<AiUsage | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [quotaBlocked, setQuotaBlocked] = useState(false);
+  const [dailyLimited, setDailyLimited] = useState(false);
   function refreshUsage() {
     getAiUsage().then(setUsage).catch(() => {});
   }
@@ -161,7 +166,9 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         syncTickets();
       })
       .catch((err) => {
-        if (isQuota(err)) {
+        if (isDailyLimit(err)) {
+          setDailyLimited(true);
+        } else if (isQuota(err)) {
           setQuotaBlocked(true);
           setTicketOpen(true);
           refreshUsage();
@@ -221,7 +228,9 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         syncTickets();
       })
       .catch((err) => {
-        if (isQuota(err)) {
+        if (isDailyLimit(err)) {
+          setDailyLimited(true);
+        } else if (isQuota(err)) {
           setTicketOpen(true);
           refreshUsage();
         }
@@ -244,7 +253,9 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         syncTickets();
       })
       .catch((err) => {
-        if (isQuota(err)) {
+        if (isDailyLimit(err)) {
+          setDailyLimited(true);
+        } else if (isQuota(err)) {
           setTicketOpen(true);
           refreshUsage();
         }
@@ -267,6 +278,14 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
           </div>
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
         </div>
+
+        {/* 하루 이용 한도 도달 — 티켓이 아니라 gpt-4o 일 캡. 충전이 아닌 '내일 다시' 안내 */}
+        {dailyLimited ? (
+          <div className="flex items-start gap-2 border-b border-[#F6ECD6] bg-[#FFFBF3] px-5 py-2.5">
+            <p className="min-w-0 flex-1 break-keep text-[11.5px] leading-relaxed text-[#8B6D3F]">{t("오늘 모의 면접 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요.", "You've reached today's mock interview limit. It resets tomorrow.", "已达今日模拟面试上限，明天可再使用。", "Bạn đã đạt giới hạn phỏng vấn thử hôm nay, sẽ đặt lại vào ngày mai.", "本日の模擬面接の利用上限に達しました。明日また利用できます。", "Anda mencapai batas wawancara hari ini. Reset besok.")}</p>
+            <button type="button" onClick={() => setDailyLimited(false)} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="shrink-0 text-[#C9A55C]"><X className="h-3.5 w-3.5" /></button>
+          </div>
+        ) : null}
 
         {/* 외부(비-CIP) 공고 면책 — 공고 기반 연습이며 실제 회사 면접과 무관 */}
         {item && item.sourceProvider !== "INTERNAL" ? (
