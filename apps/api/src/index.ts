@@ -3421,6 +3421,30 @@ const listPositionsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().refine((v) => [20, 30, 40, 100].includes(v), "pageSize must be one of 20,30,40,100").optional()
 });
+// 시·도 필터 별칭 — 프론트가 보내는 시·도 라벨 → DB workLocation(자유입력, 표기 제각각)에서
+// 매칭할 부분문자열 목록. '서울특별시'는 '서울'을 포함하지만 '충청북도'는 '충북'을 포함하지 않아
+// 축약/정식 표기를 모두 나열한다.
+const LOCATION_ALIASES: Record<string, string[]> = {
+  서울: ["서울"],
+  경기: ["경기"],
+  인천: ["인천"],
+  부산: ["부산"],
+  대구: ["대구"],
+  대전: ["대전"],
+  광주: ["광주"],
+  울산: ["울산"],
+  세종: ["세종"],
+  강원: ["강원"],
+  충북: ["충북", "충청북"],
+  충남: ["충남", "충청남"],
+  전북: ["전북", "전라북"],
+  전남: ["전남", "전라남"],
+  경북: ["경북", "경상북"],
+  경남: ["경남", "경상남"],
+  제주: ["제주"]
+};
+// 고용형태 enum은 상단(positionEmploymentTypeEnum, z.nativeEnum)에서 재사용.
+const positionLocationEnum = z.enum(Object.keys(LOCATION_ALIASES) as [string, ...string[]]);
 const listPublicPositionsCursorQuerySchema = z.object({
   cursor: z.string().trim().min(1).optional(),
   // page: 1-based 번호 페이징(무한스크롤 대신). 주어지면 offset 모드(skip/take) + total 반환.
@@ -3429,6 +3453,10 @@ const listPublicPositionsCursorQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   sourceProvider: z.union([positionSourceProviderEnum, z.array(positionSourceProviderEnum)]).optional(),
   jobRole: z.union([z.string().trim().min(1).max(120), z.array(z.string().trim().min(1).max(120))]).optional(),
+  // 고용형태 필터(정규직/인턴/파트타임/무급인턴) — 다중 선택.
+  employmentType: z.union([positionEmploymentTypeEnum, z.array(positionEmploymentTypeEnum)]).optional(),
+  // 지역(시·도) 필터 — 다중 선택. workLocation 부분문자열 매칭(별칭 포함).
+  location: z.union([positionLocationEnum, z.array(positionLocationEnum)]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
   sort: z.enum(["latest", "deadline"]).optional(),
   // 외국인 지원 가능만 — eligibleVisas에 'FOREIGNER_FRIENDLY'가 있는 공고만.
@@ -9284,6 +9312,8 @@ function positionsCacheKey(params: {
   sortOrder: string;
   jobRoles: string[];
   sourceProviders: string[];
+  employmentTypes: string[];
+  locations: string[];
   foreignerEligible: boolean;
   company: string;
   // Korean vs. translated-English response must not share a cache slot.
@@ -9298,11 +9328,33 @@ function positionsCacheKey(params: {
     so: params.sortOrder,
     j: [...params.jobRoles].sort(),
     p: [...params.sourceProviders].sort(),
+    et: [...params.employmentTypes].sort(),
+    lc: [...params.locations].sort(),
     fe: params.foreignerEligible,
     co: params.company,
     loc: params.locale
   });
 }
+
+// 포지션 탐색 필터 옵션(facet) — 실제 데이터에 존재하는 직무 카테고리(preferredJobRole)를
+// 건수와 함께 반환. 프론트 칩이 통제 어휘가 아니라 '실제 값'과 일치하도록 자동 유지.
+// (/positions/:id 보다 먼저 등록해야 :id로 오인 매칭되지 않는다.)
+app.get("/positions/facets", async (_req, res) => {
+  try {
+    const rows = await prisma.position.groupBy({
+      by: ["preferredJobRole"],
+      where: { status: PositionStatus.OPEN, preferredJobRole: { not: null } },
+      _count: { _all: true }
+    });
+    const jobRoles = rows
+      .map((r) => ({ value: r.preferredJobRole as string, count: r._count._all }))
+      .filter((r) => r.value && r.value.trim().length > 0)
+      .sort((a, b) => b.count - a.count);
+    return res.json({ ok: true, jobRoles });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 app.get("/positions", async (req, res) => {
   const parsedQuery = listPublicPositionsCursorQuerySchema.safeParse(req.query);
@@ -9323,6 +9375,14 @@ app.get("/positions", async (req, res) => {
   const jobRoles = parsedQuery.data.jobRole
     ? Array.from(new Set(Array.isArray(parsedQuery.data.jobRole) ? parsedQuery.data.jobRole : [parsedQuery.data.jobRole]))
     : [];
+  const employmentTypes = parsedQuery.data.employmentType
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.employmentType) ? parsedQuery.data.employmentType : [parsedQuery.data.employmentType]))
+    : [];
+  const locations = parsedQuery.data.location
+    ? Array.from(new Set(Array.isArray(parsedQuery.data.location) ? parsedQuery.data.location : [parsedQuery.data.location]))
+    : [];
+  // 선택 시·도 → workLocation ILIKE 부분문자열 패턴(별칭 전개).
+  const locationPatterns = locations.flatMap((l) => (LOCATION_ALIASES[l] ?? [l]).map((a) => `%${a}%`));
   const sortMode = parsedQuery.data.sort ?? "latest";
   const sortOrder = parsedQuery.data.sortOrder ?? "desc";
   const foreignerEligible =
@@ -9346,6 +9406,8 @@ app.get("/positions", async (req, res) => {
     sortOrder,
     jobRoles,
     sourceProviders: sourceProviders.map((p) => String(p)),
+    employmentTypes: employmentTypes.map((e) => String(e)),
+    locations,
     foreignerEligible,
     company: company ?? "",
     locale: localeKey
@@ -9440,6 +9502,12 @@ app.get("/positions", async (req, res) => {
       const visaFilter = foreignerEligible
         ? Prisma.sql`AND 'FOREIGNER_FRIENDLY' = ANY("eligibleVisas")`
         : Prisma.empty;
+      const employmentFilter = employmentTypes.length
+        ? Prisma.sql`AND "employmentType"::text = ANY(${employmentTypes.map((e) => String(e))}::text[])`
+        : Prisma.empty;
+      const locationFilter = locationPatterns.length
+        ? Prisma.sql`AND "workLocation" ILIKE ANY(${locationPatterns}::text[])`
+        : Prisma.empty;
 
       const annResults = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
         SELECT "id", "embedding" <=> ${vectorLiteral}::vector AS distance
@@ -9449,6 +9517,8 @@ app.get("/positions", async (req, res) => {
           ${jobRoleFilter}
           ${providerFilter}
           ${visaFilter}
+          ${employmentFilter}
+          ${locationFilter}
         ORDER BY "embedding" <=> ${vectorLiteral}::vector
         LIMIT ${ANN_POOL_SIZE}
       `;
@@ -9476,6 +9546,12 @@ app.get("/positions", async (req, res) => {
         const qualifiedVisaFilter = foreignerEligible
           ? Prisma.sql`AND 'FOREIGNER_FRIENDLY' = ANY(p."eligibleVisas")`
           : Prisma.empty;
+        const qualifiedEmploymentFilter = employmentTypes.length
+          ? Prisma.sql`AND p."employmentType"::text = ANY(${employmentTypes.map((e) => String(e))}::text[])`
+          : Prisma.empty;
+        const qualifiedLocationFilter = locationPatterns.length
+          ? Prisma.sql`AND p."workLocation" ILIKE ANY(${locationPatterns}::text[])`
+          : Prisma.empty;
         // ILIKE on title/workLocation/preferredJobRole + partner org name via join.
         // %candidate% built server-side to keep parameter list small.
         const likePatterns = queryCandidates.map((c) => `%${c}%`);
@@ -9488,6 +9564,8 @@ app.get("/positions", async (req, res) => {
             ${qualifiedJobRoleFilter}
             ${qualifiedProviderFilter}
             ${qualifiedVisaFilter}
+            ${qualifiedEmploymentFilter}
+            ${qualifiedLocationFilter}
             ${annExclude}
             AND (
               p."title" ILIKE ANY(${likePatterns}::text[])
@@ -9625,13 +9703,19 @@ app.get("/positions", async (req, res) => {
       : {}),
     ...(jobRoles.length ? { preferredJobRole: { in: jobRoles } } : {}),
     ...(sourceProviders.length ? { sourceProvider: { in: sourceProviders } } : {}),
+    ...(employmentTypes.length ? { employmentType: { in: employmentTypes } } : {}),
     // 특정 회사(파트너 조직명) 정확 일치 — 회사 상세/관심 회사용.
     ...(company ? { partnerOrganization: { is: { name: company } } } : {}),
-    // 외국인 지원 가능 = 공고별 FOREIGNER_FRIENDLY 태그(내부·외부 동일 기준). search가 이미
-    // 최상위 OR를 쓰므로 AND로 감싸 키 충돌을 피한다.
-    ...(foreignerEligible
+    // 외국인 지원 가능(FOREIGNER_FRIENDLY 태그) + 지역(workLocation 부분문자열 OR)을 하나의
+    // AND 배열로 합친다. search가 최상위 OR를 쓰므로 AND로 감싸 키 충돌을 피한다.
+    ...((foreignerEligible || locationPatterns.length)
       ? {
-          AND: [{ eligibleVisas: { has: "FOREIGNER_FRIENDLY" } }]
+          AND: [
+            ...(foreignerEligible ? [{ eligibleVisas: { has: "FOREIGNER_FRIENDLY" } }] : []),
+            ...(locationPatterns.length
+              ? [{ OR: locations.flatMap((l) => (LOCATION_ALIASES[l] ?? [l]).map((a) => ({ workLocation: { contains: a, mode: "insensitive" as const } }))) }]
+              : [])
+          ]
         }
       : {})
   };

@@ -694,6 +694,21 @@ export async function getPositionsMeta() {
   } satisfies PositionsMeta;
 }
 
+// 포지션 탐색 필터 옵션(직무 카테고리 facet) — 실제 데이터 값 + 건수. 칩 렌더용.
+export async function getPositionFacets(): Promise<{ jobRoles: Array<{ value: string; count: number }> }> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/positions/facets`, {
+      method: "GET",
+      headers: withOptionalBearerHeader()
+    });
+    const payload = (await readApiPayload(response)) as { ok?: boolean; jobRoles?: Array<{ value: string; count: number }> };
+    if (!response.ok || payload.ok !== true) return { jobRoles: [] };
+    return { jobRoles: payload.jobRoles ?? [] };
+  } catch {
+    return { jobRoles: [] };
+  }
+}
+
 export async function getPublicPositionsPage(input?: {
   cursor?: string | null;
   page?: number; // 번호 페이징(offset). 주어지면 total 반환.
@@ -703,6 +718,10 @@ export async function getPublicPositionsPage(input?: {
   sortOrder?: "asc" | "desc";
   sort?: "latest" | "deadline";
   sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
+  // 고용형태 필터(정규직/인턴/파트타임/무급인턴) — 다중.
+  employmentTypes?: Array<"FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN">;
+  // 지역(시·도) 필터 — 다중. 예: "서울","경기".
+  locations?: string[];
   // 외국인 지원 가능(eligibleVisas에 FOREIGNER_FRIENDLY 포함)만 필터링.
   foreignerEligible?: boolean;
   // 특정 회사(파트너 조직명)의 공고만 — 회사 상세/관심 회사용(정확 일치, 검색과 무관).
@@ -726,6 +745,16 @@ export async function getPublicPositionsPage(input?: {
   if (input?.sourceProviders?.length) {
     for (const provider of Array.from(new Set(input.sourceProviders))) {
       params.append("sourceProvider", provider);
+    }
+  }
+  if (input?.employmentTypes?.length) {
+    for (const et of Array.from(new Set(input.employmentTypes))) {
+      params.append("employmentType", et);
+    }
+  }
+  if (input?.locations?.length) {
+    for (const loc of Array.from(new Set(input.locations.map((l) => l.trim()).filter((l) => l.length > 0)))) {
+      params.append("location", loc);
     }
   }
   if (input?.foreignerEligible) params.set("foreignerEligible", "true");
