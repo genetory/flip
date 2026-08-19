@@ -2,15 +2,20 @@
 
 // AI 커리어 상담 — 대화로 '무엇을 하고 싶은지'를 깊이 탐색하고, 마지막에 어울리는 포지션을 정리해 준다.
 import { useEffect, useRef, useState } from "react";
-import { X, PaperPlaneTilt, Sparkle, CircleNotch, ArrowClockwise } from "@phosphor-icons/react";
+import Link from "next/link";
+import { X, PaperPlaneTilt, Sparkle, CircleNotch, ArrowClockwise, ArrowRight } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { careerAdvise, type AdvisorMsg } from "../../../lib/talent/career-advisor-client";
 import { loadAdvisorChat, saveAdvisorChat, clearAdvisorChat } from "../../../lib/talent/career-advisor-store";
+import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { jobCategoryLabel } from "../../../lib/job-categories";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT } from "../../../lib/i18n";
 
-type Msg = { role: "bot" | "user"; text: string };
+type Msg =
+  | { role: "bot" | "user"; kind: "text"; text: string }
+  | { role: "bot"; kind: "positions"; categories: string[]; positions: PublicPositionListItem[] };
 
 export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
@@ -26,8 +31,23 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const started = useRef(false);
 
-  // 대화 기록 → API 형식.
-  const history = (msgs: Msg[]): AdvisorMsg[] => msgs.map((m) => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text }));
+  const shownCats = useRef<string[]>([]);
+  // 대화 기록 → API 형식(텍스트 메시지만).
+  const history = (msgs: Msg[]): AdvisorMsg[] =>
+    msgs.filter((m): m is Extract<Msg, { kind: "text" }> => m.kind === "text").map((m) => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text }));
+
+  // 추천 직무(jobCategories) → 그 직무의 실제 공고를 대화에 카드로 붙인다. 새 직무만.
+  const appendPositions = async (jobCategories: string[]) => {
+    const fresh = jobCategories.filter((c) => !shownCats.current.includes(c));
+    if (!fresh.length) return;
+    try {
+      const res = await getPublicPositionsPage({ jobRoles: fresh, limit: 6, locale: "ko" });
+      if (res.items.length) setMessages((cur) => [...cur, { role: "bot", kind: "positions", categories: fresh, positions: res.items }]);
+    } catch {
+      // 공고 로드 실패는 조용히 무시
+    }
+    shownCats.current = Array.from(new Set([...shownCats.current, ...fresh]));
+  };
 
   const greetFallback = t(
     "안녕하세요! 저는 당신에게 어울리는 일을 함께 찾아갈 AI 커리어 상담사예요. 혹시 지금 마음에 두고 있는, 하고 싶은 직무가 있으세요? 있으면 그 일에 대해 더 깊이 이야기 나눠보고, 아직 없다면 함께 찾아드릴게요. 😊",
@@ -55,8 +75,8 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   function kickoff() {
     setLoading(true);
     void careerAdvise([])
-      .then((r) => setMessages([{ role: "bot", text: r.reply || greetFallback }]))
-      .catch(() => setMessages([{ role: "bot", text: greetFallback }]))
+      .then((r) => setMessages([{ role: "bot", kind: "text", text: r.reply || greetFallback }]))
+      .catch(() => setMessages([{ role: "bot", kind: "text", text: greetFallback }]))
       .finally(() => setLoading(false));
   }
 
@@ -65,14 +85,15 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
     if (started.current) return;
     started.current = true;
     const saved = loadAdvisorChat(uid);
-    if (saved.length) setMessages(saved as Msg[]);
+    if (saved.length) setMessages(saved.map((m) => ({ role: m.role, kind: "text" as const, text: m.text })));
     else kickoff();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 대화가 바뀌면 로컬에 저장 → 다시 열어도 이어볼 수 있게.
+  // 대화가 바뀌면 로컬에 저장(텍스트만) → 다시 열어도 이어볼 수 있게. 공고 카드는 휘발.
   useEffect(() => {
-    if (messages.length) saveAdvisorChat(uid, messages);
+    const textMsgs = messages.filter((m): m is Extract<Msg, { kind: "text" }> => m.kind === "text").map((m) => ({ role: m.role, text: m.text }));
+    if (textMsgs.length) saveAdvisorChat(uid, textMsgs);
   }, [messages]);
 
   // 완전히 새로 시작 — 저장 기록 삭제 후 인사말부터.
@@ -87,13 +108,16 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
   function send() {
     const text = input.trim();
     if (!text || loading) return;
-    const next: Msg[] = [...messages, { role: "user", text }];
+    const next: Msg[] = [...messages, { role: "user", kind: "text", text }];
     setMessages(next);
     setInput("");
     setLoading(true);
     void careerAdvise(history(next))
-      .then((r) => setMessages((cur) => [...cur, { role: "bot", text: r.reply || errFallback }]))
-      .catch(() => setMessages((cur) => [...cur, { role: "bot", text: errFallback }]))
+      .then(async (r) => {
+        setMessages((cur) => [...cur, { role: "bot", kind: "text", text: r.reply || errFallback }]);
+        if (r.jobCategories.length) await appendPositions(r.jobCategories);
+      })
+      .catch(() => setMessages((cur) => [...cur, { role: "bot", kind: "text", text: errFallback }]))
       .finally(() => {
         setLoading(false);
         inputRef.current?.focus();
@@ -125,15 +149,46 @@ export function CareerAdvisorModal({ onClose }: { onClose: () => void }) {
         {/* 대화 */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4">
           <div className="flex flex-col gap-3">
-            {messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div className={m.role === "user"
-                  ? "max-w-[82%] whitespace-pre-wrap break-keep rounded-2xl rounded-tr-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"
-                  : "max-w-[88%] whitespace-pre-wrap break-keep rounded-2xl rounded-tl-md bg-[#F4F6F9] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28]"}>
-                  {m.text}
+            {messages.map((m, i) => {
+              if (m.kind === "text") {
+                return (
+                  <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+                    <div className={m.role === "user"
+                      ? "max-w-[82%] whitespace-pre-wrap break-keep rounded-2xl rounded-tr-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"
+                      : "max-w-[88%] whitespace-pre-wrap break-keep rounded-2xl rounded-tl-md bg-[#F4F6F9] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28]"}>
+                      {m.text}
+                    </div>
+                  </div>
+                );
+              }
+              // 어울리는 직무의 실제 공고
+              return (
+                <div key={i} className="flex flex-col gap-2">
+                  <p className="flex items-center gap-1 pl-1 text-[11.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("이 직무의 실제 공고예요", "Real jobs in these roles", "这些职位的真实招聘", "Việc làm thực tế cho các nghề này", "この職種の実際の求人", "Lowongan nyata untuk peran ini")}</p>
+                  <div className="flex flex-wrap gap-1.5 pl-1">
+                    {m.categories.map((c) => (
+                      <span key={c} className="rounded-full bg-[#EDF1FD] px-2.5 py-0.5 text-[11.5px] font-bold text-[#0B46E8]">{jobCategoryLabel(c, "ko")}</span>
+                    ))}
+                  </div>
+                  <div className="grid gap-2">
+                    {m.positions.map((p) => (
+                      <Link key={p.id} href={`/talent/jobs/${encodeURIComponent(p.id)}`} className="group rounded-2xl border border-[#EEF1F5] bg-white p-3 transition hover:border-[#0B46E8]/40">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-[13.5px] font-bold text-[#191F28]">{p.title}</p>
+                            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">
+                              {(p.partnerOrganization?.name ?? p.sourceCompanyName ?? t("기업", "Company", "企业", "Công ty", "企業", "Perusahaan"))}
+                              {p.workLocation ? ` · ${p.workLocation}` : ""}
+                            </p>
+                          </div>
+                          <ArrowRight className="mt-0.5 h-4 w-4 flex-none text-[#C9CDD2] transition group-hover:text-[#0B46E8]" weight="bold" aria-hidden />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading ? (
               <div className="flex items-center gap-2 pl-1 text-[#8B95A1]">
                 <CircleNotch className="h-4 w-4 animate-spin" weight="bold" />
