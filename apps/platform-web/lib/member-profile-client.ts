@@ -1572,11 +1572,12 @@ export type PartnerCandidateCard = {
   reason?: string;
   interestCount?: number; // 관심(저장)한 회사 수 — 핫한 인재 뱃지
 };
-export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; page?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
+export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; language?: string; page?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.skill) qs.set("skill", params.skill);
   if (params.jobRole) qs.set("jobRole", params.jobRole);
+  if (params.language) qs.set("language", params.language);
   if (params.page) qs.set("page", String(params.page));
   // 옵셔널 인증 — 비회원(게스트)도 마스킹된 인재 카드를 볼 수 있다(authenticateOptional).
   // 토큰이 있으면 보내고, 없거나 만료면 서버가 게스트로 폴백한다.

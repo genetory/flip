@@ -28,6 +28,7 @@ export function PartnerTalentSearchScreen() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1); // 번호 페이징(브라우즈 목록)
   const [paged, setPaged] = useState(false); // 서버 페이징 목록일 때만 페이저 노출(AI검색·저장은 전체 로드)
+  const [lang, setLang] = useState(""); // 어학 필터(브라우즈)
   const [aiUsed, setAiUsed] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -40,7 +41,7 @@ export function PartnerTalentSearchScreen() {
   }, []);
 
   // 검색 = 하나로 통합 — 검색어가 있으면 AI 검색(키워드까지 커버), 비어있으면 전체 목록(번호 페이징).
-  function run(m: Mode, q: string, pg = 1) {
+  function run(m: Mode, q: string, pg = 1, langArg = lang) {
     setStatus("loading");
     const p =
       m === "saved"
@@ -60,7 +61,7 @@ export function PartnerTalentSearchScreen() {
               setPaged(false);
               setAiUsed(r.ai);
             })
-          : getPartnerCandidates({ page: pg }).then((r) => {
+          : getPartnerCandidates({ page: pg, language: langArg || undefined }).then((r) => {
               setItems(r.items);
               setTotal(r.total);
               setPage(r.page);
@@ -164,6 +165,26 @@ export function PartnerTalentSearchScreen() {
           </div>
           <button type="button" onClick={submit} className="shrink-0 rounded-2xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}</button>
         </div>
+        ) : null}
+
+        {/* 어학 필터 — 브라우즈 목록. AI 검색 결과에는 숨김. */}
+        {mode === "search" && !aiUsed ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-0.5 text-[12px] font-bold text-[#8B95A1]">{t("어학", "Language", "语言", "Ngôn ngữ", "語学", "Bahasa")}</span>
+            {["한국어", "영어", "중국어", "일본어", "베트남어"].map((L) => {
+              const on = lang === L;
+              return (
+                <button
+                  key={L}
+                  type="button"
+                  onClick={() => { const next = on ? "" : L; setLang(next); run("search", "", 1, next); }}
+                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${on ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}
+                >
+                  {L}
+                </button>
+              );
+            })}
+          </div>
         ) : null}
 
         {status === "loading" ? <TListSkeleton /> : null}
