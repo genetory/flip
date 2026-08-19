@@ -22522,25 +22522,7 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
     await attachInterestCounts(paged);
-    // 임시 진단(수치만) — 대표이력서 신호 분포. ?diag=1.
-    let diag: Record<string, number> | undefined;
-    if (req.query.diag === "1") {
-      const cards = rows.map((r) => buildCandidateCard(r, null));
-      const sig = cards.map(resumeSignalCount);
-      diag = {
-        primaryRows: rows.length,
-        withSummary20: cards.filter((c) => c.summary && c.summary.trim().length >= 20).length,
-        withSkills2: cards.filter((c) => c.skills.length >= 2).length,
-        withSchool: cards.filter((c) => c.school).length,
-        withCareer: cards.filter((c) => c.careerCount > 0).length,
-        withActivity: cards.filter((c) => c.activityCount > 0).length,
-        withDesiredRole: cards.filter((c) => c.desiredJobRole).length,
-        signals0: sig.filter((n) => n === 0).length,
-        signals1plus: sig.filter((n) => n >= 1).length,
-        signals2plus: sig.filter((n) => n >= 2).length
-      };
-    }
-    return res.json({ ok: true, items: paged, total: all.length, page, pageSize, ...(diag ? { _diag: diag } : {}) });
+    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
