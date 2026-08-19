@@ -22522,7 +22522,18 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
     await attachInterestCounts(paged);
-    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
+    // 임시 진단(수치만, PII 없음) — 인재풀이 어느 단계에서 0이 되는지 확인용. ?diag=1.
+    const diag = req.query.diag === "1"
+      ? {
+          resumesTotal: await prisma.resume.count(),
+          primaryTotal: await prisma.resume.count({ where: { isPrimary: true } }),
+          consentedUsers: await prisma.user.count({ where: { talentPoolConsentedAt: { not: null } } }),
+          primaryWithOptIn: await prisma.resume.count({ where: { isPrimary: true, content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } } }),
+          poolMatched: rows.length,
+          afterCompleteness: all.length
+        }
+      : undefined;
+    return res.json({ ok: true, items: paged, total: all.length, page, pageSize, ...(diag ? { _diag: diag } : {}) });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
