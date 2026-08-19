@@ -22256,16 +22256,11 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 
 // 인재풀 동의 대표 이력서 조회 조건 공통.
 // 인재풀 노출 = 대표 이력서 + 유저 레벨 동의(talentPoolConsentedAt). 대표 이력서 교체와 무관하게 유지.
-// 인재풀 노출 기준 — 대표 이력서 + 동의. 동의 신호는 둘: User.talentPoolConsentedAt(원천)
-// 또는 이력서 content.poolOptIn(이력서 빌더 옵트인 경로). 둘 다 진짜 동의이므로 어느 쪽이든
-// 노출한다. (이전엔 talentPoolConsentedAt만 봐서, 이력서에서 동의한 회원이 인재검색에 안 떴음.)
-const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = {
-  isPrimary: true,
-  OR: [
-    { user: { talentPoolConsentedAt: { not: null } } },
-    { content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } }
-  ]
-};
+// 인재풀 노출 기준 — 가입 회원의 대표 이력서. 정책상 '가입 + 완성된 대표 이력서'면
+// 파트너 인재검색에 (연락처 마스킹 상태로) 노출한다. 별도 인재풀 동의 플래그는 요구하지
+// 않는다(프로덕션에서 아무도 동의 상태가 아니라 전원 안 뜨던 문제 → 가입=발견 가능 모델).
+// 완성도 필터(isResumeReasonablyComplete)와 연락처 마스킹은 엔드포인트에서 그대로 적용.
+const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true };
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
 // 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
@@ -22522,18 +22517,7 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
     await attachInterestCounts(paged);
-    // 임시 진단(수치만, PII 없음) — 인재풀이 어느 단계에서 0이 되는지 확인용. ?diag=1.
-    const diag = req.query.diag === "1"
-      ? {
-          resumesTotal: await prisma.resume.count(),
-          primaryTotal: await prisma.resume.count({ where: { isPrimary: true } }),
-          consentedUsers: await prisma.user.count({ where: { talentPoolConsentedAt: { not: null } } }),
-          primaryWithOptIn: await prisma.resume.count({ where: { isPrimary: true, content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } } }),
-          poolMatched: rows.length,
-          afterCompleteness: all.length
-        }
-      : undefined;
-    return res.json({ ok: true, items: paged, total: all.length, page, pageSize, ...(diag ? { _diag: diag } : {}) });
+    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
