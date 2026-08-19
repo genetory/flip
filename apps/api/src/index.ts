@@ -14047,6 +14047,7 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
         isPrimary
       }
     });
+    void getOrCreateDocSummary(userId).catch(() => {});
     return res.status(201).json({ ok: true, item: created });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to create resume" });
@@ -14127,6 +14128,8 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     if (resolvedContent !== undefined) {
       await syncResumePoolOptin(userId, resolvedContent).catch((err) => console.error("[resume poolOptin sync] failed", err));
     }
+    // 인재검색용 AI 요약을 백그라운드 선생성 — 이력서 완성 즉시 반영(버전 캐시로 중복 생성 방지).
+    void getOrCreateDocSummary(userId).catch(() => {});
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update resume" });
@@ -14274,6 +14277,8 @@ app.patch("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles
         ...(parsed.data.items !== undefined ? { items: parsed.data.items as Prisma.InputJsonValue } : {})
       }
     });
+    // 자소서 저장 시에도 인재검색용 요약 갱신(이력서 + 자소서 합쳐 재생성).
+    if (parsed.data.items !== undefined) void getOrCreateDocSummary(userId).catch(() => {});
     return res.json({ ok: true, item });
   } catch (err) {
     console.error("[PATCH /members/me/cover-letters] failed", err);
@@ -27360,6 +27365,49 @@ function coverDocToText(doc: unknown): string {
   if (!d || !Array.isArray(d.items)) return "";
   return d.items.map((it) => `Q. ${it.question ?? ""}\nA. ${it.text ?? ""}`.trim()).filter(Boolean).join("\n\n");
 }
+// 이력서 structured content(educations/careers/activities/skills/summary…) → LLM 입력 텍스트.
+// renewalResume 문서형이 없을 때의 폴백. 대부분의 이력서가 이 구조라 요약의 주 소스.
+function resumeContentToText(c: Record<string, unknown>): string {
+  const lines: string[] = [];
+  const s = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const role = s(c.desiredJobRole);
+  if (role) lines.push(`지원 직무: ${role}`);
+  const intro = s(c.summary) || s(c.selfIntroduction);
+  if (intro) lines.push(`자기소개: ${intro}`);
+  const arr = (k: string): Record<string, unknown>[] => (Array.isArray(c[k]) ? (c[k] as Record<string, unknown>[]) : []);
+  for (const e of arr("educations")) {
+    const t = [s(e.schoolName), s(e.major), s(e.degree)].filter(Boolean).join(" ");
+    if (t) lines.push(`- [학력] ${t}`);
+  }
+  for (const w of arr("careers")) {
+    const range = [s(w.startDate), s(w.endDate)].filter(Boolean).join("~");
+    const t = [s(w.companyName), s(w.position), s(w.description), range].filter(Boolean).join(" ");
+    if (t) lines.push(`- [경력] ${t}`);
+  }
+  for (const a of arr("activities")) {
+    const t = [s(a.organization), s(a.title), s(a.description)].filter(Boolean).join(" ");
+    if (t) lines.push(`- [활동] ${t}`);
+  }
+  const skills = Array.isArray(c.skills) ? (c.skills as unknown[]).filter((x): x is string => typeof x === "string") : [];
+  if (skills.length) lines.push(`역량: ${skills.slice(0, 30).join(", ")}`);
+  const certs = Array.isArray(c.certifications) ? (c.certifications as unknown[]) : [];
+  const certStr = certs.map((x) => (typeof x === "string" ? x : x && typeof x === "object" ? s((x as Record<string, unknown>).name) : "")).filter(Boolean).join(", ");
+  if (certStr) lines.push(`자격: ${certStr}`);
+  return lines.join("\n");
+}
+// CoverLetter 테이블 items({prompt, answer}) → LLM 입력 텍스트.
+function coverLetterItemsToText(items: unknown): string {
+  if (!Array.isArray(items)) return "";
+  return items
+    .map((it) => {
+      const o = (it ?? {}) as Record<string, unknown>;
+      const prompt = typeof o.prompt === "string" ? o.prompt : "";
+      const answer = typeof o.answer === "string" ? o.answer.trim() : "";
+      return answer ? `Q. ${prompt}\nA. ${answer}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
 // LLM 요약 캐시(대표 이력서 updatedAt 기준). 서버 재시작 시 초기화.
 const partnerDocSummaryCache = new Map<string, { resumeBullets: string[]; coverBullets: string[] }>();
 
@@ -27373,8 +27421,14 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
     select: { content: true, updatedAt: true }
   });
   const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
-  const resumeText = resumeDocToText(c.renewalResume) || fallbackResume;
-  const coverText = coverDocToText(c.renewalCover) || fallbackCover;
+  // 이력서 텍스트: renewalResume 문서형 우선 → structured content 폴백.
+  const resumeText = resumeDocToText(c.renewalResume) || resumeContentToText(c) || fallbackResume;
+  // 자소서 텍스트: renewalCover 우선 → 별도 CoverLetter 테이블 폴백.
+  let coverText = coverDocToText(c.renewalCover) || fallbackCover;
+  if (!coverText.trim()) {
+    const cl = await prisma.coverLetter.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { items: true } });
+    coverText = coverLetterItemsToText(cl?.items);
+  }
   if (!resumeText.trim() && !coverText.trim()) return { resumeBullets: [], coverBullets: [] };
 
   // 버전에 실제 요약 입력 텍스트의 서명을 포함 — 같은 유저라도 소스(지원자 selfIntro vs 인재풀 구조화 content)가
@@ -29752,6 +29806,32 @@ if (process.env.VERCEL !== "1") {
     }
   }
 
+  // 1회성 백필 — BACKFILL_DOC_SUMMARIES=true 시 기동 때 인재풀(대표 이력서 보유) 전원의
+  // 이력서·자소서 AI 요약을 선생성해 ApplicantDocSummary 에 캐시(인재검색 카드에 즉시 노출).
+  // 버전 캐시로 재실행 안전. 완료 후 플래그 해제 권장.
+  async function runDocSummaryBackfillOnBoot() {
+    if (String(process.env.BACKFILL_DOC_SUMMARIES ?? "false").toLowerCase() !== "true") return;
+    try {
+      const primaries = await prisma.resume.findMany({ where: { isPrimary: true }, select: { userId: true } });
+      const userIds = Array.from(new Set(primaries.map((r) => r.userId)));
+      console.info(`[doc-summary-backfill] targets: ${userIds.length}`);
+      let done = 0;
+      let withBullets = 0;
+      for (const uid of userIds) {
+        try {
+          const s = await getOrCreateDocSummary(uid);
+          done += 1;
+          if ((s.resumeBullets?.length ?? 0) + (s.coverBullets?.length ?? 0) > 0) withBullets += 1;
+        } catch (e) {
+          console.error("[doc-summary-backfill] one failed:", uid, e);
+        }
+      }
+      console.info(`[doc-summary-backfill] done. processed=${done} withBullets=${withBullets}`);
+    } catch (e) {
+      console.error("[doc-summary-backfill] failed:", e);
+    }
+  }
+
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
     console.info("[runtime-config]", {
@@ -29766,6 +29846,7 @@ if (process.env.VERCEL !== "1") {
     startCrawlerScheduler();
     void runInternalForeignerBackfillOnBoot();
     void runAiPointsScale10xOnBoot();
+    void runDocSummaryBackfillOnBoot();
   });
 }
 
