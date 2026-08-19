@@ -1436,6 +1436,10 @@ model Resume {
   // Filled on save whenever a long-form field is detected as non-Korean.
   // Existing rows stay null until the next edit; readers must handle absence.
   translations Json?
+  // 시맨틱 인재검색용 임베딩(pgvector 768차원) — Position.embedding 과 동일 구조.
+  // 이력서 저장 시 갱신, /partner/candidates/search 에서 ANN 으로 사용.
+  embedding          Unsupported("vector(768)")?
+  embeddingUpdatedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
