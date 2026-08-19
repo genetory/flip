@@ -15,9 +15,10 @@ export function talentCode(id?: string | null): string {
   return (h >>> 0).toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
 }
 
-export function blindTalentName(t: PlatformT, role?: string | null, id?: string | null): string {
-  // 직무가 있으면 '직무', 없으면 '블라인드 인재'를 정체성으로. id가 있으면 코드네임을 붙인다.
-  const base = (role ?? "").trim() || t("블라인드 인재", "Blind talent", "盲选人才", "Nhân tài ẩn", "ブラインド人材", "Talenta anonim");
+export function blindTalentName(_t: PlatformT, _role?: string | null, id?: string | null): string {
+  // 마스킹 인재명은 'APLY 블라인드 인재'로 통일하고, 구분용 코드네임을 붙인다
+  // (예: "APLY 블라인드 인재 #A3F2"). 같은 인재는 항상 같은 코드. 직무는 카드의 별도 필드로 노출.
+  const base = "APLY 블라인드 인재";
   const code = talentCode(id);
   return code ? `${base} #${code}` : base;
 }
