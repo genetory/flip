@@ -9336,6 +9336,34 @@ function positionsCacheKey(params: {
   });
 }
 
+// 임시 진단(수치만, PII 없음) — 데일리 AI 포인트 적립 실황 확인용. 확인 후 제거.
+app.get("/positions/facets/_aidiag", async (_req, res) => {
+  try {
+    const today = aiKstDayIndex();
+    const dayMs = 86_400_000;
+    const [wallets, walletsToday, byReason, daily24h, daily7d, lastDaily] = await Promise.all([
+      prisma.aiWallet.count(),
+      prisma.aiWallet.count({ where: { lastGrantDay: today } }),
+      prisma.aiPointLog.groupBy({ by: ["reason"], _count: { _all: true }, _sum: { amount: true } }),
+      prisma.aiPointLog.count({ where: { reason: "daily", createdAt: { gte: new Date(Date.now() - dayMs) } } }),
+      prisma.aiPointLog.count({ where: { reason: "daily", createdAt: { gte: new Date(Date.now() - 7 * dayMs) } } }),
+      prisma.aiPointLog.findFirst({ where: { reason: "daily" }, orderBy: { createdAt: "desc" }, select: { createdAt: true, amount: true } })
+    ]);
+    return res.json({
+      ok: true,
+      kstDayIndex: today,
+      wallets,
+      walletsGrantedToday: walletsToday,
+      byReason: byReason.map((r) => ({ reason: r.reason, count: r._count._all, sum: r._sum.amount })),
+      dailyGrantsLast24h: daily24h,
+      dailyGrantsLast7d: daily7d,
+      lastDailyGrant: lastDaily
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(e) });
+  }
+});
+
 // 포지션 탐색 필터 옵션(facet) — 실제 데이터에 존재하는 직무 카테고리(preferredJobRole)를
 // 건수와 함께 반환. 프론트 칩이 통제 어휘가 아니라 '실제 값'과 일치하도록 자동 유지.
 // (/positions/:id 보다 먼저 등록해야 :id로 오인 매칭되지 않는다.)
