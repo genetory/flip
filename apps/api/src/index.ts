@@ -22459,7 +22459,7 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
 // 자기소개서에 실제 답변이 있는 유저 집합.
 // 이력서가 "어느정도 완성" 됐는지 — 핵심 신호 2개 이상.
 type CandidateCardShape = ReturnType<typeof buildCandidateCard>;
-function isResumeReasonablyComplete(c: CandidateCardShape): boolean {
+function resumeSignalCount(c: CandidateCardShape): number {
   let n = 0;
   if (c.summary && c.summary.trim().length >= 20) n += 1;
   if (c.skills.length >= 2) n += 1;
@@ -22467,7 +22467,12 @@ function isResumeReasonablyComplete(c: CandidateCardShape): boolean {
   if (c.careerCount > 0) n += 1;
   if (c.activityCount > 0) n += 1;
   if (c.desiredJobRole) n += 1;
-  return n >= 2;
+  return n;
+}
+// 최소한의 내용이 있는 이력서만 노출(완전 빈 초안 제외). 신호 1개 이상.
+// (2개 이상은 실데이터에서 과도하게 걸러져 완화)
+function isResumeReasonablyComplete(c: CandidateCardShape): boolean {
+  return resumeSignalCount(c) >= 1;
 }
 
 const partnerCandidatesQuerySchema = z.object({
@@ -22517,7 +22522,25 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const paged = all.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
     await attachInterestCounts(paged);
-    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
+    // 임시 진단(수치만) — 대표이력서 신호 분포. ?diag=1.
+    let diag: Record<string, number> | undefined;
+    if (req.query.diag === "1") {
+      const cards = rows.map((r) => buildCandidateCard(r, null));
+      const sig = cards.map(resumeSignalCount);
+      diag = {
+        primaryRows: rows.length,
+        withSummary20: cards.filter((c) => c.summary && c.summary.trim().length >= 20).length,
+        withSkills2: cards.filter((c) => c.skills.length >= 2).length,
+        withSchool: cards.filter((c) => c.school).length,
+        withCareer: cards.filter((c) => c.careerCount > 0).length,
+        withActivity: cards.filter((c) => c.activityCount > 0).length,
+        withDesiredRole: cards.filter((c) => c.desiredJobRole).length,
+        signals0: sig.filter((n) => n === 0).length,
+        signals1plus: sig.filter((n) => n >= 1).length,
+        signals2plus: sig.filter((n) => n >= 2).length
+      };
+    }
+    return res.json({ ok: true, items: paged, total: all.length, page, pageSize, ...(diag ? { _diag: diag } : {}) });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
