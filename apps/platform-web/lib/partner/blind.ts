@@ -1,8 +1,23 @@
-// 블라인드 표기 — 연결/면접 전에는 이름 대신 '직무'를 정체성으로 노출(능력 중심).
-// 직무가 없으면 중립 문구로 폴백.
+// 블라인드 표기 — 연결/면접 전에는 이름 대신 '직무 + 코드네임'을 정체성으로 노출(능력 중심).
+// 예: "백엔드 개발자 #A3F2". 직무가 없으면 "인재 #A3F2". 코드네임은 candidateUserId로부터
+// 결정적으로 생성해 같은 인재는 항상 같은 코드가 붙는다.
 import type { PlatformT } from "../i18n";
 
-export function blindTalentName(t: PlatformT, role?: string | null): string {
-  const r = (role ?? "").trim();
-  return r || t("블라인드 인재", "Blind talent", "盲选人才", "Nhân tài ẩn", "ブラインド人材", "Talenta anonim");
+// FNV-1a 32bit → base36 4자리. 결정적(같은 id → 같은 코드).
+export function talentCode(id?: string | null): string {
+  const s = (id ?? "").trim();
+  if (!s) return "";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36).toUpperCase().slice(0, 4).padStart(4, "0");
+}
+
+export function blindTalentName(t: PlatformT, role?: string | null, id?: string | null): string {
+  // 직무가 있으면 '직무', 없으면 '블라인드 인재'를 정체성으로. id가 있으면 코드네임을 붙인다.
+  const base = (role ?? "").trim() || t("블라인드 인재", "Blind talent", "盲选人才", "Nhân tài ẩn", "ブラインド人材", "Talenta anonim");
+  const code = talentCode(id);
+  return code ? `${base} #${code}` : base;
 }

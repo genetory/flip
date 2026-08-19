@@ -188,7 +188,7 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
       className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
     >
       <div className="flex items-start gap-3.5">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? blindTalentName(t, c.desiredJobRole)).slice(0, 1)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)).slice(0, 1)}</span>
         <div className="order-last flex shrink-0 items-center gap-1.5">
           {c.interestCount && c.interestCount > 0 ? (
             <span
@@ -214,7 +214,7 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.desiredJobRole)}</p>
+            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)}</p>
             {typeof c.score === "number" ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
             {c.connectionStatus === "ACCEPTED" ? (
               <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>
