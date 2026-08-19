@@ -9646,7 +9646,11 @@ app.get("/positions", async (req, res) => {
           },
           trimmedSearch
         );
-        return { item, semantic, lexicalStrong, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical };
+        // 정확 매칭 가점 — 검색어가 직무 카테고리와 정확히 일치하면 강하게 우선(예: "개발" → preferredJobRole "개발").
+        const q = trimmedSearch.toLowerCase();
+        const roleExact = item.preferredJobRole && item.preferredJobRole.toLowerCase() === q ? 0.35 : 0;
+        const titleExact = item.title && item.title.toLowerCase() === q ? 0.25 : 0;
+        return { item, semantic, lexicalStrong: lexicalStrong + roleExact, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical + roleExact + titleExact };
       });
       // 관련성 하한 — 무관한 검색어에도 '가장 가까운' 공고를 채워 넣던 문제 방지.
       // 제목·직무·회사·지역에 키워드가 있거나(강한 매칭) 시맨틱이 충분히 가까운 것만 남긴다.
@@ -22499,6 +22503,8 @@ const partnerCandidatesQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   skill: z.string().trim().max(60).optional(),
   jobRole: z.string().trim().max(60).optional(),
+  // 어학 필터 — 후보의 languages(예: "한국어 고급")에 해당 언어가 있으면 통과.
+  language: z.string().trim().max(30).optional(),
   page: z.coerce.number().int().min(1).max(200).optional()
 });
 
@@ -22525,12 +22531,14 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
     const q = parsed.data.q?.toLowerCase();
     const skill = parsed.data.skill?.toLowerCase();
     const jobRole = parsed.data.jobRole?.toLowerCase();
+    const language = parsed.data.language?.toLowerCase();
     // 이력서가 어느정도 완성된 인재만 노출. (자기소개서는 선택 — 서버 자소서 필수 조건은
     // 리뉴얼에서 자소서를 서버에 안 남긴 동의 회원까지 전부 가려버려 완화함.)
     const all = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null)).filter((it) => {
       if (!isResumeReasonablyComplete(it)) return false;
       if (skill && !it.skills.some((s) => s.toLowerCase().includes(skill))) return false;
       if (jobRole && !String(it.desiredJobRole ?? "").toLowerCase().includes(jobRole)) return false;
+      if (language && !it.languages.some((l) => l.toLowerCase().includes(language))) return false;
       if (q) {
         const hay = [it.name, it.school, it.major, it.desiredJobRole, it.summary, it.skills.join(" "), it.languages.join(" "), it.nationality].map((x) => String(x ?? "").toLowerCase()).join(" ");
         if (!hay.includes(q)) return false;
