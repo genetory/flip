@@ -62,6 +62,7 @@ import {
   keywordScore,
   toPgVector
 } from "./embedding/position-embedding";
+import { embedAndSaveResume } from "./embedding/resume-embedding";
 import { generateSajuPrediction, translateSajuContent, type SajuDetails, type SajuTranslatableContent } from "./saju/saju-llm";
 import {
   MBTI_PROFILE,
@@ -9336,34 +9337,6 @@ function positionsCacheKey(params: {
   });
 }
 
-// 임시 진단(수치만, PII 없음) — 데일리 AI 포인트 적립 실황 확인용. 확인 후 제거.
-app.get("/positions/facets/_aidiag", async (_req, res) => {
-  try {
-    const today = aiKstDayIndex();
-    const dayMs = 86_400_000;
-    const [wallets, walletsToday, byReason, daily24h, daily7d, lastDaily] = await Promise.all([
-      prisma.aiWallet.count(),
-      prisma.aiWallet.count({ where: { lastGrantDay: today } }),
-      prisma.aiPointLog.groupBy({ by: ["reason"], _count: { _all: true }, _sum: { amount: true } }),
-      prisma.aiPointLog.count({ where: { reason: "daily", createdAt: { gte: new Date(Date.now() - dayMs) } } }),
-      prisma.aiPointLog.count({ where: { reason: "daily", createdAt: { gte: new Date(Date.now() - 7 * dayMs) } } }),
-      prisma.aiPointLog.findFirst({ where: { reason: "daily" }, orderBy: { createdAt: "desc" }, select: { createdAt: true, amount: true } })
-    ]);
-    return res.json({
-      ok: true,
-      kstDayIndex: today,
-      wallets,
-      walletsGrantedToday: walletsToday,
-      byReason: byReason.map((r) => ({ reason: r.reason, count: r._count._all, sum: r._sum.amount })),
-      dailyGrantsLast24h: daily24h,
-      dailyGrantsLast7d: daily7d,
-      lastDailyGrant: lastDaily
-    });
-  } catch (e) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(e) });
-  }
-});
-
 // 포지션 탐색 필터 옵션(facet) — 실제 데이터에 존재하는 직무 카테고리(preferredJobRole)를
 // 건수와 함께 반환. 프론트 칩이 통제 어휘가 아니라 '실제 값'과 일치하도록 자동 유지.
 // (/positions/:id 보다 먼저 등록해야 :id로 오인 매칭되지 않는다.)
@@ -14076,6 +14049,7 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
       }
     });
     void getOrCreateDocSummary(userId).catch(() => {});
+    void embedAndSaveResume(prisma, created.id).catch(() => {});
     return res.status(201).json({ ok: true, item: created });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to create resume" });
@@ -14156,8 +14130,9 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     if (resolvedContent !== undefined) {
       await syncResumePoolOptin(userId, resolvedContent).catch((err) => console.error("[resume poolOptin sync] failed", err));
     }
-    // 인재검색용 AI 요약을 백그라운드 선생성 — 이력서 완성 즉시 반영(버전 캐시로 중복 생성 방지).
+    // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
     void getOrCreateDocSummary(userId).catch(() => {});
+    void embedAndSaveResume(prisma, item.id).catch(() => {});
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update resume" });
@@ -20779,17 +20754,28 @@ function applicationStatusToWorkflow(s: "WITHDRAWN" | "SUBMITTED" | "INTERVIEW" 
 
 // 목록(GET /partner/applicants)은 철회 제외. 단, 상세/요약/상태변경 조회는 알림·히스토리에서
 // 철회 지원 건도 열 수 있어야 하므로 includeWithdrawn 로 포함시킨다.
-async function listPartnerApplicantsForUser(userId: string, opts: { includeWithdrawn?: boolean } = {}) {
+// 운영자 전 조직 슈퍼유저 컨텍스트 sentinel — 특정 조직이 아니라 '전체 조직'을 의미.
+const OPERATOR_ALL_ORGS = "__operator_all_orgs__";
+// 요청자가 운영자인지(전 조직 파트너 슈퍼유저).
+function isOperatorReq(req: import("express").Request): boolean {
+  return req.auth?.role === MemberRole.OPERATOR;
+}
+async function listPartnerApplicantsForUser(userId: string, opts: { includeWithdrawn?: boolean; allOrgs?: boolean } = {}) {
   const affiliation = await resolvePartnerAffiliation(userId);
-  if (!affiliation?.organization) return { affiliation: null, items: [] as any[] };
+  // 운영자(allOrgs)는 전 조직 지원자를 열람 — 조직 게이트/필터 없이. gate 통과용 sentinel affiliation 반환.
+  const allOrgs = opts.allOrgs === true;
+  if (!allOrgs && !affiliation?.organization) return { affiliation: null, items: [] as any[] };
+  const effAffiliation = allOrgs
+    ? { user: affiliation?.user ?? null, organization: { id: OPERATOR_ALL_ORGS, name: "전체 조직" } }
+    : affiliation!;
 
   const positions = await prisma.position.findMany({
-    where: { partnerOrganizationId: affiliation.organization.id },
+    where: allOrgs ? { partnerOrganizationId: { not: null } } : { partnerOrganizationId: affiliation!.organization!.id },
     select: { id: true, title: true }
   });
   const positionMap = new Map(positions.map((item) => [item.id, item.title]));
   const positionIds = positions.map((item) => item.id);
-  if (positionIds.length === 0) return { affiliation, items: [] as any[] };
+  if (positionIds.length === 0) return { affiliation: effAffiliation, items: [] as any[] };
 
   // 지원(Application) 행이 원천. 한 후보가 여러 공고에 지원하면 각각 1건씩.
   const applications = await prisma.application.findMany({
@@ -20806,7 +20792,7 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
       interviewSlots: { select: { status: true } }
     }
   });
-  if (applications.length === 0) return { affiliation, items: [] as any[] };
+  if (applications.length === 0) return { affiliation: effAffiliation, items: [] as any[] };
   const candidateUserIds = Array.from(new Set(applications.map((a) => a.candidateUserId)));
 
   const profiles = await prisma.candidateProfile.findMany({
@@ -20960,7 +20946,7 @@ async function listPartnerApplicantsForUser(userId: string, opts: { includeWithd
     });
   }
 
-  return { affiliation, items };
+  return { affiliation: effAffiliation, items };
 }
 
 app.get("/ops/activity", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
@@ -21341,8 +21327,10 @@ app.get("/partner/nav-counts", authenticate, requireRoles([MemberRole.PARTNER]),
 });
 
 app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  // 운영자는 전 조직 공고를 열람(조직 게이트/필터 없음).
+  const operator = isOperatorReq(req);
   const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
-  if (!affiliation?.organization) {
+  if (!operator && !affiliation?.organization) {
     return sendAuthError(
       res,
       403,
@@ -21350,11 +21338,10 @@ app.get("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER]), 
       "partner affiliation is required. request organization assignment."
     );
   }
-  const organizationId = affiliation.organization.id;
 
   try {
     const items = await prisma.position.findMany({
-      where: { partnerOrganizationId: affiliation.organization.id },
+      where: operator ? { partnerOrganizationId: { not: null } } : { partnerOrganizationId: affiliation!.organization!.id },
       orderBy: { createdAt: "desc" },
       include: {
         partnerOrganization: {
@@ -22181,7 +22168,7 @@ app.get("/partner/pending-messages", authenticate, requireRoles([MemberRole.PART
 
 app.get("/partner/applicants", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId);
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { allOrgs: isOperatorReq(req) });
     if (!result.affiliation?.organization) {
       return sendAuthError(
         res,
@@ -22696,10 +22683,28 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
       const affiliation = await resolvePartnerAffiliation(req.auth.userId);
       if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
     }
+    const query = parsed.data.query;
+    // 하이브리드 인재검색 — 시맨틱(이력서 임베딩 ANN)으로 후보를 선별하고 키워드와 블렌드.
+    // 임베딩/openai 없으면 최근순 풀 + 키워드로 폴백.
+    const qVec = openai ? await embedQueryCached(query) : null;
+    const distByUser = new Map<string, number>();
+    let poolUserIds: string[] | null = null;
+    if (qVec) {
+      const vec = toPgVector(qVec);
+      const ann = await prisma.$queryRaw<Array<{ userId: string; distance: number }>>`
+        SELECT "userId", "embedding" <=> ${vec}::vector AS distance
+        FROM "Resume"
+        WHERE "isPrimary" = true AND "embedding" IS NOT NULL
+        ORDER BY "embedding" <=> ${vec}::vector
+        LIMIT 80
+      `;
+      for (const r of ann) distByUser.set(r.userId, Number(r.distance));
+      poolUserIds = ann.map((r) => r.userId);
+    }
     const rows = await prisma.resume.findMany({
-      where: POOL_RESUME_WHERE,
+      where: poolUserIds ? { ...POOL_RESUME_WHERE, userId: { in: poolUserIds.length ? poolUserIds : ["__none__"] } } : POOL_RESUME_WHERE,
       orderBy: { updatedAt: "desc" },
-      take: 150,
+      take: poolUserIds ? 80 : 150,
       select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
     });
     const conns = req.auth?.userId
@@ -22707,28 +22712,37 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
       : [];
     const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
     // 이력서가 어느정도 완성된 인재만. (자기소개서는 선택 — 위 candidates와 동일 정책.)
-    const cards = rows
+    const allCards = rows
       .map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null))
       .filter((c) => isResumeReasonablyComplete(c));
 
-    // openai 없으면 키워드 폴백 — 문장을 토큰으로 쪼개 '토큰 매칭 수' 많은 순으로.
+    // 키워드 점수 — 직무·스킬·요약·학력·어학의 토큰 매칭 비율(블라인드: 이름·국적 제외).
+    const kwTokens = expandQueryCandidates(query);
+    const keywordScoreOf = (c: (typeof allCards)[number]): number => {
+      if (!kwTokens.length) return 0;
+      const hay = [c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.languages.join(" ")].map((x) => String(x ?? "").toLowerCase()).join(" ");
+      return kwTokens.filter((tk) => hay.includes(tk)).length / kwTokens.length;
+    };
+    // 하이브리드 = 시맨틱(코사인 거리→유사도) 0.6 + 키워드 0.4. 임베딩 없으면 키워드만.
+    const scored = allCards
+      .map((c) => {
+        const dist = distByUser.get(c.candidateUserId);
+        const sem = typeof dist === "number" ? Math.max(0, 1 - dist / 2) : 0;
+        const kw = keywordScoreOf(c);
+        return { c, hybrid: qVec ? 0.6 * sem + 0.4 * kw : kw };
+      })
+      .sort((a, b) => b.hybrid - a.hybrid);
+
+    // openai 없으면 하이브리드(=키워드) 상위 반환.
     if (!openai) {
-      const tokens = parsed.data.query.toLowerCase().split(/[\s,]+/).filter((t) => t.length >= 2);
-      const items = cards
-        .map((c) => {
-          // 블라인드 — 이름·국적은 매칭에 쓰지 않는다(능력만).
-          const hay = [c.school, c.major, c.desiredJobRole, c.summary, c.skills.join(" "), c.languages.join(" ")].map((x) => String(x ?? "").toLowerCase()).join(" ");
-          const n = tokens.length ? tokens.filter((t) => hay.includes(t)).length : 0;
-          return { c, n };
-        })
-        .filter((x) => x.n > 0)
-        .sort((a, b) => b.n - a.n)
-        .slice(0, 24)
-        .map((x) => x.c);
+      const items = scored.filter((x) => x.hybrid > 0).slice(0, 24).map((x) => x.c);
       await attachCachedDocSummaries(items);
-    await attachInterestCounts(items);
+      await attachInterestCounts(items);
       return res.json({ ok: true, items, ai: false });
     }
+
+    // LLM 재랭킹 — 하이브리드 상위 40명만 넘겨 직무 정확도·이유를 정밀화.
+    const cards = scored.slice(0, 40).map((x) => x.c);
 
     // 블라인드 — LLM에 이름·국적을 넘기지 않는다. 직무·스킬·경험·어학만.
     const poolText = cards
@@ -27288,7 +27302,7 @@ app.get("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PARTNE
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
 
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true, allOrgs: isOperatorReq(req) });
     if (!result.affiliation?.organization) {
       return sendAuthError(
         res,
@@ -27527,7 +27541,7 @@ app.get("/partner/applicants/:id/document-summary", authenticate, requireRoles([
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   if (!id) return res.status(400).json({ ok: false, message: "invalid applicant id" });
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true, allOrgs: isOperatorReq(req) });
     if (!result.affiliation?.organization) {
       return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required. request organization assignment.");
     }
@@ -27674,7 +27688,7 @@ app.patch("/partner/applicants/:id", authenticate, requireRoles([MemberRole.PART
   if (!parsePartnerApplicantCompositeId(id)) return res.status(400).json({ ok: false, message: "invalid applicant id" });
 
   try {
-    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true });
+    const result = await listPartnerApplicantsForUser(req.auth!.userId, { includeWithdrawn: true, allOrgs: isOperatorReq(req) });
     if (!result.affiliation?.organization) {
       return sendAuthError(
         res,
@@ -29860,6 +29874,30 @@ if (process.env.VERCEL !== "1") {
     }
   }
 
+  // 1회성 백필 — BACKFILL_RESUME_EMBEDDINGS=true 시 기동 때 대표 이력서 전원의 시맨틱 임베딩 생성.
+  // 완료 후 플래그 해제 권장.
+  async function runResumeEmbeddingBackfillOnBoot() {
+    if (String(process.env.BACKFILL_RESUME_EMBEDDINGS ?? "false").toLowerCase() !== "true") return;
+    try {
+      const primaries = await prisma.resume.findMany({ where: { isPrimary: true }, select: { id: true } });
+      console.info(`[resume-embed-backfill] targets: ${primaries.length}`);
+      let done = 0;
+      let ok = 0;
+      for (const r of primaries) {
+        try {
+          const res = await embedAndSaveResume(prisma, r.id);
+          done += 1;
+          if (res) ok += 1;
+        } catch (e) {
+          console.error("[resume-embed-backfill] one failed:", r.id, e);
+        }
+      }
+      console.info(`[resume-embed-backfill] done. processed=${done} embedded=${ok}`);
+    } catch (e) {
+      console.error("[resume-embed-backfill] failed:", e);
+    }
+  }
+
   app.listen(port, () => {
     console.log(`API server listening on http://localhost:${port}`);
     console.info("[runtime-config]", {
@@ -29875,6 +29913,7 @@ if (process.env.VERCEL !== "1") {
     void runInternalForeignerBackfillOnBoot();
     void runAiPointsScale10xOnBoot();
     void runDocSummaryBackfillOnBoot();
+    void runResumeEmbeddingBackfillOnBoot();
   });
 }
 

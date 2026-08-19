@@ -25,7 +25,7 @@ export function PointsBalanceCard() {
   }, []);
   return (
     <>
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B46E8] to-[#4C7BF5] p-6 text-white shadow-[0_10px_30px_rgba(11,70,232,0.28)]">
+      <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B46E8] to-[#4C7BF5] p-6 text-white">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[12.5px] font-bold text-white/80">{t("보유 AI 포인트", "AI points", "AI 积分", "Điểm AI", "AIポイント", "Poin AI")}</p>

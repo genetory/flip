@@ -3,7 +3,7 @@
 // 파트너 인재 검색 — aply 인재풀(이력서 등록 + 공개 동의)에서 키워드/AI로 후보를 찾는다.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck, Fire } from "@phosphor-icons/react";
+import { MagnifyingGlass, X, Sparkle, GraduationCap, Globe, Translate, Briefcase, BookmarkSimple, ShieldCheck, Fire, CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { useLoginGate } from "../../talent/app/LoginRequiredModal";
 import { usePlatformT } from "../../../lib/i18n";
@@ -15,6 +15,7 @@ import { getPartnerCandidates, searchPartnerCandidatesAI, getSavedCandidates, sa
 import { blindTalentName } from "../../../lib/partner/blind";
 
 type Mode = "search" | "saved";
+const PAGE_SIZE = 20;
 
 export function PartnerTalentSearchScreen() {
   const t = usePlatformT();
@@ -25,8 +26,11 @@ export function PartnerTalentSearchScreen() {
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [items, setItems] = useState<PartnerCandidateCard[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1); // 번호 페이징(브라우즈 목록)
+  const [paged, setPaged] = useState(false); // 서버 페이징 목록일 때만 페이저 노출(AI검색·저장은 전체 로드)
   const [aiUsed, setAiUsed] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   // 처음 진입 시 최신 인재풀 + 관심 인재 목록 로드.
   useEffect(() => {
@@ -35,14 +39,16 @@ export function PartnerTalentSearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 검색 = 하나로 통합 — 검색어가 있으면 AI 검색(키워드까지 커버), 비어있으면 전체 목록.
-  function run(m: Mode, q: string) {
+  // 검색 = 하나로 통합 — 검색어가 있으면 AI 검색(키워드까지 커버), 비어있으면 전체 목록(번호 페이징).
+  function run(m: Mode, q: string, pg = 1) {
     setStatus("loading");
     const p =
       m === "saved"
         ? getSavedCandidates().then((list) => {
             setItems(list);
             setTotal(list.length);
+            setPage(1);
+            setPaged(false);
             setAiUsed(false);
             setSavedIds(new Set(list.map((c) => c.candidateUserId)));
           })
@@ -50,14 +56,24 @@ export function PartnerTalentSearchScreen() {
           ? searchPartnerCandidatesAI(q.trim()).then((r) => {
               setItems(r.items);
               setTotal(r.items.length);
+              setPage(1);
+              setPaged(false);
               setAiUsed(r.ai);
             })
-          : getPartnerCandidates({}).then((r) => {
+          : getPartnerCandidates({ page: pg }).then((r) => {
               setItems(r.items);
               setTotal(r.total);
+              setPage(r.page);
+              setPaged(true);
               setAiUsed(false);
             });
     p.then(() => setStatus("ready")).catch(() => setStatus("error"));
+  }
+
+  // 번호 페이지 이동 — 브라우즈 목록에서만. 상단으로 스크롤.
+  function goToPage(p: number) {
+    run("search", "", p);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   // 관심 인재 저장/해제(낙관적) — 별표 + 관심 횟수 뱃지도 즉시 증감.
@@ -170,11 +186,51 @@ export function PartnerTalentSearchScreen() {
                   <CandidateCard key={c.candidateUserId} c={c} saved={savedIds.has(c.candidateUserId)} ensure={ensure} onToggleSave={() => toggleSave(c.candidateUserId)} />
                 ))}
               </div>
+              {paged && totalPages > 1 ? <TalentPagination page={page} totalPages={totalPages} onPage={goToPage} t={t} /> : null}
             </>
           )
         ) : null}
       </div>
     </PartnerAppShell>
+  );
+}
+
+// 번호 페이징 — 처음/현재±2/끝 + …. 포지션 검색과 동일 패턴.
+function TalentPagination({ page, totalPages, onPage, t }: { page: number; totalPages: number; onPage: (p: number) => void; t: ReturnType<typeof usePlatformT> }) {
+  const pages: (number | "ellipsis")[] = [];
+  const start = Math.max(2, page - 2);
+  const end = Math.min(totalPages - 1, page + 2);
+  pages.push(1);
+  if (start > 2) pages.push("ellipsis");
+  for (let p = start; p <= end; p += 1) pages.push(p);
+  if (end < totalPages - 1) pages.push("ellipsis");
+  if (totalPages > 1) pages.push(totalPages);
+
+  const navBtn = "flex h-9 w-9 items-center justify-center rounded-lg text-[#4E5968] transition hover:bg-[#F2F4F6] disabled:opacity-35 disabled:hover:bg-transparent";
+  return (
+    <nav className="mt-3 flex items-center justify-center gap-1" aria-label={t("페이지 이동", "Pagination", "分页", "Phân trang", "ページ移動", "Paginasi")}>
+      <button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label={t("이전", "Previous", "上一页", "Trước", "前へ", "Sebelumnya")} className={navBtn}>
+        <CaretLeft className="h-4 w-4" weight="bold" />
+      </button>
+      {pages.map((p, i) =>
+        p === "ellipsis" ? (
+          <span key={`e${i}`} className="px-1 text-[13px] text-[#B0B8C1]">…</span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            onClick={() => onPage(p)}
+            aria-current={p === page ? "page" : undefined}
+            className={`h-9 min-w-9 rounded-lg px-2 text-[13px] font-bold tabular-nums transition ${p === page ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:bg-[#F2F4F6]"}`}
+          >
+            {p}
+          </button>
+        )
+      )}
+      <button type="button" onClick={() => onPage(page + 1)} disabled={page >= totalPages} aria-label={t("다음", "Next", "下一页", "Sau", "次へ", "Berikutnya")} className={navBtn}>
+        <CaretRight className="h-4 w-4" weight="bold" />
+      </button>
+    </nav>
   );
 }
 
