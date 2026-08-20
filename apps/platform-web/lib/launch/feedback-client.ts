@@ -200,6 +200,20 @@ export async function fetchStoryBank(opts: { force?: boolean; generate?: boolean
   };
 }
 
+// Week 3 Cover Review — Generic Expression Check + Recruiter Red Team.
+export type CoverReview = { generic: { phrase: string; why: string; suggestion: string }[]; redTeam: { risk: string; note: string }[] };
+export async function fetchCoverReview(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  result: CoverReview | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/cover-review", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  const r = data.result && typeof data.result === "object" ? (data.result as CoverReview) : null;
+  return { result: r, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsCover === true };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;

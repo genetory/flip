@@ -18493,6 +18493,94 @@ app.post(
   }
 );
 
+// ── Week 3: Cover Review — Generic Expression Check + Recruiter Red Team ──
+const COVER_REVIEW_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["generic", "redTeam"],
+  properties: {
+    generic: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["phrase", "why", "suggestion"],
+        properties: { phrase: { type: "string" }, why: { type: "string" }, suggestion: { type: "string" } }
+      }
+    },
+    redTeam: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["risk", "note"],
+        properties: { risk: { type: "string" }, note: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const COVER_REVIEW_VERSION = 1;
+app.post(
+  "/career-launch/cover-review",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-cover-review", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, result: null, needsCover: true });
+      }
+      const currentSig = simpleHash(JSON.stringify({ cover: coverContent }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.coverReview && typeof progState.coverReview === "object" ? progState.coverReview : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === COVER_REVIEW_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, result: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 자기소개서 심사관이다. 아래 자기소개서를 두 관점으로 검토한다.\n" +
+        "1. generic(Generic Expression Check): '혁신적인 기업', '귀사의 비전에 공감', '성장하고 싶습니다', '열정적으로' 처럼 누구에게나 적용 가능한 문장·추상적 표현·근거 없는 미사여구·반복·AI가 쓴 듯 획일적인 문장을 찾는다. 각 항목: phrase(문제 문장/표현), why(왜 약한지), suggestion(지원자의 실제 경험을 활용한 개선 방향). 2~5개.\n" +
+        "2. redTeam(Recruiter Red Team): 매우 까다로운 채용담당자 관점으로 의심스럽거나 설득력이 약한 부분을 찾는다(본인 경험인가/역할이 명확한가/결과가 과장은 아닌가/직무와 연결되는가/다른 회사에도 그대로 낼 내용인가). 각 항목: risk(위험한 부분), note(지적). 가장 위험한 것 최대 5개.\n" +
+        "단순 문법 검사가 아니다. 존댓말, 건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "generic": [ { "phrase": string, "why": string, "suggestion": string } ], "redTeam": [ { "risk": string, "note": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[자기소개서]\n${JSON.stringify(coverContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_review", COVER_REVIEW_SCHEMA)) as { generic?: unknown; redTeam?: unknown };
+      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const generic = Array.isArray(pj.generic)
+        ? (pj.generic as Array<Record<string, unknown>>).map((g) => ({ phrase: str(g.phrase), why: str(g.why), suggestion: str(g.suggestion) })).filter((g) => g.phrase).slice(0, 6)
+        : [];
+      const redTeam = Array.isArray(pj.redTeam)
+        ? (pj.redTeam as Array<Record<string, unknown>>).map((r) => ({ risk: str(r.risk), note: str(r.note) })).filter((r) => r.risk).slice(0, 5)
+        : [];
+      const data = { generic, redTeam };
+      if (generic.length === 0 && redTeam.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, coverReview: { v: COVER_REVIEW_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/cover-review] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
