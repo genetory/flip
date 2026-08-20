@@ -163,6 +163,28 @@ function stripKoreanParticles(token: string): string {
 // substring-search candidates (raw + particle-stripped, lowercased,
 // deduped, length-filtered). Used by both keywordScore and the
 // SQL-side keyword pool to keep their matching consistent.
+// 검색 동의어·별칭 — 사용자가 입력한 직무어를 공고 vocabulary로 넓혀 재현율을 높인다.
+// 각 그룹의 한 단어라도 쿼리 토큰과 일치/포함되면 그룹 전체를 후보로 추가한다.
+// 후보 풀만 넓히고(제거 없음) 이후 하이브리드 점수·관련도 하한이 무관 결과를 걸러내므로 안전하다.
+// 흔한 오탈자(빽엔드/프론트)도 별칭으로 흡수해 가벼운 오타 보정 효과를 낸다.
+const SEARCH_SYNONYM_GROUPS: string[][] = [
+  ["개발", "개발자", "engineer", "developer", "dev", "엔지니어", "프로그래머"],
+  ["백엔드", "backend", "back-end", "서버개발", "빽엔드", "백앤드"],
+  ["프론트엔드", "프론트", "frontend", "front-end", "웹개발", "프론트앤드"],
+  ["풀스택", "fullstack", "full-stack", "풀스텍"],
+  ["디자인", "디자이너", "designer", "design", "ui", "ux"],
+  ["기획", "기획자", "pm", "product manager", "프로덕트", "서비스기획"],
+  ["마케팅", "마케터", "marketing", "퍼포먼스마케팅", "그로스"],
+  ["데이터", "data", "데이터분석", "analyst", "분석가", "데이터사이언티스트"],
+  ["영업", "sales", "세일즈", "영업관리"],
+  ["인사", "hr", "인사담당", "채용", "리크루터", "recruiter"],
+  ["회계", "재무", "finance", "accounting", "경리"],
+  ["고객", "고객지원", "cs", "customer", "cx", "상담"],
+  ["ai", "인공지능", "머신러닝", "ml", "딥러닝"],
+  ["안드로이드", "android", "ios", "모바일", "mobile", "앱개발"],
+  ["qa", "품질", "테스터", "quality", "테스트엔지니어"]
+];
+
 export function expandQueryCandidates(query: string): string[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
@@ -172,6 +194,14 @@ export function expandQueryCandidates(query: string): string[] {
     if (token.length >= 2) out.add(token);
     const stripped = stripKoreanParticles(token);
     if (stripped && stripped.length >= 2 && stripped !== token) out.add(stripped);
+  }
+  // 동의어 확장 — 쿼리 전체 또는 개별 토큰이 그룹 멤버와 같거나 그 멤버를 포함하면 그룹 전체 추가.
+  const haystack = [q, ...out];
+  for (const group of SEARCH_SYNONYM_GROUPS) {
+    const hit = group.some((term) => haystack.some((h) => h === term || h.includes(term)));
+    if (hit) {
+      for (const term of group) if (term.length >= 2) out.add(term);
+    }
   }
   return Array.from(out);
 }
