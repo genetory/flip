@@ -78,12 +78,12 @@ export function CareerLaunchLoginPage() {
             <div>
               <h1 className="break-keep text-[26px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">
                 {t(
-                  "외국인 유학생을 위한 4주 한국 취업 준비",
-                  "4-week Korea job prep for international students",
-                  "为外国留学生打造的4周韩国就业准备",
-                  "Chuẩn bị việc làm tại Hàn 4 tuần cho du học sinh",
-                  "外国人留学生のための4週間・韓国就職準備",
-                  "Persiapan kerja di Korea 4 minggu untuk mahasiswa internasional"
+                  "모든 취업 준비생을 위한 4주 취업 준비",
+                  "4-week job prep for every job seeker",
+                  "为所有求职者打造的4周就业准备",
+                  "Chuẩn bị việc làm 4 tuần cho mọi người tìm việc",
+                  "すべての就活生のための4週間就職準備",
+                  "Persiapan kerja 4 minggu untuk semua pencari kerja"
                 )}
               </h1>
               <CareerLaunchIntro className="mt-6" />
