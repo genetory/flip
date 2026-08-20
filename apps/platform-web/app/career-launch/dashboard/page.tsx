@@ -312,6 +312,38 @@ export default function LaunchDashboardPage() {
                       ))}
                     </ul>
                   </div>
+
+                  {/* 4주 커리큘럼 — 매거진 스프레드(주제·핵심 질문·AI 역할·결과물) */}
+                  <div className="mt-6 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("4주 커리큘럼", "The 4-week curriculum", "4周课程", "Chương trình 4 tuần", "4週間カリキュラム", "Kurikulum 4 minggu")}</p>
+                    <div className="mt-3.5 flex flex-col gap-2.5">
+                      {[
+                        { role: "Career Coach", theme: t("취업 진단", "Diagnosis", "求职诊断", "Chẩn đoán", "就職診断", "Diagnosis"), q: t("나는 뭘 해야 하지?", "What should I do?", "我该做什么？", "Tôi nên làm gì?", "何をすべき？", "Apa yang harus kulakukan?"), out: "Career Roadmap" },
+                        { role: "Resume Coach", theme: t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"), q: t("나를 어떻게 보여주지?", "How do I present myself?", "如何展示自己？", "Thể hiện bản thân sao?", "自分をどう見せる？", "Bagaimana menampilkan diri?"), out: "Resume" },
+                        { role: "Writing Coach", theme: t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), q: t("내 이야기를 어떻게 쓰지?", "How do I tell my story?", "如何讲述我的故事？", "Kể câu chuyện của tôi sao?", "自分の物語をどう書く？", "Bagaimana menulis kisahku?"), out: "Cover Letter" },
+                        { role: "Interviewer", theme: t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), q: t("어떻게 말해야 하지?", "How do I speak?", "该怎么说？", "Nói thế nào?", "どう話す？", "Bagaimana berbicara?"), out: "Interview Report" }
+                      ].map((w, i) => (
+                        <div key={i} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] p-3.5">
+                          <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl bg-[#EDF1FD] leading-none">
+                            <span className="text-[8px] font-bold uppercase text-[#7C93FF]">Wk</span>
+                            <span className="text-[14px] font-black text-[#0B46E8]">{i + 1}</span>
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13.5px] font-bold text-[#191F28]">{w.theme} <span className="text-[11.5px] font-semibold text-[#0B46E8]">· {w.role}</span></p>
+                            <p className="mt-0.5 truncate text-[12.5px] italic text-[#8B95A1]">“{w.q}”</p>
+                          </div>
+                          <span className="hidden shrink-0 rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[11px] font-bold text-[#4E5968] sm:inline">{w.out}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 차별점 — 매거진 풀쿼트(Experience Bank 연속성) */}
+                  <div className="mt-6 rounded-2xl bg-[#0B1227] p-5 text-white md:p-6">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8FB0FF]">{t("왜 다를까요", "Why it's different", "为何不同", "Vì sao khác biệt", "何が違う？", "Kenapa berbeda")}</p>
+                    <p className="mt-2 break-keep text-[15px] font-bold leading-relaxed md:text-[16.5px]">{t("단순한 AI가 아니라, 4주 동안 나를 알아가는 개인 취업 코치예요.", "Not just an AI — a personal career coach that gets to know you over 4 weeks.", "不只是AI，而是4周里逐渐了解你的专属求职教练。", "Không chỉ là AI — một coach nghề riêng hiểu bạn suốt 4 tuần.", "単なるAIではなく、4週間かけてあなたを知る専属就活コーチです。", "Bukan sekadar AI — pelatih karier pribadi yang mengenalmu selama 4 minggu.")}</p>
+                    <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#C7CEDD]">{t("1주차에 한 번 정리한 내 경험(Experience Bank)을 이력서·자기소개서·모의면접까지 계속 이어서 활용해요. 매번 처음부터 나를 설명할 필요가 없어요.", "The experiences you mine in Week 1 (your Experience Bank) carry through your resume, cover letter, and mock interviews — no re-explaining yourself each time.", "第1周整理的经验（经验库）会一直沿用到简历、自我介绍与模拟面试，不必每次从头解释自己。", "Kinh nghiệm bạn khai thác ở Tuần 1 (Experience Bank) được dùng xuyên suốt hồ sơ, thư và phỏng vấn — không cần giải thích lại mỗi lần.", "Week 1で整理した経験（Experience Bank）が履歴書・自己紹介書・模擬面接まで続けて活用され、毎回自分を説明し直す必要がありません。", "Pengalaman yang kamu gali di Minggu 1 (Experience Bank) terus dipakai di resume, surat, dan wawancara — tanpa menjelaskan diri berulang.")}</p>
+                  </div>
                 </article>
             </div>
 
