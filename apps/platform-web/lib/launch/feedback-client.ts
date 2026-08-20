@@ -95,6 +95,26 @@ export async function fetchResumeScore(opts: { force?: boolean; generate?: boole
   return { score: s, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsResume === true };
 }
 
+// Week 3 Cover Letter Score — 논리성/구체성/직무연관성/기업이해도/진정성 + why + AI티/개선.
+export type CoverScore = {
+  total: number;
+  breakdown: { logic: number; specificity: number; relevance: number; companyUnderstanding: number; authenticity: number };
+  why: string;
+  aiFlags: string[];
+  tips: string[];
+};
+export async function fetchCoverScore(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  score: CoverScore | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/cover-score", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  const s = data.score && typeof data.score === "object" ? (data.score as CoverScore) : null;
+  return { score: s, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsCover === true };
+}
+
 // 학생: 완주 최종 피드백 — 이력서+자소서+면접 종합. generate=false 면 캐시만(없으면 needsGenerate).
 // generate=true 면 생성(AI 포인트 차감). 결과물이 바뀌면 stale=true. force=true면 강제 재생성.
 export async function fetchFinalFeedback(opts: { force?: boolean; generate?: boolean } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {

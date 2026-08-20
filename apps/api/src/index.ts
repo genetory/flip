@@ -17718,6 +17718,95 @@ app.post(
   }
 );
 
+// ── Week 3 키스톤: Cover Letter Score — 자기소개서를 5항목으로 평가 ──
+// 논리성/구체성/직무연관성/기업이해도/진정성 + why + AI티·추상 표현 지적 + 개선 팁.
+const COVER_SCORE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "logic", "specificity", "relevance", "companyUnderstanding", "authenticity", "why", "aiFlags", "tips"],
+  properties: {
+    total: { type: "number" },
+    logic: { type: "number" },
+    specificity: { type: "number" },
+    relevance: { type: "number" },
+    companyUnderstanding: { type: "number" },
+    authenticity: { type: "number" },
+    why: { type: "string" },
+    aiFlags: { type: "array", items: { type: "string" } },
+    tips: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const COVER_SCORE_VERSION = 1;
+app.post(
+  "/career-launch/cover-score",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-cover-score", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, score: null, needsCover: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ cover: coverContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const cached = (scores.cover && typeof scores.cover === "object" ? scores.cover : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === COVER_SCORE_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, score: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 5항목으로 0~100 평가한다: " +
+        "logic(논리성 — 흐름·인과가 자연스러운가), specificity(구체성 — 경험·사례가 구체적인가), relevance(직무 연관성 — 선정 직무와 맞는가), companyUnderstanding(기업 이해도 — 회사·직무 이해가 드러나는가), authenticity(진정성 — 자기 이야기로 진솔한가). " +
+        "total 은 종합(0~100). why 는 2~3문장. aiFlags 는 'AI 티가 나거나 너무 추상적인 표현'을 짚어준다(있으면 2~4개, 없으면 빈 배열). tips 는 바로 고칠 개선 제안 2~4개. 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "logic": number, "specificity": number, "relevance": number, "companyUnderstanding": number, "authenticity": number, "why": string, "aiFlags": string[], "tips": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[자기소개서]\n${JSON.stringify(coverContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_score", COVER_SCORE_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+      const data = {
+        total: clampScore(pj.total),
+        breakdown: {
+          logic: clampScore(pj.logic),
+          specificity: clampScore(pj.specificity),
+          relevance: clampScore(pj.relevance),
+          companyUnderstanding: clampScore(pj.companyUnderstanding),
+          authenticity: clampScore(pj.authenticity)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        aiFlags: strList(pj.aiFlags),
+        tips: strList(pj.tips)
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, scores: { ...scores, cover: { v: COVER_SCORE_VERSION, sig: currentSig, data } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, score: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/cover-score] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to score cover letter" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
