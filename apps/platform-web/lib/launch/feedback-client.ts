@@ -49,6 +49,33 @@ export async function fetchDocsSummary(opts: { force?: boolean; generate?: boole
   };
 }
 
+// Week 1 Career Report — Career Score(6영역) + 강점/부족역량 + Career Roadmap.
+export type CareerReport = {
+  total: number;
+  areas: { direction: number; experience: number; competency: number; resume: number; cover: number; interview: number };
+  why: string;
+  strengths: string[];
+  gaps: string[];
+  roadmap: { targetRole: string; targetCompanies: string[]; recommendedExperience: string[]; toImprove: string[] };
+};
+// generate=false 면 캐시만 조회(없으면 needsGenerate/needsDiagnosis). generate=true 면 생성.
+export async function fetchCareerReport(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  report: CareerReport | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  needsDiagnosis: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/career-report", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  const r = data.report && typeof data.report === "object" ? (data.report as CareerReport) : null;
+  return {
+    report: r,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true,
+    needsDiagnosis: data.needsDiagnosis === true
+  };
+}
+
 // 학생: 완주 최종 피드백 — 이력서+자소서+면접 종합. generate=false 면 캐시만(없으면 needsGenerate).
 // generate=true 면 생성(AI 포인트 차감). 결과물이 바뀌면 stale=true. force=true면 강제 재생성.
 export async function fetchFinalFeedback(opts: { force?: boolean; generate?: boolean } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {

@@ -17480,6 +17480,158 @@ app.post(
   }
 );
 
+// ── Week 1 키스톤: Career Report — 진단·선정직무·프로필을 종합한 점수화 리포트 ──
+// Career Score(6영역 + why) + 강점/부족역량 + Career Roadmap. "받기" 버튼식(생성 1회 캐시).
+// 4주 완주 시 58→82 표현을 위해 최초 생성 점수를 careerScoreBefore 로 한 번 저장한다.
+const CAREER_REPORT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "areas", "why", "strengths", "gaps", "roadmap"],
+  properties: {
+    total: { type: "number" },
+    areas: {
+      type: "object",
+      additionalProperties: false,
+      required: ["direction", "experience", "competency", "resume", "cover", "interview"],
+      properties: {
+        direction: { type: "number" },
+        experience: { type: "number" },
+        competency: { type: "number" },
+        resume: { type: "number" },
+        cover: { type: "number" },
+        interview: { type: "number" }
+      }
+    },
+    why: { type: "string" },
+    strengths: { type: "array", items: { type: "string" } },
+    gaps: { type: "array", items: { type: "string" } },
+    roadmap: {
+      type: "object",
+      additionalProperties: false,
+      required: ["targetRole", "targetCompanies", "recommendedExperience", "toImprove"],
+      properties: {
+        targetRole: { type: "string" },
+        targetCompanies: { type: "array", items: { type: "string" } },
+        recommendedExperience: { type: "array", items: { type: "string" } },
+        toImprove: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const CAREER_REPORT_VERSION = 1;
+app.post(
+  "/career-launch/career-report",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-report", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const diagnosis = (progState.diagnosis && typeof progState.diagnosis === "object" ? progState.diagnosis : null) as
+        | { percent?: number; level?: string; strengths?: string[]; improvements?: string[] }
+        | null;
+      // 진단을 마쳐야 리포트를 만들 수 있다(방향 없이는 로드맵 불가).
+      if (!diagnosis || typeof diagnosis.percent !== "number") {
+        return res.json({ ok: true, report: null, needsDiagnosis: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const coverDone = hasCoverContent(normalizeCoverData(coverContent));
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+
+      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeDone, coverDone, practiced: practiced.length }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.careerReport && typeof progState.careerReport === "object" ? progState.careerReport : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === CAREER_REPORT_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, report: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, report: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const systemPrompt =
+        "너는 취업 코치야. 학생의 자가진단·프로필·선정 직무·현재 서류 상태를 종합해 'Career Report'를 만든다.\n" +
+        "규칙:\n" +
+        "1. areas 6개 영역을 각각 0~100으로 평가한다: direction(직무 방향 명확성), experience(경험 보유), competency(직무 역량), resume(이력서 완성도), cover(자기소개서 완성도), interview(면접 준비). " +
+        "지금은 프로그램 1주차라 아직 이력서·자소서·면접을 시작하지 않았다면 resume·cover·interview는 낮게(20~40) 평가하는 게 자연스럽다. 아래 [현재 서류 상태]를 반영해라.\n" +
+        "2. total 은 6영역을 종합한 전체 Career Score(0~100). 낮아도 반드시 격려하는 톤.\n" +
+        "3. why: 왜 이 점수인지 2~3문장으로 따뜻하게 설명.\n" +
+        "4. strengths: 학생이 이미 가진 강점 2~4개(구체적 근거). gaps: 앞으로 보완할 역량 2~4개.\n" +
+        "5. roadmap: targetRole(선정 직무 중 가장 적합한 1개), targetCompanies(어울리는 기업 유형 2~3개), recommendedExperience(추천 경험 정리 2~3개), toImprove(보완 항목 2~3개).\n" +
+        "존댓말, 응원하는 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "areas": { "direction": number, "experience": number, "competency": number, "resume": number, "cover": number, "interview": number }, "why": string, "strengths": string[], "gaps": string[], "roadmap": { "targetRole": string, "targetCompanies": string[], "recommendedExperience": string[], "toImprove": string[] } }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[자가진단]\n준비도 ${diagnosis.percent}% / ${diagnosis.level ?? ""}\n강점: ${(diagnosis.strengths ?? []).join(", ") || "-"}\n개선: ${(diagnosis.improvements ?? []).join(", ") || "-"}\n\n` +
+        `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(아직 미선정)"}\n\n` +
+        `[현재 서류 상태]\n이력서 작성: ${resumeDone ? "완료" : "미완료"} / 자기소개서: ${coverDone ? "완료" : "미완료"} / 모의면접 연습: ${practiced.length}회`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "career_report", CAREER_REPORT_SCHEMA)) as {
+        total?: unknown;
+        areas?: Record<string, unknown>;
+        why?: unknown;
+        strengths?: unknown;
+        gaps?: unknown;
+        roadmap?: Record<string, unknown>;
+      };
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const a = (pj.areas ?? {}) as Record<string, unknown>;
+      const rm = (pj.roadmap ?? {}) as Record<string, unknown>;
+      const data = {
+        total: clampScore(pj.total),
+        areas: {
+          direction: clampScore(a.direction),
+          experience: clampScore(a.experience),
+          competency: clampScore(a.competency),
+          resume: clampScore(a.resume),
+          cover: clampScore(a.cover),
+          interview: clampScore(a.interview)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        strengths: strList(pj.strengths),
+        gaps: strList(pj.gaps),
+        roadmap: {
+          targetRole: typeof rm.targetRole === "string" ? rm.targetRole.trim() : "",
+          targetCompanies: strList(rm.targetCompanies),
+          recommendedExperience: strList(rm.recommendedExperience),
+          toImprove: strList(rm.toImprove)
+        }
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 완주 시 58→82 표현용 — 최초 생성 점수를 한 번만 before 로 저장.
+      const prevBefore = typeof progState.careerScoreBefore === "number" ? (progState.careerScoreBefore as number) : null;
+      const mergedState: Record<string, unknown> = {
+        ...progState,
+        careerReport: { v: CAREER_REPORT_VERSION, sig: currentSig, data },
+        careerScoreBefore: prevBefore ?? data.total
+      };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, report: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/career-report] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate report" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
