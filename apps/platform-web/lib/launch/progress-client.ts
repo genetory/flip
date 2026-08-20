@@ -55,6 +55,8 @@ export type CareerProgress = {
     cover?: { data?: { total?: number } };
     interview?: { data?: { total?: number } };
   } | null;
+  storyBank?: { data?: { stories?: unknown[] } } | null;
+  answerBank?: { data?: { answers?: unknown[] } } | null;
 };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {

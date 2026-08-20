@@ -97,6 +97,11 @@ export default function LaunchDashboardPage() {
 
   const resumeReady = hasResumeContent(data.resume);
   const coverReady = hasCoverContent(data.cover);
+  // 새 산출물 준비 상태(진행 상태에서 바로 읽음) — 결과물 갤러리·스냅샷 반영.
+  const reportReady = Boolean(data.progress.careerReport?.data);
+  const expCount = Array.isArray(data.progress.experienceBank) ? data.progress.experienceBank.length : 0;
+  const storyReady = Array.isArray(data.progress.storyBank?.data?.stories) && (data.progress.storyBank?.data?.stories?.length ?? 0) > 0;
+  const answerReady = Array.isArray(data.progress.answerBank?.data?.answers) && (data.progress.answerBank?.data?.answers?.length ?? 0) > 0;
   // 다음 할 일 — 열려 있고 아직 완료 안 된 첫 주차.
   const nextWeek = WEEKS.find((w) => weekUnlocked(w.week, data, schedule, serverNow) && weekDoneCount(w.steps, data) < w.steps.length) ?? null;
   useEffect(() => {
@@ -377,10 +382,28 @@ export default function LaunchDashboardPage() {
                 )}
               </div>
 
-              {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
+              {/* 내 결과물 — 4주 산출물 갤러리(경험·리포트·이력서·자소서·스토리·면접 노트) */}
               <div id="deliverables" className="scroll-mt-20 space-y-4">
-                <SectionTitle sub={t("대화로 만드는 이력서와 자기소개서", "A resume and cover letter built through conversation", "对话即可完成的简历与求职信", "Hồ sơ và thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書と自己紹介書", "Resume dan cover letter dari percakapan")}>{t("내 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</SectionTitle>
+                <SectionTitle sub={t("4주 동안 쌓은 나만의 취업 자산이에요", "The career assets you build over 4 weeks", "4周积累的专属求职资产", "Tài sản nghề bạn xây trong 4 tuần", "4週間で積み上げた自分だけの就活資産", "Aset karier yang kamu bangun selama 4 minggu")}>{t("내 커리어 포트폴리오", "My career portfolio", "我的职业作品集", "Hồ sơ nghề của tôi", "私のキャリアポートフォリオ", "Portofolio karierku")}</SectionTitle>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DeliverableCard
+                    title={t("Experience Bank", "Experience Bank", "经验库", "Experience Bank", "Experience Bank", "Experience Bank")}
+                    ready={expCount > 0}
+                    previewHref="/career-launch/experience"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={expCount > 0 ? t(`경험 ${expCount}개 정리됨`, `${expCount} experiences mined`, `已整理 ${expCount} 段经验`, `Đã có ${expCount} kinh nghiệm`, `経験${expCount}件を整理`, `${expCount} pengalaman`) : ""}
+                    emptyMsg={t("1주차에서 내 경험을 채굴해요", "Mine your experiences in Week 1", "第1周挖掘你的经验", "Khai thác kinh nghiệm ở Tuần 1", "Week 1で経験を発掘", "Gali pengalamanmu di Minggu 1")}
+                  />
+                  <DeliverableCard
+                    title={t("Career Report", "Career Report", "职业报告", "Career Report", "Career Report", "Career Report")}
+                    ready={reportReady}
+                    previewHref="/career-launch/week/1"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("Career Score·강점·로드맵 정리됨", "Score, strengths & roadmap ready", "分数·优势·路线图已整理", "Điểm·điểm mạnh·lộ trình đã có", "スコア・強み・ロードマップ完成", "Skor·kelebihan·roadmap siap")}
+                    emptyMsg={t("1주차에서 받아요", "Get it in Week 1", "第1周领取", "Nhận ở Tuần 1", "Week 1で受け取ります", "Dapatkan di Minggu 1")}
+                  />
                   <DeliverableCard
                     title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")}
                     ready={resumeReady}
@@ -394,6 +417,24 @@ export default function LaunchDashboardPage() {
                     previewHref="/career-launch/cover-preview"
                     doneMsg={t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap")}
                     emptyMsg={t("3주차에 대화로 만들어요", "Built through conversation in Week 3", "第3周通过对话完成", "Tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Dibuat lewat percakapan di Minggu 3")}
+                  />
+                  <DeliverableCard
+                    title={t("Story Bank", "Story Bank", "故事库", "Story Bank", "Story Bank", "Story Bank")}
+                    ready={storyReady}
+                    previewHref="/career-launch/week/3"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("STAR 이야기로 정리됨", "Structured as STAR stories", "已整理为STAR故事", "Đã thành câu chuyện STAR", "STARの物語に整理", "Tersusun jadi cerita STAR")}
+                    emptyMsg={t("3주차에서 만들어요", "Build it in Week 3", "第3周生成", "Tạo ở Tuần 3", "Week 3で作ります", "Buat di Minggu 3")}
+                  />
+                  <DeliverableCard
+                    title={t("면접 답변 노트", "Interview answer bank", "面试回答笔记", "Sổ câu trả lời PV", "面接回答ノート", "Catatan jawaban wawancara")}
+                    ready={answerReady}
+                    previewHref="/career-launch/week/4"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("핵심 질문 8개 답변 정리됨", "8 key answers drafted", "8个核心问题答案已整理", "8 câu trả lời chính đã soạn", "主要8問の回答を整理", "8 jawaban utama siap")}
+                    emptyMsg={t("4주차에서 만들어요", "Build it in Week 4", "第4周生成", "Tạo ở Tuần 4", "Week 4で作ります", "Buat di Minggu 4")}
                   />
                 </div>
               </div>
@@ -432,7 +473,7 @@ export default function LaunchDashboardPage() {
 
 // 결과물 카드 — talent '내 커리어'와 동일한 형태. 문서를 인라인으로 펼치지 않고,
 // 완성 링 + 상태 메시지 + '미리보기'(새 탭) 링크만 노출.
-function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string }) {
+function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg, ctaLabel, newTab = true }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string; ctaLabel?: string; newTab?: boolean }) {
   const t = useLaunchT();
   const shell = ready
     ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
@@ -444,8 +485,8 @@ function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { tit
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{ready ? doneMsg : emptyMsg}</p>
         {ready ? (
-          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-            {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
+          <Link href={previewHref} {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            {ctaLabel ?? t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
           </Link>
         ) : null}
       </div>
