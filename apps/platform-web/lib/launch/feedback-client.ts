@@ -214,6 +214,24 @@ export async function fetchCoverReview(opts: { force?: boolean; generate?: boole
   return { result: r, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsCover === true };
 }
 
+// Week 4 Interview Answer Bank — 핵심 면접 질문 8개의 내 모범 답변(면접 노트).
+export type AnswerBankItem = { question: string; answer: string };
+export async function fetchAnswerBank(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  answers: AnswerBankItem[] | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/answer-bank", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  return {
+    answers: Array.isArray(data.answers) ? (data.answers as AnswerBankItem[]) : null,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true,
+    unavailable: data.needsInput === true
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;

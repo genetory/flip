@@ -18588,6 +18588,91 @@ app.post(
   }
 );
 
+// ── Week 4: Interview Answer Bank — 핵심 면접 질문 8개의 내 모범 답변(면접 노트) ──
+const ANSWER_BANK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["answers"],
+  properties: {
+    answers: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["question", "answer"],
+        properties: { question: { type: "string" }, answer: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const ANSWER_BANK_VERSION = 1;
+app.post(
+  "/career-launch/answer-bank",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-answer-bank", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const storyBank = (progState.storyBank && typeof progState.storyBank === "object" ? (progState.storyBank as { data?: { stories?: unknown } }).data?.stories : null);
+      const stories = Array.isArray(storyBank) ? (storyBank as Array<Record<string, unknown>>) : [];
+      // 이력서나 Story Bank 중 하나는 있어야 답변을 만든다.
+      if (!resumeDone && stories.length === 0) {
+        return res.json({ ok: true, answers: null, needsInput: true });
+      }
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, stories }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.answerBank && typeof progState.answerBank === "object" ? progState.answerBank : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === ANSWER_BANK_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, answers: (cached.data as { answers?: unknown }).answers ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, answers: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const storyText = stories.length
+        ? stories.map((s) => `- [${typeof s.category === "string" ? s.category : ""}] ${typeof s.title === "string" ? s.title : ""}`).join("\n")
+        : "(없음)";
+      const systemPrompt =
+        "너는 면접 코치다. 학생의 이력서·자기소개서·Story Bank 를 근거로, 아래 8개 핵심 면접 질문에 대한 '내 모범 답변'을 학생 1인칭으로 작성해 면접 노트를 만든다.\n" +
+        "질문: 1) 1분 자기소개 2) 지원 동기 3) 가장 큰 성과 4) 갈등 경험 5) 실패 경험 6) 리더십 경험 7) 나의 강점 8) 나의 약점.\n" +
+        "규칙: 학생이 실제로 가진 경험만 사용하고 없는 사실을 지어내지 않는다. 각 답변은 두괄식·STAR 로 자연스럽게, 3~6문장. 관련 경험이 부족한 질문은 '어떤 경험을 준비하면 좋은지' 방향을 대신 적는다. 존댓말·진솔한 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "answers": [ { "question": string, "answer": string } ] } (8개)' +
+        aiLangDirective("ko");
+      const userPrompt = `[이력서]\n${JSON.stringify(resumeContent).slice(0, 2500)}\n\n[자기소개서]\n${JSON.stringify(coverContent).slice(0, 2500)}\n\n[Story Bank]\n${storyText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "answer_bank", ANSWER_BANK_SCHEMA)) as { answers?: unknown };
+      const answers = Array.isArray(pj.answers)
+        ? (pj.answers as Array<Record<string, unknown>>)
+            .map((a) => ({ question: typeof a.question === "string" ? a.question.trim() : "", answer: typeof a.answer === "string" ? a.answer.trim() : "" }))
+            .filter((a) => a.question && a.answer)
+            .slice(0, 8)
+        : [];
+      if (answers.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, answerBank: { v: ANSWER_BANK_VERSION, sig: currentSig, data: { answers } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, answers, stale: false });
+    } catch (err) {
+      console.error("[career-launch/answer-bank] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
