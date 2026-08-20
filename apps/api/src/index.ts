@@ -393,6 +393,12 @@ const crawlSchedulerEnabled = String(process.env.CRAWL_SCHEDULER_ENABLED ?? "fal
 const crawlSchedulerHourKst = Math.max(0, Math.min(23, Number(process.env.CRAWL_SCHEDULER_HOUR_KST ?? 4)));
 const crawlSchedulerMinuteKst = Math.max(0, Math.min(59, Number(process.env.CRAWL_SCHEDULER_MINUTE_KST ?? 10)));
 const crawlSchedulerRunOnBoot = String(process.env.CRAWL_SCHEDULER_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
+// B2 직무 알림 — 새 공고 × 대표 이력서 임베딩 매칭 인앱 알림(매일 1회). 기본 OFF.
+// 배포 후 앱세팅 JOB_ALERT_SCHEDULER_ENABLED=true 로 켠다(백필/스케줄러 플래그 패턴).
+const jobAlertSchedulerEnabled = String(process.env.JOB_ALERT_SCHEDULER_ENABLED ?? "false").toLowerCase() === "true";
+const jobAlertHourKst = Math.max(0, Math.min(23, Number(process.env.JOB_ALERT_HOUR_KST ?? 9)));
+const jobAlertMinuteKst = Math.max(0, Math.min(59, Number(process.env.JOB_ALERT_MINUTE_KST ?? 0)));
+const jobAlertRunOnBoot = String(process.env.JOB_ALERT_RUN_ON_BOOT ?? "false").toLowerCase() === "true";
 // 일일 스케줄러가 돌릴 소스. 기본 "wanted" — Buddies 사이트 구조 변경(404)으로 제외.
 // 복구 시 CRAWL_SCHEDULER_SOURCE=all 로 되돌린다.
 const crawlSchedulerSource = ((): "all" | "buddies" | "wanted" => {
@@ -4529,6 +4535,106 @@ function startCrawlerScheduler() {
   }
   scheduleNext();
 
+  const shutdown = () => {
+    if (timer) clearTimeout(timer);
+  };
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
+// B2: 새로 올라온 공고 중 회원 대표 이력서와 잘 맞는 건을 인앱 알림으로 알린다.
+// - 임베딩 기반(B1 재사용) — 대표 이력서에 임베딩이 있는 학생만 대상.
+// - 하루 1회 실행, 최근 26h 신규 공고만, (userId, 공고) 중복 알림 방지.
+// - 실패는 로그만 남기고 조용히 넘어간다(치명 아님).
+async function runJobMatchAlertsOnce(): Promise<void> {
+  const startedAt = Date.now();
+  try {
+    // 임베딩은 Unsupported 타입이라 전 구간 raw SQL 로 다룬다.
+    const since = new Date(Date.now() - 26 * 60 * 60 * 1000);
+    const newPositions = await prisma.$queryRaw<Array<{ id: string; title: string }>>`
+      SELECT "id", "title" FROM "Position"
+      WHERE "status" = 'OPEN' AND "embedding" IS NOT NULL AND "createdAt" >= ${since}
+    `;
+    if (newPositions.length === 0) {
+      console.info("[job-alert] no new positions in window");
+      return;
+    }
+    const newIds = newPositions.map((p) => p.id);
+    const learners = await prisma.$queryRaw<Array<{ userId: string }>>`
+      SELECT DISTINCT r."userId"
+      FROM "Resume" r
+      WHERE r."isPrimary" = true AND r."embedding" IS NOT NULL
+    `;
+    const MATCH_FLOOR = 0.45; // B1 표시 하한과 동일 — 확실히 맞는 것만 알림.
+    let created = 0;
+    for (const { userId } of learners) {
+      try {
+        const embRow = await prisma.$queryRaw<Array<{ emb: string }>>`
+          SELECT "embedding"::text AS emb FROM "Resume"
+          WHERE "userId" = ${userId} AND "isPrimary" = true AND "embedding" IS NOT NULL
+          LIMIT 1
+        `;
+        const emb = embRow[0]?.emb;
+        if (!emb) continue;
+        const matches = await prisma.$queryRaw<Array<{ id: string; title: string; distance: number }>>`
+          SELECT "id", "title", "embedding" <=> ${emb}::vector AS distance
+          FROM "Position"
+          WHERE "id" = ANY(${newIds}::text[]) AND "embedding" IS NOT NULL
+          ORDER BY "embedding" <=> ${emb}::vector
+          LIMIT 3
+        `;
+        const strong = matches.filter((m) => 1 - Number(m.distance) >= MATCH_FLOOR);
+        if (strong.length === 0) continue;
+        const top = strong[0];
+        // 중복 방지 — 같은 유저에게 같은 공고 알림을 이미 보냈으면 스킵(26h 창이 두 실행에 걸침).
+        const already = await prisma.notification.findFirst({
+          where: { userId, type: "job_match", linkPath: `/talent/jobs/${top.id}` },
+          select: { id: true }
+        });
+        if (already) continue;
+        const extra = strong.length - 1;
+        await createNotification({
+          userId,
+          type: "job_match",
+          title: "이력서와 잘 맞는 새 공고가 올라왔어요",
+          message: extra > 0 ? `'${top.title}' 외 ${extra}건이 회원님과 잘 맞아요` : `'${top.title}'가 회원님과 잘 맞아요`,
+          linkPath: `/talent/jobs/${top.id}`
+        });
+        created += 1;
+      } catch (err) {
+        console.error("[job-alert] per-user failed", { userId, err: getErrorMessage(err) });
+      }
+    }
+    console.info("[job-alert] done", {
+      newPositions: newPositions.length,
+      learners: learners.length,
+      created,
+      elapsedMs: Date.now() - startedAt
+    });
+  } catch (error) {
+    console.error("[job-alert] run failed", getErrorMessage(error));
+  }
+}
+
+function startJobAlertScheduler() {
+  if (!jobAlertSchedulerEnabled) return;
+  let timer: NodeJS.Timeout | null = null;
+  const scheduleNext = () => {
+    const next = nextRunAtKst(jobAlertHourKst, jobAlertMinuteKst);
+    const delay = Math.max(1_000, next.getTime() - Date.now());
+    console.info("[job-alert-scheduler] next run scheduled", {
+      kstHour: jobAlertHourKst,
+      kstMinute: jobAlertMinuteKst,
+      nextRunAt: next.toISOString(),
+      delayMs: delay
+    });
+    timer = setTimeout(async () => {
+      await runJobMatchAlertsOnce();
+      scheduleNext();
+    }, delay);
+  };
+  if (jobAlertRunOnBoot) void runJobMatchAlertsOnce();
+  scheduleNext();
   const shutdown = () => {
     if (timer) clearTimeout(timer);
   };
@@ -29998,6 +30104,7 @@ if (process.env.VERCEL !== "1") {
       }
     });
     startCrawlerScheduler();
+    startJobAlertScheduler();
     void runInternalForeignerBackfillOnBoot();
     void runAiPointsScale10xOnBoot();
     void runDocSummaryBackfillOnBoot();
