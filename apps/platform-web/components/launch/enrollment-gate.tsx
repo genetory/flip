@@ -5,6 +5,7 @@ import { GraduationCap, ArrowRight, CircleNotch } from "@phosphor-icons/react";
 import { fetchMyEnrollment, enrollByCode } from "../../lib/launch/enrollment-client";
 import { trackCareerEnroll } from "../../lib/analytics";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { CareerLaunchIntro } from "./CareerLaunchIntro";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -62,6 +63,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         <div className="mx-auto flex min-h-[70vh] w-full max-w-[440px] flex-col justify-center px-5 py-14">
           <Reveal>
+            <CareerLaunchIntro className="mb-4" />
             <div className="rounded-3xl border border-[#EEF1F5] bg-white p-7 shadow-[0_10px_40px_rgba(11,18,39,0.06)] md:p-8">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
                 <GraduationCap className="h-7 w-7" weight="fill" />

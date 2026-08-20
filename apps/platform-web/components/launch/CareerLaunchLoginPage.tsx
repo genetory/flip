@@ -12,6 +12,7 @@ import { useLaunchT } from "../../lib/launch/i18n";
 import { TalentButton } from "../talent/TalentButton";
 import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
+import { CareerLaunchIntro } from "./CareerLaunchIntro";
 
 export function CareerLaunchLoginPage() {
   const t = useLaunchT();
@@ -87,6 +88,8 @@ export function CareerLaunchLoginPage() {
         </p>
       }
     >
+      <CareerLaunchIntro className="mb-6" />
+
       <form className="space-y-4" onSubmit={handleSubmit}>
         <TalentField label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")}>
           <input
