@@ -136,6 +136,25 @@ export async function fetchInterviewScore(opts: { force?: boolean; generate?: bo
   return { score: s, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsInterview === true };
 }
 
+// Week 1 Career Recommendation — Experience Bank 근거 추천 직무 TOP(fit%·강점·부족·하는일).
+export type RecommendedRole = { role: string; fit: number; reason: string; strengths: string[]; gaps: string[]; toPrepare: string[]; whatTheyDo: string };
+export async function fetchJobRecommendation(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  jobs: RecommendedRole[] | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/job-recommendation", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  const rec = data.recommendation && typeof data.recommendation === "object" ? (data.recommendation as { jobs?: RecommendedRole[] }) : null;
+  return {
+    jobs: rec && Array.isArray(rec.jobs) ? rec.jobs : null,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true,
+    unavailable: data.needsInput === true
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;

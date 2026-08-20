@@ -12,6 +12,7 @@ import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { InterviewPrepChecklist } from "../../../../components/launch/InterviewPrepChecklist";
 import { CareerReportCard } from "../../../../components/launch/CareerReportCard";
+import { JobRecommendationCard } from "../../../../components/launch/JobRecommendationCard";
 import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
@@ -104,6 +105,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
               </Link>
             ) : null}
+
+            {/* Week 1 — 추천 직무(Experience Bank 근거 fit%·강점·부족). 근거 전이면 자체 숨김 */}
+            {plan.week === 1 ? <JobRecommendationCard /> : null}
 
             {/* Week 1 키스톤 — Career Report(점수·강점·로드맵). 진단 전이면 카드가 스스로 숨음 */}
             {plan.week === 1 ? <CareerReportCard /> : null}

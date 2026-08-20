@@ -18100,6 +18100,117 @@ app.get(
   }
 );
 
+// ── Week 1: Career Recommendation — Experience Bank·프로필 근거 직무 추천 TOP(fit%·강점·부족) ──
+const JOB_RECO_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["jobs"],
+  properties: {
+    jobs: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["role", "fit", "reason", "strengths", "gaps", "toPrepare", "whatTheyDo"],
+        properties: {
+          role: { type: "string" },
+          fit: { type: "number" },
+          reason: { type: "string" },
+          strengths: { type: "array", items: { type: "string" } },
+          gaps: { type: "array", items: { type: "string" } },
+          toPrepare: { type: "array", items: { type: "string" } },
+          whatTheyDo: { type: "string" }
+        }
+      }
+    }
+  }
+} as const;
+const JOB_RECO_VERSION = 1;
+app.post(
+  "/career-launch/job-recommendation",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-job-reco", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, profileSummary] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        buildCandidateProfileSummary(uid)
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const diagnosis = (progState.diagnosis && typeof progState.diagnosis === "object" ? progState.diagnosis : null) as { percent?: number } | null;
+      // 경험 채굴이나 진단 중 하나는 있어야 추천 근거가 된다.
+      if (expBank.length === 0 && !diagnosis) {
+        return res.json({ ok: true, recommendation: null, needsInput: true });
+      }
+      const expSig = expBank.map((e) => e?.id).join(",");
+      const currentSig = simpleHash(JSON.stringify({ expSig, diagnosis, profile: profileSummary?.slice(0, 200) }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.jobRecommendation && typeof progState.jobRecommendation === "object" ? progState.jobRecommendation : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === JOB_RECO_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, recommendation: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, recommendation: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const expText = expBank.length
+        ? expBank
+            .map((e) => {
+              const label = typeof e.experience === "string" ? e.experience : "경험";
+              const comps = Array.isArray(e.competencies) ? (e.competencies as string[]).filter((x) => typeof x === "string") : [];
+              const skills = Array.isArray(e.skills) ? (e.skills as string[]).filter((x) => typeof x === "string") : [];
+              return `- ${label}: 역량 ${comps.join(", ") || "-"} / 기술 ${skills.join(", ") || "-"}`;
+            })
+            .join("\n")
+        : "(경험 채굴 전)";
+      const systemPrompt =
+        "너는 신입·대학생 전문 Career Coach다. 사용자의 Career Profile 과 Experience Bank 를 분석해 추천 직무 3~5개를 제안한다.\n" +
+        "평가 기준: 경험 연관성 30%, 보유 역량 25%, 관심도 20%, 현재 취업 가능성 15%, 추가 준비 난이도 10%.\n" +
+        "각 직무마다: role(직무명), fit(0~100 적합도), reason(추천 이유 1~2문장), strengths(현재 가진 강점 2~3), gaps(부족한 역량 2~3), toPrepare(앞으로 준비할 것 2~3), whatTheyDo(그 직무가 실제로 하는 일 1문장).\n" +
+        "사용자의 경험에 근거하지 않은 내용은 지어내지 않는다. fit 높은 순으로 정렬. 존댓말, 격려 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "jobs": [ { "role": string, "fit": number, "reason": string, "strengths": string[], "gaps": string[], "toPrepare": string[], "whatTheyDo": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = (profileSummary ? `[Career Profile]\n${profileSummary}\n\n` : "") + `[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "job_recommendation", JOB_RECO_SCHEMA)) as { jobs?: unknown };
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const jobs = Array.isArray(pj.jobs)
+        ? (pj.jobs as Array<Record<string, unknown>>)
+            .map((j) => ({
+              role: typeof j.role === "string" ? j.role.trim() : "",
+              fit: clampScore(j.fit),
+              reason: typeof j.reason === "string" ? j.reason.trim() : "",
+              strengths: strList(j.strengths),
+              gaps: strList(j.gaps),
+              toPrepare: strList(j.toPrepare),
+              whatTheyDo: typeof j.whatTheyDo === "string" ? j.whatTheyDo.trim() : ""
+            }))
+            .filter((j) => j.role)
+            .sort((a, b) => b.fit - a.fit)
+            .slice(0, 5)
+        : [];
+      if (jobs.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const data = { jobs };
+
+      const mergedState = { ...progState, jobRecommendation: { v: JOB_RECO_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, recommendation: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/job-recommendation] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to recommend" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
