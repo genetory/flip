@@ -18783,6 +18783,72 @@ app.post(
   }
 );
 
+// ── Week 3: 자소서 질문 분석 — 질문 의도 + Experience/Story Bank 근거 추천 경험(적합도) ──
+const COVER_QUESTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent", "recommended"],
+  properties: {
+    intent: { type: "array", items: { type: "string" } },
+    recommended: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["experience", "fit", "why"],
+        properties: { experience: { type: "string" }, fit: { type: "number" }, why: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const coverQuestionSchema = z.object({ question: z.string().trim().min(3).max(600) });
+app.post(
+  "/career-launch/cover-question",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-cover-question", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_cover_question", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = coverQuestionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const uid = req.auth!.userId;
+    try {
+      const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const storyBank = (progState.storyBank && typeof progState.storyBank === "object" ? (progState.storyBank as { data?: { stories?: unknown } }).data?.stories : null);
+      const stories = Array.isArray(storyBank) ? (storyBank as Array<Record<string, unknown>>) : [];
+      const candidates = [
+        ...expBank.map((e) => (typeof e.experience === "string" ? e.experience : "")),
+        ...stories.map((s) => (typeof s.title === "string" ? s.title : ""))
+      ].filter(Boolean);
+      const candText = candidates.length ? candidates.map((c) => `- ${c}`).join("\n") : "(아직 정리된 경험 없음)";
+
+      const systemPrompt =
+        "너는 자기소개서 코치다. 학생이 입력한 자소서 문항을 분석한다.\n" +
+        "1. intent: 이 질문에서 기업이 '보고 싶어 하는 것' 2~4개(예: 문제 대응력, 자기 객관화, 회복력, 학습 능력).\n" +
+        "2. recommended: 아래 학생의 경험/스토리 후보 중 이 질문에 쓰기 좋은 것 2~4개를 골라 experience(후보 이름 그대로), fit(0~100 적합도), why(왜 적합한지 1문장). 후보에 없는 경험을 지어내지 않는다. 후보가 없으면 recommended 는 빈 배열로 두고 intent 만 채운다. 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "intent": string[], "recommended": [ { "experience": string, "fit": number, "why": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[자소서 문항]\n${parsed.data.question}\n\n[학생 경험/스토리 후보]\n${candText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_question", COVER_QUESTION_SCHEMA)) as { intent?: unknown; recommended?: unknown };
+      const intent = Array.isArray(pj.intent) ? (pj.intent as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+      const recommended = Array.isArray(pj.recommended)
+        ? (pj.recommended as Array<Record<string, unknown>>)
+            .map((r) => ({ experience: typeof r.experience === "string" ? r.experience.trim() : "", fit: Math.max(0, Math.min(100, Math.round(Number(r.fit)) || 0)), why: typeof r.why === "string" ? r.why.trim() : "" }))
+            .filter((r) => r.experience)
+            .slice(0, 5)
+        : [];
+      if (intent.length === 0 && recommended.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, intent, recommended });
+    } catch (err) {
+      console.error("[career-launch/cover-question] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

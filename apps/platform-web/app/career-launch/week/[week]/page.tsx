@@ -19,6 +19,7 @@ import { ResumeBulletCard } from "../../../../components/launch/ResumeBulletCard
 import { JdMatchCard } from "../../../../components/launch/JdMatchCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
+import { CoverQuestionCard } from "../../../../components/launch/CoverQuestionCard";
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
@@ -166,6 +167,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* Week 3 — Story Bank(Experience Bank → STAR 이야기). 경험 채굴 전이면 자체 숨김 */}
             {plan.week === 3 ? <StoryBankCard /> : null}
+
+            {/* Week 3 — 자소서 질문 분석(의도 + 추천 경험) */}
+            {plan.week === 3 ? <CoverQuestionCard /> : null}
 
             {/* Week 3 키스톤 — Cover Letter Score. 자소서 미작성이면 카드가 스스로 숨음 */}
             {plan.week === 3 ? <CoverScoreCard /> : null}

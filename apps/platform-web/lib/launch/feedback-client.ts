@@ -243,6 +243,17 @@ export async function improveResumeBullet(bullet: string): Promise<{ before: str
   };
 }
 
+// Week 3 자소서 질문 분석 — 질문 의도 + 추천 경험(적합도).
+export type CoverQuestionResult = { intent: string[]; recommended: { experience: string; fit: number; why: string }[] };
+export async function analyzeCoverQuestion(question: string): Promise<CoverQuestionResult> {
+  const data = await req("/career-launch/cover-question", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ question }) });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  return {
+    intent: Array.isArray(data.intent) ? (data.intent as string[]) : [],
+    recommended: Array.isArray(data.recommended) ? (data.recommended as CoverQuestionResult["recommended"]) : []
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;
