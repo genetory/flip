@@ -18211,6 +18211,83 @@ app.post(
   }
 );
 
+// ── Week 2: Recruiter 10 Second Test — 채용담당자가 이력서를 10초 훑은 첫인상 ──
+const RECRUITER_10S_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["impression", "standout", "roleClear", "roleNote", "unclear", "wantToAsk"],
+  properties: {
+    impression: { type: "string" },
+    standout: { type: "string" },
+    roleClear: { type: "boolean" },
+    roleNote: { type: "string" },
+    unclear: { type: "array", items: { type: "string" } },
+    wantToAsk: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const RECRUITER_10S_VERSION = 1;
+app.post(
+  "/career-launch/recruiter-10s",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-recruiter-10s", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
+        return res.json({ ok: true, result: null, needsResume: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.recruiter10s && typeof progState.recruiter10s === "object" ? progState.recruiter10s : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === RECRUITER_10S_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, result: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 지원자의 이력서를 처음 보는 채용담당자다. 이 이력서를 딱 10초 동안 훑어봤다고 가정하고 아래에만 답한다.\n" +
+        "1. impression: 이 지원자는 어떤 사람으로 기억되는가(1문장). 2. standout: 가장 눈에 들어온 경험(1문장). 3. roleClear: 지원 직무가 명확히 보이는가(true/false), roleNote: 그 근거(1문장). 4. unclear: 이해되지 않거나 애매한 부분 2~3개. 5. wantToAsk: 인터뷰에서 가장 물어보고 싶은 것 2~3개. 솔직하되 존댓말·건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "impression": string, "standout": string, "roleClear": boolean, "roleNote": string, "unclear": string[], "wantToAsk": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[이력서]\n${JSON.stringify(resumeContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "recruiter_10s", RECRUITER_10S_SCHEMA)) as Record<string, unknown>;
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const data = {
+        impression: typeof pj.impression === "string" ? pj.impression.trim() : "",
+        standout: typeof pj.standout === "string" ? pj.standout.trim() : "",
+        roleClear: pj.roleClear === true,
+        roleNote: typeof pj.roleNote === "string" ? pj.roleNote.trim() : "",
+        unclear: strList(pj.unclear),
+        wantToAsk: strList(pj.wantToAsk)
+      };
+      if (!data.impression) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, recruiter10s: { v: RECRUITER_10S_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/recruiter-10s] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

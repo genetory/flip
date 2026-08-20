@@ -155,6 +155,20 @@ export async function fetchJobRecommendation(opts: { force?: boolean; generate?:
   };
 }
 
+// Week 2 Recruiter 10초 테스트 — 채용담당자가 이력서를 10초 훑은 첫인상.
+export type Recruiter10s = { impression: string; standout: string; roleClear: boolean; roleNote: string; unclear: string[]; wantToAsk: string[] };
+export async function fetchRecruiter10s(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  result: Recruiter10s | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/recruiter-10s", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  const r = data.result && typeof data.result === "object" ? (data.result as Recruiter10s) : null;
+  return { result: r, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsResume === true };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;
