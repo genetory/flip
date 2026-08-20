@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { CaretRight, ArrowRight } from "@phosphor-icons/react";
@@ -22,6 +22,8 @@ import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
 import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
+import { CareerChatModal } from "../../../../components/launch/CareerChatModal";
+import { ExperienceChat } from "../../../../components/launch/ExperienceChat";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../../components/AplyFooter";
@@ -45,6 +47,8 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
     3: "/img_coverletter.webp",
     4: "/img_fake_interview.webp"
   };
+  // 주차 LLM 채팅을 페이지 이동 없이 모달로 — 경험 채굴부터 적용.
+  const [expOpen, setExpOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -97,11 +101,12 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </WeekGate>
             </div>
 
-            {/* Week 1 — Experience Bank 채굴 CTA(중심 데이터). 이력서·자소서·면접에서 계속 쓰인다 */}
+            {/* Week 1 — Experience Bank 채굴 CTA(중심 데이터). 페이지 이동 없이 모달로 연다 */}
             {plan.week === 1 ? (
-              <Link
-                href="/career-launch/experience"
-                className="group flex items-center justify-between gap-4 rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] p-5 transition hover:border-[#0B46E8]/40 md:p-6"
+              <button
+                type="button"
+                onClick={() => setExpOpen(true)}
+                className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] p-5 text-left transition hover:border-[#0B46E8]/40 md:p-6"
               >
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Experience Bank</p>
@@ -109,7 +114,14 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
                   <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI가 사소한 경험에서도 강점을 찾아 구조화해요. 4주 내내 이력서·자소서·면접에 쓰여요.", "AI mines strengths even from small experiences — reused across your resume, cover letter, and interviews for 4 weeks.", "AI 会从微小经验中发掘优势并结构化，贯穿4周的简历、自我介绍与面试。", "AI tìm điểm mạnh từ cả kinh nghiệm nhỏ — dùng suốt 4 tuần cho CV, thư và phỏng vấn.", "AIが小さな経験からも強みを見つけて構造化し、4週間ずっと活用します。", "AI menggali kelebihan dari pengalaman kecil — dipakai selama 4 minggu di resume, surat, dan wawancara.")}</p>
                 </div>
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
-              </Link>
+              </button>
+            ) : null}
+
+            {/* 경험 채굴 모달 — 페이지 이동 없이 그 자리에서 */}
+            {expOpen ? (
+              <CareerChatModal onClose={() => setExpOpen(false)}>
+                <ExperienceChat embedded onClose={() => setExpOpen(false)} />
+              </CareerChatModal>
             ) : null}
 
             {/* Week 1 — 추천 직무(Experience Bank 근거 fit%·강점·부족). 근거 전이면 자체 숨김 */}
