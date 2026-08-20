@@ -257,6 +257,15 @@ export default function LaunchDashboardPage() {
             {/* ── 내 커리어 스냅샷 — 주차에서 만든 점수·경험 요약(데이터 있을 때만) ── */}
             <CareerSnapshot />
 
+            {/* 통합 Career Profile 전체 보기 */}
+            <Link href="/career-launch/profile" className="group flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#0B46E8]/40">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Career Profile</p>
+                <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{t("내 커리어 프로필 전체 보기", "View my full career profile", "查看我的完整职业档案", "Xem hồ sơ nghề đầy đủ", "私のキャリアプロフィール全体を見る", "Lihat profil karier lengkap")}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
+            </Link>
+
             {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
             <div>
                 <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
