@@ -27,7 +27,14 @@ export function CareerLaunchIntro({ className = "" }: { className?: string }) {
   ];
 
   return (
-    <div className={`rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] p-5 ${className}`}>
+    <div className={`overflow-hidden rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] ${className}`}>
+      <img
+        src="/img_global_career_launch.webp"
+        alt={t("Career Launch", "Career Launch", "Career Launch", "Career Launch", "Career Launch", "Career Launch")}
+        className="block h-auto w-full"
+        loading="lazy"
+      />
+      <div className="p-5">
       <span className="inline-flex items-center rounded-full bg-[#0B46E8] px-2.5 py-0.5 text-[11px] font-bold text-white">
         {t("4주 프로그램", "4-week program", "4周项目", "Chương trình 4 tuần", "4週間プログラム", "Program 4 minggu")}
       </span>
@@ -50,6 +57,7 @@ export function CareerLaunchIntro({ className = "" }: { className?: string }) {
             <span className="min-w-0 text-[12.5px] font-semibold leading-tight text-[#191F28]">{s.label}</span>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
