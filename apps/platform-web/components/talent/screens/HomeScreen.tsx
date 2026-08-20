@@ -26,6 +26,7 @@ import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { careerGuides, featuredBanners, pickRandomTip, type CareerGuide } from "../../../lib/talent/home-content";
 import {
   getPublicPositionsPage,
+  getRecommendedPositions,
   getMyFavoritePositions,
   addMyFavoritePosition,
   removeMyFavoritePosition,
@@ -591,7 +592,7 @@ function RecommendedJobs() {
   const { locale } = useLanguage();
   const toast = useTalentPopup();
   const interests = useJobInterests();
-  const [jobs, setJobs] = useState<{ view: PositionView; matched: boolean }[]>([]);
+  const [jobs, setJobs] = useState<{ view: PositionView; matched: boolean; matchScore?: number }[]>([]);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [cipOpen, setCipOpen] = useState(false);
 
@@ -600,8 +601,16 @@ function RecommendedJobs() {
     // 관심 직무(소분류) → 공고 vocabulary(JobCategory)로 변환해야 원티드·CIP가 매칭된다.
     const roles = jobCategoriesForInterests(interests);
     const jobRoles = roles.length ? roles : undefined;
-    // 우선순위: (직무 선택 시) 관심 직무 매칭 → 부족하면 최신 공고로 채움. 각 단계 APLY CIP(INTERNAL) 최우선.
+    // 우선순위: ① 대표 이력서 임베딩 개인화(매칭%) → ② 관심 직무 매칭 → ③ 최신 공고 보충. 각 단계 APLY CIP(INTERNAL) 최우선.
     void (async () => {
+      // ① 개인화 추천 — 대표 이력서가 임베딩되어 있으면 잘 맞는 순으로.
+      const rec = await getRecommendedPositions({ limit: 5, locale }).catch(() => null);
+      if (!alive) return;
+      if (rec?.personalized && rec.items.length > 0) {
+        setJobs(rec.items.slice(0, 5).map((it) => ({ view: toPositionView(it, t), matched: true, matchScore: it.matchScore })));
+        return;
+      }
+      // ②③ 폴백: (직무 선택 시) 관심 직무 매칭 → 부족하면 최신 공고로 채움.
       const load = (opts: { jobRoles?: string[]; internalOnly?: boolean }) =>
         getPublicPositionsPage({ limit: 5, jobRoles: opts.jobRoles, sourceProviders: opts.internalOnly ? ["INTERNAL"] : undefined, locale }).catch(() => null);
 
@@ -660,7 +669,7 @@ function RecommendedJobs() {
     <section className="flex flex-col gap-4 rounded-3xl bg-[#F5F8FF] p-6">
       <div>
         <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("나에게 딱 맞는 공고예요", "Jobs that fit you", "最适合你的职位", "Việc làm phù hợp với bạn", "あなたにぴったりの求人", "Lowongan yang cocok untuk Anda")}</h2>
-        <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matched) ? t("관심 직무를 바탕으로 골라봤어요.", "Picked based on your job interests.", "根据你的兴趣职位为你精选。", "Chọn dựa trên nghề bạn quan tâm.", "関心のある職種をもとに選びました。", "Dipilih berdasarkan minat pekerjaan Anda.") : t("지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요.", "Here are the latest jobs. Set your interests for better matches.", "为你精选了最新职位。设置兴趣职位可获得更精准推荐。", "Đây là các tin mới nhất. Đặt sở thích để khớp tốt hơn.", "最新の求人を選びました。関心職種を設定するとより合います。", "Ini lowongan terbaru. Atur minat untuk hasil lebih cocok.")}</p>
+        <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matchScore != null) ? t("대표 이력서를 분석해 잘 맞는 순서로 골랐어요.", "Analyzed your resume and ranked the best fits.", "分析你的简历并按最匹配排序。", "Phân tích hồ sơ của bạn và xếp theo độ phù hợp.", "履歴書を分析して相性の良い順に選びました。", "Menganalisis resume Anda dan mengurutkan yang paling cocok.") : jobs.some((j) => j.matched) ? t("관심 직무를 바탕으로 골라봤어요.", "Picked based on your job interests.", "根据你的兴趣职位为你精选。", "Chọn dựa trên nghề bạn quan tâm.", "関心のある職種をもとに選びました。", "Dipilih berdasarkan minat pekerjaan Anda.") : t("지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요.", "Here are the latest jobs. Set your interests for better matches.", "为你精选了最新职位。设置兴趣职位可获得更精准推荐。", "Đây là các tin mới nhất. Đặt sở thích để khớp tốt hơn.", "最新の求人を選びました。関心職種を設定するとより合います。", "Ini lowongan terbaru. Atur minat untuk hasil lebih cocok.")}</p>
       </div>
 
       {/* 관심 직무 카드(공용) */}
@@ -669,9 +678,11 @@ function RecommendedJobs() {
       {jobs.length > 0 ? (
         <>
           <div className="flex flex-col gap-3">
-            {jobs.map(({ view, matched }) => (
+            {jobs.map(({ view, matched, matchScore }) => (
               <div key={view.id} className="flex flex-col gap-1.5">
-                {matched ? (
+                {matchScore != null ? (
+                  <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-1 text-[10.5px] font-bold text-[#0B46E8]">✨ {t(`이력서 매칭 ${matchScore}%`, `${matchScore}% resume match`, `简历匹配 ${matchScore}%`, `Khớp hồ sơ ${matchScore}%`, `履歴書マッチ ${matchScore}%`, `Cocok resume ${matchScore}%`)}</span>
+                ) : matched ? (
                   <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-1 text-[10.5px] font-bold text-[#0B46E8]">✨ {t("관심 직무 맞춤", "Interest match", "兴趣匹配", "Khớp sở thích", "関心マッチ", "Cocok minat")}</span>
                 ) : null}
                 <PositionCard view={view} saved={savedIds.has(view.id)} onToggleSave={toggleSave} onShowCip={() => setCipOpen(true)} />
