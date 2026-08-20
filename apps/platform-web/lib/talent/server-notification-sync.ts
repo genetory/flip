@@ -20,6 +20,7 @@ function mapEmoji(type: string): string {
   if (type.includes("ACCEPTED")) return "🎉";
   if (type.startsWith("APPLICATION")) return "📮";
   if (type.startsWith("POSITION")) return "💼";
+  if (type === "job_match") return "✨";
   if (type.includes("CERTIFICATE") || type.includes("RECOMMENDATION")) return "📜";
   return "🔔";
 }
