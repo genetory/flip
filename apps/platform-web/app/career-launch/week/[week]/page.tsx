@@ -27,6 +27,13 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
   if (!plan) notFound();
 
   const weekLabel = (wk: number) => t(`${wk}주차`, `Week ${wk}`, `第${wk}周`, `Tuần ${wk}`, `${wk}週目`, `Minggu ${wk}`);
+  // 주차 테마 일러스트(기존 자산) — 진단·직무 / 이력서 / 자소서 / 면접.
+  const WEEK_IMAGE: Record<number, string> = {
+    1: "/img_ai_analyze.webp",
+    2: "/img_resume.webp",
+    3: "/img_coverletter.webp",
+    4: "/img_fake_interview.webp"
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -38,11 +45,17 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
             {t("← 대시보드", "← Dashboard", "← 仪表板", "← Bảng điều khiển", "← ダッシュボード", "← Dasbor")}
           </Link>
 
-          {/* 매거진 마스트헤드 — 에디토리얼 라벨 + 헤드라인 + 데크 */}
-          <div className="mt-3.5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{weekLabel(plan.week)}</p>
-            <h1 className="mt-2.5 break-keep text-[26px] font-black leading-[1.18] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{weekText(plan.week, "title")}</h1>
-            <p className="mt-2.5 max-w-[560px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{weekText(plan.week, "subtitle")}</p>
+          {/* 매거진 마스트헤드 — 에디토리얼 라벨 + 헤드라인 + 데크 (+ 주차 테마 일러스트) */}
+          <div className="mt-3.5 flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{weekLabel(plan.week)}</p>
+              <h1 className="mt-2.5 break-keep text-[26px] font-black leading-[1.18] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{weekText(plan.week, "title")}</h1>
+              <p className="mt-2.5 max-w-[560px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{weekText(plan.week, "subtitle")}</p>
+            </div>
+            {WEEK_IMAGE[plan.week] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={WEEK_IMAGE[plan.week]} alt="" className="hidden h-auto w-40 shrink-0 rounded-2xl sm:block md:w-52" loading="lazy" />
+            ) : null}
           </div>
 
           {/* 이번 주 목표 — 뉴트럴 콜아웃 */}
