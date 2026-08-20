@@ -9714,6 +9714,9 @@ app.get("/positions", async (req, res) => {
       const distanceById = new Map<string, number>(
         annResults.map((r) => [r.id, Number(r.distance)])
       );
+      // 동의어·별칭(오타 포함)로 강한 필드(제목·직무·회사·지역)에 매칭돼 풀에 들어온 공고.
+      // 원본 검색어로는 lexical=0 이라 게이트에서 탈락하므로, 풀 진입 자체를 강한 신호로 인정한다.
+      const keywordPoolIds = new Set<string>();
       if (queryCandidates.length > 0) {
         const annIds = annResults.map((r) => r.id);
         const annExclude = annIds.length
@@ -9759,6 +9762,7 @@ app.get("/positions", async (req, res) => {
           LIMIT 50
         `;
         for (const row of keywordRows) {
+          keywordPoolIds.add(row.id);
           if (!distanceById.has(row.id)) distanceById.set(row.id, Number(row.distance));
         }
       }
@@ -9831,7 +9835,9 @@ app.get("/positions", async (req, res) => {
         const q = trimmedSearch.toLowerCase();
         const roleExact = item.preferredJobRole && item.preferredJobRole.toLowerCase() === q ? 0.35 : 0;
         const titleExact = item.title && item.title.toLowerCase() === q ? 0.25 : 0;
-        return { item, semantic, lexicalStrong: lexicalStrong + roleExact, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical + roleExact + titleExact };
+        // 동의어·오타 교정 매칭(원본 검색어로는 lexical=0) — 풀 진입을 강한 신호로 인정하고 적정 가점.
+        const synonymBonus = keywordPoolIds.has(item.id) && lexicalStrong + roleExact <= 0 ? 0.25 : 0;
+        return { item, semantic, lexicalStrong: lexicalStrong + roleExact + synonymBonus, score: SEMANTIC_WEIGHT * semantic + KEYWORD_WEIGHT * lexical + roleExact + titleExact + synonymBonus };
       });
       // 관련성 하한 — 무관한 검색어에도 '가장 가까운' 공고를 채워 넣던 문제 방지.
       // 제목·직무·회사·지역에 키워드가 있거나(강한 매칭) 시맨틱이 충분히 가까운 것만 남긴다.
