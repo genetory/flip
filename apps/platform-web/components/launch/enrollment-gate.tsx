@@ -61,9 +61,10 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto flex min-h-[70vh] w-full max-w-[440px] flex-col justify-center px-5 py-14">
+        <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
           <Reveal>
-            <CareerLaunchIntro className="mb-4" />
+            <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
+            <CareerLaunchIntro />
             <div className="rounded-3xl border border-[#EEF1F5] bg-white p-7 shadow-[0_10px_40px_rgba(11,18,39,0.06)] md:p-8">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
                 <GraduationCap className="h-7 w-7" weight="fill" />
@@ -109,6 +110,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
               <p className="mt-4 break-keep text-center text-[12px] leading-relaxed text-[#B0B8C1]">
                 {t("코드가 없으신가요? 운영자에게 등록을 문의해 주세요.", "No code? Ask an administrator to enroll you.", "没有邀请码？请联系运营人员注册。", "Chưa có mã? Hãy liên hệ quản trị viên để đăng ký.", "コードがありませんか？運営者に登録をお問い合わせください。", "Tidak punya kode? Hubungi admin untuk mendaftar.")}
               </p>
+            </div>
             </div>
           </Reveal>
         </div>
