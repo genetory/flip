@@ -18673,6 +18673,77 @@ app.post(
   }
 );
 
+// ── Week 4: Interview Retry — 특정 질문 재답변 → 채점·힌트(before→after 개선) ──
+const INTERVIEW_RETRY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["score", "feedback", "hint", "good", "improve"],
+  properties: {
+    score: { type: "number" },
+    feedback: { type: "string" },
+    hint: { type: "string" },
+    good: { type: "array", items: { type: "string" } },
+    improve: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const interviewRetrySchema = z.object({
+  question: z.string().trim().min(2).max(600),
+  answer: z.string().trim().min(1).max(4000),
+  locale: z.string().max(12).optional()
+});
+app.post(
+  "/career-launch/interview-retry",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-retry", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_interview_retry", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = interviewRetrySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const uid = req.auth!.userId;
+    const { question, answer, locale } = parsed.data;
+    try {
+      const [profileSummary, resumeRow, coverRow] = await Promise.all([
+        buildCandidateProfileSummary(uid),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const systemPrompt =
+        "너는 면접관 겸 코치다. 학생이 특정 면접 질문에 '다시 답한' 답변을 평가한다.\n" +
+        "score: 이 답변의 완성도 0~100. feedback: 총평 1~2문장. hint: 다음에 더 잘 답하기 위한 '답변 구조' 힌트 1문장(예: 두괄식으로 결론 먼저, STAR로 상황→행동→결과). good: 잘한 점 1~3개. improve: 개선할 점 1~3개. " +
+        "학생이 말한 내용만 근거로 평가하고, 없는 사실을 지어내지 않는다. 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "feedback": string, "hint": string, "good": string[], "improve": string[] }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[이력서 요약]\n${JSON.stringify(resumeContent).slice(0, 1200)}\n[자기소개서 요약]\n${JSON.stringify(coverContent).slice(0, 1200)}\n\n` +
+        `[면접 질문]\n${question}\n\n[학생의 답변]\n${answer}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "interview_retry", INTERVIEW_RETRY_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3) : [];
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({
+        ok: true,
+        result: {
+          score: clampScore(pj.score),
+          feedback,
+          hint: typeof pj.hint === "string" ? pj.hint.trim() : "",
+          good: strList(pj.good),
+          improve: strList(pj.improve)
+        }
+      });
+    } catch (err) {
+      console.error("[career-launch/interview-retry] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

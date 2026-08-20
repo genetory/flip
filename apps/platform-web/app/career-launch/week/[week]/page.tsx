@@ -21,6 +21,7 @@ import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
+import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../../components/AplyFooter";
@@ -137,6 +138,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* Week 4 키스톤 — Interview Score. 모의면접 연습 전이면 카드가 스스로 숨음 */}
             {plan.week === 4 ? <InterviewScoreCard /> : null}
+
+            {/* Week 4 — Retry(재연습 질문 다시 답하기 → 채점·힌트·before→after). 점수 없으면 자체 숨김 */}
+            {plan.week === 4 ? <InterviewRetryCard /> : null}
 
             {/* Week 4 — Interview Answer Bank(핵심 질문 8개 모범 답변 노트) */}
             {plan.week === 4 ? <AnswerBankCard /> : null}

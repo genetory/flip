@@ -41,3 +41,22 @@ export async function requestExperienceMining(messages: ExpMiningMsg[], locale =
     experienceBank: bank
   };
 }
+
+// Week 4 면접 Retry — 특정 질문 재답변 채점(점수·힌트·잘한점·개선점).
+export type RetryResult = { score: number; feedback: string; hint: string; good: string[]; improve: string[] };
+export async function requestInterviewRetry(question: string, answer: string, locale = "ko"): Promise<RetryResult> {
+  const d = await req("/career-launch/interview-retry", {
+    method: "POST",
+    headers: authHeaders(true),
+    body: JSON.stringify({ question, answer, locale })
+  });
+  const r = (d.result ?? {}) as Record<string, unknown>;
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  return {
+    score: typeof r.score === "number" ? r.score : 0,
+    feedback: typeof r.feedback === "string" ? r.feedback : "",
+    hint: typeof r.hint === "string" ? r.hint : "",
+    good: list(r.good),
+    improve: list(r.improve)
+  };
+}
