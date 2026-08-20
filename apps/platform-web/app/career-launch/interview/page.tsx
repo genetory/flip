@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RichText } from "../../../components/launch/rich-text";
 import { STUDENT } from "../../../lib/launch/data";
-import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus } from "../../../lib/launch/interview";
+import { requestInterviewChat, type InterviewChatMsg, type InterviewFocus, type InterviewReport } from "../../../lib/launch/interview";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
@@ -49,6 +49,7 @@ export default function InterviewPage() {
     prevLoadingRef.current = loading;
   }, [loading]);
   const [done, setDone] = useState(false);
+  const [report, setReport] = useState<InterviewReport | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,12 +87,13 @@ export default function InterviewPage() {
     void (async () => {
       try {
         const history: InterviewChatMsg[] = nextMsgs.map((m) => ({ role: m.role, text: m.text }));
-        const { reply, done: isDone } = await requestInterviewChat(history, focus);
+        const { reply, done: isDone, report: rep } = await requestInterviewChat(history, focus);
         setMessages((m) => [...m, { role: "bot", text: reply }]);
         if (isDone) {
           trackCareerStepComplete(`interview_${focus}` as "interview_self" | "interview_job" | "interview_fit");
           trackCareerFunnel("mock_interview_completed", { focus });
           setDone(true);
+          setReport(rep);
         }
       } catch (e) {
         const quota = e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
@@ -151,14 +153,50 @@ export default function InterviewPage() {
           <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
 
           {done ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setDone(false)}
-                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
-              >
-                {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
-              </button>
+            <div className="mt-3 flex flex-col gap-3">
+              {report && (report.strengths.length > 0 || report.improvements.length > 0 || report.modelAnswer) ? (
+                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
+                  <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">{t("이번 면접 준비도 리포트", "Your readiness report", "本次面试准备度报告", "Báo cáo mức sẵn sàng", "今回の準備度レポート", "Laporan kesiapan")}</p>
+                  {report.strengths.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="text-[12.5px] font-bold text-[#0A9B59]">💪 {t("잘한 점", "Strengths", "做得好", "Điểm mạnh", "良かった点", "Kelebihan")}</p>
+                      <ul className="mt-1 space-y-1">
+                        {report.strengths.map((s, i) => (
+                          <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {report.improvements.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="text-[12.5px] font-bold text-[#C77700]">✏️ {t("더 다듬을 점", "To improve", "可改进", "Cần cải thiện", "改善点", "Perlu diperbaiki")}</p>
+                      <ul className="mt-1 space-y-1">
+                        {report.improvements.map((s, i) => (
+                          <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {report.modelAnswer ? (
+                    <div className="mt-3 rounded-xl bg-[#F8FAFF] p-3">
+                      <p className="text-[12.5px] font-bold text-[#0B46E8]">🧭 {t("모범 답변 방향", "Model answer direction", "范例答案方向", "Hướng trả lời mẫu", "模範解答の方向", "Arah jawaban contoh")}</p>
+                      <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#333D4B]">{report.modelAnswer}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDone(false);
+                    setReport(null);
+                  }}
+                  className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                >
+                  {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-3">

@@ -17197,8 +17197,15 @@ const interviewChatSchema = z.object({
 const INTERVIEW_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "done"],
-  properties: { reply: { type: "string" }, done: { type: "boolean" } }
+  required: ["reply", "done", "strengths", "improvements", "modelAnswer"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    // 준비도 리포트 — 점수 없이 정성 피드백. done=true 마무리 시에만 채운다.
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    modelAnswer: { type: "string" }
+  }
 } as const;
 
 app.post(
@@ -17227,7 +17234,8 @@ app.post(
       const systemPrompt =
         (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         (await getCareerPrompt(`interview_${focus}`)) + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean }' +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "strengths": string[], "improvements": string[], "modelAnswer": string }. ' +
+        'done이 true(면접 마무리)일 때만 strengths(이번 라운드에서 잘한 점 2~3개)·improvements(개선점 2~3개)·modelAnswer(모범 답변 방향 1~2문장)를 채운다. 진행 중이면 strengths·improvements는 빈 배열, modelAnswer는 빈 문자열. 점수·등급은 매기지 말고 격려하는 톤으로.' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "면접관" : "학생"}: ${m.text}`).join("\n")
@@ -17238,21 +17246,44 @@ app.post(
         `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as { reply?: unknown; done?: unknown };
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as {
+        reply?: unknown;
+        done?: unknown;
+        strengths?: unknown;
+        improvements?: unknown;
+        modelAnswer?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 준비도 리포트(점수 없음) — done 마무리 시에만 유효.
+      const cleanList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const strengths = cleanList(pj.strengths);
+      const improvements = cleanList(pj.improvements);
+      const modelAnswer = typeof pj.modelAnswer === "string" ? pj.modelAnswer.trim() : "";
+      const report = done && (strengths.length || improvements.length || modelAnswer)
+        ? { strengths, improvements, modelAnswer }
+        : null;
 
       // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
       const answered = messages.filter((m) => m.role === "user").length;
       const roundDone = done || answered >= 3;
       const newlyPracticed = roundDone && !practiced.includes(focus);
       const prevResults = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
-      // AI 총평(done)으로 끝나면 그 총평을 최종 피드백용으로 저장.
+      const prevReports = ((interview as { reports?: unknown }).reports && typeof (interview as { reports?: unknown }).reports === "object"
+        ? (interview as { reports?: unknown }).reports
+        : {}) as Record<string, unknown>;
+      // AI 총평(done)으로 끝나면 총평(results)과 준비도 리포트(reports)를 저장.
+      // results 는 문자열 그대로 유지(최종 피드백 등 기존 소비자 호환), reports 는 신규 구조.
       if (newlyPracticed || done) {
         const nextInterview: Record<string, unknown> = { ...interview };
         if (newlyPracticed) nextInterview.practiced = [...practiced, focus];
-        if (done) nextInterview.results = { ...prevResults, [focus]: reply };
+        if (done) {
+          nextInterview.results = { ...prevResults, [focus]: reply };
+          if (report) nextInterview.reports = { ...prevReports, [focus]: report };
+        }
         const mergedState = { ...progState, interview: nextInterview };
         await prisma.careerLaunchProgress.upsert({
           where: { studentUserId: uid },
@@ -17260,7 +17291,7 @@ app.post(
           update: { state: mergedState as object }
         });
       }
-      return res.json({ ok: true, reply, done });
+      return res.json({ ok: true, reply, done, report });
     } catch (err) {
       console.error("[career-launch/interview-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
