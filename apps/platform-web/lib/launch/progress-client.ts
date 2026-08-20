@@ -46,6 +46,15 @@ export type CareerProgress = {
   doneSteps?: string[];
   interview?: CareerInterview | null;
   finalFeedback?: { v?: number; sig?: string; text?: string } | null;
+  // 점수화 리뉴얼 — 홈 스냅샷·완주 캡스톤에서 참조(각 카드가 저장한 래퍼 구조).
+  careerReport?: { data?: { total?: number } } | null;
+  careerScoreBefore?: number | null;
+  jobRecommendation?: { data?: { jobs?: { role: string; fit: number }[] } } | null;
+  scores?: {
+    resume?: { data?: { total?: number } };
+    cover?: { data?: { total?: number } };
+    interview?: { data?: { total?: number } };
+  } | null;
 };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {

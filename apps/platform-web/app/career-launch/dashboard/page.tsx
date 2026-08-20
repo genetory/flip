@@ -9,6 +9,7 @@ import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { CompletionSummaryCard } from "../../../components/launch/CompletionSummaryCard";
+import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
@@ -248,6 +249,9 @@ export default function LaunchDashboardPage() {
 
           <Reveal delayMs={120}>
           <div className="mt-8 flex flex-col gap-10 md:mt-10">
+            {/* ── 내 커리어 스냅샷 — 주차에서 만든 점수·경험 요약(데이터 있을 때만) ── */}
+            <CareerSnapshot />
+
             {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
             <div>
                 <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
