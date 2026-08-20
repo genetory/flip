@@ -12,6 +12,7 @@ import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { InterviewPrepChecklist } from "../../../../components/launch/InterviewPrepChecklist";
 import { CareerReportCard } from "../../../../components/launch/CareerReportCard";
+import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../../components/AplyFooter";
@@ -89,6 +90,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* Week 1 키스톤 — Career Report(점수·강점·로드맵). 진단 전이면 카드가 스스로 숨음 */}
             {plan.week === 1 ? <CareerReportCard /> : null}
+
+            {/* Week 2 키스톤 — Resume Score. 이력서 미작성이면 카드가 스스로 숨음 */}
+            {plan.week === 2 ? <ResumeScoreCard /> : null}
 
             {/* 세미나 정보 — 운영자가 기수에 입력한 일정 */}
             <WeekSeminar week={plan.week} />
