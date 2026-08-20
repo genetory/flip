@@ -8,6 +8,7 @@ import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
+import { CompletionSummaryCard } from "../../../components/launch/CompletionSummaryCard";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
@@ -396,6 +397,8 @@ export default function LaunchDashboardPage() {
             {/* ── 완주 시 — 최종 피드백 + 다음 행동 ('내 결과물' 아래) ── */}
             {overall === 100 ? (
               <div>
+                {/* 완주 캡스톤 — Career Score before→after + 체크리스트(4주 점수 모두 생성 시 노출) */}
+                <div className="mb-8"><CompletionSummaryCard /></div>
                 <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
                 <FinalFeedbackCard />
 

@@ -17910,6 +17910,68 @@ app.post(
   }
 );
 
+// ── 완주 요약: Career Score before→after + 체크리스트 (저장된 점수 종합, 읽기 전용) ──
+app.get(
+  "/career-launch/completion",
+  authenticate,
+  requireCareerEnrollment,
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const getData = (k: string) => {
+        const s = (scores[k] && typeof scores[k] === "object" ? scores[k] : null) as { data?: unknown } | null;
+        return s && s.data && typeof s.data === "object" ? (s.data as Record<string, unknown>) : null;
+      };
+      const report = (progState.careerReport && typeof progState.careerReport === "object" ? (progState.careerReport as { data?: unknown }).data : null) as
+        | { total?: number; areas?: Record<string, number> }
+        | null;
+      const resume = getData("resume");
+      const cover = getData("cover");
+      const interviewScore = getData("interview");
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+      const before = num(progState.careerScoreBefore);
+      // after — Week1 방향/경험/역량(안정적)에 완성된 이력서·자소서·면접 실제 점수를 합쳐 재산정.
+      const areas = report?.areas ?? {};
+      const afterParts = [num(areas.direction), num(areas.experience), num(areas.competency), num(resume?.total), num(cover?.total), num(interviewScore?.total)].filter(
+        (x): x is number => x !== null
+      );
+      const after = afterParts.length ? Math.round(afterParts.reduce((a, b) => a + b, 0) / afterParts.length) : null;
+
+      const checklist = {
+        direction: Boolean(report),
+        resume: Boolean(resume),
+        cover: Boolean(cover),
+        interview: Boolean(interviewScore),
+        diagnosis: Boolean(progState.diagnosis)
+      };
+      // 완주 = 4주 핵심 점수(리포트·이력서·자소서·면접)가 모두 생성됨.
+      const completed = checklist.direction && checklist.resume && checklist.cover && checklist.interview;
+
+      return res.json({
+        ok: true,
+        completed,
+        before,
+        after,
+        interviewCount: practiced.length,
+        checklist
+      });
+    } catch (err) {
+      console.error("[career-launch/completion] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to load completion" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

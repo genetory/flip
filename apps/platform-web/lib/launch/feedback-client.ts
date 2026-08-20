@@ -136,6 +136,36 @@ export async function fetchInterviewScore(opts: { force?: boolean; generate?: bo
   return { score: s, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsInterview === true };
 }
 
+// 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
+export type Completion = {
+  completed: boolean;
+  before: number | null;
+  after: number | null;
+  interviewCount: number;
+  checklist: { direction: boolean; resume: boolean; cover: boolean; interview: boolean; diagnosis: boolean };
+};
+export async function fetchCompletion(): Promise<Completion | null> {
+  try {
+    const data = await req("/career-launch/completion", { method: "GET", headers: authHeaders() });
+    const c = (data.checklist ?? {}) as Record<string, unknown>;
+    return {
+      completed: data.completed === true,
+      before: typeof data.before === "number" ? data.before : null,
+      after: typeof data.after === "number" ? data.after : null,
+      interviewCount: typeof data.interviewCount === "number" ? data.interviewCount : 0,
+      checklist: {
+        direction: c.direction === true,
+        resume: c.resume === true,
+        cover: c.cover === true,
+        interview: c.interview === true,
+        diagnosis: c.diagnosis === true
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
 // 학생: 완주 최종 피드백 — 이력서+자소서+면접 종합. generate=false 면 캐시만(없으면 needsGenerate).
 // generate=true 면 생성(AI 포인트 차감). 결과물이 바뀌면 stale=true. force=true면 강제 재생성.
 export async function fetchFinalFeedback(opts: { force?: boolean; generate?: boolean } = {}): Promise<{ text: string | null; stale: boolean; needsGenerate: boolean }> {
