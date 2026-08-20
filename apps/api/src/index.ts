@@ -8706,11 +8706,13 @@ app.get("/mbti/result/:slug", async (req, res) => {
   // 실제 공고를 라이브로 추천 — 저장된 고정 IDs 대신 현재 열려있는 공고에서 뽑는다.
   // CIP(APLY 자체·INTERNAL)를 우선하고, 외부(원티드 등)로 채운다. 오래된 결과도 최신 공고가 보인다.
   const roles = (prediction.recommendedRoleNames ?? []) as CandidatePreferredJobRole[];
+  // sourceCompanyName 은 실제 컬럼이 아니라 additionalNotes 에서 파생하는 값 —
+  // select 에 직접 넣으면 PrismaClientValidationError. additionalNotes 를 읽어 아래에서 파생한다.
   const posSelect = {
     id: true,
     title: true,
     preferredJobRole: true,
-    sourceCompanyName: true,
+    additionalNotes: true,
     createdAt: true,
     partnerOrganization: { select: { id: true, name: true } }
   } as const;
@@ -8747,7 +8749,7 @@ app.get("/mbti/result/:slug", async (req, res) => {
     title: p.title,
     preferredJobRole: p.preferredJobRole,
     partnerOrganization: p.partnerOrganization ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name } : null,
-    sourceCompanyName: p.sourceCompanyName ?? null,
+    sourceCompanyName: extractSourceCompanyName(p.additionalNotes) ?? null,
     matchReason: mbtiType ? getMatchReason(mbtiType, p.preferredJobRole as MbtiRoleCode | null) : null
   }));
 
