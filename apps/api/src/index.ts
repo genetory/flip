@@ -3459,7 +3459,7 @@ const listPublicPositionsCursorQuerySchema = z.object({
   // 지역(시·도) 필터 — 다중 선택. workLocation 부분문자열 매칭(별칭 포함).
   location: z.union([positionLocationEnum, z.array(positionLocationEnum)]).optional(),
   sortOrder: z.enum(["asc", "desc"]).optional(),
-  sort: z.enum(["latest", "deadline"]).optional(),
+  sort: z.enum(["latest", "deadline", "relevance"]).optional(),
   // 외국인 지원 가능만 — eligibleVisas에 'FOREIGNER_FRIENDLY'가 있는 공고만.
   foreignerEligible: z
     .union([z.literal("true"), z.literal("false"), z.literal("1"), z.literal("0")])
@@ -9656,9 +9656,12 @@ app.get("/positions", async (req, res) => {
       // 제목·직무·회사·지역에 키워드가 있거나(강한 매칭) 시맨틱이 충분히 가까운 것만 남긴다.
       const SEMANTIC_FLOOR = 0.65;
       const relevant = scored.filter((e) => e.lexicalStrong > 0 || e.semantic >= SEMANTIC_FLOOR);
-      // 검색 결과도 사용자 정렬(최신순/마감임박순)을 따른다 — 비검색 목록과 동일 기준.
-      // 동점(같은 날짜/마감)은 관련도 점수로 보조 정렬한다.
+      // 정렬: 관련도순이면 점수 우선(동점은 최신순), 아니면 최신/마감 + 점수 보조.
       relevant.sort((a, b) => {
+        if (sortMode === "relevance") {
+          if (b.score !== a.score) return b.score - a.score;
+          return b.item.createdAt.getTime() - a.item.createdAt.getTime();
+        }
         if (sortMode === "deadline") {
           const ad = a.item.sourceDeadlineDate ? a.item.sourceDeadlineDate.getTime() : Number.POSITIVE_INFINITY;
           const bd = b.item.sourceDeadlineDate ? b.item.sourceDeadlineDate.getTime() : Number.POSITIVE_INFINITY;
@@ -15026,10 +15029,12 @@ async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
   const cost = aiFeatureCost(feature);
   if (cost <= 0) return;
   // 잔액이 충분할 때만 차감(동시성 안전). 부족하면 무시(게이트에서 이미 막힘).
-  await prisma.aiWallet.updateMany({
+  const dec = await prisma.aiWallet.updateMany({
     where: { userId, balance: { gte: cost } },
     data: { balance: { decrement: cost } }
   });
+  // 실제 차감됐으면 포인트 내역에 소모(음수) 기록 — 사용자 내역에 '어디에 썼는지' 노출.
+  if (dec.count > 0) await logAiPoints(userId, -cost, feature).catch(() => {});
   // 분석 로그(월 단위 기능별 사용량) — 잔액과 별개로 통계 유지.
   const periodKey = aiQuotaPeriodKey();
   await prisma.aiUsage

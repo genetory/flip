@@ -716,7 +716,7 @@ export async function getPublicPositionsPage(input?: {
   search?: string;
   jobRoles?: string[];
   sortOrder?: "asc" | "desc";
-  sort?: "latest" | "deadline";
+  sort?: "latest" | "deadline" | "relevance";
   sourceProviders?: Array<PublicPositionListItem["sourceProvider"]>;
   // 고용형태 필터(정규직/인턴/파트타임/무급인턴) — 다중.
   employmentTypes?: Array<"FULL_TIME" | "INTERN" | "PART_TIME" | "UNPAID_INTERN">;

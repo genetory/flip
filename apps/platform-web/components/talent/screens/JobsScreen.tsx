@@ -35,7 +35,7 @@ import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
 const PAGE_SIZE = 20;
 type Tab = "all" | "aply" | "interest" | "saved";
-type Sort = "latest" | "deadline";
+type Sort = "latest" | "deadline" | "relevance";
 type EmploymentType = "FULL_TIME" | "INTERN" | "PART_TIME";
 // 지역 필터(시·도) — 서버 LOCATION_ALIASES와 키 동일.
 const REGIONS = ["서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] as const;
@@ -182,6 +182,8 @@ export function JobsScreen() {
   function submitSearch() {
     const next = searchInput.trim();
     setAppliedSearch(next);
+    // 검색하면 '관련도순'을 기본으로(가장 잘 맞는 공고 우선). 검색어를 비우면 최신순으로 되돌린다.
+    setSort((prev) => (next ? "relevance" : prev === "relevance" ? "latest" : prev));
     if (next) trackPositionSearch(next);
   }
 
@@ -316,6 +318,9 @@ export function JobsScreen() {
               ) : null}
             </div>
             <div className="flex items-center gap-3.5">
+              {appliedSearch ? (
+                <SortText on={sort === "relevance"} onClick={() => setSort("relevance")}>{t("관련도순", "Relevance", "相关度", "Liên quan", "関連度", "Relevansi")}</SortText>
+              ) : null}
               <SortText on={sort === "latest"} onClick={() => setSort("latest")}>{t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")}</SortText>
               <SortText on={sort === "deadline"} onClick={() => setSort("deadline")}>{t("마감 임박순", "Deadline", "临近截止", "Sắp hết hạn", "締切間近", "Tenggat")}</SortText>
             </div>
