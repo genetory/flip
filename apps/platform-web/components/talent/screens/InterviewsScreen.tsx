@@ -57,6 +57,11 @@ export function InterviewsScreen() {
                       {m.companyName ? `${m.companyName} · ` : ""}{t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} {m.answeredCount} · {formatRelativeTime(new Date(m.lastPracticedAt).getTime(), undefined, t)}
                     </p>
                   </div>
+                  {m.bestScore != null ? (
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-bold tabular-nums ${m.bestScore >= 80 ? "bg-[#E7F7EF] text-[#0A9B59]" : m.bestScore >= 60 ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#FEF3E7] text-[#C77700]"}`}>
+                      {t(`최고 ${m.bestScore}점`, `Best ${m.bestScore}`, `最高 ${m.bestScore}分`, `Cao nhất ${m.bestScore}`, `最高 ${m.bestScore}点`, `Terbaik ${m.bestScore}`)}
+                    </span>
+                  ) : null}
                   <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
                 </Link>
               ))}

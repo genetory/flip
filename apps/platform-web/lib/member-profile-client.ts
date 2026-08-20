@@ -787,6 +787,33 @@ export async function getPublicPositionsPage(input?: {
   } satisfies PublicPositionsPage;
 }
 
+// 대표 이력서 임베딩 기반 개인화 추천. personalized:false 면 호출측이 관심직무 폴백.
+export type RecommendedPositionItem = PublicPositionListItem & { matchScore?: number };
+export async function getRecommendedPositions(input?: { limit?: number; locale?: string }): Promise<{
+  personalized: boolean;
+  items: RecommendedPositionItem[];
+}> {
+  const params = new URLSearchParams();
+  if (input?.limit && Number.isFinite(input.limit)) params.set("limit", String(Math.max(1, Math.floor(input.limit))));
+  if (input?.locale) params.set("locale", input.locale);
+  const query = params.toString();
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/positions/recommended${query ? `?${query}` : ""}`, {
+      method: "GET",
+      headers: withOptionalBearerHeader()
+    });
+    const payload = (await readApiPayload(response)) as {
+      ok?: boolean;
+      personalized?: boolean;
+      items?: RecommendedPositionItem[];
+    };
+    if (!response.ok || payload.ok !== true) return { personalized: false, items: [] };
+    return { personalized: payload.personalized === true, items: payload.items ?? [] };
+  } catch {
+    return { personalized: false, items: [] };
+  }
+}
+
 export async function getPublicPositions() {
   const merged: PublicPositionListItem[] = [];
   let cursor: string | null = null;

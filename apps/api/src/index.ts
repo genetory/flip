@@ -9357,6 +9357,81 @@ app.get("/positions/facets", async (_req, res) => {
   }
 });
 
+// GET /positions/recommended — 대표 이력서 임베딩 ↔ 공고 임베딩 개인화 추천(매칭%).
+// 로그인 + 대표 이력서 임베딩이 있어야 personalized:true. 없으면 빈 목록 → 프론트가
+// 관심직무 기반 추천으로 폴백한다. 검색이 아니라 홈 '나에게 맞는 공고' 전용.
+app.get("/positions/recommended", async (req, res) => {
+  try {
+    const userId = resolvePublicViewerUserId(req);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 12);
+    if (!userId) return res.json({ ok: true, personalized: false, items: [] });
+
+    // 대표 이력서 임베딩(vector→text 캐스트)로 조회. 없으면 폴백.
+    const embRows = await prisma.$queryRaw<Array<{ emb: string }>>`
+      SELECT "embedding"::text AS emb
+      FROM "Resume"
+      WHERE "userId" = ${userId} AND "isPrimary" = true AND "embedding" IS NOT NULL
+      LIMIT 1
+    `;
+    const emb = embRows[0]?.emb;
+    if (!emb) return res.json({ ok: true, personalized: false, items: [] });
+
+    const ann = await prisma.$queryRaw<Array<{ id: string; distance: number }>>`
+      SELECT "id", "embedding" <=> ${emb}::vector AS distance
+      FROM "Position"
+      WHERE "status" = 'OPEN' AND "embedding" IS NOT NULL
+      ORDER BY "embedding" <=> ${emb}::vector
+      LIMIT ${limit * 3}
+    `;
+    if (ann.length === 0) return res.json({ ok: true, personalized: false, items: [] });
+    const distById = new Map(ann.map((r) => [r.id, Number(r.distance)]));
+
+    const rowsFull = await prisma.position.findMany({
+      where: { id: { in: ann.map((r) => r.id) } },
+      include: {
+        partnerOrganization: {
+          select: {
+            id: true,
+            name: true,
+            industry: true,
+            companySize: true,
+            officeAddress: true,
+            description: true,
+            strengths: true,
+            website: true,
+            socialMedia: true,
+            companyLogoImageData: true
+          }
+        },
+        matchingParticipants: { select: { id: true } }
+      }
+    });
+    const viewer = await resolvePublicViewer(req);
+    // 매칭% — 순서는 코사인 유사도 그대로(정직), 표시값만 관례적으로 보정.
+    // 실측: 우수 매칭 sim≈0.60~0.66, 하위 ≈0.55. sim[0.45..0.68] → 표시[70..97], clamp[60,99].
+    const displayScore = (sim: number) =>
+      Math.max(60, Math.min(99, Math.round(70 + ((sim - 0.45) / 0.23) * 27)));
+    const scored = rowsFull
+      .map((item) => {
+        const sim = Math.max(0, 1 - (distById.get(item.id) ?? 1));
+        return { item, sim, matchScore: displayScore(sim) };
+      })
+      .filter((e) => e.sim >= 0.42) // 관련도 하한 — 무관 공고 컷(하한 미달이면 폴백 유도).
+      .sort((a, b) => b.sim - a.sim)
+      .slice(0, limit);
+    if (scored.length === 0) return res.json({ ok: true, personalized: false, items: [] });
+
+    return res.json({
+      ok: true,
+      personalized: true,
+      items: scored.map((e) => ({ ...toPublicPositionItem(e.item, viewer), matchScore: e.matchScore }))
+    });
+  } catch (error) {
+    // 추천 실패는 치명적이지 않다 — 폴백을 유도하고 200으로 응답.
+    return res.json({ ok: true, personalized: false, items: [] });
+  }
+});
+
 app.get("/positions", async (req, res) => {
   const parsedQuery = listPublicPositionsCursorQuerySchema.safeParse(req.query);
   if (!parsedQuery.success) {
