@@ -9,6 +9,7 @@ import { requestJobChat, type JobChatMsg } from "../../../lib/launch/job-chat-cl
 import { fetchProgress, patchProgress } from "../../../lib/launch/progress-client";
 import { trackCareerStepComplete } from "../../../lib/analytics";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { RealOpeningsPreview } from "../../../components/launch/RealOpeningsPreview";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -332,14 +333,17 @@ export default function LaunchJobsPage() {
 
           {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
           {saved ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={restartChat}
-                className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
-              >
-                {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
-              </button>
+            <div className="mt-3 flex flex-col gap-3">
+              <RealOpeningsPreview roles={selected} />
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={restartChat}
+                  className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                >
+                  {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="mt-3">
