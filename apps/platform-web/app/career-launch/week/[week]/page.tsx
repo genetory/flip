@@ -24,6 +24,10 @@ import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
 import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
 import { CareerChatModal } from "../../../../components/launch/CareerChatModal";
 import { ExperienceChat } from "../../../../components/launch/ExperienceChat";
+import { DiagnosisChat } from "../../../../components/launch/DiagnosisChat";
+import { JobsChat } from "../../../../components/launch/JobsChat";
+import { MaterialsChat } from "../../../../components/launch/MaterialsChat";
+import { InterviewChat } from "../../../../components/launch/InterviewChat";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../../components/AplyFooter";
@@ -47,8 +51,22 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
     3: "/img_coverletter.webp",
     4: "/img_fake_interview.webp"
   };
-  // 주차 LLM 채팅을 페이지 이동 없이 모달로 — 경험 채굴부터 적용.
+  // 주차 LLM 채팅을 페이지 이동 없이 모달로.
   const [expOpen, setExpOpen] = useState(false);
+  // 스텝 채팅(진단·직무·자료·면접)을 href 기준으로 모달 오픈.
+  const [chatHref, setChatHref] = useState<string | null>(null);
+  const renderChatModal = () => {
+    if (!chatHref) return null;
+    const path = chatHref.split("?")[0];
+    const section = chatHref.includes("?") ? new URLSearchParams(chatHref.split("?")[1]).get("section") ?? undefined : undefined;
+    const close = () => setChatHref(null);
+    let body: React.ReactNode = null;
+    if (path.endsWith("/diagnosis")) body = <DiagnosisChat embedded onClose={close} />;
+    else if (path.endsWith("/jobs")) body = <JobsChat embedded onClose={close} />;
+    else if (path.endsWith("/materials")) body = <MaterialsChat embedded onClose={close} />;
+    else if (path.endsWith("/interview")) body = <InterviewChat embedded onClose={close} section={section} />;
+    return body ? <CareerChatModal onClose={close}>{body}</CareerChatModal> : null;
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -95,8 +113,8 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               <SectionTitle sub={t("끝낸 단계는 번호를 콕 눌러 체크해요", "Tap the number to check off a step you've finished", "点击序号即可勾选已完成的步骤", "Nhấn vào số để đánh dấu bước đã hoàn thành", "終えたステップは番号をタップしてチェック", "Ketuk nomor untuk menandai langkah yang selesai")}>{t("이번 주 해야 할 일", "This week's to-dos", "本周待办", "Việc cần làm tuần này", "今週やること", "Yang harus dilakukan minggu ini")}</SectionTitle>
               <WeekGate week={plan.week}>
                 <div className="rounded-3xl border border-[#EEF1F5] bg-white p-5 md:p-6">
-                  {/* 4주차는 스텝이 독립적이라 순서 잠금 없이 자유롭게 진행 */}
-                  <WeekStepper steps={plan.steps} sequential={plan.week !== 4} />
+                  {/* 4주차는 스텝이 독립적이라 순서 잠금 없이 자유롭게 진행. 채팅 스텝은 모달로 연다 */}
+                  <WeekStepper steps={plan.steps} sequential={plan.week !== 4} onOpenChat={setChatHref} />
                 </div>
               </WeekGate>
             </div>
@@ -123,6 +141,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
                 <ExperienceChat embedded onClose={() => setExpOpen(false)} />
               </CareerChatModal>
             ) : null}
+
+            {/* 스텝 채팅 모달(진단·직무·자료·면접) */}
+            {renderChatModal()}
 
             {/* Week 1 — 추천 직무(Experience Bank 근거 fit%·강점·부족). 근거 전이면 자체 숨김 */}
             {plan.week === 1 ? <JobRecommendationCard /> : null}
