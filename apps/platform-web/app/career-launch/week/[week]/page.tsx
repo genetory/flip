@@ -90,6 +90,21 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </WeekGate>
             </div>
 
+            {/* Week 1 — Experience Bank 채굴 CTA(중심 데이터). 이력서·자소서·면접에서 계속 쓰인다 */}
+            {plan.week === 1 ? (
+              <Link
+                href="/career-launch/experience"
+                className="group flex items-center justify-between gap-4 rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] p-5 transition hover:border-[#0B46E8]/40 md:p-6"
+              >
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Experience Bank</p>
+                  <p className="mt-1 break-keep text-[15px] font-black text-[#191F28] md:text-[16.5px]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</p>
+                  <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI가 사소한 경험에서도 강점을 찾아 구조화해요. 4주 내내 이력서·자소서·면접에 쓰여요.", "AI mines strengths even from small experiences — reused across your resume, cover letter, and interviews for 4 weeks.", "AI 会从微小经验中发掘优势并结构化，贯穿4周的简历、自我介绍与面试。", "AI tìm điểm mạnh từ cả kinh nghiệm nhỏ — dùng suốt 4 tuần cho CV, thư và phỏng vấn.", "AIが小さな経験からも強みを見つけて構造化し、4週間ずっと活用します。", "AI menggali kelebihan dari pengalaman kecil — dipakai selama 4 minggu di resume, surat, dan wawancara.")}</p>
+                </div>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0B46E8] text-white transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+              </Link>
+            ) : null}
+
             {/* Week 1 키스톤 — Career Report(점수·강점·로드맵). 진단 전이면 카드가 스스로 숨음 */}
             {plan.week === 1 ? <CareerReportCard /> : null}
 

@@ -10,6 +10,7 @@ import { EnrollmentGate } from "./enrollment-gate";
 const GATED_PREFIXES = [
   "/career-launch/week",
   "/career-launch/diagnosis",
+  "/career-launch/experience",
   "/career-launch/jobs",
   "/career-launch/materials",
   "/career-launch/resume-collect",

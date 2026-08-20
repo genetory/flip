@@ -24,8 +24,20 @@ export type CareerInterview = {
   practiced?: string[]; // 완료한 면접 유형(self|job|fit)
   results?: Record<string, string>; // 유형별 AI 총평(면접 종료 시 저장)
 };
+// Experience Bank — 4주 내내 재사용되는 중심 데이터. Week1에서 채굴하고 이후 이력서·자소서·면접이 참조.
+export type ExperienceEntry = {
+  id: string;
+  experience: string; // 무엇 (예: "카페 아르바이트")
+  period: string; // 기간
+  role: string; // 역할
+  actions: string[]; // 한 일
+  results: string[]; // 성과
+  skills: string[]; // 사용 기술
+  competencies: string[]; // 역량
+};
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
+  experienceBank?: ExperienceEntry[];
   // 사전(1주차)·사후(4주차 수료) 진단 점수 — 향상도 산출용.
   diagnosisInitial?: { percent?: number } | null;
   diagnosisFinal?: { percent?: number } | null;
