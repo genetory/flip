@@ -67,7 +67,8 @@ export default function LaunchExperiencePage() {
   }, [isReady]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const _sc = endRef.current?.parentElement;
+    if (_sc) _sc.scrollTo({ top: _sc.scrollHeight, behavior: "smooth" });
   }, [messages, loading, savedFlash]);
 
   const send = (raw: string) => {

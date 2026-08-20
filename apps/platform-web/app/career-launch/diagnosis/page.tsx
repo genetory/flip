@@ -86,7 +86,8 @@ export default function LaunchDiagnosisPage() {
   }, [isReady]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const _sc = endRef.current?.parentElement;
+    if (_sc) _sc.scrollTo({ top: _sc.scrollHeight, behavior: "smooth" });
   }, [messages, loading, result]);
 
   const send = (raw: string) => {

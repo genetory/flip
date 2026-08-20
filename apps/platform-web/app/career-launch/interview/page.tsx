@@ -78,7 +78,8 @@ export default function InterviewPage() {
   }, [isReady]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const _sc = endRef.current?.parentElement;
+    if (_sc) _sc.scrollTo({ top: _sc.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
 
   const send = (raw: string) => {
