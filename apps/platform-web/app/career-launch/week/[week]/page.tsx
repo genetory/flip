@@ -25,6 +25,7 @@ import { InterviewScoreCard } from "../../../../components/launch/InterviewScore
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
 import { InterviewQuestionsCard } from "../../../../components/launch/InterviewQuestionsCard";
 import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
+import { WeekRhythm } from "../../../../components/launch/WeekRhythm";
 import { CareerChatModal } from "../../../../components/launch/CareerChatModal";
 import { ExperienceChat } from "../../../../components/launch/ExperienceChat";
 import { DiagnosisChat } from "../../../../components/launch/DiagnosisChat";
@@ -108,6 +109,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
                 ))}
             </p>
           </div>
+
+          {/* 매주 반복되는 5단계 리듬 */}
+          <div className="mt-6"><WeekRhythm /></div>
 
           {/* ── 단일 컬럼 매거진 본문 ── */}
           <div className="mt-9 flex flex-col gap-10 md:mt-10">
