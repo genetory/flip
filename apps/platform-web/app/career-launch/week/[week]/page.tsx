@@ -15,6 +15,7 @@ import { CareerReportCard } from "../../../../components/launch/CareerReportCard
 import { JobRecommendationCard } from "../../../../components/launch/JobRecommendationCard";
 import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
 import { Recruiter10sCard } from "../../../../components/launch/Recruiter10sCard";
+import { JdMatchCard } from "../../../../components/launch/JdMatchCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
@@ -118,6 +119,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* Week 2 — 채용담당자 10초 테스트. 이력서 미작성이면 자체 숨김 */}
             {plan.week === 2 ? <Recruiter10sCard /> : null}
+
+            {/* Week 2 — JD Match(관심 공고 붙여넣기 → 이력서 대조) */}
+            {plan.week === 2 ? <JdMatchCard /> : null}
 
             {/* Week 3 키스톤 — Cover Letter Score. 자소서 미작성이면 카드가 스스로 숨음 */}
             {plan.week === 3 ? <CoverScoreCard /> : null}

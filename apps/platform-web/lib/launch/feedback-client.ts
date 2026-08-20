@@ -169,6 +169,19 @@ export async function fetchRecruiter10s(opts: { force?: boolean; generate?: bool
   return { result: r, stale: data.stale === true, needsGenerate: data.needsGenerate === true, unavailable: data.needsResume === true };
 }
 
+// Week 2 JD Match — 붙여넣은 공고(JD)와 이력서·Experience Bank 대조.
+export type JdMatchResult = {
+  matchPercent: number;
+  classification: { item: string; status: "matched" | "partial" | "missing" }[];
+  emphasize: { experience: string; why: string }[];
+};
+export async function runJdMatch(jd: string): Promise<{ result: JdMatchResult | null; needsResume: boolean }> {
+  const data = await req("/career-launch/jd-match", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ jd }) });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  const r = data.result && typeof data.result === "object" ? (data.result as JdMatchResult) : null;
+  return { result: r, needsResume: data.needsResume === true };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;

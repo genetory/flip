@@ -18288,6 +18288,107 @@ app.post(
   }
 );
 
+// ── Week 2: JD Match — 관심 공고(JD)와 이력서·Experience Bank 대조 ──
+const JD_MATCH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["matchPercent", "classification", "emphasize"],
+  properties: {
+    matchPercent: { type: "number" },
+    classification: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["item", "status"],
+        properties: { item: { type: "string" }, status: { type: "string", enum: ["matched", "partial", "missing"] } }
+      }
+    },
+    emphasize: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["experience", "why"],
+        properties: { experience: { type: "string" }, why: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const jdMatchSchema = z.object({ jd: z.string().trim().min(20).max(6000) });
+app.post(
+  "/career-launch/jd-match",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-jd-match", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = jdMatchSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
+        return res.json({ ok: true, result: null, needsResume: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const expText = expBank.length
+        ? expBank.map((e) => (typeof e.experience === "string" ? `- ${e.experience}` : "")).filter(Boolean).join("\n")
+        : "(없음)";
+
+      const systemPrompt =
+        "너는 채용 매칭 분석가다. 아래 채용공고(JD)와 지원자의 Resume·Experience Bank 를 비교한다.\n" +
+        "1. JD에서 주요 업무·필수 역량·우대 역량·핵심 키워드를 추출한다.\n" +
+        "2. 각 요구항목을 Resume 기준으로 matched(충족)/partial(부분)/missing(없음)으로 분류한다(classification).\n" +
+        "3. matchPercent: 전체 요구 대비 충족도(0~100).\n" +
+        "4. emphasize: Experience Bank 에서 이 공고에 강조하면 좋은 경험과 이유(2~4개). Resume·Experience Bank 에 없는 경험을 지어내지 않는다.\n" +
+        "존댓말, 건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "matchPercent": number, "classification": [ { "item": string, "status": "matched"|"partial"|"missing" } ], "emphasize": [ { "experience": string, "why": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[채용공고 JD]\n${parsed.data.jd}\n\n[이력서]\n${JSON.stringify(resumeContent)}\n\n[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "jd_match", JD_MATCH_SCHEMA)) as {
+        matchPercent?: unknown;
+        classification?: unknown;
+        emphasize?: unknown;
+      };
+      const classification = Array.isArray(pj.classification)
+        ? (pj.classification as Array<Record<string, unknown>>)
+            .map((c) => ({
+              item: typeof c.item === "string" ? c.item.trim() : "",
+              status: c.status === "matched" || c.status === "partial" || c.status === "missing" ? (c.status as string) : "partial"
+            }))
+            .filter((c) => c.item)
+            .slice(0, 20)
+        : [];
+      const emphasize = Array.isArray(pj.emphasize)
+        ? (pj.emphasize as Array<Record<string, unknown>>)
+            .map((e) => ({ experience: typeof e.experience === "string" ? e.experience.trim() : "", why: typeof e.why === "string" ? e.why.trim() : "" }))
+            .filter((e) => e.experience)
+            .slice(0, 5)
+        : [];
+      const data = { matchPercent: Math.max(0, Math.min(100, Math.round(Number(pj.matchPercent)) || 0)), classification, emphasize };
+      if (classification.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 마지막 분석 저장(재방문 표시용).
+      const mergedState = { ...progState, jdMatch: { data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data });
+    } catch (err) {
+      console.error("[career-launch/jd-match] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
