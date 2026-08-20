@@ -15795,6 +15795,13 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     default:
       "[이번 면접: 인성·컬처핏 면접] 임원·컬처핏 면접처럼 진행한다. 협업·갈등 해결, 가치관, 일하는 태도에 집중해. (외국인 유학생인 경우) 자주 받는 질문(한국어 업무 수준, 비자·장기 근속 의지, 한국 조직 적응)도 함께 다루되, 한국인 학생에겐 해당 없는 질문은 하지 마. 정답을 캐묻기보다 태도와 진정성을 보는 라운드이니, 편안하되 진솔한 답을 끌어내고 답변 방향을 코치해줘."
   },
+  interview_pressure: {
+    label: "모의면접 · 압박 면접",
+    week: 4,
+    step: "스텝 5 · 압박 면접",
+    default:
+      "[이번 면접: 압박 면접] 까다로운 면접관처럼 진행한다. 학생의 답변에서 (1) 추상적인 부분 (2) 본인 역할이 불분명한 부분 (3) 성과가 과장되어 보이는 부분 (4) 숫자·근거가 불명확한 부분 (5) 이력서·자소서와 답변이 충돌하는 부분을 파고드는 꼬리질문·검증 질문에 집중해. '정말 본인이 주도했나요?', '그 숫자의 근거는?', '기대보다 안 좋았던 경우는?'처럼 압박하되, 인신공격이 아니라 답변의 근거를 확인하는 톤을 유지해. 학생이 흔들려도 마지막엔 어떻게 답하면 더 단단한지 코치해줘. 실전 대비가 목적이야."
+  },
   // ── 주차 자동 피드백(1~3주차 공통) ──
   auto_feedback: {
     label: "자동 피드백 · 1~3주차 공통",
@@ -17304,7 +17311,7 @@ app.post("/career-launch/me/employment-status", authenticate, requireCareerEnrol
 // ── Week4 모의면접(유형별: self/job/fit) — 완료한 유형은 progress.interview.practiced 에 누적 ──
 const interviewChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
-  focus: z.enum(["self", "job", "fit"]),
+  focus: z.enum(["self", "job", "fit", "pressure"]),
   locale: z.string().max(10).optional()
 });
 const INTERVIEW_SCHEMA = {
@@ -17510,7 +17517,7 @@ app.post(
 );
 
 // ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
-const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접" };
 // 프롬프트/형식이 바뀌면 올려서 기존 캐시를 한 번 무효화. 이후로는 생성 1회 후 재사용(토큰 절약).
 const FINAL_FEEDBACK_VERSION = 2;
 app.post(

@@ -31,6 +31,10 @@ export default function InterviewPage() {
     fit: {
       title: t("인성·컬처핏 면접", "Personality & Culture-Fit Interview", "人品·文化契合面试", "Phỏng vấn tính cách & phù hợp văn hóa", "人柄・カルチャーフィット面接", "Wawancara Kepribadian & Kecocokan Budaya"),
       sub: t("협업·가치관·한국 적응 등 태도를 보는 면접이에요", "An interview assessing attitude like teamwork, values, and adapting to Korea", "考察协作、价值观、适应韩国等态度的面试", "Phỏng vấn đánh giá thái độ như hợp tác, giá trị và thích nghi với Hàn Quốc", "協働・価値観・韓国への適応など態度を見る面接です", "Wawancara menilai sikap seperti kerja sama, nilai, dan adaptasi di Korea")
+    },
+    pressure: {
+      title: t("압박 면접", "Pressure Interview", "压力面试", "Phỏng vấn áp lực", "圧迫面接", "Wawancara Tekanan"),
+      sub: t("꼬리질문·검증으로 답변의 근거를 파고드는 실전 대비 면접이에요", "A tough round of follow-ups that probes the basis of your answers", "以追问和验证深挖回答依据的实战面试", "Vòng hỏi dồn kiểm chứng cơ sở câu trả lời của bạn", "追い質問・検証で回答の根拠を掘り下げる実戦面接です", "Ronde pertanyaan lanjutan yang menggali dasar jawabanmu")
     }
   };
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
@@ -57,7 +61,7 @@ export default function InterviewPage() {
     startedRef.current = true;
     setLoading(true);
     const sectionRaw = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("section") : null;
-    const f: InterviewFocus = sectionRaw === "job" ? "job" : sectionRaw === "fit" ? "fit" : "self";
+    const f: InterviewFocus = sectionRaw === "job" ? "job" : sectionRaw === "fit" ? "fit" : sectionRaw === "pressure" ? "pressure" : "self";
     setFocus(f);
     trackCareerFunnel("mock_interview_started", { focus: f });
     void (async () => {

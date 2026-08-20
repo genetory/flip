@@ -18,7 +18,7 @@ function authHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-export type InterviewFocus = "self" | "job" | "fit";
+export type InterviewFocus = "self" | "job" | "fit" | "pressure";
 export type InterviewChatMsg = { role: "bot" | "user"; text: string };
 // 준비도 리포트 — 점수 없이 정성 피드백(마무리 시에만).
 export type InterviewReport = { strengths: string[]; improvements: string[]; modelAnswer: string };

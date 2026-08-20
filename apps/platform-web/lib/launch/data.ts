@@ -203,6 +203,12 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "면접 보기", href: "/career-launch/interview?section=fit" }
       },
       {
+        id: "w4-pressure",
+        title: "압박 면접",
+        desc: "꼬리질문·검증으로 답변의 근거를 파고드는 실전 대비 면접이에요. 흔들리지 않게 연습해요.",
+        action: { label: "면접 보기", href: "/career-launch/interview?section=pressure" }
+      },
+      {
         id: "w4-apply",
         title: "스스로 지원하는 법",
         minutes: 12,
