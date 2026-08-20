@@ -33,7 +33,6 @@ export type WeekPlan = {
   title: string;
   subtitle: string;
   goal: string;
-  seminar: { date: string; time: string; place: string; online: boolean };
   steps: Step[];
   // 과제는 수동 제출이 아니라 aply.global 활동에서 자동 수집된다. source 는 그 출처.
   submission: { required: boolean; status: MissionStatus; label: string; source: string };
@@ -46,7 +45,6 @@ export const WEEKS: WeekPlan[] = [
     title: "취업 가능성 진단 & 직무 방향 설정",
     subtitle: "지금 내 상태를 점검하고 목표 직무를 정해봐요",
     goal: "내 취업 준비 상태를 점검하고, 지원하고 싶은 직무를 3개 이내로 정해요. 다음 주 이력서에 담을 재료도 미리 모아봐요.",
-    seminar: { date: "2026-07-13 (월)", time: "19:00–21:00", place: "온라인 (Zoom)", online: true },
     steps: [
       {
         id: "w1s1",
@@ -85,7 +83,6 @@ export const WEEKS: WeekPlan[] = [
     title: "이력서 만들기",
     subtitle: "프로그램 안에서 바로 대표 이력서를 완성해봐요",
     goal: "기업에 낼 대표 이력서 초안을 완성해요. AI 진단으로 부족한 부분까지 채우면 든든한 이력서 한 부가 만들어져요.",
-    seminar: { date: "2026-07-20 (월)", time: "19:00–21:00", place: "온라인 (Zoom)", online: true },
     steps: [
       {
         id: "w2-basic",
@@ -139,7 +136,6 @@ export const WEEKS: WeekPlan[] = [
     title: "자기소개서 만들기",
     subtitle: "지원 동기·강점 등 문항을 채워 자기소개서를 완성해요",
     goal: "목표 회사에 맞춘 자기소개서를 완성하고, 이력서와 서로 어울리게 다듬어 이력서·자기소개서 완성본을 만들어요.",
-    seminar: { date: "2026-07-27 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
         id: "w3-motive",
@@ -181,7 +177,6 @@ export const WEEKS: WeekPlan[] = [
     title: "완성 & 면접 준비",
     subtitle: "완성한 서류로 면접을 준비하고 스스로 지원할 힘을 길러요",
     goal: "이력서·자기소개서를 최종 점검하고, 자기소개·직무·인성 면접을 유형별로 직접 연습해요. 스스로 지원할 수 있도록 실전 감각까지 갖추는 마무리 단계예요!",
-    seminar: { date: "2026-08-03 (월)", time: "19:00–21:00", place: "오프라인 (강남)", online: false },
     steps: [
       {
         id: "w4s1",
@@ -227,13 +222,14 @@ export const WEEKS: WeekPlan[] = [
   }
 ];
 
-// 현재 로그인한(목) 학생.
+// 표시명·기수 폴백 — 실제 값은 로그인 세션(user.name/email)과 등록(enrollment) 기수에서 온다.
+// 인증된 학생만 도달하므로 name 폴백은 사실상 노출되지 않지만, 더미 개인정보는 두지 않는다.
 export const STUDENT = {
-  name: "Nguyen Mai",
-  nameKo: "응우옌 마이",
-  email: "mai@example.com",
-  school: "고려대학교",
-  major: "경영학",
+  name: "APLY 회원",
+  nameKo: "APLY 회원",
+  email: "",
+  school: "",
+  major: "",
   currentWeek: 1 as 1 | 2 | 3 | 4,
   cohort: "2026 여름 1기"
 };
@@ -244,9 +240,6 @@ export const COMPLETION_CRITERIA = [
   "세미나 3회 이상 참석하기",
   "이력서·자기소개서 완성하고 기업에 지원하기"
 ];
-
-// 다음 오프라인 세미나(대시보드용) — 프로그램 시작 시점 기준 Week 1 세미나.
-export const NEXT_SEMINAR = { title: "Week 1 · 취업 가능성 진단 세미나", date: "2026-07-13 (월)", time: "19:00", place: "온라인 (Zoom)" };
 
 // Week 1 — AI 직무 추천(목). 실제로는 학생 프로필·전공·관심사를 분석해 생성.
 export type RecommendedJob = {
@@ -901,56 +894,5 @@ export const CULTURE_LESSONS: Record<string, CultureLesson> = {
   }
 };
 
-// 전체 진행률(완료 스텝 / 전체).
-export function overallProgress(): number {
-  const all = WEEKS.flatMap((w) => w.steps);
-  const done = all.filter((s) => s.done).length;
-  return Math.round((done / all.length) * 100);
-}
-
-// ── 운영자 데이터 ──
-export const OPS_STATS = {
-  applicants: 128,
-  selected: 40,
-  expectedCompletion: 32,
-  resumeCompletionRate: 68, // %
-  mockInterviewRate: 45, // %
-  topCandidates: 12
-};
-
-export type OpsStudent = {
-  id: string;
-  name: string;
-  school: string;
-  major: string;
-  week: 1 | 2 | 3 | 4;
-  progress: number;
-  resumeDone: boolean;
-  interviewDone: boolean;
-  status: "지원" | "선발" | "진행중" | "수료예정" | "탈락";
-  top: boolean;
-};
-
-export const OPS_STUDENTS: OpsStudent[] = [
-  { id: "s1", name: "Nguyen Mai", school: "고려대", major: "경영학", week: 2, progress: 50, resumeDone: true, interviewDone: false, status: "진행중", top: true },
-  { id: "s2", name: "Li Wei", school: "연세대", major: "컴퓨터공학", week: 3, progress: 70, resumeDone: true, interviewDone: true, status: "수료예정", top: true },
-  { id: "s3", name: "Tanaka Yuki", school: "성균관대", major: "디자인", week: 1, progress: 20, resumeDone: false, interviewDone: false, status: "선발", top: false },
-  { id: "s4", name: "Aisha Rahman", school: "한양대", major: "국제학", week: 2, progress: 45, resumeDone: true, interviewDone: false, status: "진행중", top: false },
-  { id: "s5", name: "Chen Jing", school: "서울대", major: "경제학", week: 4, progress: 92, resumeDone: true, interviewDone: true, status: "수료예정", top: true }
-];
-
-export type OpsSubmission = {
-  id: string;
-  student: string;
-  week: 1 | 2 | 3 | 4;
-  title: string;
-  submittedAt: string;
-  status: MissionStatus;
-};
-
-export const OPS_SUBMISSIONS: OpsSubmission[] = [
-  { id: "sub1", student: "Li Wei", week: 3, title: "모의면접 결과 + 지원 리스트", submittedAt: "2026-07-28", status: "submitted" },
-  { id: "sub2", student: "Nguyen Mai", week: 2, title: "이력서 + 자기소개서", submittedAt: "2026-07-21", status: "submitted" },
-  { id: "sub3", student: "Chen Jing", week: 4, title: "Global Talent Profile", submittedAt: "2026-08-04", status: "reviewed" },
-  { id: "sub4", student: "Aisha Rahman", week: 2, title: "이력서 + 자기소개서", submittedAt: "2026-07-22", status: "submitted" }
-];
+// 운영자 데이터·전체진행률 등의 초기 목업(OPS_STATS/OPS_STUDENTS/OPS_SUBMISSIONS/overallProgress)은
+// 실제 운영 콘솔이 /career-launch/ops/* API 실데이터를 쓰면서 어디서도 참조되지 않아 제거했다.
