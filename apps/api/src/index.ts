@@ -18389,6 +18389,110 @@ app.post(
   }
 );
 
+// ── Week 3: Story Bank — Experience Bank 를 STAR+Learning 구조의 카테고리별 이야기로 ──
+const STORY_BANK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stories"],
+  properties: {
+    stories: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["category", "title", "situation", "task", "action", "result", "learning", "usableFor"],
+        properties: {
+          category: { type: "string" },
+          title: { type: "string" },
+          situation: { type: "string" },
+          task: { type: "string" },
+          action: { type: "string" },
+          result: { type: "string" },
+          learning: { type: "string" },
+          usableFor: { type: "array", items: { type: "string" } }
+        }
+      }
+    }
+  }
+} as const;
+const STORY_BANK_VERSION = 1;
+app.post(
+  "/career-launch/story-bank",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-story-bank", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      if (expBank.length === 0) {
+        return res.json({ ok: true, stories: null, needsExperience: true });
+      }
+      const expSig = expBank.map((e) => e?.id).join(",");
+      const currentSig = simpleHash(JSON.stringify({ expSig }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.storyBank && typeof progState.storyBank === "object" ? progState.storyBank : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === STORY_BANK_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, stories: (cached.data as { stories?: unknown }).stories ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, stories: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const expText = expBank
+        .map((e) => {
+          const label = typeof e.experience === "string" ? e.experience : "경험";
+          const actions = Array.isArray(e.actions) ? (e.actions as string[]).filter((x) => typeof x === "string") : [];
+          const results = Array.isArray(e.results) ? (e.results as string[]).filter((x) => typeof x === "string") : [];
+          return `- ${label}: 한 일 ${actions.join(", ") || "-"} / 성과 ${results.join(", ") || "-"}`;
+        })
+        .join("\n");
+      const systemPrompt =
+        "너는 자기소개서·면접용 Story Coach다. 지원자의 Experience Bank 를 분석해 자소서·면접에서 활용할 Story Bank 를 만든다.\n" +
+        "각 이야기를 STAR+Learning 구조로 정리한다: category(성과/실패/갈등/문제해결/리더십/도전/협업/고객 중 하나), title(짧은 제목), situation, task, action, result, learning. " +
+        "usableFor: 이 이야기를 쓸 수 있는 자소서/면접 질문 유형 1~3개. " +
+        "사용자가 제공하지 않은 상황·결과는 지어내지 않는다. 경험 하나가 여러 이야기가 될 수 있다. 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "stories": [ { "category": string, "title": string, "situation": string, "task": string, "action": string, "result": string, "learning": string, "usableFor": string[] } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "story_bank", STORY_BANK_SCHEMA)) as { stories?: unknown };
+      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3) : [];
+      const stories = Array.isArray(pj.stories)
+        ? (pj.stories as Array<Record<string, unknown>>)
+            .map((s) => ({
+              category: str(s.category),
+              title: str(s.title),
+              situation: str(s.situation),
+              task: str(s.task),
+              action: str(s.action),
+              result: str(s.result),
+              learning: str(s.learning),
+              usableFor: strList(s.usableFor)
+            }))
+            .filter((s) => s.title || s.situation)
+            .slice(0, 12)
+        : [];
+      if (stories.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, storyBank: { v: STORY_BANK_VERSION, sig: currentSig, data: { stories } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, stories, stale: false });
+    } catch (err) {
+      console.error("[career-launch/story-bank] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

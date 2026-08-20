@@ -182,6 +182,24 @@ export async function runJdMatch(jd: string): Promise<{ result: JdMatchResult | 
   return { result: r, needsResume: data.needsResume === true };
 }
 
+// Week 3 Story Bank — Experience Bank 를 STAR+Learning 이야기로.
+export type Story = { category: string; title: string; situation: string; task: string; action: string; result: string; learning: string; usableFor: string[] };
+export async function fetchStoryBank(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  stories: Story[] | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/story-bank", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  return {
+    stories: Array.isArray(data.stories) ? (data.stories as Story[]) : null,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true,
+    unavailable: data.needsExperience === true
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;
