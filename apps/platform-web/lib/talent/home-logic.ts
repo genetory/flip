@@ -7,7 +7,7 @@ export const journeyStepMeta: Record<JourneyStepKey, { desc: string; ctaLabel: s
   interest: { desc: "관심 있는 직무 방향을 정해요.", ctaLabel: "관심 직무 찾기", href: talentAppRoutes.profile },
   experiences: { desc: "해본 일을 취업에 쓸 이야기로 정리해요.", ctaLabel: "경험 정리하기", href: talentAppRoutes.experiences },
   profile: { desc: "나를 소개하는 커리어 프로필을 만들어요.", ctaLabel: "프로필 만들기", href: talentAppRoutes.profile },
-  resume: { desc: "정리한 경험으로 첫 이력서를 완성해요.", ctaLabel: "이력서 만들기", href: talentAppRoutes.resumes },
+  resume: { desc: "정리한 경험으로 첫 이력서를 완성해요.", ctaLabel: "이력서 만들기", href: talentAppRoutes.resume },
   cover: { desc: "문항에 답하며 자기소개서를 채워요.", ctaLabel: "자기소개서 쓰기", href: talentAppRoutes.coverLetters },
   apply: { desc: "맞는 공고를 찾아 지원을 준비해요.", ctaLabel: "공고 찾아보기", href: talentAppRoutes.jobs },
   interview: { desc: "예상 질문에 미리 답을 준비해요.", ctaLabel: "면접 준비하기", href: talentAppRoutes.interviews }
@@ -46,7 +46,7 @@ export function deriveMainAction(s: TalentSnapshot): MainAction {
       title: "정리한 경험으로\n첫 이력서를 만들어볼까요?",
       body: `현재 ${s.experiences.length}개의 경험이 준비되어 있어요.\n약 3분이면 첫 초안을 만들 수 있어요.`,
       ctaLabel: "첫 이력서 만들기",
-      ctaHref: talentAppRoutes.resumes
+      ctaHref: talentAppRoutes.resume
     };
   }
 

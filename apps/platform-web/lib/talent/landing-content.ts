@@ -10,7 +10,7 @@ export const talentRoutes = {
   signup: "/talent/signup",
   positions: "/positions", // 공개 둘러보기
   jobs: "/talent/jobs", // 리뉴얼된 채용공고(앱)
-  resume: "/talent/career/resumes",
+  resume: "/talent/career/resume",
   coverLetter: "/talent/career/cover-letters",
   careerLaunch: "/career-launch",
   partner: "/partner" // 리뉴얼 파트너 랜딩(레거시 /business 아님)

@@ -126,7 +126,7 @@ function AddExperienceFlow({ onClose, onSaved }: { onClose: () => void; onSaved:
     if (!draft) return;
     onSaved({ ...draft, summary: summaryText.trim() || draft.summary });
     toast.success(useInResume ? t("경험을 이력서에 사용할 수 있어요","You can use this experience in your resume","可以在简历中使用该经历","Bạn có thể dùng kinh nghiệm này trong CV","この経験を履歴書に使えます","Kamu bisa pakai pengalaman ini di CV") : t("경험을 저장했어요","Experience saved","已保存经历","Đã lưu kinh nghiệm","経験を保存しました","Pengalaman disimpan"));
-    if (useInResume) router.push(talentAppRoutes.resumes);
+    if (useInResume) router.push(talentAppRoutes.resume);
   }
 
   return (
