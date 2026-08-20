@@ -54,7 +54,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
             </div>
             {WEEK_IMAGE[plan.week] ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={WEEK_IMAGE[plan.week]} alt="" className="hidden h-auto w-40 shrink-0 rounded-2xl sm:block md:w-52" loading="lazy" />
+              <img src={WEEK_IMAGE[plan.week]} alt="" className="hidden h-28 w-40 shrink-0 rounded-2xl object-cover sm:block md:h-36 md:w-52" loading="lazy" />
             ) : null}
           </div>
 
