@@ -18849,6 +18849,88 @@ app.post(
   }
 );
 
+// ── Week 4: 예상 질문 생성 — 이력서·자소서·직무 기반 예상 면접 질문(카테고리별) ──
+const INTERVIEW_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["questions"],
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["category", "question"],
+        properties: { category: { type: "string", enum: ["basic", "resume", "cover", "job", "verify"] }, question: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const INTERVIEW_QUESTIONS_VERSION = 1;
+app.post(
+  "/career-launch/interview-questions",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-interview-q", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const coverDone = hasCoverContent(normalizeCoverData(coverContent));
+      if (!resumeDone && !coverDone) {
+        return res.json({ ok: true, questions: null, needsDocs: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.interviewQuestions && typeof progState.interviewQuestions === "object" ? progState.interviewQuestions : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === INTERVIEW_QUESTIONS_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, questions: (cached.data as { questions?: unknown }).questions ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, questions: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 이 채용의 면접관이다. 지원자의 이력서·자기소개서·선정 직무를 분석해 실제 면접에서 나올 가능성이 높은 예상 질문을 생성한다.\n" +
+        "category 로 구분: basic(기본 인성), resume(이력서 기반), cover(자기소개서 기반), job(직무 역량), verify(숫자 성과·리더십·본인 기여도가 불분명한 부분을 검증). " +
+        "특히 성과·기여도가 애매한 부분을 verify 로 우선 질문한다. 각 카테고리 2~3개씩, 총 10~14개. 질문만(코칭·답 금지). 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "questions": [ { "category": "basic"|"resume"|"cover"|"job"|"verify", "question": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미정)"}\n\n[이력서]\n${JSON.stringify(resumeContent).slice(0, 2500)}\n\n[자기소개서]\n${JSON.stringify(coverContent).slice(0, 2500)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "interview_questions", INTERVIEW_QUESTIONS_SCHEMA)) as { questions?: unknown };
+      const cats = new Set(["basic", "resume", "cover", "job", "verify"]);
+      const questions = Array.isArray(pj.questions)
+        ? (pj.questions as Array<Record<string, unknown>>)
+            .map((q) => ({ category: typeof q.category === "string" && cats.has(q.category) ? q.category : "basic", question: typeof q.question === "string" ? q.question.trim() : "" }))
+            .filter((q) => q.question)
+            .slice(0, 16)
+        : [];
+      if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, interviewQuestions: { v: INTERVIEW_QUESTIONS_VERSION, sig: currentSig, data: { questions } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, questions, stale: false });
+    } catch (err) {
+      console.error("[career-launch/interview-questions] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };

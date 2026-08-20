@@ -23,6 +23,7 @@ import { CoverQuestionCard } from "../../../../components/launch/CoverQuestionCa
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
+import { InterviewQuestionsCard } from "../../../../components/launch/InterviewQuestionsCard";
 import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
 import { CareerChatModal } from "../../../../components/launch/CareerChatModal";
 import { ExperienceChat } from "../../../../components/launch/ExperienceChat";
@@ -176,6 +177,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
 
             {/* Week 3 — Cover Review(Generic Expression Check + Recruiter Red Team) */}
             {plan.week === 3 ? <CoverReviewCard /> : null}
+
+            {/* Week 4 — 예상 면접 질문(이력서·자소서·직무 기반) */}
+            {plan.week === 4 ? <InterviewQuestionsCard /> : null}
 
             {/* Week 4 키스톤 — Interview Score. 모의면접 연습 전이면 카드가 스스로 숨음 */}
             {plan.week === 4 ? <InterviewScoreCard /> : null}

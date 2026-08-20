@@ -254,6 +254,24 @@ export async function analyzeCoverQuestion(question: string): Promise<CoverQuest
   };
 }
 
+// Week 4 예상 질문 생성 — 이력서·자소서·직무 기반 카테고리별 면접 질문.
+export type PredictedQuestion = { category: "basic" | "resume" | "cover" | "job" | "verify"; question: string };
+export async function fetchInterviewQuestions(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
+  questions: PredictedQuestion[] | null;
+  stale: boolean;
+  needsGenerate: boolean;
+  unavailable: boolean;
+}> {
+  const generate = opts.generate ?? true;
+  const data = await req("/career-launch/interview-questions", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate }) });
+  return {
+    questions: Array.isArray(data.questions) ? (data.questions as PredictedQuestion[]) : null,
+    stale: data.stale === true,
+    needsGenerate: data.needsGenerate === true,
+    unavailable: data.needsDocs === true
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;
