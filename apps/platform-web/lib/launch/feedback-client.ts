@@ -232,6 +232,17 @@ export async function fetchAnswerBank(opts: { force?: boolean; generate?: boolea
   };
 }
 
+// Week 2 Resume Bullet 개선 — 거친 문장 → Action/Method/Result 다듬기(Before→After).
+export async function improveResumeBullet(bullet: string): Promise<{ before: string; after: string; tips: string[] }> {
+  const data = await req("/career-launch/resume-bullet", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ bullet }) });
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+  return {
+    before: typeof data.before === "string" ? data.before : bullet,
+    after: typeof data.after === "string" ? data.after : "",
+    tips: Array.isArray(data.tips) ? (data.tips as string[]) : []
+  };
+}
+
 // 완주 요약 — Career Score before→after + 체크리스트(저장된 점수 종합, 읽기 전용).
 export type Completion = {
   completed: boolean;

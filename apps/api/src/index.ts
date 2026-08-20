@@ -18746,6 +18746,43 @@ app.post(
   }
 );
 
+// ── Week 2: Resume Bullet 개선 — 거친 문장을 Action/Method/Result 로 다듬어 Before→After ──
+const RESUME_BULLET_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["after", "tips"],
+  properties: { after: { type: "string" }, tips: { type: "array", items: { type: "string" } } }
+} as const;
+const resumeBulletSchema = z.object({ bullet: z.string().trim().min(2).max(600), locale: z.string().max(12).optional() });
+app.post(
+  "/career-launch/resume-bullet",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-bullet", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_resume_bullet", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = resumeBulletSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const systemPrompt =
+        "너는 신입 채용 전문 Resume Coach다. 학생이 쓴 거친 이력서 문장 하나를 채용담당자가 읽기 좋은 개조식 불렛으로 다듬는다.\n" +
+        "규칙: Action(무엇을)·Method(어떻게)·Result(결과) 구조가 자연스럽게 드러나게. **학생이 말하지 않은 숫자·성과는 절대 지어내지 않는다**(확인 안 된 수치 금지). 명사형 종결. after 는 다듬은 문장 1개. tips 는 이 문장을 더 강하게 만들려면 학생이 추가하면 좋을 구체 정보 2~3개(예: '콘텐츠 제작 개수', '기간', '팔로워 변화'). 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "after": string, "tips": string[] }' +
+        aiLangDirective(parsed.data.locale);
+      const userPrompt = `[학생이 쓴 문장]\n${parsed.data.bullet}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_bullet", RESUME_BULLET_SCHEMA)) as { after?: unknown; tips?: unknown };
+      const after = typeof pj.after === "string" ? pj.after.trim() : "";
+      const tips = Array.isArray(pj.tips) ? (pj.tips as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      if (!after) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, before: parsed.data.bullet, after, tips });
+    } catch (err) {
+      console.error("[career-launch/resume-bullet] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
 // POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
 // 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
 const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
