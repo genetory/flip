@@ -6590,6 +6590,53 @@ app.post("/ops/ai-wallets/:userId/grant", authenticate, requireRoles([MemberRole
   }
 });
 
+// GET /ops/ai-wallets/:userId/logs — 사용자별 포인트 내역(적립 양수 · 소모 음수).
+app.get("/ops/ai-wallets/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
+  try {
+    const rows = await prisma.aiPointLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, amount: true, reason: true, createdAt: true }
+    });
+    return res.json({ ok: true, items: rows.map((r) => ({ id: r.id, amount: r.amount, reason: r.reason, createdAt: r.createdAt.toISOString() })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /ops/job-alerts/summary — 직무 알림(B2) 운영 현황: 스케줄러 설정 + 발송 집계 + 최근 발송.
+app.get("/ops/job-alerts/summary", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [totalSent, last24h, recent] = await Promise.all([
+      prisma.position.count({ where: { jobAlertSentAt: { not: null } } }),
+      prisma.position.count({ where: { jobAlertSentAt: { gte: since24h } } }),
+      prisma.position.findMany({
+        where: { jobAlertSentAt: { not: null } },
+        orderBy: { jobAlertSentAt: "desc" },
+        take: 20,
+        select: { id: true, title: true, jobAlertSentAt: true, additionalNotes: true }
+      })
+    ]);
+    return res.json({
+      ok: true,
+      config: { enabled: jobAlertSchedulerEnabled, hourKst: jobAlertHourKst, minuteKst: jobAlertMinuteKst, runOnBoot: jobAlertRunOnBoot },
+      totalSent,
+      last24h,
+      recent: recent.map((p) => ({
+        id: p.id,
+        title: p.title,
+        company: extractSourceCompanyName(p.additionalNotes) ?? null,
+        sentAt: p.jobAlertSentAt?.toISOString() ?? null
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = communityGenerateSchema.safeParse(req.body);
   if (!parsed.success) {
