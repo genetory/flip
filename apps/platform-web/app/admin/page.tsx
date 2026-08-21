@@ -1,13 +1,15 @@
 "use client";
 
 // aply.global/admin — 관리자(OPERATOR) 전용 로그인. 운영 콘솔(/dashboard/ops)과 동일 권한.
-// 관리자 계정으로 로그인하면 운영 콘솔로 이동하고, 관리자가 아니면 접근을 막는다.
+// 디자인은 탤런트·파트너 로그인과 동일한 Toss 톤(흰 배경·블루 액센트·깔끔한 카드).
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, CircleNotch } from "@phosphor-icons/react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { AuthApiError, loginWithEmail, clearAccessToken } from "../../lib/auth-client";
+import { TalentButton } from "../../components/talent/TalentButton";
+import { TalentField, talentInputClass } from "../../components/talent/auth/TalentAuthLayout";
 
 const OPS_HOME = "/dashboard/ops";
 
@@ -55,76 +57,73 @@ export default function AdminLoginPage() {
   // 세션 확인 중 · 관리자 로그인 완료(이동 중) → 폼 깜빡임 방지.
   if (!isReady || (isAuthenticated && isOperator)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0B1120]">
+      <div className="flex min-h-screen items-center justify-center bg-white">
         <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> 불러오는 중…</span>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0B1120] px-5 py-14">
-      <div className="w-full max-w-[400px]">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#182238] text-[#7C93FF]"><ShieldCheck className="h-7 w-7" weight="fill" /></span>
-          <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.24em] text-[#5B6b8c]">Admin</p>
-          <h1 className="mt-1.5 text-[24px] font-black tracking-[-0.02em] text-white">관리자 콘솔 로그인</h1>
-          <p className="mt-2 text-[13.5px] leading-relaxed text-[#8B95A1]">운영자(Admin) 계정만 접근할 수 있어요.</p>
-        </div>
-
-        {isAuthenticated && !isOperator ? (
-          // 로그인은 돼 있으나 관리자가 아닌 경우 — 접근 차단 안내.
-          <div className="rounded-2xl border border-[#26324a] bg-[#111a2e] p-6 text-center">
-            <p className="text-[14px] font-bold text-white">관리자 전용 페이지예요</p>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-[#8B95A1]">현재 계정({user?.email})은 관리자 권한이 없어요. 관리자 계정으로 다시 로그인해 주세요.</p>
-            <button
-              type="button"
-              onClick={() => {
-                void logout();
-              }}
-              className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-xl bg-white text-[14px] font-bold text-[#0B1120] transition hover:bg-[#E5E9F0]"
-            >
-              로그아웃하고 다시 로그인
-            </button>
+    <div className="flex min-h-screen flex-col bg-white">
+      {/* 상단바 — 탤런트/파트너 인증 레이아웃과 동일한 결 */}
+      <header className="h-14 border-b border-[#EEF1F5]">
+        <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-5">
+          <div className="flex items-center gap-2">
+            <span className="text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">APLY</span>
+            <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">Admin</span>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="rounded-2xl border border-[#1e2942] bg-[#111a2e] p-6 md:p-7">
-            <label className="block">
-              <span className="mb-2 block text-[13px] font-semibold text-[#9AA6BF]">이메일</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@aply.global"
-                required
-                autoComplete="email"
-                className="h-[50px] w-full rounded-xl border border-[#26324a] bg-[#0B1120] px-4 text-[15px] text-white outline-none transition placeholder:text-[#4B5772] focus:border-[#7C93FF] focus:ring-2 focus:ring-[#7C93FF]/25"
-              />
-            </label>
-            <label className="mt-4 block">
-              <span className="mb-2 block text-[13px] font-semibold text-[#9AA6BF]">비밀번호</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호"
-                required
-                autoComplete="current-password"
-                className="h-[50px] w-full rounded-xl border border-[#26324a] bg-[#0B1120] px-4 text-[15px] text-white outline-none transition placeholder:text-[#4B5772] focus:border-[#7C93FF] focus:ring-2 focus:ring-[#7C93FF]/25"
-              />
-            </label>
-            {error ? <p className="mt-3 text-[13px] font-medium text-[#FF8A8A]">{error}</p> : null}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="mt-6 inline-flex h-[50px] w-full items-center justify-center gap-1.5 rounded-xl bg-[#3B6BFF] text-[15px] font-bold text-white transition hover:bg-[#2F5AE0] disabled:opacity-60"
-            >
-              {submitting ? <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> 로그인 중…</> : "로그인"}
-            </button>
-          </form>
-        )}
+        </div>
+      </header>
 
-        <p className="mt-6 text-center text-[12px] text-[#4B5772]">© APLY · 관리자 콘솔</p>
-      </div>
+      <main className="flex flex-1 items-start justify-center px-5 py-14 md:py-20">
+        <div className="w-full max-w-[400px]">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
+            <ShieldCheck className="h-6 w-6" weight="fill" />
+          </span>
+          <h1 className="mt-5 text-[28px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">관리자 콘솔 로그인</h1>
+          <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[#4E5968]">운영자(Admin) 계정만 접근할 수 있어요.</p>
+
+          {isAuthenticated && !isOperator ? (
+            // 로그인은 돼 있으나 관리자가 아닌 경우 — 접근 차단 안내.
+            <div className="mt-9 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-6 text-center">
+              <p className="text-[15px] font-bold text-[#191F28]">관리자 전용 페이지예요</p>
+              <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">현재 계정({user?.email})은 관리자 권한이 없어요. 관리자 계정으로 다시 로그인해 주세요.</p>
+              <TalentButton type="button" onClick={() => void logout()} variant="primary" size="lg" fullWidth aria-label="로그아웃하고 다시 로그인">
+                로그아웃하고 다시 로그인
+              </TalentButton>
+            </div>
+          ) : (
+            <form className="mt-9 space-y-4" onSubmit={handleSubmit}>
+              <TalentField label="이메일">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@aply.global"
+                  className={talentInputClass}
+                  required
+                  autoComplete="email"
+                />
+              </TalentField>
+              <TalentField label="비밀번호">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호"
+                  className={talentInputClass}
+                  required
+                  autoComplete="current-password"
+                />
+              </TalentField>
+              {error ? <p className="text-[13.5px] font-medium text-[#F04452]">{error}</p> : null}
+              <TalentButton type="submit" disabled={submitting} variant="primary" size="lg" fullWidth aria-label="로그인">
+                {submitting ? "로그인 중…" : "로그인"}
+              </TalentButton>
+            </form>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
