@@ -29732,10 +29732,24 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
-        createdAt: true
+        createdAt: true,
+        aiWallet: { select: { balance: true } }
       }
     })
   ]);
+
+  // 리뉴얼 신규 데이터 — Career Launch 등록 여부(현재 페이지 사용자 한정).
+  const _clEnrolledIds = new Set(
+    users.length
+      ? (
+          await prisma.careerEnrollment.findMany({
+            where: { studentUserId: { in: users.map((u) => u.id) } },
+            select: { studentUserId: true },
+            distinct: ["studentUserId"]
+          })
+        ).map((e) => e.studentUserId)
+      : []
+  );
 
   const partnerIds = Array.from(
     new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
@@ -29871,10 +29885,24 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
-        createdAt: true
+        createdAt: true,
+        aiWallet: { select: { balance: true } }
       }
     })
   ]);
+
+  // 리뉴얼 신규 데이터 — Career Launch 등록 여부(현재 페이지 사용자 한정).
+  const _clEnrolledIds = new Set(
+    users.length
+      ? (
+          await prisma.careerEnrollment.findMany({
+            where: { studentUserId: { in: users.map((u) => u.id) } },
+            select: { studentUserId: true },
+            distinct: ["studentUserId"]
+          })
+        ).map((e) => e.studentUserId)
+      : []
+  );
 
   const partnerIds = Array.from(
     new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
@@ -29903,6 +29931,8 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,
+        aiBalance: user.aiWallet?.balance ?? 0,
+        careerLaunch: _clEnrolledIds.has(user.id),
         partnerName: partner?.name ?? "-",
         partner: partner
           ? {
