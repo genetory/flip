@@ -6543,6 +6543,53 @@ const communityGenerateSchema = z.object({
   daysBack: z.number().int().min(0).max(365)
 });
 
+// ── AI 포인트 운영 — 사용자별 지갑 잔액 조회 + 수동 지급(운영자) ──
+app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: q
+        ? { OR: [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }
+        : {},
+      select: { id: true, email: true, name: true, role: true, createdAt: true, aiWallet: { select: { balance: true, updatedAt: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    const items = users.map((u) => ({
+      userId: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      balance: u.aiWallet?.balance ?? 0,
+      updatedAt: u.aiWallet?.updatedAt ?? null
+    }));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const opsGrantSchema = z.object({ amount: z.number().int().min(1).max(100000), reason: z.string().trim().max(40).optional() });
+app.post("/ops/ai-wallets/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
+  try {
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!target) return res.status(404).json({ ok: false, message: "user not found" });
+    const wallet = await prisma.aiWallet.upsert({
+      where: { userId },
+      create: { userId, balance: parsed.data.amount },
+      update: { balance: { increment: parsed.data.amount } }
+    });
+    // 원장 기록(reason=ops_grant) — 포인트 내역에 '지급'으로 남는다.
+    await prisma.aiPointLog.create({ data: { userId, amount: parsed.data.amount, reason: parsed.data.reason || "ops_grant" } }).catch(() => {});
+    return res.json({ ok: true, balance: wallet.balance });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = communityGenerateSchema.safeParse(req.body);
   if (!parsed.success) {

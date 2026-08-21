@@ -141,6 +141,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "감사 로그", href: "/dashboard/ops/system/audit-log", icon: Shield },
       { label: "결제", href: "/dashboard/ops/system/payments", icon: Wallet },
+      { label: "AI 포인트", href: "/dashboard/ops/system/ai-points", icon: Sparkles },
       { label: "설정값", href: "/dashboard/ops/system/settings", icon: Settings },
       { label: "크롤링", href: "/dashboard/ops/system/crawlers", icon: Bot },
       { label: "데이터", href: "/dashboard/ops/system/data-management", icon: Database }
