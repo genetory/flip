@@ -16,9 +16,10 @@
   --ink-faint: #8b95a1;
   --line: #e8ebed;
   --line-strong: #d1d6db;
-  --accent: #3182f6;
-  --accent-ink: #1b64da;
-  --accent-soft: #e8f2fe;
+  /* 액센트 — 탤런트·파트너 서비스와 동일한 브랜드 블루(#0B46E8)로 정렬. */
+  --accent: #0b46e8;
+  --accent-ink: #0a3ecb;
+  --accent-soft: #edf1fd;
   --sand: #d98218;
   --sand-soft: #fff3e0;
   --danger: #e5484d;
@@ -51,8 +52,8 @@
     --ink-faint: #6b7684;
     --line: #2c2f36;
     --line-strong: #3a3e46;
-    --accent: #4593fc;
-    --accent-ink: #6ba8fc;
+    --accent: #6b93ff;
+    --accent-ink: #8fb0ff;
     --accent-soft: #17253c;
     --sand: #e0a050;
     --sand-soft: #2e2415;
