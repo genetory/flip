@@ -6704,7 +6704,7 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
       where: { content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } },
       orderBy: { updatedAt: "desc" },
       take: 200,
-      select: { id: true, title: true, updatedAt: true, content: true, user: { select: { name: true, email: true } } }
+      select: { id: true, title: true, updatedAt: true, content: true, userId: true, user: { select: { name: true, email: true } } }
     });
     const q = parsed.data.q?.toLowerCase();
     const nat = parsed.data.nationality?.toLowerCase();
@@ -6717,6 +6717,7 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
           title: r.title,
           updatedAt: r.updatedAt.toISOString(),
           consentedAt: poolOptIn?.consentedAt ?? null,
+          userId: r.userId,
           userName: r.user?.name ?? null,
           userEmail: r.user?.email ?? null,
           content
@@ -6732,7 +6733,14 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
         }
         return true;
       });
-    return res.json({ ok: true, items });
+    // Career Launch 수강 여부 현행화.
+    const _uids = Array.from(new Set(items.map((it) => it.userId).filter(Boolean))) as string[];
+    const _clRows = _uids.length
+      ? await prisma.careerEnrollment.findMany({ where: { studentUserId: { in: _uids } }, select: { studentUserId: true }, distinct: ["studentUserId"] })
+      : [];
+    const _clSet = new Set(_clRows.map((r) => r.studentUserId));
+    const out = items.map(({ userId, ...rest }) => ({ ...rest, careerLaunch: _clSet.has(userId) }));
+    return res.json({ ok: true, items: out });
   } catch (err) {
     console.error("[ops/resume-pool] failed", err);
     return res.status(500).json({ ok: false, message: "failed to list resume pool" });
@@ -25039,6 +25047,12 @@ app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), 
         }
       })
     ]);
+    // Career Launch 수강 여부 현행화 — 지원자 중 CL 수강생을 배지로 구분.
+    const _candIds = Array.from(new Set(items.map((a) => a.candidateUserId)));
+    const _clRows = _candIds.length
+      ? await prisma.careerEnrollment.findMany({ where: { studentUserId: { in: _candIds } }, select: { studentUserId: true }, distinct: ["studentUserId"] })
+      : [];
+    const _clSet = new Set(_clRows.map((r) => r.studentUserId));
     return res.json({
       ok: true,
       page,
@@ -25058,6 +25072,7 @@ app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), 
         candidateName: a.candidateUser.name,
         candidateEmail: a.candidateUser.email,
         candidateNationality: a.candidateUser.nationality,
+        careerLaunch: _clSet.has(a.candidateUserId),
         status: a.status,
         memo: a.memo,
         submittedAt: a.submittedAt,

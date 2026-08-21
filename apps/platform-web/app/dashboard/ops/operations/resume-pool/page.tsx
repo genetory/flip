@@ -15,6 +15,7 @@ type PoolItem = {
   title: string;
   updatedAt: string;
   consentedAt: string | null;
+  careerLaunch?: boolean;
   userName: string | null;
   userEmail: string | null;
   content: ResumeContent & { builder?: ResumeBuilderState };
@@ -105,6 +106,11 @@ export default function ResumePoolPage() {
                 <div key={it.resumeId}>
                   <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11.5px] text-muted-foreground">
                     {it.userName ? <span className="font-semibold text-foreground">{it.userName}</span> : null}
+                    {it.careerLaunch ? (
+                      <span title="Career Launch 수강생" style={{ padding: "1px 6px", borderRadius: 6, background: "#e7f7ef", color: "#0f8a52", fontSize: 10.5, fontWeight: 800 }}>
+                        CL
+                      </span>
+                    ) : null}
                     {it.userEmail ? <span>{it.userEmail}</span> : null}
                     {it.consentedAt ? <span>· 동의 {new Date(it.consentedAt).toLocaleDateString("ko-KR")}</span> : null}
                   </div>

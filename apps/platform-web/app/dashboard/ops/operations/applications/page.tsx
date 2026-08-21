@@ -27,6 +27,7 @@ type OpsApplication = {
   candidateName: string | null;
   candidateEmail: string;
   candidateNationality: string | null;
+  careerLaunch?: boolean;
   status: ApplicationStatus;
   memo: string | null;
   submittedAt: string;
@@ -440,6 +441,14 @@ export default function OpsApplicationsPage() {
                         >
                           <span className="ops-row-strong">{it.candidateName ?? "-"}</span>
                         </button>
+                        {it.careerLaunch ? (
+                          <span
+                            title="Career Launch 수강생"
+                            style={{ marginLeft: 6, display: "inline-block", padding: "1px 6px", borderRadius: 6, background: "#e7f7ef", color: "#0f8a52", fontSize: 11, fontWeight: 800, verticalAlign: "middle" }}
+                          >
+                            CL
+                          </span>
+                        ) : null}
                         <div className="ops-row-sub">{it.candidateEmail}</div>
                       </td>
                       <td>{it.candidateNationality ?? "-"}</td>
