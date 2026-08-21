@@ -18,9 +18,11 @@ function authHeaders(json = false): Record<string, string> {
   return headers;
 }
 
-export type InterviewFocus = "self" | "job" | "fit";
+export type InterviewFocus = "self" | "job" | "fit" | "pressure";
 export type InterviewChatMsg = { role: "bot" | "user"; text: string };
-export type InterviewChatResult = { reply: string; done: boolean };
+// 준비도 리포트 — 점수 없이 정성 피드백(마무리 시에만).
+export type InterviewReport = { strengths: string[]; improvements: string[]; modelAnswer: string };
+export type InterviewChatResult = { reply: string; done: boolean; report: InterviewReport | null };
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
@@ -36,8 +38,14 @@ export async function requestInterviewChat(messages: InterviewChatMsg[], focus: 
     headers: authHeaders(true),
     body: JSON.stringify({ messages, focus, locale: "ko" })
   });
+  const r = d.report && typeof d.report === "object" ? (d.report as Record<string, unknown>) : null;
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  const report: InterviewReport | null = r
+    ? { strengths: list(r.strengths), improvements: list(r.improvements), modelAnswer: typeof r.modelAnswer === "string" ? r.modelAnswer : "" }
+    : null;
   return {
     reply: typeof d.reply === "string" ? d.reply : "",
-    done: d.done === true
+    done: d.done === true,
+    report
   };
 }

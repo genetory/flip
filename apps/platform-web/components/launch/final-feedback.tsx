@@ -17,6 +17,7 @@ export function FinalFeedbackCard() {
   const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [quota, setQuota] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -47,6 +48,7 @@ export function FinalFeedbackCard() {
     if (busy) return;
     setBusy(true);
     setQuota(false);
+    setFailed(false);
     trackCareerFinalFeedback(force ? "regenerate" : "view");
     try {
       const fb = await fetchFinalFeedback({ force, generate: true });
@@ -54,9 +56,13 @@ export function FinalFeedbackCard() {
         setText(fb.text);
         setStale(false);
         setState("done");
+      } else {
+        setFailed(true); // 응답은 왔지만 내용이 비어 있음 → 재시도 안내.
       }
     } catch (e) {
+      // 포인트/한도(402) 오류는 정확히 구분해 안내하고, 그 외는 일반 재시도 안내(무응답 방지).
       if (e instanceof Error && /quota|402|포인트|ticket/i.test(e.message)) setQuota(true);
+      else setFailed(true);
     } finally {
       setBusy(false);
     }
@@ -96,7 +102,7 @@ export function FinalFeedbackCard() {
             {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4" weight="fill" />}
             {busy ? t("받는 중…", "Getting…", "获取中…", "Đang nhận…", "受け取り中…", "Sedang mengambil…") : t("최종 피드백 받기", "Get final feedback", "获取最终反馈", "Nhận phản hồi cuối", "最終フィードバックを受け取る", "Dapatkan umpan balik akhir")}
           </button>
-          {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요.", "Something went wrong. Please try again in a moment.", "出现了一点问题，请稍后再试。", "Đã xảy ra sự cố. Vui lòng thử lại sau giây lát.", "問題が発生しました。少し後にもう一度お試しください。", "Terjadi masalah. Silakan coba lagi sebentar lagi.")}</p> : null}
+          {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("AI 포인트가 부족해요. 충전 후 다시 시도해 주세요.", "You're out of AI points. Please recharge and try again.", "AI 积分不足，请充值后再试。", "Bạn đã hết điểm AI. Vui lòng nạp thêm và thử lại.", "AIポイントが不足しています。チャージ後にもう一度お試しください。", "Poin AI habis. Silakan isi ulang dan coba lagi.")}</p> : failed ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("잠시 문제가 생겼어요. 잠시 후 다시 시도해 주세요.", "Something went wrong. Please try again in a moment.", "出现了一点问题，请稍后再试。", "Đã xảy ra sự cố. Vui lòng thử lại sau giây lát.", "問題が発生しました。少し後にもう一度お試しください。", "Terjadi masalah. Silakan coba lagi sebentar lagi.")}</p> : null}
         </div>
       ) : state === "done" ? (
         <div className="text-[14.5px] leading-[1.75] text-[#333D4B]">

@@ -8,6 +8,8 @@ import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
+import { CompletionSummaryCard } from "../../../components/launch/CompletionSummaryCard";
+import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
@@ -95,6 +97,11 @@ export default function LaunchDashboardPage() {
 
   const resumeReady = hasResumeContent(data.resume);
   const coverReady = hasCoverContent(data.cover);
+  // 새 산출물 준비 상태(진행 상태에서 바로 읽음) — 결과물 갤러리·스냅샷 반영.
+  const reportReady = Boolean(data.progress.careerReport?.data);
+  const expCount = Array.isArray(data.progress.experienceBank) ? data.progress.experienceBank.length : 0;
+  const storyReady = Array.isArray(data.progress.storyBank?.data?.stories) && (data.progress.storyBank?.data?.stories?.length ?? 0) > 0;
+  const answerReady = Array.isArray(data.progress.answerBank?.data?.answers) && (data.progress.answerBank?.data?.answers?.length ?? 0) > 0;
   // 다음 할 일 — 열려 있고 아직 완료 안 된 첫 주차.
   const nextWeek = WEEKS.find((w) => weekUnlocked(w.week, data, schedule, serverNow) && weekDoneCount(w.steps, data) < w.steps.length) ?? null;
   useEffect(() => {
@@ -247,6 +254,18 @@ export default function LaunchDashboardPage() {
 
           <Reveal delayMs={120}>
           <div className="mt-8 flex flex-col gap-10 md:mt-10">
+            {/* ── 내 커리어 스냅샷 — 주차에서 만든 점수·경험 요약(데이터 있을 때만) ── */}
+            <CareerSnapshot />
+
+            {/* 통합 Career Profile 전체 보기 */}
+            <Link href="/career-launch/profile" className="group flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#0B46E8]/40">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Career Profile</p>
+                <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{t("내 커리어 프로필 전체 보기", "View my full career profile", "查看我的完整职业档案", "Xem hồ sơ nghề đầy đủ", "私のキャリアプロフィール全体を見る", "Lihat profil karier lengkap")}</p>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
+            </Link>
+
             {/* ── 프로그램 소개 (맨 위, 펼침) ── */}
             <div>
                 <SectionTitle>{t("프로그램 소개", "About the program", "项目介绍", "Giới thiệu chương trình", "プログラム紹介", "Tentang program")}</SectionTitle>
@@ -257,7 +276,7 @@ export default function LaunchDashboardPage() {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/img_global_career_launch.webp" alt="Global Career Launch" className="mt-5 h-auto w-full max-w-[400px] rounded-2xl" />
                   <p className="mt-5 break-keep text-[14px] leading-[1.75] text-[#4E5968] md:text-[14.5px]">
-                    {t("한국 취업을 준비하는 외국인 유학생을 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 유형별 모의면접까지 — 4주 동안 하나씩 밟아가며 완주해요.", "This program is for international students preparing to work in Korea. Job prep can feel overwhelming on your own, so an AI coach guides you every step of the way. From diagnosing where you stand and setting your career direction, to building your resume and cover letter just by chatting, to mock interviews by type — you'll complete it step by step over 4 weeks.", "这是为准备在韩国就业的外国留学生打造的项目。独自准备求职难免感到迷茫，AI教练会一路陪伴引导你。从诊断你的求职准备状态、确定职业方向，到只需对话就能完成的简历与求职信，再到分类型的模拟面试——4周内一步步完成。", "Đây là chương trình dành cho du học sinh nước ngoài chuẩn bị làm việc tại Hàn Quốc. Chuẩn bị việc làm một mình có thể rất mông lung, nên AI coach sẽ đồng hành và dẫn dắt bạn từng bước. Từ chẩn đoán tình trạng chuẩn bị, định hướng nghề nghiệp, hoàn thành hồ sơ và thư tự giới thiệu chỉ bằng trò chuyện, đến phỏng vấn thử theo từng loại — bạn sẽ hoàn thành từng bước trong 4 tuần.", "韓国での就職を目指す外国人留学生のためのプログラムです。一人では途方に暮れがちな就職準備を、AIコーチが隣で導いてくれます。就職準備状況の診断から職務の方向性設定、会話だけで完成する履歴書・自己紹介書、そしてタイプ別の模擬面接まで — 4週間で一つずつ進めて完走します。", "Program ini untuk mahasiswa asing yang bersiap bekerja di Korea. Persiapan kerja bisa terasa membingungkan jika sendirian, jadi AI coach akan membimbingmu di setiap langkah. Mulai dari diagnosis kesiapan, menentukan arah karier, menyusun resume dan cover letter hanya lewat percakapan, hingga simulasi wawancara per jenis — kamu akan menyelesaikannya langkah demi langkah selama 4 minggu.")}
+                    {t("취업을 준비하는 누구나를 위한 프로그램이에요. 혼자서는 막막한 취업 준비를 AI 코치가 옆에서 이끌어줘요. 취업 준비 상태 진단부터 직무 방향 설정, 대화만으로 완성하는 이력서·자기소개서, 그리고 유형별 모의면접까지 — 4주 동안 하나씩 밟아가며 완주해요.", "This program is for anyone preparing for their job search. Job prep can feel overwhelming on your own, so an AI coach guides you every step of the way. From diagnosing where you stand and setting your career direction, to building your resume and cover letter just by chatting, to mock interviews by type — you'll complete it step by step over 4 weeks.", "这是为所有正在准备求职的人打造的项目。独自准备求职难免感到迷茫，AI教练会一路陪伴引导你。从诊断你的求职准备状态、确定职业方向，到只需对话就能完成的简历与求职信，再到分类型的模拟面试——4周内一步步完成。", "Đây là chương trình dành cho bất kỳ ai đang chuẩn bị tìm việc. Chuẩn bị việc làm một mình có thể rất mông lung, nên AI coach sẽ đồng hành và dẫn dắt bạn từng bước. Từ chẩn đoán tình trạng chuẩn bị, định hướng nghề nghiệp, hoàn thành hồ sơ và thư tự giới thiệu chỉ bằng trò chuyện, đến phỏng vấn thử theo từng loại — bạn sẽ hoàn thành từng bước trong 4 tuần.", "就職を目指すすべての方のためのプログラムです。一人では途方に暮れがちな就職準備を、AIコーチが隣で導いてくれます。就職準備状況の診断から職務の方向性設定、会話だけで完成する履歴書・自己紹介書、そしてタイプ別の模擬面接まで — 4週間で一つずつ進めて完走します。", "Program ini untuk siapa saja yang sedang menyiapkan pencarian kerja. Persiapan kerja bisa terasa membingungkan jika sendirian, jadi AI coach akan membimbingmu di setiap langkah. Mulai dari diagnosis kesiapan, menentukan arah karier, menyusun resume dan cover letter hanya lewat percakapan, hingga simulasi wawancara per jenis — kamu akan menyelesaikannya langkah demi langkah selama 4 minggu.")}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
                     {[
@@ -301,6 +320,38 @@ export default function LaunchDashboardPage() {
                         </li>
                       ))}
                     </ul>
+                  </div>
+
+                  {/* 4주 커리큘럼 — 매거진 스프레드(주제·핵심 질문·AI 역할·결과물) */}
+                  <div className="mt-6 border-t border-[#F2F4F6] pt-6">
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("4주 커리큘럼", "The 4-week curriculum", "4周课程", "Chương trình 4 tuần", "4週間カリキュラム", "Kurikulum 4 minggu")}</p>
+                    <div className="mt-3.5 flex flex-col gap-2.5">
+                      {[
+                        { role: "Career Coach", theme: t("취업 진단", "Diagnosis", "求职诊断", "Chẩn đoán", "就職診断", "Diagnosis"), q: t("나는 뭘 해야 하지?", "What should I do?", "我该做什么？", "Tôi nên làm gì?", "何をすべき？", "Apa yang harus kulakukan?"), out: "Career Roadmap" },
+                        { role: "Resume Coach", theme: t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"), q: t("나를 어떻게 보여주지?", "How do I present myself?", "如何展示自己？", "Thể hiện bản thân sao?", "自分をどう見せる？", "Bagaimana menampilkan diri?"), out: "Resume" },
+                        { role: "Writing Coach", theme: t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), q: t("내 이야기를 어떻게 쓰지?", "How do I tell my story?", "如何讲述我的故事？", "Kể câu chuyện của tôi sao?", "自分の物語をどう書く？", "Bagaimana menulis kisahku?"), out: "Cover Letter" },
+                        { role: "Interviewer", theme: t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), q: t("어떻게 말해야 하지?", "How do I speak?", "该怎么说？", "Nói thế nào?", "どう話す？", "Bagaimana berbicara?"), out: "Interview Report" }
+                      ].map((w, i) => (
+                        <div key={i} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] p-3.5">
+                          <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-xl bg-[#EDF1FD] leading-none">
+                            <span className="text-[8px] font-bold uppercase text-[#7C93FF]">Wk</span>
+                            <span className="text-[14px] font-black text-[#0B46E8]">{i + 1}</span>
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13.5px] font-bold text-[#191F28]">{w.theme} <span className="text-[11.5px] font-semibold text-[#0B46E8]">· {w.role}</span></p>
+                            <p className="mt-0.5 truncate text-[12.5px] italic text-[#8B95A1]">“{w.q}”</p>
+                          </div>
+                          <span className="hidden shrink-0 rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[11px] font-bold text-[#4E5968] sm:inline">{w.out}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 차별점 — 매거진 풀쿼트(Experience Bank 연속성) */}
+                  <div className="mt-6 rounded-2xl bg-[#0B1227] p-5 text-white md:p-6">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8FB0FF]">{t("왜 다를까요", "Why it's different", "为何不同", "Vì sao khác biệt", "何が違う？", "Kenapa berbeda")}</p>
+                    <p className="mt-2 break-keep text-[15px] font-bold leading-relaxed md:text-[16.5px]">{t("단순한 AI가 아니라, 4주 동안 나를 알아가는 개인 취업 코치예요.", "Not just an AI — a personal career coach that gets to know you over 4 weeks.", "不只是AI，而是4周里逐渐了解你的专属求职教练。", "Không chỉ là AI — một coach nghề riêng hiểu bạn suốt 4 tuần.", "単なるAIではなく、4週間かけてあなたを知る専属就活コーチです。", "Bukan sekadar AI — pelatih karier pribadi yang mengenalmu selama 4 minggu.")}</p>
+                    <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#C7CEDD]">{t("1주차에 한 번 정리한 내 경험(Experience Bank)을 이력서·자기소개서·모의면접까지 계속 이어서 활용해요. 매번 처음부터 나를 설명할 필요가 없어요.", "The experiences you mine in Week 1 (your Experience Bank) carry through your resume, cover letter, and mock interviews — no re-explaining yourself each time.", "第1周整理的经验（经验库）会一直沿用到简历、自我介绍与模拟面试，不必每次从头解释自己。", "Kinh nghiệm bạn khai thác ở Tuần 1 (Experience Bank) được dùng xuyên suốt hồ sơ, thư và phỏng vấn — không cần giải thích lại mỗi lần.", "Week 1で整理した経験（Experience Bank）が履歴書・自己紹介書・模擬面接まで続けて活用され、毎回自分を説明し直す必要がありません。", "Pengalaman yang kamu gali di Minggu 1 (Experience Bank) terus dipakai di resume, surat, dan wawancara — tanpa menjelaskan diri berulang.")}</p>
                   </div>
                 </article>
             </div>
@@ -372,10 +423,28 @@ export default function LaunchDashboardPage() {
                 )}
               </div>
 
-              {/* 내 결과물 — 이력서·자기소개서 미리보기(없으면 점선 placeholder) */}
+              {/* 내 결과물 — 4주 산출물 갤러리(경험·리포트·이력서·자소서·스토리·면접 노트) */}
               <div id="deliverables" className="scroll-mt-20 space-y-4">
-                <SectionTitle sub={t("대화로 만드는 이력서와 자기소개서", "A resume and cover letter built through conversation", "对话即可完成的简历与求职信", "Hồ sơ và thư tự giới thiệu tạo qua trò chuyện", "会話で作る履歴書と自己紹介書", "Resume dan cover letter dari percakapan")}>{t("내 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</SectionTitle>
+                <SectionTitle sub={t("4주 동안 쌓은 나만의 취업 자산이에요", "The career assets you build over 4 weeks", "4周积累的专属求职资产", "Tài sản nghề bạn xây trong 4 tuần", "4週間で積み上げた自分だけの就活資産", "Aset karier yang kamu bangun selama 4 minggu")}>{t("내 커리어 포트폴리오", "My career portfolio", "我的职业作品集", "Hồ sơ nghề của tôi", "私のキャリアポートフォリオ", "Portofolio karierku")}</SectionTitle>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DeliverableCard
+                    title={t("Experience Bank", "Experience Bank", "经验库", "Experience Bank", "Experience Bank", "Experience Bank")}
+                    ready={expCount > 0}
+                    previewHref="/career-launch/experience"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={expCount > 0 ? t(`경험 ${expCount}개 정리됨`, `${expCount} experiences mined`, `已整理 ${expCount} 段经验`, `Đã có ${expCount} kinh nghiệm`, `経験${expCount}件を整理`, `${expCount} pengalaman`) : ""}
+                    emptyMsg={t("1주차에서 내 경험을 채굴해요", "Mine your experiences in Week 1", "第1周挖掘你的经验", "Khai thác kinh nghiệm ở Tuần 1", "Week 1で経験を発掘", "Gali pengalamanmu di Minggu 1")}
+                  />
+                  <DeliverableCard
+                    title={t("Career Report", "Career Report", "职业报告", "Career Report", "Career Report", "Career Report")}
+                    ready={reportReady}
+                    previewHref="/career-launch/week/1"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("Career Score·강점·로드맵 정리됨", "Score, strengths & roadmap ready", "分数·优势·路线图已整理", "Điểm·điểm mạnh·lộ trình đã có", "スコア・強み・ロードマップ完成", "Skor·kelebihan·roadmap siap")}
+                    emptyMsg={t("1주차에서 받아요", "Get it in Week 1", "第1周领取", "Nhận ở Tuần 1", "Week 1で受け取ります", "Dapatkan di Minggu 1")}
+                  />
                   <DeliverableCard
                     title={t("내 이력서", "My resume", "我的简历", "Hồ sơ của tôi", "私の履歴書", "Resume saya")}
                     ready={resumeReady}
@@ -390,12 +459,32 @@ export default function LaunchDashboardPage() {
                     doneMsg={t("자기소개서가 완성됐어요", "Your cover letter is ready", "求职信已完成", "Thư tự giới thiệu đã hoàn thành", "自己紹介書が完成しました", "Cover letter sudah siap")}
                     emptyMsg={t("3주차에 대화로 만들어요", "Built through conversation in Week 3", "第3周通过对话完成", "Tạo qua trò chuyện ở Tuần 3", "Week 3に会話で作ります", "Dibuat lewat percakapan di Minggu 3")}
                   />
+                  <DeliverableCard
+                    title={t("Story Bank", "Story Bank", "故事库", "Story Bank", "Story Bank", "Story Bank")}
+                    ready={storyReady}
+                    previewHref="/career-launch/week/3"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("STAR 이야기로 정리됨", "Structured as STAR stories", "已整理为STAR故事", "Đã thành câu chuyện STAR", "STARの物語に整理", "Tersusun jadi cerita STAR")}
+                    emptyMsg={t("3주차에서 만들어요", "Build it in Week 3", "第3周生成", "Tạo ở Tuần 3", "Week 3で作ります", "Buat di Minggu 3")}
+                  />
+                  <DeliverableCard
+                    title={t("면접 답변 노트", "Interview answer bank", "面试回答笔记", "Sổ câu trả lời PV", "面接回答ノート", "Catatan jawaban wawancara")}
+                    ready={answerReady}
+                    previewHref="/career-launch/week/4"
+                    newTab={false}
+                    ctaLabel={t("열기", "Open", "打开", "Mở", "開く", "Buka")}
+                    doneMsg={t("핵심 질문 8개 답변 정리됨", "8 key answers drafted", "8个核心问题答案已整理", "8 câu trả lời chính đã soạn", "主要8問の回答を整理", "8 jawaban utama siap")}
+                    emptyMsg={t("4주차에서 만들어요", "Build it in Week 4", "第4周生成", "Tạo ở Tuần 4", "Week 4で作ります", "Buat di Minggu 4")}
+                  />
                 </div>
               </div>
 
             {/* ── 완주 시 — 최종 피드백 + 다음 행동 ('내 결과물' 아래) ── */}
             {overall === 100 ? (
               <div>
+                {/* 완주 캡스톤 — Career Score before→after + 체크리스트(4주 점수 모두 생성 시 노출) */}
+                <div className="mb-8"><CompletionSummaryCard /></div>
                 <SectionTitle sub={t("이력서·자기소개서·면접을 종합한 코치 피드백", "Coach feedback across your resume, cover letter, and interview", "综合简历、求职信与面试的教练反馈", "Phản hồi từ coach tổng hợp hồ sơ, thư tự giới thiệu và phỏng vấn", "履歴書・自己紹介書・面接を総合したコーチのフィードバック", "Umpan balik coach dari resume, cover letter, dan wawancara")}>{t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir")}</SectionTitle>
                 <FinalFeedbackCard />
 
@@ -425,7 +514,7 @@ export default function LaunchDashboardPage() {
 
 // 결과물 카드 — talent '내 커리어'와 동일한 형태. 문서를 인라인으로 펼치지 않고,
 // 완성 링 + 상태 메시지 + '미리보기'(새 탭) 링크만 노출.
-function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string }) {
+function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg, ctaLabel, newTab = true }: { title: string; ready: boolean; previewHref: string; doneMsg: string; emptyMsg: string; ctaLabel?: string; newTab?: boolean }) {
   const t = useLaunchT();
   const shell = ready
     ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
@@ -437,8 +526,8 @@ function DeliverableCard({ title, ready, previewHref, doneMsg, emptyMsg }: { tit
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{ready ? doneMsg : emptyMsg}</p>
         {ready ? (
-          <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-            {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
+          <Link href={previewHref} {...(newTab ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+            {ctaLabel ?? t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
           </Link>
         ) : null}
       </div>

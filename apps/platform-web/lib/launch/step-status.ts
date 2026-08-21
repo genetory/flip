@@ -25,7 +25,8 @@ export const STEP_KIND: Record<string, string> = {
   w4s1: "both",
   "w4-self": "interview-self",
   "w4-job": "interview-job",
-  "w4-fit": "interview-fit"
+  "w4-fit": "interview-fit",
+  "w4-pressure": "interview-pressure"
 };
 
 export type LaunchData = { progress: CareerProgress; resume: ResumeData; cover: CoverData };
@@ -67,6 +68,7 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "interview-self": kd = (prog.interview?.practiced ?? []).includes("self"); break;
     case "interview-job": kd = (prog.interview?.practiced ?? []).includes("job"); break;
     case "interview-fit": kd = (prog.interview?.practiced ?? []).includes("fit"); break;
+    case "interview-pressure": kd = (prog.interview?.practiced ?? []).includes("pressure"); break;
     case "both": kd = hasResumeContent(resume) && hasCoverContent(cover); break;
     default: kd = false;
   }

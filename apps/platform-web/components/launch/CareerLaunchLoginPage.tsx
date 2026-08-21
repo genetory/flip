@@ -10,8 +10,11 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AuthApiError, loginWithEmail, clearAccessToken } from "../../lib/auth-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { TalentButton } from "../talent/TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
+import { CareerLaunchIntro } from "./CareerLaunchIntro";
+import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { AplyFooter } from "../AplyFooter";
 
 export function CareerLaunchLoginPage() {
   const t = useLaunchT();
@@ -66,58 +69,74 @@ export function CareerLaunchLoginPage() {
   }
 
   return (
-    <TalentAuthLayout
-      badge="Career Launch"
-      backHref="/"
-      title={t("Career Launch 로그인", "Career Launch login", "Career Launch 登录", "Đăng nhập Career Launch", "Career Launch ログイン", "Masuk Career Launch")}
-      subtitle={t(
-        "외국인 유학생을 위한 4주 한국 취업 준비 부트캠프예요.",
-        "A 4-week Korea job-prep bootcamp for international students.",
-        "为外国留学生打造的4周韩国就业准备训练营。",
-        "Trại huấn luyện 4 tuần chuẩn bị xin việc tại Hàn Quốc cho du học sinh.",
-        "外国人留学生のための4週間・韓国就職準備ブートキャンプです。",
-        "Bootcamp persiapan kerja di Korea 4 minggu untuk mahasiswa internasional."
-      )}
-      footer={
-        <p className="text-[14px] text-[#8B95A1]">
-          {t("아직 계정이 없나요?", "Don't have an account yet?", "还没有账号？", "Chưa có tài khoản?", "アカウントがありませんか？", "Belum punya akun?")}{" "}
-          <Link href="/talent/signup?next=/career-launch/dashboard" className="font-bold text-[#0B46E8]">
-            {t("학생으로 가입하기", "Sign up as a student", "以学生身份注册", "Đăng ký với tư cách sinh viên", "学生として登録", "Daftar sebagai mahasiswa")}
-          </Link>
-        </p>
-      }
-    >
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <TalentField label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")}>
-          <input
-            type="email"
-            placeholder={t("이메일 주소", "Email address", "邮箱地址", "Địa chỉ email", "メールアドレス", "Alamat email")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={talentInputClass}
-            required
-            autoComplete="email"
-          />
-        </TalentField>
-        <TalentField label={t("비밀번호", "Password", "密码", "Mật khẩu", "パスワード", "Kata sandi")}>
-          <input
-            type="password"
-            placeholder={t("비밀번호", "Password", "密码", "Mật khẩu", "パスワード", "Kata sandi")}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={talentInputClass}
-            required
-            autoComplete="current-password"
-          />
-        </TalentField>
-        {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
-          {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}
-        </TalentButton>
-      </form>
+    <div className="flex min-h-screen flex-col bg-white">
+      <CareerLaunchHeader />
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
+          <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
+            {/* 왼쪽 — 서비스 소개(무슨 서비스인지 인지) */}
+            <div>
+              <h1 className="break-keep text-[26px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">
+                {t(
+                  "모든 취업 준비생을 위한 4주 취업 준비",
+                  "4-week job prep for every job seeker",
+                  "为所有求职者打造的4周就业准备",
+                  "Chuẩn bị việc làm 4 tuần cho mọi người tìm việc",
+                  "すべての就活生のための4週間就職準備",
+                  "Persiapan kerja 4 minggu untuk semua pencari kerja"
+                )}
+              </h1>
+              <CareerLaunchIntro className="mt-6" />
+            </div>
 
-      <TalentOrDivider />
-      <TalentSocialButtons />
-    </TalentAuthLayout>
+            {/* 오른쪽 — 로그인 카드 */}
+            <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_10px_40px_rgba(11,18,39,0.06)] md:p-7">
+              <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</h2>
+              <p className="mt-1.5 text-[13px] text-[#8B95A1]">{t("학생 계정으로 로그인하고 이어서 진행해요.", "Sign in with your student account to continue.", "使用学生账号登录以继续。", "Đăng nhập bằng tài khoản sinh viên để tiếp tục.", "学生アカウントでログインして続けましょう。", "Masuk dengan akun mahasiswa untuk melanjutkan.")}</p>
+
+              <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                <TalentField label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")}>
+                  <input
+                    type="email"
+                    placeholder={t("이메일 주소", "Email address", "邮箱地址", "Địa chỉ email", "メールアドレス", "Alamat email")}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={talentInputClass}
+                    required
+                    autoComplete="email"
+                  />
+                </TalentField>
+                <TalentField label={t("비밀번호", "Password", "密码", "Mật khẩu", "パスワード", "Kata sandi")}>
+                  <input
+                    type="password"
+                    placeholder={t("비밀번호", "Password", "密码", "Mật khẩu", "パスワード", "Kata sandi")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className={talentInputClass}
+                    required
+                    autoComplete="current-password"
+                  />
+                </TalentField>
+                {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
+                <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
+                  {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}
+                </TalentButton>
+              </form>
+
+              <TalentOrDivider />
+              <TalentSocialButtons />
+
+              <p className="mt-6 text-center text-[14px] text-[#8B95A1]">
+                {t("아직 계정이 없나요?", "Don't have an account yet?", "还没有账号？", "Chưa có tài khoản?", "アカウントがありませんか？", "Belum punya akun?")}{" "}
+                <Link href="/talent/signup?next=/career-launch/dashboard" className="font-bold text-[#0B46E8]">
+                  {t("학생으로 가입하기", "Sign up as a student", "以学生身份注册", "Đăng ký với tư cách sinh viên", "学生として登録", "Daftar sebagai mahasiswa")}
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+      <AplyFooter />
+    </div>
   );
 }

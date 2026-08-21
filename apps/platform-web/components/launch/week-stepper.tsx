@@ -15,8 +15,17 @@ import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../..
 
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
-export function WeekStepper({ steps, sequential = true }: { steps: Step[]; sequential?: boolean }) {
+// 모달로 여는 채팅 라우트(페이지 이동 대신 onOpenChat 호출).
+const CHAT_ROUTE = /\/career-launch\/(diagnosis|jobs|materials|interview)/;
+export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void }) {
   const t = useLaunchT();
+  // 채팅 라우트면 모달을 열고(onOpenChat), 아니면 기존처럼 페이지 이동(Link).
+  const StepAction = ({ href, className, children }: { href: string; className: string; children: React.ReactNode }) =>
+    onOpenChat && CHAT_ROUTE.test(href) ? (
+      <button type="button" onClick={() => onOpenChat(href)} className={className}>{children}</button>
+    ) : (
+      <Link href={href} className={className}>{children}</Link>
+    );
   const stepText = useStepText();
   const actionLabel = useStepActionLabel();
   const jobReason = useJobReason();
@@ -338,18 +347,18 @@ export function WeekStepper({ steps, sequential = true }: { steps: Step[]; seque
                       {t("완료 취소", "Undo complete", "取消完成", "Hủy hoàn thành", "完了を取り消す", "Batalkan selesai")}
                     </button>
                   ) : s.action ? (
-                    <Link href={s.action.href} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">
+                    <StepAction href={s.action.href} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">
                       {t("다시 하기", "Do again", "重新做", "Làm lại", "もう一度する", "Ulangi")}
-                    </Link>
+                    </StepAction>
                   ) : null}
                 </div>
               ) : s.action ? (
-                <Link
+                <StepAction
                   href={s.action.href}
                   className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
                 >
                   {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
-                </Link>
+                </StepAction>
               ) : null}
             </div>
           </li>

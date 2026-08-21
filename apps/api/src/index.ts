@@ -8706,11 +8706,13 @@ app.get("/mbti/result/:slug", async (req, res) => {
   // 실제 공고를 라이브로 추천 — 저장된 고정 IDs 대신 현재 열려있는 공고에서 뽑는다.
   // CIP(APLY 자체·INTERNAL)를 우선하고, 외부(원티드 등)로 채운다. 오래된 결과도 최신 공고가 보인다.
   const roles = (prediction.recommendedRoleNames ?? []) as CandidatePreferredJobRole[];
+  // sourceCompanyName 은 실제 컬럼이 아니라 additionalNotes 에서 파생하는 값 —
+  // select 에 직접 넣으면 PrismaClientValidationError. additionalNotes 를 읽어 아래에서 파생한다.
   const posSelect = {
     id: true,
     title: true,
     preferredJobRole: true,
-    sourceCompanyName: true,
+    additionalNotes: true,
     createdAt: true,
     partnerOrganization: { select: { id: true, name: true } }
   } as const;
@@ -8747,7 +8749,7 @@ app.get("/mbti/result/:slug", async (req, res) => {
     title: p.title,
     preferredJobRole: p.preferredJobRole,
     partnerOrganization: p.partnerOrganization ? { id: p.partnerOrganization.id, name: p.partnerOrganization.name } : null,
-    sourceCompanyName: p.sourceCompanyName ?? null,
+    sourceCompanyName: extractSourceCompanyName(p.additionalNotes) ?? null,
     matchReason: mbtiType ? getMatchReason(mbtiType, p.preferredJobRole as MbtiRoleCode | null) : null
   }));
 
@@ -15795,6 +15797,13 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     default:
       "[이번 면접: 인성·컬처핏 면접] 임원·컬처핏 면접처럼 진행한다. 협업·갈등 해결, 가치관, 일하는 태도에 집중해. (외국인 유학생인 경우) 자주 받는 질문(한국어 업무 수준, 비자·장기 근속 의지, 한국 조직 적응)도 함께 다루되, 한국인 학생에겐 해당 없는 질문은 하지 마. 정답을 캐묻기보다 태도와 진정성을 보는 라운드이니, 편안하되 진솔한 답을 끌어내고 답변 방향을 코치해줘."
   },
+  interview_pressure: {
+    label: "모의면접 · 압박 면접",
+    week: 4,
+    step: "스텝 5 · 압박 면접",
+    default:
+      "[이번 면접: 압박 면접] 까다로운 면접관처럼 진행한다. 학생의 답변에서 (1) 추상적인 부분 (2) 본인 역할이 불분명한 부분 (3) 성과가 과장되어 보이는 부분 (4) 숫자·근거가 불명확한 부분 (5) 이력서·자소서와 답변이 충돌하는 부분을 파고드는 꼬리질문·검증 질문에 집중해. '정말 본인이 주도했나요?', '그 숫자의 근거는?', '기대보다 안 좋았던 경우는?'처럼 압박하되, 인신공격이 아니라 답변의 근거를 확인하는 톤을 유지해. 학생이 흔들려도 마지막엔 어떻게 답하면 더 단단한지 코치해줘. 실전 대비가 목적이야."
+  },
   // ── 주차 자동 피드백(1~3주차 공통) ──
   auto_feedback: {
     label: "자동 피드백 · 1~3주차 공통",
@@ -16197,6 +16206,119 @@ app.post(
       return res.json({ ok: true, reply, done, result });
     } catch (err) {
       console.error("[career-launch/diagnosis-chat] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// ── Week 1 중심 데이터: Experience Bank(경험 채굴) — 4주 내내 재사용되는 핵심 모델 ──
+// AI Career Counselor 가 한 경험을 깊이 파고들어 구조화(experience/period/role/actions/results/skills/competencies)
+// 후 done=true 시 extracted 를 채운다. 서버가 experienceBank 에 append 한다.
+const EXPERIENCE_MINING_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "done", "extracted"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    extracted: {
+      type: "object",
+      additionalProperties: false,
+      required: ["experience", "period", "role", "actions", "results", "skills", "competencies"],
+      properties: {
+        experience: { type: "string" },
+        period: { type: "string" },
+        role: { type: "string" },
+        actions: { type: "array", items: { type: "string" } },
+        results: { type: "array", items: { type: "string" } },
+        skills: { type: "array", items: { type: "string" } },
+        competencies: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const experienceMiningSchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().max(4000) })).max(60),
+  locale: z.string().max(12).optional()
+});
+app.post(
+  "/career-launch/experience-mining",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-exp-mining", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_experience_mining", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = experienceMiningSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, locale } = parsed.data;
+    const uid = req.auth!.userId;
+    try {
+      const [profileSummary, progRow] = await Promise.all([
+        buildCandidateProfileSummary(uid),
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const bank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as unknown[]) : [];
+      const bankSummary = bank
+        .map((e) => (e && typeof e === "object" ? (e as { experience?: string }).experience : null))
+        .filter(Boolean)
+        .join(", ");
+
+      const systemPrompt =
+        "너는 신입·대학생 전문 Career Coach다. 목표는 직무를 성급히 추천하는 게 아니라, 사용자의 경험 하나를 충분히 파악해 Experience Bank 로 구조화하는 것이다.\n" +
+        "대화 원칙:\n" +
+        "1. 한 번에 최대 2개의 질문만 한다.\n" +
+        "2. 추상적인 답변이 나오면 구체적인 사례·행동·수치를 질문한다.\n" +
+        "3. 사용자가 '경험이 없다'고 해도 그대로 받아들이지 않는다. 학교 프로젝트·아르바이트·동아리·개인 프로젝트·취미·SNS·봉사·군대 경험에서도 역량을 찾아낸다.\n" +
+        "4. 답변하지 않은 내용을 임의로 만들어내지 않는다.\n" +
+        "5. 하나의 경험을 충분히(보통 4~6번 주고받으며) 파고든 뒤에만 done=true 로 하고 extracted 를 채운다. 그 전에는 done=false, extracted 는 빈 문자열/빈 배열.\n" +
+        "6. extracted: experience(무엇), period(기간), role(역할), actions(한 일 배열), results(성과 배열 — 확인된 것만), skills(사용 기술), competencies(역량, 예: 커뮤니케이션·문제해결·운영). 존댓말, 따뜻한 톤.\n" +
+        (bankSummary ? `이미 정리된 경험: ${bankSummary}. 새로운 경험을 다룬다.\n` : "") +
+        CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "extracted": { "experience": string, "period": string, "role": string, "actions": string[], "results": string[], "skills": string[], "competencies": string[] } }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고, 대학생활 중 가장 많은 시간을 쏟은 활동을 하나 물어봐)";
+      const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "experience_mining", EXPERIENCE_MINING_SCHEMA)) as {
+        reply?: unknown;
+        done?: unknown;
+        extracted?: Record<string, unknown>;
+      };
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 8) : [];
+      const ex = (pj.extracted ?? {}) as Record<string, unknown>;
+      const experience = typeof ex.experience === "string" ? ex.experience.trim() : "";
+      let saved: Record<string, unknown> | null = null;
+      let experienceBank = bank;
+      if (done && experience) {
+        saved = {
+          id: randomBytes(8).toString("hex"),
+          experience,
+          period: typeof ex.period === "string" ? ex.period.trim() : "",
+          role: typeof ex.role === "string" ? ex.role.trim() : "",
+          actions: strList(ex.actions),
+          results: strList(ex.results),
+          skills: strList(ex.skills),
+          competencies: strList(ex.competencies)
+        };
+        experienceBank = [...bank, saved];
+        const mergedState = { ...progState, experienceBank };
+        await prisma.careerLaunchProgress.upsert({
+          where: { studentUserId: uid },
+          create: { studentUserId: uid, state: mergedState as object },
+          update: { state: mergedState as object }
+        });
+      }
+      return res.json({ ok: true, reply, done, extracted: saved, experienceBank });
+    } catch (err) {
+      console.error("[career-launch/experience-mining] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
     }
   }
@@ -17191,14 +17313,21 @@ app.post("/career-launch/me/employment-status", authenticate, requireCareerEnrol
 // ── Week4 모의면접(유형별: self/job/fit) — 완료한 유형은 progress.interview.practiced 에 누적 ──
 const interviewChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
-  focus: z.enum(["self", "job", "fit"]),
+  focus: z.enum(["self", "job", "fit", "pressure"]),
   locale: z.string().max(10).optional()
 });
 const INTERVIEW_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "done"],
-  properties: { reply: { type: "string" }, done: { type: "boolean" } }
+  required: ["reply", "done", "strengths", "improvements", "modelAnswer"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    // 준비도 리포트 — 점수 없이 정성 피드백. done=true 마무리 시에만 채운다.
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    modelAnswer: { type: "string" }
+  }
 } as const;
 
 app.post(
@@ -17227,7 +17356,8 @@ app.post(
       const systemPrompt =
         (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
         (await getCareerPrompt(`interview_${focus}`)) + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean }' +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "strengths": string[], "improvements": string[], "modelAnswer": string }. ' +
+        'done이 true(면접 마무리)일 때만 strengths(이번 라운드에서 잘한 점 2~3개)·improvements(개선점 2~3개)·modelAnswer(모범 답변 방향 1~2문장)를 채운다. 진행 중이면 strengths·improvements는 빈 배열, modelAnswer는 빈 문자열. 점수·등급은 매기지 말고 격려하는 톤으로.' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "면접관" : "학생"}: ${m.text}`).join("\n")
@@ -17238,21 +17368,44 @@ app.post(
         `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as { reply?: unknown; done?: unknown };
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as {
+        reply?: unknown;
+        done?: unknown;
+        strengths?: unknown;
+        improvements?: unknown;
+        modelAnswer?: unknown;
+      };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 준비도 리포트(점수 없음) — done 마무리 시에만 유효.
+      const cleanList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const strengths = cleanList(pj.strengths);
+      const improvements = cleanList(pj.improvements);
+      const modelAnswer = typeof pj.modelAnswer === "string" ? pj.modelAnswer.trim() : "";
+      const report = done && (strengths.length || improvements.length || modelAnswer)
+        ? { strengths, improvements, modelAnswer }
+        : null;
 
       // 완료 기준: 그 라운드에서 학생이 3문항 이상 답했거나(참여) AI 가 총평으로 마무리(done)하면 완료.
       const answered = messages.filter((m) => m.role === "user").length;
       const roundDone = done || answered >= 3;
       const newlyPracticed = roundDone && !practiced.includes(focus);
       const prevResults = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
-      // AI 총평(done)으로 끝나면 그 총평을 최종 피드백용으로 저장.
+      const prevReports = ((interview as { reports?: unknown }).reports && typeof (interview as { reports?: unknown }).reports === "object"
+        ? (interview as { reports?: unknown }).reports
+        : {}) as Record<string, unknown>;
+      // AI 총평(done)으로 끝나면 총평(results)과 준비도 리포트(reports)를 저장.
+      // results 는 문자열 그대로 유지(최종 피드백 등 기존 소비자 호환), reports 는 신규 구조.
       if (newlyPracticed || done) {
         const nextInterview: Record<string, unknown> = { ...interview };
         if (newlyPracticed) nextInterview.practiced = [...practiced, focus];
-        if (done) nextInterview.results = { ...prevResults, [focus]: reply };
+        if (done) {
+          nextInterview.results = { ...prevResults, [focus]: reply };
+          if (report) nextInterview.reports = { ...prevReports, [focus]: report };
+        }
         const mergedState = { ...progState, interview: nextInterview };
         await prisma.careerLaunchProgress.upsert({
           where: { studentUserId: uid },
@@ -17260,7 +17413,7 @@ app.post(
           update: { state: mergedState as object }
         });
       }
-      return res.json({ ok: true, reply, done });
+      return res.json({ ok: true, reply, done, report });
     } catch (err) {
       console.error("[career-launch/interview-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
@@ -17366,7 +17519,7 @@ app.post(
 );
 
 // ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
-const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접" };
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접" };
 // 프롬프트/형식이 바뀌면 올려서 기존 캐시를 한 번 무효화. 이후로는 생성 1회 후 재사용(토큰 절약).
 const FINAL_FEEDBACK_VERSION = 2;
 app.post(
@@ -17445,6 +17598,1335 @@ app.post(
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate feedback" });
+    }
+  }
+);
+
+// ── Week 1 키스톤: Career Report — 진단·선정직무·프로필을 종합한 점수화 리포트 ──
+// Career Score(6영역 + why) + 강점/부족역량 + Career Roadmap. "받기" 버튼식(생성 1회 캐시).
+// 4주 완주 시 58→82 표현을 위해 최초 생성 점수를 careerScoreBefore 로 한 번 저장한다.
+const CAREER_REPORT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "areas", "why", "strengths", "gaps", "roadmap"],
+  properties: {
+    total: { type: "number" },
+    areas: {
+      type: "object",
+      additionalProperties: false,
+      required: ["direction", "experience", "competency", "resume", "cover", "interview"],
+      properties: {
+        direction: { type: "number" },
+        experience: { type: "number" },
+        competency: { type: "number" },
+        resume: { type: "number" },
+        cover: { type: "number" },
+        interview: { type: "number" }
+      }
+    },
+    why: { type: "string" },
+    strengths: { type: "array", items: { type: "string" } },
+    gaps: { type: "array", items: { type: "string" } },
+    roadmap: {
+      type: "object",
+      additionalProperties: false,
+      required: ["targetRole", "targetCompanies", "recommendedExperience", "toImprove"],
+      properties: {
+        targetRole: { type: "string" },
+        targetCompanies: { type: "array", items: { type: "string" } },
+        recommendedExperience: { type: "array", items: { type: "string" } },
+        toImprove: { type: "array", items: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const CAREER_REPORT_VERSION = 1;
+app.post(
+  "/career-launch/career-report",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-report", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const diagnosis = (progState.diagnosis && typeof progState.diagnosis === "object" ? progState.diagnosis : null) as
+        | { percent?: number; level?: string; strengths?: string[]; improvements?: string[] }
+        | null;
+      // 진단을 마쳐야 리포트를 만들 수 있다(방향 없이는 로드맵 불가).
+      if (!diagnosis || typeof diagnosis.percent !== "number") {
+        return res.json({ ok: true, report: null, needsDiagnosis: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const coverDone = hasCoverContent(normalizeCoverData(coverContent));
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+
+      const expBankSig = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<{ id?: unknown }>).map((e) => e?.id).join(",") : "";
+      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeDone, coverDone, practiced: practiced.length, expBankSig }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.careerReport && typeof progState.careerReport === "object" ? progState.careerReport : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === CAREER_REPORT_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, report: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, report: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const profileSummary = await buildCandidateProfileSummary(uid);
+      const systemPrompt =
+        "너는 취업 코치야. 학생의 자가진단·프로필·선정 직무·현재 서류 상태를 종합해 'Career Report'를 만든다.\n" +
+        "규칙:\n" +
+        "1. areas 6개 영역을 각각 0~100으로 평가한다: direction(직무 방향 명확성), experience(경험 보유), competency(직무 역량), resume(이력서 완성도), cover(자기소개서 완성도), interview(면접 준비). " +
+        "지금은 프로그램 1주차라 아직 이력서·자소서·면접을 시작하지 않았다면 resume·cover·interview는 낮게(20~40) 평가하는 게 자연스럽다. 아래 [현재 서류 상태]를 반영해라.\n" +
+        "2. total 은 6영역을 종합한 전체 Career Score(0~100). 낮아도 반드시 격려하는 톤.\n" +
+        "3. why: 왜 이 점수인지 2~3문장으로 따뜻하게 설명.\n" +
+        "4. strengths: 학생이 이미 가진 강점 2~4개(구체적 근거). gaps: 앞으로 보완할 역량 2~4개.\n" +
+        "5. roadmap: targetRole(선정 직무 중 가장 적합한 1개), targetCompanies(어울리는 기업 유형 2~3개), recommendedExperience(추천 경험 정리 2~3개), toImprove(보완 항목 2~3개).\n" +
+        "존댓말, 응원하는 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "areas": { "direction": number, "experience": number, "competency": number, "resume": number, "cover": number, "interview": number }, "why": string, "strengths": string[], "gaps": string[], "roadmap": { "targetRole": string, "targetCompanies": string[], "recommendedExperience": string[], "toImprove": string[] } }' +
+        aiLangDirective("ko");
+      // Experience Bank — 강점·경험 평가의 근거(Week1 경험 채굴 결과).
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const expText = expBank.length
+        ? expBank
+            .map((e) => {
+              const label = typeof e.experience === "string" ? e.experience : "경험";
+              const role = typeof e.role === "string" && e.role ? ` (${e.role})` : "";
+              const results = Array.isArray(e.results) ? (e.results as string[]).filter((x) => typeof x === "string") : [];
+              const comps = Array.isArray(e.competencies) ? (e.competencies as string[]).filter((x) => typeof x === "string") : [];
+              return `- ${label}${role}: 성과 ${results.join(", ") || "-"} / 역량 ${comps.join(", ") || "-"}`;
+            })
+            .join("\n")
+        : "(아직 경험 채굴 전)";
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[자가진단]\n준비도 ${diagnosis.percent}% / ${diagnosis.level ?? ""}\n강점: ${(diagnosis.strengths ?? []).join(", ") || "-"}\n개선: ${(diagnosis.improvements ?? []).join(", ") || "-"}\n\n` +
+        `[Experience Bank]\n${expText}\n\n` +
+        `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(아직 미선정)"}\n\n` +
+        `[현재 서류 상태]\n이력서 작성: ${resumeDone ? "완료" : "미완료"} / 자기소개서: ${coverDone ? "완료" : "미완료"} / 모의면접 연습: ${practiced.length}회`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "career_report", CAREER_REPORT_SCHEMA)) as {
+        total?: unknown;
+        areas?: Record<string, unknown>;
+        why?: unknown;
+        strengths?: unknown;
+        gaps?: unknown;
+        roadmap?: Record<string, unknown>;
+      };
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const a = (pj.areas ?? {}) as Record<string, unknown>;
+      const rm = (pj.roadmap ?? {}) as Record<string, unknown>;
+      const data = {
+        total: clampScore(pj.total),
+        areas: {
+          direction: clampScore(a.direction),
+          experience: clampScore(a.experience),
+          competency: clampScore(a.competency),
+          resume: clampScore(a.resume),
+          cover: clampScore(a.cover),
+          interview: clampScore(a.interview)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        strengths: strList(pj.strengths),
+        gaps: strList(pj.gaps),
+        roadmap: {
+          targetRole: typeof rm.targetRole === "string" ? rm.targetRole.trim() : "",
+          targetCompanies: strList(rm.targetCompanies),
+          recommendedExperience: strList(rm.recommendedExperience),
+          toImprove: strList(rm.toImprove)
+        }
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 완주 시 58→82 표현용 — 최초 생성 점수를 한 번만 before 로 저장.
+      const prevBefore = typeof progState.careerScoreBefore === "number" ? (progState.careerScoreBefore as number) : null;
+      const mergedState: Record<string, unknown> = {
+        ...progState,
+        careerReport: { v: CAREER_REPORT_VERSION, sig: currentSig, data },
+        careerScoreBefore: prevBefore ?? data.total
+      };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, report: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/career-report] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to generate report" });
+    }
+  }
+);
+
+// ── Week 2 키스톤: Resume Score — 완성된 이력서를 4항목으로 평가 ──
+// 구체성/성과표현/직무연관성/가독성 + why + 개선 팁. "받기" 버튼식(생성 1회 캐시).
+const RESUME_SCORE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "specificity", "achievement", "relevance", "readability", "why", "tips"],
+  properties: {
+    total: { type: "number" },
+    specificity: { type: "number" },
+    achievement: { type: "number" },
+    relevance: { type: "number" },
+    readability: { type: "number" },
+    why: { type: "string" },
+    tips: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const RESUME_SCORE_VERSION = 1;
+app.post(
+  "/career-launch/resume-score",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-resume-score", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
+        return res.json({ ok: true, score: null, needsResume: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const cached = (scores.resume && typeof scores.resume === "object" ? scores.resume : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === RESUME_SCORE_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, score: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 채용 담당자 관점의 이력서 코치야. 학생의 이력서를 4항목으로 0~100 평가한다: " +
+        "specificity(구체성 — 무엇을 했는지 명확한가), achievement(성과 표현 — 숫자·결과로 드러나는가), relevance(직무 연관성 — 선정 직무와 얼마나 맞는가), readability(가독성 — 구조·표현이 깔끔한가). " +
+        "total 은 종합 점수(0~100). why 는 왜 이 점수인지 2~3문장. tips 는 바로 고칠 구체적 개선 제안 2~4개(예: '동아리 활동에 참여 인원·기간·성과 수치를 추가'). 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "specificity": number, "achievement": number, "relevance": number, "readability": number, "why": string, "tips": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[이력서]\n${JSON.stringify(resumeContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_score", RESUME_SCORE_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+      const data = {
+        total: clampScore(pj.total),
+        breakdown: {
+          specificity: clampScore(pj.specificity),
+          achievement: clampScore(pj.achievement),
+          relevance: clampScore(pj.relevance),
+          readability: clampScore(pj.readability)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        tips: strList(pj.tips)
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, scores: { ...scores, resume: { v: RESUME_SCORE_VERSION, sig: currentSig, data } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, score: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/resume-score] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to score resume" });
+    }
+  }
+);
+
+// ── Week 3 키스톤: Cover Letter Score — 자기소개서를 5항목으로 평가 ──
+// 논리성/구체성/직무연관성/기업이해도/진정성 + why + AI티·추상 표현 지적 + 개선 팁.
+const COVER_SCORE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "logic", "specificity", "relevance", "companyUnderstanding", "authenticity", "why", "aiFlags", "tips"],
+  properties: {
+    total: { type: "number" },
+    logic: { type: "number" },
+    specificity: { type: "number" },
+    relevance: { type: "number" },
+    companyUnderstanding: { type: "number" },
+    authenticity: { type: "number" },
+    why: { type: "string" },
+    aiFlags: { type: "array", items: { type: "string" } },
+    tips: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const COVER_SCORE_VERSION = 1;
+app.post(
+  "/career-launch/cover-score",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-cover-score", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, score: null, needsCover: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ cover: coverContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const cached = (scores.cover && typeof scores.cover === "object" ? scores.cover : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === COVER_SCORE_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, score: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 5항목으로 0~100 평가한다: " +
+        "logic(논리성 — 흐름·인과가 자연스러운가), specificity(구체성 — 경험·사례가 구체적인가), relevance(직무 연관성 — 선정 직무와 맞는가), companyUnderstanding(기업 이해도 — 회사·직무 이해가 드러나는가), authenticity(진정성 — 자기 이야기로 진솔한가). " +
+        "total 은 종합(0~100). why 는 2~3문장. aiFlags 는 'AI 티가 나거나 너무 추상적인 표현'을 짚어준다(있으면 2~4개, 없으면 빈 배열). tips 는 바로 고칠 개선 제안 2~4개. 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "logic": number, "specificity": number, "relevance": number, "companyUnderstanding": number, "authenticity": number, "why": string, "aiFlags": string[], "tips": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[자기소개서]\n${JSON.stringify(coverContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_score", COVER_SCORE_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+      const data = {
+        total: clampScore(pj.total),
+        breakdown: {
+          logic: clampScore(pj.logic),
+          specificity: clampScore(pj.specificity),
+          relevance: clampScore(pj.relevance),
+          companyUnderstanding: clampScore(pj.companyUnderstanding),
+          authenticity: clampScore(pj.authenticity)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        aiFlags: strList(pj.aiFlags),
+        tips: strList(pj.tips)
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, scores: { ...scores, cover: { v: COVER_SCORE_VERSION, sig: currentSig, data } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, score: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/cover-score] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to score cover letter" });
+    }
+  }
+);
+
+// ── Week 4 키스톤: Interview Score — 모의면접 연습을 종합해 점수화 ──
+// 답변구조/구체성/직무이해도/논리성/설득력 + why + 잘한 답변/개선 답변/다시 연습할 질문 TOP5.
+const INTERVIEW_SCORE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["total", "structure", "specificity", "jobUnderstanding", "logic", "persuasiveness", "why", "good", "improve", "retryTop5"],
+  properties: {
+    total: { type: "number" },
+    structure: { type: "number" },
+    specificity: { type: "number" },
+    jobUnderstanding: { type: "number" },
+    logic: { type: "number" },
+    persuasiveness: { type: "number" },
+    why: { type: "string" },
+    good: { type: "array", items: { type: "string" } },
+    improve: { type: "array", items: { type: "string" } },
+    retryTop5: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const INTERVIEW_SCORE_VERSION = 1;
+app.post(
+  "/career-launch/interview-score",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-interview-score", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown; reports?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      if (practiced.length === 0) {
+        return res.json({ ok: true, score: null, needsInterview: true });
+      }
+      const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
+      const reports = (interview.reports && typeof interview.reports === "object" ? interview.reports : {}) as Record<string, unknown>;
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ practiced, results, reports, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const cached = (scores.interview && typeof scores.interview === "object" ? scores.interview : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === INTERVIEW_SCORE_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, score: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const roundText = practiced
+        .map((f) => `- ${INTERVIEW_TYPE_LABEL[f] ?? f}: ${results[f] ?? "(총평 없음)"}${reports[f] ? `\n  리포트: ${JSON.stringify(reports[f])}` : ""}`)
+        .join("\n");
+      const systemPrompt =
+        "너는 면접관 관점의 코치야. 학생의 모의면접 연습(라운드별 총평·리포트)을 종합해 5항목으로 0~100 평가한다: " +
+        "structure(답변 구조 — 두괄식·STAR 등 짜임새), specificity(구체성 — 사례·수치), jobUnderstanding(직무 이해도), logic(논리성), persuasiveness(설득력). " +
+        "total 은 종합(0~100). why 는 2~3문장. good 은 잘한 답변/태도 2~4개, improve 는 개선할 답변 2~4개, retryTop5 는 '다시 연습하면 좋을 질문' 최대 5개(질문 형태로). 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "structure": number, "specificity": number, "jobUnderstanding": number, "logic": number, "persuasiveness": number, "why": string, "good": string[], "improve": string[], "retryTop5": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt =
+        `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n` +
+        `[모의면접 연습 종합]\n${roundText}\n\n` +
+        `[이력서 요약]\n${JSON.stringify(resumeContent).slice(0, 1500)}\n\n[자기소개서 요약]\n${JSON.stringify(coverContent).slice(0, 1500)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "interview_score", INTERVIEW_SCORE_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown, n = 5) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, n) : [];
+      const data = {
+        total: clampScore(pj.total),
+        breakdown: {
+          structure: clampScore(pj.structure),
+          specificity: clampScore(pj.specificity),
+          jobUnderstanding: clampScore(pj.jobUnderstanding),
+          logic: clampScore(pj.logic),
+          persuasiveness: clampScore(pj.persuasiveness)
+        },
+        why: typeof pj.why === "string" ? pj.why.trim() : "",
+        good: strList(pj.good, 4),
+        improve: strList(pj.improve, 4),
+        retryTop5: strList(pj.retryTop5, 5)
+      };
+      if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, scores: { ...scores, interview: { v: INTERVIEW_SCORE_VERSION, sig: currentSig, data } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, score: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/interview-score] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to score interview" });
+    }
+  }
+);
+
+// ── 완주 요약: Career Score before→after + 체크리스트 (저장된 점수 종합, 읽기 전용) ──
+app.get(
+  "/career-launch/completion",
+  authenticate,
+  requireCareerEnrollment,
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const scores = (progState.scores && typeof progState.scores === "object" ? progState.scores : {}) as Record<string, unknown>;
+      const getData = (k: string) => {
+        const s = (scores[k] && typeof scores[k] === "object" ? scores[k] : null) as { data?: unknown } | null;
+        return s && s.data && typeof s.data === "object" ? (s.data as Record<string, unknown>) : null;
+      };
+      const report = (progState.careerReport && typeof progState.careerReport === "object" ? (progState.careerReport as { data?: unknown }).data : null) as
+        | { total?: number; areas?: Record<string, number> }
+        | null;
+      const resume = getData("resume");
+      const cover = getData("cover");
+      const interviewScore = getData("interview");
+      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
+      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+      const before = num(progState.careerScoreBefore);
+      // after — Week1 방향/경험/역량(안정적)에 완성된 이력서·자소서·면접 실제 점수를 합쳐 재산정.
+      const areas = report?.areas ?? {};
+      const afterParts = [num(areas.direction), num(areas.experience), num(areas.competency), num(resume?.total), num(cover?.total), num(interviewScore?.total)].filter(
+        (x): x is number => x !== null
+      );
+      const after = afterParts.length ? Math.round(afterParts.reduce((a, b) => a + b, 0) / afterParts.length) : null;
+
+      const checklist = {
+        direction: Boolean(report),
+        resume: Boolean(resume),
+        cover: Boolean(cover),
+        interview: Boolean(interviewScore),
+        diagnosis: Boolean(progState.diagnosis)
+      };
+      // 완주 = 4주 핵심 점수(리포트·이력서·자소서·면접)가 모두 생성됨.
+      const completed = checklist.direction && checklist.resume && checklist.cover && checklist.interview;
+
+      return res.json({
+        ok: true,
+        completed,
+        before,
+        after,
+        interviewCount: practiced.length,
+        checklist
+      });
+    } catch (err) {
+      console.error("[career-launch/completion] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to load completion" });
+    }
+  }
+);
+
+// ── Week 1: Career Recommendation — Experience Bank·프로필 근거 직무 추천 TOP(fit%·강점·부족) ──
+const JOB_RECO_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["jobs"],
+  properties: {
+    jobs: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["role", "fit", "reason", "strengths", "gaps", "toPrepare", "whatTheyDo"],
+        properties: {
+          role: { type: "string" },
+          fit: { type: "number" },
+          reason: { type: "string" },
+          strengths: { type: "array", items: { type: "string" } },
+          gaps: { type: "array", items: { type: "string" } },
+          toPrepare: { type: "array", items: { type: "string" } },
+          whatTheyDo: { type: "string" }
+        }
+      }
+    }
+  }
+} as const;
+const JOB_RECO_VERSION = 1;
+app.post(
+  "/career-launch/job-recommendation",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-job-reco", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, profileSummary] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        buildCandidateProfileSummary(uid)
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const diagnosis = (progState.diagnosis && typeof progState.diagnosis === "object" ? progState.diagnosis : null) as { percent?: number } | null;
+      // 경험 채굴이나 진단 중 하나는 있어야 추천 근거가 된다.
+      if (expBank.length === 0 && !diagnosis) {
+        return res.json({ ok: true, recommendation: null, needsInput: true });
+      }
+      const expSig = expBank.map((e) => e?.id).join(",");
+      const currentSig = simpleHash(JSON.stringify({ expSig, diagnosis, profile: profileSummary?.slice(0, 200) }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.jobRecommendation && typeof progState.jobRecommendation === "object" ? progState.jobRecommendation : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === JOB_RECO_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, recommendation: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, recommendation: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const expText = expBank.length
+        ? expBank
+            .map((e) => {
+              const label = typeof e.experience === "string" ? e.experience : "경험";
+              const comps = Array.isArray(e.competencies) ? (e.competencies as string[]).filter((x) => typeof x === "string") : [];
+              const skills = Array.isArray(e.skills) ? (e.skills as string[]).filter((x) => typeof x === "string") : [];
+              return `- ${label}: 역량 ${comps.join(", ") || "-"} / 기술 ${skills.join(", ") || "-"}`;
+            })
+            .join("\n")
+        : "(경험 채굴 전)";
+      const systemPrompt =
+        "너는 신입·대학생 전문 Career Coach다. 사용자의 Career Profile 과 Experience Bank 를 분석해 추천 직무 3~5개를 제안한다.\n" +
+        "평가 기준: 경험 연관성 30%, 보유 역량 25%, 관심도 20%, 현재 취업 가능성 15%, 추가 준비 난이도 10%.\n" +
+        "각 직무마다: role(직무명), fit(0~100 적합도), reason(추천 이유 1~2문장), strengths(현재 가진 강점 2~3), gaps(부족한 역량 2~3), toPrepare(앞으로 준비할 것 2~3), whatTheyDo(그 직무가 실제로 하는 일 1문장).\n" +
+        "사용자의 경험에 근거하지 않은 내용은 지어내지 않는다. fit 높은 순으로 정렬. 존댓말, 격려 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "jobs": [ { "role": string, "fit": number, "reason": string, "strengths": string[], "gaps": string[], "toPrepare": string[], "whatTheyDo": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = (profileSummary ? `[Career Profile]\n${profileSummary}\n\n` : "") + `[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "job_recommendation", JOB_RECO_SCHEMA)) as { jobs?: unknown };
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const jobs = Array.isArray(pj.jobs)
+        ? (pj.jobs as Array<Record<string, unknown>>)
+            .map((j) => ({
+              role: typeof j.role === "string" ? j.role.trim() : "",
+              fit: clampScore(j.fit),
+              reason: typeof j.reason === "string" ? j.reason.trim() : "",
+              strengths: strList(j.strengths),
+              gaps: strList(j.gaps),
+              toPrepare: strList(j.toPrepare),
+              whatTheyDo: typeof j.whatTheyDo === "string" ? j.whatTheyDo.trim() : ""
+            }))
+            .filter((j) => j.role)
+            .sort((a, b) => b.fit - a.fit)
+            .slice(0, 5)
+        : [];
+      if (jobs.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const data = { jobs };
+
+      const mergedState = { ...progState, jobRecommendation: { v: JOB_RECO_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, recommendation: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/job-recommendation] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to recommend" });
+    }
+  }
+);
+
+// ── Week 2: Recruiter 10 Second Test — 채용담당자가 이력서를 10초 훑은 첫인상 ──
+const RECRUITER_10S_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["impression", "standout", "roleClear", "roleNote", "unclear", "wantToAsk"],
+  properties: {
+    impression: { type: "string" },
+    standout: { type: "string" },
+    roleClear: { type: "boolean" },
+    roleNote: { type: "string" },
+    unclear: { type: "array", items: { type: "string" } },
+    wantToAsk: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const RECRUITER_10S_VERSION = 1;
+app.post(
+  "/career-launch/recruiter-10s",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-recruiter-10s", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
+        return res.json({ ok: true, result: null, needsResume: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.recruiter10s && typeof progState.recruiter10s === "object" ? progState.recruiter10s : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === RECRUITER_10S_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, result: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 지원자의 이력서를 처음 보는 채용담당자다. 이 이력서를 딱 10초 동안 훑어봤다고 가정하고 아래에만 답한다.\n" +
+        "1. impression: 이 지원자는 어떤 사람으로 기억되는가(1문장). 2. standout: 가장 눈에 들어온 경험(1문장). 3. roleClear: 지원 직무가 명확히 보이는가(true/false), roleNote: 그 근거(1문장). 4. unclear: 이해되지 않거나 애매한 부분 2~3개. 5. wantToAsk: 인터뷰에서 가장 물어보고 싶은 것 2~3개. 솔직하되 존댓말·건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "impression": string, "standout": string, "roleClear": boolean, "roleNote": string, "unclear": string[], "wantToAsk": string[] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[이력서]\n${JSON.stringify(resumeContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "recruiter_10s", RECRUITER_10S_SCHEMA)) as Record<string, unknown>;
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      const data = {
+        impression: typeof pj.impression === "string" ? pj.impression.trim() : "",
+        standout: typeof pj.standout === "string" ? pj.standout.trim() : "",
+        roleClear: pj.roleClear === true,
+        roleNote: typeof pj.roleNote === "string" ? pj.roleNote.trim() : "",
+        unclear: strList(pj.unclear),
+        wantToAsk: strList(pj.wantToAsk)
+      };
+      if (!data.impression) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, recruiter10s: { v: RECRUITER_10S_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/recruiter-10s] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 2: JD Match — 관심 공고(JD)와 이력서·Experience Bank 대조 ──
+const JD_MATCH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["matchPercent", "classification", "emphasize"],
+  properties: {
+    matchPercent: { type: "number" },
+    classification: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["item", "status"],
+        properties: { item: { type: "string" }, status: { type: "string", enum: ["matched", "partial", "missing"] } }
+      }
+    },
+    emphasize: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["experience", "why"],
+        properties: { experience: { type: "string" }, why: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const jdMatchSchema = z.object({ jd: z.string().trim().min(20).max(6000) });
+app.post(
+  "/career-launch/jd-match",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-jd-match", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const parsed = jdMatchSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
+        return res.json({ ok: true, result: null, needsResume: true });
+      }
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const expText = expBank.length
+        ? expBank.map((e) => (typeof e.experience === "string" ? `- ${e.experience}` : "")).filter(Boolean).join("\n")
+        : "(없음)";
+
+      const systemPrompt =
+        "너는 채용 매칭 분석가다. 아래 채용공고(JD)와 지원자의 Resume·Experience Bank 를 비교한다.\n" +
+        "1. JD에서 주요 업무·필수 역량·우대 역량·핵심 키워드를 추출한다.\n" +
+        "2. 각 요구항목을 Resume 기준으로 matched(충족)/partial(부분)/missing(없음)으로 분류한다(classification).\n" +
+        "3. matchPercent: 전체 요구 대비 충족도(0~100).\n" +
+        "4. emphasize: Experience Bank 에서 이 공고에 강조하면 좋은 경험과 이유(2~4개). Resume·Experience Bank 에 없는 경험을 지어내지 않는다.\n" +
+        "존댓말, 건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "matchPercent": number, "classification": [ { "item": string, "status": "matched"|"partial"|"missing" } ], "emphasize": [ { "experience": string, "why": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[채용공고 JD]\n${parsed.data.jd}\n\n[이력서]\n${JSON.stringify(resumeContent)}\n\n[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "jd_match", JD_MATCH_SCHEMA)) as {
+        matchPercent?: unknown;
+        classification?: unknown;
+        emphasize?: unknown;
+      };
+      const classification = Array.isArray(pj.classification)
+        ? (pj.classification as Array<Record<string, unknown>>)
+            .map((c) => ({
+              item: typeof c.item === "string" ? c.item.trim() : "",
+              status: c.status === "matched" || c.status === "partial" || c.status === "missing" ? (c.status as string) : "partial"
+            }))
+            .filter((c) => c.item)
+            .slice(0, 20)
+        : [];
+      const emphasize = Array.isArray(pj.emphasize)
+        ? (pj.emphasize as Array<Record<string, unknown>>)
+            .map((e) => ({ experience: typeof e.experience === "string" ? e.experience.trim() : "", why: typeof e.why === "string" ? e.why.trim() : "" }))
+            .filter((e) => e.experience)
+            .slice(0, 5)
+        : [];
+      const data = { matchPercent: Math.max(0, Math.min(100, Math.round(Number(pj.matchPercent)) || 0)), classification, emphasize };
+      if (classification.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      // 마지막 분석 저장(재방문 표시용).
+      const mergedState = { ...progState, jdMatch: { data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data });
+    } catch (err) {
+      console.error("[career-launch/jd-match] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 3: Story Bank — Experience Bank 를 STAR+Learning 구조의 카테고리별 이야기로 ──
+const STORY_BANK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["stories"],
+  properties: {
+    stories: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["category", "title", "situation", "task", "action", "result", "learning", "usableFor"],
+        properties: {
+          category: { type: "string" },
+          title: { type: "string" },
+          situation: { type: "string" },
+          task: { type: "string" },
+          action: { type: "string" },
+          result: { type: "string" },
+          learning: { type: "string" },
+          usableFor: { type: "array", items: { type: "string" } }
+        }
+      }
+    }
+  }
+} as const;
+const STORY_BANK_VERSION = 1;
+app.post(
+  "/career-launch/story-bank",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-story-bank", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      if (expBank.length === 0) {
+        return res.json({ ok: true, stories: null, needsExperience: true });
+      }
+      const expSig = expBank.map((e) => e?.id).join(",");
+      const currentSig = simpleHash(JSON.stringify({ expSig }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.storyBank && typeof progState.storyBank === "object" ? progState.storyBank : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === STORY_BANK_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, stories: (cached.data as { stories?: unknown }).stories ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, stories: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const expText = expBank
+        .map((e) => {
+          const label = typeof e.experience === "string" ? e.experience : "경험";
+          const actions = Array.isArray(e.actions) ? (e.actions as string[]).filter((x) => typeof x === "string") : [];
+          const results = Array.isArray(e.results) ? (e.results as string[]).filter((x) => typeof x === "string") : [];
+          return `- ${label}: 한 일 ${actions.join(", ") || "-"} / 성과 ${results.join(", ") || "-"}`;
+        })
+        .join("\n");
+      const systemPrompt =
+        "너는 자기소개서·면접용 Story Coach다. 지원자의 Experience Bank 를 분석해 자소서·면접에서 활용할 Story Bank 를 만든다.\n" +
+        "각 이야기를 STAR+Learning 구조로 정리한다: category(성과/실패/갈등/문제해결/리더십/도전/협업/고객 중 하나), title(짧은 제목), situation, task, action, result, learning. " +
+        "usableFor: 이 이야기를 쓸 수 있는 자소서/면접 질문 유형 1~3개. " +
+        "사용자가 제공하지 않은 상황·결과는 지어내지 않는다. 경험 하나가 여러 이야기가 될 수 있다. 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "stories": [ { "category": string, "title": string, "situation": string, "task": string, "action": string, "result": string, "learning": string, "usableFor": string[] } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[Experience Bank]\n${expText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "story_bank", STORY_BANK_SCHEMA)) as { stories?: unknown };
+      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3) : [];
+      const stories = Array.isArray(pj.stories)
+        ? (pj.stories as Array<Record<string, unknown>>)
+            .map((s) => ({
+              category: str(s.category),
+              title: str(s.title),
+              situation: str(s.situation),
+              task: str(s.task),
+              action: str(s.action),
+              result: str(s.result),
+              learning: str(s.learning),
+              usableFor: strList(s.usableFor)
+            }))
+            .filter((s) => s.title || s.situation)
+            .slice(0, 12)
+        : [];
+      if (stories.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, storyBank: { v: STORY_BANK_VERSION, sig: currentSig, data: { stories } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, stories, stale: false });
+    } catch (err) {
+      console.error("[career-launch/story-bank] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 3: Cover Review — Generic Expression Check + Recruiter Red Team ──
+const COVER_REVIEW_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["generic", "redTeam"],
+  properties: {
+    generic: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["phrase", "why", "suggestion"],
+        properties: { phrase: { type: "string" }, why: { type: "string" }, suggestion: { type: "string" } }
+      }
+    },
+    redTeam: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["risk", "note"],
+        properties: { risk: { type: "string" }, note: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const COVER_REVIEW_VERSION = 1;
+app.post(
+  "/career-launch/cover-review",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-cover-review", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      if (!hasCoverContent(normalizeCoverData(coverContent))) {
+        return res.json({ ok: true, result: null, needsCover: true });
+      }
+      const currentSig = simpleHash(JSON.stringify({ cover: coverContent }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.coverReview && typeof progState.coverReview === "object" ? progState.coverReview : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === COVER_REVIEW_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, result: cached.data, stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 자기소개서 심사관이다. 아래 자기소개서를 두 관점으로 검토한다.\n" +
+        "1. generic(Generic Expression Check): '혁신적인 기업', '귀사의 비전에 공감', '성장하고 싶습니다', '열정적으로' 처럼 누구에게나 적용 가능한 문장·추상적 표현·근거 없는 미사여구·반복·AI가 쓴 듯 획일적인 문장을 찾는다. 각 항목: phrase(문제 문장/표현), why(왜 약한지), suggestion(지원자의 실제 경험을 활용한 개선 방향). 2~5개.\n" +
+        "2. redTeam(Recruiter Red Team): 매우 까다로운 채용담당자 관점으로 의심스럽거나 설득력이 약한 부분을 찾는다(본인 경험인가/역할이 명확한가/결과가 과장은 아닌가/직무와 연결되는가/다른 회사에도 그대로 낼 내용인가). 각 항목: risk(위험한 부분), note(지적). 가장 위험한 것 최대 5개.\n" +
+        "단순 문법 검사가 아니다. 존댓말, 건설적. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "generic": [ { "phrase": string, "why": string, "suggestion": string } ], "redTeam": [ { "risk": string, "note": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[자기소개서]\n${JSON.stringify(coverContent)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_review", COVER_REVIEW_SCHEMA)) as { generic?: unknown; redTeam?: unknown };
+      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const generic = Array.isArray(pj.generic)
+        ? (pj.generic as Array<Record<string, unknown>>).map((g) => ({ phrase: str(g.phrase), why: str(g.why), suggestion: str(g.suggestion) })).filter((g) => g.phrase).slice(0, 6)
+        : [];
+      const redTeam = Array.isArray(pj.redTeam)
+        ? (pj.redTeam as Array<Record<string, unknown>>).map((r) => ({ risk: str(r.risk), note: str(r.note) })).filter((r) => r.risk).slice(0, 5)
+        : [];
+      const data = { generic, redTeam };
+      if (generic.length === 0 && redTeam.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, coverReview: { v: COVER_REVIEW_VERSION, sig: currentSig, data } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, result: data, stale: false });
+    } catch (err) {
+      console.error("[career-launch/cover-review] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 4: Interview Answer Bank — 핵심 면접 질문 8개의 내 모범 답변(면접 노트) ──
+const ANSWER_BANK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["answers"],
+  properties: {
+    answers: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["question", "answer"],
+        properties: { question: { type: "string" }, answer: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const ANSWER_BANK_VERSION = 1;
+app.post(
+  "/career-launch/answer-bank",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-answer-bank", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const storyBank = (progState.storyBank && typeof progState.storyBank === "object" ? (progState.storyBank as { data?: { stories?: unknown } }).data?.stories : null);
+      const stories = Array.isArray(storyBank) ? (storyBank as Array<Record<string, unknown>>) : [];
+      // 이력서나 Story Bank 중 하나는 있어야 답변을 만든다.
+      if (!resumeDone && stories.length === 0) {
+        return res.json({ ok: true, answers: null, needsInput: true });
+      }
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, stories }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.answerBank && typeof progState.answerBank === "object" ? progState.answerBank : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === ANSWER_BANK_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, answers: (cached.data as { answers?: unknown }).answers ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, answers: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const storyText = stories.length
+        ? stories.map((s) => `- [${typeof s.category === "string" ? s.category : ""}] ${typeof s.title === "string" ? s.title : ""}`).join("\n")
+        : "(없음)";
+      const systemPrompt =
+        "너는 면접 코치다. 학생의 이력서·자기소개서·Story Bank 를 근거로, 아래 8개 핵심 면접 질문에 대한 '내 모범 답변'을 학생 1인칭으로 작성해 면접 노트를 만든다.\n" +
+        "질문: 1) 1분 자기소개 2) 지원 동기 3) 가장 큰 성과 4) 갈등 경험 5) 실패 경험 6) 리더십 경험 7) 나의 강점 8) 나의 약점.\n" +
+        "규칙: 학생이 실제로 가진 경험만 사용하고 없는 사실을 지어내지 않는다. 각 답변은 두괄식·STAR 로 자연스럽게, 3~6문장. 관련 경험이 부족한 질문은 '어떤 경험을 준비하면 좋은지' 방향을 대신 적는다. 존댓말·진솔한 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "answers": [ { "question": string, "answer": string } ] } (8개)' +
+        aiLangDirective("ko");
+      const userPrompt = `[이력서]\n${JSON.stringify(resumeContent).slice(0, 2500)}\n\n[자기소개서]\n${JSON.stringify(coverContent).slice(0, 2500)}\n\n[Story Bank]\n${storyText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "answer_bank", ANSWER_BANK_SCHEMA)) as { answers?: unknown };
+      const answers = Array.isArray(pj.answers)
+        ? (pj.answers as Array<Record<string, unknown>>)
+            .map((a) => ({ question: typeof a.question === "string" ? a.question.trim() : "", answer: typeof a.answer === "string" ? a.answer.trim() : "" }))
+            .filter((a) => a.question && a.answer)
+            .slice(0, 8)
+        : [];
+      if (answers.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, answerBank: { v: ANSWER_BANK_VERSION, sig: currentSig, data: { answers } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, answers, stale: false });
+    } catch (err) {
+      console.error("[career-launch/answer-bank] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 4: Interview Retry — 특정 질문 재답변 → 채점·힌트(before→after 개선) ──
+const INTERVIEW_RETRY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["score", "feedback", "hint", "good", "improve"],
+  properties: {
+    score: { type: "number" },
+    feedback: { type: "string" },
+    hint: { type: "string" },
+    good: { type: "array", items: { type: "string" } },
+    improve: { type: "array", items: { type: "string" } }
+  }
+} as const;
+const interviewRetrySchema = z.object({
+  question: z.string().trim().min(2).max(600),
+  answer: z.string().trim().min(1).max(4000),
+  locale: z.string().max(12).optional()
+});
+app.post(
+  "/career-launch/interview-retry",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-interview-retry", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_interview_retry", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = interviewRetrySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const uid = req.auth!.userId;
+    const { question, answer, locale } = parsed.data;
+    try {
+      const [profileSummary, resumeRow, coverRow] = await Promise.all([
+        buildCandidateProfileSummary(uid),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const systemPrompt =
+        "너는 면접관 겸 코치다. 학생이 특정 면접 질문에 '다시 답한' 답변을 평가한다.\n" +
+        "score: 이 답변의 완성도 0~100. feedback: 총평 1~2문장. hint: 다음에 더 잘 답하기 위한 '답변 구조' 힌트 1문장(예: 두괄식으로 결론 먼저, STAR로 상황→행동→결과). good: 잘한 점 1~3개. improve: 개선할 점 1~3개. " +
+        "학생이 말한 내용만 근거로 평가하고, 없는 사실을 지어내지 않는다. 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "feedback": string, "hint": string, "good": string[], "improve": string[] }' +
+        aiLangDirective(locale);
+      const userPrompt =
+        (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        `[이력서 요약]\n${JSON.stringify(resumeContent).slice(0, 1200)}\n[자기소개서 요약]\n${JSON.stringify(coverContent).slice(0, 1200)}\n\n` +
+        `[면접 질문]\n${question}\n\n[학생의 답변]\n${answer}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "interview_retry", INTERVIEW_RETRY_SCHEMA)) as Record<string, unknown>;
+      const clampScore = (v: unknown) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0));
+      const strList = (v: unknown) =>
+        Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 3) : [];
+      const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
+      if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({
+        ok: true,
+        result: {
+          score: clampScore(pj.score),
+          feedback,
+          hint: typeof pj.hint === "string" ? pj.hint.trim() : "",
+          good: strList(pj.good),
+          improve: strList(pj.improve)
+        }
+      });
+    } catch (err) {
+      console.error("[career-launch/interview-retry] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 2: Resume Bullet 개선 — 거친 문장을 Action/Method/Result 로 다듬어 Before→After ──
+const RESUME_BULLET_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["after", "tips"],
+  properties: { after: { type: "string" }, tips: { type: "array", items: { type: "string" } } }
+} as const;
+const resumeBulletSchema = z.object({ bullet: z.string().trim().min(2).max(600), locale: z.string().max(12).optional() });
+app.post(
+  "/career-launch/resume-bullet",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-resume-bullet", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_resume_bullet", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = resumeBulletSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const systemPrompt =
+        "너는 신입 채용 전문 Resume Coach다. 학생이 쓴 거친 이력서 문장 하나를 채용담당자가 읽기 좋은 개조식 불렛으로 다듬는다.\n" +
+        "규칙: Action(무엇을)·Method(어떻게)·Result(결과) 구조가 자연스럽게 드러나게. **학생이 말하지 않은 숫자·성과는 절대 지어내지 않는다**(확인 안 된 수치 금지). 명사형 종결. after 는 다듬은 문장 1개. tips 는 이 문장을 더 강하게 만들려면 학생이 추가하면 좋을 구체 정보 2~3개(예: '콘텐츠 제작 개수', '기간', '팔로워 변화'). 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "after": string, "tips": string[] }' +
+        aiLangDirective(parsed.data.locale);
+      const userPrompt = `[학생이 쓴 문장]\n${parsed.data.bullet}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_bullet", RESUME_BULLET_SCHEMA)) as { after?: unknown; tips?: unknown };
+      const after = typeof pj.after === "string" ? pj.after.trim() : "";
+      const tips = Array.isArray(pj.tips) ? (pj.tips as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : [];
+      if (!after) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, before: parsed.data.bullet, after, tips });
+    } catch (err) {
+      console.error("[career-launch/resume-bullet] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 3: 자소서 질문 분석 — 질문 의도 + Experience/Story Bank 근거 추천 경험(적합도) ──
+const COVER_QUESTION_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent", "recommended"],
+  properties: {
+    intent: { type: "array", items: { type: "string" } },
+    recommended: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["experience", "fit", "why"],
+        properties: { experience: { type: "string" }, fit: { type: "number" }, why: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const coverQuestionSchema = z.object({ question: z.string().trim().min(3).max(600) });
+app.post(
+  "/career-launch/cover-question",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "career-cover-question", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_cover_question", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = coverQuestionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const uid = req.auth!.userId;
+    try {
+      const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
+      const storyBank = (progState.storyBank && typeof progState.storyBank === "object" ? (progState.storyBank as { data?: { stories?: unknown } }).data?.stories : null);
+      const stories = Array.isArray(storyBank) ? (storyBank as Array<Record<string, unknown>>) : [];
+      const candidates = [
+        ...expBank.map((e) => (typeof e.experience === "string" ? e.experience : "")),
+        ...stories.map((s) => (typeof s.title === "string" ? s.title : ""))
+      ].filter(Boolean);
+      const candText = candidates.length ? candidates.map((c) => `- ${c}`).join("\n") : "(아직 정리된 경험 없음)";
+
+      const systemPrompt =
+        "너는 자기소개서 코치다. 학생이 입력한 자소서 문항을 분석한다.\n" +
+        "1. intent: 이 질문에서 기업이 '보고 싶어 하는 것' 2~4개(예: 문제 대응력, 자기 객관화, 회복력, 학습 능력).\n" +
+        "2. recommended: 아래 학생의 경험/스토리 후보 중 이 질문에 쓰기 좋은 것 2~4개를 골라 experience(후보 이름 그대로), fit(0~100 적합도), why(왜 적합한지 1문장). 후보에 없는 경험을 지어내지 않는다. 후보가 없으면 recommended 는 빈 배열로 두고 intent 만 채운다. 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "intent": string[], "recommended": [ { "experience": string, "fit": number, "why": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[자소서 문항]\n${parsed.data.question}\n\n[학생 경험/스토리 후보]\n${candText}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_question", COVER_QUESTION_SCHEMA)) as { intent?: unknown; recommended?: unknown };
+      const intent = Array.isArray(pj.intent) ? (pj.intent as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
+      const recommended = Array.isArray(pj.recommended)
+        ? (pj.recommended as Array<Record<string, unknown>>)
+            .map((r) => ({ experience: typeof r.experience === "string" ? r.experience.trim() : "", fit: Math.max(0, Math.min(100, Math.round(Number(r.fit)) || 0)), why: typeof r.why === "string" ? r.why.trim() : "" }))
+            .filter((r) => r.experience)
+            .slice(0, 5)
+        : [];
+      if (intent.length === 0 && recommended.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+      return res.json({ ok: true, intent, recommended });
+    } catch (err) {
+      console.error("[career-launch/cover-question] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
+    }
+  }
+);
+
+// ── Week 4: 예상 질문 생성 — 이력서·자소서·직무 기반 예상 면접 질문(카테고리별) ──
+const INTERVIEW_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["questions"],
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["category", "question"],
+        properties: { category: { type: "string", enum: ["basic", "resume", "cover", "job", "verify"] }, question: { type: "string" } }
+      }
+    }
+  }
+} as const;
+const INTERVIEW_QUESTIONS_VERSION = 1;
+app.post(
+  "/career-launch/interview-questions",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-interview-q", message: "잠시 후 다시 시도해 주세요." }),
+  async (req, res) => {
+    const uid = req.auth!.userId;
+    try {
+      const [progRow, resumeRow, coverRow] = await Promise.all([
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
+      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
+      const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
+      const coverDone = hasCoverContent(normalizeCoverData(coverContent));
+      if (!resumeDone && !coverDone) {
+        return res.json({ ok: true, questions: null, needsDocs: true });
+      }
+      const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]).filter((x) => typeof x === "string") : [];
+      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, jobs: selectedJobs }));
+      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
+      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
+      const cached = (progState.interviewQuestions && typeof progState.interviewQuestions === "object" ? progState.interviewQuestions : {}) as { v?: number; sig?: string; data?: unknown };
+      if (!force && cached.v === INTERVIEW_QUESTIONS_VERSION && cached.data) {
+        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
+        return res.json({ ok: true, questions: (cached.data as { questions?: unknown }).questions ?? [], stale, cached: true });
+      }
+      if (!generate) return res.json({ ok: true, questions: null, needsGenerate: true, stale: false });
+      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+
+      const systemPrompt =
+        "너는 이 채용의 면접관이다. 지원자의 이력서·자기소개서·선정 직무를 분석해 실제 면접에서 나올 가능성이 높은 예상 질문을 생성한다.\n" +
+        "category 로 구분: basic(기본 인성), resume(이력서 기반), cover(자기소개서 기반), job(직무 역량), verify(숫자 성과·리더십·본인 기여도가 불분명한 부분을 검증). " +
+        "특히 성과·기여도가 애매한 부분을 verify 로 우선 질문한다. 각 카테고리 2~3개씩, 총 10~14개. 질문만(코칭·답 금지). 존댓말. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "questions": [ { "category": "basic"|"resume"|"cover"|"job"|"verify", "question": string } ] }' +
+        aiLangDirective("ko");
+      const userPrompt = `[선정 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미정)"}\n\n[이력서]\n${JSON.stringify(resumeContent).slice(0, 2500)}\n\n[자기소개서]\n${JSON.stringify(coverContent).slice(0, 2500)}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "interview_questions", INTERVIEW_QUESTIONS_SCHEMA)) as { questions?: unknown };
+      const cats = new Set(["basic", "resume", "cover", "job", "verify"]);
+      const questions = Array.isArray(pj.questions)
+        ? (pj.questions as Array<Record<string, unknown>>)
+            .map((q) => ({ category: typeof q.category === "string" && cats.has(q.category) ? q.category : "basic", question: typeof q.question === "string" ? q.question.trim() : "" }))
+            .filter((q) => q.question)
+            .slice(0, 16)
+        : [];
+      if (questions.length === 0) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+      const mergedState = { ...progState, interviewQuestions: { v: INTERVIEW_QUESTIONS_VERSION, sig: currentSig, data: { questions } } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: mergedState as object },
+        update: { state: mergedState as object }
+      });
+      return res.json({ ok: true, questions, stale: false });
+    } catch (err) {
+      console.error("[career-launch/interview-questions] failed", err);
+      return res.status(500).json({ ok: false, message: "failed" });
     }
   }
 );
