@@ -6543,6 +6543,100 @@ const communityGenerateSchema = z.object({
   daysBack: z.number().int().min(0).max(365)
 });
 
+// ── AI 포인트 운영 — 사용자별 지갑 잔액 조회 + 수동 지급(운영자) ──
+app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: q
+        ? { OR: [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }
+        : {},
+      select: { id: true, email: true, name: true, role: true, createdAt: true, aiWallet: { select: { balance: true, updatedAt: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    const items = users.map((u) => ({
+      userId: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      balance: u.aiWallet?.balance ?? 0,
+      updatedAt: u.aiWallet?.updatedAt ?? null
+    }));
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const opsGrantSchema = z.object({ amount: z.number().int().min(1).max(100000), reason: z.string().trim().max(40).optional() });
+app.post("/ops/ai-wallets/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
+  try {
+    const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!target) return res.status(404).json({ ok: false, message: "user not found" });
+    const wallet = await prisma.aiWallet.upsert({
+      where: { userId },
+      create: { userId, balance: parsed.data.amount },
+      update: { balance: { increment: parsed.data.amount } }
+    });
+    // 원장 기록(reason=ops_grant) — 포인트 내역에 '지급'으로 남는다.
+    await prisma.aiPointLog.create({ data: { userId, amount: parsed.data.amount, reason: parsed.data.reason || "ops_grant" } }).catch(() => {});
+    return res.json({ ok: true, balance: wallet.balance });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /ops/ai-wallets/:userId/logs — 사용자별 포인트 내역(적립 양수 · 소모 음수).
+app.get("/ops/ai-wallets/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
+  try {
+    const rows = await prisma.aiPointLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, amount: true, reason: true, createdAt: true }
+    });
+    return res.json({ ok: true, items: rows.map((r) => ({ id: r.id, amount: r.amount, reason: r.reason, createdAt: r.createdAt.toISOString() })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /ops/job-alerts/summary — 직무 알림(B2) 운영 현황: 스케줄러 설정 + 발송 집계 + 최근 발송.
+app.get("/ops/job-alerts/summary", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [totalSent, last24h, recent] = await Promise.all([
+      prisma.position.count({ where: { jobAlertSentAt: { not: null } } }),
+      prisma.position.count({ where: { jobAlertSentAt: { gte: since24h } } }),
+      prisma.position.findMany({
+        where: { jobAlertSentAt: { not: null } },
+        orderBy: { jobAlertSentAt: "desc" },
+        take: 20,
+        select: { id: true, title: true, jobAlertSentAt: true, additionalNotes: true }
+      })
+    ]);
+    return res.json({
+      ok: true,
+      config: { enabled: jobAlertSchedulerEnabled, hourKst: jobAlertHourKst, minuteKst: jobAlertMinuteKst, runOnBoot: jobAlertRunOnBoot },
+      totalSent,
+      last24h,
+      recent: recent.map((p) => ({
+        id: p.id,
+        title: p.title,
+        company: extractSourceCompanyName(p.additionalNotes) ?? null,
+        sentAt: p.jobAlertSentAt?.toISOString() ?? null
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = communityGenerateSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -6610,7 +6704,7 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
       where: { content: { path: ["poolOptIn", "consentedAt"], not: Prisma.JsonNull } },
       orderBy: { updatedAt: "desc" },
       take: 200,
-      select: { id: true, title: true, updatedAt: true, content: true, user: { select: { name: true, email: true } } }
+      select: { id: true, title: true, updatedAt: true, content: true, userId: true, user: { select: { name: true, email: true } } }
     });
     const q = parsed.data.q?.toLowerCase();
     const nat = parsed.data.nationality?.toLowerCase();
@@ -6623,6 +6717,7 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
           title: r.title,
           updatedAt: r.updatedAt.toISOString(),
           consentedAt: poolOptIn?.consentedAt ?? null,
+          userId: r.userId,
           userName: r.user?.name ?? null,
           userEmail: r.user?.email ?? null,
           content
@@ -6638,7 +6733,14 @@ app.get("/ops/resume-pool", authenticate, requireRoles([MemberRole.OPERATOR]), a
         }
         return true;
       });
-    return res.json({ ok: true, items });
+    // Career Launch 수강 여부 현행화.
+    const _uids = Array.from(new Set(items.map((it) => it.userId).filter(Boolean))) as string[];
+    const _clRows = _uids.length
+      ? await prisma.careerEnrollment.findMany({ where: { studentUserId: { in: _uids } }, select: { studentUserId: true }, distinct: ["studentUserId"] })
+      : [];
+    const _clSet = new Set(_clRows.map((r) => r.studentUserId));
+    const out = items.map(({ userId, ...rest }) => ({ ...rest, careerLaunch: _clSet.has(userId) }));
+    return res.json({ ok: true, items: out });
   } catch (err) {
     console.error("[ops/resume-pool] failed", err);
     return res.status(500).json({ ok: false, message: "failed to list resume pool" });
@@ -24945,6 +25047,12 @@ app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), 
         }
       })
     ]);
+    // Career Launch 수강 여부 현행화 — 지원자 중 CL 수강생을 배지로 구분.
+    const _candIds = Array.from(new Set(items.map((a) => a.candidateUserId)));
+    const _clRows = _candIds.length
+      ? await prisma.careerEnrollment.findMany({ where: { studentUserId: { in: _candIds } }, select: { studentUserId: true }, distinct: ["studentUserId"] })
+      : [];
+    const _clSet = new Set(_clRows.map((r) => r.studentUserId));
     return res.json({
       ok: true,
       page,
@@ -24964,6 +25072,7 @@ app.get("/ops/applications", authenticate, requireRoles([MemberRole.OPERATOR]), 
         candidateName: a.candidateUser.name,
         candidateEmail: a.candidateUser.email,
         candidateNationality: a.candidateUser.nationality,
+        careerLaunch: _clSet.has(a.candidateUserId),
         status: a.status,
         memo: a.memo,
         submittedAt: a.submittedAt,
@@ -29685,10 +29794,24 @@ app.get("/ops/partner-users", authenticate, requireRoles([MemberRole.OPERATOR]),
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
-        createdAt: true
+        createdAt: true,
+        aiWallet: { select: { balance: true } }
       }
     })
   ]);
+
+  // 리뉴얼 신규 데이터 — Career Launch 등록 여부(현재 페이지 사용자 한정).
+  const _clEnrolledIds = new Set(
+    users.length
+      ? (
+          await prisma.careerEnrollment.findMany({
+            where: { studentUserId: { in: users.map((u) => u.id) } },
+            select: { studentUserId: true },
+            distinct: ["studentUserId"]
+          })
+        ).map((e) => e.studentUserId)
+      : []
+  );
 
   const partnerIds = Array.from(
     new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
@@ -29824,10 +29947,24 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         partnerType: true,
         partnerOrgRole: true,
         partnerOrganizationId: true,
-        createdAt: true
+        createdAt: true,
+        aiWallet: { select: { balance: true } }
       }
     })
   ]);
+
+  // 리뉴얼 신규 데이터 — Career Launch 등록 여부(현재 페이지 사용자 한정).
+  const _clEnrolledIds = new Set(
+    users.length
+      ? (
+          await prisma.careerEnrollment.findMany({
+            where: { studentUserId: { in: users.map((u) => u.id) } },
+            select: { studentUserId: true },
+            distinct: ["studentUserId"]
+          })
+        ).map((e) => e.studentUserId)
+      : []
+  );
 
   const partnerIds = Array.from(
     new Set(users.map((user) => user.partnerOrganizationId).filter((id): id is string => Boolean(id)))
@@ -29856,6 +29993,8 @@ app.get("/ops/users", authenticate, requireRoles([MemberRole.OPERATOR]), async (
         partnerType: user.partnerType,
         partnerOrgRole: user.partnerOrgRole,
         createdAt: user.createdAt,
+        aiBalance: user.aiWallet?.balance ?? 0,
+        careerLaunch: _clEnrolledIds.has(user.id),
         partnerName: partner?.name ?? "-",
         partner: partner
           ? {

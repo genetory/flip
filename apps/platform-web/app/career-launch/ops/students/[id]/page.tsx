@@ -12,7 +12,18 @@ import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
 import { useJobReason, useStepText } from "../../../../../lib/launch/data-i18n";
 
-type Tab = "overview" | "docs" | "interview" | "ops";
+type Tab = "overview" | "growth" | "docs" | "interview" | "ops";
+
+// 리뉴얼 산출물(점수화) — 얕은 CareerProgress 타입이 노출하지 않는 세부 필드를 로컬로 캐스팅.
+type ReportData = {
+  total?: number;
+  areas?: { direction?: number; experience?: number; competency?: number; resume?: number; cover?: number; interview?: number };
+  why?: string;
+  strengths?: string[];
+  gaps?: string[];
+  roadmap?: { targetRole?: string; targetCompanies?: string[]; recommendedExperience?: string[]; toImprove?: string[] };
+};
+type ScoreData = { total?: number; why?: string; tips?: string[] };
 
 // 운영자 학생 상세.
 // 섹션이 11개까지 늘어 한 화면에 다 쌓으면 읽기 어려워, 콘솔의 탭 패턴(ops-detail-tabs)으로 나눈다.
@@ -120,6 +131,18 @@ export default function LaunchOpsStudentDetailPage() {
   const interviewPracticed = detail?.state.interview?.practiced ?? [];
   const interviewResults = detail?.state.interview?.results ?? {};
   const finalFeedbackText = detail?.state.finalFeedback?.text ?? "";
+  // 성장 리포트(리뉴얼 산출물) — Experience Bank 중심의 점수화 결과.
+  const report = (detail?.state.careerReport?.data ?? null) as ReportData | null;
+  const careerBefore = detail?.state.careerScoreBefore ?? null;
+  const expBank = detail?.state.experienceBank ?? [];
+  const scoreResume = detail?.state.scores?.resume?.data as ScoreData | undefined;
+  const scoreCover = detail?.state.scores?.cover?.data as ScoreData | undefined;
+  const scoreInterview = detail?.state.scores?.interview?.data as ScoreData | undefined;
+  const storyCount = detail?.state.storyBank?.data?.stories?.length ?? 0;
+  const answers = detail?.state.answerBank?.data?.answers ?? [];
+  const jobRec = detail?.state.jobRecommendation?.data?.jobs ?? [];
+  const jdMatchPct = detail?.state.jdMatch?.data?.matchPercent ?? null;
+  const hasGrowth = Boolean(report) || expBank.length > 0 || Boolean(scoreResume) || Boolean(scoreCover) || Boolean(scoreInterview) || storyCount > 0 || answers.length > 0 || jobRec.length > 0;
   const name = detail?.user.name?.trim() || detail?.user.realName?.trim() || detail?.user.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
   const hasResume = detail ? hasResumeContent(detail.resume) : false;
   const hasCover = detail ? hasCoverContent(detail.cover) : false;
@@ -157,6 +180,7 @@ export default function LaunchOpsStudentDetailPage() {
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "overview", label: t("개요", "Overview", "概览", "Tổng quan", "概要", "Ikhtisar") },
+    { key: "growth", label: t("성장 리포트", "Growth report", "成长报告", "Báo cáo tăng trưởng", "成長レポート", "Laporan pertumbuhan") },
     { key: "docs", label: t("산출물", "Documents", "产出", "Tài liệu", "成果物", "Dokumen") },
     { key: "interview", label: t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara") },
     { key: "ops", label: t("운영", "Operations", "运营", "Vận hành", "運営", "Operasi") }
@@ -373,6 +397,231 @@ export default function LaunchOpsStudentDetailPage() {
                       </details>
                     </section>
                   ) : null}
+                </div>
+              ) : null}
+
+              {/* ── 성장 리포트 (리뉴얼 점수화 산출물) ── */}
+              {tab === "growth" ? (
+                <div className="ops-detail-sections">
+                  {!hasGrowth ? (
+                    <section className="ops-detail-section">
+                      <p className="ops-detail-empty">
+                        {t(
+                          "아직 성장 리포트 데이터가 없어요. 학생이 커리어 스코어·경험 은행 등을 생성하면 여기에 표시됩니다.",
+                          "No growth data yet. It appears once the student generates their career score, experience bank, etc.",
+                          "暂无成长数据。学生生成职业评分、经历银行等后将显示于此。",
+                          "Chưa có dữ liệu. Sẽ hiển thị khi sinh viên tạo điểm sự nghiệp, ngân hàng kinh nghiệm…",
+                          "まだデータがありません。学生がキャリアスコアや経験バンクを生成すると表示されます。",
+                          "Belum ada data. Muncul setelah siswa membuat skor karier, bank pengalaman, dll."
+                        )}
+                      </p>
+                    </section>
+                  ) : (
+                    <>
+                      {/* 커리어 스코어 */}
+                      {report ? (
+                        <section className="ops-detail-section">
+                          <h3>{t("커리어 스코어", "Career score", "职业评分", "Điểm sự nghiệp", "キャリアスコア", "Skor karier")}</h3>
+                          <p className="text-[15px] font-semibold text-[var(--ink)]">
+                            {t("총점", "Total", "总分", "Tổng", "総合", "Total")}{" "}
+                            {careerBefore !== null && careerBefore !== undefined && typeof report.total === "number" ? (
+                              <>
+                                <span className="text-[var(--ink-faint)]">{careerBefore}</span>
+                                <span className="mx-1 text-[var(--ink-faint)]">→</span>
+                                <span className="text-[var(--accent-ink)]">{report.total}</span>
+                                <span className="ml-2 rounded-md bg-[var(--accent-soft)] px-1.5 py-0.5 text-[12.5px] font-bold text-[var(--accent-ink)]">
+                                  {report.total - careerBefore >= 0 ? `+${report.total - careerBefore}` : report.total - careerBefore}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-[var(--accent-ink)]">{report.total ?? "-"}</span>
+                            )}
+                          </p>
+                          {report.areas ? (
+                            <div className="mt-3 space-y-1.5">
+                              {(
+                                [
+                                  ["direction", t("방향성", "Direction", "方向", "Định hướng", "方向性", "Arah")],
+                                  ["experience", t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman")],
+                                  ["competency", t("역량", "Competency", "能力", "Năng lực", "力量", "Kompetensi")],
+                                  ["resume", t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")],
+                                  ["cover", t("자소서", "Cover", "自我介绍", "Thư", "自己PR", "Cover")],
+                                  ["interview", t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")]
+                                ] as const
+                              ).map(([k, label]) => {
+                                const v = report.areas?.[k as keyof NonNullable<ReportData["areas"]>] ?? 0;
+                                return (
+                                  <div key={k} className="flex items-center gap-2 text-[12.5px]">
+                                    <span className="w-16 flex-none text-[var(--ink-faint)]">{label}</span>
+                                    <div className="h-2 flex-1 overflow-hidden rounded-full" style={{ background: "var(--surface-2)" }}>
+                                      <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, v))}%`, background: "var(--accent)" }} />
+                                    </div>
+                                    <span className="w-8 flex-none text-right font-semibold tabular-nums text-[var(--ink)]">{v}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                          {report.why ? <p className="mt-3 break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{report.why}</p> : null}
+                          {report.strengths?.length ? (
+                            <div className="mt-3">
+                              <p className="text-[12px] font-semibold text-[var(--accent-ink)]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                              <ul className="mt-1.5 space-y-1">
+                                {report.strengths.map((x, i) => (
+                                  <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]"><span className="text-[var(--accent-ink)]"><Check size={12} weight="bold" aria-hidden /></span>{x}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {report.gaps?.length ? (
+                            <div className="mt-3">
+                              <p className="text-[12px] font-semibold text-[var(--ink-faint)]">{t("보완점", "Gaps", "待改进", "Cần cải thiện", "改善点", "Kekurangan")}</p>
+                              <ul className="mt-1.5 space-y-1">
+                                {report.gaps.map((x, i) => (
+                                  <li key={i} className="flex gap-1.5 break-keep text-[13px] text-[var(--ink-soft)]"><span className="text-[var(--ink-faint)]">•</span>{x}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                          {report.roadmap && (report.roadmap.targetRole || report.roadmap.targetCompanies?.length) ? (
+                            <div className="mt-3 rounded-lg bg-[var(--sand-soft)] px-3 py-2.5">
+                              <p className="text-[12px] font-bold text-[var(--sand)]">{t("로드맵", "Roadmap", "路线图", "Lộ trình", "ロードマップ", "Peta jalan")}</p>
+                              {report.roadmap.targetRole ? (
+                                <p className="mt-1 break-keep text-[13px] text-[var(--sand)]">
+                                  {t("목표 직무", "Target role", "目标职务", "Vị trí mục tiêu", "目標職務", "Target posisi")}: <span className="font-semibold">{report.roadmap.targetRole}</span>
+                                </p>
+                              ) : null}
+                              {report.roadmap.targetCompanies?.length ? (
+                                <p className="mt-1 break-keep text-[13px] text-[var(--sand)]">{t("목표 기업", "Target companies", "目标企业", "Công ty mục tiêu", "目標企業", "Target perusahaan")}: {report.roadmap.targetCompanies.join(", ")}</p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+
+                      {/* 개별 점수 — 이력서/자소서/면접 */}
+                      {scoreResume || scoreCover || scoreInterview ? (
+                        <section className="ops-detail-section">
+                          <h3>{t("항목별 점수", "Item scores", "分项评分", "Điểm từng mục", "項目別スコア", "Skor per item")}</h3>
+                          <div className="grid grid-cols-3 gap-3">
+                            {(
+                              [
+                                [t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), scoreResume],
+                                [t("자소서", "Cover", "自我介绍", "Thư", "自己PR", "Cover"), scoreCover],
+                                [t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), scoreInterview]
+                              ] as const
+                            ).map(([label, sc], i) => (
+                              <div key={i} className="rounded-xl border border-[var(--line)] p-3 text-center">
+                                <p className="text-[12px] text-[var(--ink-faint)]">{label}</p>
+                                <p className="mt-1 text-[22px] font-extrabold tabular-nums text-[var(--ink)]">{typeof sc?.total === "number" ? sc.total : "–"}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {[scoreResume, scoreCover, scoreInterview].some((s) => s?.why || s?.tips?.length) ? (
+                            <div className="mt-3 space-y-2">
+                              {(
+                                [
+                                  [t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), scoreResume],
+                                  [t("자소서", "Cover", "自我介绍", "Thư", "自己PR", "Cover"), scoreCover],
+                                  [t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), scoreInterview]
+                                ] as const
+                              )
+                                .filter(([, sc]) => sc?.why || sc?.tips?.length)
+                                .map(([label, sc], i) => (
+                                  <details key={i} className="rounded-lg border border-[var(--line)] p-3">
+                                    <summary className="cursor-pointer text-[13px] font-semibold text-[var(--ink)]">{label}</summary>
+                                    {sc?.why ? <p className="mt-2 break-keep text-[13px] leading-relaxed text-[var(--ink-soft)]">{sc.why}</p> : null}
+                                    {sc?.tips?.length ? (
+                                      <ul className="mt-2 space-y-1">
+                                        {sc.tips.map((x, ti) => (
+                                          <li key={ti} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--ink-soft)]"><span className="text-[var(--ink-faint)]">•</span>{x}</li>
+                                        ))}
+                                      </ul>
+                                    ) : null}
+                                  </details>
+                                ))}
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+
+                      {/* Experience Bank */}
+                      {expBank.length ? (
+                        <section className="ops-detail-section">
+                          <h3>{t("경험 은행", "Experience bank", "经历银行", "Ngân hàng kinh nghiệm", "経験バンク", "Bank pengalaman")} ({expBank.length})</h3>
+                          <div className="space-y-2.5">
+                            {expBank.map((e) => (
+                              <article key={e.id} className="rounded-xl border border-[var(--line)] p-4">
+                                <p className="text-[13.5px] font-semibold text-[var(--ink)]">
+                                  {e.experience || "-"}
+                                  {e.role ? <span className="font-normal text-[var(--ink-faint)]"> · {e.role}</span> : null}
+                                  {e.period ? <span className="ml-1 text-[12px] font-normal text-[var(--ink-faint)]">{e.period}</span> : null}
+                                </p>
+                                {e.actions?.length ? (
+                                  <ul className="mt-1.5 space-y-0.5">
+                                    {e.actions.map((a, ai) => (
+                                      <li key={ai} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--ink-soft)]"><span className="text-[var(--ink-faint)]">•</span>{a}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                                {e.results?.length ? (
+                                  <ul className="mt-1 space-y-0.5">
+                                    {e.results.map((r, ri) => (
+                                      <li key={ri} className="flex gap-1.5 break-keep text-[12.5px] text-[var(--accent-ink)]"><span>↑</span>{r}</li>
+                                    ))}
+                                  </ul>
+                                ) : null}
+                                {(e.skills?.length || e.competencies?.length) ? (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {[...(e.skills ?? []), ...(e.competencies ?? [])].map((s, si) => (
+                                      <span key={si} className="ops-status-badge ops-status-draft">{s}</span>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+
+                      {/* 직무 추천 · JD 매치 */}
+                      {jobRec.length || jdMatchPct !== null ? (
+                        <section className="ops-detail-section">
+                          <h3>{t("직무 추천", "Job recommendation", "职务推荐", "Gợi ý vị trí", "職務推薦", "Rekomendasi posisi")}</h3>
+                          {jdMatchPct !== null ? (
+                            <p className="text-[13px] text-[var(--ink-soft)]">{t("JD 적합도", "JD match", "JD 匹配", "Độ khớp JD", "JD適合度", "Kecocokan JD")}: <span className="font-bold text-[var(--accent-ink)]">{jdMatchPct}%</span></p>
+                          ) : null}
+                          {jobRec.length ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {jobRec.map((j, i) => (
+                                <span key={i} className="ops-status-badge ops-status-approved">{j.role}{typeof j.fit === "number" ? ` · ${j.fit}%` : ""}</span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+
+                      {/* 스토리 · 답변 은행 */}
+                      {storyCount > 0 || answers.length > 0 ? (
+                        <section className="ops-detail-section">
+                          <h3>{t("스토리·답변 은행", "Story & answer bank", "故事·回答银行", "Ngân hàng câu chuyện & câu trả lời", "ストーリー・回答バンク", "Bank cerita & jawaban")}</h3>
+                          <p className="text-[13px] text-[var(--ink-soft)]">
+                            {t("스토리", "Stories", "故事", "Câu chuyện", "ストーリー", "Cerita")} {storyCount} · {t("면접 답변", "Interview answers", "面试回答", "Câu trả lời", "面接回答", "Jawaban")} {answers.length}
+                          </p>
+                          {answers.length ? (
+                            <div className="mt-2 space-y-2">
+                              {answers.slice(0, 3).map((a, i) => (
+                                <details key={i} className="rounded-lg border border-[var(--line)] p-3">
+                                  <summary className="cursor-pointer text-[13px] font-semibold text-[var(--ink)]">{a.question}</summary>
+                                  <p className="mt-2 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[var(--ink-soft)]">{a.answer}</p>
+                                </details>
+                              ))}
+                            </div>
+                          ) : null}
+                        </section>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               ) : null}
 

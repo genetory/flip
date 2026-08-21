@@ -28,6 +28,8 @@ type PartnerUserItem = {
   jobTitle: string | null;
   adminMemo: string | null;
   role: "STUDENT" | "PARTNER" | "OPERATOR";
+  aiBalance?: number;
+  careerLaunch?: boolean;
   authProvider: AuthProvider;
   partnerType: "COMPANY" | "UNIVERSITY" | "AGENCY" | null;
   partnerOrgRole: "OWNER" | "ADMIN" | "MEMBER" | null;
@@ -570,7 +572,17 @@ export default function PartnerUsersPage() {
                     </td>
                     <td>{authProviderLabel(item.authProvider)}</td>
                     <td>{item.phoneNumber || "-"}</td>
-                    <td>{roleLabel(item.role)}</td>
+                    <td>
+                      <span style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                        {roleLabel(item.role)}
+                        {typeof item.aiBalance === "number" ? (
+                          <span title="AI 포인트 잔액" style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-ink)", background: "var(--accent-soft)", borderRadius: 999, padding: "1px 7px" }}>💎 {item.aiBalance.toLocaleString()}P</span>
+                        ) : null}
+                        {item.careerLaunch ? (
+                          <span title="Career Launch 등록" style={{ fontSize: 11, fontWeight: 700, color: "#0a7d4b", background: "#e7f7ef", borderRadius: 999, padding: "1px 7px" }}>CL</span>
+                        ) : null}
+                      </span>
+                    </td>
                     <td>{formatDate(item.createdAt)}</td>
                     <td onClick={(e) => e.stopPropagation()}>
                       <button

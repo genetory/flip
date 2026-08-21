@@ -70,6 +70,18 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [{ label: "대시보드", href: "/dashboard/ops", icon: Home }]
   },
   {
+    // Career Launch 운영 — 별도 콘솔(/career-launch/ops)을 메인 운영콘솔 메뉴로 편입.
+    title: "Career Launch",
+    links: [
+      { label: "Career Launch 대시보드", href: "/career-launch/ops", icon: GraduationCap },
+      { label: "수강생", href: "/career-launch/ops/students", icon: Users },
+      { label: "기수", href: "/career-launch/ops/cohorts", icon: ScrollText },
+      { label: "콘텐츠", href: "/career-launch/ops/content", icon: FileText },
+      { label: "프롬프트", href: "/career-launch/ops/prompts", icon: Sparkles },
+      { label: "성과 리포트", href: "/career-launch/ops/report", icon: BarChart3 }
+    ]
+  },
+  {
     title: "오늘 할 일",
     links: [
       { label: "검수 큐", href: "/dashboard/ops/operations/review-queue", icon: ClipboardCheck },
@@ -129,6 +141,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "감사 로그", href: "/dashboard/ops/system/audit-log", icon: Shield },
       { label: "결제", href: "/dashboard/ops/system/payments", icon: Wallet },
+      { label: "AI 포인트", href: "/dashboard/ops/system/ai-points", icon: Sparkles },
+      { label: "직무 알림", href: "/dashboard/ops/system/job-alerts", icon: Megaphone },
       { label: "설정값", href: "/dashboard/ops/system/settings", icon: Settings },
       { label: "크롤링", href: "/dashboard/ops/system/crawlers", icon: Bot },
       { label: "데이터", href: "/dashboard/ops/system/data-management", icon: Database }
