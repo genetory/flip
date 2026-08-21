@@ -70,6 +70,18 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [{ label: "대시보드", href: "/dashboard/ops", icon: Home }]
   },
   {
+    // Career Launch 운영 — 별도 콘솔(/career-launch/ops)을 메인 운영콘솔 메뉴로 편입.
+    title: "Career Launch",
+    links: [
+      { label: "Career Launch 대시보드", href: "/career-launch/ops", icon: GraduationCap },
+      { label: "수강생", href: "/career-launch/ops/students", icon: Users },
+      { label: "기수", href: "/career-launch/ops/cohorts", icon: ScrollText },
+      { label: "콘텐츠", href: "/career-launch/ops/content", icon: FileText },
+      { label: "프롬프트", href: "/career-launch/ops/prompts", icon: Sparkles },
+      { label: "성과 리포트", href: "/career-launch/ops/report", icon: BarChart3 }
+    ]
+  },
+  {
     title: "오늘 할 일",
     links: [
       { label: "검수 큐", href: "/dashboard/ops/operations/review-queue", icon: ClipboardCheck },
