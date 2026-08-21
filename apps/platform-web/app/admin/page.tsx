@@ -4,7 +4,6 @@
 // 탤런트·파트너 로그인과 완전히 동일한 너비·간격을 위해 공용 TalentAuthLayout 를 그대로 재사용한다.
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CircleNotch } from "@phosphor-icons/react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { AuthApiError, loginWithEmail, clearAccessToken } from "../../lib/auth-client";
@@ -14,7 +13,6 @@ import { TalentAuthLayout, TalentField, talentInputClass } from "../../component
 const OPS_HOME = "/dashboard/ops";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const { user, isReady, isAuthenticated, setAuthenticatedUser, logout } = useAuthSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,9 +22,11 @@ export default function AdminLoginPage() {
   const isOperator = user?.role === "OPERATOR";
 
   // 이미 관리자로 로그인돼 있으면 바로 운영 콘솔로.
+  // 운영 콘솔(/dashboard/ops)은 별도 레이아웃 트리(AdminConsoleFrame)라 클라이언트 라우터
+  // 이동이 깔끔히 안 붙는 경우가 있어, 토큰 기반으로 다시 로드되는 하드 내비게이션을 쓴다.
   useEffect(() => {
-    if (isReady && isAuthenticated && isOperator) router.replace(OPS_HOME);
-  }, [isReady, isAuthenticated, isOperator, router]);
+    if (isReady && isAuthenticated && isOperator) window.location.assign(OPS_HOME);
+  }, [isReady, isAuthenticated, isOperator]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -41,8 +41,8 @@ export default function AdminLoginPage() {
         return;
       }
       setAuthenticatedUser(u);
-      router.replace(OPS_HOME);
-      router.refresh();
+      // 하드 내비게이션 — 운영 콘솔이 토큰 기반 세션으로 확실히 로드되게.
+      window.location.assign(OPS_HOME);
     } catch (err) {
       if (err instanceof AuthApiError && err.code === "EMAIL_VERIFICATION_REQUIRED") {
         setError("이메일 인증이 필요한 계정이에요.");
