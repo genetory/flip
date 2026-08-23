@@ -51,17 +51,33 @@ export function HomeScreen() {
 
 function HomeContent() {
   return (
-    <div className="flex flex-col gap-10">
-      <FeaturedBanners />
-      <GreetingHeader />
-      <WelcomeOnboardingCard />
-      <ApplyReadinessBanner variant="card" />
-      <DeadlineReminder />
-      <HomeCareerHistory />
-      <GuideSection />
-      <TodayTip />
-      <RecommendedJobs />
-      <HomeCompanies />
+    <>
+      <HomeAmbientBackground />
+      <div className="relative z-10 flex flex-col gap-10">
+        <FeaturedBanners />
+        <GreetingHeader />
+        <WelcomeOnboardingCard />
+        <ApplyReadinessBanner variant="card" />
+        <DeadlineReminder />
+        <HomeCareerHistory />
+        <GuideSection />
+        <TodayTip />
+        <RecommendedJobs />
+        <HomeCompanies />
+      </div>
+    </>
+  );
+}
+
+/* 홈 앰비언트 배경 — 흰 배경 위에 브랜드 컬러 오로라를 은은하게 깔아 깊이감을 준다.
+   fixed 레이어라 스크롤과 무관하게 유지되고, 콘텐츠는 z-10 으로 그 위에 뜬다. */
+function HomeAmbientBackground() {
+  return (
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      <div className="absolute -left-28 -top-40 h-[460px] w-[460px] rounded-full bg-[#0B46E8]/[0.12] blur-[130px]" />
+      <div className="absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-[#7B9CFF]/[0.16] blur-[130px]" />
+      <div className="absolute left-[42%] top-[30%] h-[320px] w-[320px] rounded-full bg-[#10D0C4]/[0.09] blur-[130px]" />
+      <div className="absolute -left-16 top-[64%] h-[300px] w-[300px] rounded-full bg-[#8B5CF6]/[0.08] blur-[130px]" />
     </div>
   );
 }
@@ -403,23 +419,27 @@ function GreetingHeader() {
         ? { label: t("자기소개서 쓰기", "Write cover letter", "写自我介绍", "Viết thư xin việc", "自己PRを書く", "Tulis surat lamaran"), href: talentAppRoutes.cover }
         : { label: t("공고 둘러보기", "Browse jobs", "浏览职位", "Xem tin tuyển dụng", "求人を見る", "Jelajahi lowongan"), href: talentAppRoutes.jobs };
   return (
-    <div className="flex items-center gap-4">
+    <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-white via-[#F6F9FF] to-[#EAF1FF] p-6 shadow-[0_12px_44px_-14px_rgba(11,70,232,0.22)] ring-1 ring-[#0B46E8]/10 md:p-8">
+      <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-[260px] w-[260px] rounded-full bg-[#0B46E8]/[0.12] blur-[90px]" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-24 right-[22%] h-[220px] w-[220px] rounded-full bg-[#10D0C4]/[0.1] blur-[90px]" />
+      <div className="relative flex items-center gap-4">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{stageLabel}</p>
+          <span className="inline-flex items-center rounded-full bg-[#0B46E8]/10 px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{stageLabel}</span>
           {streak > 0 ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11.5px] font-bold text-[#4E5968] shadow-[0_1px_4px_rgba(11,18,39,0.05)]">🔥 {t(`${streak}일 연속`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tục`, `${streak}日連続`, `${streak} hari beruntun`)}</span>
           ) : null}
         </div>
-        <p className="mt-2 text-[13px] font-bold text-[#4E5968]">{greeting} 👋</p>
-        <h1 className="mt-1 break-keep text-[22px] font-black leading-[1.2] tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{t(`${name}님, 오늘도 한 걸음 나아가요`, `${name}, take another step forward today`, `${name}，今天也向前迈进一步`, `${name}, hôm nay hãy tiến thêm một bước`, `${name}さん、今日も一歩前進しましょう`, `${name}, ambil satu langkah maju lagi hari ini`)}</h1>
+        <p className="mt-3 text-[13px] font-bold text-[#4E5968]">{greeting} 👋</p>
+        <h1 className="mt-1 break-keep bg-gradient-to-r from-[#0B1227] via-[#16276A] to-[#0B46E8] bg-clip-text text-[23px] font-black leading-[1.2] tracking-[-0.02em] text-transparent md:text-[28px]">{t(`${name}님, 오늘도 한 걸음 나아가요`, `${name}, take another step forward today`, `${name}，今天也向前迈进一步`, `${name}, hôm nay hãy tiến thêm một bước`, `${name}さん、今日も一歩前進しましょう`, `${name}, ambil satu langkah maju lagi hari ini`)}</h1>
         <p className="mt-1.5 break-keep text-[13.5px] text-[#8B95A1]">{t("오늘도 한 걸음씩, 취업에 가까워지고 있어요.", "Step by step, you're getting closer to your job.", "一步一步，你正离理想工作越来越近。", "Từng bước một, bạn đang tiến gần hơn đến công việc.", "一歩ずつ、就職に近づいています。", "Selangkah demi selangkah, Anda makin dekat dengan pekerjaan.")}</p>
-        <Link href={cta.href} className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+        <Link href={cta.href} className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#0B46E8] to-[#3A6BFF] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_8px_20px_-6px_rgba(11,70,232,0.55)] transition hover:shadow-[0_10px_26px_-6px_rgba(11,70,232,0.7)]">
           {cta.label} <ArrowRight className="h-4 w-4" weight="bold" />
         </Link>
       </div>
       <div className="relative hidden aspect-square w-[140px] shrink-0 self-center sm:block md:w-[190px]" aria-hidden>
-        <Image src="/img_home_hero.webp" alt="" fill sizes="190px" className="object-contain" />
+        <Image src="/img_home_hero.webp" alt="" fill sizes="190px" className="object-contain drop-shadow-[0_12px_28px_rgba(11,70,232,0.18)]" />
+      </div>
       </div>
     </div>
   );
