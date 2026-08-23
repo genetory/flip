@@ -8,6 +8,7 @@ import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-cl
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
@@ -55,7 +56,8 @@ export default function CultureLessonPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="isolate flex min-h-screen flex-col bg-background">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">

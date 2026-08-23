@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { ArrowLeft, CaretRight, Checks } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { LaunchAmbientBackground } from "./LaunchAmbientBackground";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -21,7 +22,8 @@ export function LaunchNotificationsScreen() {
   const unread = items.filter((n) => n.unread).length;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="isolate flex min-h-screen flex-col bg-[#F6F8FB]">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6 md:pt-8">
