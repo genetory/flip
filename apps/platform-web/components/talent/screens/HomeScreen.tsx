@@ -153,7 +153,7 @@ function DeadlineReminder() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("마감이 다가와요", "Deadlines are near", "截止日期临近", "Hạn chót đang đến gần", "締め切りが近づいています", "Tenggat sudah dekat")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("마감이 다가와요", "Deadlines are near", "截止日期临近", "Hạn chót đang đến gần", "締め切りが近づいています", "Tenggat sudah dekat")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{t("저장한 공고 중 곧 마감되는 공고예요. 놓치지 마세요.", "These saved jobs are closing soon. Don't miss out.", "这些收藏的职位即将截止，别错过。", "Những tin đã lưu này sắp hết hạn. Đừng bỏ lỡ.", "保存した求人がまもなく締め切りです。お見逃しなく。", "Lowongan tersimpan ini segera ditutup. Jangan lewatkan.")}</p>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -260,7 +260,7 @@ function HomeCompanies() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이런 회사는 어때요?", "How about these companies?", "看看这些公司如何？", "Còn những công ty này thì sao?", "こんな会社はいかがですか？", "Bagaimana dengan perusahaan ini?")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("이런 회사는 어때요?", "How about these companies?", "看看这些公司如何？", "Còn những công ty này thì sao?", "こんな会社はいかがですか？", "Bagaimana dengan perusahaan ini?")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{t("지금 채용 중인 회사를 만나보세요.", "Meet companies hiring right now.", "认识正在招聘的公司。", "Gặp gỡ các công ty đang tuyển dụng.", "今採用中の会社に出会いましょう。", "Temui perusahaan yang sedang merekrut.")}</p>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -459,7 +459,7 @@ function TodayTip() {
   return (
     <section className="flex flex-col gap-3">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("오늘은 이런 팁 어때요?", "How about today's tip?", "今天来看看这个建议？", "Mẹo hôm nay thì sao?", "今日はこんなヒントはいかが？", "Bagaimana dengan tips hari ini?")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("오늘은 이런 팁 어때요?", "How about today's tip?", "今天来看看这个建议？", "Mẹo hôm nay thì sao?", "今日はこんなヒントはいかが？", "Bagaimana dengan tips hari ini?")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{t("매일 하나씩, 취업에 도움되는 이야기를 골라봤어요.", "One a day — handy tips for your job search.", "每天一条，为你精选求职小贴士。", "Mỗi ngày một mẹo hữu ích cho việc tìm việc.", "毎日ひとつ、就活に役立つ話を選びました。", "Satu per hari, tips berguna untuk pencarian kerja Anda.")}</p>
       </div>
       <div className="flex items-center gap-3 rounded-2xl bg-[#F5F6F8] px-4 py-4">
@@ -487,7 +487,7 @@ function HomeCareerHistory() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("내 커리어가 쌓이고 있어요", "Your career is building up", "你的职业经历正在积累", "Sự nghiệp của bạn đang tích lũy", "あなたのキャリアが積み上がっています", "Karier Anda sedang terbangun")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("내 커리어가 쌓이고 있어요", "Your career is building up", "你的职业经历正在积累", "Sự nghiệp của bạn đang tích lũy", "あなたのキャリアが積み上がっています", "Karier Anda sedang terbangun")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{t("남긴 기록이 이력서·자기소개서로 정리돼요.", "Your notes become your resume and cover letter.", "你的记录会整理成简历和自我介绍。", "Ghi chú của bạn trở thành CV và thư xin việc.", "残した記録が履歴書・自己PRにまとまります。", "Catatan Anda menjadi resume dan surat lamaran.")}</p>
       </div>
 
@@ -524,7 +524,7 @@ function GuideSection() {
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("취업 준비, 이렇게 시작해봐요", "Start your job prep like this", "求职准备，这样开始吧", "Chuẩn bị xin việc, hãy bắt đầu thế này", "就活準備、こう始めましょう", "Mulai persiapan kerja seperti ini")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("취업 준비, 이렇게 시작해봐요", "Start your job prep like this", "求职准备，这样开始吧", "Chuẩn bị xin việc, hãy bắt đầu thế này", "就活準備、こう始めましょう", "Mulai persiapan kerja seperti ini")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{t("처음이라도 막막하지 않게 하나씩 알려드려요.", "New to this? We'll walk you through it step by step.", "即使是新手也不迷茫，我们一步步教你。", "Người mới cũng không lo, chúng tôi hướng dẫn từng bước.", "初めてでも迷わないよう、ひとつずつご案内します。", "Baru pertama kali? Kami pandu langkah demi langkah.")}</p>
       </div>
       <div className="-mx-4 overflow-x-auto md:mx-0">
@@ -686,9 +686,9 @@ function RecommendedJobs() {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-3xl bg-[#F5F8FF] p-6">
+    <section className="flex flex-col gap-4 rounded-3xl bg-gradient-to-b from-white to-[#EEF4FF] p-6 ring-1 ring-[#0B46E8]/[0.07] shadow-[0_10px_36px_-18px_rgba(11,70,232,0.18)]">
       <div>
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("나에게 딱 맞는 공고예요", "Jobs that fit you", "最适合你的职位", "Việc làm phù hợp với bạn", "あなたにぴったりの求人", "Lowongan yang cocok untuk Anda")}</h2>
+        <h2 className="flex items-center gap-2 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]"><span className="inline-block h-[17px] w-[3.5px] shrink-0 rounded-full bg-gradient-to-b from-[#0B46E8] to-[#3A6BFF]" aria-hidden />{t("나에게 딱 맞는 공고예요", "Jobs that fit you", "最适合你的职位", "Việc làm phù hợp với bạn", "あなたにぴったりの求人", "Lowongan yang cocok untuk Anda")}</h2>
         <p className="mt-1 text-[13px] text-[#8B95A1]">{jobs.some((j) => j.matchScore != null) ? t("대표 이력서를 분석해 잘 맞는 순서로 골랐어요.", "Analyzed your resume and ranked the best fits.", "分析你的简历并按最匹配排序。", "Phân tích hồ sơ của bạn và xếp theo độ phù hợp.", "履歴書を分析して相性の良い順に選びました。", "Menganalisis resume Anda dan mengurutkan yang paling cocok.") : jobs.some((j) => j.matched) ? t("관심 직무를 바탕으로 골라봤어요.", "Picked based on your job interests.", "根据你的兴趣职位为你精选。", "Chọn dựa trên nghề bạn quan tâm.", "関心のある職種をもとに選びました。", "Dipilih berdasarkan minat pekerjaan Anda.") : t("지금 올라온 공고를 골라봤어요. 관심 직무를 설정하면 더 잘 맞춰드려요.", "Here are the latest jobs. Set your interests for better matches.", "为你精选了最新职位。设置兴趣职位可获得更精准推荐。", "Đây là các tin mới nhất. Đặt sở thích để khớp tốt hơn.", "最新の求人を選びました。関心職種を設定するとより合います。", "Ini lowongan terbaru. Atur minat untuk hasil lebih cocok.")}</p>
       </div>
 
