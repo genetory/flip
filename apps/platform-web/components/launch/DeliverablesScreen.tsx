@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, CircleNotch, Sparkle, Lightbulb, Target } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { LaunchAmbientBackground } from "./LaunchAmbientBackground";
 import { AplyFooter } from "../AplyFooter";
 import { Reveal } from "../site/Reveal";
 import { SectionTitle } from "./ui";
@@ -52,7 +53,8 @@ export function DeliverablesScreen() {
   const coverReady = hasCoverContent(cover);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="isolate flex min-h-screen flex-col bg-white">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">

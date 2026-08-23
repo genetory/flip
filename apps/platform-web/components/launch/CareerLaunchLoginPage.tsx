@@ -14,6 +14,7 @@ import { TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 import { CareerLaunchIntro } from "./CareerLaunchIntro";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { LaunchAmbientBackground } from "./LaunchAmbientBackground";
 import { AplyFooter } from "../AplyFooter";
 
 export function CareerLaunchLoginPage() {
@@ -69,28 +70,32 @@ export function CareerLaunchLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="isolate flex min-h-screen flex-col bg-white">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
           <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
             {/* 왼쪽 — 서비스 소개(무슨 서비스인지 인지) */}
             <div>
-              <h1 className="break-keep text-[26px] font-black leading-[1.2] tracking-[-0.03em] text-[#0B1227] md:text-[32px]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8]/10 px-3 py-1 text-[12px] font-bold uppercase tracking-[0.1em] text-[#0B46E8]">
+                ✨ APLY Career Launch
+              </span>
+              <h1 className="mt-4 whitespace-pre-line break-keep bg-gradient-to-br from-[#0B1227] via-[#16276A] to-[#0B46E8] bg-clip-text text-[28px] font-black leading-[1.15] tracking-[-0.03em] text-transparent md:text-[36px]">
                 {t(
-                  "모든 취업 준비생을 위한 4주 취업 준비",
-                  "4-week job prep for every job seeker",
-                  "为所有求职者打造的4周就业准备",
-                  "Chuẩn bị việc làm 4 tuần cho mọi người tìm việc",
-                  "すべての就活生のための4週間就職準備",
-                  "Persiapan kerja 4 minggu untuk semua pencari kerja"
+                  "모든 취업 준비생을 위한\n취업 준비 Career Launch",
+                  "Career Launch — job prep\nfor every job seeker",
+                  "为所有求职者打造的\n求职准备 Career Launch",
+                  "Career Launch — chuẩn bị việc làm\ncho mọi người tìm việc",
+                  "すべての就活生のための\n就職準備 Career Launch",
+                  "Career Launch — persiapan kerja\nuntuk semua pencari kerja"
                 )}
               </h1>
               <CareerLaunchIntro className="mt-6" />
             </div>
 
             {/* 오른쪽 — 로그인 카드 */}
-            <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_10px_40px_rgba(11,18,39,0.06)] md:p-7">
+            <div className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-[0_24px_64px_-24px_rgba(11,70,232,0.3)] ring-1 ring-[#0B46E8]/10 backdrop-blur-xl md:p-7">
               <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</h2>
               <p className="mt-1.5 text-[13px] text-[#8B95A1]">{t("학생 계정으로 로그인하고 이어서 진행해요.", "Sign in with your student account to continue.", "使用学生账号登录以继续。", "Đăng nhập bằng tài khoản sinh viên để tiếp tục.", "学生アカウントでログインして続けましょう。", "Masuk dengan akun mahasiswa untuk melanjutkan.")}</p>
 

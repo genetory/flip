@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CaretLeft, SignOut, CaretRight, CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
@@ -33,7 +34,8 @@ export default function CareerLaunchSettingsPage() {
   const name = user?.name?.trim() || user?.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="isolate flex min-h-screen flex-col bg-[#F6F8FB]">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">

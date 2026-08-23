@@ -52,16 +52,27 @@ export function ErrorReporter() {
       /AbortError/i,
       /The operation was aborted/i,
       /ChunkLoadError/i,
-      /Non-Error promise rejection captured/i
+      /Non-Error promise rejection captured/i,
+      // 브라우저 지갑 확장프로그램(MetaMask 등)이 모든 페이지에 inpage.js 를 주입해
+      // 던지는 노이즈 — 우리 코드가 아니고 손쓸 수 없다.
+      /Failed to connect to MetaMask/i,
+      /MetaMask/i
     ];
+
+    // 확장프로그램이 주입한 스크립트에서 발생한 에러는 우리가 조치할 수 없어 드롭한다.
+    // (지갑·번역·광고차단 등 — 스택이 chrome-extension:// 등에서 시작)
+    const extensionOrigin = /(?:chrome|moz|safari(?:-web)?)-extension:\/\//i;
 
     function onError(event: ErrorEvent) {
       const message = (event.message || "").trim();
       if (!message || message === "Unknown error") return;
       if (noisePatterns.some((re) => re.test(message))) return;
+      const stack = event.error instanceof Error ? event.error.stack ?? undefined : undefined;
+      // 확장프로그램발(파일명/스택이 확장 URL) 노이즈 드롭.
+      if (extensionOrigin.test(event.filename || "") || (stack ? extensionOrigin.test(stack) : false)) return;
       send({
         message: message.slice(0, 500),
-        stack: event.error instanceof Error ? event.error.stack ?? undefined : undefined,
+        stack,
         url: event.filename || undefined
       });
     }
@@ -96,10 +107,13 @@ export function ErrorReporter() {
       const normalized = (message || "").trim();
       if (!normalized) return; // no actionable info, drop
       if (noisePatterns.some((re) => re.test(normalized))) return;
+      const stack = reason instanceof Error ? reason.stack ?? undefined : undefined;
+      // 확장프로그램발(스택이 확장 URL에서 시작) 노이즈 드롭.
+      if (stack ? extensionOrigin.test(stack) : false) return;
 
       send({
         message: `unhandledRejection: ${normalized}`.slice(0, 500),
-        stack: reason instanceof Error ? reason.stack ?? undefined : undefined
+        stack
       });
     }
 

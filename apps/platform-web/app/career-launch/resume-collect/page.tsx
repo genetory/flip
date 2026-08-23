@@ -20,6 +20,7 @@ import {
   type ResumeSection
 } from "../../../lib/launch/resume-data";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -151,7 +152,8 @@ export default function ResumeCollectPage() {
 
   if (!isReady || !loaded) {
     return (
-      <div className="flex min-h-screen flex-col bg-white">
+      <div className="isolate flex min-h-screen flex-col bg-white">
+        <LaunchAmbientBackground />
         <CareerLaunchHeader />
         <main className="flex flex-1 items-center justify-center">
           <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>

@@ -15,11 +15,8 @@ import { CareerReportCard } from "../../../../components/launch/CareerReportCard
 import { JobRecommendationCard } from "../../../../components/launch/JobRecommendationCard";
 import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
 import { Recruiter10sCard } from "../../../../components/launch/Recruiter10sCard";
-import { ResumeBulletCard } from "../../../../components/launch/ResumeBulletCard";
-import { JdMatchCard } from "../../../../components/launch/JdMatchCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
-import { CoverQuestionCard } from "../../../../components/launch/CoverQuestionCard";
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
 import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
@@ -34,6 +31,7 @@ import { MaterialsChat } from "../../../../components/launch/MaterialsChat";
 import { InterviewChat } from "../../../../components/launch/InterviewChat";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 import { useWeekText } from "../../../../lib/launch/data-i18n";
@@ -73,7 +71,8 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="isolate flex min-h-screen flex-col bg-white">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
@@ -161,20 +160,11 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
             {/* Week 2 키스톤 — Resume Score. 이력서 미작성이면 카드가 스스로 숨음 */}
             {plan.week === 2 ? <ResumeScoreCard /> : null}
 
-            {/* Week 2 — 이력서 문장 다듬기(Before→After) */}
-            {plan.week === 2 ? <ResumeBulletCard /> : null}
-
             {/* Week 2 — 채용담당자 10초 테스트. 이력서 미작성이면 자체 숨김 */}
             {plan.week === 2 ? <Recruiter10sCard /> : null}
 
-            {/* Week 2 — JD Match(관심 공고 붙여넣기 → 이력서 대조) */}
-            {plan.week === 2 ? <JdMatchCard /> : null}
-
             {/* Week 3 — Story Bank(Experience Bank → STAR 이야기). 경험 채굴 전이면 자체 숨김 */}
             {plan.week === 3 ? <StoryBankCard /> : null}
-
-            {/* Week 3 — 자소서 질문 분석(의도 + 추천 경험) */}
-            {plan.week === 3 ? <CoverQuestionCard /> : null}
 
             {/* Week 3 키스톤 — Cover Letter Score. 자소서 미작성이면 카드가 스스로 숨음 */}
             {plan.week === 3 ? <CoverScoreCard /> : null}

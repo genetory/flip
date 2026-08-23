@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { readAccessToken } from "../../../lib/auth-client";
@@ -111,7 +112,8 @@ export default function CareerSurveyPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F2F4F6]">
+    <div className="isolate flex min-h-screen flex-col bg-[#F2F4F6]">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
