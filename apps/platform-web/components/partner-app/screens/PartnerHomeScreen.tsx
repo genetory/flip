@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { CaretRight, Plus, ChatCircleDots, X, PaperPlaneTilt, ArrowUpRight, CheckCircle, Circle } from "@phosphor-icons/react";
+import { CaretRight, Plus, ChatCircleDots, X, PaperPlaneTilt, ArrowUpRight, CheckCircle, Circle, ShieldCheck } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { PartnerMoreLink, PartnerEmptyCard } from "../ui/cards";
 import { PartnerApplicantCard, PartnerParticipantCard } from "../ListCards";
@@ -13,6 +13,7 @@ import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
+import { blindTalentName } from "../../../lib/partner/blind";
 import { useTimeGreeting } from "../../../lib/time-greeting";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { PARTNER_POSITION_STATUS, usePartnerPositionStatusLabel } from "../../../lib/partner/labels";
@@ -25,6 +26,8 @@ import {
   getPartnerApplicantMessages,
   sendPartnerApplicantMessage,
   getOrgMockInterviewParticipants,
+  getPartnerCandidates,
+  type PartnerCandidateCard,
   type MyPartnerOrganization,
   type PartnerPosition,
   type PartnerApplicantListItem,
@@ -40,6 +43,7 @@ export function PartnerHomeScreen() {
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
   const [participants, setParticipants] = useState<OrgMockInterviewParticipant[]>([]);
+  const [recommended, setRecommended] = useState<PartnerCandidateCard[]>([]);
   const [chat, setChat] = useState<{ applicationId: string; applicantId: string; name: string; positionTitle: string } | null>(null);
   const [proposeTarget, setProposeTarget] = useState<OrgMockInterviewParticipant | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -63,6 +67,7 @@ export function PartnerHomeScreen() {
       .catch(() => setStatus("error"));
     void getPartnerPendingMessages().then(setPending).catch(() => setPending([]));
     void getOrgMockInterviewParticipants().then(setParticipants).catch(() => setParticipants([]));
+    void getPartnerCandidates({ page: 1 }).then((r) => setRecommended(r.items.slice(0, 8))).catch(() => setRecommended([]));
   }
   useEffect(() => {
     load();
@@ -157,6 +162,36 @@ export function PartnerHomeScreen() {
               <Image src="/img_partner_recruit.webp" alt="" fill sizes="190px" className="object-contain" />
             </div>
           </div>
+
+          {/* 이번 주 추천 Talent — Career Launch로 검증된 인재를 먼저 만나보세요(사람을 찾는 홈) */}
+          {recommended.length ? (
+            <section className="flex flex-col gap-4">
+              <SectionHead title={t("이번 주 추천 Talent", "Recommended talent", "本周推荐人才", "Nhân tài đề xuất", "今週のおすすめ人材", "Talenta rekomendasi")} desc={t("Career Launch로 검증돼 지금 바로 인터뷰할 만한 인재예요.", "Verified through Career Launch — ready to interview now.", "经 Career Launch 验证，现在就能面试的人才。", "Đã xác minh qua Career Launch — sẵn sàng phỏng vấn.", "Career Launchで検証済み、今すぐ面接できる人材です。", "Terverifikasi via Career Launch — siap diwawancara.")} />
+              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                {recommended.map((c) => {
+                  const nm = c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId);
+                  return (
+                    <Link key={c.candidateUserId} href={`${partnerRoutes.talent}/${c.candidateUserId}`} className="group flex w-[210px] shrink-0 flex-col gap-2.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#0B46E8]/40 hover:shadow-[0_6px_20px_-12px_rgba(11,70,232,0.3)]">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[14px] font-black text-[#0B46E8]">{nm.slice(0, 1)}</span>
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{nm}</p>
+                          {c.desiredJobRole ? <p className="truncate text-[11.5px] text-[#8B95A1]">{c.desiredJobRole}</p> : null}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.passport?.verified ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-[#E7F8EF] px-1.5 py-0.5 text-[10px] font-bold text-[#0A9B59]"><ShieldCheck className="h-2.5 w-2.5" weight="fill" aria-hidden /> Verified</span>
+                        ) : null}
+                        <span className="text-[11px] font-bold text-[#8B95A1]">Readiness {c.passport?.readiness ?? 0}</span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              <PartnerMoreLink href={partnerRoutes.talent}>{t("인재 더 보기", "Explore more talent", "浏览更多人才", "Xem thêm nhân tài", "人材をもっと見る", "Lihat talenta lainnya")}</PartnerMoreLink>
+            </section>
+          ) : null}
 
           {/* 새 파트너 온보딩 — 공고가 아직 없으면 시작 가이드 */}
           {positions.length === 0 ? (
