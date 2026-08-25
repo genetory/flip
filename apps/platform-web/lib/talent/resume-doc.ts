@@ -47,12 +47,26 @@ export const SECTION_HAS_DATE: Record<CareerSection, boolean> = {
   activity: true
 };
 
+// 포트폴리오·GitHub·LinkedIn 등 첨부 링크.
+export interface ResumeLink {
+  label: string;
+  url: string;
+}
+
 export interface ResumeDoc {
   targetRole: string;
   items: ResumeItem[];
+  links?: ResumeLink[];
   showPhoto?: boolean; // 이력서에 프로필 사진 표시 여부(기본 true)
   createdAt: number;
   updatedAt: number;
+}
+
+// URL 정규화 — 스킴 없으면 https:// 를 붙인다(링크 클릭용).
+export function normalizeUrl(url: string): string {
+  const u = url.trim();
+  if (!u) return "";
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 }
 
 function uid() {

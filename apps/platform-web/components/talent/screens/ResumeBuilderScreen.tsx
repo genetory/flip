@@ -5,7 +5,7 @@
 // 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
+import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus, LinkSimple } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -19,7 +19,7 @@ import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed"
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
-import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
 import { polishExperienceText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
@@ -147,6 +147,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
         <ResumePhotoRow label={t("이력서 사진","Resume photo","简历照片","Ảnh CV","履歴書写真","Foto CV")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 
         <ChatPanel onAdd={add} />
+
+        <LinksCard links={doc.links ?? []} onChange={(links) => onChange({ ...doc, links })} />
 
         {CHIP_ORDER.map((section) => {
           const items = doc.items.filter((it) => it.section === section);
@@ -407,6 +409,55 @@ interface ChatMsg {
 }
 
 type SectionChoice = CareerSection;
+
+// 링크·포트폴리오 — 포트폴리오/GitHub/LinkedIn 등 첨부. 라벨 프리셋 + 직접 입력.
+function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links: ResumeLink[]) => void }) {
+  const t = usePlatformT();
+  const presets = [
+    t("포트폴리오", "Portfolio", "作品集", "Portfolio", "ポートフォリオ", "Portofolio"),
+    "GitHub",
+    "LinkedIn",
+    "Notion",
+    t("블로그", "Blog", "博客", "Blog", "ブログ", "Blog")
+  ];
+  const update = (i: number, patch: Partial<ResumeLink>) => onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const remove = (i: number) => onChange(links.filter((_, idx) => idx !== i));
+  const inputCls = "rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13.5px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:bg-white focus:ring-1 focus:ring-[#0B46E8]";
+  return (
+    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+      <div className="mb-2.5 flex items-center gap-1.5">
+        <LinkSimple className="h-[16px] w-[16px] text-[#0B46E8]" weight="bold" />
+        <p className="text-[13.5px] font-bold text-[#191F28]">{t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}</p>
+        <span className="text-[12px] text-[#8B95A1]">{t("— 포트폴리오·GitHub 등 첨부", "— attach portfolio, GitHub, etc.", "— 附上作品集、GitHub 等", "— đính kèm portfolio, GitHub…", "— ポートフォリオ・GitHub等を添付", "— lampirkan portfolio, GitHub, dll")}</span>
+      </div>
+      {links.length ? (
+        <div className="flex flex-col gap-2">
+          {links.map((l, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input value={l.label} onChange={(e) => update(i, { label: e.target.value })} placeholder={t("라벨", "Label", "标签", "Nhãn", "ラベル", "Label")} className={`${inputCls} w-[92px] shrink-0 font-semibold`} />
+              <input value={l.url} onChange={(e) => update(i, { url: e.target.value })} placeholder="https://..." inputMode="url" className={`${inputCls} min-w-0 flex-1`} />
+              <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1.5 text-[#B0B8C1] transition hover:bg-[#F5F6F8] hover:text-[#F04452]">
+                <Trash className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {presets
+          .filter((p) => !links.some((l) => l.label === p))
+          .map((p) => (
+            <button key={p} type="button" onClick={() => onChange([...links, { label: p, url: "" }])} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+              + {p}
+            </button>
+          ))}
+        <button type="button" onClick={() => onChange([...links, { label: "", url: "" }])} className="rounded-full bg-[#F5F6F8] px-2.5 py-1 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+          + {t("직접", "Custom", "自定义", "Tùy chỉnh", "カスタム", "Kustom")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string, company?: string) => string }) {
   const t = usePlatformT();

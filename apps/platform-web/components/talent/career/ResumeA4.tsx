@@ -5,7 +5,7 @@
 // 통째로 내려 붙인다(섹션은 중간에서 잘리지 않음). 로고·슬로건 바닥글은 마지막 장 맨 아래 고정.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type CareerSection } from "../../../lib/talent/career-chat";
-import { displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { displayMonth, normalizeUrl, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { PdfBrandFooter } from "./pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -158,6 +158,17 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
               <span key={i}>{c}</span>
             ))}
           </div>
+          {doc.links && doc.links.some((l) => l.url?.trim()) ? (
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+              {doc.links
+                .filter((l) => l.url?.trim())
+                .map((l, i) => (
+                  <a key={i} href={normalizeUrl(l.url)} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] underline">
+                    {l.label?.trim() || l.url.trim()}
+                  </a>
+                ))}
+            </div>
+          ) : null}
         </div>
       </header>
 
