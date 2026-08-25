@@ -17726,6 +17726,13 @@ app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async 
           .update({ where: { studentUserId: uid }, data: { state: { ...state, verification: { verifiedAt: now, tier: passport.tier, readiness: passport.readiness } } } })
           .catch(() => {});
         emitTalentEvent(uid, TalentEventType.TALENT_VERIFIED, { entityType: "passport", metadata: { tier: passport.tier, readiness: passport.readiness } });
+        void createNotification({
+          userId: uid,
+          type: "TALENT_VERIFIED",
+          title: "🎉 Verified 인재가 됐어요!",
+          message: "Career Launch로 검증됐어요. 이제 기업이 나를 발견하고 인터뷰를 제안할 수 있어요.",
+          linkPath: "/career-launch/profile"
+        });
         passport.verifiedAt = now;
       }
     }
@@ -25404,6 +25411,14 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
       await prisma.careerLaunchProgress
         .upsert({ where: { studentUserId: conn.candidateUserId }, create: { studentUserId: conn.candidateUserId, state: next }, update: { state: next } })
         .catch(() => {});
+      void createNotification({
+        userId: conn.candidateUserId,
+        type: "COMPANY_FEEDBACK",
+        title: org?.name ? `${org.name}에서 인터뷰 피드백을 남겼어요` : "기업이 인터뷰 피드백을 남겼어요",
+        message: parsed.data.feedback.slice(0, 140),
+        linkPath: "/career-launch/profile",
+        email: true
+      });
     }
     return res.json({ ok: true, item: updated });
   } catch (error) {
