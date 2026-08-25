@@ -86,30 +86,28 @@ function Content() {
       {/* AI 커리어 상담 — 나에 대해 알아가며 어울리는 직무·방향을 찾는다 */}
       <section className="flex flex-col gap-4">
         <SectionHead title={t("AI와 나를 알아가요","Get to know yourself with AI","用 AI 认识我自己","Hiểu bản thân cùng AI","AIで自分を知る","Kenali dirimu dengan AI")} desc={t("AI와 대화하며 나에게 어울리는 직무·직업, 봐야 할 공고, 이력서·자기소개서 방향까지 찾아요.","Chat with AI to find fitting roles, which jobs to target, and how to write your resume and cover letter.","与 AI 对话，找到适合的职位、该看的招聘和简历自我介绍的方向。","Trò chuyện với AI để tìm nghề phù hợp, tin tuyển nên xem và cách viết CV, thư xin việc.","AIと対話して自分に合う職種、見るべき求人、履歴書・自己PRの方向まで見つけます。","Ngobrol dengan AI untuk menemukan peran cocok, lowongan yang perlu dilihat, dan cara menulis resume & surat lamaran.")} />
-        <div className="grid gap-4 sm:grid-cols-2 sm:items-start">
-          {/* AI 커리어 상담 시작 */}
-          <button
-            type="button"
-            onClick={() => setAdvisorOpen(true)}
-            className="group flex h-full items-center gap-3.5 rounded-3xl border border-[#E5E8EB] bg-white p-4 text-left shadow-[0_6px_20px_-10px_rgba(11,18,39,0.18)] transition hover:border-[#0B46E8]/40 hover:shadow-[0_12px_28px_-10px_rgba(11,70,232,0.3)]"
-          >
-            <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center" aria-hidden>
-              <Image src="/images/img_career_position_ai.webp" alt="" width={72} height={72} className="h-full w-full object-contain" />
+        {/* AI 커리어 상담 시작 */}
+        <button
+          type="button"
+          onClick={() => setAdvisorOpen(true)}
+          className="group flex items-center gap-3.5 rounded-3xl border border-[#E5E8EB] bg-white p-4 text-left shadow-[0_6px_20px_-10px_rgba(11,18,39,0.18)] transition hover:border-[#0B46E8]/40 hover:shadow-[0_12px_28px_-10px_rgba(11,70,232,0.3)]"
+        >
+          <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center" aria-hidden>
+            <Image src="/images/img_career_position_ai.webp" alt="" width={72} height={72} className="h-full w-full object-contain" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-black uppercase tracking-[0.12em] text-[#0B46E8]">
+              <Sparkle className="h-3 w-3" weight="fill" /> AI
             </span>
-            <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-black uppercase tracking-[0.12em] text-[#0B46E8]">
-                <Sparkle className="h-3 w-3" weight="fill" /> AI
-              </span>
-              <p className="mt-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
-              <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
-            </div>
-          </button>
-
-          {/* 관심 직무 — 직접 고르거나 수정 */}
-          <div className="flex flex-col gap-1.5">
-            <p className="px-1 text-[12px] font-semibold text-[#8B95A1]">{t("관심 직무 — 직접 고르거나 수정하기","Job interests — pick or edit directly","兴趣职位 — 直接选择或修改","Nghề quan tâm — tự chọn hoặc sửa","関心職種 — 直接選ぶ・修正","Minat pekerjaan — pilih atau ubah")}</p>
-            <JobInterestCard variant="edit" />
+            <p className="mt-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
+            <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
           </div>
+        </button>
+
+        {/* 관심 직무 — 직접 고르거나 수정 */}
+        <div className="flex flex-col gap-1.5">
+          <p className="px-1 text-[12px] font-semibold text-[#8B95A1]">{t("관심 직무 — 직접 고르거나 수정하기","Job interests — pick or edit directly","兴趣职位 — 直接选择或修改","Nghề quan tâm — tự chọn hoặc sửa","関心職種 — 直接選ぶ・修正","Minat pekerjaan — pilih atau ubah")}</p>
+          <JobInterestCard variant="edit" />
         </div>
       </section>
 
