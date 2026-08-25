@@ -16,7 +16,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { SECTION_META } from "../../../lib/talent/career-chat";
-import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverQuestionLabelOf } from "../../../lib/talent/career-labels";
 import { coverChat } from "../../../lib/talent/cover-assist-client";
 import { polishSelfIntro, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
@@ -115,6 +115,29 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
     onChange(next);
   }
 
+  const questions = coverQuestions(doc);
+  // 문항 이름 변경 — 목록과 그 문항에 속한 항목까지 같이 바꿔 링크 유지.
+  function renameQuestion(idx: number, next: string) {
+    const prev = questions[idx];
+    if (prev === next) return;
+    const nextQuestions = questions.map((q, i) => (i === idx ? next : q));
+    const items = doc.items.map((it) => (it.question === prev ? { ...it, question: next } : it));
+    onChange({ ...doc, questions: nextQuestions, items });
+  }
+  // 새 문항 추가 — 이름 중복 피해 기본 이름 부여(사용자가 바로 수정 가능).
+  function addQuestion() {
+    const base = t("새 문항","New section","新问题","Mục mới","新しい設問","Bagian baru");
+    let name = base;
+    let n = 2;
+    while (questions.includes(name)) name = `${base} ${n++}`;
+    onChange({ ...doc, questions: [...questions, name] });
+  }
+  // 문항 삭제 — 목록에서 제거하고 그 문항의 항목도 함께 삭제.
+  function removeQuestion(idx: number) {
+    const q = questions[idx];
+    onChange({ ...doc, questions: questions.filter((_, i) => i !== idx), items: doc.items.filter((it) => it.question !== q) });
+  }
+
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-6">
       <div className="flex flex-col gap-5">
@@ -123,19 +146,22 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
 
         <ResumePhotoRow label={t("자기소개서 사진","Cover letter photo","求职信照片","Ảnh thư xin việc","自己PR写真","Foto surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 
-        <ChatPanel name={basicInfo.realName} resumeText={resumeText} onAdd={add} />
+        <ChatPanel name={basicInfo.realName} resumeText={resumeText} questions={questions} onAdd={add} />
 
-        {COVER_QUESTIONS.map((q) => {
+        {questions.map((q, idx) => {
           const items = doc.items.filter((it) => it.question === q);
           return (
             <CollapsibleSection
-              key={q}
+              key={idx}
               emoji={coverQuestionEmoji(q)}
-              label={coverQuestionLabelOf(t, q)}
+              title={q}
               count={items.length}
               defaultOpen={items.length > 0}
               addLabel={t("직접 추가","Add","直接添加","Thêm","直接追加","Tambah")}
               onAdd={() => addBlank(q)}
+              onRename={(v) => renameQuestion(idx, v)}
+              onRemoveSection={() => removeQuestion(idx)}
+              removeLabel={t("문항 삭제","Delete section","删除问题","Xóa mục","設問を削除","Hapus bagian")}
             >
               {items.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-5 text-center text-[13px] text-[#B0B8C1]">{t("‘직접 추가’로 답변을 직접 작성하거나, 위 AI 대화로 추가하세요.","Use ‘Add’ to write an answer, or add via the AI chat above.","用“直接添加”手动填写，或通过上方 AI 对话添加。","Dùng ‘Thêm’ để tự viết, hoặc thêm qua AI phía trên.","「直接追加」で自分で書くか、上のAI対話で追加してください。","Gunakan ‘Tambah’ untuk menulis, atau via chat AI di atas.")}</p>
@@ -152,6 +178,15 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
             </CollapsibleSection>
           );
         })}
+
+        {/* 문항 추가 — 나만의 자기소개서 문항을 새로 만든다. */}
+        <button
+          type="button"
+          onClick={addQuestion}
+          className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#CBD5E7] bg-[#FAFBFF] px-4 py-3.5 text-[13.5px] font-bold text-[#0B46E8] transition hover:border-[#0B46E8]/50 hover:bg-[#F2F6FF]"
+        >
+          <Plus className="h-4 w-4" weight="bold" /> {t("문항 추가","Add a section","添加问题","Thêm mục","設問を追加","Tambah bagian")}
+        </button>
       </div>
 
       <aside className="hidden lg:sticky lg:top-24 lg:block">
@@ -170,17 +205,28 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
   );
 }
 
-// 접을 수 있는 섹션(문항) — 헤더에 '직접 추가' 버튼(상시) + 화살표 맨 오른쪽.
-function CollapsibleSection({ emoji, label, count, children, defaultOpen = true, onAdd, addLabel }: { emoji: string; label: string; count: number; children: React.ReactNode; defaultOpen?: boolean; onAdd?: () => void; addLabel?: string }) {
+// 접을 수 있는 섹션(문항) — 타이틀은 직접 편집 가능, '직접 추가'·'문항 삭제'·화살표.
+function CollapsibleSection({ emoji, title, count, children, defaultOpen = true, onAdd, addLabel, onRename, onRemoveSection, removeLabel }: { emoji: string; title: string; count: number; children: React.ReactNode; defaultOpen?: boolean; onAdd?: () => void; addLabel?: string; onRename?: (v: string) => void; onRemoveSection?: () => void; removeLabel?: string }) {
+  const t = usePlatformT();
   const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="flex flex-col gap-2.5 border-t border-[#EEF1F5] pt-5">
       <div className="flex w-full items-center gap-1.5">
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex flex-1 items-center gap-1.5 text-left">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={title} className="shrink-0 text-[18px] leading-none">
           <span aria-hidden>{emoji}</span>
-          <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{label}</h2>
-          <span className="text-[13px] font-bold text-[#B0B8C1]">{count}</span>
         </button>
+        {onRename ? (
+          <input
+            value={title}
+            onChange={(e) => onRename(e.target.value)}
+            aria-label={t("문항 이름","Section title","问题名称","Tên mục","設問名","Judul bagian")}
+            placeholder={t("문항 이름","Section title","问题名称","Tên mục","設問名","Judul bagian")}
+            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1.5 py-0.5 text-[18px] font-black tracking-[-0.02em] text-[#0B1227] outline-none transition hover:border-[#E5E8EB] focus:border-[#0B46E8]/40 focus:bg-white placeholder:font-bold placeholder:text-[#C4CAD2]"
+          />
+        ) : (
+          <h2 className="flex-1 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+        )}
+        <span className="shrink-0 text-[13px] font-bold text-[#B0B8C1]">{count}</span>
         {onAdd ? (
           <button
             type="button"
@@ -190,7 +236,18 @@ function CollapsibleSection({ emoji, label, count, children, defaultOpen = true,
             <Plus className="h-3.5 w-3.5" weight="bold" /> {addLabel}
           </button>
         ) : null}
-        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={label} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#F2F4F6]">
+        {onRemoveSection ? (
+          <button
+            type="button"
+            onClick={onRemoveSection}
+            aria-label={removeLabel}
+            title={removeLabel}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#FDECEE] hover:text-[#F04452]"
+          >
+            <Trash className="h-4 w-4" />
+          </button>
+        ) : null}
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={title} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#F2F4F6]">
           <CaretDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
         </button>
       </div>
@@ -205,7 +262,7 @@ interface ChatMsg {
   text: string;
 }
 
-function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: string; onAdd: (question: string, text: string) => void }) {
+function ChatPanel({ name, resumeText, questions, onAdd }: { name: string; resumeText: string; questions: string[]; onAdd: (question: string, text: string) => void }) {
   const t = usePlatformT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [value, setValue] = useState("");
@@ -222,7 +279,7 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
   async function send() {
     const trimmed = value.trim();
     if (!trimmed || pending) return;
-    const question = COVER_QUESTIONS[choice] ?? COVER_QUESTIONS[0];
+    const question = questions[choice] ?? questions[0];
     setValue("");
     setMessages((m) => [...m, { id: ++seq.current, role: "user", text: trimmed }]);
     setPending(true);
@@ -264,8 +321,8 @@ function ChatPanel({ name, resumeText, onAdd }: { name: string; resumeText: stri
 
       {/* 문항 선택 */}
       <div className="flex flex-wrap gap-1.5 px-3 pt-3">
-        {COVER_QUESTIONS.map((q, i) => (
-          <ChipButton key={q} label={`${coverQuestionEmoji(q)} ${coverQuestionLabelOf(t, q)}`} active={choice === i} onClick={() => setChoice(i)} />
+        {questions.map((q, i) => (
+          <ChipButton key={i} label={`${coverQuestionEmoji(q)} ${coverQuestionLabelOf(t, q)}`} active={choice === i} onClick={() => setChoice(i)} />
         ))}
       </div>
 
