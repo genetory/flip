@@ -17740,7 +17740,18 @@ app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async 
         passport.verifiedAt = now;
       }
     }
-    return res.json({ ok: true, passport });
+    // 기업 반응(Outcome 역류) — 나에게 온 인터뷰 제안·진행 상태. 학생 동기부여·플라이휠 가시화.
+    const conns = await prisma.candidateConnectionRequest.findMany({
+      where: { candidateUserId: uid },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      select: { status: true, updatedAt: true, partnerOrganizationId: true }
+    });
+    const orgIds = Array.from(new Set(conns.map((c) => c.partnerOrganizationId).filter((x): x is string => Boolean(x))));
+    const orgs = orgIds.length ? await prisma.partnerOrganization.findMany({ where: { id: { in: orgIds } }, select: { id: true, name: true } }) : [];
+    const orgMap = new Map(orgs.map((o) => [o.id, o.name]));
+    const companyActivity = conns.map((c) => ({ org: c.partnerOrganizationId ? orgMap.get(c.partnerOrganizationId) ?? null : null, status: c.status, at: c.updatedAt.toISOString() }));
+    return res.json({ ok: true, passport: { ...passport, companyActivity } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }

@@ -87,6 +87,25 @@ export function TalentPassportCard() {
 
   const tier = TIER_META[p.tier];
 
+  const activityMeta = (status: string): { label: string; bg: string; ink: string } => {
+    switch (status) {
+      case "PENDING":
+        return { label: t("인터뷰 제안 받음", "Interview invite", "收到面试邀约", "Nhận lời mời PV", "面接オファー", "Undangan wawancara"), bg: "#EDF1FD", ink: "#0B46E8" };
+      case "ACCEPTED":
+        return { label: t("수락함", "Accepted", "已接受", "Đã chấp nhận", "承認済み", "Diterima"), bg: "#EDF1FD", ink: "#0B46E8" };
+      case "SCHEDULED":
+        return { label: t("인터뷰 일정", "Scheduled", "已排期", "Đã hẹn", "面接予定", "Terjadwal"), bg: "#EDF1FD", ink: "#0B46E8" };
+      case "COMPLETED":
+        return { label: t("인터뷰 완료", "Interviewed", "已面试", "Đã PV", "面接完了", "Selesai"), bg: "#F2F4F6", ink: "#4E5968" };
+      case "PASSED":
+        return { label: t("합격 🎉", "Passed 🎉", "通过 🎉", "Đạt 🎉", "合格 🎉", "Lulus 🎉"), bg: "#E7F8EF", ink: "#0A9B59" };
+      case "REJECTED":
+        return { label: t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak"), bg: "#FDECEE", ink: "#F04452" };
+      default:
+        return { label: t("거절함", "Declined", "已拒绝", "Đã từ chối", "辞退", "Ditolak"), bg: "#F2F4F6", ink: "#8B95A1" };
+    }
+  };
+
   return (
     <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-white via-[#F6F9FF] to-[#EAF1FF] p-6 shadow-[0_16px_50px_-18px_rgba(11,70,232,0.24)] ring-1 ring-[#0B46E8]/10 md:p-8">
       <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-[240px] w-[240px] rounded-full bg-[#0B46E8]/[0.12] blur-[90px]" />
@@ -149,6 +168,27 @@ export function TalentPassportCard() {
             </div>
           ))}
         </div>
+
+        {/* 기업 반응 — 나에게 온 인터뷰 제안·진행(Outcome 역류) */}
+        {p.companyActivity?.length ? (
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-[#4E5968]">{t("기업 반응", "Company activity", "企业反应", "Phản ứng doanh nghiệp", "企業の反応", "Aktivitas perusahaan")}</p>
+            <div className="flex flex-col gap-1.5">
+              {p.companyActivity.slice(0, 5).map((a, i) => {
+                const m = activityMeta(a.status);
+                return (
+                  <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-[#EDF1F7] bg-white/70 px-3.5 py-2.5">
+                    <span className="truncate text-[13px] font-semibold text-[#191F28]">{a.org ?? t("어느 기업", "A company", "某企业", "Một công ty", "ある企業", "Sebuah perusahaan")}</span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ background: m.bg, color: m.ink }}>{m.label}</span>
+                      <span className="text-[11px] text-[#B0B8C1]">{a.at.slice(5, 10)}</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
 
         {/* 기업 피드백 — 인터뷰 후 기업이 남긴 코멘트(비공개) */}
         {p.companyFeedback?.length ? (
