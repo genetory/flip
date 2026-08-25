@@ -13838,6 +13838,7 @@ app.post("/members/me/positions/:positionId/apply", authenticate, requireRoles([
           changedByUserId: userId
         }
       });
+      emitTalentEvent(userId, TalentEventType.POSITION_APPLIED, { entityType: "application", entityId: created.id, metadata: { positionId: parsed.data.positionId } });
     } else if (existing.status === "WITHDRAWN") {
       isNewSubmission = true;
       await prisma.application.update({
@@ -15281,6 +15282,130 @@ async function logAiPoints(userId: string, amount: number, reason: string): Prom
   }
 }
 
+// Talent 행동 이벤트 택소노미(원장에 남길 이벤트명 — 클라 GA와 별개로 DB에 기록).
+// 여기 상수만 사용해 오타·표기 흔들림을 막는다. 새 이벤트는 여기에 추가.
+const TalentEventType = {
+  CAREER_DIAGNOSIS_COMPLETED: "career_diagnosis_completed",
+  RESUME_CREATED: "resume_created",
+  RESUME_UPDATED: "resume_updated",
+  MOCK_INTERVIEW_COMPLETED: "mock_interview_completed",
+  CAREER_LAUNCH_COMPLETED: "career_launch_completed",
+  POSITION_APPLIED: "position_applied",
+  INTERVIEW_INVITED: "interview_invited",
+  INTERVIEW_ACCEPTED: "interview_accepted",
+  INTERVIEW_DECLINED: "interview_declined",
+  HIRED: "hired"
+} as const;
+
+// Talent 이벤트를 원장(TalentEvent)에 남긴다 — fire-and-forget, 절대 요청 흐름을 막지 않는다.
+// GA 전송과 달리 DB에 쌓여 "어떤 행동을 한 Talent가 채용됐는가" 분석·매칭 학습의 근거가 된다.
+function emitTalentEvent(
+  talentUserId: string,
+  eventType: string,
+  opts?: { actorType?: "talent" | "company" | "university" | "system"; entityType?: string; entityId?: string; metadata?: Record<string, unknown> }
+): void {
+  if (!talentUserId) return;
+  void prisma.talentEvent
+    .create({
+      data: {
+        talentUserId,
+        eventType,
+        actorType: opts?.actorType ?? "talent",
+        entityType: opts?.entityType ?? null,
+        entityId: opts?.entityId ?? null,
+        metadata: (opts?.metadata ?? undefined) as Prisma.InputJsonValue | undefined
+      }
+    })
+    .catch((err) => console.error("[talent-event] failed", { eventType, error: getErrorMessage(err) }));
+}
+
+// Talent Passport — 기존 데이터(progress·resume·cover·활동)를 조립해 Readiness/Verified 등급을
+// 산출하는 파생 뷰. 스키마 변경 없음. Career Launch 산출물을 "검증된 Talent 자산"으로 만드는 축.
+async function buildTalentPassport(uid: string) {
+  const [progRow, resumeRow, coverRow, appCount, inviteCount] = await Promise.all([
+    prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+    prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+    prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } }),
+    prisma.application.count({ where: { candidateUserId: uid, status: { not: "WITHDRAWN" } } }),
+    prisma.candidateConnectionRequest.count({ where: { candidateUserId: uid } })
+  ]);
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const state = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, any>;
+  const resumeContent = (resumeRow?.content ?? {}) as Record<string, any>;
+  const coverContent = (coverRow?.content ?? {}) as Record<string, any>;
+
+  const num = (v: unknown): number | null => (typeof v === "number" && !Number.isNaN(v) ? v : null);
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  const resumeHasContent = (c: Record<string, any>) =>
+    Boolean((Array.isArray(c.experiences) && c.experiences.length) || (Array.isArray(c.educations) && c.educations.length) || (Array.isArray(c.skills) && c.skills.length) || c.basic?.summary);
+  const coverHasContent = (c: Record<string, any>) => Boolean(Array.isArray(c.items) && c.items.some((it: any) => (it?.answer ?? "").trim()));
+
+  const diagnosis = state.diagnosis && typeof state.diagnosis === "object" ? state.diagnosis : null;
+  const diagnosisDone = Boolean(diagnosis && typeof diagnosis.percent === "number");
+  const areas = state.careerReport?.data?.areas ?? null;
+  const careerTotal = num(state.careerReport?.data?.total);
+  const resumeScore = num(state.scores?.resume?.data?.total);
+  const coverScore = num(state.scores?.cover?.data?.total);
+  const interviewScore = num(state.scores?.interview?.data?.total);
+  const expBank = Array.isArray(state.experienceBank) ? state.experienceBank : [];
+  const expCount = expBank.length;
+  const practiced = Array.isArray(state.interview?.practiced) ? state.interview.practiced.filter((x: any) => typeof x === "string") : [];
+  const selectedJobs = Array.isArray(state.selectedJobs) ? state.selectedJobs.filter((x: any) => typeof x === "string") : [];
+  const jobRec = Array.isArray(state.jobRecommendation?.data?.jobs) ? state.jobRecommendation.data.jobs : [];
+  const languages = Array.isArray(resumeContent.languages) ? resumeContent.languages : [];
+  const jdMatch = num(state.jdMatch?.data?.matchPercent);
+  const resumeReady = resumeHasContent(resumeContent);
+  const coverReady = coverHasContent(coverContent);
+
+  // 영역 값(0~100) — careerReport.areas 우선, 없으면 구체 신호로 대체.
+  const areaVal = {
+    direction: num(areas?.direction) ?? (diagnosisDone ? (selectedJobs.length ? 100 : 60) : 0),
+    resume: num(areas?.resume) ?? resumeScore ?? (resumeReady ? 60 : 0),
+    cover: num(areas?.cover) ?? coverScore ?? (coverReady ? 60 : 0),
+    interview: num(areas?.interview) ?? interviewScore ?? Math.round((Math.min(practiced.length, 3) / 3) * 100),
+    experience: num(areas?.experience) ?? Math.round((Math.min(expCount, 3) / 3) * 100),
+    competency: num(areas?.competency)
+  };
+  // Readiness 가중 평균: direction15 · resume25 · cover15 · interview25 · experience20
+  const readiness = clamp(areaVal.direction * 0.15 + areaVal.resume * 0.25 + areaVal.cover * 0.15 + areaVal.interview * 0.25 + areaVal.experience * 0.2);
+
+  // Verified 게이트: 진단완료 + 이력서완료 + 경험 3+.
+  const gate = { diagnosisDone, resumeReady, experience3plus: expCount >= 3 };
+  const gatePass = gate.diagnosisDone && gate.resumeReady && gate.experience3plus;
+  let tier: "preparing" | "bronze" | "silver" | "gold" = "preparing";
+  if (gatePass) {
+    if (readiness >= 88 && practiced.length >= 3 && coverReady) tier = "gold";
+    else if (readiness >= 75 && practiced.length >= 2) tier = "silver";
+    else if (readiness >= 60) tier = "bronze";
+  }
+  const verified = tier !== "preparing";
+
+  // 점수 → 행동: 약한 영역 기준으로 다음 액션 추천(점수 놀이가 되지 않게).
+  const nextActions: { key: string; label: string; reason: string; href: string }[] = [];
+  if (!gate.diagnosisDone) nextActions.push({ key: "diagnosis", label: "취업 진단 시작", reason: "방향 설정이 먼저예요", href: "/career-launch/diagnosis" });
+  if (gate.diagnosisDone && expCount < 3) nextActions.push({ key: "experience", label: "경험 더 채굴", reason: `경험 ${expCount}/3 — 검증 최소 기준`, href: "/career-launch/experience" });
+  if (areaVal.resume < 70) nextActions.push({ key: "resume", label: "이력서 보완", reason: "이력서 점수를 올리면 노출이 늘어요", href: "/career-launch/resume-collect" });
+  if (areaVal.interview < 70) nextActions.push({ key: "interview", label: "모의면접 1회 더", reason: `면접 준비도 ${areaVal.interview}`, href: "/career-launch/interview" });
+  if (!coverReady) nextActions.push({ key: "cover", label: "자기소개서 작성", reason: "지원 준비를 완성해요", href: "/career-launch/cover-collect" });
+
+  return {
+    readiness,
+    tier,
+    verified,
+    breakdown: areaVal,
+    scores: { career: careerTotal, resume: resumeScore, cover: coverScore, interview: interviewScore },
+    target: { role: (selectedJobs[0] as string | undefined) ?? jobRec[0]?.role ?? null, recommended: jobRec.slice(0, 5) },
+    documents: { resumeReady, coverReady },
+    experienceCount: expCount,
+    languages,
+    jdMatch,
+    activity: { applications: appCount, interviewsInvited: inviteCount, mockInterviews: practiced.length },
+    gate,
+    nextActions: nextActions.slice(0, 4)
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+}
+
 // 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
 // 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
 async function aiWalletReconcile(userId: string): Promise<number> {
@@ -16305,6 +16430,7 @@ app.post(
         };
       }
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      if (result) emitTalentEvent(req.auth!.userId, TalentEventType.CAREER_DIAGNOSIS_COMPLETED, { entityType: "diagnosis", metadata: { percent: result.percent } });
       return res.json({ ok: true, reply, done, result });
     } catch (err) {
       console.error("[career-launch/diagnosis-chat] failed", err);
@@ -16706,6 +16832,7 @@ async function syncCareerResumeToResume(userId: string): Promise<void> {
         resumeId = fresh?.resumeId ?? null;
       } else {
         resumeId = created.id;
+        emitTalentEvent(userId, TalentEventType.RESUME_CREATED, { entityType: "resume", entityId: created.id });
       }
     }
     if (resumeId) {
@@ -17514,6 +17641,7 @@ app.post(
           create: { studentUserId: uid, state: mergedState as object },
           update: { state: mergedState as object }
         });
+        if (newlyPracticed) emitTalentEvent(uid, TalentEventType.MOCK_INTERVIEW_COMPLETED, { entityType: "interview", metadata: { focus } });
       }
       return res.json({ ok: true, reply, done, report });
     } catch (err) {
@@ -17522,6 +17650,17 @@ app.post(
     }
   }
 );
+
+// GET /career-launch/passport — 본인 Talent Passport(Readiness·Verified 등급·다음 액션).
+// 기존 데이터를 조립하는 파생 뷰라 스키마 변경 없음.
+app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const passport = await buildTalentPassport(req.auth!.userId);
+    return res.json({ ok: true, passport });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 // ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
 const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3), generate: z.boolean().optional() });
@@ -19926,6 +20065,7 @@ app.post("/career-launch/ops/outcomes", authenticate, requireRoles([MemberRole.O
         createdByUserId: req.auth!.userId
       }
     });
+    if (d.status === "HIRED") emitTalentEvent(d.studentUserId, TalentEventType.HIRED, { actorType: "system", entityType: "outcome", entityId: outcome.id, metadata: { companyName: d.companyName, positionId: d.positionId ?? null } });
     return res.json({ ok: true, outcome });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -19955,6 +20095,7 @@ app.patch("/career-launch/ops/outcomes/:id", authenticate, requireRoles([MemberR
         ...(d.note !== undefined ? { note: d.note } : {})
       }
     });
+    if (d.status === "HIRED") emitTalentEvent(outcome.studentUserId, TalentEventType.HIRED, { actorType: "system", entityType: "outcome", entityId: outcome.id, metadata: { companyName: outcome.companyName, positionId: outcome.positionId } });
     return res.json({ ok: true, outcome });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -24628,6 +24769,7 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
     const created = await prisma.candidateConnectionRequest.create({
       data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation?.organization?.id ?? null, candidateUserId, message: parsed.data.message ?? null, status: "PENDING" }
     });
+    emitTalentEvent(candidateUserId, TalentEventType.INTERVIEW_INVITED, { actorType: "company", entityType: "connection", entityId: created.id, metadata: { partnerOrganizationId: affiliation?.organization?.id ?? null } });
     const orgName = affiliation?.organization?.name ?? "운영팀";
     await createNotification({
       userId: candidateUserId,
@@ -24828,6 +24970,7 @@ app.post("/partner/positions/:id/mock-interview-candidates/:userId/propose", aut
     const created = await prisma.candidateConnectionRequest.create({
       data: { partnerUserId: req.auth!.userId, partnerOrganizationId: affiliation.organization.id, candidateUserId, message: fullMessage, status: "PENDING" }
     });
+    emitTalentEvent(candidateUserId, TalentEventType.INTERVIEW_INVITED, { actorType: "company", entityType: "connection", entityId: created.id, metadata: { partnerOrganizationId: affiliation.organization.id, positionId: position.id, interviewAt: parsed.data.interviewAt ?? null } });
     const orgName = affiliation.organization.name ?? "회사";
     await createNotification({
       userId: candidateUserId,

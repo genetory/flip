@@ -111,7 +111,6 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
       <TCard className="overflow-hidden">
         <div className="border-b-2 px-6 py-5" style={{ borderColor: template.accent }}>
           <p className="text-[20px] font-black tracking-[-0.02em]" style={{ color: template.accent }}>{preview.name}</p>
-          {preview.targetRole ? <p className="mt-1 text-[13.5px] font-semibold text-[#4E5968]">{t(`${preview.targetRole} 지원`, `Applying for ${preview.targetRole}`, `申请 ${preview.targetRole}`, `Ứng tuyển ${preview.targetRole}`, `${preview.targetRole} に応募`, `Melamar ${preview.targetRole}`)}</p> : null}
           {preview.headline ? <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{preview.headline}</p> : null}
         </div>
         <div className="px-6 py-5">
