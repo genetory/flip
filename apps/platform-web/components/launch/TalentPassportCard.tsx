@@ -129,18 +129,23 @@ export function TalentPassportCard() {
           </span>
         </div>
 
-        {/* 기업 제출용 공유 링크 */}
-        <button
-          type="button"
-          onClick={() => void share()}
-          disabled={sharing}
-          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white/70 px-3 py-1.5 text-[12px] font-bold text-[#4E5968] backdrop-blur-sm transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-60"
-        >
-          <ShareNetwork size={14} weight="bold" aria-hidden />
-          {copied
-            ? t("링크가 복사됐어요 ✓", "Link copied ✓", "链接已复制 ✓", "Đã sao chép ✓", "リンクをコピーしました ✓", "Tersalin ✓")
-            : t("기업 제출용 링크 공유", "Share link for employers", "分享给企业的链接", "Chia sẻ link cho NTD", "企業提出用リンクを共有", "Bagikan untuk perusahaan")}
-        </button>
+        {/* 기업 제출용 공유 링크 + 조회수 */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => void share()}
+            disabled={sharing}
+            className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white/70 px-3 py-1.5 text-[12px] font-bold text-[#4E5968] backdrop-blur-sm transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-60"
+          >
+            <ShareNetwork size={14} weight="bold" aria-hidden />
+            {copied
+              ? t("링크가 복사됐어요 ✓", "Link copied ✓", "链接已复制 ✓", "Đã sao chép ✓", "リンクをコピーしました ✓", "Tersalin ✓")
+              : t("기업 제출용 링크 공유", "Share link for employers", "分享给企业的链接", "Chia sẻ link cho NTD", "企業提出用リンクを共有", "Bagikan untuk perusahaan")}
+          </button>
+          {p.shareViews && p.shareViews > 0 ? (
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#8B95A1]">👀 {t(`${p.shareViews}번 열람됨`, `Viewed ${p.shareViews}×`, `已查看 ${p.shareViews} 次`, `Đã xem ${p.shareViews} lần`, `${p.shareViews}回閲覧`, `Dilihat ${p.shareViews}×`)}</span>
+          ) : null}
+        </div>
 
         {/* 상단 — Readiness 링 + 영역 바 */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">

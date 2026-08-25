@@ -15464,7 +15464,9 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
     gate,
     nextActions: nextActions.slice(0, 4),
     // 기업 피드백(비공개) — 공유 뷰에는 포함하지 않는다.
-    companyFeedback: (Array.isArray(state.companyFeedback) ? state.companyFeedback : []).slice(0, 5) as { comment: string; result: string; org: string | null; at: string }[]
+    companyFeedback: (Array.isArray(state.companyFeedback) ? state.companyFeedback : []).slice(0, 5) as { comment: string; result: string; org: string | null; at: string }[],
+    // 공유 프로필 조회수(본인 화면 전용).
+    shareViews: Number(state.passportShare?.views) || 0
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
 }
@@ -17787,7 +17789,7 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
   try {
     const prog = await prisma.careerLaunchProgress.findFirst({
       where: { state: { path: ["passportShare", "token"], equals: token } },
-      select: { studentUserId: true }
+      select: { studentUserId: true, state: true }
     });
     if (!prog) return res.status(404).json({ ok: false, message: "not found" });
     const uid = prog.studentUserId;
@@ -17795,6 +17797,15 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       buildTalentPassport(uid),
       prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } })
     ]);
+    // 조회수 +1 — 학생에게 '누군가 내 프로필을 봤다'는 신호(단순 카운트).
+    {
+      const st = (prog.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+      const share = (st.passportShare && typeof st.passportShare === "object" ? st.passportShare : {}) as Record<string, unknown>;
+      const views = (Number(share.views) || 0) + 1;
+      await prisma.careerLaunchProgress
+        .update({ where: { studentUserId: uid }, data: { state: { ...st, passportShare: { ...share, views, lastViewedAt: new Date().toISOString() } } as Prisma.InputJsonValue } })
+        .catch(() => {});
+    }
     // 공유용 요약 — 연락처·이메일 없이 검증·역량 위주(학생 본인이 공유를 선택).
     const shared = {
       name: user?.realName || user?.name || null,
