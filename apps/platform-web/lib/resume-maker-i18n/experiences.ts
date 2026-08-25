@@ -2,10 +2,13 @@
 // 사이트 i18n 방식(useLanguage 의 locale)에 맞춰, 컴포넌트별로 6개 언어 사전을
 // 한 파일에 담고 훅으로 노출한다. locale 미일치 시 영어(기본)로 폴백.
 import type { PlatformLocale } from "../auth-messages";
+import type { ExperienceType } from "../resume-maker-types";
 import { useLanguage } from "../../components/i18n/LanguageProvider";
 
 type Copy = {
   rawPlaceholder: string;
+  // 경험 유형(카테고리)별 입력 힌트 — 없으면 rawPlaceholder 로 폴백.
+  rawPlaceholderByType?: Partial<Record<ExperienceType, string>>;
   inProgress: string;
   newExperienceFallback: string;
   loadFailed: string;
@@ -72,6 +75,20 @@ type Copy = {
 const dict: Record<PlatformLocale, Copy> = {
   ko: {
     rawPlaceholder: "카페에서 1년 동안 일했고 주문, 음료 제조, 신규 직원 교육을 했어요.",
+    rawPlaceholderByType: {
+      career: "OO회사에서 2년간 마케팅을 맡아 SNS 콘텐츠를 기획·운영했어요.",
+      intern: "OO에서 3개월 인턴으로 데이터 정리와 리포트 작성을 도왔어요.",
+      part_time: "카페에서 1년 동안 주문, 음료 제조, 신규 직원 교육을 했어요.",
+      school_project: "학교 팀 프로젝트에서 앱을 기획·개발하고 발표를 맡았어요.",
+      personal_project: "혼자 웹사이트를 만들어 배포하고 사용자 피드백을 반영했어요.",
+      club: "동아리 회장을 맡아 30명 규모 행사를 기획·운영했어요.",
+      external_activity: "대외활동에서 캠페인을 기획하고 SNS로 홍보했어요.",
+      competition: "공모전에 참가해 아이디어를 제안하고 프로토타입을 만들었어요.",
+      volunteer: "봉사활동으로 지역 아동에게 6개월간 학습을 지도했어요.",
+      education: "부트캠프에서 6개월간 프론트엔드 개발을 배우고 팀 프로젝트를 완성했어요.",
+      side_project: "사이드 프로젝트로 앱을 만들어 앱스토어에 출시했어요.",
+      etc: "어떤 경험이든 무엇을 했는지 한 줄로 적어 주세요."
+    },
     inProgress: "진행 중",
     newExperienceFallback: "새 경험",
     loadFailed: "이력서를 불러오지 못했어요.",
@@ -137,6 +154,20 @@ const dict: Record<PlatformLocale, Copy> = {
   },
   en: {
     rawPlaceholder: "I worked at a cafe for a year, taking orders, making drinks, and training new staff.",
+    rawPlaceholderByType: {
+      career: "I worked in marketing at OO for 2 years, planning and running social media content.",
+      intern: "As a 3-month intern at OO, I helped organize data and write reports.",
+      part_time: "I worked at a cafe for a year — taking orders, making drinks, and training new staff.",
+      school_project: "In a school team project, I planned and built an app and gave the presentation.",
+      personal_project: "I built and shipped a website on my own and iterated on user feedback.",
+      club: "As club president, I planned and ran an event for 30 people.",
+      external_activity: "In an external program, I planned a campaign and promoted it on social media.",
+      competition: "I entered a competition, pitched an idea, and built a prototype.",
+      volunteer: "I tutored local children for 6 months as a volunteer.",
+      education: "At a bootcamp, I learned frontend development for 6 months and finished a team project.",
+      side_project: "I built an app as a side project and launched it on the App Store.",
+      etc: "Whatever the experience, write one line about what you did."
+    },
     inProgress: "In progress",
     newExperienceFallback: "New experience",
     loadFailed: "We couldn't load your resume.",

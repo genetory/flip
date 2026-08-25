@@ -454,7 +454,7 @@ export function ResumeExperiencesPage({ resumeId }: { resumeId: string }) {
               <textarea
                 value={form.rawInput}
                 onChange={(e) => setForm((f) => ({ ...f, rawInput: e.target.value }))}
-                placeholder={t.rawPlaceholder}
+                placeholder={t.rawPlaceholderByType?.[form.type] ?? t.rawPlaceholder}
                 rows={3}
                 maxLength={1000}
                 className="mt-1 w-full rounded-xl border border-transparent bg-[#F2F4F6] px-3 py-2.5 text-[14px] leading-relaxed focus:border-[#0B46E8] focus:bg-white focus:outline-none"

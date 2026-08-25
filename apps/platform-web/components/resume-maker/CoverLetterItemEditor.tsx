@@ -55,6 +55,8 @@ export function CoverLetterItemEditor({
 
   const keywords = () => kwInput.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 10);
   const kwPlaceholder = t.clStandardPrompts.find((p) => p.prompt === item.prompt.trim())?.example ?? t.clKeywordPlaceholder;
+  // 답변 플레이스홀더도 문항(카테고리)별 예시로 — 표준 문항이면 해당 예시, 아니면 기본 안내.
+  const answerPlaceholder = t.clStandardPrompts.find((p) => p.prompt === item.prompt.trim())?.example ?? t.clAnswerPlaceholder;
   const chars = item.answer.trim().length;
 
   async function run(mode: "draft" | "polish") {
@@ -122,7 +124,7 @@ export function CoverLetterItemEditor({
       <textarea
         className="mt-2.5 w-full rounded-xl border border-border bg-white px-3 py-2.5 text-[13.5px] leading-relaxed focus:border-[#0B46E8] focus:outline-none"
         rows={10}
-        placeholder={t.clAnswerPlaceholder}
+        placeholder={answerPlaceholder}
         value={item.answer}
         onChange={(e) => onChange({ answer: e.target.value })}
       />
