@@ -447,25 +447,27 @@ function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links:
         </div>
       ) : null}
 
-      {/* 입력 폼 — 제목 + 링크 + 추가 */}
-      <div className="flex items-center gap-2">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} w-[108px] shrink-0 font-semibold`} />
-        <input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addLink();
-            }
-          }}
-          placeholder="https://..."
-          inputMode="url"
-          className={`${inputCls} min-w-0 flex-1`}
-        />
-        <button type="button" onClick={addLink} disabled={!url.trim()} className="shrink-0 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
-          {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
-        </button>
+      {/* 입력 폼 — 제목(1행) / 링크 + 추가(2행) */}
+      <div className="flex flex-col gap-2">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} w-full font-semibold`} />
+        <div className="flex items-center gap-2">
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addLink();
+              }
+            }}
+            placeholder="https://..."
+            inputMode="url"
+            className={`${inputCls} min-w-0 flex-1`}
+          />
+          <button type="button" onClick={addLink} disabled={!url.trim()} className="shrink-0 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+            {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
+          </button>
+        </div>
       </div>
     </div>
   );
