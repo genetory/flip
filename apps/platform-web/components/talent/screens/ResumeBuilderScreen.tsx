@@ -5,7 +5,7 @@
 // 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus, LinkSimple } from "@phosphor-icons/react";
+import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -148,8 +148,6 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 
         <ChatPanel onAdd={add} />
 
-        <LinksCard links={doc.links ?? []} onChange={(links) => onChange({ ...doc, links })} />
-
         {CHIP_ORDER.map((section) => {
           const items = doc.items.filter((it) => it.section === section);
           const meta = SECTION_META[section];
@@ -187,6 +185,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
             </CollapsibleSection>
           );
         })}
+
+        <LinksCard links={doc.links ?? []} onChange={(links) => onChange({ ...doc, links })} />
       </div>
 
       {/* 데스크톱 미리보기(상시, A4) */}
@@ -410,66 +410,36 @@ interface ChatMsg {
 
 type SectionChoice = CareerSection;
 
-// 링크·포트폴리오 — 제목·링크를 입력하고 '추가'로 목록에 넣는 방식.
+// 링크·포트폴리오 — 다른 섹션과 동일한 CollapsibleSection 형태. '직접 추가'로 링크 항목 추가.
 function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links: ResumeLink[]) => void }) {
   const t = usePlatformT();
-  const [label, setLabel] = useState("");
-  const [url, setUrl] = useState("");
-  const addLink = () => {
-    const u = url.trim();
-    if (!u) return;
-    onChange([...links, { label: label.trim(), url: u }]);
-    setLabel("");
-    setUrl("");
-  };
+  const update = (i: number, patch: Partial<ResumeLink>) => onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   const remove = (i: number) => onChange(links.filter((_, idx) => idx !== i));
-  const inputCls = "rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13.5px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:bg-white focus:ring-1 focus:ring-[#0B46E8]";
+  const inputCls = "w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]";
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
-      <div className="mb-2.5 flex items-center gap-1.5">
-        <LinkSimple className="h-[16px] w-[16px] text-[#0B46E8]" weight="bold" />
-        <p className="text-[13.5px] font-bold text-[#191F28]">{t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}</p>
-        <span className="text-[12px] text-[#8B95A1]">{t("— 포트폴리오·GitHub 등 첨부", "— attach portfolio, GitHub, etc.", "— 附上作品集、GitHub 等", "— đính kèm portfolio, GitHub…", "— ポートフォリオ・GitHub等を添付", "— lampirkan portfolio, GitHub, dll")}</span>
-      </div>
-
-      {/* 추가된 링크 목록 */}
-      {links.length ? (
-        <div className="mb-2.5 flex flex-col gap-1.5">
-          {links.map((l, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg bg-[#F5F6F8] px-3 py-2">
-              {l.label ? <span className="shrink-0 text-[13px] font-bold text-[#191F28]">{l.label}</span> : null}
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-[#4E5968]">{l.url}</span>
-              <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1 text-[#B0B8C1] transition hover:bg-white hover:text-[#F04452]">
-                <Trash className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
+    <CollapsibleSection
+      emoji="🔗"
+      label={t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}
+      count={links.length}
+      defaultOpen={links.length > 0}
+      addLabel={t("직접 추가", "Add", "直接添加", "Thêm", "直接追加", "Tambah")}
+      onAdd={() => onChange([...links, { label: "", url: "" }])}
+    >
+      {links.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-5 text-center text-[13px] text-[#B0B8C1]">{t("‘직접 추가’로 포트폴리오·GitHub 등 링크를 넣어보세요.", "Use ‘Add’ to attach portfolio, GitHub, and other links.", "用“直接添加”附上作品集、GitHub 等链接。", "Dùng ‘Thêm’ để đính kèm portfolio, GitHub…", "「直接追加」でポートフォリオ・GitHub等のリンクを追加してください。", "Gunakan ‘Tambah’ untuk melampirkan portfolio, GitHub, dll.")}</p>
       ) : null}
-
-      {/* 입력 폼 — 제목(1행) / 링크 + 추가(2행) */}
-      <div className="flex flex-col gap-2">
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} w-full font-semibold`} />
-        <div className="flex items-center gap-2">
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addLink();
-              }
-            }}
-            placeholder="https://..."
-            inputMode="url"
-            className={`${inputCls} min-w-0 flex-1`}
-          />
-          <button type="button" onClick={addLink} disabled={!url.trim()} className="shrink-0 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
-            {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
-          </button>
+      {links.map((l, i) => (
+        <div key={i} className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+          <input value={l.label} onChange={(e) => update(i, { label: e.target.value })} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} mb-2.5 font-bold placeholder:font-normal`} />
+          <div className="flex items-center gap-2">
+            <input value={l.url} onChange={(e) => update(i, { url: e.target.value })} placeholder="https://..." inputMode="url" className={`${inputCls} min-w-0 flex-1`} />
+            <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-2 text-[#B0B8C1] transition hover:bg-[#F5F6F8] hover:text-[#F04452]">
+              <Trash className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+      ))}
+    </CollapsibleSection>
   );
 }
 
