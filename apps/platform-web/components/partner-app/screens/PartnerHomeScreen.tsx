@@ -28,6 +28,7 @@ import {
   getOrgMockInterviewParticipants,
   getPartnerCandidates,
   getPartnerPipeline,
+  getRecommendedTalentForPosition,
   type PipelineItem,
   type PartnerCandidateCard,
   type MyPartnerOrganization,
@@ -45,7 +46,8 @@ export function PartnerHomeScreen() {
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
   const [participants, setParticipants] = useState<OrgMockInterviewParticipant[]>([]);
-  const [recommended, setRecommended] = useState<PartnerCandidateCard[]>([]);
+  const [recommended, setRecommended] = useState<Array<PartnerCandidateCard & { matchPercent?: number }>>([]);
+  const [recoPositionTitle, setRecoPositionTitle] = useState<string | null>(null);
   const [connections, setConnections] = useState<PipelineItem[]>([]);
   const [chat, setChat] = useState<{ applicationId: string; applicantId: string; name: string; positionTitle: string } | null>(null);
   const [proposeTarget, setProposeTarget] = useState<OrgMockInterviewParticipant | null>(null);
@@ -66,11 +68,28 @@ export function PartnerHomeScreen() {
         setPositions(p);
         setApplicants(a);
         setStatus("ready");
+        // 추천 인재 — 열린 공고가 있으면 그 공고 기준 매칭(점수 포함), 없으면 Readiness 상위.
+        const openPos = p.find((x) => x.status === "OPEN");
+        const fallback = () => {
+          setRecoPositionTitle(null);
+          void getPartnerCandidates({ page: 1 }).then((r) => setRecommended(r.items.slice(0, 8))).catch(() => setRecommended([]));
+        };
+        if (openPos) {
+          void getRecommendedTalentForPosition(openPos.id)
+            .then((items) => {
+              if (items.length) {
+                setRecommended(items);
+                setRecoPositionTitle(openPos.title || null);
+              } else fallback();
+            })
+            .catch(fallback);
+        } else {
+          fallback();
+        }
       })
       .catch(() => setStatus("error"));
     void getPartnerPendingMessages().then(setPending).catch(() => setPending([]));
     void getOrgMockInterviewParticipants().then(setParticipants).catch(() => setParticipants([]));
-    void getPartnerCandidates({ page: 1 }).then((r) => setRecommended(r.items.slice(0, 8))).catch(() => setRecommended([]));
     void getPartnerPipeline().then(setConnections).catch(() => setConnections([]));
   }
   useEffect(() => {
@@ -191,7 +210,7 @@ export function PartnerHomeScreen() {
           {/* 이번 주 추천 Talent — Career Launch로 검증된 인재를 먼저 만나보세요(사람을 찾는 홈) */}
           {recommended.length ? (
             <section className="flex flex-col gap-4">
-              <SectionHead title={t("이번 주 추천 Talent", "Recommended talent", "本周推荐人才", "Nhân tài đề xuất", "今週のおすすめ人材", "Talenta rekomendasi")} desc={t("Career Launch로 검증돼 지금 바로 인터뷰할 만한 인재예요.", "Verified through Career Launch — ready to interview now.", "经 Career Launch 验证，现在就能面试的人才。", "Đã xác minh qua Career Launch — sẵn sàng phỏng vấn.", "Career Launchで検証済み、今すぐ面接できる人材です。", "Terverifikasi via Career Launch — siap diwawancara.")} />
+              <SectionHead title={t("이번 주 추천 Talent", "Recommended talent", "本周推荐人才", "Nhân tài đề xuất", "今週のおすすめ人材", "Talenta rekomendasi")} desc={recoPositionTitle ? t(`'${recoPositionTitle}' 공고에 맞는 매칭 인재예요.`, `Talent matched to '${recoPositionTitle}'.`, `与“${recoPositionTitle}”职位匹配的人才。`, `Nhân tài khớp với '${recoPositionTitle}'.`, `「${recoPositionTitle}」求人に合う人材です。`, `Talenta cocok untuk '${recoPositionTitle}'.`) : t("Career Launch로 검증돼 지금 바로 인터뷰할 만한 인재예요.", "Verified through Career Launch — ready to interview now.", "经 Career Launch 验证，现在就能面试的人才。", "Đã xác minh qua Career Launch — sẵn sàng phỏng vấn.", "Career Launchで検証済み、今すぐ面接できる人材です。", "Terverifikasi via Career Launch — siap diwawancara.")} />
               <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
                 {recommended.map((c) => {
                   const nm = c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId);
@@ -205,6 +224,9 @@ export function PartnerHomeScreen() {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {typeof c.matchPercent === "number" ? (
+                          <span className="rounded-md bg-[#0B46E8] px-1.5 py-0.5 text-[10px] font-black text-white">{t(`매칭 ${c.matchPercent}`, `Match ${c.matchPercent}`, `匹配 ${c.matchPercent}`, `Khớp ${c.matchPercent}`, `適合 ${c.matchPercent}`, `Cocok ${c.matchPercent}`)}</span>
+                        ) : null}
                         {c.passport?.verified ? (
                           <span className="inline-flex items-center gap-1 rounded-md bg-[#E7F8EF] px-1.5 py-0.5 text-[10px] font-bold text-[#0A9B59]"><ShieldCheck className="h-2.5 w-2.5" weight="fill" aria-hidden /> Verified</span>
                         ) : null}

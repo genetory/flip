@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PencilSimple, Copy, ShieldCheck } from "@phosphor-icons/react";
+import { PencilSimple, Copy, ShieldCheck, Sparkle } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -78,6 +78,24 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [proposeTarget, setProposeTarget] = useState<MockInterviewParticipant | null>(null);
   const [recommended, setRecommended] = useState<RecommendedTalent[]>([]);
+  const [explaining, setExplaining] = useState(false);
+  const [explained, setExplained] = useState(false);
+
+  async function explainMatches() {
+    if (explaining || explained) return;
+    setExplaining(true);
+    try {
+      const items = await getRecommendedTalentForPosition(positionId, true);
+      if (items.length) {
+        setRecommended(items);
+        setExplained(true);
+      }
+    } catch {
+      toast.error(t("AI 설명을 불러오지 못했어요", "Couldn't load AI explanations", "无法加载 AI 说明", "Không tải được giải thích AI", "AI説明を読み込めませんでした", "Gagal memuat penjelasan AI"));
+    } finally {
+      setExplaining(false);
+    }
+  }
 
   function load() {
     setStatus("loading");
@@ -196,6 +214,19 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
             <div className="mb-6">
               <h2 className="mb-1 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이 공고에 맞는 추천 Talent", "Recommended talent for this role", "适合该职位的推荐人才", "Nhân tài phù hợp vị trí này", "この求人におすすめの人材", "Talenta rekomendasi untuk posisi ini")}</h2>
               <p className="mb-3 break-keep text-[12.5px] text-[#8B95A1]">{t("직무·언어·Readiness를 종합한 매칭 점수순이에요. 눌러서 인터뷰를 제안하세요.", "Ranked by a match score across role, language, and readiness. Tap to invite for an interview.", "按职务、语言、准备度综合匹配分排序。点击可发起面试邀约。", "Xếp theo điểm khớp về vị trí, ngôn ngữ, mức sẵn sàng. Nhấn để mời phỏng vấn.", "職務・言語・準備度を総合したマッチスコア順です。タップして面接を打診しましょう。", "Diurutkan berdasarkan skor kecocokan peran, bahasa, kesiapan. Ketuk untuk undang wawancara.")}</p>
+              {!explained ? (
+                <button
+                  type="button"
+                  onClick={() => void explainMatches()}
+                  disabled={explaining}
+                  className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F0] bg-white px-3.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:border-[#0B46E8]/50 disabled:opacity-60"
+                >
+                  <Sparkle className="h-3.5 w-3.5" weight="fill" aria-hidden />
+                  {explaining
+                    ? t("AI가 분석 중…", "Analyzing…", "AI 分析中…", "Đang phân tích…", "AI分析中…", "Menganalisis…")
+                    : t("AI 매칭 설명 보기", "See AI match reasons", "查看 AI 匹配说明", "Xem lý do khớp bằng AI", "AIマッチ理由を見る", "Lihat alasan AI")}
+                </button>
+              ) : null}
               <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
                 {recommended.map((c) => {
                   const nm = c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId);

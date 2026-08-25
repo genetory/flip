@@ -126,6 +126,8 @@ export type TalentPassport = {
   gate: { diagnosisDone: boolean; resumeReady: boolean; experience3plus: boolean };
   nextActions: { key: string; label: string; reason: string; href: string }[];
   companyFeedback: { comment: string; result: string; org: string | null; at: string }[];
+  companyActivity?: { org: string | null; status: string; at: string }[];
+  shareViews?: number;
 };
 
 export async function fetchTalentPassport(): Promise<TalentPassport | null> {

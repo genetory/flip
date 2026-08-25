@@ -6639,8 +6639,12 @@ app.get("/ops/job-alerts/summary", authenticate, requireRoles([MemberRole.OPERAT
 
 // GET /ops/talent-funnel — TalentEvent 기반 행동 퍼널(진단→이력서→모의면접→지원→인터뷰→채용).
 // 단계별 고유 Talent 수 + 총 이벤트 수. North Star(전환율)를 운영이 측정할 근거.
-app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   try {
+    // 기간 필터 — days(7·30 등)면 최근 N일, 그 외/미지정이면 전체.
+    const daysRaw = Number((req.query.days as string) ?? "");
+    const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(365, Math.floor(daysRaw)) : 0;
+    const timeWhere = days > 0 ? { createdAt: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } } : {};
     const STAGES: { key: string; label: string }[] = [
       { key: "career_diagnosis_completed", label: "진단 완료" },
       { key: "resume_created", label: "이력서 생성" },
@@ -6652,15 +6656,15 @@ app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]),
       { key: "interview_completed", label: "인터뷰 완료" },
       { key: "hired", label: "채용" }
     ];
-    const totals = await prisma.talentEvent.groupBy({ by: ["eventType"], _count: { _all: true } });
+    const totals = await prisma.talentEvent.groupBy({ by: ["eventType"], where: timeWhere, _count: { _all: true } });
     const totalMap = new Map(totals.map((tt) => [tt.eventType, tt._count._all]));
     const stages = await Promise.all(
       STAGES.map(async (s) => {
-        const distinct = await prisma.talentEvent.findMany({ where: { eventType: s.key }, distinct: ["talentUserId"], select: { talentUserId: true } });
+        const distinct = await prisma.talentEvent.findMany({ where: { eventType: s.key, ...timeWhere }, distinct: ["talentUserId"], select: { talentUserId: true } });
         return { key: s.key, label: s.label, talents: distinct.length, events: totalMap.get(s.key) ?? 0 };
       })
     );
-    return res.json({ ok: true, stages, totalEvents: totals.reduce((a, tt) => a + tt._count._all, 0) });
+    return res.json({ ok: true, stages, totalEvents: totals.reduce((a, tt) => a + tt._count._all, 0), days });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -15460,7 +15464,9 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
     gate,
     nextActions: nextActions.slice(0, 4),
     // 기업 피드백(비공개) — 공유 뷰에는 포함하지 않는다.
-    companyFeedback: (Array.isArray(state.companyFeedback) ? state.companyFeedback : []).slice(0, 5) as { comment: string; result: string; org: string | null; at: string }[]
+    companyFeedback: (Array.isArray(state.companyFeedback) ? state.companyFeedback : []).slice(0, 5) as { comment: string; result: string; org: string | null; at: string }[],
+    // 공유 프로필 조회수(본인 화면 전용).
+    shareViews: Number(state.passportShare?.views) || 0
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
 }
@@ -17726,10 +17732,28 @@ app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async 
           .update({ where: { studentUserId: uid }, data: { state: { ...state, verification: { verifiedAt: now, tier: passport.tier, readiness: passport.readiness } } } })
           .catch(() => {});
         emitTalentEvent(uid, TalentEventType.TALENT_VERIFIED, { entityType: "passport", metadata: { tier: passport.tier, readiness: passport.readiness } });
+        void createNotification({
+          userId: uid,
+          type: "TALENT_VERIFIED",
+          title: "🎉 Verified 인재가 됐어요!",
+          message: "Career Launch로 검증됐어요. 이제 기업이 나를 발견하고 인터뷰를 제안할 수 있어요.",
+          linkPath: "/career-launch/profile"
+        });
         passport.verifiedAt = now;
       }
     }
-    return res.json({ ok: true, passport });
+    // 기업 반응(Outcome 역류) — 나에게 온 인터뷰 제안·진행 상태. 학생 동기부여·플라이휠 가시화.
+    const conns = await prisma.candidateConnectionRequest.findMany({
+      where: { candidateUserId: uid },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+      select: { status: true, updatedAt: true, partnerOrganizationId: true }
+    });
+    const orgIds = Array.from(new Set(conns.map((c) => c.partnerOrganizationId).filter((x): x is string => Boolean(x))));
+    const orgs = orgIds.length ? await prisma.partnerOrganization.findMany({ where: { id: { in: orgIds } }, select: { id: true, name: true } }) : [];
+    const orgMap = new Map(orgs.map((o) => [o.id, o.name]));
+    const companyActivity = conns.map((c) => ({ org: c.partnerOrganizationId ? orgMap.get(c.partnerOrganizationId) ?? null : null, status: c.status, at: c.updatedAt.toISOString() }));
+    return res.json({ ok: true, passport: { ...passport, companyActivity } });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -17765,7 +17789,7 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
   try {
     const prog = await prisma.careerLaunchProgress.findFirst({
       where: { state: { path: ["passportShare", "token"], equals: token } },
-      select: { studentUserId: true }
+      select: { studentUserId: true, state: true }
     });
     if (!prog) return res.status(404).json({ ok: false, message: "not found" });
     const uid = prog.studentUserId;
@@ -17773,6 +17797,15 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       buildTalentPassport(uid),
       prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } })
     ]);
+    // 조회수 +1 — 학생에게 '누군가 내 프로필을 봤다'는 신호(단순 카운트).
+    {
+      const st = (prog.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+      const share = (st.passportShare && typeof st.passportShare === "object" ? st.passportShare : {}) as Record<string, unknown>;
+      const views = (Number(share.views) || 0) + 1;
+      await prisma.careerLaunchProgress
+        .update({ where: { studentUserId: uid }, data: { state: { ...st, passportShare: { ...share, views, lastViewedAt: new Date().toISOString() } } as Prisma.InputJsonValue } })
+        .catch(() => {});
+    }
     // 공유용 요약 — 연락처·이메일 없이 검증·역량 위주(학생 본인이 공유를 선택).
     const shared = {
       name: user?.realName || user?.name || null,
@@ -24975,7 +25008,62 @@ function scoreTalentForPosition(
   return { matchPercent: Math.max(0, Math.min(100, Math.round(score))), reason: reasons.slice(0, 3).join(" · ") };
 }
 
+// 매칭 LLM 설명(opt-in) — rule 점수 상위 후보에 자연어 근거 한 줄을 붙인다. 1콜/요청(비용 관리).
+async function explainMatchesWithOpenAI(
+  pos: { title: string; preferredJobRole: string | null; communicationLanguages: string[] },
+  items: { candidateUserId: string; desiredJobRole?: string | null; skills?: string[]; languages?: string[]; matchPercent: number; verified: boolean; readiness: number }[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!openai || items.length === 0) return out;
+  try {
+    const response = await openai.responses.create({
+      model: openaiMatchingModel,
+      input: [
+        { role: "system", content: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라." },
+        {
+          role: "user",
+          content: JSON.stringify({
+            position: { title: pos.title, role: pos.preferredJobRole, languages: pos.communicationLanguages },
+            candidates: items.map((it) => ({ id: it.candidateUserId, desiredRole: it.desiredJobRole ?? null, skills: (it.skills ?? []).slice(0, 8), languages: it.languages ?? [], matchPercent: it.matchPercent, verified: it.verified, readiness: it.readiness }))
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "match_explanations",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              explanations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: { id: { type: "string" }, reason: { type: "string", minLength: 1, maxLength: 120 } },
+                  required: ["id", "reason"]
+                }
+              }
+            },
+            required: ["explanations"]
+          },
+          strict: true
+        }
+      }
+    });
+    const outputText = (response as { output_text?: string }).output_text;
+    if (!outputText) return out;
+    const parsed = JSON.parse(outputText) as { explanations?: { id: string; reason: string }[] };
+    for (const e of parsed.explanations ?? []) if (e?.id && e?.reason) out.set(e.id, e.reason.trim());
+  } catch (err) {
+    console.error("[explainMatches] failed", getErrorMessage(err));
+  }
+  return out;
+}
+
 // GET /partner/positions/:id/recommended-talent — 공고에 맞는 인재를 매칭 점수순으로 추천.
+// ?explain=1 이면 상위 후보에 LLM 자연어 근거를 덧붙인다(opt-in, 1콜).
 app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const positionId = typeof req.params.id === "string" ? req.params.id : "";
   try {
@@ -25023,8 +25111,24 @@ app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles(
       })
       .sort((a, b) => b.matchPercent - a.matchPercent)
       .slice(0, 8);
+
+    // opt-in LLM 설명 — 상위 후보에 자연어 근거를 덧붙인다(요청당 1콜).
+    let explained = false;
+    if (req.query.explain === "1" || req.query.explain === "true") {
+      const reasons = await explainMatchesWithOpenAI(
+        pos,
+        scored.map((c) => ({ candidateUserId: c.candidateUserId, desiredJobRole: c.desiredJobRole, skills: c.skills, languages: c.languages, matchPercent: c.matchPercent, verified: c.passport.verified, readiness: c.passport.readiness }))
+      );
+      if (reasons.size) {
+        for (const c of scored) {
+          const r = reasons.get(c.candidateUserId);
+          if (r) c.matchReason = r;
+        }
+        explained = true;
+      }
+    }
     await attachCachedDocSummaries(scored);
-    return res.json({ ok: true, items: scored, position: { id: pos.id, title: pos.title } });
+    return res.json({ ok: true, items: scored, position: { id: pos.id, title: pos.title }, explained });
   } catch (err) {
     console.error("[partner/positions/:id/recommended-talent] failed", err);
     return res.status(500).json({ ok: false, message: "failed to recommend talent" });
@@ -25404,6 +25508,14 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
       await prisma.careerLaunchProgress
         .upsert({ where: { studentUserId: conn.candidateUserId }, create: { studentUserId: conn.candidateUserId, state: next }, update: { state: next } })
         .catch(() => {});
+      void createNotification({
+        userId: conn.candidateUserId,
+        type: "COMPANY_FEEDBACK",
+        title: org?.name ? `${org.name}에서 인터뷰 피드백을 남겼어요` : "기업이 인터뷰 피드백을 남겼어요",
+        message: parsed.data.feedback.slice(0, 140),
+        linkPath: "/career-launch/profile",
+        email: true
+      });
     }
     return res.json({ ok: true, item: updated });
   } catch (error) {
