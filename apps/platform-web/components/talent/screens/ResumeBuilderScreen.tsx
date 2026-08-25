@@ -449,6 +449,17 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
     setPending(false);
   }
 
+  // 선택한 카테고리(choice)에 맞는 입력 예시 — 칩을 바꾸면 placeholder도 바뀐다.
+  const chipPlaceholder =
+    choice === "experience" ? t("예) OO에서 2년간 마케팅 담당 · SNS 콘텐츠 기획·운영","e.g. 2 yrs in marketing at OO · planned & ran social content","例）在OO负责营销2年·策划运营社媒内容","VD) 2 năm marketing tại OO · lên kế hoạch nội dung MXH","例）OOでマーケ2年・SNSコンテンツ企画運営","Cth) 2 thn marketing di OO · kelola konten sosial")
+    : choice === "project" ? t("예) 팀 프로젝트로 앱을 기획·개발하고 발표 담당","e.g. Planned & built an app in a team project, led the demo","例）团队项目中策划开发App并负责展示","VD) Dự án nhóm: lên ý tưởng, làm app & thuyết trình","例）チームでアプリを企画・開発し発表担当","Cth) Proyek tim: rancang & bangun app, presentasi")
+    : choice === "certificate" ? t("예) 토익 900 · 컴퓨터활용능력 1급 (2024)","e.g. TOEIC 900 · Computer Proficiency Level 1 (2024)","例）托业900·计算机能力1级（2024）","VD) TOEIC 900 · Chứng chỉ tin học loại 1 (2024)","例）TOEIC900・PC活用能力1級（2024）","Cth) TOEIC 900 · Sertifikat komputer L1 (2024)")
+    : choice === "skill" ? t("예) Python · Excel · 데이터 분석","e.g. Python · Excel · data analysis","例）Python · Excel · 数据分析","VD) Python · Excel · phân tích dữ liệu","例）Python・Excel・データ分析","Cth) Python · Excel · analisis data")
+    : choice === "activity" ? t("예) 동아리 회장으로 30명 규모 행사 기획·운영","e.g. As club president, planned & ran an event for 30","例）担任社团会长，策划运营30人活动","VD) Chủ nhiệm CLB, tổ chức sự kiện 30 người","例）サークル会長として30名規模の行事を企画運営","Cth) Ketua klub, kelola acara 30 orang")
+    : choice === "award" ? t("예) 교내 공모전 대상 · 100팀 중 1위","e.g. Grand prize in a campus contest · 1st of 100 teams","例）校内竞赛大奖·100队中第1","VD) Giải nhất cuộc thi trường · 1/100 đội","例）学内コンテスト大賞・100チーム中1位","Cth) Juara 1 lomba kampus · 1 dari 100 tim")
+    : choice === "education" ? t("예) OO대학교 컴퓨터공학 · 학점 3.8/4.5","e.g. OO University, Computer Science · GPA 3.8/4.5","例）OO大学计算机·GPA 3.8/4.5","VD) ĐH OO, KH máy tính · GPA 3.8/4.5","例）OO大学 情報工学・GPA3.8/4.5","Cth) Univ OO, Ilmu Komputer · IPK 3.8/4.5")
+    : t("예) 데이터 분석 프로젝트 완료 · 토익 900 취득","e.g. Completed a data analysis project · Scored 900 on TOEIC","例）完成数据分析项目 · 托业 900 分","VD) Hoàn thành dự án phân tích dữ liệu · TOEIC 900","例）データ分析プロジェクト完了・TOEIC900取得","Cth) Selesaikan proyek analisis data · TOEIC 900");
+
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white">
       <div className="flex items-center gap-1.5 px-4 pt-3">
@@ -491,7 +502,7 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={4}
-            placeholder={t("예) 데이터 분석 프로젝트 완료 · 토익 900 취득","e.g. Completed a data analysis project · Scored 900 on TOEIC","例）完成数据分析项目 · 托业 900 分","VD) Hoàn thành dự án phân tích dữ liệu · TOEIC 900","例）データ分析プロジェクト完了・TOEIC900取得","Cth) Selesaikan proyek analisis data · TOEIC 900")}
+            placeholder={chipPlaceholder}
             className="min-h-[112px] flex-1 resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
           />
           <button
