@@ -1674,6 +1674,21 @@ export async function advanceConnectionStatus(connectionId: string, status: "SCH
     body: JSON.stringify({ status })
   });
 }
+
+// 파트너: 인터뷰/채용 파이프라인(연결을 단계별로).
+export type PipelineItem = {
+  connectionId: string;
+  candidateUserId: string;
+  name: string | null;
+  status: ConnectionPipelineStatus;
+  readiness: number;
+  verified: boolean;
+  createdAt: string;
+};
+export async function getPartnerPipeline(): Promise<PipelineItem[]> {
+  const result = await authedJsonFetch<PipelineItem>("/partner/pipeline", { method: "GET" });
+  return ((result as { items?: PipelineItem[] }).items ?? []) as PipelineItem[];
+}
 export async function connectPartnerCandidate(candidateUserId: string, message?: string): Promise<void> {
   await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/connect`, {
     method: "POST",

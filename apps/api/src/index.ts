@@ -24786,6 +24786,54 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
   }
 });
 
+// GET /partner/pipeline — 파트너의 인터뷰/채용 파이프라인. 연결을 단계별로 묶어 반환.
+// 각 후보에 Talent Passport(readiness·verified) 요약을 배치로 붙인다.
+app.get("/partner/pipeline", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  try {
+    const conns = await prisma.candidateConnectionRequest.findMany({
+      where: { partnerUserId: req.auth!.userId },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, candidateUserId: true, status: true, createdAt: true, updatedAt: true }
+    });
+    const ids = Array.from(new Set(conns.map((c) => c.candidateUserId)));
+    const passportMap = new Map<string, { readiness: number; verified: boolean }>();
+    const userMap = new Map<string, { name: string | null; realName: string | null }>();
+    if (ids.length) {
+      const [users, progs, crs, covers] = await Promise.all([
+        prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, realName: true } }),
+        prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, state: true } }),
+        prisma.careerResumeData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } }),
+        prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, content: true } })
+      ]);
+      for (const u of users) userMap.set(u.id, { name: u.name, realName: u.realName });
+      const pm = new Map(progs.map((p) => [p.studentUserId, p.state]));
+      const cm = new Map(crs.map((c) => [c.studentUserId, c.content]));
+      const covm = new Map(covers.map((c) => [c.studentUserId, c.content]));
+      for (const id of ids) {
+        const p = computeTalentPassport({ state: pm.get(id), resumeContent: cm.get(id), coverContent: covm.get(id), applications: 0, interviewsInvited: 0 });
+        passportMap.set(id, { readiness: p.readiness, verified: p.verified });
+      }
+    }
+    const items = conns.map((c) => {
+      const unlocked = ["ACCEPTED", "SCHEDULED", "COMPLETED", "PASSED", "REJECTED"].includes(c.status);
+      const u = userMap.get(c.candidateUserId);
+      const pp = passportMap.get(c.candidateUserId) ?? { readiness: 0, verified: false };
+      return {
+        connectionId: c.id,
+        candidateUserId: c.candidateUserId,
+        name: unlocked ? u?.realName || u?.name || null : null,
+        status: c.status,
+        readiness: pp.readiness,
+        verified: pp.verified,
+        createdAt: c.createdAt.toISOString()
+      };
+    });
+    return res.json({ ok: true, items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const candidateUserId = String(req.params.candidateUserId ?? "");
   try {
