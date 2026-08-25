@@ -17716,6 +17716,63 @@ app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async 
   }
 });
 
+// POST /career-launch/passport/share — 공유 토큰 발급(멱등). state.passportShare 에 저장(스키마 변경 0).
+app.post("/career-launch/passport/share", authenticate, requireCareerEnrollment, async (req, res) => {
+  const uid = req.auth!.userId;
+  try {
+    const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid }, select: { state: true } });
+    const state = (prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+    const share = (state.passportShare && typeof state.passportShare === "object" ? state.passportShare : {}) as { token?: string };
+    let token = typeof share.token === "string" && share.token ? share.token : "";
+    if (!token) {
+      token = randomBytes(12).toString("hex");
+      const next = { ...state, passportShare: { token, createdAt: new Date().toISOString() } };
+      await prisma.careerLaunchProgress.upsert({
+        where: { studentUserId: uid },
+        create: { studentUserId: uid, state: next },
+        update: { state: next }
+      });
+    }
+    return res.json({ ok: true, token });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /career-launch/passport/shared/:token — 공개(무인증) 공유 뷰. 연락처 없이 검증·역량 요약만.
+app.get("/career-launch/passport/shared/:token", async (req, res) => {
+  const token = typeof req.params.token === "string" ? req.params.token : "";
+  if (!token || token.length < 8) return res.status(400).json({ ok: false, message: "invalid token" });
+  try {
+    const prog = await prisma.careerLaunchProgress.findFirst({
+      where: { state: { path: ["passportShare", "token"], equals: token } },
+      select: { studentUserId: true }
+    });
+    if (!prog) return res.status(404).json({ ok: false, message: "not found" });
+    const uid = prog.studentUserId;
+    const [passport, user] = await Promise.all([
+      buildTalentPassport(uid),
+      prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } })
+    ]);
+    // 공유용 요약 — 연락처·이메일 없이 검증·역량 위주(학생 본인이 공유를 선택).
+    const shared = {
+      name: user?.realName || user?.name || null,
+      readiness: passport.readiness,
+      tier: passport.tier,
+      verified: passport.verified,
+      verifiedAt: passport.verifiedAt,
+      breakdown: passport.breakdown,
+      scores: passport.scores,
+      target: passport.target,
+      experienceCount: passport.experienceCount,
+      languages: passport.languages
+    };
+    return res.json({ ok: true, passport: shared });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
 const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3), generate: z.boolean().optional() });
 const WEEK_FEEDBACK_SCHEMA = {

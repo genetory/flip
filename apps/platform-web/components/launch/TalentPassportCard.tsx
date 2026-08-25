@@ -5,8 +5,8 @@
 // 각 점수는 반드시 행동(다음 액션)과 연결한다 — 점수 놀이가 되지 않게.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, SealCheck, CheckCircle } from "@phosphor-icons/react";
-import { fetchTalentPassport, type TalentPassport, type PassportTier } from "../../lib/launch/progress-client";
+import { ArrowRight, SealCheck, CheckCircle, ShareNetwork } from "@phosphor-icons/react";
+import { fetchTalentPassport, sharePassport, type TalentPassport, type PassportTier } from "../../lib/launch/progress-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 const TIER_META: Record<PassportTier, { label: string; ring: string; chipBg: string; chipInk: string }> = {
@@ -51,6 +51,24 @@ export function TalentPassportCard() {
   const t = useLaunchT();
   const [p, setP] = useState<TalentPassport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const token = await sharePassport();
+      if (token && typeof window !== "undefined") {
+        const url = `${window.location.origin}/p/${token}`;
+        await navigator.clipboard.writeText(url).catch(() => {});
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2200);
+      }
+    } finally {
+      setSharing(false);
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -91,6 +109,19 @@ export function TalentPassportCard() {
             {tier.label}
           </span>
         </div>
+
+        {/* 기업 제출용 공유 링크 */}
+        <button
+          type="button"
+          onClick={() => void share()}
+          disabled={sharing}
+          className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white/70 px-3 py-1.5 text-[12px] font-bold text-[#4E5968] backdrop-blur-sm transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-60"
+        >
+          <ShareNetwork size={14} weight="bold" aria-hidden />
+          {copied
+            ? t("링크가 복사됐어요 ✓", "Link copied ✓", "链接已复制 ✓", "Đã sao chép ✓", "リンクをコピーしました ✓", "Tersalin ✓")
+            : t("기업 제출용 링크 공유", "Share link for employers", "分享给企业的链接", "Chia sẻ link cho NTD", "企業提出用リンクを共有", "Bagikan untuk perusahaan")}
+        </button>
 
         {/* 상단 — Readiness 링 + 영역 바 */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
