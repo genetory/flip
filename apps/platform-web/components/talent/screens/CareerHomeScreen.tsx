@@ -103,12 +103,12 @@ function Content() {
             <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
           </div>
         </button>
+      </section>
 
-        {/* 관심 직무 — 직접 고르거나 수정 */}
-        <div className="flex flex-col gap-1.5">
-          <p className="px-1 text-[12px] font-semibold text-[#8B95A1]">{t("관심 직무 — 직접 고르거나 수정하기","Job interests — pick or edit directly","兴趣职位 — 直接选择或修改","Nghề quan tâm — tự chọn hoặc sửa","関心職種 — 直接選ぶ・修正","Minat pekerjaan — pilih atau ubah")}</p>
-          <JobInterestCard variant="edit" />
-        </div>
+      {/* 관심 직무 — 직접 고르거나 수정 */}
+      <section className="flex flex-col gap-4">
+        <SectionHead title={t("관심 직무를 정해요","Set your job interests","确定兴趣职位","Chọn nghề quan tâm","関心職種を決める","Tentukan minat pekerjaan")} desc={t("관심 직무를 고르면 그에 맞는 공고와 모의 면접이 더 정확해져요. 직접 고르거나 수정할 수 있어요.","Pick your interests so matched jobs and mock interviews get more accurate. You can pick or edit them directly.","选择兴趣职位后，匹配的招聘和模拟面试会更精准。可自行选择或修改。","Chọn nghề quan tâm để tin tuyển và phỏng vấn thử chính xác hơn. Bạn có thể tự chọn hoặc sửa.","関心職種を選ぶと、合う求人や模擬面接がより正確になります。直接選択・修正できます。","Pilih minat agar lowongan dan wawancara simulasi lebih akurat. Bisa pilih atau ubah sendiri.")} />
+        <JobInterestCard variant="edit" />
       </section>
 
       {/* 이력서 · 자기소개서 */}
