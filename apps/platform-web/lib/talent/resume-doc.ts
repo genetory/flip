@@ -91,9 +91,9 @@ export function resumeCompleteness(doc: ResumeDoc | null): number {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
-export function addResumeItem(doc: ResumeDoc, section: CareerSection, text: string, startDate = "", endDate = ""): { doc: ResumeDoc; id: string } {
+export function addResumeItem(doc: ResumeDoc, section: CareerSection, text: string, startDate = "", endDate = "", company = ""): { doc: ResumeDoc; id: string } {
   const id = uid();
-  return { doc: { ...doc, items: [...doc.items, { id, section, text, startDate, endDate }] }, id };
+  return { doc: { ...doc, items: [...doc.items, { id, section, text, startDate, endDate, ...(company.trim() ? { company: company.trim() } : {}) }] }, id };
 }
 
 // refId 로 매핑된 이력서 항목을 멱등 삽입(피드 자동 추출용). 문서가 없으면 새로 만든다.

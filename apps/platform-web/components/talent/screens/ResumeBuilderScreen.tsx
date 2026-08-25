@@ -123,11 +123,11 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setCompany(id: string, company: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, company } : it)) });
   }
-  function add(text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string): string {
+  function add(text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string, company?: string): string {
     const trimmed = text.trim();
     if (!trimmed) return "";
     const sec = section ?? classifyCareerNote(trimmed);
-    const { doc: next, id } = addResumeItem(doc, sec, refined ?? refineText(trimmed), startDate ?? "", endDate ?? "");
+    const { doc: next, id } = addResumeItem(doc, sec, refined ?? refineText(trimmed), startDate ?? "", endDate ?? "", company ?? "");
     onChange(next);
     return id;
   }
@@ -408,7 +408,7 @@ interface ChatMsg {
 
 type SectionChoice = CareerSection;
 
-function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string) => string }) {
+function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string, company?: string) => string }) {
   const t = usePlatformT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [value, setValue] = useState("");
@@ -439,7 +439,7 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
 
     const meta = SECTION_META[res.section];
     const secLabel = sectionLabelOf(t, res.section);
-    const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate);
+    const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate, res.title);
     // 커리어 기록(피드)에도 요약 리스팅.
     ensureFeedEntry(`resume:${id}`, res.refined, res.section, { label: `${t("이력서","Resume","简历","CV","履歴書","CV")} · ${secLabel}`, href: talentAppRoutes.resume });
     setMessages((m) => [

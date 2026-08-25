@@ -17,6 +17,11 @@ const SYSTEM = `너는 한국 첫 취업 준비생을 돕는 다정한 커리어
    예) "카페에서 알바했어요" → "카페 아르바이트 — 고객 응대 및 주문·재고 관리"
    예) "토익 900점 땄어요" → "TOEIC 900점 취득"
    예) "친구랑 앱 만들었어요" → "팀 프로젝트 — 모바일 앱 기획·개발 참여"
+2-1) title: 이 항목의 '짧은 제목'(이력서에서 소속·회사/기관명, 프로젝트명, 학교명, 자격증명, 스킬명, 활동명 자리에 들어갈 값). 노트에 고유명(회사·학교·프로젝트 이름 등)이 명시돼 있으면 그대로 쓰고, 없으면 내용을 요약해 3~20자 내외의 간결한 명사구 제목을 만들어. 마침표·군더더기 금지. 절대 빈 문자열로 두지 말고 항상 채워.
+   예) "카페에서 알바했어요" → title "카페 아르바이트"
+   예) "토익 900점 땄어요" → title "TOEIC"
+   예) "OO전자에서 인턴했어요" → title "OO전자 인턴"
+   예) "친구랑 배달 앱 만들었어요" → title "배달 앱 프로젝트"
 3) startDate / endDate: 노트에 기간이 있으면 시작일(startDate)·종료일(endDate)로 나눠. 형식 "YYYY.MM" 또는 "YYYY". 진행 중이면 endDate="현재". 단일 시점(자격증 취득일·수상일 등)이면 startDate 에만 넣고 endDate 는 빈 문자열. 날짜 언급이 없으면 둘 다 빈 문자열.
 4) mode: 직전 항목(prev)이 주어졌고, 사용자의 새 노트가 그 직전 항목을 '보충'하는 내용(특히 물어본 기간/날짜, 또는 같은 항목의 세부사항)이면 "update", 완전히 새로운 별개의 항목이면 "new". prev 가 없으면 항상 "new". mode="update" 면 section 은 prev 의 것을 그대로 쓰고, startDate/endDate(또는 보충된 내용)를 채워.
 5) followUp: 사용자에게 직접 건네는 말. relevant=true 면 잘하고 있다고 짧게 격려하고, 무엇을 한 문장 더 적으면 좋은지 쉬운 예시와 함께 물어봐(특히 기간이 없으면 언제였는지 자연스럽게 물어봐). relevant=false 면 부드럽게 이력서에 담을 커리어 이야기를 적어달라고 안내해.
@@ -28,7 +33,7 @@ const SYSTEM = `너는 한국 첫 취업 준비생을 돕는 다정한 커리어
 - 이모지는 쓰더라도 최대 1개.
 
 relevant=false 면 refined 는 빈 문자열로.
-반드시 JSON 객체로만 답해: {"relevant": true, "section": "...", "refined": "...", "startDate": "", "endDate": "", "mode": "new", "followUp": "..."}`;
+반드시 JSON 객체로만 답해: {"relevant": true, "section": "...", "title": "...", "refined": "...", "startDate": "", "endDate": "", "mode": "new", "followUp": "..."}`;
 
 export async function POST(req: Request) {
   const key = process.env.OPENAI_API_KEY;
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
     if (!res.ok) return NextResponse.json({ error: "upstream", status: res.status }, { status: 502 });
     const data = await res.json();
     const raw = data?.choices?.[0]?.message?.content;
-    const parsed = JSON.parse(raw) as { relevant?: boolean; section?: string; refined?: string; startDate?: string; endDate?: string; mode?: string; followUp?: string };
+    const parsed = JSON.parse(raw) as { relevant?: boolean; section?: string; title?: string; refined?: string; startDate?: string; endDate?: string; mode?: string; followUp?: string };
 
     const relevant = parsed.relevant !== false;
     const mode = prev?.text && parsed.mode === "update" ? "update" : "new";
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
       relevant,
       mode,
       section,
+      title: relevant ? (parsed.title ?? "").trim().slice(0, 60) : "",
       refined: relevant ? (parsed.refined ?? text).trim() : "",
       startDate: relevant ? (parsed.startDate ?? "").trim() : "",
       endDate: relevant ? (parsed.endDate ?? "").trim() : "",
