@@ -6647,6 +6647,8 @@ app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]),
       { key: "mock_interview_completed", label: "모의면접" },
       { key: "position_applied", label: "지원" },
       { key: "interview_invited", label: "인터뷰 제안" },
+      { key: "interview_accepted", label: "인터뷰 수락" },
+      { key: "interview_completed", label: "인터뷰 완료" },
       { key: "hired", label: "채용" }
     ];
     const totals = await prisma.talentEvent.groupBy({ by: ["eventType"], _count: { _all: true } });
@@ -15320,6 +15322,8 @@ const TalentEventType = {
   INTERVIEW_INVITED: "interview_invited",
   INTERVIEW_ACCEPTED: "interview_accepted",
   INTERVIEW_DECLINED: "interview_declined",
+  INTERVIEW_SCHEDULED: "interview_scheduled",
+  INTERVIEW_COMPLETED: "interview_completed",
   HIRED: "hired"
 } as const;
 
@@ -24789,7 +24793,7 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
     if (req.auth!.role !== MemberRole.OPERATOR && !affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
     const conn = await prisma.candidateConnectionRequest.findUnique({
       where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } },
-      select: { status: true, message: true, createdAt: true, respondedAt: true }
+      select: { id: true, status: true, message: true, createdAt: true, respondedAt: true }
     });
     const resumeSelect = { content: true, updatedAt: true, user: { select: { name: true, realName: true, nationality: true, email: true, phoneNumber: true } } } as const;
     // 인재풀 후보이거나, 이 파트너가 연결/제안을 보낸 후보(모의 면접 제안 포함)면 열람 가능.
@@ -24825,6 +24829,7 @@ app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([Memb
         coverLetter: cover && coverItems.length ? { title: cover.title, company: cover.company, items: unlocked ? coverItems : redactIdentityDeep(coverItems, terms) } : null,
         updatedAt: resume.updatedAt.toISOString(),
         connectionStatus: conn?.status ?? null,
+        connectionId: conn?.id ?? null,
         contactUnlocked: unlocked
       }
     });
@@ -25104,6 +25109,7 @@ app.post("/members/me/connections/:id/respond", authenticate, requireRoles([Memb
     if (conn.status !== "PENDING") return res.json({ ok: true, item: conn });
     const status = parsed.data.action === "accept" ? "ACCEPTED" : "DECLINED";
     const updated = await prisma.candidateConnectionRequest.update({ where: { id }, data: { status, respondedAt: new Date() } });
+    emitTalentEvent(req.auth!.userId, status === "ACCEPTED" ? TalentEventType.INTERVIEW_ACCEPTED : TalentEventType.INTERVIEW_DECLINED, { entityType: "connection", entityId: id });
     const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true, realName: true } });
     const who = me?.realName || me?.name || "후보자";
     await createNotification({
@@ -25118,6 +25124,33 @@ app.post("/members/me/connections/:id/respond", authenticate, requireRoles([Memb
   } catch (err) {
     console.error("[members/me/connections/:id/respond] failed", err);
     return res.status(500).json({ ok: false, message: "failed to respond" });
+  }
+});
+
+// 파트너: 인터뷰 파이프라인 진행 — 수락(ACCEPTED) 이후 SCHEDULED→COMPLETED→PASSED/REJECTED.
+// status 는 자유 문자열 컬럼이라 마이그레이션 없이 확장. 각 단계는 TalentEvent 로 기록된다.
+const advanceConnectionSchema = z.object({ status: z.enum(["SCHEDULED", "COMPLETED", "PASSED", "REJECTED"]) });
+app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const id = String(req.params.id ?? "");
+  const parsed = advanceConnectionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const conn = await prisma.candidateConnectionRequest.findFirst({ where: { id, partnerUserId: req.auth!.userId } });
+    if (!conn) return res.status(404).json({ ok: false, message: "connection not found" });
+    // 파이프라인은 후보가 수락(ACCEPTED)한 뒤에만 진행 가능.
+    if (!["ACCEPTED", "SCHEDULED", "COMPLETED"].includes(conn.status)) {
+      return res.status(400).json({ ok: false, message: "connection is not in an advanceable state" });
+    }
+    const status = parsed.data.status;
+    const updated = await prisma.candidateConnectionRequest.update({ where: { id }, data: { status } });
+    if (status === "SCHEDULED") {
+      emitTalentEvent(conn.candidateUserId, TalentEventType.INTERVIEW_SCHEDULED, { actorType: "company", entityType: "connection", entityId: id, metadata: { partnerOrganizationId: conn.partnerOrganizationId } });
+    } else {
+      emitTalentEvent(conn.candidateUserId, TalentEventType.INTERVIEW_COMPLETED, { actorType: "company", entityType: "connection", entityId: id, metadata: { result: status.toLowerCase(), partnerOrganizationId: conn.partnerOrganizationId } });
+    }
+    return res.json({ ok: true, item: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
 

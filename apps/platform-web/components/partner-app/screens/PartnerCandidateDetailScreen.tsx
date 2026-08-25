@@ -9,7 +9,7 @@ import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
-import { getPartnerCandidate, connectPartnerCandidate, getPartnerCandidateDocumentSummary, type PartnerCandidateDetail } from "../../../lib/member-profile-client";
+import { getPartnerCandidate, connectPartnerCandidate, advanceConnectionStatus, getPartnerCandidateDocumentSummary, type PartnerCandidateDetail } from "../../../lib/member-profile-client";
 import { usePlatformT } from "../../../lib/i18n";
 
 function asArray(v: unknown): Record<string, unknown>[] {
@@ -27,6 +27,20 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
   const [connectOpen, setConnectOpen] = useState(false);
   const [summary, setSummary] = useState<{ resumeBullets: string[]; coverBullets: string[] } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [advancing, setAdvancing] = useState(false);
+
+  async function advance(next: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED") {
+    if (!d?.connectionId || advancing) return;
+    setAdvancing(true);
+    try {
+      await advanceConnectionStatus(d.connectionId, next);
+      load();
+    } catch {
+      toast.error(t("상태 변경에 실패했어요", "Couldn't update status", "更新失败", "Không cập nhật được", "更新に失敗しました", "Gagal memperbarui"));
+    } finally {
+      setAdvancing(false);
+    }
+  }
 
   function load() {
     setStatus("loading");
@@ -89,22 +103,66 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
               </div>
             ) : null}
 
-            {/* 연결 액션 */}
+            {/* 연결 · 인터뷰 파이프라인 */}
             <div className="mt-4">
-              {d.connectionStatus === "ACCEPTED" ? (
-                <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#E7F8EF] px-4 text-[13.5px] font-bold text-[#0A9B59]">{t("연결됨 · 연락처가 공개됐어요", "Connected · contact revealed", "已连接 · 联系方式已公开", "Đã kết nối · đã hiện liên hệ", "つながり済み · 連絡先が公開されました", "Terhubung · kontak terbuka")}</span>
+              {d.connectionStatus === null ? (
+                <>
+                  <button type="button" onClick={() => setConnectOpen(true)} className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                    {t("연결 요청하기", "Request connection", "发送连接请求", "Gửi yêu cầu kết nối", "つながりを申請", "Minta koneksi")}
+                  </button>
+                  <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("후보가 수락하면 이메일·전화번호가 공개돼요.", "Once the candidate accepts, their email and phone are revealed.", "候选人接受后将公开邮箱和电话。", "Khi ứng viên chấp nhận, email và số điện thoại sẽ hiện.", "候補者が承認するとメール・電話番号が公開されます。", "Setelah kandidat menerima, email dan telepon terbuka.")}</p>
+                </>
               ) : d.connectionStatus === "PENDING" ? (
                 <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#8B95A1]">{t("연결 요청을 보냈어요 · 수락 대기 중", "Request sent · awaiting acceptance", "已发送请求 · 等待接受", "Đã gửi yêu cầu · chờ chấp nhận", "リクエスト送信 · 承認待ち", "Terkirim · menunggu diterima")}</span>
               ) : d.connectionStatus === "DECLINED" ? (
                 <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13.5px] font-bold text-[#F04452]">{t("후보가 연결 요청을 거절했어요", "The candidate declined your request", "候选人拒绝了连接请求", "Ứng viên đã từ chối yêu cầu", "候補者がリクエストを拒否しました", "Kandidat menolak permintaan")}</span>
               ) : (
-                <button type="button" onClick={() => setConnectOpen(true)} className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                  {t("연결 요청하기", "Request connection", "发送连接请求", "Gửi yêu cầu kết nối", "つながりを申請", "Minta koneksi")}
-                </button>
+                <div className="flex flex-col gap-2.5">
+                  {/* 인터뷰 단계 표시 */}
+                  <div className="flex items-center gap-1.5">
+                    {(["ACCEPTED", "SCHEDULED", "COMPLETED"] as const).map((stp, i) => {
+                      const order = ["ACCEPTED", "SCHEDULED", "COMPLETED"];
+                      const cur = d.connectionStatus === "PASSED" || d.connectionStatus === "REJECTED" ? 2 : order.indexOf(String(d.connectionStatus));
+                      const active = i <= cur;
+                      const label =
+                        stp === "ACCEPTED"
+                          ? t("수락", "Accepted", "接受", "Chấp nhận", "承認", "Diterima")
+                          : stp === "SCHEDULED"
+                            ? t("일정", "Scheduled", "已排期", "Đã hẹn", "日程", "Terjadwal")
+                            : t("완료", "Completed", "完成", "Hoàn tất", "完了", "Selesai");
+                      return (
+                        <div key={stp} className="flex-1">
+                          <div className={`h-1.5 rounded-full ${active ? "bg-[#0B46E8]" : "bg-[#EEF1F5]"}`} />
+                          <p className={`mt-1 text-[10.5px] font-bold ${active ? "text-[#0B46E8]" : "text-[#B0B8C1]"}`}>{label}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* 진행 액션 */}
+                  {d.connectionStatus === "ACCEPTED" ? (
+                    <button type="button" disabled={advancing} onClick={() => void advance("SCHEDULED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                      {t("인터뷰 일정 잡기", "Schedule interview", "安排面试", "Lên lịch phỏng vấn", "面接を予定する", "Jadwalkan wawancara")}
+                    </button>
+                  ) : d.connectionStatus === "SCHEDULED" ? (
+                    <button type="button" disabled={advancing} onClick={() => void advance("COMPLETED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                      {t("인터뷰 완료 표시", "Mark interview done", "标记面试完成", "Đánh dấu hoàn tất", "面接完了にする", "Tandai selesai")}
+                    </button>
+                  ) : d.connectionStatus === "COMPLETED" ? (
+                    <div className="flex gap-2">
+                      <button type="button" disabled={advancing} onClick={() => void advance("PASSED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl bg-[#0A9B59] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#08834B] disabled:opacity-60">
+                        {t("합격", "Passed", "通过", "Đạt", "合格", "Lulus")}
+                      </button>
+                      <button type="button" disabled={advancing} onClick={() => void advance("REJECTED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl border border-[#F04452] px-4 text-[13.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-60">
+                        {t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}
+                      </button>
+                    </div>
+                  ) : d.connectionStatus === "PASSED" ? (
+                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#E7F8EF] px-4 text-[13.5px] font-bold text-[#0A9B59]">{t("합격 · 채용 진행", "Passed · proceeding to hire", "通过 · 进入录用", "Đạt · tiến hành tuyển", "合格 · 採用へ", "Lulus · lanjut rekrut")}</span>
+                  ) : (
+                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13.5px] font-bold text-[#F04452]">{t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}</span>
+                  )}
+                </div>
               )}
-              {d.connectionStatus !== "ACCEPTED" && d.connectionStatus !== "DECLINED" ? (
-                <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("후보가 수락하면 이메일·전화번호가 공개돼요.", "Once the candidate accepts, their email and phone are revealed.", "候选人接受后将公开邮箱和电话。", "Khi ứng viên chấp nhận, email và số điện thoại sẽ hiện.", "候補者が承認するとメール・電話番号が公開されます。", "Setelah kandidat menerima, email dan telepon terbuka.")}</p>
-              ) : null}
             </div>
           </div>
 

@@ -1656,13 +1656,23 @@ export type PartnerCandidateDetail = {
   content: Record<string, unknown>;
   coverLetter: { title: string | null; company: string | null; items: Array<{ prompt: string; answer: string }> } | null;
   updatedAt: string;
-  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+  connectionStatus: ConnectionPipelineStatus | null;
+  connectionId: string | null;
   contactUnlocked: boolean;
 };
+// 인터뷰 파이프라인 — 수락 이후 파트너가 진행하는 단계까지 포함.
+export type ConnectionPipelineStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED";
 export async function getPartnerCandidate(candidateUserId: string): Promise<PartnerCandidateDetail> {
   const result = await authedJsonFetch<PartnerCandidateDetail>(`/partner/candidates/${encodeURIComponent(candidateUserId)}`, { method: "GET" });
   if (!result.item) throw new Error("후보 정보를 불러오지 못했어요.");
   return result.item;
+}
+// 파트너: 인터뷰 파이프라인 진행(SCHEDULED→COMPLETED→PASSED/REJECTED).
+export async function advanceConnectionStatus(connectionId: string, status: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED"): Promise<void> {
+  await authedJsonFetch<never>(`/partner/connections/${encodeURIComponent(connectionId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status })
+  });
 }
 export async function connectPartnerCandidate(candidateUserId: string, message?: string): Promise<void> {
   await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/connect`, {
