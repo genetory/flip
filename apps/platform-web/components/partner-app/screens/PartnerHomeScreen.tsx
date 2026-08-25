@@ -27,6 +27,8 @@ import {
   sendPartnerApplicantMessage,
   getOrgMockInterviewParticipants,
   getPartnerCandidates,
+  getPartnerPipeline,
+  type PipelineItem,
   type PartnerCandidateCard,
   type MyPartnerOrganization,
   type PartnerPosition,
@@ -44,6 +46,7 @@ export function PartnerHomeScreen() {
   const [pending, setPending] = useState<PartnerPendingMessage[]>([]);
   const [participants, setParticipants] = useState<OrgMockInterviewParticipant[]>([]);
   const [recommended, setRecommended] = useState<PartnerCandidateCard[]>([]);
+  const [connections, setConnections] = useState<PipelineItem[]>([]);
   const [chat, setChat] = useState<{ applicationId: string; applicantId: string; name: string; positionTitle: string } | null>(null);
   const [proposeTarget, setProposeTarget] = useState<OrgMockInterviewParticipant | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -68,6 +71,7 @@ export function PartnerHomeScreen() {
     void getPartnerPendingMessages().then(setPending).catch(() => setPending([]));
     void getOrgMockInterviewParticipants().then(setParticipants).catch(() => setParticipants([]));
     void getPartnerCandidates({ page: 1 }).then((r) => setRecommended(r.items.slice(0, 8))).catch(() => setRecommended([]));
+    void getPartnerPipeline().then(setConnections).catch(() => setConnections([]));
   }
   useEffect(() => {
     load();
@@ -162,6 +166,27 @@ export function PartnerHomeScreen() {
               <Image src="/img_partner_recruit.webp" alt="" fill sizes="190px" className="object-contain" />
             </div>
           </div>
+
+          {/* 파이프라인 요약 — 추천 / 진행 중 인터뷰 / 합격 (사람을 찾는 홈의 헤드라인 지표) */}
+          {recommended.length || connections.length ? (
+            <div className="grid grid-cols-3 gap-2.5">
+              {(() => {
+                const inProgress = connections.filter((p) => ["ACCEPTED", "SCHEDULED", "COMPLETED"].includes(p.status)).length;
+                const passed = connections.filter((p) => p.status === "PASSED").length;
+                const stats = [
+                  { v: `${recommended.length}${recommended.length >= 8 ? "+" : ""}`, label: t("추천 Talent", "Recommended", "推荐人才", "Đề xuất", "おすすめ", "Rekomendasi"), href: partnerRoutes.talent, ink: "#0B1227" },
+                  { v: String(inProgress), label: t("진행 중 인터뷰", "In interview", "面试中", "Đang PV", "面接中", "Wawancara"), href: partnerRoutes.hiring, ink: "#0B46E8" },
+                  { v: String(passed), label: t("합격", "Passed", "已通过", "Đạt", "合格", "Lulus"), href: partnerRoutes.hiring, ink: "#0A9B59" }
+                ];
+                return stats.map((s) => (
+                  <Link key={s.label} href={s.href} className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5 text-center transition hover:border-[#0B46E8]/40">
+                    <p className="text-[22px] font-black tabular-nums" style={{ color: s.ink }}>{s.v}</p>
+                    <p className="mt-0.5 break-keep text-[11.5px] font-semibold text-[#8B95A1]">{s.label}</p>
+                  </Link>
+                ));
+              })()}
+            </div>
+          ) : null}
 
           {/* 이번 주 추천 Talent — Career Launch로 검증된 인재를 먼저 만나보세요(사람을 찾는 홈) */}
           {recommended.length ? (
