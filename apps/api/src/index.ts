@@ -17825,6 +17825,21 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
   }
 });
 
+// GET /career-launch/my-timeline — 본인 TalentEvent 여정(진단→…→채용). 학생이 자기 성장을 본다.
+app.get("/career-launch/my-timeline", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const events = await prisma.talentEvent.findMany({
+      where: { talentUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { eventType: true, createdAt: true, metadata: true }
+    });
+    return res.json({ ok: true, events: events.map((e) => ({ type: e.eventType, at: e.createdAt.toISOString(), metadata: e.metadata ?? null })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
 const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3), generate: z.boolean().optional() });
 const WEEK_FEEDBACK_SCHEMA = {

@@ -162,6 +162,17 @@ export type SharedPassport = {
   languages: { language?: string; level?: string }[];
 };
 
+// 내 활동 타임라인(TalentEvent) — 학생 본인의 여정.
+export type TimelineEvent = { type: string; at: string; metadata?: Record<string, unknown> | null };
+export async function fetchMyTimeline(): Promise<TimelineEvent[]> {
+  try {
+    const d = await req("/career-launch/my-timeline", { headers: authHeaders() });
+    return (d.events as TimelineEvent[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // 공개(무인증) 공유 뷰 조회.
 export async function fetchSharedPassport(token: string): Promise<SharedPassport | null> {
   try {
