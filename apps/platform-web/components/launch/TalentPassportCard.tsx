@@ -150,6 +150,21 @@ export function TalentPassportCard() {
           ))}
         </div>
 
+        {/* 기업 피드백 — 인터뷰 후 기업이 남긴 코멘트(비공개) */}
+        {p.companyFeedback?.length ? (
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-[#4E5968]">{t("기업 피드백", "Employer feedback", "企业反馈", "Phản hồi từ NTD", "企業フィードバック", "Umpan balik perusahaan")}</p>
+            <div className="flex flex-col gap-2">
+              {p.companyFeedback.slice(0, 3).map((f, i) => (
+                <div key={i} className="rounded-2xl border border-[#EDF1F7] bg-white/70 p-3.5">
+                  <p className="break-keep text-[13px] leading-relaxed text-[#4E5968]">{f.comment}</p>
+                  <p className="mt-1.5 text-[11px] font-semibold text-[#8B95A1]">{f.org ?? t("기업", "A company", "企业", "Công ty", "企業", "Perusahaan")} · {f.at.slice(0, 10)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {/* 다음 액션 — 각 점수를 행동으로 연결 */}
         {p.nextActions.length > 0 ? (
           <div className="space-y-2">

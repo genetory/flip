@@ -15441,7 +15441,9 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
     jdMatch,
     activity: { applications: appCount, interviewsInvited: inviteCount, mockInterviews: practiced.length },
     gate,
-    nextActions: nextActions.slice(0, 4)
+    nextActions: nextActions.slice(0, 4),
+    // 기업 피드백(비공개) — 공유 뷰에는 포함하지 않는다.
+    companyFeedback: (Array.isArray(state.companyFeedback) ? state.companyFeedback : []).slice(0, 5) as { comment: string; result: string; org: string | null; at: string }[]
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
 }
@@ -25355,7 +25357,7 @@ app.post("/members/me/connections/:id/respond", authenticate, requireRoles([Memb
 
 // 파트너: 인터뷰 파이프라인 진행 — 수락(ACCEPTED) 이후 SCHEDULED→COMPLETED→PASSED/REJECTED.
 // status 는 자유 문자열 컬럼이라 마이그레이션 없이 확장. 각 단계는 TalentEvent 로 기록된다.
-const advanceConnectionSchema = z.object({ status: z.enum(["SCHEDULED", "COMPLETED", "PASSED", "REJECTED"]) });
+const advanceConnectionSchema = z.object({ status: z.enum(["SCHEDULED", "COMPLETED", "PASSED", "REJECTED"]), feedback: z.string().trim().max(1000).optional() });
 app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const id = String(req.params.id ?? "");
   const parsed = advanceConnectionSchema.safeParse(req.body);
@@ -25373,6 +25375,18 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
       emitTalentEvent(conn.candidateUserId, TalentEventType.INTERVIEW_SCHEDULED, { actorType: "company", entityType: "connection", entityId: id, metadata: { partnerOrganizationId: conn.partnerOrganizationId } });
     } else {
       emitTalentEvent(conn.candidateUserId, TalentEventType.INTERVIEW_COMPLETED, { actorType: "company", entityType: "connection", entityId: id, metadata: { result: status.toLowerCase(), partnerOrganizationId: conn.partnerOrganizationId } });
+    }
+    // 기업 피드백을 후보의 progress.state.companyFeedback 에 누적(선택) — 검증 강화·성장 신호(학생 비공개).
+    if (parsed.data.feedback && ["COMPLETED", "PASSED", "REJECTED"].includes(status)) {
+      const org = conn.partnerOrganizationId ? await prisma.partnerOrganization.findUnique({ where: { id: conn.partnerOrganizationId }, select: { name: true } }) : null;
+      const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: conn.candidateUserId }, select: { state: true } });
+      const state = (prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+      const list = Array.isArray(state.companyFeedback) ? (state.companyFeedback as unknown[]) : [];
+      const entry = { comment: parsed.data.feedback, result: status.toLowerCase(), org: org?.name ?? null, at: new Date().toISOString() };
+      const next = { ...state, companyFeedback: [entry, ...list].slice(0, 20) } as Prisma.InputJsonValue;
+      await prisma.careerLaunchProgress
+        .upsert({ where: { studentUserId: conn.candidateUserId }, create: { studentUserId: conn.candidateUserId, state: next }, update: { state: next } })
+        .catch(() => {});
     }
     return res.json({ ok: true, item: updated });
   } catch (error) {

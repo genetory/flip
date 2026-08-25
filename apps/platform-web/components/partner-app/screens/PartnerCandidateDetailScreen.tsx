@@ -28,12 +28,14 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
   const [summary, setSummary] = useState<{ resumeBullets: string[]; coverBullets: string[] } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
+  const [feedback, setFeedback] = useState("");
 
   async function advance(next: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED") {
     if (!d?.connectionId || advancing) return;
     setAdvancing(true);
     try {
-      await advanceConnectionStatus(d.connectionId, next);
+      await advanceConnectionStatus(d.connectionId, next, next === "PASSED" || next === "REJECTED" ? feedback : undefined);
+      setFeedback("");
       load();
     } catch {
       toast.error(t("상태 변경에 실패했어요", "Couldn't update status", "更新失败", "Không cập nhật được", "更新に失敗しました", "Gagal memperbarui"));
@@ -148,13 +150,23 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
                       {t("인터뷰 완료 표시", "Mark interview done", "标记面试完成", "Đánh dấu hoàn tất", "面接完了にする", "Tandai selesai")}
                     </button>
                   ) : d.connectionStatus === "COMPLETED" ? (
-                    <div className="flex gap-2">
-                      <button type="button" disabled={advancing} onClick={() => void advance("PASSED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl bg-[#0A9B59] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#08834B] disabled:opacity-60">
-                        {t("합격", "Passed", "通过", "Đạt", "合格", "Lulus")}
-                      </button>
-                      <button type="button" disabled={advancing} onClick={() => void advance("REJECTED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl border border-[#F04452] px-4 text-[13.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-60">
-                        {t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}
-                      </button>
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        placeholder={t("면접 피드백을 남겨주세요(선택) — 후보의 성장에 도움이 돼요.", "Leave interview feedback (optional) — it helps the candidate grow.", "留下面试反馈（可选）——有助于候选人成长。", "Để lại phản hồi phỏng vấn (tùy chọn) — giúp ứng viên phát triển.", "面接フィードバックを残してください(任意) — 候補者の成長に役立ちます。", "Beri masukan wawancara (opsional) — membantu kandidat berkembang.")}
+                        className="w-full rounded-xl border border-[#EEF1F5] p-3 text-[13px] leading-relaxed text-[#191F28] focus:border-[#0B46E8]/40 focus:outline-none"
+                      />
+                      <div className="flex gap-2">
+                        <button type="button" disabled={advancing} onClick={() => void advance("PASSED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl bg-[#0A9B59] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#08834B] disabled:opacity-60">
+                          {t("합격", "Passed", "通过", "Đạt", "合格", "Lulus")}
+                        </button>
+                        <button type="button" disabled={advancing} onClick={() => void advance("REJECTED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl border border-[#F04452] px-4 text-[13.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-60">
+                          {t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}
+                        </button>
+                      </div>
                     </div>
                   ) : d.connectionStatus === "PASSED" ? (
                     <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#E7F8EF] px-4 text-[13.5px] font-bold text-[#0A9B59]">{t("합격 · 채용 진행", "Passed · proceeding to hire", "通过 · 进入录用", "Đạt · tiến hành tuyển", "合格 · 採用へ", "Lulus · lanjut rekrut")}</span>

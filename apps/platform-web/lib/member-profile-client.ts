@@ -1668,10 +1668,10 @@ export async function getPartnerCandidate(candidateUserId: string): Promise<Part
   return result.item;
 }
 // 파트너: 인터뷰 파이프라인 진행(SCHEDULED→COMPLETED→PASSED/REJECTED).
-export async function advanceConnectionStatus(connectionId: string, status: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED"): Promise<void> {
+export async function advanceConnectionStatus(connectionId: string, status: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED", feedback?: string): Promise<void> {
   await authedJsonFetch<never>(`/partner/connections/${encodeURIComponent(connectionId)}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status })
+    body: JSON.stringify({ status, ...(feedback && feedback.trim() ? { feedback: feedback.trim() } : {}) })
   });
 }
 
