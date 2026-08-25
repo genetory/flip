@@ -16,33 +16,81 @@ function resultLabel(s: CohortReportStudent, t: ReturnType<typeof useLaunchT>): 
   return { text: "—", bg: "transparent", ink: "#B0B8C1" };
 }
 
+// 여러 기수 리포트를 대학 단위로 합산 — 화면이 쓰는 summary 합계 + 학생 concat.
+function aggregateReports(reports: CohortReport[], university: string, isAll: boolean): CohortReport | null {
+  if (!reports.length) return null;
+  if (reports.length === 1 && !isAll) return reports[0];
+  const students = reports.flatMap((r) => r.students);
+  const sum = (f: keyof CohortReport["summary"]) => reports.reduce((a, r) => a + (Number(r.summary[f]) || 0), 0);
+  const enrolled = sum("enrolled");
+  const summary: CohortReport["summary"] = {
+    ...reports[0].summary,
+    enrolled,
+    diagnosed: sum("diagnosed"),
+    jobsSelected: sum("jobsSelected"),
+    resumes: sum("resumes"),
+    coverLetters: sum("coverLetters"),
+    interviewAny: sum("interviewAny"),
+    interviewAll: sum("interviewAll"),
+    completed: sum("completed"),
+    verified: sum("verified"),
+    measured: sum("measured"),
+    tracked: sum("tracked"),
+    totalApplications: sum("totalApplications"),
+    interviewedCount: sum("interviewedCount"),
+    offerCount: sum("offerCount"),
+    hiredCount: sum("hiredCount"),
+    hireRate: enrolled ? Math.round((sum("hiredCount") / enrolled) * 100) : 0
+  };
+  return {
+    ...reports[0],
+    cohort: { id: "ALL", university, name: `전체 기수 (${reports.length})`, startsAt: null, endsAt: null, status: "active" },
+    summary,
+    students
+  };
+}
+
 export default function UniversityDashboardPage() {
   const t = useLaunchT();
   const [cohorts, setCohorts] = useState<OpsCohort[]>([]);
-  const [cohortId, setCohortId] = useState<string>("");
+  const [university, setUniversity] = useState<string>("");
+  const [cohortId, setCohortId] = useState<string>("ALL"); // "ALL" = 대학 전체 롤업, 또는 특정 기수 id
   const [report, setReport] = useState<CohortReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const universities = useMemo(() => Array.from(new Set(cohorts.map((c) => c.university))).sort(), [cohorts]);
+  const uniCohorts = useMemo(() => cohorts.filter((c) => c.university === university), [cohorts, university]);
 
   useEffect(() => {
     void fetchCohorts()
       .then((list) => {
         setCohorts(list);
-        if (list.length && !cohortId) setCohortId(list[0].id);
+        if (list.length) setUniversity(list[0].university);
       })
       .catch(() => setError(t("기수를 불러오지 못했어요.", "Couldn't load cohorts.", "无法加载期数。", "Không tải được khóa.", "コホートを読み込めませんでした。", "Gagal memuat batch.")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 대학을 바꾸면 기본은 '전체 기수' 롤업.
   useEffect(() => {
-    if (!cohortId) return;
+    if (university) setCohortId("ALL");
+  }, [university]);
+
+  useEffect(() => {
+    if (!university) return;
+    const targets = cohortId === "ALL" ? uniCohorts.map((c) => c.id) : cohortId ? [cohortId] : [];
+    if (!targets.length) {
+      setReport(null);
+      return;
+    }
     setLoading(true);
     setError("");
-    void fetchCohortReport(cohortId)
-      .then((r) => setReport(r))
+    void Promise.all(targets.map((id) => fetchCohortReport(id)))
+      .then((reports) => setReport(aggregateReports(reports, university, cohortId === "ALL")))
       .catch(() => setError(t("리포트를 불러오지 못했어요.", "Couldn't load the report.", "无法加载报告。", "Không tải được báo cáo.", "レポートを読み込めませんでした。", "Gagal memuat laporan.")))
       .finally(() => setLoading(false));
-  }, [cohortId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cohortId, university, uniCohorts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const funnel = useMemo(() => {
     if (!report) return [];
@@ -67,18 +115,29 @@ export default function UniversityDashboardPage() {
           <p>{t("대학별 취업 성과를 한눈에 — 참여부터 검증·지원·면접·채용까지.", "Your university's outcomes at a glance — from participation to verification, applications, interviews, and hires.", "一览大学的就业成果——从参与到验证、申请、面试与录用。", "Kết quả của trường trong một cái nhìn — từ tham gia đến xác minh, ứng tuyển, phỏng vấn, tuyển dụng.", "大学の就職成果を一目で — 参加から検証・応募・面接・採用まで。", "Hasil universitas sekilas — dari partisipasi hingga verifikasi, lamaran, wawancara, dan rekrutmen.")}</p>
         </header>
 
-        {/* 기수(대학 프로그램) 선택 */}
+        {/* 대학 + 기수(전체 롤업 포함) 선택 */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 20 }}>
+          <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-faint)" }}>{t("대학", "University", "大学", "Trường", "大学", "Universitas")}</label>
+          <select
+            value={university}
+            onChange={(e) => setUniversity(e.target.value)}
+            style={{ height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", fontSize: 13.5, fontWeight: 600, minWidth: 200 }}
+          >
+            {universities.length === 0 ? <option value="">{t("대학 없음", "No universities", "无大学", "Không có trường", "大学なし", "Tidak ada")}</option> : null}
+            {universities.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
           <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-faint)" }}>{t("기수", "Cohort", "期数", "Khóa", "コホート", "Batch")}</label>
           <select
             value={cohortId}
             onChange={(e) => setCohortId(e.target.value)}
-            style={{ height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", fontSize: 13.5, fontWeight: 600, minWidth: 240 }}
+            style={{ height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", fontSize: 13.5, fontWeight: 600, minWidth: 180 }}
           >
-            {cohorts.length === 0 ? <option value="">{t("기수 없음", "No cohorts", "无期数", "Không có khóa", "コホートなし", "Tidak ada batch")}</option> : null}
-            {cohorts.map((c) => (
+            <option value="ALL">{t("전체 기수", "All cohorts", "全部期数", "Tất cả khóa", "全コホート", "Semua batch")}</option>
+            {uniCohorts.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.university} · {c.name} ({c.enrolledCount})
+                {c.name} ({c.enrolledCount})
               </option>
             ))}
           </select>
