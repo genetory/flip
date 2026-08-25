@@ -23,17 +23,20 @@ export default function OpsTalentFunnelPage() {
   const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [days, setDays] = useState(0); // 0=전체, 7, 30
 
   useEffect(() => {
     let alive = true;
+    setLoading(true);
     (async () => {
       try {
-        const res = await fetch(`${apiBaseUrl}/ops/talent-funnel`, { headers: { Authorization: `Bearer ${readCookie("ops_admin_token")}` } });
+        const res = await fetch(`${apiBaseUrl}/ops/talent-funnel${days ? `?days=${days}` : ""}`, { headers: { Authorization: `Bearer ${readCookie("ops_admin_token")}` } });
         const d = (await res.json().catch(() => null)) as { ok?: boolean; message?: string; stages?: Stage[]; totalEvents?: number } | null;
         if (!res.ok || d?.ok !== true) throw new Error(d?.message ?? "불러오지 못했어요.");
         if (alive) {
           setStages(d.stages ?? []);
           setTotalEvents(d.totalEvents ?? 0);
+          setError("");
         }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : "불러오지 못했어요.");
@@ -44,7 +47,7 @@ export default function OpsTalentFunnelPage() {
     return () => {
       alive = false;
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, days]);
 
   const maxT = stages.reduce((m, s) => Math.max(m, s.talents), 0) || 1;
 
@@ -54,6 +57,33 @@ export default function OpsTalentFunnelPage() {
         <h1 className="ops-page-title">Talent 퍼널</h1>
         <p className="ops-page-desc">행동 원장(TalentEvent) 기반 전환 측정 — 진단부터 채용까지 각 단계의 고유 인원과 전환율이에요.</p>
       </header>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+        {[
+          { v: 7, label: "최근 7일" },
+          { v: 30, label: "최근 30일" },
+          { v: 0, label: "전체" }
+        ].map((o) => (
+          <button
+            key={o.v}
+            type="button"
+            onClick={() => setDays(o.v)}
+            style={{
+              height: 34,
+              borderRadius: 999,
+              border: `1px solid ${days === o.v ? "var(--accent)" : "var(--line)"}`,
+              background: days === o.v ? "var(--accent)" : "var(--surface)",
+              color: days === o.v ? "#fff" : "var(--ink-soft)",
+              padding: "0 14px",
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
 
       {error ? <p style={{ color: "var(--danger)", fontWeight: 600, marginTop: 16 }}>{error}</p> : null}
 
