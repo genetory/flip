@@ -284,8 +284,13 @@ function ItemRow({
     : t("소속 (회사·기관)","Organization (company)","所属（公司·机构）","Nơi công tác (công ty)","所属（会社・機関）","Instansi (perusahaan)");
   const textPlaceholder =
     section === "education" ? t("전공·학위·학점 (선택)","Major / degree / GPA (optional)","专业·学位·GPA（选填）","Chuyên ngành / bằng cấp (tùy chọn)","専攻・学位・成績（任意）","Jurusan / gelar (opsional)")
+    : section === "project" ? t("프로젝트 내용·맡은 역할·성과 (선택)","What the project was, your role & results (optional)","项目内容·担任角色·成果（选填）","Nội dung dự án, vai trò & kết quả (tùy chọn)","プロジェクト内容・役割・成果（任意）","Isi proyek, peran & hasil (opsional)")
+    : section === "certificate" ? t("점수·급수·취득 시기 등 (선택)","Score / level / date obtained (optional)","分数·等级·取得时间（选填）","Điểm / cấp độ / thời điểm (tùy chọn)","点数・級・取得時期（任意）","Skor / tingkat / tanggal (opsional)")
+    : section === "activity" ? t("활동 내용·맡은 역할·성과 (선택)","What you did, your role & results (optional)","活动内容·担任角色·成果（选填）","Nội dung hoạt động, vai trò & kết quả (tùy chọn)","活動内容・役割・成果（任意）","Isi kegiatan, peran & hasil (opsional)")
+    : section === "award" ? t("수상 내용·규모·순위 (선택)","What the award was, scale & rank (optional)","获奖内容·规模·名次（选填）","Nội dung giải, quy mô & thứ hạng (tùy chọn)","受賞内容・規模・順位（任意）","Isi penghargaan, skala & peringkat (opsional)")
+    : section === "skill" ? t("숙련도·활용 경험 (선택)","Proficiency & how you've used it (optional)","熟练度·使用经验（选填）","Mức thành thạo & kinh nghiệm dùng (tùy chọn)","習熟度・活用経験（任意）","Tingkat & pengalaman pakai (opsional)")
     : isExperience ? t("한 일·성과 (선택)","What you did / achievements (optional)","工作内容·成果（选填）","Việc đã làm / thành tích (tùy chọn)","業務・成果（任意）","Yang dikerjakan / hasil (opsional)")
-    : undefined;
+    : t("내용·성과 (선택)","Details / achievements (optional)","内容·成果（选填）","Nội dung / thành tích (tùy chọn)","内容・成果（任意）","Detail / hasil (opsional)");
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
       <input
