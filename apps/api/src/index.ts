@@ -24986,7 +24986,62 @@ function scoreTalentForPosition(
   return { matchPercent: Math.max(0, Math.min(100, Math.round(score))), reason: reasons.slice(0, 3).join(" · ") };
 }
 
+// 매칭 LLM 설명(opt-in) — rule 점수 상위 후보에 자연어 근거 한 줄을 붙인다. 1콜/요청(비용 관리).
+async function explainMatchesWithOpenAI(
+  pos: { title: string; preferredJobRole: string | null; communicationLanguages: string[] },
+  items: { candidateUserId: string; desiredJobRole?: string | null; skills?: string[]; languages?: string[]; matchPercent: number; verified: boolean; readiness: number }[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!openai || items.length === 0) return out;
+  try {
+    const response = await openai.responses.create({
+      model: openaiMatchingModel,
+      input: [
+        { role: "system", content: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라." },
+        {
+          role: "user",
+          content: JSON.stringify({
+            position: { title: pos.title, role: pos.preferredJobRole, languages: pos.communicationLanguages },
+            candidates: items.map((it) => ({ id: it.candidateUserId, desiredRole: it.desiredJobRole ?? null, skills: (it.skills ?? []).slice(0, 8), languages: it.languages ?? [], matchPercent: it.matchPercent, verified: it.verified, readiness: it.readiness }))
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "match_explanations",
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              explanations: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: { id: { type: "string" }, reason: { type: "string", minLength: 1, maxLength: 120 } },
+                  required: ["id", "reason"]
+                }
+              }
+            },
+            required: ["explanations"]
+          },
+          strict: true
+        }
+      }
+    });
+    const outputText = (response as { output_text?: string }).output_text;
+    if (!outputText) return out;
+    const parsed = JSON.parse(outputText) as { explanations?: { id: string; reason: string }[] };
+    for (const e of parsed.explanations ?? []) if (e?.id && e?.reason) out.set(e.id, e.reason.trim());
+  } catch (err) {
+    console.error("[explainMatches] failed", getErrorMessage(err));
+  }
+  return out;
+}
+
 // GET /partner/positions/:id/recommended-talent — 공고에 맞는 인재를 매칭 점수순으로 추천.
+// ?explain=1 이면 상위 후보에 LLM 자연어 근거를 덧붙인다(opt-in, 1콜).
 app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const positionId = typeof req.params.id === "string" ? req.params.id : "";
   try {
@@ -25034,8 +25089,24 @@ app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles(
       })
       .sort((a, b) => b.matchPercent - a.matchPercent)
       .slice(0, 8);
+
+    // opt-in LLM 설명 — 상위 후보에 자연어 근거를 덧붙인다(요청당 1콜).
+    let explained = false;
+    if (req.query.explain === "1" || req.query.explain === "true") {
+      const reasons = await explainMatchesWithOpenAI(
+        pos,
+        scored.map((c) => ({ candidateUserId: c.candidateUserId, desiredJobRole: c.desiredJobRole, skills: c.skills, languages: c.languages, matchPercent: c.matchPercent, verified: c.passport.verified, readiness: c.passport.readiness }))
+      );
+      if (reasons.size) {
+        for (const c of scored) {
+          const r = reasons.get(c.candidateUserId);
+          if (r) c.matchReason = r;
+        }
+        explained = true;
+      }
+    }
     await attachCachedDocSummaries(scored);
-    return res.json({ ok: true, items: scored, position: { id: pos.id, title: pos.title } });
+    return res.json({ ok: true, items: scored, position: { id: pos.id, title: pos.title }, explained });
   } catch (err) {
     console.error("[partner/positions/:id/recommended-talent] failed", err);
     return res.status(500).json({ ok: false, message: "failed to recommend talent" });
