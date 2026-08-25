@@ -11785,15 +11785,19 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
       return user;
     });
 
-    await sendSignupDiscordNotification({
-      id: created.id,
-      email: created.email,
-      name: created.name,
-      realName: created.realName,
-      role: created.role,
-      partnerType: created.partnerType,
-      createdAt: created.createdAt
-    });
+    // 이메일 가입은 인증 완료 시점(/auth/verify-email)에 알림 — 미인증 봇 가입 노이즈 방지.
+    // 여기서는 이미 인증된 계정(사전 인증 등)만 즉시 알린다. 소셜 가입은 각 finalize에서 알림.
+    if (created.emailVerified) {
+      await sendSignupDiscordNotification({
+        id: created.id,
+        email: created.email,
+        name: created.name,
+        realName: created.realName,
+        role: created.role,
+        partnerType: created.partnerType,
+        createdAt: created.createdAt
+      });
+    }
 
     if (created.emailVerified) {
       const { accessToken, refreshToken } = await issueAuthTokens(created);
@@ -12725,6 +12729,19 @@ app.post("/auth/verify-email", async (req, res) => {
 
     return user;
   });
+
+  // 최초 이메일 인증 시점에만 가입 알림 — 실제 도달 가능한(봇 아님) 가입자로 한정.
+  if (!record.user.emailVerified) {
+    await sendSignupDiscordNotification({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      realName: updatedUser.realName,
+      role: updatedUser.role,
+      partnerType: updatedUser.partnerType,
+      createdAt: updatedUser.createdAt
+    });
+  }
 
   const { accessToken, refreshToken } = await issueAuthTokens(updatedUser);
   setRefreshTokenCookie(res, refreshToken);
