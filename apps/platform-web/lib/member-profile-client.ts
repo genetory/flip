@@ -1689,6 +1689,13 @@ export async function getPartnerPipeline(): Promise<PipelineItem[]> {
   const result = await authedJsonFetch<PipelineItem>("/partner/pipeline", { method: "GET" });
   return ((result as { items?: PipelineItem[] }).items ?? []) as PipelineItem[];
 }
+
+// 공고 기반 추천 인재 — Rule-based 매칭 점수(matchPercent) + 근거(matchReason).
+export type RecommendedTalent = PartnerCandidateCard & { matchPercent: number; matchReason: string };
+export async function getRecommendedTalentForPosition(positionId: string): Promise<RecommendedTalent[]> {
+  const result = await authedJsonFetch<RecommendedTalent>(`/partner/positions/${encodeURIComponent(positionId)}/recommended-talent`, { method: "GET" });
+  return ((result as { items?: RecommendedTalent[] }).items ?? []) as RecommendedTalent[];
+}
 export async function connectPartnerCandidate(candidateUserId: string, message?: string): Promise<void> {
   await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/connect`, {
     method: "POST",

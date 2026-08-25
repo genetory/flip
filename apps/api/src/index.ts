@@ -24851,6 +24851,110 @@ app.get("/partner/pipeline", authenticate, requireRoles([MemberRole.PARTNER]), a
   }
 });
 
+// 공고↔인재 Rule-based 매칭 스코어(0~100) + 근거. LLM 설명은 후속으로 얹을 수 있다.
+function scoreTalentForPosition(
+  card: { desiredJobRole?: string | null; skills?: string[]; languages?: string[] },
+  passport: { readiness: number; verified: boolean },
+  pos: { title: string; preferredJobRole: string | null; communicationLanguages: string[] }
+): { matchPercent: number; reason: string } {
+  const norm = (s: string) => s.toLowerCase().trim();
+  const tokens = (s: string) => norm(s).split(/[^a-z0-9가-힣]+/).filter((x) => x.length >= 2);
+  let score = 0;
+  const reasons: string[] = [];
+
+  // 직무 적합 35 — 희망 직무가 공고 직무/제목과 겹치면.
+  const wanted = norm(`${pos.preferredJobRole ?? ""} ${pos.title ?? ""}`);
+  const wantedTokens = new Set(tokens(`${pos.preferredJobRole ?? ""} ${pos.title ?? ""}`));
+  const candRole = norm(card.desiredJobRole ?? "");
+  const roleHit = candRole && (wanted.includes(candRole) || tokens(candRole).some((tk) => wantedTokens.has(tk)));
+  if (roleHit) {
+    score += 35;
+    if (card.desiredJobRole) reasons.push(`직무 적합(${card.desiredJobRole})`);
+  }
+
+  // 언어 25 — 공고 요구 언어를 후보가 보유. 요구가 없으면 부분점수.
+  const posLangs = (pos.communicationLanguages ?? []).map(norm).filter(Boolean);
+  const candLangs = (card.languages ?? []).map(norm);
+  if (posLangs.length) {
+    const langHit = posLangs.some((pl) => candLangs.some((cl) => cl.includes(pl) || pl.includes(cl)));
+    if (langHit) {
+      score += 25;
+      reasons.push("언어 조건 충족");
+    }
+  } else {
+    score += 12;
+  }
+
+  // 스킬 신호 15 — 보유 스킬 수 기반(구조화된 요구 스킬이 없어 신호로 처리).
+  if (card.skills?.length) score += Math.min(15, card.skills.length * 3);
+
+  // Career Readiness 20 + Verified 5.
+  score += Math.round((Math.max(0, Math.min(100, passport.readiness)) / 100) * 20);
+  if (passport.readiness >= 70) reasons.push(`Readiness ${passport.readiness}`);
+  if (passport.verified) {
+    score += 5;
+    reasons.push("Verified");
+  }
+
+  return { matchPercent: Math.max(0, Math.min(100, Math.round(score))), reason: reasons.slice(0, 3).join(" · ") };
+}
+
+// GET /partner/positions/:id/recommended-talent — 공고에 맞는 인재를 매칭 점수순으로 추천.
+app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
+  const positionId = typeof req.params.id === "string" ? req.params.id : "";
+  try {
+    const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+    if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    const pos = await prisma.position.findFirst({
+      where: { id: positionId, partnerOrganizationId: affiliation.organization.id },
+      select: { id: true, title: true, preferredJobRole: true, communicationLanguages: true }
+    });
+    if (!pos) return res.status(404).json({ ok: false, message: "position not found" });
+
+    const rows = await prisma.resume.findMany({
+      where: POOL_RESUME_WHERE,
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+      select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } }
+    });
+    const conns = await prisma.candidateConnectionRequest.findMany({ where: { partnerUserId: req.auth!.userId }, select: { candidateUserId: true, status: true } });
+    const statusByCand = new Map(conns.map((c) => [c.candidateUserId, c.status] as const));
+    const cards = rows.map((r) => buildCandidateCard(r, statusByCand.get(r.userId) ?? null)).filter((it) => isResumeReasonablyComplete(it));
+
+    // Passport 배치.
+    const candIds = cards.map((it) => it.candidateUserId);
+    const passportById = new Map<string, { readiness: number; verified: boolean }>();
+    if (candIds.length) {
+      const [progs, crs, covers] = await Promise.all([
+        prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, state: true } }),
+        prisma.careerResumeData.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, content: true } }),
+        prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, content: true } })
+      ]);
+      const pm = new Map(progs.map((p) => [p.studentUserId, p.state]));
+      const cm = new Map(crs.map((c) => [c.studentUserId, c.content]));
+      const covm = new Map(covers.map((c) => [c.studentUserId, c.content]));
+      for (const id of candIds) {
+        const p = computeTalentPassport({ state: pm.get(id), resumeContent: cm.get(id), coverContent: covm.get(id), applications: 0, interviewsInvited: 0 });
+        passportById.set(id, { readiness: p.readiness, verified: p.verified });
+      }
+    }
+
+    const scored = cards
+      .map((card) => {
+        const pp = passportById.get(card.candidateUserId) ?? { readiness: 0, verified: false };
+        const { matchPercent, reason } = scoreTalentForPosition(card, pp, pos);
+        return { ...card, passport: pp, matchPercent, matchReason: reason };
+      })
+      .sort((a, b) => b.matchPercent - a.matchPercent)
+      .slice(0, 8);
+    await attachCachedDocSummaries(scored);
+    return res.json({ ok: true, items: scored, position: { id: pos.id, title: pos.title } });
+  } catch (err) {
+    console.error("[partner/positions/:id/recommended-talent] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to recommend talent" });
+  }
+});
+
 app.get("/partner/candidates/:candidateUserId", authenticate, requireRoles([MemberRole.PARTNER]), async (req, res) => {
   const candidateUserId = String(req.params.candidateUserId ?? "");
   try {
