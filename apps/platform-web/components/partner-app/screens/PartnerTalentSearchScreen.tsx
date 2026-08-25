@@ -29,6 +29,7 @@ export function PartnerTalentSearchScreen() {
   const [page, setPage] = useState(1); // 번호 페이징(브라우즈 목록)
   const [paged, setPaged] = useState(false); // 서버 페이징 목록일 때만 페이저 노출(AI검색·저장은 전체 로드)
   const [lang, setLang] = useState(""); // 어학 필터(브라우즈)
+  const [verifiedOnly, setVerifiedOnly] = useState(false); // Verified(Career Launch 검증) 인재만
   const [aiUsed, setAiUsed] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -41,7 +42,7 @@ export function PartnerTalentSearchScreen() {
   }, []);
 
   // 검색 = 하나로 통합 — 검색어가 있으면 AI 검색(키워드까지 커버), 비어있으면 전체 목록(번호 페이징).
-  function run(m: Mode, q: string, pg = 1, langArg = lang) {
+  function run(m: Mode, q: string, pg = 1, langArg = lang, vOnly = verifiedOnly) {
     setStatus("loading");
     const p =
       m === "saved"
@@ -61,7 +62,7 @@ export function PartnerTalentSearchScreen() {
               setPaged(false);
               setAiUsed(r.ai);
             })
-          : getPartnerCandidates({ page: pg, language: langArg || undefined }).then((r) => {
+          : getPartnerCandidates({ page: pg, language: langArg || undefined, verifiedOnly: vOnly || undefined }).then((r) => {
               setItems(r.items);
               setTotal(r.total);
               setPage(r.page);
@@ -187,6 +188,20 @@ export function PartnerTalentSearchScreen() {
           </div>
         ) : null}
 
+        {/* Verified 필터 — Career Launch로 검증된(Readiness·연결준비) 인재만. */}
+        {mode === "search" && !aiUsed ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-0.5 text-[12px] font-bold text-[#8B95A1]">{t("검증", "Verified", "验证", "Xác minh", "検証", "Verifikasi")}</span>
+            <button
+              type="button"
+              onClick={() => { const next = !verifiedOnly; setVerifiedOnly(next); run("search", "", 1, lang, next); }}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${verifiedOnly ? "border-[#0A9B59] bg-[#0A9B59] text-white" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0A9B59]/40"}`}
+            >
+              <ShieldCheck className="h-4 w-4" weight="fill" aria-hidden /> {t("Verified 인재만", "Verified only", "仅已验证人才", "Chỉ ứng viên đã xác minh", "検証済みのみ", "Hanya terverifikasi")}
+            </button>
+          </div>
+        ) : null}
+
         {status === "loading" ? <TListSkeleton /> : null}
         {status === "error" ? <TError onRetry={() => run(mode, query.trim())} /> : null}
 
@@ -292,6 +307,12 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)}</p>
+            {c.passport?.verified ? (
+              <span className="inline-flex items-center gap-1 rounded-md bg-[#E7F8EF] px-2 py-0.5 text-[11px] font-bold text-[#0A9B59]">
+                <ShieldCheck className="h-3 w-3" weight="fill" aria-hidden />
+                {c.passport.tier === "gold" ? "Verified Gold" : c.passport.tier === "silver" ? "Verified Silver" : "Verified Bronze"} · {c.passport.readiness}
+              </span>
+            ) : null}
             {typeof c.score === "number" ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
             {c.connectionStatus === "ACCEPTED" ? (
               <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>

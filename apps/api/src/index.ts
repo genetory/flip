@@ -15329,10 +15329,17 @@ async function buildTalentPassport(uid: string) {
     prisma.application.count({ where: { candidateUserId: uid, status: { not: "WITHDRAWN" } } }),
     prisma.candidateConnectionRequest.count({ where: { candidateUserId: uid } })
   ]);
+  return computeTalentPassport({ state: progRow?.state, resumeContent: resumeRow?.content, coverContent: coverRow?.content, applications: appCount, interviewsInvited: inviteCount });
+}
+
+// 순수 계산부 — 사전 조회한 입력으로 Passport 산출. 발견 화면의 배치 계산에서도 재사용.
+function computeTalentPassport(input: { state: unknown; resumeContent: unknown; coverContent: unknown; applications: number; interviewsInvited: number }) {
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  const state = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, any>;
-  const resumeContent = (resumeRow?.content ?? {}) as Record<string, any>;
-  const coverContent = (coverRow?.content ?? {}) as Record<string, any>;
+  const state = (input.state && typeof input.state === "object" ? input.state : {}) as Record<string, any>;
+  const resumeContent = (input.resumeContent ?? {}) as Record<string, any>;
+  const coverContent = (input.coverContent ?? {}) as Record<string, any>;
+  const appCount = input.applications;
+  const inviteCount = input.interviewsInvited;
 
   const num = (v: unknown): number | null => (typeof v === "number" && !Number.isNaN(v) ? v : null);
   const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
@@ -24422,6 +24429,9 @@ const partnerCandidatesQuerySchema = z.object({
   jobRole: z.string().trim().max(60).optional(),
   // 어학 필터 — 후보의 languages(예: "한국어 고급")에 해당 언어가 있으면 통과.
   language: z.string().trim().max(30).optional(),
+  // Talent Passport 필터 — Verified(Career Launch 검증)만 / 최소 Readiness.
+  verifiedOnly: z.coerce.boolean().optional(),
+  minReadiness: z.coerce.number().int().min(0).max(100).optional(),
   page: z.coerce.number().int().min(1).max(200).optional()
 });
 
@@ -24462,12 +24472,50 @@ app.get("/partner/candidates", authenticateOptional, async (req, res) => {
       }
       return true;
     });
+    // Talent Passport 배치 계산 — 발견된 후보마다 Verified/Readiness 부착(배치 조회 5개로 N 무관).
+    const candIds = all.map((it) => it.candidateUserId);
+    const passportById = new Map<string, { readiness: number; tier: string; verified: boolean }>();
+    if (candIds.length) {
+      const [progs, crs, covers, appGroups, inviteGroups] = await Promise.all([
+        prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, state: true } }),
+        prisma.careerResumeData.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, content: true } }),
+        prisma.careerCoverLetterData.findMany({ where: { studentUserId: { in: candIds } }, select: { studentUserId: true, content: true } }),
+        prisma.application.groupBy({ by: ["candidateUserId"], where: { candidateUserId: { in: candIds }, status: { not: "WITHDRAWN" } }, _count: { _all: true } }),
+        prisma.candidateConnectionRequest.groupBy({ by: ["candidateUserId"], where: { candidateUserId: { in: candIds } }, _count: { _all: true } })
+      ]);
+      const progMap = new Map(progs.map((p) => [p.studentUserId, p.state]));
+      const crMap = new Map(crs.map((c) => [c.studentUserId, c.content]));
+      const coverMap = new Map(covers.map((c) => [c.studentUserId, c.content]));
+      const appMap = new Map(appGroups.map((g) => [g.candidateUserId, g._count._all]));
+      const inviteMap = new Map(inviteGroups.map((g) => [g.candidateUserId, g._count._all]));
+      for (const id of candIds) {
+        const p = computeTalentPassport({ state: progMap.get(id), resumeContent: crMap.get(id), coverContent: coverMap.get(id), applications: appMap.get(id) ?? 0, interviewsInvited: inviteMap.get(id) ?? 0 });
+        passportById.set(id, { readiness: p.readiness, tier: p.tier, verified: p.verified });
+      }
+    }
+    for (const it of all) {
+      (it as Record<string, unknown>).passport = passportById.get(it.candidateUserId) ?? { readiness: 0, tier: "preparing", verified: false };
+    }
+    const verifiedOnly = parsed.data.verifiedOnly === true;
+    const minReadiness = parsed.data.minReadiness ?? 0;
+    const filtered = all.filter((it) => {
+      const p = (it as Record<string, unknown>).passport as { readiness: number; verified: boolean };
+      if (verifiedOnly && !p.verified) return false;
+      if (minReadiness > 0 && p.readiness < minReadiness) return false;
+      return true;
+    });
+    // 기본 정렬: Verified·Readiness 높은 순 우선(발견성). 동점이면 기존(최근 업데이트) 순 유지.
+    filtered.sort((a, b) => {
+      const pa = (a as Record<string, unknown>).passport as { readiness: number };
+      const pb = (b as Record<string, unknown>).passport as { readiness: number };
+      return pb.readiness - pa.readiness;
+    });
     const pageSize = 20;
     const page = parsed.data.page ?? 1;
-    const paged = all.slice((page - 1) * pageSize, page * pageSize);
+    const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
     await attachCachedDocSummaries(paged);
     await attachInterestCounts(paged);
-    return res.json({ ok: true, items: paged, total: all.length, page, pageSize });
+    return res.json({ ok: true, items: paged, total: filtered.length, page, pageSize });
   } catch (err) {
     console.error("[partner/candidates] failed", err);
     return res.status(500).json({ ok: false, message: "failed to search candidates" });
