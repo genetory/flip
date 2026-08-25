@@ -410,17 +410,18 @@ interface ChatMsg {
 
 type SectionChoice = CareerSection;
 
-// 링크·포트폴리오 — 포트폴리오/GitHub/LinkedIn 등 첨부. 라벨 프리셋 + 직접 입력.
+// 링크·포트폴리오 — 제목·링크를 입력하고 '추가'로 목록에 넣는 방식.
 function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links: ResumeLink[]) => void }) {
   const t = usePlatformT();
-  const presets = [
-    t("포트폴리오", "Portfolio", "作品集", "Portfolio", "ポートフォリオ", "Portofolio"),
-    "GitHub",
-    "LinkedIn",
-    "Notion",
-    t("블로그", "Blog", "博客", "Blog", "ブログ", "Blog")
-  ];
-  const update = (i: number, patch: Partial<ResumeLink>) => onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const [label, setLabel] = useState("");
+  const [url, setUrl] = useState("");
+  const addLink = () => {
+    const u = url.trim();
+    if (!u) return;
+    onChange([...links, { label: label.trim(), url: u }]);
+    setLabel("");
+    setUrl("");
+  };
   const remove = (i: number) => onChange(links.filter((_, idx) => idx !== i));
   const inputCls = "rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13.5px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:bg-white focus:ring-1 focus:ring-[#0B46E8]";
   return (
@@ -430,29 +431,40 @@ function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links:
         <p className="text-[13.5px] font-bold text-[#191F28]">{t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}</p>
         <span className="text-[12px] text-[#8B95A1]">{t("— 포트폴리오·GitHub 등 첨부", "— attach portfolio, GitHub, etc.", "— 附上作品集、GitHub 等", "— đính kèm portfolio, GitHub…", "— ポートフォリオ・GitHub等を添付", "— lampirkan portfolio, GitHub, dll")}</span>
       </div>
+
+      {/* 추가된 링크 목록 */}
       {links.length ? (
-        <div className="flex flex-col gap-2">
+        <div className="mb-2.5 flex flex-col gap-1.5">
           {links.map((l, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <input value={l.label} onChange={(e) => update(i, { label: e.target.value })} placeholder={t("라벨", "Label", "标签", "Nhãn", "ラベル", "Label")} className={`${inputCls} w-[92px] shrink-0 font-semibold`} />
-              <input value={l.url} onChange={(e) => update(i, { url: e.target.value })} placeholder="https://..." inputMode="url" className={`${inputCls} min-w-0 flex-1`} />
-              <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1.5 text-[#B0B8C1] transition hover:bg-[#F5F6F8] hover:text-[#F04452]">
+            <div key={i} className="flex items-center gap-2 rounded-lg bg-[#F5F6F8] px-3 py-2">
+              {l.label ? <span className="shrink-0 text-[13px] font-bold text-[#191F28]">{l.label}</span> : null}
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-[#4E5968]">{l.url}</span>
+              <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1 text-[#B0B8C1] transition hover:bg-white hover:text-[#F04452]">
                 <Trash className="h-4 w-4" />
               </button>
             </div>
           ))}
         </div>
       ) : null}
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {presets
-          .filter((p) => !links.some((l) => l.label === p))
-          .map((p) => (
-            <button key={p} type="button" onClick={() => onChange([...links, { label: p, url: "" }])} className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
-              + {p}
-            </button>
-          ))}
-        <button type="button" onClick={() => onChange([...links, { label: "", url: "" }])} className="rounded-full bg-[#F5F6F8] px-2.5 py-1 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">
-          + {t("직접", "Custom", "自定义", "Tùy chỉnh", "カスタム", "Kustom")}
+
+      {/* 입력 폼 — 제목 + 링크 + 추가 */}
+      <div className="flex items-center gap-2">
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} w-[108px] shrink-0 font-semibold`} />
+        <input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addLink();
+            }
+          }}
+          placeholder="https://..."
+          inputMode="url"
+          className={`${inputCls} min-w-0 flex-1`}
+        />
+        <button type="button" onClick={addLink} disabled={!url.trim()} className="shrink-0 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+          {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
         </button>
       </div>
     </div>
