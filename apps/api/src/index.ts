@@ -25008,6 +25008,9 @@ function scoreTalentForPosition(
   return { matchPercent: Math.max(0, Math.min(100, Math.round(score))), reason: reasons.slice(0, 3).join(" · ") };
 }
 
+// 매칭 LLM 설명 캐시 — 동일 공고·후보군 재요청 시 재호출 방지(30분 TTL, 비용 절감).
+const matchExplainCache = new Map<string, { reasons: Map<string, string>; exp: number }>();
+
 // 매칭 LLM 설명(opt-in) — rule 점수 상위 후보에 자연어 근거 한 줄을 붙인다. 1콜/요청(비용 관리).
 async function explainMatchesWithOpenAI(
   pos: { title: string; preferredJobRole: string | null; communicationLanguages: string[] },
@@ -25112,13 +25115,24 @@ app.get("/partner/positions/:id/recommended-talent", authenticate, requireRoles(
       .sort((a, b) => b.matchPercent - a.matchPercent)
       .slice(0, 8);
 
-    // opt-in LLM 설명 — 상위 후보에 자연어 근거를 덧붙인다(요청당 1콜).
+    // opt-in LLM 설명 — 상위 후보에 자연어 근거(30분 캐시로 재호출 방지).
     let explained = false;
     if (req.query.explain === "1" || req.query.explain === "true") {
-      const reasons = await explainMatchesWithOpenAI(
-        pos,
-        scored.map((c) => ({ candidateUserId: c.candidateUserId, desiredJobRole: c.desiredJobRole, skills: c.skills, languages: c.languages, matchPercent: c.matchPercent, verified: c.passport.verified, readiness: c.passport.readiness }))
-      );
+      const cacheKey = `${pos.id}:${scored.map((c) => c.candidateUserId).sort().join(",")}`;
+      const cached = matchExplainCache.get(cacheKey);
+      let reasons: Map<string, string>;
+      if (cached && cached.exp > Date.now()) {
+        reasons = cached.reasons;
+      } else {
+        reasons = await explainMatchesWithOpenAI(
+          pos,
+          scored.map((c) => ({ candidateUserId: c.candidateUserId, desiredJobRole: c.desiredJobRole, skills: c.skills, languages: c.languages, matchPercent: c.matchPercent, verified: c.passport.verified, readiness: c.passport.readiness }))
+        );
+        if (reasons.size) {
+          if (matchExplainCache.size > 500) matchExplainCache.clear();
+          matchExplainCache.set(cacheKey, { reasons, exp: Date.now() + 30 * 60_000 });
+        }
+      }
       if (reasons.size) {
         for (const c of scored) {
           const r = reasons.get(c.candidateUserId);
