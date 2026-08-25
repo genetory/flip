@@ -60,6 +60,19 @@ export function PartnerHiringScreen() {
             />
           ) : (
             <div className="flex flex-col gap-6">
+              {/* 요약 — 진행 중 / 합격 / 전체 */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { v: items.filter((i) => ["ACCEPTED", "SCHEDULED", "COMPLETED"].includes(i.status)).length, label: t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Berjalan"), ink: "#0B46E8" },
+                  { v: items.filter((i) => i.status === "PASSED").length, label: t("합격", "Passed", "已通过", "Đạt", "合格", "Lulus"), ink: "#0A9B59" },
+                  { v: items.length, label: t("전체", "Total", "全部", "Tổng", "全体", "Total"), ink: "#0B1227" }
+                ].map((s) => (
+                  <div key={s.label} className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5 text-center">
+                    <p className="text-[22px] font-black tabular-nums" style={{ color: s.ink }}>{s.v}</p>
+                    <p className="mt-0.5 text-[11.5px] font-semibold text-[#8B95A1]">{s.label}</p>
+                  </div>
+                ))}
+              </div>
               {STAGES.map((stage) => {
                 const group = items.filter((it) => stage.keys.includes(it.status));
                 if (group.length === 0) return null;
