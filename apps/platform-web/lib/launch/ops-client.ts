@@ -203,6 +203,10 @@ export type CohortReportStudent = {
   interviewPracticed: number;
   interviewRounds: string[];
   completed: boolean;
+  // Talent Passport — 검증(Verified)·Readiness
+  verified: boolean;
+  readiness: number;
+  passportTier: "preparing" | "bronze" | "silver" | "gold";
   // 산출물 정량화(학생별 상세 근거)
   resumeEducations: number;
   resumeExperiences: number;
@@ -244,6 +248,7 @@ export type CohortReport = {
     interviewAny: number;
     interviewAll: number;
     completed: number;
+    verified: number;
     measured: number;
     avgBefore: number;
     avgAfter: number;

@@ -19924,6 +19924,8 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       const placement = myOutcomes.find((o) => o.status === "HIRED") ?? myOutcomes.find((o) => o.status === "OFFER");
       const sat = satByUser.get(e.studentUserId) ?? null;
       const cert = certByUser.get(e.studentUserId) ?? null;
+      // Talent Passport — 검증(Verified)·Readiness (이미 로드한 state·resume·cover 재사용).
+      const passport = computeTalentPassport({ state: st, resumeContent: rc, coverContent: cc, applications: myOutcomes.length, interviewsInvited: 0 });
 
       return {
         userId: e.studentUserId,
@@ -19950,6 +19952,9 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         interviewPracticed: practiced.length,
         interviewRounds,
         completed: practiced.length >= 3 && hasResume && coverItems > 0,
+        verified: passport.verified,
+        readiness: passport.readiness,
+        passportTier: passport.tier,
         // 산출물 정량화(학생별 상세 근거)
         resumeEducations,
         resumeExperiences,
@@ -19996,6 +20001,7 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       interviewAny: students.filter((s) => s.interviewPracticed > 0).length,
       interviewAll: students.filter((s) => s.interviewPracticed >= 3).length,
       completed: students.filter((s) => s.completed).length,
+      verified: students.filter((s) => s.verified).length,
       // 향상도 — 사전·사후 진단을 모두 마친 학생만 대상(측정 가능 인원도 함께 알린다)
       measured: withGain.length,
       avgBefore: avg(withGain.map((s) => s.diagnosisBefore as number)),

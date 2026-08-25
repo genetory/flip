@@ -78,7 +78,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
       { label: "기수", href: "/career-launch/ops/cohorts", icon: ScrollText },
       { label: "콘텐츠", href: "/career-launch/ops/content", icon: FileText },
       { label: "프롬프트", href: "/career-launch/ops/prompts", icon: Sparkles },
-      { label: "성과 리포트", href: "/career-launch/ops/report", icon: BarChart3 }
+      { label: "성과 리포트", href: "/career-launch/ops/report", icon: BarChart3 },
+      { label: "University Dashboard", href: "/career-launch/ops/university", icon: GraduationCap }
     ]
   },
   {
