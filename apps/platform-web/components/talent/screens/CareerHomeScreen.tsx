@@ -12,11 +12,9 @@ import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerAdvisorModal } from "../career/CareerAdvisorModal";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
-import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TPageHeader } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
@@ -33,7 +31,6 @@ export function CareerHomeScreen() {
 
 function Content() {
   const t = usePlatformT();
-  const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -167,30 +164,6 @@ function Content() {
         )}
       </section>
 
-      {/* 작성 히스토리 */}
-      <section className="flex flex-col gap-4">
-        <SectionHead title={`${t("작성 히스토리","Writing history","编写记录","Lịch sử viết","作成履歴","Riwayat penulisan")}${feed.length ? ` (${feed.length})` : ""}`} desc={t("이력서·자기소개서에 남긴 내용이 순서대로 쌓여요.","What you add to your resume and cover letter piles up in order.","你在简历和求职信中留下的内容会按顺序累积。","Nội dung bạn thêm vào CV và thư xin việc được lưu theo thứ tự.","履歴書・自己PRに残した内容が順に積み重なります。","Isian di CV dan surat lamaranmu tersimpan berurutan.")} />
-        {feed.length ? (
-          <>
-            <div className="flex flex-col gap-2.5">
-              {feed.slice(0, 5).map((e) => (
-                <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
-              ))}
-            </div>
-            {feed.length > 5 ? (
-              <Link
-                href={talentAppRoutes.history}
-                className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
-              >
-                {t("전체 히스토리 보기","View all history","查看全部记录","Xem toàn bộ","全履歴を見る","Lihat semua")} ({feed.length}) <ArrowRight className="h-4 w-4" weight="bold" />
-              </Link>
-            ) : null}
-          </>
-        ) : (
-          <EmptyFeed />
-        )}
-      </section>
-
       {mockGateOpen ? (
         <MockGateModal
           onClose={() => setMockGateOpen(false)}
@@ -251,17 +224,6 @@ function EmptyWork() {
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>💼</span>
       <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 직장 경력이 없어요","No work experience yet","还没有工作经历","Chưa có kinh nghiệm làm việc","まだ職歴がありません","Belum ada pengalaman kerja")}</p>
       <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이력서에 경력을 추가하면 여기에 보여요.","Add work experience to your resume to see it here.","在简历中添加经历后会显示在这里。","Thêm kinh nghiệm vào CV để hiển thị ở đây.","履歴書に職歴を追加すると表示されます。","Tambahkan pengalaman di CV agar muncul di sini.")}</p>
-    </div>
-  );
-}
-
-function EmptyFeed() {
-  const t = usePlatformT();
-  return (
-    <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
-      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>📝</span>
-      <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 남긴 기록이 없어요","No records yet","还没有记录","Chưa có ghi chép","まだ記録がありません","Belum ada catatan")}</p>
-      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("위에서 이력서나 자기소개서를 만들면 자동으로 여기에 쌓여요.","Create a resume or cover letter above and it piles up here automatically.","在上方制作简历或求职信后会自动累积在这里。","Tạo CV hoặc thư xin việc ở trên để tự động lưu tại đây.","上で履歴書や自己PRを作ると自動でここに溜まります。","Buat CV atau surat lamaran di atas, otomatis tersimpan di sini.")}</p>
     </div>
   );
 }
