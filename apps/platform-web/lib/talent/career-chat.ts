@@ -1,7 +1,7 @@
 // 내 커리어 채팅 — 사용자가 편하게 남긴 한 줄을 이력서/프로필의 어느 섹션으로
 // 정리할지 분류한다. 지금은 키워드 규칙(mock). 추후 실제 LLM으로 교체.
 
-export type CareerSection = "education" | "certificate" | "experience" | "project" | "skill" | "award" | "activity";
+export type CareerSection = "education" | "certificate" | "experience" | "project" | "language" | "skill" | "award" | "activity";
 
 export interface SectionMeta {
   key: CareerSection;
@@ -14,7 +14,8 @@ export const SECTION_META: Record<CareerSection, SectionMeta> = {
   certificate: { key: "certificate", label: "자격증", emoji: "📜" },
   experience: { key: "experience", label: "경험", emoji: "🧩" },
   project: { key: "project", label: "프로젝트", emoji: "🚀" },
-  skill: { key: "skill", label: "역량·스킬", emoji: "⚡" },
+  language: { key: "language", label: "어학", emoji: "🗣️" },
+  skill: { key: "skill", label: "스킬", emoji: "⚡" },
   award: { key: "award", label: "수상", emoji: "🏆" },
   activity: { key: "activity", label: "대외활동", emoji: "🌱" }
 };
@@ -22,7 +23,8 @@ export const SECTION_META: Record<CareerSection, SectionMeta> = {
 // 섹션별 트리거 키워드(간단 규칙). 위에서부터 우선.
 const RULES: { section: CareerSection; keywords: string[] }[] = [
   { section: "education", keywords: ["학교", "대학교", "대학", "전공", "졸업", "학점", "재학", "학위", "학사", "석사", "편입", "입학", "고등학교"] },
-  { section: "certificate", keywords: ["자격증", "자격", "취득", "합격", "토익", "toeic", "opic", "컴활", "기사", "면허", "점수"] },
+  { section: "language", keywords: ["어학", "외국어", "영어", "일본어", "중국어", "베트남어", "스페인어", "회화", "원어민", "능통", "토익", "toeic", "toefl", "opic", "jlpt", "hsk", "ielts"] },
+  { section: "certificate", keywords: ["자격증", "자격", "취득", "합격", "컴활", "기사", "면허"] },
   { section: "award", keywords: ["수상", "대상", "우수상", "장려상", "1등", "입상", "공모전", "해커톤", "우승"] },
   { section: "project", keywords: ["프로젝트", "개발", "만들", "출시", "런칭", "구현", "설계", "팀플", "과제"] },
   { section: "activity", keywords: ["동아리", "봉사", "학생회", "인턴", "대외활동", "서포터즈", "스터디", "부트캠프"] },
@@ -45,6 +47,7 @@ const FOLLOW_UP: Record<CareerSection, string> = {
   certificate: "언제 취득했는지, 점수나 등급이 있다면 같이 알려주세요.",
   experience: "무엇을 했고 그래서 어떤 변화가 있었는지 한 줄만 더 붙여볼까요?",
   project: "어떤 역할이었고 결과(수치·성과)가 있으면 함께 정리할게요.",
+  language: "어떤 언어를, 어느 정도 수준(회화·점수·급수)으로 하는지 알려주면 좋아요.",
   skill: "어느 정도 다룰 수 있는지, 어디에 써봤는지 알려주면 좋아요.",
   award: "어떤 대회에서, 몇 명 중 받은 상인지 알려주면 더 돋보여요.",
   activity: "언제부터 얼마나 활동했고 맡은 역할이 있었는지 알려주세요."

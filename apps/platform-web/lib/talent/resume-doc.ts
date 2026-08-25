@@ -42,6 +42,7 @@ export const SECTION_HAS_DATE: Record<CareerSection, boolean> = {
   certificate: true,
   experience: true,
   project: true,
+  language: false,
   skill: false,
   award: true,
   activity: true
