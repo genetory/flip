@@ -7,6 +7,7 @@ import Link from "next/link";
 import { CaretLeft } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
+import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { SectionTitle } from "../../../components/launch/ui";
 import { fetchProgress, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
@@ -88,6 +89,8 @@ export default function CareerProfilePage() {
           </div>
 
           <div className="mt-8 flex flex-col gap-10">
+            {/* Talent Passport — 검증된 Talent 프로필(Readiness·Verified) */}
+            <TalentPassportCard />
             {/* Career Direction */}
             <section>
               <SectionTitle>{t("커리어 방향", "Career direction", "职业方向", "Định hướng nghề", "キャリアの方向", "Arah karier")}</SectionTitle>

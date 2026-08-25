@@ -6,6 +6,7 @@ export const partnerRoutes = {
   positions: "/partner/positions",
   positionNew: "/partner/positions/new",
   applicants: "/partner/applicants",
+  hiring: "/partner/hiring", // 인터뷰·채용 파이프라인
   company: "/partner/company",
   notifications: "/partner/notifications",
   settings: "/partner/settings", // 내 프로필(개인 계정)
@@ -25,6 +26,7 @@ export const partnerMainNav: PartnerNavItem[] = [
   { key: "talent", label: "인재 검색", href: partnerRoutes.talent, guest: true },
   { key: "positions", label: "공고 관리", href: partnerRoutes.positions },
   { key: "applicants", label: "지원자 관리", href: partnerRoutes.applicants },
+  { key: "hiring", label: "채용 진행", href: partnerRoutes.hiring },
   { key: "company", label: "회사 프로필", href: partnerRoutes.company }
 ];
 
@@ -47,6 +49,8 @@ export function usePartnerNavLabel(): (key: string) => string {
         return t("공고 관리", "Jobs", "职位管理", "Tin đăng", "求人管理", "Lowongan");
       case "applicants":
         return t("지원자 관리", "Applicants", "申请人", "Ứng viên", "応募者", "Pelamar");
+      case "hiring":
+        return t("채용 진행", "Hiring", "招聘进度", "Tuyển dụng", "採用進行", "Rekrut");
       case "company":
         return t("회사 프로필", "Company", "公司资料", "Công ty", "会社情報", "Perusahaan");
       default:

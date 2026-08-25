@@ -1598,13 +1598,17 @@ export type PartnerCandidateCard = {
   score?: number;
   reason?: string;
   interestCount?: number; // 관심(저장)한 회사 수 — 핫한 인재 뱃지
+  // Talent Passport — Career Launch 검증(Readiness·Verified 등급).
+  passport?: { readiness: number; tier: "preparing" | "bronze" | "silver" | "gold"; verified: boolean };
 };
-export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; language?: string; page?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
+export async function getPartnerCandidates(params: { q?: string; skill?: string; jobRole?: string; language?: string; page?: number; verifiedOnly?: boolean; minReadiness?: number } = {}): Promise<{ items: PartnerCandidateCard[]; total: number; page: number; pageSize: number }> {
   const qs = new URLSearchParams();
   if (params.q) qs.set("q", params.q);
   if (params.skill) qs.set("skill", params.skill);
   if (params.jobRole) qs.set("jobRole", params.jobRole);
   if (params.language) qs.set("language", params.language);
+  if (params.verifiedOnly) qs.set("verifiedOnly", "true");
+  if (params.minReadiness) qs.set("minReadiness", String(params.minReadiness));
   if (params.page) qs.set("page", String(params.page));
   // 옵셔널 인증 — 비회원(게스트)도 마스킹된 인재 카드를 볼 수 있다(authenticateOptional).
   // 토큰이 있으면 보내고, 없거나 만료면 서버가 게스트로 폴백한다.
@@ -1652,13 +1656,45 @@ export type PartnerCandidateDetail = {
   content: Record<string, unknown>;
   coverLetter: { title: string | null; company: string | null; items: Array<{ prompt: string; answer: string }> } | null;
   updatedAt: string;
-  connectionStatus: "PENDING" | "ACCEPTED" | "DECLINED" | null;
+  connectionStatus: ConnectionPipelineStatus | null;
+  connectionId: string | null;
   contactUnlocked: boolean;
 };
+// 인터뷰 파이프라인 — 수락 이후 파트너가 진행하는 단계까지 포함.
+export type ConnectionPipelineStatus = "PENDING" | "ACCEPTED" | "DECLINED" | "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED";
 export async function getPartnerCandidate(candidateUserId: string): Promise<PartnerCandidateDetail> {
   const result = await authedJsonFetch<PartnerCandidateDetail>(`/partner/candidates/${encodeURIComponent(candidateUserId)}`, { method: "GET" });
   if (!result.item) throw new Error("후보 정보를 불러오지 못했어요.");
   return result.item;
+}
+// 파트너: 인터뷰 파이프라인 진행(SCHEDULED→COMPLETED→PASSED/REJECTED).
+export async function advanceConnectionStatus(connectionId: string, status: "SCHEDULED" | "COMPLETED" | "PASSED" | "REJECTED", feedback?: string): Promise<void> {
+  await authedJsonFetch<never>(`/partner/connections/${encodeURIComponent(connectionId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, ...(feedback && feedback.trim() ? { feedback: feedback.trim() } : {}) })
+  });
+}
+
+// 파트너: 인터뷰/채용 파이프라인(연결을 단계별로).
+export type PipelineItem = {
+  connectionId: string;
+  candidateUserId: string;
+  name: string | null;
+  status: ConnectionPipelineStatus;
+  readiness: number;
+  verified: boolean;
+  createdAt: string;
+};
+export async function getPartnerPipeline(): Promise<PipelineItem[]> {
+  const result = await authedJsonFetch<PipelineItem>("/partner/pipeline", { method: "GET" });
+  return ((result as { items?: PipelineItem[] }).items ?? []) as PipelineItem[];
+}
+
+// 공고 기반 추천 인재 — Rule-based 매칭 점수(matchPercent) + 근거(matchReason).
+export type RecommendedTalent = PartnerCandidateCard & { matchPercent: number; matchReason: string };
+export async function getRecommendedTalentForPosition(positionId: string): Promise<RecommendedTalent[]> {
+  const result = await authedJsonFetch<RecommendedTalent>(`/partner/positions/${encodeURIComponent(positionId)}/recommended-talent`, { method: "GET" });
+  return ((result as { items?: RecommendedTalent[] }).items ?? []) as RecommendedTalent[];
 }
 export async function connectPartnerCandidate(candidateUserId: string, message?: string): Promise<void> {
   await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/connect`, {

@@ -66,6 +66,7 @@ model User {
   partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowCandidateUser")
   candidateConnectionsAsPartner        CandidateConnectionRequest[]  @relation("CandidateConnPartner")
   candidateConnectionsAsCandidate      CandidateConnectionRequest[]  @relation("CandidateConnCandidate")
+  talentEvents                         TalentEvent[]                 @relation("TalentEventUser")
   applications                         Application[]                 @relation("ApplicationCandidate")
   applicationStatusChanges             ApplicationStatusHistory[]    @relation("ApplicationStatusChangedBy")
   reportedIssues                       IssueReport[]                 @relation("IssueReportReporter")
@@ -570,13 +571,13 @@ model Position {
   createdAt               DateTime                    @default(now())
   updatedAt               DateTime                    @updatedAt
 
-  partnerOrganization  PartnerOrganization?          @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
-  matchingParticipants PositionMatchingParticipant[]
-  progressLogs         PositionProgressLog[]
-  statusHistories      PositionStatusHistory[]
-  applicantWorkflows   PartnerApplicantWorkflow[]
-  applications         Application[]
-  revisions            PositionRevision[]
+  partnerOrganization   PartnerOrganization?          @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  matchingParticipants  PositionMatchingParticipant[]
+  progressLogs          PositionProgressLog[]
+  statusHistories       PositionStatusHistory[]
+  applicantWorkflows    PartnerApplicantWorkflow[]
+  applications          Application[]
+  revisions             PositionRevision[]
   mockInterviewSessions MockInterviewSession[]
 
   @@unique([sourceProvider, sourceExternalId])
@@ -760,18 +761,18 @@ model Application {
   submittedAt         DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
-  position        Position                   @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  candidateUser   User                       @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
-  resume          Resume?                    @relation("ApplicationResume", fields: [resumeId], references: [id], onDelete: SetNull)
-  coverLetter     CoverLetter?               @relation("ApplicationCoverLetter", fields: [coverLetterId], references: [id], onDelete: SetNull)
-  statusHistories ApplicationStatusHistory[]
-  interviewSlots  InterviewSlot[]
-  assignments     Assignment[]
-  program         Program?
-  comments        ApplicationComment[]
-  withdrawnAt     DateTime?
+  position                   Position                   @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  candidateUser              User                       @relation("ApplicationCandidate", fields: [candidateUserId], references: [id], onDelete: Cascade)
+  resume                     Resume?                    @relation("ApplicationResume", fields: [resumeId], references: [id], onDelete: SetNull)
+  coverLetter                CoverLetter?               @relation("ApplicationCoverLetter", fields: [coverLetterId], references: [id], onDelete: SetNull)
+  statusHistories            ApplicationStatusHistory[]
+  interviewSlots             InterviewSlot[]
+  assignments                Assignment[]
+  program                    Program?
+  comments                   ApplicationComment[]
+  withdrawnAt                DateTime?
   // 자동 넛지 추적 — 회사가 방치한 지원(SUBMITTED) 리마인더, 지원자가 미선택한 면접 리마인더.
-  partnerNudgedAt           DateTime?
+  partnerNudgedAt            DateTime?
   applicantInterviewNudgedAt DateTime?
 
   @@unique([positionId, candidateUserId])
@@ -784,16 +785,16 @@ model Application {
 }
 
 model InterviewSlot {
-  id            String              @id @default(uuid())
-  applicationId String
-  startsAt      DateTime
-  endsAt        DateTime
-  location      String?
-  notes         String?
-  status        InterviewSlotStatus @default(PROPOSED)
-  proposedAt    DateTime            @default(now())
-  selectedAt    DateTime?
-  cancelledAt   DateTime?
+  id             String              @id @default(uuid())
+  applicationId  String
+  startsAt       DateTime
+  endsAt         DateTime
+  location       String?
+  notes          String?
+  status         InterviewSlotStatus @default(PROPOSED)
+  proposedAt     DateTime            @default(now())
+  selectedAt     DateTime?
+  cancelledAt    DateTime?
   reminderSentAt DateTime? // 면접 전날 리마인더 발송 시각(중복 방지)
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -943,14 +944,14 @@ model CareerCoverLetterData {
 // 진행 상태를 계정 기준으로 저장해, 다른 기기·브라우저에서도 그대로 이어가게 한다.
 // (기존 localStorage 를 대체) 학생당 1행, state JSON 블롭.
 model CareerLaunchProgress {
-  id            String   @id @default(uuid())
-  studentUserId String   @unique
-  state         Json     @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[], interview{practiced[],results{}}, finalFeedback }
+  id            String    @id @default(uuid())
+  studentUserId String    @unique
+  state         Json      @default("{}") // { diagnosis, selectedJobs[], materials[], doneSteps[], interview{practiced[],results{}}, finalFeedback }
   opsMemo       String? // 운영자 내부 메모(학생에게 보이지 않음)
   lastNudgedAt  DateTime? // 마지막 독려 메일 발송 시각
-  nudgeCount    Int      @default(0) // 누적 독려 메일 발송 횟수
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  nudgeCount    Int       @default(0) // 누적 독려 메일 발송 횟수
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   student User @relation("CareerLaunchProgressStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 }
@@ -1081,9 +1082,9 @@ model CareerLaunchCertificate {
   issuedByUserId String?
   issuedAt       DateTime @default(now())
 
-  student  User          @relation("CareerLaunchCertificateStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
-  cohort   CareerCohort  @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  issuedBy User?         @relation("CareerLaunchCertificateIssuer", fields: [issuedByUserId], references: [id], onDelete: SetNull)
+  student  User         @relation("CareerLaunchCertificateStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  cohort   CareerCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  issuedBy User?        @relation("CareerLaunchCertificateIssuer", fields: [issuedByUserId], references: [id], onDelete: SetNull)
 
   @@unique([cohortId, studentUserId])
   @@index([cohortId])
@@ -1421,27 +1422,27 @@ model CandidateActivityExperience {
 // (e.g. one per target role). The structured fields live in `content` as
 // JSON so the builder can evolve without a migration per field.
 model Resume {
-  id           String   @id @default(uuid())
-  userId       String
-  title        String
-  content      Json     @default("{}")
-  isPrimary    Boolean  @default(false)
+  id                 String                      @id @default(uuid())
+  userId             String
+  title              String
+  content            Json                        @default("{}")
+  isPrimary          Boolean                     @default(false)
   // Public share slug — anyone with the link can view a read-only single-
   // page rendering of this resume without signing in. We mint a fresh cuid
   // on row insert; old rows get one backfilled by the migration so the
   // column can stay NOT NULL + unique.
-  shareSlug    String   @unique @default(cuid())
+  shareSlug          String                      @unique @default(cuid())
   // Per-locale translation cache. Same idea as Position.translations.
   // Shape: { ko: { summary, selfIntroduction, careers: [{ description }], activities: [{ description }] } }
   // Filled on save whenever a long-form field is detected as non-Korean.
   // Existing rows stay null until the next edit; readers must handle absence.
-  translations Json?
+  translations       Json?
   // 시맨틱 인재검색용 임베딩(pgvector 768차원) — Position.embedding 과 동일 구조.
   // 이력서 저장 시 갱신, /partner/candidates/search 에서 ANN 으로 사용.
   embedding          Unsupported("vector(768)")?
   embeddingUpdatedAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   sgcApplications SgcApplication[] @relation("SgcApplicationResume")
@@ -1947,4 +1948,23 @@ model SgcApplication {
   @@index([status])
   @@index([createdAt])
   @@index([resumeId])
+}
+
+// Talent 행동 이벤트 스트림 — Passport·매칭 학습·퍼널 분석의 원장(History).
+// GA 전송과 별개로 DB에 남겨 "어떤 행동을 한 Talent가 실제 채용됐는가"를 분석한다.
+// 순수 가산(append-only) — 기존 기능 무영향.
+model TalentEvent {
+  id           String   @id @default(uuid())
+  talentUserId String
+  actorType    String   @default("talent") // talent | company | university | system
+  eventType    String // career_diagnosis_completed, resume_created, position_applied, interview_invited, hired ...
+  entityType   String? // position | application | connection | outcome | resume | interview
+  entityId     String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  talentUser User @relation("TalentEventUser", fields: [talentUserId], references: [id], onDelete: Cascade)
+
+  @@index([talentUserId, createdAt])
+  @@index([eventType, createdAt])
 }

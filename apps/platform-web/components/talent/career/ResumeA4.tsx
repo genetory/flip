@@ -153,7 +153,6 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         ) : null}
         <div className="min-w-0 flex-1">
           <p className="text-[32px] font-black leading-tight tracking-[-0.02em] text-[#0B1227]">{info.realName || t("이름", "Name", "姓名", "Họ tên", "氏名", "Nama")}</p>
-          {doc.targetRole ? <p className="mt-1.5 text-[16px] font-bold text-[#0B46E8]">{t(`${doc.targetRole} 지원`, `Applying for ${doc.targetRole}`, `应聘 ${doc.targetRole}`, `Ứng tuyển ${doc.targetRole}`, `${doc.targetRole} 応募`, `Melamar ${doc.targetRole}`)}</p> : null}
           <div className="mt-4 flex flex-col gap-1 text-[13px] leading-relaxed text-[#4E5968]">
             {contact.map((c, i) => (
               <span key={i}>{c}</span>

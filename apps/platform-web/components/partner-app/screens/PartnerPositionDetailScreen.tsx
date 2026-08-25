@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { PencilSimple, Copy } from "@phosphor-icons/react";
+import { PencilSimple, Copy, ShieldCheck } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
 import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
@@ -24,12 +24,15 @@ import {
   createMyPartnerPosition,
   deleteMyPartnerPosition,
   getPositionMockInterviewParticipants,
+  getRecommendedTalentForPosition,
   type PartnerPosition,
   type MyPartnerOrganization,
   type PublicPositionListItem,
   type MockInterviewParticipant,
-  type PartnerApplicantListItem
+  type PartnerApplicantListItem,
+  type RecommendedTalent
 } from "../../../lib/member-profile-client";
+import { blindTalentName } from "../../../lib/partner/blind";
 
 // 파트너 공고(+조직) → 지원자 상세 렌더용 PublicPositionListItem.
 function toPublicItem(p: PartnerPosition, org: MyPartnerOrganization | null): PublicPositionListItem {
@@ -74,6 +77,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
   const [participants, setParticipants] = useState<MockInterviewParticipant[]>([]);
   const [applicants, setApplicants] = useState<PartnerApplicantListItem[]>([]);
   const [proposeTarget, setProposeTarget] = useState<MockInterviewParticipant | null>(null);
+  const [recommended, setRecommended] = useState<RecommendedTalent[]>([]);
 
   function load() {
     setStatus("loading");
@@ -85,6 +89,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
       })
       .catch(() => setStatus("error"));
     void getPositionMockInterviewParticipants(positionId).then(setParticipants).catch(() => setParticipants([]));
+    void getRecommendedTalentForPosition(positionId).then(setRecommended).catch(() => setRecommended([]));
     void getMyPartnerApplicants()
       .then((all) => setApplicants(all.filter((a) => a.positionId === positionId)))
       .catch(() => setApplicants([]));
@@ -185,6 +190,35 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
               </Link>
             </div>
           </div>
+
+          {/* 이 공고에 맞는 추천 Talent — Rule-based 매칭 점수순(지원 대기 없이 먼저 찾기) */}
+          {recommended.length ? (
+            <div className="mb-6">
+              <h2 className="mb-1 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이 공고에 맞는 추천 Talent", "Recommended talent for this role", "适合该职位的推荐人才", "Nhân tài phù hợp vị trí này", "この求人におすすめの人材", "Talenta rekomendasi untuk posisi ini")}</h2>
+              <p className="mb-3 break-keep text-[12.5px] text-[#8B95A1]">{t("직무·언어·Readiness를 종합한 매칭 점수순이에요. 눌러서 인터뷰를 제안하세요.", "Ranked by a match score across role, language, and readiness. Tap to invite for an interview.", "按职务、语言、准备度综合匹配分排序。点击可发起面试邀约。", "Xếp theo điểm khớp về vị trí, ngôn ngữ, mức sẵn sàng. Nhấn để mời phỏng vấn.", "職務・言語・準備度を総合したマッチスコア順です。タップして面接を打診しましょう。", "Diurutkan berdasarkan skor kecocokan peran, bahasa, kesiapan. Ketuk untuk undang wawancara.")}</p>
+              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                {recommended.map((c) => {
+                  const nm = c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId);
+                  return (
+                    <Link key={c.candidateUserId} href={`${partnerRoutes.talent}/${c.candidateUserId}`} className="group flex w-[230px] shrink-0 flex-col gap-2.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#0B46E8]/40 hover:shadow-[0_6px_20px_-12px_rgba(11,70,232,0.3)]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[14px] font-black text-[#0B46E8]">{nm.slice(0, 1)}</span>
+                        <span className="rounded-lg bg-[#0B46E8] px-2 py-1 text-[12px] font-black text-white">{t(`매칭 ${c.matchPercent}`, `Match ${c.matchPercent}`, `匹配 ${c.matchPercent}`, `Khớp ${c.matchPercent}`, `適合 ${c.matchPercent}`, `Cocok ${c.matchPercent}`)}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{nm}</p>
+                          {c.passport?.verified ? <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#0A9B59]" weight="fill" aria-hidden /> : null}
+                        </div>
+                        {c.desiredJobRole ? <p className="truncate text-[11.5px] text-[#8B95A1]">{c.desiredJobRole}</p> : null}
+                      </div>
+                      {c.matchReason ? <p className="break-keep text-[11.5px] leading-relaxed text-[#4E5968]">{c.matchReason}</p> : null}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {/* 지원자 */}
           <div className="mb-6">

@@ -107,3 +107,67 @@ export async function patchProgress(partial: Partial<CareerProgress>): Promise<C
   });
   return (d.state as CareerProgress) ?? {};
 }
+
+// ── Talent Passport — 검증된 Talent 프로필(Readiness·Verified 등급·다음 액션) ──
+export type PassportTier = "preparing" | "bronze" | "silver" | "gold";
+export type TalentPassport = {
+  readiness: number;
+  tier: PassportTier;
+  verified: boolean;
+  verifiedAt: string | null;
+  breakdown: { direction: number; resume: number; cover: number; interview: number; experience: number; competency: number | null };
+  scores: { career: number | null; resume: number | null; cover: number | null; interview: number | null };
+  target: { role: string | null; recommended: { role: string; fit: number }[] };
+  documents: { resumeReady: boolean; coverReady: boolean };
+  experienceCount: number;
+  languages: { language?: string; level?: string }[];
+  jdMatch: number | null;
+  activity: { applications: number; interviewsInvited: number; mockInterviews: number };
+  gate: { diagnosisDone: boolean; resumeReady: boolean; experience3plus: boolean };
+  nextActions: { key: string; label: string; reason: string; href: string }[];
+  companyFeedback: { comment: string; result: string; org: string | null; at: string }[];
+};
+
+export async function fetchTalentPassport(): Promise<TalentPassport | null> {
+  try {
+    const d = await req("/career-launch/passport", { headers: authHeaders() });
+    return (d.passport as TalentPassport) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// 공유 토큰 발급(멱등) — 기업 제출용 공개 링크.
+export async function sharePassport(): Promise<string | null> {
+  try {
+    const d = await req("/career-launch/passport/share", { method: "POST", headers: authHeaders() });
+    return (d.token as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export type SharedPassport = {
+  name: string | null;
+  readiness: number;
+  tier: PassportTier;
+  verified: boolean;
+  verifiedAt: string | null;
+  breakdown: TalentPassport["breakdown"];
+  scores: TalentPassport["scores"];
+  target: TalentPassport["target"];
+  experienceCount: number;
+  languages: { language?: string; level?: string }[];
+};
+
+// 공개(무인증) 공유 뷰 조회.
+export async function fetchSharedPassport(token: string): Promise<SharedPassport | null> {
+  try {
+    const res = await fetch(`${apiBase()}/career-launch/passport/shared/${encodeURIComponent(token)}`);
+    const d = (await res.json().catch(() => null)) as { ok?: boolean; passport?: SharedPassport } | null;
+    if (!res.ok || d?.ok !== true) return null;
+    return d.passport ?? null;
+  } catch {
+    return null;
+  }
+}
