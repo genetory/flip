@@ -158,17 +158,6 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
               <span key={i}>{c}</span>
             ))}
           </div>
-          {doc.links && doc.links.some((l) => l.url?.trim()) ? (
-            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
-              {doc.links
-                .filter((l) => l.url?.trim())
-                .map((l, i) => (
-                  <a key={i} href={normalizeUrl(l.url)} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#0B46E8] underline">
-                    {l.label?.trim() || l.url.trim()}
-                  </a>
-                ))}
-            </div>
-          ) : null}
         </div>
       </header>
 
@@ -198,7 +187,26 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
             </section>
           );
         })}
-        {doc.items.length === 0 ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
+        {/* 링크·포트폴리오 — 이력서 맨 아래 섹션 */}
+        {doc.links && doc.links.some((l) => l.url?.trim()) ? (
+          <section>
+            <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}</h2>
+            <ul className="mt-3 flex flex-col gap-2.5">
+              {doc.links
+                .filter((l) => l.url?.trim())
+                .map((l, i) => (
+                  <li key={i} className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      {l.label?.trim() ? <span className="block font-bold text-[#191F28]">{l.label.trim()}</span> : null}
+                      <a href={normalizeUrl(l.url)} target="_blank" rel="noopener noreferrer" className={`${l.label?.trim() ? "mt-0.5 block " : ""}break-all font-semibold text-[#0B46E8] underline`}>{l.url.trim()}</a>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ) : null}
+        {doc.items.length === 0 && !(doc.links && doc.links.some((l) => l.url?.trim())) ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
       </div>
     </div>
   );
