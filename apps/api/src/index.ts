@@ -6637,6 +6637,32 @@ app.get("/ops/job-alerts/summary", authenticate, requireRoles([MemberRole.OPERAT
   }
 });
 
+// GET /ops/talent-funnel — TalentEvent 기반 행동 퍼널(진단→이력서→모의면접→지원→인터뷰→채용).
+// 단계별 고유 Talent 수 + 총 이벤트 수. North Star(전환율)를 운영이 측정할 근거.
+app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const STAGES: { key: string; label: string }[] = [
+      { key: "career_diagnosis_completed", label: "진단 완료" },
+      { key: "resume_created", label: "이력서 생성" },
+      { key: "mock_interview_completed", label: "모의면접" },
+      { key: "position_applied", label: "지원" },
+      { key: "interview_invited", label: "인터뷰 제안" },
+      { key: "hired", label: "채용" }
+    ];
+    const totals = await prisma.talentEvent.groupBy({ by: ["eventType"], _count: { _all: true } });
+    const totalMap = new Map(totals.map((tt) => [tt.eventType, tt._count._all]));
+    const stages = await Promise.all(
+      STAGES.map(async (s) => {
+        const distinct = await prisma.talentEvent.findMany({ where: { eventType: s.key }, distinct: ["talentUserId"], select: { talentUserId: true } });
+        return { key: s.key, label: s.label, talents: distinct.length, events: totalMap.get(s.key) ?? 0 };
+      })
+    );
+    return res.json({ ok: true, stages, totalEvents: totals.reduce((a, tt) => a + tt._count._all, 0) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 app.post("/ops/community/generate", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = communityGenerateSchema.safeParse(req.body);
   if (!parsed.success) {
