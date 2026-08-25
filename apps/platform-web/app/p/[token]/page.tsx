@@ -64,6 +64,8 @@ export default function SharedPassportPage() {
 
   return (
     <main className="min-h-screen bg-[#F6F8FB] px-4 py-10">
+      {/* 인쇄/PDF 저장 시 배경색·그라디언트를 유지하고 여백을 잡는다. */}
+      <style>{`@media print { body { background: #ffffff !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } @page { margin: 12mm; } }`}</style>
       <div className="mx-auto w-full max-w-xl">
         {status === "loading" ? (
           <p className="py-20 text-center text-[13px] text-[#8B95A1]">불러오는 중…</p>
@@ -74,8 +76,15 @@ export default function SharedPassportPage() {
           </div>
         ) : (
           <>
-            <div className="mb-3 text-center">
+            <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">APLY Talent Passport</p>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] print:hidden"
+              >
+                🖨 PDF로 저장
+              </button>
             </div>
             <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-white via-[#F6F9FF] to-[#EAF1FF] p-6 shadow-[0_16px_50px_-18px_rgba(11,70,232,0.24)] ring-1 ring-[#0B46E8]/10 md:p-8">
               <div className="flex flex-col gap-6">
