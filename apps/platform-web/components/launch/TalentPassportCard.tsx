@@ -81,6 +81,7 @@ export function TalentPassportCard() {
             <h2 className="mt-1 text-[19px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[22px]">
               {t("검증된 나의 커리어", "My verified career", "我的已验证履历", "Hồ sơ đã xác minh", "検証済みのキャリア", "Karier terverifikasi")}
             </h2>
+            {p.verifiedAt ? <p className="mt-1 text-[11.5px] font-semibold text-[#8B95A1]">{t("검증일", "Verified on", "验证日期", "Ngày xác minh", "検証日", "Terverifikasi")} {p.verifiedAt.slice(0, 10)}</p> : null}
           </div>
           <span
             className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-black"

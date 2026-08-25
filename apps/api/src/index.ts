@@ -6645,6 +6645,7 @@ app.get("/ops/talent-funnel", authenticate, requireRoles([MemberRole.OPERATOR]),
       { key: "career_diagnosis_completed", label: "진단 완료" },
       { key: "resume_created", label: "이력서 생성" },
       { key: "mock_interview_completed", label: "모의면접" },
+      { key: "talent_verified", label: "검증(Verified)" },
       { key: "position_applied", label: "지원" },
       { key: "interview_invited", label: "인터뷰 제안" },
       { key: "interview_accepted", label: "인터뷰 수락" },
@@ -15317,6 +15318,7 @@ const TalentEventType = {
   RESUME_CREATED: "resume_created",
   RESUME_UPDATED: "resume_updated",
   MOCK_INTERVIEW_COMPLETED: "mock_interview_completed",
+  TALENT_VERIFIED: "talent_verified",
   CAREER_LAUNCH_COMPLETED: "career_launch_completed",
   POSITION_APPLIED: "position_applied",
   INTERVIEW_INVITED: "interview_invited",
@@ -15429,6 +15431,7 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
     readiness,
     tier,
     verified,
+    verifiedAt: (state.verification?.verifiedAt as string | undefined) ?? null,
     breakdown: areaVal,
     scores: { career: careerTotal, resume: resumeScore, cover: coverScore, interview: interviewScore },
     target: { role: (selectedJobs[0] as string | undefined) ?? jobRec[0]?.role ?? null, recommended: jobRec.slice(0, 5) },
@@ -17691,8 +17694,22 @@ app.post(
 // GET /career-launch/passport — 본인 Talent Passport(Readiness·Verified 등급·다음 액션).
 // 기존 데이터를 조립하는 파생 뷰라 스키마 변경 없음.
 app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async (req, res) => {
+  const uid = req.auth!.userId;
   try {
-    const passport = await buildTalentPassport(req.auth!.userId);
+    const passport = await buildTalentPassport(uid);
+    // 최초 Verified 도달 시점을 progress.state.verification 에 스냅샷(감사·기업노출 근거) + 이벤트(퍼널).
+    if (passport.verified && !passport.verifiedAt) {
+      const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid }, select: { state: true } });
+      if (prog) {
+        const state = (prog.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+        const now = new Date().toISOString();
+        await prisma.careerLaunchProgress
+          .update({ where: { studentUserId: uid }, data: { state: { ...state, verification: { verifiedAt: now, tier: passport.tier, readiness: passport.readiness } } } })
+          .catch(() => {});
+        emitTalentEvent(uid, TalentEventType.TALENT_VERIFIED, { entityType: "passport", metadata: { tier: passport.tier, readiness: passport.readiness } });
+        passport.verifiedAt = now;
+      }
+    }
     return res.json({ ok: true, passport });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });

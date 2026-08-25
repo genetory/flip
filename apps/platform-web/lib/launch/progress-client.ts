@@ -114,6 +114,7 @@ export type TalentPassport = {
   readiness: number;
   tier: PassportTier;
   verified: boolean;
+  verifiedAt: string | null;
   breakdown: { direction: number; resume: number; cover: number; interview: number; experience: number; competency: number | null };
   scores: { career: number | null; resume: number | null; cover: number | null; interview: number | null };
   target: { role: string | null; recommended: { role: string; fit: number }[] };
