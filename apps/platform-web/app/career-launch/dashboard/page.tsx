@@ -11,6 +11,7 @@ import { FinalFeedbackCard } from "../../../components/launch/final-feedback";
 import { CompletionSummaryCard } from "../../../components/launch/CompletionSummaryCard";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
+import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
 import { fetchMySeminars, fetchMyEnrollment, type CohortSeminar } from "../../../lib/launch/enrollment-client";
 import { fetchResumeData, hasResumeContent } from "../../../lib/launch/resume-data";
@@ -263,6 +264,8 @@ export default function LaunchDashboardPage() {
             <TalentPassportCard />
             {/* ── 내 커리어 스냅샷 — 주차에서 만든 점수·경험 요약(데이터 있을 때만) ── */}
             <CareerSnapshot />
+            {/* ── 내 여정 요약 — 최근 활동 5건(데이터 있을 때만) ── */}
+            <MyTimelineCard limit={5} />
 
             {/* 통합 Career Profile 전체 보기 */}
             <Link href="/career-launch/profile" className="group flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#0B46E8]/40">

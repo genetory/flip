@@ -39,7 +39,7 @@ function eventMeta(type: string, t: LaunchT): { emoji: string; label: string; ac
   }
 }
 
-export function MyTimelineCard() {
+export function MyTimelineCard({ limit }: { limit?: number } = {}) {
   const t = useLaunchT();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +64,7 @@ export function MyTimelineCard() {
       <h2 className="mb-1 text-[19px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[22px]">{t("내 여정", "My journey", "我的旅程", "Hành trình của tôi", "私の歩み", "Perjalananku")}</h2>
       <p className="mb-4 text-[13px] text-[#8B95A1]">{t("진단부터 인터뷰·채용까지, 내가 만든 발자취예요.", "Every step you've taken — from diagnosis to interviews and hires.", "从诊断到面试、录用的每一步足迹。", "Từng bước bạn đã đi — từ chẩn đoán đến phỏng vấn, tuyển dụng.", "診断から面接・採用まで、あなたの足跡です。", "Setiap langkahmu — dari diagnosis hingga wawancara dan rekrutmen.")}</p>
       <ol className="relative ml-1 border-l-2 border-[#EEF1F5]">
-        {events.map((e, i) => {
+        {(limit ? events.slice(0, limit) : events).map((e, i) => {
           const m = eventMeta(e.type, t);
           return (
             <li key={i} className="relative mb-4 pl-6 last:mb-0">
