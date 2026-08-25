@@ -42,17 +42,32 @@ export const SECTION_HAS_DATE: Record<CareerSection, boolean> = {
   certificate: true,
   experience: true,
   project: true,
+  language: false,
   skill: false,
   award: true,
   activity: true
 };
 
+// 포트폴리오·GitHub·LinkedIn 등 첨부 링크.
+export interface ResumeLink {
+  label: string;
+  url: string;
+}
+
 export interface ResumeDoc {
   targetRole: string;
   items: ResumeItem[];
+  links?: ResumeLink[];
   showPhoto?: boolean; // 이력서에 프로필 사진 표시 여부(기본 true)
   createdAt: number;
   updatedAt: number;
+}
+
+// URL 정규화 — 스킴 없으면 https:// 를 붙인다(링크 클릭용).
+export function normalizeUrl(url: string): string {
+  const u = url.trim();
+  if (!u) return "";
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 }
 
 function uid() {
@@ -91,9 +106,9 @@ export function resumeCompleteness(doc: ResumeDoc | null): number {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
-export function addResumeItem(doc: ResumeDoc, section: CareerSection, text: string, startDate = "", endDate = ""): { doc: ResumeDoc; id: string } {
+export function addResumeItem(doc: ResumeDoc, section: CareerSection, text: string, startDate = "", endDate = "", company = ""): { doc: ResumeDoc; id: string } {
   const id = uid();
-  return { doc: { ...doc, items: [...doc.items, { id, section, text, startDate, endDate }] }, id };
+  return { doc: { ...doc, items: [...doc.items, { id, section, text, startDate, endDate, ...(company.trim() ? { company: company.trim() } : {}) }] }, id };
 }
 
 // refId 로 매핑된 이력서 항목을 멱등 삽입(피드 자동 추출용). 문서가 없으면 새로 만든다.

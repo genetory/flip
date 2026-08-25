@@ -3,7 +3,7 @@
 // 자기소개서 A4 미리보기 — 문항+답변을 고정 A4로 렌더하고 축소. 문항(섹션)은 통째로 다음 장으로
 // 내려 잘리지 않게, 긴 답변만 문단 단위로 이어진다. 로고·슬로건 바닥글은 매 장 맨 아래 고정.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { COVER_QUESTIONS, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { coverSectionOrder, type CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { packBlocks } from "./ResumeA4";
 import { PdfBrandFooter } from "./pdf-print";
@@ -127,7 +127,7 @@ function CoverA4Body({ doc, info }: { doc: CoverDoc; info: BasicInfo }) {
         {doc.items.length === 0 ? (
           <p className="text-[13.5px] text-[#B0B8C1]">{t("문항에 답을 채우면 여기에 자기소개서로 정리돼요.", "Answer the prompts and they'll appear here as your cover letter.", "填写问题答案后会在此整理成自我介绍。", "Trả lời các câu hỏi để hiển thị thành thư giới thiệu tại đây.", "設問に答えると、ここに自己紹介書として整理されます。", "Jawab pertanyaan, akan tersusun sebagai surat lamaran di sini.")}</p>
         ) : null}
-        {COVER_QUESTIONS.map((q) => {
+        {coverSectionOrder(doc).map((q) => {
           const items = doc.items.filter((it) => it.question === q);
           if (items.length === 0) return null;
           return (

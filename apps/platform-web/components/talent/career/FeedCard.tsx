@@ -23,6 +23,7 @@ const SECTION_BASE: Record<CareerSection, [string, string, string, string, strin
   certificate: ["자격증", "Certificate", "证书", "Chứng chỉ", "資格", "Sertifikat"],
   experience: ["경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman"],
   project: ["프로젝트", "Project", "项目", "Dự án", "プロジェクト", "Proyek"],
+  language: ["어학", "Language", "语言", "Ngoại ngữ", "語学", "Bahasa"],
   skill: ["스킬", "Skill", "技能", "Kỹ năng", "スキル", "Keahlian"],
   award: ["수상", "Award", "获奖", "Giải thưởng", "受賞", "Penghargaan"],
   activity: ["대외활동", "Activity", "课外活动", "Hoạt động", "課外活動", "Aktivitas"]

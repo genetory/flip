@@ -19,14 +19,14 @@ import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed"
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
-import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
 import { polishExperienceText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
 
 // 섹션 칩 · 편집 리스트 순서 — 학력은 맨 오른쪽/맨 아래.
 // 이력서 순서 — 경험·프로젝트·자격증·스킬·대외활동·수상, 학력은 맨 아래.
-const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "skill", "activity", "award", "education"];
+const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
 
 export function ResumeBuilderScreen() {
   const t = usePlatformT();
@@ -123,11 +123,11 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setCompany(id: string, company: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, company } : it)) });
   }
-  function add(text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string): string {
+  function add(text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string, company?: string): string {
     const trimmed = text.trim();
     if (!trimmed) return "";
     const sec = section ?? classifyCareerNote(trimmed);
-    const { doc: next, id } = addResumeItem(doc, sec, refined ?? refineText(trimmed), startDate ?? "", endDate ?? "");
+    const { doc: next, id } = addResumeItem(doc, sec, refined ?? refineText(trimmed), startDate ?? "", endDate ?? "", company ?? "");
     onChange(next);
     return id;
   }
@@ -185,6 +185,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
             </CollapsibleSection>
           );
         })}
+
+        <LinksCard links={doc.links ?? []} onChange={(links) => onChange({ ...doc, links })} />
       </div>
 
       {/* 데스크톱 미리보기(상시, A4) */}
@@ -280,12 +282,19 @@ function ItemRow({
     : section === "certificate" ? t("자격증·발급기관","Certificate / issuer","证书·发证机构","Chứng chỉ / nơi cấp","資格・発行機関","Sertifikat / penerbit")
     : section === "activity" ? t("활동·단체명","Activity / org","活动·团体","Hoạt động / tổ chức","活動・団体名","Aktivitas / organisasi")
     : section === "award" ? t("수상명·기관","Award / issuer","奖项·机构","Giải thưởng / nơi cấp","受賞名・機関","Penghargaan / penerbit")
-    : section === "skill" ? t("역량·스킬명","Skill","技能名称","Tên kỹ năng","スキル名","Nama keahlian")
+    : section === "language" ? t("언어 (예: 영어)","Language (e.g. English)","语言（如：英语）","Ngôn ngữ (VD: Tiếng Anh)","言語（例：英語）","Bahasa (mis. Inggris)")
+    : section === "skill" ? t("스킬명","Skill","技能名称","Tên kỹ năng","スキル名","Nama keahlian")
     : t("소속 (회사·기관)","Organization (company)","所属（公司·机构）","Nơi công tác (công ty)","所属（会社・機関）","Instansi (perusahaan)");
   const textPlaceholder =
     section === "education" ? t("전공·학위·학점 (선택)","Major / degree / GPA (optional)","专业·学位·GPA（选填）","Chuyên ngành / bằng cấp (tùy chọn)","専攻・学位・成績（任意）","Jurusan / gelar (opsional)")
+    : section === "project" ? t("프로젝트 내용·맡은 역할·성과 (선택)","What the project was, your role & results (optional)","项目内容·担任角色·成果（选填）","Nội dung dự án, vai trò & kết quả (tùy chọn)","プロジェクト内容・役割・成果（任意）","Isi proyek, peran & hasil (opsional)")
+    : section === "certificate" ? t("점수·급수·취득 시기 등 (선택)","Score / level / date obtained (optional)","分数·等级·取得时间（选填）","Điểm / cấp độ / thời điểm (tùy chọn)","点数・級・取得時期（任意）","Skor / tingkat / tanggal (opsional)")
+    : section === "activity" ? t("활동 내용·맡은 역할·성과 (선택)","What you did, your role & results (optional)","活动内容·担任角色·成果（选填）","Nội dung hoạt động, vai trò & kết quả (tùy chọn)","活動内容・役割・成果（任意）","Isi kegiatan, peran & hasil (opsional)")
+    : section === "award" ? t("수상 내용·규모·순위 (선택)","What the award was, scale & rank (optional)","获奖内容·规模·名次（选填）","Nội dung giải, quy mô & thứ hạng (tùy chọn)","受賞内容・規模・順位（任意）","Isi penghargaan, skala & peringkat (opsional)")
+    : section === "language" ? t("회화 수준·점수·급수 (선택)","Proficiency / score / level (optional)","会话水平·分数·等级（选填）","Trình độ / điểm / cấp độ (tùy chọn)","会話レベル・点数・級（任意）","Level / skor / tingkat (opsional)")
+    : section === "skill" ? t("숙련도·활용 경험 (선택)","Proficiency & how you've used it (optional)","熟练度·使用经验（选填）","Mức thành thạo & kinh nghiệm dùng (tùy chọn)","習熟度・活用経験（任意）","Tingkat & pengalaman pakai (opsional)")
     : isExperience ? t("한 일·성과 (선택)","What you did / achievements (optional)","工作内容·成果（选填）","Việc đã làm / thành tích (tùy chọn)","業務・成果（任意）","Yang dikerjakan / hasil (opsional)")
-    : undefined;
+    : t("내용·성과 (선택)","Details / achievements (optional)","内容·成果（选填）","Nội dung / thành tích (tùy chọn)","内容・成果（任意）","Detail / hasil (opsional)");
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
       <input
@@ -403,7 +412,40 @@ interface ChatMsg {
 
 type SectionChoice = CareerSection;
 
-function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string) => string }) {
+// 링크·포트폴리오 — 다른 섹션과 동일한 CollapsibleSection 형태. '직접 추가'로 링크 항목 추가.
+function LinksCard({ links, onChange }: { links: ResumeLink[]; onChange: (links: ResumeLink[]) => void }) {
+  const t = usePlatformT();
+  const update = (i: number, patch: Partial<ResumeLink>) => onChange(links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const remove = (i: number) => onChange(links.filter((_, idx) => idx !== i));
+  const inputCls = "w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]";
+  return (
+    <CollapsibleSection
+      emoji="🔗"
+      label={t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}
+      count={links.length}
+      defaultOpen={links.length > 0}
+      addLabel={t("직접 추가", "Add", "直接添加", "Thêm", "直接追加", "Tambah")}
+      onAdd={() => onChange([...links, { label: "", url: "" }])}
+    >
+      {links.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-5 text-center text-[13px] text-[#B0B8C1]">{t("‘직접 추가’로 포트폴리오·GitHub 등 링크를 넣어보세요.", "Use ‘Add’ to attach portfolio, GitHub, and other links.", "用“直接添加”附上作品集、GitHub 等链接。", "Dùng ‘Thêm’ để đính kèm portfolio, GitHub…", "「直接追加」でポートフォリオ・GitHub等のリンクを追加してください。", "Gunakan ‘Tambah’ untuk melampirkan portfolio, GitHub, dll.")}</p>
+      ) : null}
+      {links.map((l, i) => (
+        <div key={i} className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+          <input value={l.label} onChange={(e) => update(i, { label: e.target.value })} placeholder={t("제목 (예: 포트폴리오)", "Title (e.g. Portfolio)", "标题（例：作品集）", "Tiêu đề (VD: Portfolio)", "タイトル（例：ポートフォリオ）", "Judul (cth: Portofolio)")} className={`${inputCls} mb-2.5 font-bold placeholder:font-normal`} />
+          <div className="flex items-center gap-2">
+            <input value={l.url} onChange={(e) => update(i, { url: e.target.value })} placeholder="https://..." inputMode="url" className={`${inputCls} min-w-0 flex-1`} />
+            <button type="button" onClick={() => remove(i)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-2 text-[#B0B8C1] transition hover:bg-[#F5F6F8] hover:text-[#F04452]">
+              <Trash className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </CollapsibleSection>
+  );
+}
+
+function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, refined?: string, startDate?: string, endDate?: string, company?: string) => string }) {
   const t = usePlatformT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [value, setValue] = useState("");
@@ -434,7 +476,7 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
 
     const meta = SECTION_META[res.section];
     const secLabel = sectionLabelOf(t, res.section);
-    const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate);
+    const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate, res.title);
     // 커리어 기록(피드)에도 요약 리스팅.
     ensureFeedEntry(`resume:${id}`, res.refined, res.section, { label: `${t("이력서","Resume","简历","CV","履歴書","CV")} · ${secLabel}`, href: talentAppRoutes.resume });
     setMessages((m) => [
@@ -443,6 +485,18 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
     ]);
     setPending(false);
   }
+
+  // 선택한 카테고리(choice)에 맞는 입력 예시 — 칩을 바꾸면 placeholder도 바뀐다.
+  const chipPlaceholder =
+    choice === "experience" ? t("예) OO에서 2년간 마케팅 담당 · SNS 콘텐츠 기획·운영","e.g. 2 yrs in marketing at OO · planned & ran social content","例）在OO负责营销2年·策划运营社媒内容","VD) 2 năm marketing tại OO · lên kế hoạch nội dung MXH","例）OOでマーケ2年・SNSコンテンツ企画運営","Cth) 2 thn marketing di OO · kelola konten sosial")
+    : choice === "project" ? t("예) 팀 프로젝트로 앱을 기획·개발하고 발표 담당","e.g. Planned & built an app in a team project, led the demo","例）团队项目中策划开发App并负责展示","VD) Dự án nhóm: lên ý tưởng, làm app & thuyết trình","例）チームでアプリを企画・開発し発表担当","Cth) Proyek tim: rancang & bangun app, presentasi")
+    : choice === "certificate" ? t("예) 토익 900 · 컴퓨터활용능력 1급 (2024)","e.g. TOEIC 900 · Computer Proficiency Level 1 (2024)","例）托业900·计算机能力1级（2024）","VD) TOEIC 900 · Chứng chỉ tin học loại 1 (2024)","例）TOEIC900・PC活用能力1級（2024）","Cth) TOEIC 900 · Sertifikat komputer L1 (2024)")
+    : choice === "language" ? t("예) 영어 비즈니스 회화 · 토익 900 · 일본어 JLPT N2","e.g. Business English · TOEIC 900 · Japanese JLPT N2","例）英语商务会话·托业900·日语JLPT N2","VD) Tiếng Anh giao tiếp · TOEIC 900 · Nhật JLPT N2","例）英語ビジネス会話・TOEIC900・日本語JLPT N2","Cth) Inggris bisnis · TOEIC 900 · Jepang JLPT N2")
+    : choice === "skill" ? t("예) Python · Excel · 데이터 분석","e.g. Python · Excel · data analysis","例）Python · Excel · 数据分析","VD) Python · Excel · phân tích dữ liệu","例）Python・Excel・データ分析","Cth) Python · Excel · analisis data")
+    : choice === "activity" ? t("예) 동아리 회장으로 30명 규모 행사 기획·운영","e.g. As club president, planned & ran an event for 30","例）担任社团会长，策划运营30人活动","VD) Chủ nhiệm CLB, tổ chức sự kiện 30 người","例）サークル会長として30名規模の行事を企画運営","Cth) Ketua klub, kelola acara 30 orang")
+    : choice === "award" ? t("예) 교내 공모전 대상 · 100팀 중 1위","e.g. Grand prize in a campus contest · 1st of 100 teams","例）校内竞赛大奖·100队中第1","VD) Giải nhất cuộc thi trường · 1/100 đội","例）学内コンテスト大賞・100チーム中1位","Cth) Juara 1 lomba kampus · 1 dari 100 tim")
+    : choice === "education" ? t("예) OO대학교 컴퓨터공학 · 학점 3.8/4.5","e.g. OO University, Computer Science · GPA 3.8/4.5","例）OO大学计算机·GPA 3.8/4.5","VD) ĐH OO, KH máy tính · GPA 3.8/4.5","例）OO大学 情報工学・GPA3.8/4.5","Cth) Univ OO, Ilmu Komputer · IPK 3.8/4.5")
+    : t("예) 데이터 분석 프로젝트 완료 · 토익 900 취득","e.g. Completed a data analysis project · Scored 900 on TOEIC","例）完成数据分析项目 · 托业 900 分","VD) Hoàn thành dự án phân tích dữ liệu · TOEIC 900","例）データ分析プロジェクト完了・TOEIC900取得","Cth) Selesaikan proyek analisis data · TOEIC 900");
 
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white">
@@ -486,7 +540,7 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
             value={value}
             onChange={(e) => setValue(e.target.value)}
             rows={4}
-            placeholder={t("예) 데이터 분석 프로젝트 완료 · 토익 900 취득","e.g. Completed a data analysis project · Scored 900 on TOEIC","例）完成数据分析项目 · 托业 900 分","VD) Hoàn thành dự án phân tích dữ liệu · TOEIC 900","例）データ分析プロジェクト完了・TOEIC900取得","Cth) Selesaikan proyek analisis data · TOEIC 900")}
+            placeholder={chipPlaceholder}
             className="min-h-[112px] flex-1 resize-y bg-transparent px-3 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
           />
           <button

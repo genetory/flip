@@ -1,7 +1,7 @@
 "use client";
 
-// 내 커리어 — 오늘의 한 걸음 히어로 + 이력서/자기소개서 + 커리어 기록.
-import { useEffect, useState } from "react";
+// 내 커리어 — 이력서/자기소개서 + 커리어 기록.
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Sparkle } from "@phosphor-icons/react";
@@ -12,19 +12,15 @@ import { JobInterestCard } from "../jobs/JobInterestCard";
 import { CareerAdvisorModal } from "../career/CareerAdvisorModal";
 import { CareerLayout } from "../career/CareerLayout";
 import { ProfileGate } from "../career/ProfileGate";
-import { FeedCard } from "../career/FeedCard";
 import { CareerFunnelCards } from "../career/CareerFunnelCards";
 import { TLoading, TPageHeader } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
-import { getMyApplications } from "../../../lib/member-profile-client";
-import { useCareerFeed, removeFeedEntry } from "../../../lib/talent/career-feed";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus, resumeCompleteness, displayMonth, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useSelfMock } from "../../../lib/talent/self-mock";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
-import { useDailyStep, markStepDoneToday } from "../../../lib/talent/daily-step";
-import { usePlatformT, type PlatformT } from "../../../lib/i18n";
+import { usePlatformT } from "../../../lib/i18n";
 export function CareerHomeScreen() {
   return (
     <CareerLayout>
@@ -35,7 +31,6 @@ export function CareerHomeScreen() {
 
 function Content() {
   const t = usePlatformT();
-  const feed = useCareerFeed();
   const basicInfo = useBasicInfo();
   const resume = useResumeDoc();
   const cover = useCoverDoc();
@@ -52,14 +47,6 @@ function Content() {
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const selfMock = useSelfMock();
   const mockAnsweredCount = selfMock?.answers?.length ?? 0;
-
-  // 실제 지원 여부 — 오늘의 미션 힌트에 사용.
-  const [applied, setApplied] = useState(false);
-  useEffect(() => {
-    void getMyApplications()
-      .then((l) => setApplied(l.length > 0))
-      .catch(() => {});
-  }, []);
 
   // 계정(서버) 기본 정보·문서 로드 완료 전에는 게이트를 판단하지 않는다(깜빡임 방지).
   if (docsStatus !== "loaded") {
@@ -81,11 +68,8 @@ function Content() {
     );
   }
 
-  const hasResume = resume !== null;
-  const hasCover = cover !== null;
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
-  const mission = todaysMission(t, hasResume, rp, hasCover, cp, applied);
   const workItems = resume?.items.filter((i) => i.section === "experience") ?? [];
 
   return (
@@ -96,34 +80,32 @@ function Content() {
         <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 만들고, 오늘 한 걸음씩 취업에 가까워져요.","Create your resume and cover letter, and get one step closer to a job each day.","制作简历和求职信，每天离就业更近一步。","Tạo CV và thư xin việc, mỗi ngày tiến gần hơn tới việc làm.","履歴書・自己PRを作り、今日も一歩ずつ就職に近づこう。","Buat CV dan surat lamaran, makin dekat ke pekerjaan tiap hari.")}</p>
       </header>
 
-      {/* 오늘의 한 걸음 히어로 */}
-      <DailyStepHero mission={mission} />
-
       {/* AI 커리어 상담 — 나에 대해 알아가며 어울리는 직무·방향을 찾는다 */}
       <section className="flex flex-col gap-4">
         <SectionHead title={t("AI와 나를 알아가요","Get to know yourself with AI","用 AI 认识我自己","Hiểu bản thân cùng AI","AIで自分を知る","Kenali dirimu dengan AI")} desc={t("AI와 대화하며 나에게 어울리는 직무·직업, 봐야 할 공고, 이력서·자기소개서 방향까지 찾아요.","Chat with AI to find fitting roles, which jobs to target, and how to write your resume and cover letter.","与 AI 对话，找到适合的职位、该看的招聘和简历自我介绍的方向。","Trò chuyện với AI để tìm nghề phù hợp, tin tuyển nên xem và cách viết CV, thư xin việc.","AIと対話して自分に合う職種、見るべき求人、履歴書・自己PRの方向まで見つけます。","Ngobrol dengan AI untuk menemukan peran cocok, lowongan yang perlu dilihat, dan cara menulis resume & surat lamaran.")} />
+        {/* AI 커리어 상담 시작 */}
         <button
           type="button"
           onClick={() => setAdvisorOpen(true)}
-          className="group flex items-center gap-4 rounded-3xl border border-[#E5E8EB] bg-white p-4 text-left shadow-[0_6px_20px_-10px_rgba(11,18,39,0.18)] transition hover:border-[#0B46E8]/40 hover:shadow-[0_12px_28px_-10px_rgba(11,70,232,0.3)]"
+          className="group flex items-center gap-3.5 rounded-3xl border border-[#E5E8EB] bg-white p-4 text-left shadow-[0_6px_20px_-10px_rgba(11,18,39,0.18)] transition hover:border-[#0B46E8]/40 hover:shadow-[0_12px_28px_-10px_rgba(11,70,232,0.3)]"
         >
-          <span className="relative flex h-28 w-28 shrink-0 items-center justify-center" aria-hidden>
-            <Image src="/images/img_career_position_ai.webp" alt="" width={112} height={112} className="h-full w-full object-contain" />
+          <span className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center" aria-hidden>
+            <Image src="/images/img_career_position_ai.webp" alt="" width={72} height={72} className="h-full w-full object-contain" />
           </span>
           <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-black uppercase tracking-[0.12em] text-[#0B46E8]">
               <Sparkle className="h-3 w-3" weight="fill" /> AI
             </span>
-            <p className="mt-1.5 text-[16px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
-            <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
+            <p className="mt-1.5 text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("AI 커리어 상담 시작하기","Start an AI career chat","开始 AI 职业咨询","Bắt đầu tư vấn nghề AI","AIキャリア相談を始める","Mulai konsultasi karier AI")}</p>
+            <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("나에게 어울리는 일을 함께 찾고, 관심 직무로 담아드려요.","Find work that fits you and save it to your interests.","一起找到适合你的工作并加入兴趣职位。","Cùng tìm việc phù hợp và lưu vào nghề quan tâm.","自分に合う仕事を一緒に見つけて関心職種に保存します。","Temukan pekerjaan yang cocok dan simpan ke minatmu.")}</p>
           </div>
         </button>
+      </section>
 
-        {/* 결과 확인·직접 수정 */}
-        <div className="flex flex-col gap-1.5">
-          <p className="px-1 text-[12px] font-semibold text-[#8B95A1]">{t("관심 직무 — 직접 고르거나 수정하기","Job interests — pick or edit directly","兴趣职位 — 直接选择或修改","Nghề quan tâm — tự chọn hoặc sửa","関心職種 — 直接選ぶ・修正","Minat pekerjaan — pilih atau ubah")}</p>
-          <JobInterestCard variant="edit" />
-        </div>
+      {/* 관심 직무 — 직접 고르거나 수정 */}
+      <section className="flex flex-col gap-4">
+        <SectionHead title={t("관심 직무를 정해요","Set your job interests","确定兴趣职位","Chọn nghề quan tâm","関心職種を決める","Tentukan minat pekerjaan")} desc={t("관심 직무를 고르면 그에 맞는 공고와 모의 면접이 더 정확해져요. 직접 고르거나 수정할 수 있어요.","Pick your interests so matched jobs and mock interviews get more accurate. You can pick or edit them directly.","选择兴趣职位后，匹配的招聘和模拟面试会更精准。可自行选择或修改。","Chọn nghề quan tâm để tin tuyển và phỏng vấn thử chính xác hơn. Bạn có thể tự chọn hoặc sửa.","関心職種を選ぶと、合う求人や模擬面接がより正確になります。直接選択・修正できます。","Pilih minat agar lowongan dan wawancara simulasi lebih akurat. Bisa pilih atau ubah sendiri.")} />
+        <JobInterestCard variant="edit" />
       </section>
 
       {/* 이력서 · 자기소개서 */}
@@ -182,30 +164,6 @@ function Content() {
         )}
       </section>
 
-      {/* 작성 히스토리 */}
-      <section className="flex flex-col gap-4">
-        <SectionHead title={`${t("작성 히스토리","Writing history","编写记录","Lịch sử viết","作成履歴","Riwayat penulisan")}${feed.length ? ` (${feed.length})` : ""}`} desc={t("이력서·자기소개서에 남긴 내용이 순서대로 쌓여요.","What you add to your resume and cover letter piles up in order.","你在简历和求职信中留下的内容会按顺序累积。","Nội dung bạn thêm vào CV và thư xin việc được lưu theo thứ tự.","履歴書・自己PRに残した内容が順に積み重なります。","Isian di CV dan surat lamaranmu tersimpan berurutan.")} />
-        {feed.length ? (
-          <>
-            <div className="flex flex-col gap-2.5">
-              {feed.slice(0, 5).map((e) => (
-                <FeedCard key={e.id} entry={e} onDelete={removeFeedEntry} />
-              ))}
-            </div>
-            {feed.length > 5 ? (
-              <Link
-                href={talentAppRoutes.history}
-                className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]"
-              >
-                {t("전체 히스토리 보기","View all history","查看全部记录","Xem toàn bộ","全履歴を見る","Lihat semua")} ({feed.length}) <ArrowRight className="h-4 w-4" weight="bold" />
-              </Link>
-            ) : null}
-          </>
-        ) : (
-          <EmptyFeed />
-        )}
-      </section>
-
       {mockGateOpen ? (
         <MockGateModal
           onClose={() => setMockGateOpen(false)}
@@ -219,53 +177,6 @@ function Content() {
       {mockResultOpen ? <SelfMockResultModal onClose={() => setMockResultOpen(false)} /> : null}
       {advisorOpen ? <CareerAdvisorModal onClose={() => setAdvisorOpen(false)} /> : null}
     </div>
-  );
-}
-
-interface Mission {
-  text: string;
-  sub: string;
-  cta: string;
-  href: string;
-}
-
-// 현재 상태에 맞는 오늘의 미션(작은 한 걸음) 하나.
-function todaysMission(t: PlatformT, hasResume: boolean, rp: number, hasCover: boolean, cp: number, applied: boolean): Mission {
-  if (!hasResume) return { text: t("오늘은 이력서를 만들어볼까요?", "Shall we create your resume today?", "今天来制作简历吧？", "Hôm nay cùng tạo CV nhé?", "今日は履歴書を作ってみましょうか？", "Buat CV hari ini, yuk?"), sub: t("5분이면 시작할 수 있어요. 완벽하지 않아도 괜찮아요.", "You can start in 5 minutes. It doesn't have to be perfect.", "5分钟就能开始，不完美也没关系。", "Chỉ 5 phút là bắt đầu được. Không cần hoàn hảo.", "5分で始められます。完璧でなくても大丈夫。", "Cukup 5 menit untuk mulai. Tak harus sempurna."), cta: t("이력서 만들기", "Create resume", "制作简历", "Tạo CV", "履歴書を作成", "Buat CV"), href: talentAppRoutes.resume };
-  if (rp < 100) return { text: t("이력서에 경험 한 줄을 더 채워봐요.", "Add one more line of experience to your resume.", "在简历里再补充一行经历吧。", "Thêm một dòng kinh nghiệm vào CV nhé.", "履歴書に経験を一行足してみましょう。", "Tambah satu baris pengalaman di CV."), sub: t("알바·프로젝트 무엇이든, 한 줄이면 충분해요.", "A part-time job, a project—one line is enough.", "兼职、项目都行，一行就够了。", "Việc làm thêm hay dự án, một dòng là đủ.", "アルバイトもプロジェクトも、一行で十分。", "Kerja paruh waktu atau proyek, satu baris cukup."), cta: t("이력서 이어서 쓰기", "Continue resume", "继续写简历", "Viết tiếp CV", "履歴書の続きを書く", "Lanjutkan CV"), href: talentAppRoutes.resume };
-  if (!hasCover) return { text: t("자기소개서 지원 동기를 써볼까요?", "Shall we write your cover letter's motivation?", "来写求职信的应聘动机吧？", "Cùng viết động lực ứng tuyển trong thư nhé?", "自己PRの志望動機を書いてみましょうか？", "Tulis motivasi lamaran di surat, yuk?"), sub: t("빈 화면 대신 문항 하나에 답하듯 시작해봐요.", "Instead of a blank page, start by answering one question.", "别对着空白页，从回答一个问题开始吧。", "Thay vì trang trắng, bắt đầu bằng cách trả lời một câu hỏi.", "空白の画面ではなく、一つの設問に答えるように始めましょう。", "Alih-alih halaman kosong, mulai dengan menjawab satu pertanyaan."), cta: t("자기소개서 만들기", "Create cover letter", "制作求职信", "Tạo thư xin việc", "自己PRを作成", "Buat surat lamaran"), href: talentAppRoutes.cover };
-  if (cp < 100) return { text: t("자기소개서 한 문항을 더 채워봐요.", "Fill in one more cover letter question.", "再填一道求职信的问题吧。", "Điền thêm một câu hỏi trong thư xin việc.", "自己PRの設問をもう一つ埋めてみましょう。", "Isi satu pertanyaan lagi di surat lamaran."), sub: t("오늘은 한 문항만 채워도 좋아요.", "Filling just one question today is great.", "今天只填一道也很好。", "Hôm nay chỉ điền một câu cũng tốt.", "今日は一問だけでも大丈夫。", "Hari ini satu pertanyaan saja sudah bagus."), cta: t("자기소개서 이어서 쓰기", "Continue cover letter", "继续写求职信", "Viết tiếp thư xin việc", "自己PRの続きを書く", "Lanjutkan surat lamaran"), href: talentAppRoutes.cover };
-  if (!applied) return { text: t("마음에 드는 공고 하나를 저장해봐요.", "Save one job posting you like.", "收藏一个你喜欢的职位吧。", "Lưu một tin tuyển dụng bạn thích.", "気に入った求人を一つ保存してみましょう。", "Simpan satu lowongan yang kamu suka."), sub: t("관심 직무에 맞는 공고부터 둘러보면 좋아요.", "Start by browsing postings that match your interests.", "从符合你兴趣的职位开始浏览吧。", "Bắt đầu bằng cách xem các tin phù hợp sở thích.", "興味のある職種の求人から見てみましょう。", "Mulai dengan menelusuri lowongan yang sesuai minatmu."), cta: t("포지션 탐색하기", "Explore positions", "探索职位", "Khám phá vị trí", "求人を探す", "Jelajahi posisi"), href: talentAppRoutes.jobs };
-  return { text: t("오늘도 새 공고를 둘러볼까요?", "Shall we browse new postings today too?", "今天也来看看新职位吧？", "Hôm nay cùng xem tin mới nhé?", "今日も新しい求人を見てみましょうか？", "Lihat lowongan baru hari ini juga, yuk?"), sub: t("새로 올라온 공고에서 기회를 찾아봐요.", "Find opportunities in the newest postings.", "在最新发布的职位中寻找机会吧。", "Tìm cơ hội trong các tin mới đăng.", "新しく掲載された求人からチャンスを探しましょう。", "Temukan peluang di lowongan terbaru."), cta: t("포지션 탐색하기", "Explore positions", "探索职位", "Khám phá vị trí", "求人を探す", "Jelajahi posisi"), href: talentAppRoutes.jobs };
-}
-
-function DailyStepHero({ mission }: { mission: Mission }) {
-  const t = usePlatformT();
-  const { streak, doneToday } = useDailyStep();
-  return (
-    <section className="rounded-3xl bg-[#0B1227] p-7 text-white">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#8CA8FF]">{t("오늘의 한 걸음","TODAY'S STEP","今日的一步","BƯỚC HÔM NAY","今日の一歩","LANGKAH HARI INI")}</p>
-        {streak > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-[12px] font-bold text-white">🔥 {t(`${streak}일 연속`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tục`, `${streak}日連続`, `${streak} hari beruntun`)}</span>
-        ) : null}
-      </div>
-
-      {doneToday ? (
-        <>
-          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">{t("오늘의 한 걸음, 완료! 👏","Today's step, done! 👏","今日的一步，完成！👏","Bước hôm nay, xong! 👏","今日の一歩、完了！👏","Langkah hari ini, selesai! 👏")}</h2>
-          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">{t("내일 또 한 걸음 이어가면 연속 기록이 쌓여요.","Keep it up tomorrow to build your streak.","明天继续一步，连续记录就会累积。","Tiếp tục ngày mai để tăng chuỗi.","明日も一歩続ければ連続記録が伸びます。","Lanjutkan besok untuk menambah streak.")}</p>
-        </>
-      ) : (
-        <>
-          <h2 className="mt-3 max-w-[85%] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em]">{mission.text}</h2>
-          <p className="mt-2.5 max-w-[88%] break-keep text-[14px] leading-relaxed text-white/65">{mission.sub}</p>
-          <Link href={mission.href} onClick={markStepDoneToday} className="group mt-5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-white">
-            {mission.cta} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" weight="bold" />
-          </Link>
-        </>
-      )}
-    </section>
   );
 }
 
@@ -313,17 +224,6 @@ function EmptyWork() {
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>💼</span>
       <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 직장 경력이 없어요","No work experience yet","还没有工作经历","Chưa có kinh nghiệm làm việc","まだ職歴がありません","Belum ada pengalaman kerja")}</p>
       <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이력서에 경력을 추가하면 여기에 보여요.","Add work experience to your resume to see it here.","在简历中添加经历后会显示在这里。","Thêm kinh nghiệm vào CV để hiển thị ở đây.","履歴書に職歴を追加すると表示されます。","Tambahkan pengalaman di CV agar muncul di sini.")}</p>
-    </div>
-  );
-}
-
-function EmptyFeed() {
-  const t = usePlatformT();
-  return (
-    <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
-      <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px]" aria-hidden>📝</span>
-      <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 남긴 기록이 없어요","No records yet","还没有记录","Chưa có ghi chép","まだ記録がありません","Belum ada catatan")}</p>
-      <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("위에서 이력서나 자기소개서를 만들면 자동으로 여기에 쌓여요.","Create a resume or cover letter above and it piles up here automatically.","在上方制作简历或求职信后会自动累积在这里。","Tạo CV hoặc thư xin việc ở trên để tự động lưu tại đây.","上で履歴書や自己PRを作ると自動でここに溜まります。","Buat CV atau surat lamaran di atas, otomatis tersimpan di sini.")}</p>
     </div>
   );
 }

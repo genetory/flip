@@ -5,7 +5,7 @@
 // 통째로 내려 붙인다(섹션은 중간에서 잘리지 않음). 로고·슬로건 바닥글은 마지막 장 맨 아래 고정.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { type CareerSection } from "../../../lib/talent/career-chat";
-import { displayMonth, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { displayMonth, normalizeUrl, type ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { PdfBrandFooter } from "./pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -21,8 +21,10 @@ function sectionLabel(t: PlatformT, section: CareerSection): string {
       return t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman");
     case "project":
       return t("프로젝트", "Projects", "项目", "Dự án", "プロジェクト", "Proyek");
+    case "language":
+      return t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa");
     case "skill":
-      return t("역량·스킬", "Skills", "能力·技能", "Kỹ năng", "スキル", "Keahlian");
+      return t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian");
     case "award":
       return t("수상", "Awards", "获奖", "Giải thưởng", "受賞", "Penghargaan");
     case "activity":
@@ -37,8 +39,8 @@ const PAGE_H = 1123;
 const PAGE_PAD = 52; // 각 페이지 위·아래 여백(px).
 const FOOTER_H = 44; // 바닥글이 차지하는 하단 예약 높이.
 const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H; // 페이지당 콘텐츠 영역(바닥글 공간 제외).
-// 이력서 순서 — 경험·프로젝트·자격증·스킬·대외활동·수상, 학력은 맨 아래.
-const SECTION_ORDER: CareerSection[] = ["experience", "project", "certificate", "skill", "activity", "award", "education"];
+// 이력서 순서 — 경험·프로젝트·자격증·어학·스킬·대외활동·수상, 학력은 맨 아래.
+const SECTION_ORDER: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
 
 // 블록(헤더·섹션, 필요 시 [data-break] 문단) 단위로 페이지를 나눈다 — 한 블록이 현재 페이지에
 // 안 들어가면 통째로 다음 장으로 내린다(섹션 중간 안 잘림). 한 블록이 한 장보다 크면(예외)
@@ -187,7 +189,26 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
             </section>
           );
         })}
-        {doc.items.length === 0 ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
+        {/* 링크·포트폴리오 — 이력서 맨 아래 섹션 */}
+        {doc.links && doc.links.some((l) => l.url?.trim()) ? (
+          <section>
+            <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & portfolio", "リンク・ポートフォリオ", "Tautan & portofolio")}</h2>
+            <ul className="mt-3 flex flex-col gap-2.5">
+              {doc.links
+                .filter((l) => l.url?.trim())
+                .map((l, i) => (
+                  <li key={i} className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
+                    <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      {l.label?.trim() ? <span className="block font-bold text-[#191F28]">{l.label.trim()}</span> : null}
+                      <a href={normalizeUrl(l.url)} target="_blank" rel="noopener noreferrer" className={`${l.label?.trim() ? "mt-0.5 block " : ""}break-all font-semibold text-[#0B46E8] underline`}>{l.url.trim()}</a>
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        ) : null}
+        {doc.items.length === 0 && !(doc.links && doc.links.some((l) => l.url?.trim())) ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
       </div>
     </div>
   );

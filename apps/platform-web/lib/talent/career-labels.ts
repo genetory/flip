@@ -14,8 +14,10 @@ export function sectionLabelOf(t: PlatformT, section: CareerSection): string {
       return t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman");
     case "project":
       return t("프로젝트", "Projects", "项目", "Dự án", "プロジェクト", "Proyek");
+    case "language":
+      return t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa");
     case "skill":
-      return t("역량·스킬", "Skills", "能力·技能", "Kỹ năng", "スキル", "Keahlian");
+      return t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian");
     case "award":
       return t("수상", "Awards", "获奖", "Giải thưởng", "受賞", "Penghargaan");
     case "activity":
