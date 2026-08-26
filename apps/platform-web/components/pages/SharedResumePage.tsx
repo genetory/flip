@@ -16,7 +16,12 @@ import {
   type SharedResume
 } from "../../lib/member-profile-client";
 import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
+import { ResumeA4Preview } from "../talent/career/ResumeA4";
+import { CoverA4Preview } from "../talent/career/CoverA4";
 import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
+import type { ResumeDoc } from "../../lib/talent/resume-doc";
+import type { CoverDoc } from "../../lib/talent/cover-doc";
+import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 
 // ---------------------------------------------------------------------------
 // Public, anonymous resume share view.
@@ -47,6 +52,8 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
   const [resume, setResume] = useState<SharedResume | null>(preloaded ?? null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [layout, setLayout] = useState<Layout>("single");
+  // 리뉴얼 미리보기(운영콘솔)에서 이력서/자기소개서 전환 탭.
+  const [previewTab, setPreviewTab] = useState<"resume" | "cover">("resume");
 
   useEffect(() => {
     if (preloaded) return; // 미리 받은 이력서면 조회 생략
@@ -128,9 +135,42 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     ? renewalToResumeContent(rawContent)
     : (rawContent as ResumeContent);
 
-  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생이 보는 것과
-  // 동일한 resume-maker 미리보기 뷰로 렌더. 일반 공개 공유 링크는 기존 공유뷰 그대로.
+  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생·파트너가 보는 것과
+  // 동일한 미리보기 뷰로 렌더. 리뉴얼(내 커리어) 이력서는 talent/partner 와 똑같이
+  // ResumeA4 로, 구형(resume-maker) 이력서는 기존 빌더 미리보기로.
   if (forcePreview || resume.viewerScope === "operator") {
+    if (isRenewalContent(rawContent)) {
+      const doc = rawContent.renewalResume as ResumeDoc;
+      const info = (rawContent.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO;
+      const coverDoc = (rawContent.renewalCover as CoverDoc | undefined) ?? null;
+      const hasCover = !!coverDoc && (coverDoc.items ?? []).some((it) => (it.text ?? "").trim());
+      const tab = hasCover ? previewTab : "resume";
+      return (
+        <div className="min-h-screen bg-[#F8FAFC]">
+          <div className="mx-auto w-full max-w-[794px] px-4 py-6 md:py-10">
+            {hasCover ? (
+              <div className="mb-4 inline-flex rounded-full border border-[#E5E8EB] bg-white p-1 text-[13px]">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab("resume")}
+                  className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "resume" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
+                >
+                  {tr("이력서", "Resume", "简历", "Sơ yếu lý lịch", "履歴書", "Resume")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab("cover")}
+                  className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "cover" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
+                >
+                  {tr("자기소개서", "Cover letter", "自我介绍信", "Thư giới thiệu", "自己PR", "Surat lamaran")}
+                </button>
+              </div>
+            ) : null}
+            {tab === "cover" && coverDoc ? <CoverA4Preview doc={coverDoc} info={info} /> : <ResumeA4Preview doc={doc} info={info} />}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
         <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={effectiveContent} />
