@@ -16,6 +16,7 @@ import {
   type SharedResume
 } from "../../lib/member-profile-client";
 import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
+import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
 
 // ---------------------------------------------------------------------------
 // Public, anonymous resume share view.
@@ -120,22 +121,29 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     return <ResumeSheetSkeleton />;
   }
 
+  // 리뉴얼(내 커리어) 이력서는 content 최상위에 renewalResume 로만 저장되어 ResumeContent
+  // 필드가 없다 → resume-maker ResumeContent 로 매핑해 공유/미리보기가 정상 렌더되게 한다.
+  const rawContent = (resume.content ?? {}) as Record<string, unknown>;
+  const effectiveContent: ResumeContent = isRenewalContent(rawContent)
+    ? renewalToResumeContent(rawContent)
+    : (rawContent as ResumeContent);
+
   // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생이 보는 것과
   // 동일한 resume-maker 미리보기 뷰로 렌더. 일반 공개 공유 링크는 기존 공유뷰 그대로.
   if (forcePreview || resume.viewerScope === "operator") {
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
-        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={(resume.content as ResumeContent) ?? null} />
+        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={effectiveContent} />
       </div>
     );
   }
 
-  const c = resume.content ?? {};
+  const c = effectiveContent;
   // 한국어 번역 캐시 — 외국어로 쓴 자기소개·요약·경력·활동 description 옆에
   // KO 라벨 인용 박스로 표시. 보는 사람(채용 담당자) 이 모국어로 읽게.
   const ko = resume.translations?.ko ?? undefined;
   const eduList = (c.educations ?? (c.education ? [c.education] : [])).filter((e) => e.schoolName);
-  const careerList = (c.careers ?? (c.career ? [c.career] : [])).filter((x) => x.companyName && x.position);
+  const careerList = (c.careers ?? (c.career ? [c.career] : [])).filter((x) => x.position || x.companyName || x.description);
   const activityList = (c.activities ?? []).filter((a) => a.title);
   const languageList = (() => {
     const l = (c.languages ?? []).filter((x) => x.language);
