@@ -165,6 +165,13 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
 
       {/* 본문 */}
       <div className="mt-8 flex flex-col gap-7 pb-2">
+        {/* 자기소개·요약 — Career Launch 등 요약이 있는 이력서에서 노출 */}
+        {doc.summary?.trim() ? (
+          <section>
+            <h2 className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang")}</h2>
+            <p className="mt-3 whitespace-pre-line break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{doc.summary.trim()}</p>
+          </section>
+        ) : null}
         {SECTION_ORDER.map((section) => {
           const items = doc.items.filter((it) => it.section === section);
           if (items.length === 0) return null;
@@ -179,7 +186,7 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
                       <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
                       <span className="min-w-0 flex-1">
                         {it.company ? <span className="block font-bold text-[#191F28]">{it.company}</span> : null}
-                        {it.text ? <span className={it.company ? "mt-0.5 block text-[#4E5968]" : ""}>{it.text}</span> : null}
+                        {it.text ? <span className={`whitespace-pre-line ${it.company ? "mt-0.5 block text-[#4E5968]" : ""}`}>{it.text}</span> : null}
                       </span>
                       {range ? <span className="shrink-0 text-[12px] font-medium text-[#8B95A1]">{range}</span> : null}
                     </li>
@@ -208,7 +215,7 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
             </ul>
           </section>
         ) : null}
-        {doc.items.length === 0 && !(doc.links && doc.links.some((l) => l.url?.trim())) ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
+        {doc.items.length === 0 && !doc.summary?.trim() && !(doc.links && doc.links.some((l) => l.url?.trim())) ? <p className="text-[13.5px] text-[#B0B8C1]">{t("항목을 추가하면 여기에 이력서로 정리돼요.", "Add items and they'll appear here as your resume.", "添加条目后会在此整理成简历。", "Thêm mục để hiển thị thành hồ sơ tại đây.", "項目を追加すると、ここに履歴書として整理されます。", "Tambahkan item, akan tersusun sebagai resume di sini.")}</p> : null}
       </div>
     </div>
   );

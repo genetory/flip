@@ -16870,6 +16870,55 @@ function careerResumeToResumeContent(raw: unknown): Record<string, unknown> {
   };
 }
 
+// resume-maker ResumeContent(Career Launch 미러/구형) → 리뉴얼 ResumeDoc + BasicInfo.
+// 파트너/공유 미리보기를 talent 와 동일한 ResumeA4 로 통일 렌더하기 위한 변환(읽기용).
+// web 의 resumeContentToRenewalDoc 과 동일 규칙.
+function isResumeMakerContent(c: Record<string, unknown>): boolean {
+  if (c.renewalResume) return false;
+  return (
+    Array.isArray(c.educations) || Array.isArray(c.careers) || Array.isArray(c.activities) ||
+    Array.isArray(c.skills) || Array.isArray(c.languages) || Array.isArray(c.certifications) ||
+    typeof c.summary === "string" || typeof c.basicName === "string"
+  );
+}
+function resumeContentToRenewalDocApi(raw: unknown): { doc: Record<string, unknown>; info: Record<string, unknown> } {
+  const c = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const s = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const arr = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => !!x && typeof x === "object") : []);
+  let n = 0;
+  const items: Record<string, unknown>[] = [];
+  const push = (section: string, company: string, text: string, startDate = "", endDate = "") => {
+    if (!company && !text) return;
+    n += 1;
+    items.push({ id: `cv-${n}`, section, text, ...(company ? { company } : {}), startDate, endDate });
+  };
+  for (const e of arr(c.educations)) push("education", s(e.schoolName), s(e.major), s(e.startDate), s(e.endDate));
+  for (const cr of arr(c.careers)) push("experience", s(cr.companyName), [s(cr.position), s(cr.description)].filter(Boolean).join("\n"), s(cr.startDate), s(cr.endDate));
+  for (const a of arr(c.activities)) push("activity", s(a.title), [s(a.organization), s(a.description)].filter(Boolean).join("\n"), s(a.startDate), s(a.endDate));
+  for (const sk of (Array.isArray(c.skills) ? c.skills : [])) push("skill", s(sk), "");
+  for (const l of arr(c.languages)) push("language", s(l.language), s(l.level));
+  for (const ct of arr(c.certifications)) push("certificate", s(ct.name), [s(ct.issuer), s(ct.date)].filter(Boolean).join(" · "));
+  const links = arr(c.links).map((l) => ({ label: s(l.label), url: s(l.url) })).filter((l) => l.url.length > 0);
+  const summary = s(c.summary) || s(c.selfIntroduction);
+  const doc: Record<string, unknown> = {
+    targetRole: s(c.desiredJobRole),
+    items,
+    ...(links.length ? { links } : {}),
+    ...(summary ? { summary } : {}),
+    showPhoto: Boolean(s(c.basicPhotoUrl)),
+    createdAt: 0,
+    updatedAt: 0
+  };
+  const info: Record<string, unknown> = {
+    realName: s(c.basicName),
+    email: s(c.basicEmail),
+    phone: s(c.basicPhone),
+    address: s(c.basicResidence),
+    photoUrl: s(c.basicPhotoUrl)
+  };
+  return { doc, info };
+}
+
 // career-launch 이력서를 실제 aply.global Resume(지원·프로필용)로 자동 미러링한다.
 // 내용이 있으면 Resume 를 생성/갱신하고 CareerResumeData.resumeId 로 연결. 대표 이력서가
 // 없으면 대표로 지정해 바로 지원 가능하게 한다. 실패는 삼켜 대화 흐름을 막지 않는다.
@@ -25391,9 +25440,14 @@ app.get("/partner/positions/:id/mock-interview-participants/:userId", authentica
         applied: Boolean(application),
         connectionStatus: connection?.status ?? null,
         answers,
-        resumeDoc: resumeContent.renewalResume ?? null,
+        // 리뉴얼은 renewalResume 를, Career Launch·구형(ResumeContent)은 ResumeDoc 로 변환해
+        // talent 와 동일한 ResumeA4 로 인라인 렌더되게 한다.
+        resumeDoc: resumeContent.renewalResume ?? (isResumeMakerContent(resumeContent) ? resumeContentToRenewalDocApi(resumeContent).doc : null),
         // 연락처는 제안 수락(연결) 후에만 공개 — 그 전에는 이름만.
-        resumeBasicInfo: maskRenewalBasicInfo(resumeContent.renewalBasicInfo, connection?.status === "ACCEPTED"),
+        resumeBasicInfo: maskRenewalBasicInfo(
+          resumeContent.renewalResume ? resumeContent.renewalBasicInfo : (isResumeMakerContent(resumeContent) ? resumeContentToRenewalDocApi(resumeContent).info : resumeContent.renewalBasicInfo),
+          connection?.status === "ACCEPTED"
+        ),
         coverDoc: resumeContent.renewalCover ?? null,
         resumeTitle: primaryResume?.title ?? null,
         resumeShareSlug: primaryResume?.shareSlug ?? null,

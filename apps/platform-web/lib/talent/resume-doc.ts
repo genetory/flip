@@ -58,6 +58,7 @@ export interface ResumeDoc {
   targetRole: string;
   items: ResumeItem[];
   links?: ResumeLink[];
+  summary?: string; // 자기소개·요약(선택). Career Launch(ResumeContent) 변환 시 채워질 수 있다.
   showPhoto?: boolean; // 이력서에 프로필 사진 표시 여부(기본 true)
   createdAt: number;
   updatedAt: number;

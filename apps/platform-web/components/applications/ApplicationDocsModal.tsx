@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
-import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
 import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import { isRenewalContent } from "../../lib/talent/renewal-to-resume-content";
+import { resumeContentToRenewalDoc } from "../../lib/talent/resume-content-to-doc";
 import type { ResumeDoc } from "../../lib/talent/resume-doc";
 import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 import { usePlatformT } from "../../lib/i18n";
@@ -83,18 +83,22 @@ export function ApplicationDocsModal({
         {/* 이력서: resume-maker 미리보기(/resume-maker/[id]/preview)와 동일한 뷰로 렌더.
             운영자는 STUDENT 셸 게이트를 피하려 embedded 로 본문만 렌더. */}
         {tab === "resume" && resumeContent ? (
+          // 모든 이력서를 talent/partner 와 동일한 ResumeA4 로 렌더. 리뉴얼은 renewalResume 를,
+          // Career Launch·구형(ResumeContent)은 ResumeDoc 로 변환해 같은 뷰로 통일.
           <div className="overflow-hidden rounded-lg bg-white">
-            {isRenewalResume ? (
-              // 리뉴얼 이력서 — talent/partner 와 동일한 ResumeA4 로 렌더.
-              <div className="mx-auto w-full max-w-[794px] p-4">
+            <div className="mx-auto w-full max-w-[794px] p-4">
+              {isRenewalResume ? (
                 <ResumeA4Preview
                   doc={rawResume!.renewalResume as ResumeDoc}
                   info={(rawResume!.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO}
                 />
-              </div>
-            ) : (
-              <ResumeBuilderPreviewPage resumeId="" preloadedContent={resumeContent as ResumeContent} embedded />
-            )}
+              ) : (
+                (() => {
+                  const { doc, info } = resumeContentToRenewalDoc(resumeContent as ResumeContent);
+                  return <ResumeA4Preview doc={doc} info={info} />;
+                })()
+              )}
+            </div>
           </div>
         ) : null}
         {/* 자기소개서: 기존 시트로 렌더(zoom 축소) */}
