@@ -15,10 +15,10 @@ import {
   type ResumeContent,
   type SharedResume
 } from "../../lib/member-profile-client";
-import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
 import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import { CoverA4Preview } from "../talent/career/CoverA4";
 import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
+import { resumeContentToRenewalDoc } from "../../lib/talent/resume-content-to-doc";
 import type { ResumeDoc } from "../../lib/talent/resume-doc";
 import type { CoverDoc } from "../../lib/talent/cover-doc";
 import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
@@ -136,44 +136,39 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     : (rawContent as ResumeContent);
 
   // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생·파트너가 보는 것과
-  // 동일한 미리보기 뷰로 렌더. 리뉴얼(내 커리어) 이력서는 talent/partner 와 똑같이
-  // ResumeA4 로, 구형(resume-maker) 이력서는 기존 빌더 미리보기로.
+  // 동일하게 ResumeA4 로 통일 렌더. 리뉴얼(내 커리어)은 renewalResume 를, Career Launch·구형
+  // (ResumeContent)은 ResumeDoc 로 변환해 같은 ResumeA4 로 그린다.
   if (forcePreview || resume.viewerScope === "operator") {
-    if (isRenewalContent(rawContent)) {
-      const doc = rawContent.renewalResume as ResumeDoc;
-      const info = (rawContent.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO;
-      const coverDoc = (rawContent.renewalCover as CoverDoc | undefined) ?? null;
-      const hasCover = !!coverDoc && (coverDoc.items ?? []).some((it) => (it.text ?? "").trim());
-      const tab = hasCover ? previewTab : "resume";
-      return (
-        <div className="min-h-screen bg-[#F8FAFC]">
-          <div className="mx-auto w-full max-w-[794px] px-4 py-6 md:py-10">
-            {hasCover ? (
-              <div className="mb-4 inline-flex rounded-full border border-[#E5E8EB] bg-white p-1 text-[13px]">
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab("resume")}
-                  className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "resume" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
-                >
-                  {tr("이력서", "Resume", "简历", "Sơ yếu lý lịch", "履歴書", "Resume")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab("cover")}
-                  className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "cover" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
-                >
-                  {tr("자기소개서", "Cover letter", "自我介绍信", "Thư giới thiệu", "自己PR", "Surat lamaran")}
-                </button>
-              </div>
-            ) : null}
-            {tab === "cover" && coverDoc ? <CoverA4Preview doc={coverDoc} info={info} /> : <ResumeA4Preview doc={doc} info={info} />}
-          </div>
-        </div>
-      );
-    }
+    const renewal = isRenewalContent(rawContent);
+    const converted = renewal ? null : resumeContentToRenewalDoc(effectiveContent);
+    const doc = renewal ? (rawContent.renewalResume as ResumeDoc) : converted!.doc;
+    const info = renewal ? ((rawContent.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO) : converted!.info;
+    const coverDoc = renewal ? ((rawContent.renewalCover as CoverDoc | undefined) ?? null) : null;
+    const hasCover = !!coverDoc && (coverDoc.items ?? []).some((it) => (it.text ?? "").trim());
+    const tab = hasCover ? previewTab : "resume";
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
-        <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={effectiveContent} />
+        <div className="mx-auto w-full max-w-[794px] px-4 py-6 md:py-10">
+          {hasCover ? (
+            <div className="mb-4 inline-flex rounded-full border border-[#E5E8EB] bg-white p-1 text-[13px]">
+              <button
+                type="button"
+                onClick={() => setPreviewTab("resume")}
+                className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "resume" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
+              >
+                {tr("이력서", "Resume", "简历", "Sơ yếu lý lịch", "履歴書", "Resume")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewTab("cover")}
+                className={`rounded-full px-3.5 py-1.5 font-semibold transition ${tab === "cover" ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:text-[#191F28]"}`}
+              >
+                {tr("자기소개서", "Cover letter", "自我介绍信", "Thư giới thiệu", "自己PR", "Surat lamaran")}
+              </button>
+            </div>
+          ) : null}
+          {tab === "cover" && coverDoc ? <CoverA4Preview doc={coverDoc} info={info} /> : <ResumeA4Preview doc={doc} info={info} />}
+        </div>
       </div>
     );
   }
