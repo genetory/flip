@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { CoverLetterSheet } from "../resume-maker/CoverLetterToolPreview";
 import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
+import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import type { ResumeContent } from "../../lib/member-profile-client";
+import { isRenewalContent } from "../../lib/talent/renewal-to-resume-content";
+import type { ResumeDoc } from "../../lib/talent/resume-doc";
+import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 import { usePlatformT } from "../../lib/i18n";
 
 const A4_W = 794;
@@ -20,13 +24,17 @@ export function ApplicationDocsModal({
   initialTab,
   onClose
 }: {
-  resumeContent: ResumeContent | null;
+  // 리뉴얼(내 커리어) 스냅샷은 content.renewalResume 형태(ResumeContent 아님)로 올 수 있어
+  // 느슨하게 받고, 렌더 직전에 형태를 판별한다.
+  resumeContent: ResumeContent | Record<string, unknown> | null;
   coverLetter: CoverLetterSnapshot | null;
   initialTab: "resume" | "cover";
   onClose: () => void;
 }) {
   const t = usePlatformT();
   const hasResume = Boolean(resumeContent);
+  const rawResume = (resumeContent ?? null) as Record<string, unknown> | null;
+  const isRenewalResume = Boolean(rawResume && isRenewalContent(rawResume));
   const hasCover = Boolean(coverLetter && (coverLetter.items ?? []).some((it) => it?.answer?.trim()));
   const [tab, setTab] = useState<"resume" | "cover">(initialTab === "cover" && hasCover ? "cover" : hasResume ? "resume" : "cover");
 
@@ -76,7 +84,17 @@ export function ApplicationDocsModal({
             운영자는 STUDENT 셸 게이트를 피하려 embedded 로 본문만 렌더. */}
         {tab === "resume" && resumeContent ? (
           <div className="overflow-hidden rounded-lg bg-white">
-            <ResumeBuilderPreviewPage resumeId="" preloadedContent={resumeContent} embedded />
+            {isRenewalResume ? (
+              // 리뉴얼 이력서 — talent/partner 와 동일한 ResumeA4 로 렌더.
+              <div className="mx-auto w-full max-w-[794px] p-4">
+                <ResumeA4Preview
+                  doc={rawResume!.renewalResume as ResumeDoc}
+                  info={(rawResume!.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO}
+                />
+              </div>
+            ) : (
+              <ResumeBuilderPreviewPage resumeId="" preloadedContent={resumeContent as ResumeContent} embedded />
+            )}
           </div>
         ) : null}
         {/* 자기소개서: 기존 시트로 렌더(zoom 축소) */}

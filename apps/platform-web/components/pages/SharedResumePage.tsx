@@ -16,7 +16,10 @@ import {
   type SharedResume
 } from "../../lib/member-profile-client";
 import { ResumeBuilderPreviewPage } from "../resume-maker/ResumeBuilderPreviewPage";
+import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
+import type { ResumeDoc } from "../../lib/talent/resume-doc";
+import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 
 // ---------------------------------------------------------------------------
 // Public, anonymous resume share view.
@@ -128,9 +131,21 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
     ? renewalToResumeContent(rawContent)
     : (rawContent as ResumeContent);
 
-  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생이 보는 것과
-  // 동일한 resume-maker 미리보기 뷰로 렌더. 일반 공개 공유 링크는 기존 공유뷰 그대로.
+  // 운영콘솔에서 연 경우(?view=preview 또는 operator 스코프)에는 학생·파트너가 보는 것과
+  // 동일한 미리보기 뷰로 렌더. 리뉴얼(내 커리어) 이력서는 talent/partner 와 똑같이
+  // ResumeA4 로, 구형(resume-maker) 이력서는 기존 빌더 미리보기로.
   if (forcePreview || resume.viewerScope === "operator") {
+    if (isRenewalContent(rawContent)) {
+      const doc = rawContent.renewalResume as ResumeDoc;
+      const info = (rawContent.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO;
+      return (
+        <div className="min-h-screen bg-[#F8FAFC]">
+          <div className="mx-auto w-full max-w-[794px] px-4 py-6 md:py-10">
+            <ResumeA4Preview doc={doc} info={info} />
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-[#F8FAFC]">
         <ResumeBuilderPreviewPage resumeId="" embedded preloadedContent={effectiveContent} />
