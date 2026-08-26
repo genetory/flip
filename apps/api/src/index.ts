@@ -30846,9 +30846,40 @@ async function buildKoreanTranslations(
   return { ko: result };
 }
 
+// 리뉴얼(내 커리어) 이력서는 content.renewalResume(ResumeDoc, items[].section) 형태라
+// ResumeContent 필드(basicName/educations/careers...)가 없다 → 완성률 계산이 그대로면
+// 0 에 가깝게 나온다. 계산이 읽는 ResumeContent 유사 형태로 정규화한다.
+// (web 의 renewalToResumeContent 와 동일 취지 — 저장 데이터는 건드리지 않고 읽을 때만 변환)
+function renewalContentToChecks(content: Record<string, unknown>): Record<string, unknown> {
+  const doc = (content.renewalResume ?? {}) as Record<string, unknown>;
+  const info = (content.renewalBasicInfo ?? {}) as Record<string, unknown>;
+  const items: Array<Record<string, unknown>> = Array.isArray(doc.items) ? (doc.items as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  const of = (section: string) => items.filter((it) => str(it.section) === section);
+  const nameOf = (it: Record<string, unknown>) => str(it.company) || str(it.text);
+  return {
+    basicName: str(info.realName),
+    basicEmail: str(info.email),
+    basicPhone: str(info.phone),
+    basicResidence: str(info.address),
+    basicPhotoUrl: str(info.photoUrl),
+    educations: of("education").map((it) => ({ schoolName: nameOf(it) })),
+    careers: of("experience").map((it) => ({ companyName: nameOf(it), position: str(it.text) || str(it.company) })),
+    activities: [...of("project"), ...of("activity")].map((it) => ({ title: nameOf(it) })),
+    skills: of("skill").map((it) => nameOf(it)).filter(Boolean),
+    languages: of("language").map((it) => ({ language: str(it.company) })),
+    certifications: [...of("certificate"), ...of("award")].map((it) => ({ name: nameOf(it) })),
+    links: Array.isArray(doc.links) ? (doc.links as Array<Record<string, unknown>>).map((l) => ({ url: str(l.url) })) : []
+  };
+}
+
 function calcResumeCompletion(content: unknown): number {
   if (!content || typeof content !== "object") return 0;
-  const c = content as Record<string, unknown>;
+  let c = content as Record<string, unknown>;
+  // 리뉴얼 이력서면 계산 전에 ResumeContent 유사 형태로 정규화.
+  if (c.renewalResume && typeof c.renewalResume === "object") {
+    c = renewalContentToChecks(c);
+  }
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
   const isArr = (v: unknown): v is unknown[] => Array.isArray(v);
 
