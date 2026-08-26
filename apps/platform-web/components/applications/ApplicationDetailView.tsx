@@ -9,6 +9,7 @@ import { ProposeInterviewSlotsModal } from "../interviews/ProposeInterviewSlotsM
 import { AssignmentManagerModal } from "../assignments/AssignmentManagerModal";
 import { ApplicationDocsModal } from "./ApplicationDocsModal";
 import type { ResumeContent } from "../../lib/member-profile-client";
+import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 
 export type ApplicationDetail = {
@@ -487,7 +488,13 @@ export function ApplicationDetailView({ applicationId, viewer }: Props) {
 
         {docsTab ? (
           <ApplicationDocsModal
-            resumeContent={(data.resumeSnapshot as ResumeContent | null) ?? null}
+            // 리뉴얼(내 커리어) 이력서 스냅샷은 content.renewalResume 형태라 그대로면 빈 화면 →
+            // resume-maker ResumeContent 로 매핑해 넘긴다.
+            resumeContent={(() => {
+              const snap = (data.resumeSnapshot ?? null) as Record<string, unknown> | null;
+              if (!snap) return null;
+              return isRenewalContent(snap) ? renewalToResumeContent(snap) : (snap as ResumeContent);
+            })()}
             coverLetter={data.coverLetterSnapshot ?? null}
             initialTab={docsTab}
             onClose={() => setDocsTab(null)}
