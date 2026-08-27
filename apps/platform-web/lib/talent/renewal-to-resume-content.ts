@@ -16,9 +16,12 @@ import type { ResumeDoc, ResumeItem } from "./resume-doc";
 import type { BasicInfo } from "./basic-info";
 import type { CoverDoc } from "./cover-doc";
 
-// content 가 리뉴얼 형태인지 — renewalResume 를 가진 경우.
+// content 가 리뉴얼 형태인지 — 이력서 항목(renewalResume)이 없더라도 기본정보/자소서 등
+// renewal* 키가 있으면 리뉴얼로 취급한다(기본정보만 입력한 이력서도 렌더되게).
 export function isRenewalContent(content: Record<string, unknown> | null | undefined): boolean {
-  return !!content && typeof content === "object" && !!(content as Record<string, unknown>).renewalResume;
+  if (!content || typeof content !== "object") return false;
+  const c = content as Record<string, unknown>;
+  return !!c.renewalResume || !!c.renewalBasicInfo || !!c.renewalCover;
 }
 
 const clean = (s?: string | null): string | undefined => {

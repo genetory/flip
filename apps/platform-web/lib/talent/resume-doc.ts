@@ -64,6 +64,9 @@ export interface ResumeDoc {
   updatedAt: number;
 }
 
+// 항목이 없는 빈 이력서 문서 — renewalResume 가 없는(기본정보만 있는) 이력서 렌더용 폴백.
+export const EMPTY_RESUME_DOC: ResumeDoc = { targetRole: "", items: [], createdAt: 0, updatedAt: 0 };
+
 // URL 정규화 — 스킴 없으면 https:// 를 붙인다(링크 클릭용).
 export function normalizeUrl(url: string): string {
   const u = url.trim();

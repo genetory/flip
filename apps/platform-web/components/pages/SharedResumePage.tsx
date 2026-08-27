@@ -19,7 +19,7 @@ import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import { CoverA4Preview } from "../talent/career/CoverA4";
 import { isRenewalContent, renewalToResumeContent } from "../../lib/talent/renewal-to-resume-content";
 import { resumeContentToRenewalDoc } from "../../lib/talent/resume-content-to-doc";
-import type { ResumeDoc } from "../../lib/talent/resume-doc";
+import { EMPTY_RESUME_DOC, type ResumeDoc } from "../../lib/talent/resume-doc";
 import type { CoverDoc } from "../../lib/talent/cover-doc";
 import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 
@@ -141,7 +141,8 @@ export function SharedResumePage({ slug, preloaded }: { slug: string; preloaded?
   if (forcePreview || resume.viewerScope === "operator") {
     const renewal = isRenewalContent(rawContent);
     const converted = renewal ? null : resumeContentToRenewalDoc(effectiveContent);
-    const doc = renewal ? (rawContent.renewalResume as ResumeDoc) : converted!.doc;
+    // renewalResume 항목이 없어도(기본정보만) 크래시 없이 헤더+안내가 뜨도록 빈 doc 폴백.
+    const doc = renewal ? ((rawContent.renewalResume as ResumeDoc | undefined) ?? EMPTY_RESUME_DOC) : converted!.doc;
     const info = renewal ? ((rawContent.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO) : converted!.info;
     const coverDoc = renewal ? ((rawContent.renewalCover as CoverDoc | undefined) ?? null) : null;
     const hasCover = !!coverDoc && (coverDoc.items ?? []).some((it) => (it.text ?? "").trim());

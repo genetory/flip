@@ -7,7 +7,7 @@ import { ResumeA4Preview } from "../talent/career/ResumeA4";
 import type { ResumeContent } from "../../lib/member-profile-client";
 import { isRenewalContent } from "../../lib/talent/renewal-to-resume-content";
 import { resumeContentToRenewalDoc } from "../../lib/talent/resume-content-to-doc";
-import type { ResumeDoc } from "../../lib/talent/resume-doc";
+import { EMPTY_RESUME_DOC, type ResumeDoc } from "../../lib/talent/resume-doc";
 import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 import { usePlatformT } from "../../lib/i18n";
 
@@ -89,7 +89,7 @@ export function ApplicationDocsModal({
             <div className="mx-auto w-full max-w-[794px] p-4">
               {isRenewalResume ? (
                 <ResumeA4Preview
-                  doc={rawResume!.renewalResume as ResumeDoc}
+                  doc={(rawResume!.renewalResume as ResumeDoc | undefined) ?? EMPTY_RESUME_DOC}
                   info={(rawResume!.renewalBasicInfo as BasicInfo | undefined) ?? EMPTY_BASIC_INFO}
                 />
               ) : (
