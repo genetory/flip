@@ -171,7 +171,7 @@ export function featuredBanners(t: PlatformT): {
   image?: string; // 우측 일러스트(있을 때만)
 }[] {
   return [
-    { id: "b1", tag: t("이벤트", "Event", "活动", "Sự kiện", "イベント", "Acara"), title: t("첫 회원가입하면\nAI 포인트 1000 드려요", "Sign up now\nand get 1,000 AI points", "首次注册\n赠送1000 AI积分", "Đăng ký ngay\nnhận 1.000 điểm AI", "新規登録で\nAIポイント1000プレゼント", "Daftar sekarang\ndapat 1.000 poin AI"), subtitle: t("가입 즉시 지급 · AI 기능에 바로 사용", "Given instantly · use it on AI features right away", "注册即赠 · 立即用于AI功能", "Tặng ngay · dùng cho tính năng AI", "登録後すぐ付与 · AI機能にすぐ利用", "Langsung diberikan · pakai untuk fitur AI"), href: "/talent/settings/points", from: "#0B46E8", to: "#3A6FF0", image: "/images/img_banner_point_signup.webp" },
+    // AI 포인트 전면 무료 전환 — '가입하면 AI 포인트 1000' 배너 제거.
     { id: "b2", tag: t("사주", "Saju", "四柱", "Tử vi", "四柱", "Saju"), title: t("사주로 보는\n내 직업", "Your job,\nby Saju", "用四柱看\n我的职业", "Nghề của tôi\nqua Tử vi", "四柱で見る\n私の職業", "Pekerjaanku\nlewat Saju"), subtitle: t("생년월일로 알아보는 직업 운", "Career fortune from your birth date", "用生日看职业运", "Vận nghề nghiệp từ ngày sinh", "生年月日で分かる職業運", "Peruntungan karier dari tanggal lahir"), href: "/events/saju", from: "#6D28D9", to: "#9333EA", image: "/img_saju_event_characters.webp" },
     { id: "b3", tag: t("MBTI", "MBTI", "MBTI", "MBTI", "MBTI", "MBTI"), title: t("MBTI로 보는\n내 직업", "Your job,\nby MBTI", "用MBTI看\n我的职业", "Nghề của tôi\nqua MBTI", "MBTIで見る\n私の職業", "Pekerjaanku\nlewat MBTI"), subtitle: t("3분 테스트로 직무 유형 확인", "Find your role type in a 3-min test", "3分钟测出职务类型", "3 phút để biết loại công việc", "3分テストで職務タイプを確認", "Cek tipe kerja dalam tes 3 menit"), href: "/events/mbti", from: "#7A3B12", to: "#C2410C", image: "/images/img_mbti_event_characters.webp" }
   ];
