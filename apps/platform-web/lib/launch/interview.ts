@@ -1,4 +1,5 @@
 // Week4 면접 준비 대화 클라이언트 — 예상 질문 준비(prep) / 모의면접(mock).
+import { notifyAiBlocked } from "../ai-blocked";
 // 결과(예상 질문·연습 여부)는 백엔드 progress.interview 에 저장된다.
 const TOKEN_KEY = "platform_access_token";
 
@@ -27,7 +28,7 @@ export type InterviewChatResult = { reply: string; done: boolean; report: Interv
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
   const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
-  if (!res.ok || d?.ok !== true) throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  if (!res.ok || d?.ok !== true) { notifyAiBlocked(res.status, (d as { code?: string } | null)?.code, d?.message as string); throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요."); }
   if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
   return d;
 }

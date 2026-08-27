@@ -8,6 +8,7 @@ import { LanguageProvider } from "../components/i18n/LanguageProvider";
 import { SidebarAds } from "../components/ads/SidebarAds";
 import { ConsentInit } from "../components/consent/ConsentInit";
 import { CookieConsentBanner } from "../components/consent/CookieConsentBanner";
+import { AiBlockedHandler } from "../components/AiBlockedHandler";
 import { ErrorReporter } from "../components/errors/ErrorReporter";
 import { ToastProvider } from "../components/toast/ToastProvider";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
@@ -184,7 +185,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ) : null}
         <LanguageProvider initialLocale={initialLocale}>
           <ToastProvider>
-            <AuthSessionProvider>{children}</AuthSessionProvider>
+            <AuthSessionProvider>
+              {children}
+              <AiBlockedHandler />
+            </AuthSessionProvider>
             <CookieConsentBanner />
           </ToastProvider>
         </LanguageProvider>

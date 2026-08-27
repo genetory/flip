@@ -1,4 +1,5 @@
 // Career Launch 제출물 단위 코치 피드백 클라이언트.
+import { notifyAiBlocked } from "../ai-blocked";
 // 운영자는 학생별로 피드백을 작성/조회하고, 학생은 자신에게 온 피드백을 조회한다.
 const TOKEN_KEY = "platform_access_token";
 
@@ -21,7 +22,7 @@ function authHeaders(json = false): Record<string, string> {
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
   const data = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
-  if (!res.ok || data?.ok !== true) throw new Error((data?.message as string) ?? "요청을 처리하지 못했어요.");
+  if (!res.ok || data?.ok !== true) { notifyAiBlocked(res.status, (data as { code?: string } | null)?.code, data?.message as string); throw new Error((data?.message as string) ?? "요청을 처리하지 못했어요."); }
   return data;
 }
 

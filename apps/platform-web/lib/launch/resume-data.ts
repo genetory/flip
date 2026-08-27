@@ -1,4 +1,5 @@
 // Career Launch 이력서 데이터(대화로 수집) 타입 + 클라이언트.
+import { notifyAiBlocked } from "../ai-blocked";
 // 학생은 빌더로 가지 않고 AI와 대화하며 아래 구조를 채운다. 백엔드에 학생당 1행 저장.
 const TOKEN_KEY = "platform_access_token";
 
@@ -36,8 +37,11 @@ export type ResumeChatResult = { reply: string; data: ResumeData; done: boolean 
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
-  const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
-  if (!res.ok || d?.ok !== true) throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string; code?: string }) | null;
+  if (!res.ok || d?.ok !== true) {
+    notifyAiBlocked(res.status, d?.code, d?.message);
+    throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  }
   return d;
 }
 

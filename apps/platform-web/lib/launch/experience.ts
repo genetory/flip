@@ -1,4 +1,5 @@
 // Experience Bank 채굴 — AI Career Coach 와 대화하며 경험 하나를 구조화한다.
+import { notifyAiBlocked } from "../ai-blocked";
 import type { ExperienceEntry } from "./progress-client";
 
 const TOKEN_KEY = "platform_access_token";
@@ -19,7 +20,7 @@ function authHeaders(json = false): Record<string, string> {
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
   const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
-  if (!res.ok || d?.ok !== true) throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  if (!res.ok || d?.ok !== true) { notifyAiBlocked(res.status, (d as { code?: string } | null)?.code, d?.message as string); throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요."); }
   if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
   return d;
 }
