@@ -15311,7 +15311,7 @@ async function aiPremiumMarkUsed(userId: string): Promise<void> {
 
 // ── 어뷰즈 방지 가드레일 (AI 전면 무료 전환에 따른 익명 상한) ─────────────────────
 // 포인트 개념 없이, 서버에서만 조용히 상한을 둔다. 일반 사용자는 도달하지 않는 수준.
-const AI_DAILY_TOTAL_CAP = 300; // 유저당 하루 총 AI 호출 상한(천장 — 집중 사용자도 안 닿는 수준)
+const AI_DAILY_TOTAL_CAP = 500; // 유저당 하루 총 AI 호출 상한(천장 — 집중 사용자도 안 닿는 수준)
 const AI_PER_MINUTE_CAP = 20; // 유저당 분당 호출 상한(순간 폭주 방지)
 const AI_DAILY_TOTAL_FEATURE = "__daily_total__";
 
