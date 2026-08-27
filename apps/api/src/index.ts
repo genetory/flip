@@ -30931,7 +30931,9 @@ function calcResumeCompletion(content: unknown): number {
   if (!content || typeof content !== "object") return 0;
   let c = content as Record<string, unknown>;
   // 리뉴얼 이력서면 계산 전에 ResumeContent 유사 형태로 정규화.
-  if (c.renewalResume && typeof c.renewalResume === "object") {
+  // 항목(renewalResume) 없이 기본정보(renewalBasicInfo)만 있어도 정규화해야
+  // 기본정보 입력분이 완성률에 반영된다(안 그러면 0%로 잘못 표시).
+  if ((c.renewalResume && typeof c.renewalResume === "object") || (c.renewalBasicInfo && typeof c.renewalBasicInfo === "object")) {
     c = renewalContentToChecks(c);
   }
   const trimStr = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
