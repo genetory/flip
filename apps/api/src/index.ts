@@ -15306,6 +15306,67 @@ async function aiPremiumMarkUsed(userId: string): Promise<void> {
     .catch(() => {});
 }
 
+// ── 어뷰즈 방지 가드레일 (AI 전면 무료 전환에 따른 익명 상한) ─────────────────────
+// 포인트 개념 없이, 서버에서만 조용히 상한을 둔다. 일반 사용자는 도달하지 않는 수준.
+const AI_DAILY_TOTAL_CAP = 300; // 유저당 하루 총 AI 호출 상한(천장 — 집중 사용자도 안 닿는 수준)
+const AI_PER_MINUTE_CAP = 20; // 유저당 분당 호출 상한(순간 폭주 방지)
+const AI_DAILY_TOTAL_FEATURE = "__daily_total__";
+
+// 분당 레이트리밋 — 인메모리(테이블 비대화 방지). 인스턴스 단위지만 anti-abuse 로 충분.
+const aiMinuteBuckets = new Map<string, { minute: number; count: number }>();
+function aiMinuteAllowed(userId: string, cap: number): boolean {
+  const minute = Math.floor(Date.now() / 60_000);
+  if (aiMinuteBuckets.size > 5000) aiMinuteBuckets.clear(); // 가벼운 프루닝
+  const b = aiMinuteBuckets.get(userId);
+  if (!b || b.minute !== minute) {
+    aiMinuteBuckets.set(userId, { minute, count: 1 });
+    return true;
+  }
+  b.count += 1;
+  return b.count <= cap;
+}
+
+// aiUsage 카운터를 1 증가시키고 상한 이내면 true. DB 실패 시 막지 않음(가용성 우선).
+async function aiBumpAndWithin(userId: string, feature: string, periodKey: string, cap: number): Promise<boolean> {
+  const row = await prisma.aiUsage
+    .upsert({
+      where: { userId_feature_periodKey: { userId, feature, periodKey } },
+      create: { userId, feature, periodKey, count: 1 },
+      update: { count: { increment: 1 } },
+      select: { count: true }
+    })
+    .catch(() => null);
+  if (!row) return true;
+  return row.count <= cap;
+}
+
+type AiGateDeny = { status: number; body: { ok: false; code: string; message: string } };
+// AI 호출 전 공통 가드 — 통과면 null, 막으면 {status, body}. 포인트 차감은 없음(전면 무료).
+async function aiGate(userId: string | undefined, feature: string): Promise<AiGateDeny | null> {
+  if (!userId) return null; // 상위 authenticate 미들웨어가 비로그인 처리
+  // 1) 이메일(연락처) 인증 게이트 — 플랫폼 연락처 정책(CONTACT_GATE_ENABLED)과 동일하게 동작.
+  if (contactGateEnabled) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } }).catch(() => null);
+    if (u && !isContactVerified(u)) {
+      return { status: 403, body: { ok: false, code: "AI_VERIFY_REQUIRED", message: "이메일 인증 후 이용할 수 있어요." } };
+    }
+  }
+  // 2) 분당 레이트리밋(유저당)
+  if (!aiMinuteAllowed(userId, AI_PER_MINUTE_CAP)) {
+    return { status: 429, body: { ok: false, code: "AI_RATE", message: "잠시 후 다시 시도해 주세요." } };
+  }
+  // 3) 일일 총량 캡(유저당)
+  const dayKey = String(aiKstDayIndex());
+  if (!(await aiBumpAndWithin(userId, AI_DAILY_TOTAL_FEATURE, dayKey, AI_DAILY_TOTAL_CAP))) {
+    return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
+  }
+  // 4) 고비용(gpt-4o) 모델 일일 캡
+  if (AI_PREMIUM_FEATURES.has(feature) && !(await aiBumpAndWithin(userId, AI_PREMIUM_USAGE_FEATURE, dayKey, AI_PREMIUM_DAILY_CAP))) {
+    return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
+  }
+  return null;
+}
+
 // KST(UTC+9) 기준 epoch-day 인덱스(자정 단위 정수). 적립 일수 계산에 사용.
 function aiKstDayIndex(): number {
   return Math.floor((Date.now() + 9 * 60 * 60 * 1000) / 86_400_000);
@@ -15559,10 +15620,16 @@ async function isActiveCareerLaunchStudent(userId: string): Promise<boolean> {
   return ok;
 }
 
-// 탤런트 AI는 전면 무료 — 포인트 차감/한도(402) 없이 항상 통과한다.
-// (feature/when 파라미터는 호출부 시그니처 호환을 위해 유지하되 사용하지 않는다.)
-function aiCharge(_feature: string, _when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
-  return (_req, _res, next) => {
+// 탤런트 AI는 포인트 없이 무료 — 다만 무분별 사용을 막는 서버 가드레일(인증·레이트리밋·
+// 일일 상한)만 적용한다. 포인트 차감/노출은 없다.
+function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
+  return async (req, res, next) => {
+    if (when && !when(req)) return next();
+    const deny = await aiGate(req.auth?.userId, feature);
+    if (deny) {
+      res.status(deny.status).json(deny.body);
+      return;
+    }
     next();
   };
 }
@@ -17926,7 +17993,11 @@ app.post(
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
       if (parsed.data.generate === false) return res.json({ ok: true, feedback: null, needsGenerate: true });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // AI 전면 무료 — 사전 크레딧 게이트/차감 없음.
+      // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
+      {
+        const deny = await aiGate(uid, "career_week_feedback");
+        if (deny) return res.status(deny.status).json(deny.body);
+      }
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
@@ -17997,7 +18068,11 @@ app.post(
       // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
       if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // AI 전면 무료 — 사전 크레딧 게이트/차감 없음.
+      // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
+      {
+        const deny = await aiGate(uid, "career_final_feedback");
+        if (deny) return res.status(deny.status).json(deny.body);
+      }
 
       const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
       const profileSummary = await buildCandidateProfileSummary(uid);

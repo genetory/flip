@@ -11,7 +11,6 @@ import { Bell, List, X, Lock } from "@phosphor-icons/react";
 import { talentBrand, talentRoutes, useTalentBrandCta } from "../../lib/talent/landing-content";
 import { talentMainNav, isTabActive, talentAppRoutes, useTalentNavLabel } from "../../lib/talent/app-nav";
 import { useAuthSession } from "../auth/AuthSessionProvider";
-import { TalentTicketBadge } from "./TalentTicketBadge";
 import { useFollowFeedNotifications, useFollowCompanyPositionNotifications, type FeedAuthor } from "../../lib/talent/social-graph";
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useSavedDeadlineNotifications } from "../../lib/talent/deadline-notify";
@@ -100,8 +99,7 @@ export function TalentHeader() {
         {/* 우측 */}
         {isTalentUser ? (
           <div className="flex items-center gap-1.5">
-            {/* AI 티켓 잔액 — 학생만(포인트는 탤런트 전용) */}
-            {user?.role === "STUDENT" ? <TalentTicketBadge /> : null}
+            {/* AI 포인트는 전면 무료로 전환 — 티켓 잔액 배지 비노출 */}
             {/* 알림 */}
             <Link
               href={talentAppRoutes.notifications}
