@@ -10,6 +10,11 @@ import { AiTicketStatusModal } from "../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../lib/i18n";
 
 export function PointsBalanceCard() {
+  // AI 포인트 전면 무료 전환 — 잔액 카드 비노출.
+  return null;
+}
+
+function PointsBalanceCardLegacy() {
   const t = usePlatformT();
   const [usage, setUsage] = useState<AiUsage | null>(null);
   const [chargeOpen, setChargeOpen] = useState(false);

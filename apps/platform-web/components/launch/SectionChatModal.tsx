@@ -148,7 +148,6 @@ export function SectionChatModal({
         <div className="border-t border-[#EEF1F5] p-3">
           <p className="mb-2 flex flex-wrap items-center gap-x-1.5 px-1 text-[11px] text-[#B0B8C1]">
             <span>{t("💬 모국어로 답해도 돼요 · 자동 저장", "💬 Answer in your own language · auto-saved", "💬 可以用母语回答 · 自动保存", "💬 Trả lời bằng tiếng mẹ đẻ · tự động lưu", "💬 母国語で答えてOK · 自動保存", "💬 Jawab dengan bahasa ibu · tersimpan otomatis")}</span>
-            <span className="inline-flex items-center gap-0.5 font-semibold text-[#8B95A1]"><Sparkle className="h-3 w-3" weight="fill" />{t("메시지당 AI 포인트 1개 소모", "1 AI point per message", "每条消息消耗1个AI积分", "1 điểm AI mỗi tin nhắn", "メッセージごとにAIポイント1", "1 poin AI per pesan")}</span>
           </p>
           <form
             className="flex items-end gap-2"

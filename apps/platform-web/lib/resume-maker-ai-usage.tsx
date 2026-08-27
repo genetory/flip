@@ -36,5 +36,6 @@ export function AiUsageProvider({ children, hidePoints = false }: { children: Re
 }
 
 export function useAiUsage(): AiUsageCtx {
-  return useContext(Ctx);
+  // 탤런트 AI 전면 무료 — 포인트 개념을 어디서도 노출하지 않는다(소모 칩·잔액 배지 등 숨김).
+  return { ...useContext(Ctx), hidePoints: true };
 }

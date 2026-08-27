@@ -358,6 +358,9 @@ const isProduction = process.env.NODE_ENV === "production";
 // 연락처 소프트 게이트(지원 차단 + 배너) on/off. 기본 OFF — 기존 사용자(가짜 이메일 소셜
 // 계정 등)를 갑자기 막지 않도록. 준비되면 CONTACT_GATE_ENABLED=true 로 켠다.
 const contactGateEnabled = process.env.CONTACT_GATE_ENABLED === "true";
+// AI 이메일 인증 게이트 — 전용 flag(기본 off). 켜면 미인증 유저의 AI 사용을 막는다.
+// CONTACT_GATE_ENABLED 와 분리해, 배포만으로 기존 유저가 갑자기 막히지 않도록 한다.
+const aiRequireVerifiedEmail = process.env.AI_REQUIRE_VERIFIED_EMAIL === "true";
 const allowedOrigins = [
   platformWebUrl,
   partnerAdminUrl,
@@ -8753,7 +8756,7 @@ const mbtiPredictSchema = z
     message: "mbtiType or quizAnswers is required"
   });
 
-app.post("/mbti/predict", async (req, res) => {
+app.post("/mbti/predict", rateLimit({ windowMs: 60_000, max: 8, keyPrefix: "mbti-predict", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = mbtiPredictSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -15306,6 +15309,68 @@ async function aiPremiumMarkUsed(userId: string): Promise<void> {
     .catch(() => {});
 }
 
+// ── 어뷰즈 방지 가드레일 (AI 전면 무료 전환에 따른 익명 상한) ─────────────────────
+// 포인트 개념 없이, 서버에서만 조용히 상한을 둔다. 일반 사용자는 도달하지 않는 수준.
+const AI_DAILY_TOTAL_CAP = 300; // 유저당 하루 총 AI 호출 상한(천장 — 집중 사용자도 안 닿는 수준)
+const AI_PER_MINUTE_CAP = 20; // 유저당 분당 호출 상한(순간 폭주 방지)
+const AI_DAILY_TOTAL_FEATURE = "__daily_total__";
+
+// 분당 레이트리밋 — 인메모리(테이블 비대화 방지). 인스턴스 단위지만 anti-abuse 로 충분.
+const aiMinuteBuckets = new Map<string, { minute: number; count: number }>();
+function aiMinuteAllowed(userId: string, cap: number): boolean {
+  const minute = Math.floor(Date.now() / 60_000);
+  if (aiMinuteBuckets.size > 5000) aiMinuteBuckets.clear(); // 가벼운 프루닝
+  const b = aiMinuteBuckets.get(userId);
+  if (!b || b.minute !== minute) {
+    aiMinuteBuckets.set(userId, { minute, count: 1 });
+    return true;
+  }
+  b.count += 1;
+  return b.count <= cap;
+}
+
+// aiUsage 카운터를 1 증가시키고 상한 이내면 true. DB 실패 시 막지 않음(가용성 우선).
+async function aiBumpAndWithin(userId: string, feature: string, periodKey: string, cap: number): Promise<boolean> {
+  const row = await prisma.aiUsage
+    .upsert({
+      where: { userId_feature_periodKey: { userId, feature, periodKey } },
+      create: { userId, feature, periodKey, count: 1 },
+      update: { count: { increment: 1 } },
+      select: { count: true }
+    })
+    .catch(() => null);
+  if (!row) return true;
+  return row.count <= cap;
+}
+
+type AiGateDeny = { status: number; body: { ok: false; code: string; message: string } };
+// AI 호출 전 공통 가드 — 통과면 null, 막으면 {status, body}. 포인트 차감은 없음(전면 무료).
+async function aiGate(userId: string | undefined, feature: string): Promise<AiGateDeny | null> {
+  if (!userId) return null; // 상위 authenticate 미들웨어가 비로그인 처리
+  // 1) 이메일 인증 게이트 — 전용 flag(AI_REQUIRE_VERIFIED_EMAIL)가 켜졌을 때만. 기본 off라
+  //    이번 배포만으로 기존 유저가 막히지 않는다(원할 때 env 로 활성화).
+  if (aiRequireVerifiedEmail) {
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } }).catch(() => null);
+    if (u && !isContactVerified(u)) {
+      return { status: 403, body: { ok: false, code: "AI_VERIFY_REQUIRED", message: "이메일 인증 후 이용할 수 있어요." } };
+    }
+  }
+  // 2) 분당 레이트리밋(유저당)
+  if (!aiMinuteAllowed(userId, AI_PER_MINUTE_CAP)) {
+    return { status: 429, body: { ok: false, code: "AI_RATE", message: "잠시 후 다시 시도해 주세요." } };
+  }
+  // 3) 일일 총량 캡(유저당)
+  const dayKey = String(aiKstDayIndex());
+  if (!(await aiBumpAndWithin(userId, AI_DAILY_TOTAL_FEATURE, dayKey, AI_DAILY_TOTAL_CAP))) {
+    return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
+  }
+  // 4) 고비용(gpt-4o) 모델 일일 캡
+  if (AI_PREMIUM_FEATURES.has(feature) && !(await aiBumpAndWithin(userId, AI_PREMIUM_USAGE_FEATURE, dayKey, AI_PREMIUM_DAILY_CAP))) {
+    return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
+  }
+  return null;
+}
+
 // KST(UTC+9) 기준 epoch-day 인덱스(자정 단위 정수). 적립 일수 계산에 사용.
 function aiKstDayIndex(): number {
   return Math.floor((Date.now() + 9 * 60 * 60 * 1000) / 86_400_000);
@@ -15559,38 +15624,16 @@ async function isActiveCareerLaunchStudent(userId: string): Promise<boolean> {
   return ok;
 }
 
+// 탤런트 AI는 포인트 없이 무료 — 다만 무분별 사용을 막는 서버 가드레일(인증·레이트리밋·
+// 일일 상한)만 적용한다. 포인트 차감/노출은 없다.
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
-    const cost = aiFeatureCost(feature);
-    if (cost <= 0) return next();
     if (when && !when(req)) return next();
-    const userId = req.auth?.userId;
-    if (!userId) return next();
-    if (await isActiveCareerLaunchStudent(userId)) return next(); // CL 수강생 — 서비스 제공, 무료
-    let status: AiCreditStatus;
-    try {
-      status = await aiCreditStatus(userId);
-    } catch {
-      return next(); // 사용량 조회 실패 시 막지 않음(가용성 우선)
-    }
-    if (status.remaining < cost) {
-      res.status(402).json({ ok: false, message: "ai quota exceeded", quota: status });
+    const deny = await aiGate(req.auth?.userId, feature);
+    if (deny) {
+      res.status(deny.status).json(deny.body);
       return;
     }
-    // gpt-4o 고원가 기능 — 하루 호출 상한(무료 티켓 폭주로 인한 손실 방지).
-    if (AI_PREMIUM_FEATURES.has(feature) && (await aiPremiumUsedToday(userId)) >= AI_PREMIUM_DAILY_CAP) {
-      res.status(402).json({ ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." });
-      return;
-    }
-    const origJson = res.json.bind(res) as (body: unknown) => unknown;
-    res.json = ((body: unknown) => {
-      const b = body as { ok?: unknown } | null;
-      if (b && b.ok === true && res.statusCode >= 200 && res.statusCode < 300) {
-        void aiQuotaConsume(userId, feature);
-        if (AI_PREMIUM_FEATURES.has(feature)) void aiPremiumMarkUsed(userId);
-      }
-      return origJson(body);
-    }) as typeof res.json;
     next();
   };
 }
@@ -17954,11 +17997,10 @@ app.post(
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
       if (parsed.data.generate === false) return res.json({ ok: true, feedback: null, needsGenerate: true });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // 캐시 미스 → 실제 생성이므로 포인트 차감(사전 게이트).
-      const weekFbCost = aiFeatureCost("career_week_feedback");
-      if (weekFbCost > 0) {
-        const st = await aiCreditStatus(uid).catch(() => null);
-        if (st && st.remaining < weekFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
+      // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
+      {
+        const deny = await aiGate(uid, "career_week_feedback");
+        if (deny) return res.status(deny.status).json(deny.body);
       }
 
       const profileSummary = await buildCandidateProfileSummary(uid);
@@ -17979,7 +18021,6 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      void aiQuotaConsume(uid, "career_week_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback });
     } catch (err) {
       console.error("[career-launch/week-feedback] failed", err);
@@ -18031,11 +18072,10 @@ app.post(
       // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
       if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // 캐시 미스/재생성 → 실제 생성이므로 포인트 차감(사전 게이트).
-      const finalFbCost = aiFeatureCost("career_final_feedback");
-      if (finalFbCost > 0) {
-        const st = await aiCreditStatus(uid).catch(() => null);
-        if (st && st.remaining < finalFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
+      // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
+      {
+        const deny = await aiGate(uid, "career_final_feedback");
+        if (deny) return res.status(deny.status).json(deny.body);
       }
 
       const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
@@ -18063,7 +18103,6 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      void aiQuotaConsume(uid, "career_final_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback, stale: false });
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);

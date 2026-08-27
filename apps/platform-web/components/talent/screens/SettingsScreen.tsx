@@ -158,8 +158,7 @@ export function SettingsScreen() {
           </div>
         </section>
 
-        {/* 내 포인트 — 기본정보 바로 아래. AI 포인트는 학생 전용(GNB 티켓 뱃지와 동일). */}
-        {user?.role === "STUDENT" ? <MyPointsSection /> : null}
+        {/* AI 포인트는 전면 무료로 전환 — '내 포인트' 섹션 비노출 */}
 
         {/* 내 활동 — 나에게 관심 준 회사 + 관심 회사/포지션. */}
         <section>
