@@ -8753,7 +8753,7 @@ const mbtiPredictSchema = z
     message: "mbtiType or quizAnswers is required"
   });
 
-app.post("/mbti/predict", async (req, res) => {
+app.post("/mbti/predict", rateLimit({ windowMs: 60_000, max: 8, keyPrefix: "mbti-predict", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = mbtiPredictSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
