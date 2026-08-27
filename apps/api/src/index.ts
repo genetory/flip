@@ -358,6 +358,9 @@ const isProduction = process.env.NODE_ENV === "production";
 // 연락처 소프트 게이트(지원 차단 + 배너) on/off. 기본 OFF — 기존 사용자(가짜 이메일 소셜
 // 계정 등)를 갑자기 막지 않도록. 준비되면 CONTACT_GATE_ENABLED=true 로 켠다.
 const contactGateEnabled = process.env.CONTACT_GATE_ENABLED === "true";
+// AI 이메일 인증 게이트 — 전용 flag(기본 off). 켜면 미인증 유저의 AI 사용을 막는다.
+// CONTACT_GATE_ENABLED 와 분리해, 배포만으로 기존 유저가 갑자기 막히지 않도록 한다.
+const aiRequireVerifiedEmail = process.env.AI_REQUIRE_VERIFIED_EMAIL === "true";
 const allowedOrigins = [
   platformWebUrl,
   partnerAdminUrl,
@@ -15344,8 +15347,9 @@ type AiGateDeny = { status: number; body: { ok: false; code: string; message: st
 // AI 호출 전 공통 가드 — 통과면 null, 막으면 {status, body}. 포인트 차감은 없음(전면 무료).
 async function aiGate(userId: string | undefined, feature: string): Promise<AiGateDeny | null> {
   if (!userId) return null; // 상위 authenticate 미들웨어가 비로그인 처리
-  // 1) 이메일(연락처) 인증 게이트 — 플랫폼 연락처 정책(CONTACT_GATE_ENABLED)과 동일하게 동작.
-  if (contactGateEnabled) {
+  // 1) 이메일 인증 게이트 — 전용 flag(AI_REQUIRE_VERIFIED_EMAIL)가 켜졌을 때만. 기본 off라
+  //    이번 배포만으로 기존 유저가 막히지 않는다(원할 때 env 로 활성화).
+  if (aiRequireVerifiedEmail) {
     const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerified: true } }).catch(() => null);
     if (u && !isContactVerified(u)) {
       return { status: 403, body: { ok: false, code: "AI_VERIFY_REQUIRED", message: "이메일 인증 후 이용할 수 있어요." } };
