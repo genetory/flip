@@ -459,7 +459,7 @@ export default function OpsResumesPage() {
               </button>
             </div>
           </div>
-          <div className="ops-modal-scroll-body">
+          <div className="ops-modal-scroll-body ops-detail-scroll-plain">
             {detailLoading ? (
               <p className="ops-table-empty">이력서를 불러오는 중입니다...</p>
             ) : detail ? (
@@ -538,8 +538,6 @@ export default function OpsResumesPage() {
                   <h3>이력서 본문</h3>
                   <pre
                     style={{
-                      maxHeight: "60vh",
-                      overflow: "auto",
                       background: "var(--ink)",
                       color: "var(--line)",
                       padding: "12px 14px",

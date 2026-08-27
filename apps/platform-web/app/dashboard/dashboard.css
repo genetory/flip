@@ -1947,6 +1947,13 @@
   padding-top: 10px;
 }
 
+/* 탭이 없는 상세 모달(예: 이력서 상세)은 본문(JSON 등)이 길어도 전체가 스크롤로
+   보이도록 일반 세로 스크롤을 되살린다. 탭형 모달은 위 규칙(overflow:hidden) 유지. */
+.ops-detail-modal-card .ops-modal-scroll-body.ops-detail-scroll-plain {
+  display: block;
+  overflow-y: auto;
+}
+
 .ops-detail-tabbed {
   display: flex;
   flex-direction: column;
