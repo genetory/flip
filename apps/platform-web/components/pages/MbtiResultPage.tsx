@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { JOB_ROLE_TAXONOMY } from "../../lib/saju-taxonomy";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
+import { EventResultShare } from "./EventResultShare";
 
 // Same visa enum + labels as the Saju lead form so MBTI captures the same
 // shape of profile info.
@@ -521,7 +522,22 @@ export function MbtiResultPage({ slug }: { slug: string }) {
                     Bottom controls — always visible
                     ====================================================== */}
 
-                <section className="rounded-2xl bg-white/[0.05] p-5 space-y-3">
+                <EventResultShare
+                  url={typeof window !== "undefined" ? `${window.location.origin}/events/mbti/result/${slug}` : `/events/mbti/result/${slug}`}
+                  cardTitle={prediction.name ? `${prediction.name} · ${prediction.mbtiType}` : prediction.mbtiType}
+                  cardSubtitle={prediction.cultureSummary || t("나에게 어울리는 한국 직장 유형", "Korean workplaces that fit me", "适合我的韩国职场", "Nơi làm việc Hàn hợp với tôi", "自分に合う韓国の職場", "Tempat kerja Korea yang cocok")}
+                  fileName={`aply-mbti-${prediction.mbtiType}.png`}
+                  labels={{
+                    heading: t("결과 공유하기", "Share your result", "分享结果", "Chia sẻ kết quả", "結果をシェア", "Bagikan hasil"),
+                    scanHint: t("QR을 스캔하면 이 결과를 볼 수 있어요", "Scan the QR to open this result", "扫描二维码即可查看结果", "Quét QR để xem kết quả này", "QRをスキャンすると結果が開きます", "Pindai QR untuk membuka hasil"),
+                    saveImage: t("이미지로 공유·저장", "Share / save as image", "以图片分享·保存", "Chia sẻ / lưu ảnh", "画像で共有・保存", "Bagikan / simpan gambar"),
+                    working: t("이미지 만드는 중…", "Creating image…", "生成图片中…", "Đang tạo ảnh…", "画像を作成中…", "Membuat gambar…"),
+                    cardTagline: t("글로벌 인재의 한국 취업", "Korean careers for global talent", "全球人才的韩国求职", "Việc làm Hàn cho nhân tài toàn cầu", "グローバル人材の韓国就職", "Karir Korea untuk talenta global"),
+                    cardFooter: t("스캔해서 내 결과 보기", "Scan to see my result", "扫码查看我的结果", "Quét để xem kết quả của tôi", "スキャンして結果を見る", "Pindai untuk lihat hasilku")
+                  }}
+                />
+
+                <section className="mt-3 rounded-2xl bg-white/[0.05] p-5 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"

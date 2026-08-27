@@ -29,6 +29,7 @@ import {
   type SajuResultPayload
 } from "../../lib/saju-client";
 import { SajuCareerForm } from "./SajuCareerForm";
+import { EventResultShare } from "./EventResultShare";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -1026,6 +1027,30 @@ export function SajuResultPage({ slug }: { slug: string }) {
                   ) : null}
                 </section>
               ) : null}
+
+              {/* QR·이미지로 결과 공유 */}
+              {(() => {
+                const L = (ko: string, en: string, zh: string, vi: string, ja: string, id: string): string =>
+                  ({ ko, en, "zh-CN": zh, vi, ja, id } as Record<PlatformLocale, string>)[locale] ?? ko;
+                return (
+                  <section className="mt-8 px-5">
+                    <EventResultShare
+                      url={typeof window !== "undefined" ? `${window.location.origin}/events/saju/result/${slug}` : `/events/saju/result/${slug}`}
+                      cardTitle={name ? L(`${name}님의 직업 사주`, `${name}'s career Saju`, `${name}的职业四柱`, `Saju nghề nghiệp của ${name}`, `${name}さんの職業四柱`, `Saju karier ${name}`) : L("나의 직업 사주", "My career Saju", "我的职业四柱", "Saju nghề nghiệp của tôi", "私の職業四柱", "Saju karierku")}
+                      cardSubtitle={L("사주로 본 나에게 맞는 직업 방향", "Career direction from your Saju", "四柱解读的职业方向", "Hướng nghề nghiệp theo Saju", "四柱で見る職業の方向", "Arah karier dari Saju")}
+                      fileName="aply-saju.png"
+                      labels={{
+                        heading: L("결과 공유하기", "Share your result", "分享结果", "Chia sẻ kết quả", "結果をシェア", "Bagikan hasil"),
+                        scanHint: L("QR을 스캔하면 이 결과를 볼 수 있어요", "Scan the QR to open this result", "扫描二维码即可查看结果", "Quét QR để xem kết quả này", "QRをスキャンすると結果が開きます", "Pindai QR untuk membuka hasil"),
+                        saveImage: L("이미지로 공유·저장", "Share / save as image", "以图片分享·保存", "Chia sẻ / lưu ảnh", "画像で共有・保存", "Bagikan / simpan gambar"),
+                        working: L("이미지 만드는 중…", "Creating image…", "生成图片中…", "Đang tạo ảnh…", "画像を作成中…", "Membuat gambar…"),
+                        cardTagline: L("글로벌 인재의 한국 취업", "Korean careers for global talent", "全球人才的韩国求职", "Việc làm Hàn cho nhân tài toàn cầu", "グローバル人材の韓国就職", "Karir Korea untuk talenta global"),
+                        cardFooter: L("스캔해서 내 결과 보기", "Scan to see my result", "扫码查看我的结果", "Quét để xem kết quả của tôi", "スキャンして結果を見る", "Pindai untuk lihat hasilku")
+                      }}
+                    />
+                  </section>
+                );
+              })()}
 
               {/* 공유 / 나도 해보기 + 카운트 */}
               <section className="mt-8 px-5 pb-12">
