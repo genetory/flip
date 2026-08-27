@@ -3,6 +3,7 @@
 // 빌더 상태는 Resume.content.builder 네임스페이스에 보관 — 마이그레이션 없음.
 
 import { authedJsonFetch } from "./member-profile-client";
+import { notifyAiBlocked } from "./ai-blocked";
 import { getBrowserLocale } from "./auth-messages";
 import type { Resume, ResumeContent } from "./member-profile-client";
 import { EMPTY_BUILDER_STATE, type ApprovedBullet, type BuilderExperience, type ExperienceType, type InterviewQuestion, type ExperienceGeneration, type ResumeBuilderState } from "./resume-maker-types";
@@ -401,6 +402,8 @@ async function aiPost<T>(path: string, init: RequestInit) {
   try {
     return await authedJsonFetch<T>(path, init);
   } catch (err) {
+    const e = err as { status?: number; code?: string; message?: string };
+    if (typeof e?.status === "number") notifyAiBlocked(e.status, e.code, e.message);
     if (isQuotaError(err)) throw new AiQuotaError(path.replace("/members/me/ai/", "").replace(/-/g, "_"));
     throw err;
   }

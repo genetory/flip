@@ -1,3 +1,4 @@
+import { notifyAiBlocked } from "../ai-blocked";
 import { RECOMMENDED_JOBS } from "./data";
 
 // Career Launch '관심 직무 찾기' AI 대화 클라이언트. 백엔드(/career-launch/job-chat)가
@@ -23,6 +24,7 @@ async function postCareerChat(path: string, body: unknown): Promise<Record<strin
   const res = await fetch(`${apiBase()}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
   const data = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
   if (!res.ok || data?.ok !== true) {
+    notifyAiBlocked(res.status, (data as { code?: string } | null)?.code, data?.message as string);
     throw new Error((data?.message as string) ?? "대화를 이어가지 못했어요.");
   }
   // AI 티켓 소모 → GNB 잔량 뱃지 갱신.

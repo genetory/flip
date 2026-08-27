@@ -1,4 +1,5 @@
 // Career Launch 자기소개서 데이터(대화로 수집) 타입 + 클라이언트. 이력서와 동일 구조.
+import { notifyAiBlocked } from "../ai-blocked";
 const TOKEN_KEY = "platform_access_token";
 
 function apiBase(): string {
@@ -26,7 +27,7 @@ export type CoverChatResult = { reply: string; data: CoverData; done: boolean };
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
   const d = (await res.json().catch(() => null)) as (Record<string, unknown> & { ok?: boolean; message?: string }) | null;
-  if (!res.ok || d?.ok !== true) throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요.");
+  if (!res.ok || d?.ok !== true) { notifyAiBlocked(res.status, (d as { code?: string } | null)?.code, d?.message as string); throw new Error((d?.message as string) ?? "요청을 처리하지 못했어요."); }
   return d;
 }
 
