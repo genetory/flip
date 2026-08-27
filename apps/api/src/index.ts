@@ -15559,38 +15559,10 @@ async function isActiveCareerLaunchStudent(userId: string): Promise<boolean> {
   return ok;
 }
 
-function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
-  return async (req, res, next) => {
-    const cost = aiFeatureCost(feature);
-    if (cost <= 0) return next();
-    if (when && !when(req)) return next();
-    const userId = req.auth?.userId;
-    if (!userId) return next();
-    if (await isActiveCareerLaunchStudent(userId)) return next(); // CL 수강생 — 서비스 제공, 무료
-    let status: AiCreditStatus;
-    try {
-      status = await aiCreditStatus(userId);
-    } catch {
-      return next(); // 사용량 조회 실패 시 막지 않음(가용성 우선)
-    }
-    if (status.remaining < cost) {
-      res.status(402).json({ ok: false, message: "ai quota exceeded", quota: status });
-      return;
-    }
-    // gpt-4o 고원가 기능 — 하루 호출 상한(무료 티켓 폭주로 인한 손실 방지).
-    if (AI_PREMIUM_FEATURES.has(feature) && (await aiPremiumUsedToday(userId)) >= AI_PREMIUM_DAILY_CAP) {
-      res.status(402).json({ ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." });
-      return;
-    }
-    const origJson = res.json.bind(res) as (body: unknown) => unknown;
-    res.json = ((body: unknown) => {
-      const b = body as { ok?: unknown } | null;
-      if (b && b.ok === true && res.statusCode >= 200 && res.statusCode < 300) {
-        void aiQuotaConsume(userId, feature);
-        if (AI_PREMIUM_FEATURES.has(feature)) void aiPremiumMarkUsed(userId);
-      }
-      return origJson(body);
-    }) as typeof res.json;
+// 탤런트 AI는 전면 무료 — 포인트 차감/한도(402) 없이 항상 통과한다.
+// (feature/when 파라미터는 호출부 시그니처 호환을 위해 유지하되 사용하지 않는다.)
+function aiCharge(_feature: string, _when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
+  return (_req, _res, next) => {
     next();
   };
 }
@@ -17954,12 +17926,7 @@ app.post(
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
       if (parsed.data.generate === false) return res.json({ ok: true, feedback: null, needsGenerate: true });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // 캐시 미스 → 실제 생성이므로 포인트 차감(사전 게이트).
-      const weekFbCost = aiFeatureCost("career_week_feedback");
-      if (weekFbCost > 0) {
-        const st = await aiCreditStatus(uid).catch(() => null);
-        if (st && st.remaining < weekFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
-      }
+      // AI 전면 무료 — 사전 크레딧 게이트/차감 없음.
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
@@ -17979,7 +17946,6 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      void aiQuotaConsume(uid, "career_week_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback });
     } catch (err) {
       console.error("[career-launch/week-feedback] failed", err);
@@ -18031,12 +17997,7 @@ app.post(
       // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
       if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-      // 캐시 미스/재생성 → 실제 생성이므로 포인트 차감(사전 게이트).
-      const finalFbCost = aiFeatureCost("career_final_feedback");
-      if (finalFbCost > 0) {
-        const st = await aiCreditStatus(uid).catch(() => null);
-        if (st && st.remaining < finalFbCost) return res.status(402).json({ ok: false, message: "ai quota exceeded", quota: st });
-      }
+      // AI 전면 무료 — 사전 크레딧 게이트/차감 없음.
 
       const studentName = (user?.realName?.trim() || user?.name?.trim() || ((resumeContent.basic as { name?: string } | undefined)?.name ?? "").trim() || "").trim();
       const profileSummary = await buildCandidateProfileSummary(uid);
@@ -18063,7 +18024,6 @@ app.post(
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      void aiQuotaConsume(uid, "career_final_feedback"); // 실제 생성분 차감
       return res.json({ ok: true, feedback, stale: false });
     } catch (err) {
       console.error("[career-launch/final-feedback] failed", err);
