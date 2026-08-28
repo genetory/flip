@@ -13632,17 +13632,13 @@ app.post("/members/me/positions/:positionId/favorite", authenticate, requireRole
   const userId = req.auth!.userId;
   const parsed = memberPositionActionParamSchema.safeParse(req.params);
   if (!parsed.success) {
-    console.error("[favorite:add] 400 invalid position id", { userId, rawId: req.params?.positionId });
     return res.status(400).json({ ok: false, message: "invalid position id", errors: parsed.error.flatten() });
   }
   const position = await prisma.position.findUnique({
     where: { id: parsed.data.positionId },
     select: { id: true }
   });
-  if (!position) {
-    console.error("[favorite:add] 404 position not found", { userId, positionId: parsed.data.positionId });
-    return res.status(404).json({ ok: false, message: "position not found" });
-  }
+  if (!position) return res.status(404).json({ ok: false, message: "position not found" });
 
   try {
     const profile = await getOrCreateCandidateProfile(userId);
