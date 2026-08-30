@@ -25,6 +25,7 @@ export function AiBlockedHandler() {
         setSent(false);
         setOpen(true);
       } else {
+        // limit(429) · unavailable(5xx) 모두 토스트로 안내.
         toast.error(detail.message);
       }
     };

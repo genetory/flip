@@ -1,5 +1,6 @@
 import { readAccessToken, refreshPlatformSession, storeAccessToken } from "./auth-client";
 import { getBrowserLocale } from "./auth-messages";
+import { notifyAiBlocked } from "./ai-blocked";
 import {
   trackAiAnalysisCompleted,
   trackAiAnalysisStart,
@@ -172,11 +173,11 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
         payload
       });
     }
-    throw new MemberProfileApiError(
-      resolveApiErrorMessage(payload, "요청을 처리하지 못했습니다."),
-      response.status,
-      typeof payload.code === "string" ? payload.code : undefined
-    );
+    const errCode = typeof payload.code === "string" ? payload.code : undefined;
+    const errMessage = resolveApiErrorMessage(payload, "요청을 처리하지 못했습니다.");
+    // AI 생성 엔드포인트라면 전역 안내(인증 필요·한도·일시 사용 불가)를 띄운다.
+    if (path.includes("/ai/")) notifyAiBlocked(response.status, errCode, errMessage);
+    throw new MemberProfileApiError(errMessage, response.status, errCode);
   }
 
   if (enableApiLogs) {

@@ -15626,6 +15626,16 @@ async function isActiveCareerLaunchStudent(userId: string): Promise<boolean> {
   return ok;
 }
 
+// OpenAI 등 업스트림 AI 오류(크레딧 소진·레이트리밋·5xx·인증) 판별 + 공통 응답.
+// OpenAI SDK 오류는 숫자 status 를 갖는다(Prisma 오류는 문자열 code) → status 로 구분.
+function isAiUpstreamError(err: unknown): boolean {
+  const s = (err as { status?: unknown })?.status;
+  return typeof s === "number" && (s === 429 || s === 401 || s >= 500);
+}
+function sendAiUnavailable(res: import("express").Response): void {
+  res.status(503).json({ ok: false, code: "AI_UNAVAILABLE", message: "AI가 일시적으로 사용이 어려워요. 잠시 후 다시 시도해 주세요." });
+}
+
 // 탤런트 AI는 포인트 없이 무료 — 다만 무분별 사용을 막는 서버 가드레일(인증·레이트리밋·
 // 일일 상한)만 적용한다. 포인트 차감/노출은 없다.
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
@@ -20983,6 +20993,7 @@ app.post(
       return res.json({ ok: true, questions });
     } catch (err) {
       console.error("[ai/interview-questions] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
       return res.status(500).json({ ok: false, message: "failed to build interview questions" });
     }
   }
@@ -21159,6 +21170,7 @@ app.post(
       });
     } catch (err) {
       console.error("[ai/interview-feedback] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
       return res.status(500).json({ ok: false, message: "failed to evaluate answer" });
     }
   }
