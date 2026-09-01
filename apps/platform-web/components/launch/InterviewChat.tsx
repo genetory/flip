@@ -1,5 +1,5 @@
 "use client";
-import { CaretLeft, X } from "@phosphor-icons/react";
+import { CaretLeft, X, PaperPlaneRight } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RichText } from "./rich-text";
@@ -101,7 +101,7 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
         }
       } catch (e) {
         const quota = e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
-        setMessages((m) => [...m, { role: "bot", text: quota ? t("AI 포인트를 모두 사용했어요. 충전 후 다시 시도해 주세요.", "You've used all your AI points. Please recharge and try again.", "AI 积分已用完，请充值后再试。", "Bạn đã dùng hết điểm AI. Vui lòng nạp thêm và thử lại.", "AIポイントを使い切りました。チャージ後にもう一度お試しください。", "Poin AI habis. Silakan isi ulang lalu coba lagi.") : t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
+        setMessages((m) => [...m, { role: "bot", text: quota ? t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.") : t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -124,36 +124,36 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
         <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col px-5 pt-4 md:pt-6" style={{ height: vp ? vp.height - 56 : undefined, paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
           {embedded ? null : (
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/week/4" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}
+            <Link href="/career-launch/week/3" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3")}
             </Link>
-            <Link href="/career-launch/week/4" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+            <Link href="/career-launch/week/3" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           )}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("4주차 · 모의면접", "Week 4 · Mock Interview", "第4周 · 模拟面试", "Tuần 4 · Phỏng vấn thử", "Week 4 · 模擬面接", "Minggu 4 · Wawancara")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("3주차 · 모의면접", "Week 3 · Mock Interview", "第3周 · 模拟面试", "Tuần 3 · Phỏng vấn thử", "Week 3 · 模擬面接", "Minggu 3 · Wawancara")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{h.title}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{h.sub}</p>
           </div>
 
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
+          <div className="mt-4 flex-1 space-y-4 overflow-y-auto rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🎤</span>
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                  <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">🎤</span>
+                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
                     <RichText text={m.text} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
+                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
                 </div>
               )
             )}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]">🎤</span>
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">🎤</span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
@@ -205,7 +205,7 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
                     setDone(false);
                     setReport(null);
                   }}
-                  className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                  className="flex h-[46px] items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
                 >
                   {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
                 </button>
@@ -224,15 +224,16 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
                       key={q.send}
                       type="button"
                       onClick={() => send(q.send)}
-                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                      className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
                     >
                       {q.label}
                     </button>
                   ))}
                 </div>
               ) : null}
+              {/* 통합 입력 바 — 텍스트필드와 전송 버튼을 한 컨테이너에 넣어 높이를 정확히 맞춘다(둘 다 44px). */}
               <form
-                className="flex items-end gap-2"
+                className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
                 onSubmit={(e) => {
                   e.preventDefault();
                   send(input);
@@ -250,16 +251,17 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
                   rows={1}
                   placeholder={t("면접관의 질문에 답해보세요", "Answer the interviewer's question", "请回答面试官的问题", "Hãy trả lời câu hỏi của người phỏng vấn", "面接官の質問に答えてみましょう", "Jawab pertanyaan pewawancara")}
                   disabled={loading}
-                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
+                  className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || loading}
-                  className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                    input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                  aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
+                    input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"
                   }`}
                 >
-                  {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
+                  <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
                 </button>
               </form>
             </div>

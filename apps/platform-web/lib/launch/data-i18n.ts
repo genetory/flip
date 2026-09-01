@@ -17,106 +17,106 @@ type StepField = "title" | "desc";
 const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
   1: {
     title: {
-      ko: "취업 가능성 진단 & 직무 방향 설정",
-      en: "Career readiness check & choosing your direction",
-      "zh-CN": "求职可能性诊断与职务方向设定",
-      vi: "Đánh giá khả năng xin việc & xác định hướng nghề",
-      ja: "就職可能性の診断＆職種の方向づけ",
-      id: "Cek kesiapan kerja & menentukan arah karier"
+      ko: "나를 이해하고 직무 탐험",
+      en: "Understand yourself & explore roles",
+      "zh-CN": "了解自己，探索职务",
+      vi: "Hiểu bản thân & khám phá công việc",
+      ja: "自分を理解して職種を探る",
+      id: "Pahami dirimu & jelajahi peran"
     },
     subtitle: {
-      ko: "지금 내 상태를 점검하고 목표 직무를 정해봐요",
-      en: "Check where you are now and decide on a target job",
-      "zh-CN": "检查你现在的状态，确定目标职务",
-      vi: "Kiểm tra tình trạng hiện tại và chọn công việc mục tiêu",
-      ja: "今の自分の状態を確認して、目標の職種を決めましょう",
-      id: "Cek kondisimu sekarang dan tentukan pekerjaan target"
+      ko: "내 강점을 발견하고, 어울리는 직무를 찾아 탐험해봐요",
+      en: "Discover your strengths and explore roles that fit you",
+      "zh-CN": "发掘你的优势，找到并探索适合的职务",
+      vi: "Khám phá điểm mạnh và tìm công việc phù hợp với bạn",
+      ja: "自分の強みを見つけ、合う職種を探ってみましょう",
+      id: "Temukan kelebihanmu dan jelajahi peran yang cocok"
     },
     goal: {
-      ko: "내 취업 준비 상태를 점검하고, 지원하고 싶은 직무를 3개 이내로 정해요. 다음 주 이력서에 담을 재료도 미리 모아봐요.",
-      en: "Check how ready you are and pick up to 3 jobs you want to apply for. Also gather material for next week's resume.",
-      "zh-CN": "检查你的求职准备情况，选出想申请的职务（不超过3个）。同时提前收集下周简历要用的素材。",
-      vi: "Kiểm tra mức độ sẵn sàng và chọn tối đa 3 công việc bạn muốn ứng tuyển. Đồng thời thu thập trước tư liệu cho CV tuần sau.",
-      ja: "就職準備の状態を確認し、応募したい職種を3つ以内で決めます。来週の履歴書に使う材料も先に集めておきましょう。",
-      id: "Cek kesiapanmu dan pilih maksimal 3 pekerjaan yang ingin kamu lamar. Kumpulkan juga bahan untuk resume minggu depan."
+      ko: "지금 내 준비 상태를 점검하고, 경험 속 강점을 발굴해 나에게 맞는 목표 직무를 3개 이내로 정해요. 다음 주 지원 패키지의 방향을 잡는 단계예요.",
+      en: "Check how ready you are, mine your strengths from experience, and pick up to 3 target jobs that fit you. This sets the direction for next week's application package.",
+      "zh-CN": "检查你现在的准备情况，从经验中发掘优势，选出最多3个适合你的目标职务。这是为下周申请材料确定方向的阶段。",
+      vi: "Kiểm tra mức độ sẵn sàng, khai thác điểm mạnh từ kinh nghiệm và chọn tối đa 3 công việc mục tiêu phù hợp. Đây là bước định hướng cho bộ hồ sơ tuần sau.",
+      ja: "今の準備状態を確認し、経験から強みを掘り起こして、自分に合う目標職種を3つ以内で決めます。来週の応募パッケージの方向を定める段階です。",
+      id: "Cek kesiapanmu, gali kelebihan dari pengalaman, dan pilih maksimal 3 pekerjaan target yang cocok. Ini menentukan arah paket lamaran minggu depan."
     }
   },
   2: {
     title: {
-      ko: "이력서 만들기",
-      en: "Build your resume",
-      "zh-CN": "制作简历",
-      vi: "Tạo CV",
-      ja: "履歴書を作る",
-      id: "Membuat resume"
+      ko: "지원 패키지 완성",
+      en: "Complete your application package",
+      "zh-CN": "完成申请材料包",
+      vi: "Hoàn thành bộ hồ sơ ứng tuyển",
+      ja: "応募パッケージを完成",
+      id: "Selesaikan paket lamaranmu"
     },
     subtitle: {
-      ko: "프로그램 안에서 바로 대표 이력서를 완성해봐요",
-      en: "Finish your main resume right inside the program",
-      "zh-CN": "在项目中直接完成你的代表简历",
-      vi: "Hoàn thành CV chính ngay trong chương trình",
-      ja: "プログラム内でそのまま代表履歴書を仕上げましょう",
-      id: "Selesaikan resume utamamu langsung di dalam program"
+      ko: "이력서와 자기소개서를 한 번에 완성해 지원 준비를 끝내요",
+      en: "Finish your resume and cover letter together and be ready to apply",
+      "zh-CN": "一次性完成简历和自我介绍书，做好投递准备",
+      vi: "Hoàn thành CV và thư giới thiệu cùng lúc để sẵn sàng ứng tuyển",
+      ja: "履歴書と自己紹介書を一度に仕上げ、応募準備を終えます",
+      id: "Selesaikan resume dan surat lamaran sekaligus dan siap melamar"
     },
     goal: {
-      ko: "기업에 낼 대표 이력서 초안을 완성해요. AI 진단으로 부족한 부분까지 채우면 든든한 이력서 한 부가 만들어져요.",
-      en: "Finish a draft of the main resume you'll send to companies. Fill the gaps with AI feedback and you'll have one solid resume.",
-      "zh-CN": "完成要投递给企业的代表简历初稿。用AI诊断补齐不足之处，就能做出一份扎实的简历。",
-      vi: "Hoàn thành bản nháp CV chính để gửi cho doanh nghiệp. Bổ sung phần còn thiếu bằng đánh giá AI, bạn sẽ có một CV vững chắc.",
-      ja: "企業に出す代表履歴書の下書きを仕上げます。AI診断で足りない部分まで補えば、しっかりした履歴書が1部できあがります。",
-      id: "Selesaikan draf resume utama untuk dikirim ke perusahaan. Lengkapi bagian yang kurang dengan diagnosis AI, dan kamu punya satu resume yang kuat."
+      ko: "Week 1에서 정한 방향으로 대표 이력서와 자기소개서를 함께 완성해요. 서류 한 세트로 바로 지원할 수 있게 만드는 단계예요.",
+      en: "Complete both your main resume and cover letter along the direction you set in Week 1. This gets one document set ready to apply right away.",
+      "zh-CN": "沿着第1周确定的方向，一起完成代表简历和自我介绍书。让一套材料可以立即用于投递。",
+      vi: "Hoàn thành cả CV chính và thư giới thiệu theo hướng đã chọn ở Tuần 1. Bước này giúp một bộ hồ sơ sẵn sàng ứng tuyển ngay.",
+      ja: "Week 1で決めた方向に沿って、代表履歴書と自己紹介書を一緒に仕上げます。一式の書類ですぐ応募できるようにする段階です。",
+      id: "Selesaikan resume utama dan surat lamaran sesuai arah yang kamu tetapkan di Minggu 1. Ini menyiapkan satu set dokumen agar bisa langsung melamar."
     }
   },
   3: {
     title: {
-      ko: "자기소개서 만들기",
-      en: "Write your cover letter",
-      "zh-CN": "撰写自我介绍书",
-      vi: "Viết thư giới thiệu bản thân",
-      ja: "自己紹介書を作る",
-      id: "Menulis surat lamaran"
+      ko: "실전 모의면접 & 약점 발견",
+      en: "Real mock interviews & finding weaknesses",
+      "zh-CN": "实战模拟面试与发现弱点",
+      vi: "Phỏng vấn thử thực chiến & tìm điểm yếu",
+      ja: "実戦模擬面接＆弱点発見",
+      id: "Wawancara simulasi nyata & temukan kelemahan"
     },
     subtitle: {
-      ko: "지원 동기·강점 등 문항을 채워 자기소개서를 완성해요",
-      en: "Fill in motivation, strengths and more to finish your cover letter",
-      "zh-CN": "填写申请动机、优势等题目，完成自我介绍书",
-      vi: "Điền động lực ứng tuyển, điểm mạnh… để hoàn thành thư giới thiệu",
-      ja: "志望動機・強みなどの項目を埋めて自己紹介書を仕上げます",
-      id: "Isi motivasi, kelebihan, dan lainnya untuk menyelesaikan surat lamaran"
+      ko: "공고·서류 기반 실전 모의면접으로 내 약점을 찾아요",
+      en: "Find your weaknesses through mock interviews based on postings and your documents",
+      "zh-CN": "通过基于招聘公告和材料的实战模拟面试，找出你的弱点",
+      vi: "Tìm điểm yếu qua phỏng vấn thử dựa trên tin tuyển dụng và hồ sơ của bạn",
+      ja: "求人・書類ベースの実戦模擬面接で自分の弱点を見つけます",
+      id: "Temukan kelemahanmu lewat wawancara simulasi berbasis lowongan dan dokumenmu"
     },
     goal: {
-      ko: "목표 회사에 맞춘 자기소개서를 완성하고, 이력서와 서로 어울리게 다듬어 이력서·자기소개서 완성본을 만들어요.",
-      en: "Finish a cover letter tailored to your target company, then polish it to match your resume so both come together as a finished set.",
-      "zh-CN": "完成针对目标公司的自我介绍书，并与简历相互协调地润色，做出简历与自我介绍书的完成版。",
-      vi: "Hoàn thành thư giới thiệu phù hợp với công ty mục tiêu, rồi trau chuốt cho ăn khớp với CV để tạo bộ CV và thư giới thiệu hoàn chỉnh.",
-      ja: "目標の会社に合わせた自己紹介書を仕上げ、履歴書と互いに調和するよう整えて、履歴書・自己紹介書の完成版を作ります。",
-      id: "Selesaikan surat lamaran yang sesuai dengan perusahaan target, lalu poles agar selaras dengan resume sehingga menjadi paket resume dan surat lamaran yang lengkap."
+      ko: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 주 집중 훈련할 지점을 잡는 단계예요.",
+      en: "Take realistic mock interviews with your finished resume and cover letter, and use AI scoring to spot recurring weaknesses. This pinpoints what to train next week.",
+      "zh-CN": "用完成的简历和自我介绍书进行实战般的模拟面试，通过AI评分发现反复出现的弱点。这是确定下周集中训练重点的阶段。",
+      vi: "Thực hiện phỏng vấn thử như thật với CV và thư giới thiệu đã hoàn thành, dùng chấm điểm AI để phát hiện điểm yếu lặp lại. Bước này xác định điểm cần luyện tuần sau.",
+      ja: "仕上げた履歴書・自己紹介書で実戦のように模擬面接を受け、AI採点で繰り返す弱点を見つけます。来週集中的に鍛える点を定める段階です。",
+      id: "Lakukan wawancara simulasi realistis dengan resume dan surat lamaran yang sudah jadi, dan gunakan penilaian AI untuk menemukan kelemahan yang berulang. Ini menandai apa yang harus dilatih minggu depan."
     }
   },
   4: {
     title: {
-      ko: "완성 & 면접 준비",
-      en: "Finalize & prepare for interviews",
-      "zh-CN": "完善与面试准备",
-      vi: "Hoàn thiện & chuẩn bị phỏng vấn",
-      ja: "仕上げ＆面接準備",
-      id: "Finalisasi & persiapan wawancara"
+      ko: "면접 오답노트 & 최종 검증",
+      en: "Interview review notes & final check",
+      "zh-CN": "面试错题本与最终验证",
+      vi: "Sổ tay sửa lỗi phỏng vấn & kiểm tra cuối",
+      ja: "面接の復習ノート＆最終検証",
+      id: "Catatan koreksi wawancara & verifikasi akhir"
     },
     subtitle: {
-      ko: "완성한 서류로 면접을 준비하고 스스로 지원할 힘을 길러요",
-      en: "Prepare for interviews with your finished documents and build the confidence to apply on your own",
-      "zh-CN": "用完成的材料准备面试，培养独立投递的能力",
-      vi: "Chuẩn bị phỏng vấn bằng hồ sơ đã hoàn thành và rèn khả năng tự ứng tuyển",
-      ja: "仕上げた書類で面接を準備し、自分で応募できる力を養います",
-      id: "Bersiap wawancara dengan dokumen yang sudah jadi dan bangun kemampuan melamar sendiri"
+      ko: "약점 질문을 반복 훈련하고, 스스로 지원할 힘을 갖춰요",
+      en: "Drill your weak questions and build the strength to apply on your own",
+      "zh-CN": "反复训练弱点问题，具备独立投递的能力",
+      vi: "Luyện đi luyện lại các câu hỏi yếu và tự tin tự ứng tuyển",
+      ja: "弱点の質問を繰り返し訓練し、自分で応募できる力を備えます",
+      id: "Latih berulang pertanyaan yang lemah dan bangun kekuatan untuk melamar sendiri"
     },
     goal: {
-      ko: "이력서·자기소개서를 최종 점검하고, 자기소개·직무·인성 면접을 유형별로 직접 연습해요. 스스로 지원할 수 있도록 실전 감각까지 갖추는 마무리 단계예요!",
-      en: "Do a final review of your resume and cover letter, and practice self-intro, job, and personality interviews by type. This is the wrap-up step that gives you real interview sense so you can apply on your own!",
-      "zh-CN": "对简历和自我介绍书做最终检查，并按类型亲自练习自我介绍面试、职务面试和人性面试。这是让你具备实战感、能够独立投递的收尾阶段！",
-      vi: "Kiểm tra lần cuối CV và thư giới thiệu, rồi tự luyện phỏng vấn giới thiệu bản thân, chuyên môn và tính cách theo từng loại. Đây là bước cuối giúp bạn có cảm giác thực chiến để tự ứng tuyển!",
-      ja: "履歴書・自己紹介書を最終確認し、自己紹介・職務・人物面接をタイプ別に自分で練習します。自分で応募できるよう実戦感覚まで身につける仕上げの段階です！",
-      id: "Lakukan pemeriksaan akhir resume dan surat lamaran, lalu latih wawancara perkenalan diri, teknis, dan kepribadian per jenis. Ini langkah penutup yang membekalimu rasa nyata agar bisa melamar sendiri!"
+      ko: "3주차에서 찾은 약점 질문을 오답노트로 반복 훈련하고, 처음보다 얼마나 나아졌는지 확인해요. 스스로 지원할 수 있게 마무리하는 단계예요!",
+      en: "Drill the weak questions found in Week 3 as review notes and check how much you've improved from the start. This is the wrap-up that gets you ready to apply on your own!",
+      "zh-CN": "把第3周找出的弱点问题作为错题本反复训练，确认比最初进步了多少。这是让你能够独立投递的收尾阶段！",
+      vi: "Luyện lại các câu hỏi yếu tìm được ở Tuần 3 như sổ sửa lỗi và kiểm tra bạn đã tiến bộ bao nhiêu so với ban đầu. Đây là bước hoàn tất để bạn tự ứng tuyển!",
+      ja: "3週目で見つけた弱点の質問を復習ノートとして繰り返し訓練し、最初よりどれだけ良くなったかを確認します。自分で応募できるよう仕上げる段階です！",
+      id: "Latih ulang pertanyaan lemah dari Minggu 3 sebagai catatan koreksi dan cek seberapa besar kemajuanmu dari awal. Ini penutup yang menyiapkanmu melamar sendiri!"
     }
   }
 };
@@ -126,12 +126,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
   // Week 1
   w1s1: {
     title: {
-      ko: "취업 준비 상태 자가진단",
-      en: "Self-check your job readiness",
-      "zh-CN": "求职准备状态自我诊断",
-      vi: "Tự đánh giá mức độ sẵn sàng tìm việc",
-      ja: "就職準備状態のセルフ診断",
-      id: "Diagnosis mandiri kesiapan kerja"
+      ko: "첫 커리어 상담",
+      en: "First career coaching",
+      "zh-CN": "首次职业咨询",
+      vi: "Tư vấn nghề đầu tiên",
+      ja: "初めてのキャリア相談",
+      id: "Konseling karier pertama"
     },
     desc: {
       ko: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
@@ -140,6 +140,24 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       vi: "Tự kiểm tra mức độ sẵn sàng của bạn — kinh nghiệm, ngoại ngữ, visa, hiểu biết về công việc… Bạn sẽ thấy nên bổ sung ở đâu.",
       ja: "経歴・語学・ビザ・職務理解など、今の準備状態を自分で点検します。どこを補えばよいか方向が見えてきます。",
       id: "Cek sendiri kesiapanmu — pengalaman, bahasa, visa, pemahaman pekerjaan, dan lainnya. Kamu akan tahu bagian mana yang perlu dilengkapi."
+    }
+  },
+  w1exp: {
+    title: {
+      ko: "내 경험 찾아보기",
+      en: "Find my experiences",
+      "zh-CN": "发掘我的经验",
+      vi: "Tìm kinh nghiệm của tôi",
+      ja: "自分の経験を見つける",
+      id: "Temukan pengalamanku"
+    },
+    desc: {
+      ko: "사소해 보이는 경험에서도 AI가 강점을 찾아 구조화해요. 여기서 쌓은 경험은 4주 내내 이력서·자소서·면접에 계속 쓰여요.",
+      en: "AI mines strengths even from small experiences and structures them. What you build here is reused across your resume, cover letter, and interviews for all 4 weeks.",
+      "zh-CN": "AI 会从看似微小的经验中发掘优势并结构化。这里积累的经验将贯穿4周用于简历、自我介绍与面试。",
+      vi: "AI tìm điểm mạnh từ cả những kinh nghiệm nhỏ và cấu trúc hóa chúng. Những gì bạn xây ở đây được dùng suốt 4 tuần cho CV, thư giới thiệu và phỏng vấn.",
+      ja: "小さく見える経験からもAIが強みを見つけて構造化します。ここで蓄積した経験は4週間ずっと履歴書・自己紹介書・面接で活用されます。",
+      id: "AI menggali kelebihan bahkan dari pengalaman kecil dan menyusunnya. Yang kamu kumpulkan di sini dipakai selama 4 minggu di resume, surat lamaran, dan wawancara."
     }
   },
   w1s2: {
@@ -188,12 +206,30 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Memahami budaya perusahaan Korea"
     },
     desc: {
-      ko: "한국의 채용 방식과 직장 문화를 먼저 이해해두면 이력서·면접 준비의 방향이 잡혀요.",
-      en: "Understanding Korean hiring and workplace culture first will guide how you prepare your resume and interviews.",
-      "zh-CN": "先了解韩国的招聘方式和职场文化，就能把握简历和面试准备的方向。",
-      vi: "Hiểu trước cách tuyển dụng và văn hóa công sở Hàn Quốc sẽ định hướng cách bạn chuẩn bị CV và phỏng vấn.",
-      ja: "韓国の採用方式と職場文化を先に理解しておくと、履歴書・面接準備の方向が定まります。",
-      id: "Memahami cara rekrutmen dan budaya kerja Korea lebih dulu akan mengarahkan cara kamu menyiapkan resume dan wawancara."
+      ko: "한국의 채용 방식과 직장 문화를 이해해두면 이력서·면접 준비의 방향이 잡혀요. 다음 주 지원 준비로 넘어가기 전 1주차 마무리 단계예요.",
+      en: "Understanding Korean hiring and workplace culture guides how you prepare your resume and interviews — the wrap-up of Week 1 before you move on to applying next week.",
+      "zh-CN": "了解韩国的招聘方式和职场文化，能把握简历和面试准备的方向。这是进入下周申请准备前的第1周收尾。",
+      vi: "Hiểu cách tuyển dụng và văn hóa công sở Hàn Quốc sẽ định hướng chuẩn bị CV và phỏng vấn — bước kết của Tuần 1 trước khi sang tuần ứng tuyển.",
+      ja: "韓国の採用方式と職場文化を理解しておくと、履歴書・面接準備の方向が定まります。来週の応募準備へ進む前の、1週目の締めくくりです。",
+      id: "Memahami cara rekrutmen dan budaya kerja Korea mengarahkan persiapan resume dan wawancara — penutup Minggu 1 sebelum lanjut melamar minggu depan."
+    }
+  },
+  w1story: {
+    title: {
+      ko: "강점 스토리 만들기",
+      en: "Build a strength story",
+      "zh-CN": "打造优势故事",
+      vi: "Tạo câu chuyện điểm mạnh",
+      ja: "強みストーリーを作る",
+      id: "Buat cerita kelebihan"
+    },
+    desc: {
+      ko: "정리한 경험 하나를 상황·행동·결과가 담긴 짧은 이야기로 만들어요. 2주차 자기소개서와 면접에서 그대로 써먹는 강력한 무기가 돼요.",
+      en: "Turn one experience into a short situation–action–result story. It becomes a powerful asset you'll reuse in your Week 2 cover letter and interviews.",
+      "zh-CN": "把一段经验做成含情境·行动·结果的小故事。它会成为第2周自我介绍和面试中直接可用的有力武器。",
+      vi: "Biến một kinh nghiệm thành câu chuyện ngắn tình huống–hành động–kết quả. Đây sẽ là vũ khí mạnh dùng lại ở thư giới thiệu Tuần 2 và phỏng vấn.",
+      ja: "整理した経験の一つを、状況・行動・結果が入った短い話にします。2週目の自己紹介書や面接でそのまま使える強力な武器になります。",
+      id: "Ubah satu pengalaman jadi cerita singkat situasi–aksi–hasil. Ini jadi senjata ampuh yang kamu pakai lagi di surat lamaran Minggu 2 dan wawancara."
     }
   },
   // Week 2
@@ -533,7 +569,7 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Diagnosis kelulusan"
     },
     desc: {
-      ko: "처음 받았던 취업 준비 자가진단을 다시 받아, 4주 동안 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
+      ko: "처음 측정한 취업 준비도를 다시 측정해, 4주 동안 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
       en: "Retake the initial job-readiness self-diagnosis to see how much you've grown over 4 weeks. It becomes the basis of the outcome report submitted to your school.",
       "zh-CN": "重新进行最初的求职准备自我诊断，确认这4周成长了多少。这将成为提交给学校的成果报告的依据。",
       vi: "Làm lại bài tự chẩn đoán mức độ sẵn sàng tìm việc ban đầu để xem bạn đã tiến bộ bao nhiêu sau 4 tuần. Đây là cơ sở cho báo cáo kết quả gửi về trường.",
@@ -976,6 +1012,7 @@ const STEP_ACTION_TEXT: Record<string, LT> = {
   시작하기: { ko: "시작하기", en: "Start", "zh-CN": "开始", vi: "Bắt đầu", ja: "始める", id: "Mulai" },
   "면접 보기": { ko: "면접 보기", en: "Start mock interview", "zh-CN": "开始模拟面试", vi: "Bắt đầu phỏng vấn thử", ja: "模擬面接を受ける", id: "Mulai wawancara simulasi" },
   "이력서 점검하기": { ko: "이력서 점검하기", en: "Review my resume", "zh-CN": "检查我的简历", vi: "Kiểm tra hồ sơ của tôi", ja: "履歴書を点検する", id: "Periksa resume saya" },
+  "서류 점검하기": { ko: "서류 점검하기", en: "Review my documents", "zh-CN": "检查我的材料", vi: "Kiểm tra hồ sơ của tôi", ja: "書類を点検する", id: "Periksa dokumen saya" },
   "수료 진단 받기": { ko: "수료 진단 받기", en: "Take completion diagnosis", "zh-CN": "接受结业诊断", vi: "Làm chẩn đoán hoàn thành", ja: "修了診断を受ける", id: "Ikuti diagnosis kelulusan" }
 };
 export function useStepActionLabel() {

@@ -11,7 +11,7 @@ import { SectionTitle, Card } from "./ui";
 import { DocCard } from "./DeliverablesScreen";
 import { useLaunchT } from "../../lib/launch/i18n";
 
-// 주차 페이지 우측 컬럼 — 대화로 만드는 이력서(2주차~)와 자기소개서(3주차~)를 항상 미리보기.
+// 주차 페이지 — 대화로 만드는 이력서·자기소개서(둘 다 2주차 지원 패키지)를 2주차부터 항상 미리보기.
 export function WeekDocs({ week }: { week: number }) {
   const t = useLaunchT();
   const [resume, setResume] = useState<ResumeData>({});
@@ -33,10 +33,11 @@ export function WeekDocs({ week }: { week: number }) {
     };
   }, []);
 
-  // 2주차: 이력서 · 3주차: 자기소개서 · 4주차: 이력서 + 자기소개서. (1주차는 노출 안 함)
-  const showResume = week === 2 || week >= 4;
-  const showCover = week >= 3;
-  const both = showResume && showCover; // 4주차 — 결과물 페이지 지원서류와 동일하게 2컬럼
+  // 리뉴얼: 지원 패키지(이력서+자기소개서)를 2주차에 함께 완성하므로 2주차부터 둘 다 미리보기.
+  // (1주차는 노출 안 함) 이후 3·4주차(면접·오답노트)에서도 완성 서류를 참고용으로 계속 노출.
+  const showResume = week >= 2;
+  const showCover = week >= 2;
+  const both = showResume && showCover; // 2주차~ — 결과물 페이지 지원서류와 동일하게 2컬럼
 
   // 4주차: '지원 서류' 한 섹션 아래 이력서·자기소개서를 2컬럼 DocCard 로(결과물 페이지와 동일).
   if (both) {
@@ -61,7 +62,7 @@ export function WeekDocs({ week }: { week: number }) {
             loading={!coverReady}
             editHref="/career-launch/cover-collect"
             fullHref="/career-launch/cover-preview"
-            emptyLabel={t("3주차에서 작성해요", "Write it in Week 3", "在第3周撰写", "Viết ở Tuần 3", "Week 3で作成", "Tulis di Minggu 3")}
+            emptyLabel={t("2주차에서 작성해요", "Write it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Tulis di Minggu 2")}
             t={t}
           >
             <CoverRender data={cover} />

@@ -13,6 +13,7 @@ import {
   type OpsResetTarget
 } from "../../../../lib/launch/ops-client";
 import { useLaunchT } from "../../../../lib/launch/i18n";
+import { useToast } from "../../../../components/toast/ToastProvider";
 
 const PAGE_SIZE = 25;
 
@@ -21,6 +22,7 @@ type StatusFilter = "all" | "notStarted" | "inProgress" | "completed";
 // 운영자 학생 관리 — 검색·기수·상태로 좁혀 보고, 선택해 일괄 처리한다.
 export default function LaunchOpsStudentsPage() {
   const t = useLaunchT();
+  const toast = useToast();
   const router = useRouter();
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +130,7 @@ export default function LaunchOpsStudentsPage() {
       setSelected(new Set());
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("일괄 처리에 실패했어요.", "Bulk action failed.", "批量处理失败。", "Xử lý hàng loạt thất bại.", "一括処理に失敗しました。", "Aksi massal gagal."));
+      toast.error(e instanceof Error ? e.message : t("일괄 처리에 실패했어요.", "Bulk action failed.", "批量处理失败。", "Xử lý hàng loạt thất bại.", "一括処理に失敗しました。", "Aksi massal gagal."));
     } finally {
       setBusy(false);
     }
@@ -145,7 +147,7 @@ export default function LaunchOpsStudentsPage() {
       setSelected(new Set());
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("기수 이동에 실패했어요.", "Failed to move cohort.", "移动期数失败。", "Chuyển khóa thất bại.", "コホート移動に失敗しました。", "Gagal memindahkan angkatan."));
+      toast.error(e instanceof Error ? e.message : t("기수 이동에 실패했어요.", "Failed to move cohort.", "移动期数失败。", "Chuyển khóa thất bại.", "コホート移動に失敗しました。", "Gagal memindahkan angkatan."));
     } finally {
       setBusy(false);
     }
@@ -170,13 +172,13 @@ export default function LaunchOpsStudentsPage() {
       const r = await nudgeStudents(ids, message);
       setSelected(new Set());
       await load();
-      alert(
-        r.delivery === "smtp"
-          ? t(`${r.sent}명에게 독려 메일을 보냈어요.`, `Reminder sent to ${r.sent} students.`, `已向 ${r.sent} 名学生发送提醒。`, `Đã gửi nhắc nhở tới ${r.sent} sinh viên.`, `${r.sent}名にリマインダーを送信しました。`, `Pengingat terkirim ke ${r.sent} siswa.`)
-          : t(`메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요. ${r.sent}명 대상 로그만 남겼습니다.`, `SMTP isn't configured, so nothing was actually sent. Logged ${r.sent} recipients.`, `未配置 SMTP，未实际发送。已记录 ${r.sent} 名收件人。`, `SMTP chưa cấu hình nên chưa gửi thật. Đã ghi log ${r.sent} người nhận.`, `SMTPが未設定のため実際には送信されていません。${r.sent}名分をログに記録しました。`, `SMTP belum dikonfigurasi, jadi tidak benar-benar terkirim. ${r.sent} penerima dicatat.`)
-      );
+      if (r.delivery === "smtp") {
+        toast.success(t(`${r.sent}명에게 독려 메일을 보냈어요.`, `Reminder sent to ${r.sent} students.`, `已向 ${r.sent} 名学生发送提醒。`, `Đã gửi nhắc nhở tới ${r.sent} sinh viên.`, `${r.sent}名にリマインダーを送信しました。`, `Pengingat terkirim ke ${r.sent} siswa.`));
+      } else {
+        toast.info(t(`메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요. ${r.sent}명 대상 로그만 남겼습니다.`, `SMTP isn't configured, so nothing was actually sent. Logged ${r.sent} recipients.`, `未配置 SMTP，未实际发送。已记录 ${r.sent} 名收件人。`, `SMTP chưa cấu hình nên chưa gửi thật. Đã ghi log ${r.sent} người nhận.`, `SMTPが未設定のため実際には送信されていません。${r.sent}名分をログに記録しました。`, `SMTP belum dikonfigurasi, jadi tidak benar-benar terkirim. ${r.sent} penerima dicatat.`));
+      }
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
+      toast.error(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
     } finally {
       setBusy(false);
     }

@@ -35,13 +35,19 @@ export type ExperienceEntry = {
   skills: string[]; // 사용 기술
   competencies: string[]; // 역량
 };
+// 강점 스토리 — 경험을 면접·자소서용 짧은 이야기로(상황·행동·결과 + 강점). Week1에서 만들고 이후 재사용.
+export type StrengthStory = { id: string; title: string; strength: string; situation: string; action: string; result: string };
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
+  // 진단 대화 기록(질문·답변) — '다시 보기' 시 대화를 그대로 복원하기 위해 저장.
+  diagnosisTranscript?: Array<{ role: "bot" | "user"; text: string }> | null;
   experienceBank?: ExperienceEntry[];
   // 사전(1주차)·사후(4주차 수료) 진단 점수 — 향상도 산출용.
   diagnosisInitial?: { percent?: number } | null;
   diagnosisFinal?: { percent?: number } | null;
   selectedJobs?: string[];
+  targetJob?: string | null; // 확정한 1순위 목표 직무명(2주차 서류 기준). week1/target 확정 시 기록.
+  strengthStories?: StrengthStory[]; // 강점 스토리(면접·자소서 씨앗).
   materials?: string[];
   doneSteps?: string[];
   interview?: CareerInterview | null;

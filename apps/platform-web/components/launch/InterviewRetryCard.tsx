@@ -49,7 +49,7 @@ export function InterviewRetryCard() {
       setResults((prev) => ({ ...prev, [i]: { first: prev[i]?.first ?? res.score, last: res } }));
     } catch (e) {
       const quota = e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
-      setErr((er) => ({ ...er, [i]: quota ? t("AI 포인트를 모두 사용했어요.", "You're out of AI points.", "AI积分已用完。", "Hết điểm AI.", "AIポイントを使い切りました。", "Poin AI habis.") : t("잠시 문제가 생겼어요. 다시 시도해 주세요.", "Something went wrong. Please try again.", "出现了一点问题，请重试。", "Đã xảy ra sự cố. Vui lòng thử lại.", "問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi.") }));
+      setErr((er) => ({ ...er, [i]: quota ? t("지금은 AI 사용이 많아요. 잠시 후 시도해 주세요.", "AI is busy right now. Try again shortly.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Thử lại sau nhé.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Coba lagi sebentar.") : t("잠시 문제가 생겼어요. 다시 시도해 주세요.", "Something went wrong. Please try again.", "出现了一点问题，请重试。", "Đã xảy ra sự cố. Vui lòng thử lại.", "問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi.") }));
     } finally {
       setBusy(null);
     }

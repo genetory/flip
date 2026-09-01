@@ -157,8 +157,8 @@ export default function CoverCollectPage() {
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/week/3" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              {t("← 3주차", "← Week 3", "← 第3周", "← Tuần 3", "← Week 3", "← Minggu 3")}
+            <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              {t("← 지원 패키지", "← Application package", "← 申请材料包", "← Bộ hồ sơ ứng tuyển", "← 応募パッケージ", "← Paket lamaran")}
             </Link>
             <div className="flex items-center gap-3">
               <SaveIndicator state={saveState} t={t} />

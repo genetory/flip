@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowRight, Check, Lock } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
@@ -9,6 +9,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
+import { confirmTargetJob } from "../../lib/launch/week1";
 import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
@@ -16,8 +17,8 @@ import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../..
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
 // 모달로 여는 채팅 라우트(페이지 이동 대신 onOpenChat 호출).
-const CHAT_ROUTE = /\/career-launch\/(diagnosis|jobs|materials|interview)/;
-export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void }) {
+const CHAT_ROUTE = /\/career-launch\/(diagnosis|experience|story|jobs|materials|interview)/;
+export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey = 0 }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void; refreshKey?: number }) {
   const t = useLaunchT();
   // 채팅 라우트면 모달을 열고(onOpenChat), 아니면 기존처럼 페이지 이동(Link).
   const StepAction = ({ href, className, children }: { href: string; className: string; children: React.ReactNode }) =>
@@ -35,6 +36,22 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
   const [cover, setCover] = useState<CoverData>({});
   const [ready, setReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [targetBusy, setTargetBusy] = useState<string | null>(null);
+
+  // 관심 직무 중 1순위를 목표로 확정(2주차 서류 기준). 서버가 라벨→직무군 해석, reason 에 원문 보존.
+  const confirmTarget = async (role: string) => {
+    setTargetBusy(role);
+    try {
+      await confirmTargetJob(role, "primary", "confirmed", role);
+      // 낙관적 반영 — 서버 상태 재조회(load) 결과가 늦어도 '관심 직무 선정' 스텝이 즉시 완료로 바뀌게 한다.
+      setProg((p) => ({ ...p, targetJob: role }));
+      await load();
+    } catch {
+      // 실패 시 상태 유지
+    } finally {
+      setTargetBusy(null);
+    }
+  };
 
   // 진행 상태 로드/재동기화 — 자동수집(이력서·자소서)이 늦게 반영될 때 수동 새로고침용.
   const load = async () => {
@@ -57,7 +74,13 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const eduN = resume.educations?.length ?? 0;
+  // 대화(모달)에서 나오면 부모가 refreshKey 를 올린다 → 완료 상태·결과를 다시 불러온다.
+  useEffect(() => {
+    if (refreshKey > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  const eduN = (resume.educations ?? []).filter((e) => (e.school ?? "").trim().length > 0).length;
   const expN = resume.experiences?.length ?? 0;
   const skillN = resume.skills?.length ?? 0;
   const langN = resume.languages?.length ?? 0;
@@ -73,6 +96,18 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
     if (STEP_KIND[id]) return; // 결과 스텝은 수동 체크 불가
     const cur = prog.doneSteps ?? [];
     const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    setProg((p) => ({ ...p, doneSteps: next }));
+    void patchProgress({ doneSteps: next }).catch(() => {
+      // 저장 실패해도 화면 상태 유지
+    });
+  };
+
+  // '해당 없음'으로 채울 수 있는 이력서 섹션(기본정보 제외 — 이름은 필수). 대화 없이 바로 완료 처리.
+  const OPTIONAL_NONE = new Set(["w2-edu", "w2-exp", "w2-exp-other", "w2-skill", "w2-lang"]);
+  const markNone = (id: string) => {
+    const cur = prog.doneSteps ?? [];
+    if (cur.includes(id)) return;
+    const next = [...cur, id];
     setProg((p) => ({ ...p, doneSteps: next }));
     void patchProgress({ doneSteps: next }).catch(() => {
       // 저장 실패해도 화면 상태 유지
@@ -127,17 +162,60 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         </ResultCard>
       );
     }
+    if (kind === "experience" && (prog.experienceBank?.length ?? 0) > 0) {
+      const n = prog.experienceBank!.length;
+      return (
+        <ResultCard continueHref="/career-launch/experience" continueLabel={t("경험 더 찾기", "Find more", "再发掘", "Tìm thêm", "もっと探す", "Cari lagi")} restartHref="/career-launch/experience">
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("Experience Bank", "Experience Bank", "经验库", "Experience Bank", "Experience Bank", "Experience Bank")} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 条`, `${n}`, `${n}件`, `${n}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {prog.experienceBank!.slice(0, 4).map((e, i) => (
+              <li key={i} className="flex gap-1.5 break-keep rounded-xl border border-[#EEF1F5] bg-white px-3 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#0B46E8]">•</span>{e.experience}</li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
+    if (kind === "story" && (prog.strengthStories?.length ?? 0) > 0) {
+      const n = prog.strengthStories!.length;
+      return (
+        <ResultCard continueHref="/career-launch/story" continueLabel={t("스토리 더 만들기", "Add more", "再做一个", "Tạo thêm", "もっと作る", "Buat lagi")} restartHref="/career-launch/story">
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("강점 스토리", "Strength stories", "优势故事", "Câu chuyện điểm mạnh", "強みストーリー", "Cerita kelebihan")} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 个`, `${n}`, `${n}件`, `${n}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {prog.strengthStories!.slice(0, 4).map((s, i) => (
+              <li key={i} className="flex items-center gap-1.5 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#333D4B]">{s.title}</span>
+                {s.strength ? <span className="shrink-0 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-bold text-[#0B46E8]">{s.strength}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
     if (kind === "jobs" && (prog.selectedJobs?.length ?? 0) > 0) {
+      const target = prog.targetJob ?? null;
       return (
         <ResultCard continueHref="/career-launch/jobs" continueLabel={t("이어서", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/jobs?restart=1">
-          <p className="text-[13.5px] font-bold text-[#191F28]">{t("선정한 직무", "Selected jobs", "已选职位", "Công việc đã chọn", "選んだ職務", "Pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${prog.selectedJobs!.length}개`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length} 个`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length}件`, `${prog.selectedJobs!.length}`)}</span></p>
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("관심 직무", "Jobs of interest", "感兴趣职位", "Công việc quan tâm", "関心のある職務", "Pekerjaan diminati")} <span className="text-[#0B46E8]">{t(`${prog.selectedJobs!.length}개`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length} 个`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length}件`, `${prog.selectedJobs!.length}`)}</span></p>
+          <p className={`mt-0.5 break-keep text-[12px] leading-relaxed ${target ? "text-[#8B95A1]" : "font-semibold text-[#C77700]"}`}>{target ? t("2주차 지원 서류가 이 목표 직무에 맞춰져요. 바꾸려면 다른 직무를 정하면 돼요.", "Week 2 docs follow this target. To change it, set another role.", "第2周材料以此目标为准。如需更改，另设一个职务即可。", "Hồ sơ Tuần 2 theo mục tiêu này. Muốn đổi, đặt nghề khác.", "2週目の書類はこの目標に合わせます。変更は別の職務を選べばOK。", "Dokumen Minggu 2 mengikuti target ini. Untuk ubah, pilih peran lain.") : t("여기서 1순위 '목표 직무'를 정해야 이 단계가 완료돼요. 2주차 서류가 그 직무에 맞춰집니다.", "Set your primary target here to complete this step — Week 2 docs follow it.", "在这里定下首选'目标职务'才算完成本步骤，第2周材料以此为准。", "Đặt 'nghề mục tiêu' số 1 tại đây để hoàn thành bước này — hồ sơ Tuần 2 theo đó.", "ここで第一の『目標職務』を決めるとこのステップが完了します。2週目の書類がそれに合わせます。", "Tetapkan 'peran target' utama di sini untuk menyelesaikan langkah ini — dokumen Minggu 2 mengikutinya.")}</p>
           <ul className="mt-2 space-y-2">
             {prog.selectedJobs!.map((role) => {
               const job = RECOMMENDED_JOBS.find((x) => x.role === role);
+              const isTarget = target === role;
               return (
-                <li key={role} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
-                  <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
-                  {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
+                <li key={role} className={`rounded-xl border p-3 ${isTarget ? "border-[#0B46E8] bg-[#F5F8FF]" : "border-[#EEF1F5] bg-white"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="break-keep text-[13px] font-bold text-[#191F28]">{isTarget ? "🎯 " : ""}{jobName(role)}</p>
+                      {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
+                    </div>
+                    {isTarget ? (
+                      <span className="shrink-0 rounded-lg bg-[#0B46E8] px-2.5 py-1 text-[11px] font-bold text-white">{t("목표", "Target", "目标", "Mục tiêu", "目標", "Target")}</span>
+                    ) : (
+                      <button type="button" onClick={() => void confirmTarget(role)} disabled={targetBusy !== null} className="shrink-0 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[11.5px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC] disabled:opacity-50">
+                        {targetBusy === role ? "…" : t("목표로 정하기", "Set as target", "设为目标", "Đặt mục tiêu", "目標に設定", "Jadikan target")}
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -173,7 +251,7 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         <ResultCard continueHref="/career-launch/resume-collect?section=edu" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/resume-collect?section=edu&restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("학력", "Education", "教育经历", "Học vấn", "学歴", "Pendidikan")} <span className="text-[#0B46E8]">{t(`${eduN}개`, `${eduN}`, `${eduN} 项`, `${eduN}`, `${eduN}件`, `${eduN}`)}</span></p>
           <ul className="mt-1.5 space-y-1">
-            {resume.educations!.map((e, i) => (
+            {resume.educations!.filter((e) => (e.school ?? "").trim().length > 0).map((e, i) => (
               <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]">
                 <span className="text-[#3A6B00]">•</span>{[e.school, e.major, e.period].filter(Boolean).join(" · ")}
               </li>
@@ -296,8 +374,21 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다(sequential=false 면 잠금 없음).
         const locked = sequential && ready && !done && !steps.slice(0, i).every((p) => isDone(p.id));
         const toggleable = !result && !locked;
+        // 한 주차 안의 소그룹(예: 지원 패키지 = 이력서/자기소개서) 시작 지점에 구분 헤더.
+        const groupStart = s.group && s.group !== steps[i - 1]?.group;
         return (
-          <li key={s.id} className="flex gap-4">
+          <Fragment key={s.id}>
+          {groupStart ? (
+            <li className="flex items-center gap-2.5 pb-2 pt-1 first:pt-0">
+              <span className="text-[12.5px] font-black uppercase tracking-[0.08em] text-[#0B46E8]">
+                {s.group === "resume"
+                  ? t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")
+                  : t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}
+              </span>
+              <span className="h-px flex-1 bg-[#EEF1F5]" />
+            </li>
+          ) : null}
+          <li className="flex gap-4">
             <div className="flex flex-col items-center">
               <button
                 type="button"
@@ -353,15 +444,27 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
                   ) : null}
                 </div>
               ) : s.action ? (
-                <StepAction
-                  href={s.action.href}
-                  className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
-                >
-                  {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
-                </StepAction>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <StepAction
+                    href={s.action.href}
+                    className="group inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  >
+                    {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition" weight="bold" aria-hidden />
+                  </StepAction>
+                  {OPTIONAL_NONE.has(s.id) ? (
+                    <button
+                      type="button"
+                      onClick={() => markNone(s.id)}
+                      className="rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[12.5px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]"
+                    >
+                      {t("해당 없음", "None", "无", "Không có", "該当なし", "Tidak ada")}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </li>
+          </Fragment>
         );
       })}
     </ol>
@@ -421,7 +524,7 @@ function FinalDocsSummary({ resumeReady, coverReady }: { resumeReady: boolean; c
         ? block("📄", t("이력서 요약", "Resume summary", "简历摘要", "Tóm tắt CV", "履歴書の要約", "Ringkasan resume"), resumeSum, "/career-launch/week/2", t("이력서 수정", "Edit resume", "编辑简历", "Sửa CV", "履歴書を修正", "Edit resume"))
         : null}
       {coverReady
-        ? block("📝", t("자기소개서 요약", "Cover letter summary", "自我介绍书摘要", "Tóm tắt thư giới thiệu", "自己紹介書の要約", "Ringkasan surat lamaran"), coverSum, "/career-launch/week/3", t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran"))
+        ? block("📝", t("자기소개서 요약", "Cover letter summary", "自我介绍书摘要", "Tóm tắt thư giới thiệu", "自己紹介書の要約", "Ringkasan surat lamaran"), coverSum, "/career-launch/week/2", t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran"))
         : null}
     </div>
   );

@@ -26,6 +26,8 @@ export type Step = {
   action?: { label: string; href: string };
   minutes?: number; // 예상 소요 시간(분)
   done?: boolean;
+  // 한 주차 안에서 스텝을 시각적으로 묶는 소그룹 키(예: Week 2 이력서/자소서). 미지정이면 묶지 않음.
+  group?: "resume" | "cover";
 };
 
 export type WeekPlan = {
@@ -39,19 +41,28 @@ export type WeekPlan = {
   feedback: { status: "none" | "pending" | "done"; note?: string };
 };
 
+// 리뉴얼 4주 구조(2026-08). 스텝 id 는 전부 유지해 기존 완료 상태를 보존하고, 주차 그룹만 재편했다.
+//  W1 나를 이해하고 직무 탐험 / W2 지원 패키지(이력서+자소서) / W3 실전 모의면접·약점 발견 / W4 오답노트·최종 검증
 export const WEEKS: WeekPlan[] = [
   {
     week: 1,
-    title: "취업 가능성 진단 & 직무 방향 설정",
-    subtitle: "지금 내 상태를 점검하고 목표 직무를 정해봐요",
-    goal: "내 취업 준비 상태를 점검하고, 지원하고 싶은 직무를 3개 이내로 정해요. 다음 주 이력서에 담을 재료도 미리 모아봐요.",
+    title: "나를 이해하고 직무 탐험",
+    subtitle: "내 강점을 발견하고, 어울리는 직무를 찾아 탐험해봐요",
+    goal: "지금 내 준비 상태를 점검하고, 경험 속 강점을 발굴해 나에게 맞는 목표 직무를 3개 이내로 정해요. 다음 주 지원 패키지의 방향을 잡는 단계예요.",
     steps: [
       {
         id: "w1s1",
-        title: "취업 준비 상태 자가진단",
+        title: "첫 커리어 상담",
         minutes: 10,
         desc: "경력·어학·비자·직무 이해도 등 지금 내 준비 상태를 스스로 점검해봐요. 어디를 채우면 좋을지 방향이 보여요.",
         action: { label: "시작하기", href: "/career-launch/diagnosis" }
+      },
+      {
+        id: "w1exp",
+        title: "내 경험 찾아보기",
+        minutes: 15,
+        desc: "사소해 보이는 경험에서도 AI가 강점을 찾아 구조화해요. 여기서 쌓은 경험은 4주 내내 이력서·자소서·면접에 계속 쓰여요.",
+        action: { label: "시작하기", href: "/career-launch/experience" }
       },
       {
         id: "w1s2",
@@ -68,101 +79,110 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/materials" }
       },
       {
+        id: "w1story",
+        title: "강점 스토리 만들기",
+        minutes: 15,
+        desc: "정리한 경험 하나를 상황·행동·결과가 담긴 짧은 이야기로 만들어요. 2주차 자기소개서와 면접에서 그대로 써먹는 강력한 무기가 돼요.",
+        action: { label: "시작하기", href: "/career-launch/story" }
+      },
+      {
         id: "w1s4",
         title: "한국 기업문화 이해",
         minutes: 10,
-        desc: "한국의 채용 방식과 직장 문화를 먼저 이해해두면 이력서·면접 준비의 방향이 잡혀요.",
+        desc: "한국의 채용 방식과 직장 문화를 이해해두면 이력서·면접 준비의 방향이 잡혀요. 다음 주 지원 준비로 넘어가기 전 마무리 단계예요.",
         action: { label: "시작하기", href: "/career-launch/culture/w1s4" }
       }
     ],
-    submission: { required: true, status: "todo", label: "목표 직무 + 이력서 재료", source: "정한 목표 직무와 정리한 경험 메모" },
+    submission: { required: true, status: "todo", label: "목표 직무 + 강점 정리", source: "정한 목표 직무와 정리한 경험·강점 메모" },
     feedback: { status: "none" }
   },
   {
     week: 2,
-    title: "이력서 만들기",
-    subtitle: "프로그램 안에서 바로 대표 이력서를 완성해봐요",
-    goal: "기업에 낼 대표 이력서 초안을 완성해요. AI 진단으로 부족한 부분까지 채우면 든든한 이력서 한 부가 만들어져요.",
+    title: "지원 패키지 완성",
+    subtitle: "이력서와 자기소개서를 한 번에 완성해 지원 준비를 끝내요",
+    goal: "Week 1에서 정한 방향으로 대표 이력서와 자기소개서를 함께 완성해요. 서류 한 세트로 바로 지원할 수 있게 만드는 단계예요.",
     steps: [
       {
         id: "w2-basic",
+        group: "resume",
         title: "기본정보·한줄소개",
         desc: "이름·연락처와 나를 한 줄로 소개하는 문장을 AI와 대화하며 정리해요. 이력서 맨 위 첫인상이에요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=basic" }
       },
       {
         id: "w2-edu",
+        group: "resume",
         title: "학력",
         desc: "학교·전공·학위·재학 기간을 대화로 정리해요. 최신 학력부터 순서대로 담아요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=edu" }
       },
       {
         id: "w2-exp",
+        group: "resume",
         title: "경력 (회사 경력)",
         desc: "정규직·계약직·인턴 등 회사에 소속되어 일한 명확한 회사 경력을 AI와 대화하며 정리해요. 성과를 숫자로 표현하면 훨씬 눈에 잘 띄어요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=exp" }
       },
       {
         id: "w2-exp-other",
+        group: "resume",
         title: "활동·프로젝트",
         desc: "아르바이트·프로젝트·동아리·대외활동·봉사 등 회사 경력 외의 경험을 대화로 풀어내요. 신입에게는 이 경험도 큰 강점이에요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=expOther" }
       },
       {
         id: "w2-skill",
+        group: "resume",
         title: "스킬",
         desc: "직무에 쓰는 기술·툴을 대화로 정리해요. 지원 직무와 맞닿은 스킬을 앞세워요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=skill" }
       },
       {
         id: "w2-lang",
+        group: "resume",
         title: "어학",
         desc: "구사 언어와 수준(TOPIK 등 자격 포함)을 대화로 정리해요. 유학생의 강력한 강점이에요.",
         action: { label: "시작하기", href: "/career-launch/resume-collect?section=lang" }
       },
       {
         id: "w2s4",
+        group: "resume",
         title: "한국식 이력서 매너",
         minutes: 10,
         desc: "사진·양식·표현 등 한국 이력서에서 지켜야 할 것과 피해야 할 것을 알아둬요.",
         action: { label: "시작하기", href: "/career-launch/culture/w2s4" }
-      }
-    ],
-    submission: { required: true, status: "todo", label: "대표 이력서 초안", source: "프로그램에서 만든 대표 이력서" },
-    feedback: { status: "none" }
-  },
-  {
-    week: 3,
-    title: "자기소개서 만들기",
-    subtitle: "지원 동기·강점 등 문항을 채워 자기소개서를 완성해요",
-    goal: "목표 회사에 맞춘 자기소개서를 완성하고, 이력서와 서로 어울리게 다듬어 이력서·자기소개서 완성본을 만들어요.",
-    steps: [
+      },
       {
         id: "w3-motive",
+        group: "cover",
         title: "지원 동기",
         desc: "왜 이 직무·회사에 지원하는지 AI와 대화하며 지원 동기 문항을 채워요.",
         action: { label: "시작하기", href: "/career-launch/cover-collect?section=motive" }
       },
       {
         id: "w3-growth",
+        group: "cover",
         title: "성장 과정",
         desc: "지금의 나를 만든 경험을 대화로 풀어 성장 과정 문항을 채워요.",
         action: { label: "시작하기", href: "/career-launch/cover-collect?section=growth" }
       },
       {
         id: "w3-strength",
+        group: "cover",
         title: "성격의 장단점·강점",
         desc: "직무에 살릴 강점과 보완점을 구체적 사례로 대화하며 정리해요.",
         action: { label: "시작하기", href: "/career-launch/cover-collect?section=strength" }
       },
       {
         id: "w3-aspiration",
+        group: "cover",
         title: "입사 후 포부",
         desc: "입사 후 이루고 싶은 목표와 회사에 줄 기여를 대화로 구체화해요.",
         action: { label: "시작하기", href: "/career-launch/cover-collect?section=aspiration" }
       },
       {
         id: "w3s4",
+        group: "cover",
         title: "비즈니스 커뮤니케이션 예절",
         minutes: 10,
         desc: "존댓말·호칭, 이메일 형식, 회신 매너 등 한국 직장의 소통 예절을 익혀요.",
@@ -173,17 +193,11 @@ export const WEEKS: WeekPlan[] = [
     feedback: { status: "none" }
   },
   {
-    week: 4,
-    title: "완성 & 면접 준비",
-    subtitle: "완성한 서류로 면접을 준비하고 스스로 지원할 힘을 길러요",
-    goal: "이력서·자기소개서를 최종 점검하고, 자기소개·직무·인성 면접을 유형별로 직접 연습해요. 스스로 지원할 수 있도록 실전 감각까지 갖추는 마무리 단계예요!",
+    week: 3,
+    title: "실전 모의면접 & 약점 발견",
+    subtitle: "공고·서류 기반 실전 모의면접으로 내 약점을 찾아요",
+    goal: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 주 집중 훈련할 지점을 잡는 단계예요.",
     steps: [
-      {
-        id: "w4s1",
-        title: "이력서·자기소개서 최종 점검",
-        desc: "완성한 이력서와 자기소개서를 확인하고, 고치고 싶은 곳은 각각 수정하기로 해당 주차에서 다듬어요.",
-        action: { label: "이력서 점검하기", href: "/career-launch/week/2" }
-      },
       {
         id: "w4-self",
         title: "자기소개 면접",
@@ -209,13 +223,6 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "면접 보기", href: "/career-launch/interview?section=pressure" }
       },
       {
-        id: "w4-apply",
-        title: "스스로 지원하는 법",
-        minutes: 12,
-        desc: "외국인 채용 공고를 찾는 곳, E-7 비자 지원 가능 기업, 지원 전략과 체크리스트까지 — 직접 지원할 수 있게 정리해요.",
-        action: { label: "시작하기", href: "/career-launch/culture/w4-apply" }
-      },
-      {
         id: "w4s4",
         title: "면접 예절 & 입사 매너",
         minutes: 10,
@@ -223,7 +230,30 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/culture/w4s4" }
       }
     ],
-    submission: { required: true, status: "todo", label: "면접 준비 완료", source: "자기소개·직무·인성 모의면접 연습" },
+    submission: { required: true, status: "todo", label: "모의면접 완료 + 약점 리포트", source: "자기소개·직무·인성·압박 모의면접과 AI 약점 리포트" },
+    feedback: { status: "none" }
+  },
+  {
+    week: 4,
+    title: "면접 오답노트 & 최종 검증",
+    subtitle: "약점 질문을 반복 훈련하고, 스스로 지원할 힘을 갖춰요",
+    goal: "3주차에서 찾은 약점 질문을 오답노트로 반복 훈련하고, 완성한 서류를 최종 점검해요. 스스로 지원할 수 있게 마무리하는 단계예요!",
+    steps: [
+      {
+        id: "w4s1",
+        title: "이력서·자기소개서 최종 점검",
+        desc: "완성한 이력서와 자기소개서를 최종 점검하고, 고치고 싶은 곳은 지원 패키지 주차에서 다듬어요.",
+        action: { label: "서류 점검하기", href: "/career-launch/week/2" }
+      },
+      {
+        id: "w4-apply",
+        title: "스스로 지원하는 법",
+        minutes: 12,
+        desc: "외국인 채용 공고를 찾는 곳, E-7 비자 지원 가능 기업, 지원 전략과 체크리스트까지 — 직접 지원할 수 있게 정리해요.",
+        action: { label: "시작하기", href: "/career-launch/culture/w4-apply" }
+      }
+    ],
+    submission: { required: true, status: "todo", label: "오답노트 훈련 + 최종 검증", source: "약점 질문 재훈련과 완성한 서류 최종 점검" },
     feedback: { status: "none" }
   }
 ];
@@ -428,7 +458,7 @@ export const CULTURE_LESSONS: Record<string, CultureLesson> = {
         items: [
           { title: "공채와 수시 채용", body: "대기업은 봄·가을 정기 공채가, 스타트업·외국계·중견기업은 필요할 때 뽑는 수시(상시) 채용이 많아요. 공채는 채용 시기가 정해져 있어 미리 자기소개서와 인적성을 준비해두는 게 중요하고, 수시는 공고가 뜨면 빠르게 지원해야 기회를 잡을 수 있어요. 관심 기업이 어느 쪽인지 알면 지원 시기와 준비 방식을 맞추기 좋아요.", tip: "관심 기업 3곳의 채용 방식(공채/수시)을 지금 검색해 확인해보세요.", example: "예) 삼성·현대차·SK 같은 대기업은 보통 상반기(3~4월)·하반기(9~10월) 공채를, 토스·당근 같은 스타트업은 사람인·원티드에 수시로 공고를 올려요." },
           { title: "전형 단계", body: "보통 서류(이력서·자기소개서) → 인적성·코딩테스트 → 실무 면접 → 임원 면접 순으로 진행돼요. 단계마다 보는 포인트가 달라서, 서류는 '이 사람을 만나볼 이유'를, 면접은 '함께 일하고 싶은 사람인지'를 확인하는 자리예요. 각 단계 통과 후 다음 준비를 시작하지 말고, 지원 전에 전체 흐름을 미리 그려두면 마음이 훨씬 편해요.", example: "예) 서류 합격 → 온라인 인적성/코테 → 1차 실무진 면접(직무 질문) → 2차 임원 면접(인성·가치관) → 최종 합격 통보 순으로 보통 4~8주가 걸려요." },
-          { title: "자기소개서의 비중", body: "한국은 자기소개서(자기소개서)를 특히 중요하게 봐요. 지원 동기·성장 과정·직무 역량을 단순 나열이 아니라 '스토리'로 풀어내는 게 핵심이라, 구체적인 경험과 그때의 고민·결과를 함께 적어야 설득력이 생겨요. 특히 외국인 지원자는 '왜 한국에서, 왜 이 회사에서 일하고 싶은지'를 진솔하게 담으면 강점이 돼요.", tip: "이 프로그램 3주차에서 자기소개서를 직접 완성하니, 지금은 '왜 중요한지'만 기억해두면 돼요." },
+          { title: "자기소개서의 비중", body: "한국은 자기소개서를 특히 중요하게 봐요. 지원 동기·성장 과정·직무 역량을 단순 나열이 아니라 '스토리'로 풀어내는 게 핵심이라, 구체적인 경험과 그때의 고민·결과를 함께 적어야 설득력이 생겨요. 특히 외국인 지원자는 '왜 한국에서, 왜 이 회사에서 일하고 싶은지'를 진솔하게 담으면 강점이 돼요.", tip: "이 프로그램 2주차에서 자기소개서를 직접 완성하니, 지금은 '왜 중요한지'만 기억해두면 돼요." },
           { title: "인턴·산학·채용연계형", body: "인턴이나 산학협력으로 먼저 경험을 쌓고 정규직으로 전환되는 길도 많아요. 경력이 부족한 신입에게 실무를 배우면서 회사와 서로 맞는지 확인할 수 있는 좋은 진입 기회예요. 특히 유학생은 인턴 경험이 한국 조직 문화에 적응했다는 증거가 되어 정규직 지원 시 큰 도움이 돼요.", tip: "'채용연계형 인턴' 공고를 우선 눈여겨보세요. 정규직 전환을 전제로 뽑는 자리라 합격 시 취업으로 이어질 확률이 높아요." }
         ]
       },
@@ -853,7 +883,7 @@ export const CULTURE_LESSONS: Record<string, CultureLesson> = {
         emoji: "🎯",
         summary: "무작정 많이 넣기보다, 맞는 곳에 정성껏. 그리고 꾸준히.",
         items: [
-          { title: "맞춤화가 합격률을 높여요", body: "같은 이력서·자기소개서를 그대로 돌리기보다, 공고의 자격요건 키워드에 맞춰 지원 동기와 강점을 조금씩 손보면 통과율이 올라가요. 3주차에 만든 문항을 공고마다 살짝 조정하는 것만으로도 충분해요.", tip: "공고의 '자격요건·우대사항' 문장을 내 이력서 표현과 맞춰보세요." },
+          { title: "맞춤화가 합격률을 높여요", body: "같은 이력서·자기소개서를 그대로 돌리기보다, 공고의 자격요건 키워드에 맞춰 지원 동기와 강점을 조금씩 손보면 통과율이 올라가요. 2주차에 만든 문항을 공고마다 살짝 조정하는 것만으로도 충분해요.", tip: "공고의 '자격요건·우대사항' 문장을 내 이력서 표현과 맞춰보세요." },
           { title: "지원 포트폴리오 구성", body: "가고 싶은 '도전' 기업, 현실적인 '적정' 기업, 합격 가능성이 높은 '안정' 기업을 섞어 지원하면 심리적으로도 안정되고 기회도 넓어져요. 한 곳에만 매달리지 말고 여러 갈래로 준비해요.", example: "예) 도전 2곳 · 적정 3곳 · 안정 2곳 정도로 나눠 동시에 준비해요." },
           { title: "기록하며 관리해요", body: "어디에 언제 지원했는지, 마감일과 전형 단계를 표로 관리하면 놓치는 일이 없어요. 지원 현황을 한눈에 보면 다음에 무엇을 준비할지도 분명해져요.", tip: "간단한 스프레드시트에 회사·직무·지원일·마감일·상태를 적어두세요." },
           { title: "떨어져도 계속", body: "불합격은 실력 부족이 아니라 '자리와 맞지 않았을' 뿐인 경우가 많아요. 피드백이 있으면 반영하고, 없으면 스스로 복기하며 다음 지원을 이어가요. 꾸준함이 결국 합격으로 이어져요.", tip: "탈락한 곳의 아쉬웠던 점 1가지만 메모해 다음 지원에 반영하세요." }

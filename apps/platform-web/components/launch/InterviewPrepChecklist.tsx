@@ -1,6 +1,6 @@
 "use client";
 
-// 4주차 면접 준비 체크리스트 — 점수가 아니라 '무엇을 준비했는지'로 자신감을 쌓는다.
+// 3주차(실전 모의면접) 면접 준비 체크리스트 — 점수가 아니라 '무엇을 준비했는지'로 자신감을 쌓는다.
 // 체크 상태는 유저별 localStorage에 저장(기기 공유 누수 방지).
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle, Circle } from "@phosphor-icons/react";

@@ -91,7 +91,7 @@ export function hasResumeContent(data: ResumeData | null | undefined): boolean {
   const basicFilled = Boolean(b && (b.name || b.email || b.phone || b.summary));
   return (
     basicFilled ||
-    (data.educations?.length ?? 0) > 0 ||
+    (data.educations ?? []).some((e) => (e.school ?? "").trim().length > 0) ||
     (data.experiences?.length ?? 0) > 0 ||
     (data.skills?.length ?? 0) > 0 ||
     (data.languages?.length ?? 0) > 0

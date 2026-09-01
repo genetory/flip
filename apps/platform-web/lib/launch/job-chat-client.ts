@@ -10,7 +10,7 @@ function apiBase(): string {
 }
 
 export type JobChatMsg = { role: "bot" | "user"; text: string };
-export type JobChatResult = { reply: string; recommend: string[]; done: boolean };
+export type JobChatResult = { reply: string; recommend: string[]; done: boolean; choices: string[] };
 
 // 공용 POST — 토큰 첨부 + JSON. 실패 시 throw.
 async function postCareerChat(path: string, body: unknown): Promise<Record<string, unknown>> {
@@ -40,22 +40,24 @@ export async function requestJobChat(messages: JobChatMsg[], selected: string[],
   return {
     reply: typeof data.reply === "string" ? data.reply : "",
     recommend: asStringArray(data.recommend),
-    done: data.done === true
+    done: data.done === true,
+    choices: asStringArray(data.choices)
   };
 }
 
-export type MaterialChatResult = { reply: string; materials: string[]; done: boolean };
+export type MaterialChatResult = { reply: string; materials: string[]; done: boolean; choices: string[] };
 export async function requestMaterialChat(messages: JobChatMsg[], selected: string[], materials: string[] = []): Promise<MaterialChatResult> {
   const data = await postCareerChat("/career-launch/material-chat", { messages, selected, materials, locale: "ko" });
   return {
     reply: typeof data.reply === "string" ? data.reply : "",
     materials: asStringArray(data.materials),
-    done: data.done === true
+    done: data.done === true,
+    choices: asStringArray(data.choices)
   };
 }
 
 export type DiagnosisResult = { percent: number; level: string; strengths: string[]; improvements: string[] };
-export type DiagnosisChatResult = { reply: string; done: boolean; result: DiagnosisResult | null };
+export type DiagnosisChatResult = { reply: string; done: boolean; result: DiagnosisResult | null; choices: string[] };
 export async function requestDiagnosisChat(messages: JobChatMsg[]): Promise<DiagnosisChatResult> {
   const data = await postCareerChat("/career-launch/diagnosis-chat", { messages, locale: "ko" });
   const r = data.result as Record<string, unknown> | null | undefined;
@@ -68,5 +70,5 @@ export async function requestDiagnosisChat(messages: JobChatMsg[]): Promise<Diag
           improvements: asStringArray(r.improvements)
         }
       : null;
-  return { reply: typeof data.reply === "string" ? data.reply : "", done: data.done === true, result };
+  return { reply: typeof data.reply === "string" ? data.reply : "", done: data.done === true, result, choices: asStringArray(data.choices) };
 }

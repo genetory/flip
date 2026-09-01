@@ -83,6 +83,144 @@ import {
   type PositionTranslatableFields
 } from "./positions/position-translate";
 import { generateCommunityContent, seedForeignCandidates, deleteNonOperatorCommunityPosts } from "./community/autogen";
+import {
+  type CareerProfileData,
+  type ProfileAreaKey,
+  type ProfileUpdate,
+  type ResumeContentInput,
+  type CoverContentInput,
+  type ProgressInput,
+  PROFILE_AREA_KEYS,
+  isProfileAreaKey,
+  buildInitialCareerProfile,
+  normalizeProfile,
+  applyProfileUpdate,
+  careerProfileAsksNeeded,
+  buildCareerProfileContext,
+  mergeSourceFactsIntoProfile,
+  redactProfileForLog
+} from "./career-profile";
+import {
+  getJobFamily,
+  isJobFamilyKey,
+  resolveJobFamily,
+  ExperienceCardSchema,
+  TARGET_STATUSES,
+  TARGET_TYPES
+} from "./career-week1";
+import {
+  WEEK2_PROMPT_VERSIONS,
+  JD_SOURCE_TYPES,
+  JdStructuredSchema,
+  JdAnalysisSchema,
+  ResumeVersionContentSchema,
+  CoverVersionContentSchema,
+  CoverPromptSetSchema,
+  SourceLinkSchema,
+  ConsistencyResultSchema,
+  ResumeScoreSchema,
+  CoverScoreSchema,
+  JdMatchScoreSchema,
+  InterviewQuestionSetSchema,
+  resumeScoreTotal,
+  coverScoreTotal,
+  jdMatchTotal,
+  computeApplicationReadiness,
+  computeWeek2Completion,
+  countUnsupported,
+  countByStatus,
+  countCriticalUnresolved
+} from "./career-week2";
+import {
+  WEEK34_VERSIONS,
+  SCORING_VERSION,
+  SESSION_TYPES,
+  INTERVIEW_LIMITS,
+  AnswerEvaluationSchema,
+  WeaknessAnalysisSchema,
+  CorrectionCoachingSchema,
+  SimilarQuestionSchema,
+  Week3ReportSchema,
+  TrainingPlanSchema,
+  GrowthReportSchema,
+  answerEvalTotal,
+  weaknessLabel,
+  followUpNeeded,
+  evaluateCorrectionPass,
+  canTransitionCorrection,
+  computeGrowth,
+  computeWeek3Completion,
+  computeWeek4Completion,
+  CORRECTION_STATUSES,
+  ATTEMPT_TYPES,
+  type CorrectionStatus
+} from "./career-week34";
+import {
+  LEAGUE_SCORING_VERSION,
+  computeLeagueScore,
+  computeNextActions,
+  evaluateBadges,
+  BADGES,
+  computeInterventionPriority,
+  canTransitionIntervention,
+  rankBucket,
+  shouldHideRank,
+  computePercentile,
+  INTERVENTION_STATUSES,
+  COHORT_GOAL_TYPES,
+  type ScoreInput,
+  type InterventionSignals,
+  type BadgeState
+} from "./career-league";
+import {
+  computeStudentStatus,
+  resolveStudentStatus,
+  computeFunnel,
+  evaluateStopConditions,
+  computeSlaStatus,
+  computeReadiness,
+  sanitizeSurveyAnswers,
+  severityForCategory,
+  estimateLlmCost,
+  surveyResponseSchema,
+  qualitativeFeedbackSchema,
+  PILOT_KPI_TARGETS,
+  READINESS_CHECKLIST,
+  SURVEY_DEFINITIONS,
+  SURVEY_KEYS,
+  QUALITATIVE_CATEGORIES,
+  COST_FEATURES,
+  computeEngagement,
+  activityEventSchema,
+  type PilotStudentStatus,
+  type FunnelStudent,
+  type StopMetrics,
+  type SurveyKey,
+  type ActivityEvent
+} from "./career-pilot";
+import {
+  can,
+  canAny,
+  computeSeatUsage,
+  canAllocateSeat,
+  deriveLicenseStatus,
+  validateCsvRows,
+  shouldHideGroup,
+  orgAllowsNewActivation,
+  ORG_TYPES,
+  ORG_STATUSES,
+  ORG_ROLES,
+  LICENSE_STATUSES,
+  METRIC_VERSION,
+  CSV_MAX_ROWS,
+  type ActorRole,
+  type Permission,
+  type OrgStatus,
+  type LicenseStatus,
+  type SeatStudent,
+  type AuditAction
+} from "./career-org";
+import { computeNorthStar, computeKpiSet, mergeKpiTargets, kpiStatus, KPI_DEFINITIONS, KPI_METRICS_VERSION, KPI_MIN_SAMPLE, type NorthStarStudent, type KpiInput } from "./career-kpi";
 import { createHash } from "crypto";
 
 const app = express();
@@ -211,7 +349,13 @@ async function writeAuditLog(
   }
 }
 const port = Number(process.env.API_PORT ?? 4000);
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
+// Phase 15 — SDK 기본 timeout(10분)·retry를 명시적으로 제한: 멈춘 요청이 커넥션/비용을 오래 잡지 않게.
+// 값은 env로 조정 가능(기본 120s, 재시도 2). 정상 생성이 잘리지 않도록 넉넉히 두되 10분 hang은 차단.
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS ?? 120_000);
+const OPENAI_MAX_RETRIES = Number(process.env.OPENAI_MAX_RETRIES ?? 2);
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: OPENAI_TIMEOUT_MS, maxRetries: OPENAI_MAX_RETRIES })
+  : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
 const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
@@ -15409,6 +15553,7 @@ const TalentEventType = {
   RESUME_UPDATED: "resume_updated",
   MOCK_INTERVIEW_COMPLETED: "mock_interview_completed",
   TALENT_VERIFIED: "talent_verified",
+  CAREER_TARGET_JOB_CONFIRMED: "career_target_job_confirmed",
   CAREER_LAUNCH_COMPLETED: "career_launch_completed",
   POSITION_APPLIED: "position_applied",
   INTERVIEW_INVITED: "interview_invited",
@@ -15924,6 +16069,20 @@ const CAREER_DEPTH =
 const CAREER_SCOPE =
   "[중요 - 주제 유지] 이 스텝의 주제와 목적에만 집중해. 스텝과 무관한 주제(다른 스텝의 내용, 잡담, 일반 상식 등)로 새지 마. 필요 이상으로 깊게 파고들거나 곁가지 질문을 늘리지 말고, 이 스텝에 꼭 필요한 핵심만 효율적으로 확인한 뒤 진행해. 학생이 넘기고 싶어 하면(넘어가기·다음·그만·스킵 등) 더 캐묻지 말고 즉시 다음으로 넘어가. 스텝 범위를 벗어난 요청에는 '그 부분은 이 단계에서 다루지 않아요'라고 짧게 안내하고 현재 주제로 부드럽게 돌아와.";
 
+// 모든 코칭 챗 공통 — 질문을 '대답하기 쉽게'. 막막한 열린 질문 대신 구체 선택지·예시로 고르게.
+// (모의면접은 실전 난이도가 핵심이라 이 규칙을 적용하지 않는다.)
+const CAREER_EASY_ASK =
+  "[질문은 대답하기 쉽게] 학생이 막힘없이 답하도록, 추상적인 열린 질문('어떤 걸 잘하세요?', '가치관이 어떻게 되세요?', '경험을 말해보세요' 등)은 피하고 되도록 구체적인 선택지·예시를 제시해 '고르게' 물어봐(예: 'A와 B 중 어느 쪽이 더 가까워요?', '① … ② … ③ … 중에 끌리는 건?', '예를 들면 이런 것들이 있는데, 해당되는 게 있을까요?'). 학생이 한 단어·번호·짧은 문장으로도 답할 수 있어야 해. 더 구체적인 내용이 필요할 때도 캐묻는 대신 쉬운 예시를 곁들여(예: '대략이라도 몇 명 정도였어요? 5명? 20명?'). 학생이 '잘 모르겠어요/글쎄요'라고 하면 절대 다그치지 말고 더 쉬운 선택지로 바꿔 물어. 모든 답변은 학생이 바로 답할 수 있는 '쉬운 다음 한 걸음'으로 끝나야 해.";
+
+// 선택형 질문의 보기를 구조화 필드(choices)로도 내려, 화면이 탭 버튼으로 보여주게 한다.
+const CAREER_CHOICES_HINT =
+  "[선택지는 choices 배열에도] 선택형(고르기) 질문을 할 때는 그 보기들을 choices 배열에 그대로 담아(예: [\"사람과 소통·도움\", \"데이터·숫자 다루기\", \"만들기·창작\", \"기획·아이디어\"]). 화면이 이걸 '탭 버튼'으로 보여줘서 학생이 눌러 답할 수 있어. 규칙: (1) 번호·기호(①②, A/B)는 빼고 보기 '텍스트'만 담아. (2) reply 안에서도 같은 보기를 자연스럽게 언급하되 choices 와 내용이 일치해야 해. (3) 보기는 5개 이내, 각 12자 내외로 짧게. (4) 자유롭게 답하는 질문(선택형이 아닐 때)이면 choices 는 빈 배열 []. (5) '기타/직접 입력'은 굳이 넣지 마 — 학생은 언제든 직접 타이핑할 수 있어.";
+
+// LLM 이 준 choices(선택형 보기)를 UI 칩용으로 정제 — 문자열만, 공백 제거, 최대 5개.
+function pickChatChoices(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((c): c is string => typeof c === "string" && c.trim().length > 0).map((c) => c.trim()).slice(0, 5) : [];
+}
+
 // 각 스텝 대화의 시스템 프롬프트(본문). 운영자가 어드민에서 편집할 수 있고, 편집분은
 // AppSetting(career_prompt_<key>)에 저장된다. JSON 출력 형식 계약 라인은 각 핸들러가
 // 뒤에 자동으로 붙이므로 본문 편집으로 깨지지 않는다.
@@ -15946,6 +16105,7 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "1-1. " + CAREER_DEPTH + "\n" +
       "2. 답이 모호하면 한 번 더 구체화해 물어봐(예: '업무 회의도 가능한 수준인가요?'). 단정하지 말고 열린 질문으로.\n" +
       "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 파악한 뒤(단 D 경험·경력은 상세 내역까지 캐묻지 말고 이력서 단계와 겹치지 않게 가볍게) done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4주 프로그램에서 바로 실행할 항목 2~3개 — 예: '2주차에 이력서 완성하기', '3주차 모의면접으로 답변 다듬기').\n" +
+      "3-1. 학생이 '이제 됐어요/진단해줘/그만/충분해요'처럼 마치려 하면, 아직 6번을 안 채웠어도 더 묻지 말고 즉시 done=true 로 하고 지금까지 대화만으로 result 를 채워.\n" +
       "4. percent 산정 기준: A~F 준비도를 종합해 — 방향·서류·경험이 대체로 약하면 30~50, 방향은 있으나 서류·경험이 부족하면 50~70, 대부분 갖췄으면 70~90. 완벽한 경우는 드무니 100은 피하고, 점수가 낮아도 반드시 격려하는 톤으로.\n" +
       "5. strengths 는 직무 역량·경험·태도 등 근거 기반 강점 위주로. (외국인 유학생이면) 다국어·문화 이해 같은 강점도 함께 반영하되 한국인 학생에겐 억지로 넣지 마.\n" +
       "6. done 이 false 인 동안엔 result 를 null 로 두고 다음 질문을 reply 에 담아. 사실을 지어내지 말고 학생 말·프로필만 근거로.\n" +
@@ -15957,23 +16117,31 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 1,
     step: "스텝 2 · 관심 직무 3개 선정",
     default:
-      "너는 한국 취업을 준비하는 학생의 진로를 함께 찾는, 경험 많은 커리어 상담사야. 유료 부트캠프의 1:1 코치답게 밀도 있고 통찰 있게, 그러나 편안하게 대화해. 목표는 학생에게 잘 맞는 '관심 직무 3개'를 찾도록 이끄는 것.\n\n" +
-      "탐색 프레임(대화에 자연스럽게 녹여 하나씩 확인):\n" +
-      "- 흥미: 어떤 일·주제에 시간 가는 줄 모르는지\n" +
-      "- 강점: 잘한다고 느끼거나 칭찬받은 것, 전공·스킬로 할 수 있는 것\n" +
-      "- 가치·업무 성향: 협업 vs 혼자 몰입, 안정 vs 새로운 도전, 사람 상대 vs 데이터·제작\n" +
-      "- (외국인 유학생인 경우) 글로벌 강점: 다국어·문화 이해를 살릴 수 있는 방향인지\n\n" +
+      "너는 한국 취업을 준비하는 구직자의 진로를 함께 찾는, 경험 많은 커리어 상담사야. 편하고 쉽게 대화해. 목표는 잘 맞는 '관심 직무 3개'를 찾도록 이끄는 것.\n\n" +
+      "★ 가장 중요한 원칙 — 질문은 무조건 '대답하기 쉽게':\n" +
+      "- 추상적인 열린 질문 금지. ('어떤 일에 흥미가 있어요?', '가치관이 어떻게 되세요?', '뭘 잘하세요?' 같은 건 막막해서 답을 못 해.)\n" +
+      "- 대신 구체적인 선택지나 예시를 줘서 '고르게' 해. 예:\n" +
+      "  · '이 중에 그나마 끌리는 건? ① 사람과 소통·도움 주기 ② 데이터·숫자 다루기 ③ 뭔가 만들기·창작 ④ 기획·아이디어 짜기'\n" +
+      "  · '일할 때 어느 쪽이 편해요 — 팀으로 협업 vs 혼자 몰입?'\n" +
+      "  · '학교나 알바에서 그나마 덜 지루했던 순간이 있다면 언제였어요? (없으면 없다고 해도 돼요)'\n" +
+      "- 학생이 한 단어·번호·짧은 문장으로도 답할 수 있어야 해. 매 질문은 3초 안에 고를 수 있을 만큼 쉬워야 해.\n\n" +
+      "가볍게 살필 것(위처럼 쉬운 선택형으로만 물어, 순서 상관없이 대화 흐름대로):\n" +
+      "- 흥미: 어떤 활동이 그나마 덜 지루/시간 잘 갔는지 (구체 예시로 고르게)\n" +
+      "- 강점: 남들이 나한테 뭘 잘한다고 하는지, 전공·스킬로 할 수 있는 것\n" +
+      "- 성향: 사람 상대 vs 데이터·제작 / 협업 vs 혼자 / 안정 vs 도전 (택1로)\n" +
+      "- (외국인 유학생이면) 다국어·문화 강점 살릴 방향\n\n" +
       "규칙:\n" +
       "1. " + CAREER_TONE + " 한 번에 질문은 하나만. 학생 답을 먼저 짧게 공감·요약한 뒤 다음을 물어봐.\n" +
-      "1-1. " + CAREER_DEPTH + " 흥미·강점·가치·성향을 충분히 탐색하기 전에 성급히 결론내지 마(단, 학생이 원하면 언제든 고를 수 있게 추천은 계속 제공).\n" +
-      "2. 위 프레임을 순서대로가 아니라 대화 흐름에 맞게 파고들어. 이전 답을 반영해 점점 좁혀가고, 같은 걸 반복해 묻지 마.\n" +
-      "3. 처음부터 직무 리스트를 주지 마. 이게 이 대화에서 가장 중요해 — 먼저 흥미·강점·가치·성향을 대화로 충분히 파고들어 학생을 제대로 이해하는 게 우선이야. 보통 3~4번 이상 진지하게 주고받아 방향이 뚜렷해진 뒤부터 추천을 시작해. 그 전까지는 recommend 를 비우고(빈 배열) 질문을 더 해. 이해가 충분해지거나 학생이 '추천해줘'라고 하면, 그때 [후보 직무]에서 2~3개를 recommend 에 담고 reply 에 '이런 점 때문에 어울릴 것 같다'는 이유를 곁들여. role 값은 후보 목록과 글자까지 정확히 일치, 목록에 없는 직무는 만들지 마.\n" +
-      "4. 대화가 깊어질수록 추천을 더 정교하게 갱신해. 이미 고른 직무는 다시 추천하지 마.\n" +
-      "5. 학생이 추천이 별로거나 다른 걸 원하면, 이유를 가볍게 묻고 [이미 보여준 직무]와 겹치지 않는 다른 분야를 제안해. 후보에 정말 맞는 게 없으면 학생이 직접 원하는 직무를 말하도록 권하고 그 방향을 존중해.\n" +
-      "6. 학생이 3개를 고르면 done=true. 각 선택이 왜 좋은 방향인지 한두 줄로 짚어주며 따뜻하게 마무리해.\n" +
+      "2. 위 항목을 순서대로가 아니라 대화 흐름에 맞게. 이전 답을 반영해 좁혀가고, 같은 걸 반복해 묻지 마.\n" +
+      "3. 처음부터 긴 직무 리스트를 쏟지 마. 흥미·강점·성향을 '쉬운 문답'으로 충분히(최소 3~4턴 이상) 나눠 방향이 어느 정도 잡힌 뒤에 [후보 직무]에서 2~3개를 recommend 에 담고, reply 에 '이런 점 때문에 어울릴 것 같아요'라고 쉬운 말로 이유를 붙여. 질문 1~2번 만에 성급히 추천하고 끝내지 마 — 다만 학생이 '추천해줘/모르겠으니 추천부터'라고 하면 즉시 추천해. role 값은 후보 목록과 글자까지 정확히 일치, 목록에 없는 직무는 만들지 마.\n" +
+      "3-2. 추천을 준 뒤에도 대화를 끝내지 마. reply 는 '이 중 끌리는 게 있으면 골라봐요. 더 다른 방향도 보고 싶으면 말해줘요' 처럼 이어가는 말로 끝내고, 학생 반응에 따라 다른 후보를 더 추천하거나 이유를 더 설명해줘. 학생이 스스로 마칠 때까지 계속 함께해.\n" +
+      "3-1. [중요] 직무 추천·선택은 반드시 recommend(직무 카드)로만 해. choices(탭 보기)에는 절대 직무명을 넣지 마 — choices 는 흥미·성향 같은 '탐색 질문'의 보기 전용이야. 직무를 추천하는 턴에는 choices 를 빈 배열로 둬. (직무는 학생이 카드에서 최대 3개까지 직접 골라. 한 번에 하나만 고르는 게 아니야.)\n" +
+      "4. 대화가 이어질수록 추천을 갱신해. 이미 고른 직무는 다시 추천하지 마.\n" +
+      "5. 추천이 별로면 이유를 가볍게(선택형으로) 묻고 [이미 보여준 직무]와 겹치지 않는 다른 분야를 제안해. 후보에 정말 맞는 게 없으면 학생이 직접 원하는 직무를 말하도록 권해.\n" +
+      "6. 관심 직무는 최대 3개까지 고를 수 있어(꼭 3개일 필요 없이 1~2개여도 돼). 학생이 하나를 골랐다고 대화를 끝내지 마 — '마음에 들면 2~3개까지 더 골라도 되고, 이대로 충분하면 아래 선정 완료를 누르면 돼요'처럼 자연스럽게 이어가고, 원하면 다른 후보도 더 추천해. 학생이 3개를 다 채우거나 '이제 됐어요/이걸로 할게요'처럼 스스로 마치겠다고 할 때만 done=true 로 하고, 각 선택이 왜 좋은 방향인지 한두 줄로 짚어주며 따뜻하게 마무리해.\n" +
       "7. 사실이나 직무를 지어내지 마. [학생 프로필]로 아는 정보(전공·학교·스킬)는 다시 묻지 말고 반영해. 첫 인사에서 전공을 자연스럽게 언급하면 좋아.\n" +
-      "8. 처음이면(메시지 없음) 가볍게 인사하고 편안한 첫 질문을 해. recommend 는 비워. 진행 중이면 재인사 없이 이어가.\n" +
-      "9. [대화가 끊기지 않게] 학생이 '잘 모르겠어요/글쎄요/딱히 없어요'처럼 막막해하면 절대 다그치지 말고, 답하기 쉬운 형태로 바꿔 물어봐 — 선택형(예: 'A와 B 중 어느 쪽이 더 끌리세요?')이나 예시 몇 개를 제시해 고르게 해. 모든 reply 는 학생이 바로 답하거나 고를 수 있는 '다음 한 걸음'으로 끝나야 해. 학생이 무슨 말을 해야 할지 몰라 멈추는 일이 없게 해."
+      "8. 처음이면(메시지 없음) 가볍게 인사하고, '쉬운 선택형 첫 질문' 하나를 해(예: 위 흥미 4지선다). recommend 는 비워. 진행 중이면 재인사 없이 이어가.\n" +
+      "9. 모든 reply 는 학생이 바로 고르거나 답할 수 있는 '쉬운 다음 한 걸음'으로 끝나야 해. 학생이 '잘 모르겠어요/글쎄요'라고 하면 절대 다그치지 말고 더 쉬운 선택지·예시로 바꿔 물어. 막혀서 멈추는 일이 절대 없게 해."
   },
   material: {
     label: "선정 직무 깊이 알기",
@@ -16202,11 +16370,46 @@ async function isCareerEnrolled(userId: string): Promise<boolean> {
 }
 
 // Career Launch 학생 데이터 엔드포인트 게이트 — 운영자는 통과(학생 화면 체험), 그 외엔 등록 필수.
+// Phase 16(KI-8) — 주차 잠금 서버 강제. 경로에서 대상 주차를 판별한다(week1 은 항상 열림이라 제외).
+// interview/session 은 week3(최초)·week4(최종) 공용 → week3 열림을 기준으로 게이트(최종 면접은 week4라
+// 이미 week3 를 지난 상태이므로 통과).
+function weekForCareerPath(path: string): number | null {
+  if (path.startsWith("/career-launch/week2/")) return 2;
+  if (path.startsWith("/career-launch/week3/")) return 3;
+  if (path.startsWith("/career-launch/week4/")) return 4;
+  if (path.startsWith("/career-launch/interview/session")) return 3;
+  return null;
+}
+// 클라 weekUnlocked 와 동일 규칙(schedule 우선, 없으면 이전 주차 완료 폴백).
+// 폴백은 wN-1s4(주차 최종 스텝)로 판정 — 클라의 '전체 스텝 완료'보다 관대해, 정당한 사용자를 차단하지 않는다.
+async function isCareerWeekUnlocked(userId: string, week: number): Promise<boolean> {
+  if (week <= 1) return true;
+  const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+  const cohortId = enrollment?.cohortId ?? null;
+  if (cohortId) {
+    const entry = await prisma.careerCohortWeek.findFirst({ where: { cohortId, week } });
+    if (entry && (entry.forceOpen || entry.opensAt)) {
+      if (entry.forceOpen) return true;
+      return entry.opensAt ? entry.opensAt.getTime() <= Date.now() : false;
+    }
+  }
+  const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
+  const done = doneStepsOf((prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>);
+  return done.includes(`w${week - 1}s4`);
+}
+
 const requireCareerEnrollment: import("express").RequestHandler = async (req, res, next) => {
   try {
-    if (req.auth?.role === MemberRole.OPERATOR) return next();
-    if (req.auth?.userId && (await isCareerEnrolled(req.auth.userId))) return next();
-    return res.status(403).json({ ok: false, code: "not_enrolled", message: "Career Launch 기수에 등록되어야 이용할 수 있어요. 운영자에게 문의해 주세요." });
+    if (req.auth?.role === MemberRole.OPERATOR) return next(); // 운영자는 학생 기능 슈퍼유저 — 게이트 제외
+    if (!(req.auth?.userId && (await isCareerEnrolled(req.auth.userId)))) {
+      return res.status(403).json({ ok: false, code: "not_enrolled", message: "Career Launch 기수에 등록되어야 이용할 수 있어요. 운영자에게 문의해 주세요." });
+    }
+    // 주차 잠금 서버 강제 — 잠긴 주차의 쓰기(POST/PATCH/PUT/DELETE)만 차단. 읽기(GET)는 허용(잠금 안내 표시용).
+    const wk = weekForCareerPath(req.path);
+    if (wk && req.method !== "GET" && !(await isCareerWeekUnlocked(req.auth!.userId, wk))) {
+      return res.status(403).json({ ok: false, code: "week_locked", message: "아직 잠긴 주차예요. 이전 주차를 마치거나 오픈일이 되면 진행할 수 있어요." });
+    }
+    return next();
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -16233,7 +16436,17 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
     if (edu?.major) parts.push(`전공: ${edu.major}`);
     if (profile?.skills?.length) parts.push(`보유 스킬: ${profile.skills.slice(0, 10).join(", ")}`);
     if (profile?.selfIntroduction?.trim()) parts.push(`자기소개: ${profile.selfIntroduction.trim().slice(0, 240)}`);
-    return parts.join("\n");
+    const base = parts.join("\n");
+    // 공통 Career Profile — 모든 AI 기능(진단·직무·이력서·자소서·모의면접·채점)이 하나의 정보를 공유한다.
+    // 컨텍스트에 "확정 정보(재질문 금지)·추론·없는 정보·거부한 해석(재제안 금지)"이 포함돼, 이전에 답한 걸 다시 묻지 않는다.
+    let profileCtx = "";
+    try {
+      const live = await getLiveCareerProfile(userId);
+      profileCtx = buildCareerProfileContext(live, { maxChars: 1600 });
+    } catch {
+      /* 프로필 컨텍스트 실패는 무시(기존 요약만 사용) */
+    }
+    return profileCtx ? `${base ? base + "\n\n" : ""}${profileCtx}` : base;
   } catch {
     return "";
   }
@@ -16242,6 +16455,96 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
 // Career Launch AI 대화 공용 호출 — 고품질 모델(gpt-5.x, Responses API + json_schema)로
 // 먼저 시도하고, 실패 시 gpt-4o-mini(chat.completions, json_object)로 폴백해 항상 파싱된
 // 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
+// 전담 코치 진행 원칙(Phase 3) — 대화형 챗(스키마에 reply 필드)에만 주입한다.
+const CAREER_COACH_DIRECTIVES = [
+  "[코치 진행 원칙 — 반드시 지켜]",
+  "- 너는 사용자를 기억하는 전담 커리어 코치야. 봇이 아니라 사람 코치처럼 따뜻하고 다정한 존댓말로 대화해.",
+  "- 위 '확정된 정보'는 이미 아는 사실이니 절대 다시 묻지 마. '아직 없는 정보'와 '충돌' 위주로만 진행해.",
+  "- '거부한 해석'은 같은 형태로 다시 제안하지 마.",
+  "- 질문만 던지지 말고, 먼저 네 해석·추천·초안을 제시한 뒤 짧게 확인을 받아.",
+  "- 질문은 한 번에 하나만. 여러 개를 몰아 묻지 마.",
+  "- 사용자가 '잘 모르겠어요 / 건너뛰기 / AI가 추천해줘' 라고 하면, 캐묻지 말고 네가 합리적인 초안을 제안하고 다음으로 넘어가."
+].join("\n");
+
+// 최근 상담 요약을 불러와 코치가 맥락을 이어가게 한다(기능 구분 포함).
+async function loadRecentConsults(userId: string, take: number): Promise<string> {
+  try {
+    const evs = await prisma.careerProfileEvent.findMany({
+      where: { studentUserId: userId, action: "consult" },
+      orderBy: { createdAt: "desc" },
+      take
+    });
+    return evs
+      .map((e) => {
+        const a = (e.after ?? null) as { reply?: string } | null;
+        const r = (a?.reply ?? "").trim();
+        return r ? `- (${e.source ?? "상담"}) ${r.slice(0, 200)}` : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  } catch {
+    return "";
+  }
+}
+
+// 상담 종료(done) 시 발견/판단을 요약 이력으로 남긴다(값 요약만, 민감정보 콘솔 미출력).
+async function recordConsultSummary(userId: string, feature: string, result: Record<string, unknown>): Promise<void> {
+  try {
+    const reply = typeof result.reply === "string" ? result.reply.slice(0, 500) : "";
+    await prisma.careerProfileEvent.create({
+      data: { studentUserId: userId, area: "*", action: "consult", source: feature, after: { reply, done: true } as object }
+    });
+  } catch {
+    /* 요약 저장 실패는 상담 흐름을 막지 않는다 */
+  }
+}
+
+// KST 날짜키(YYYY-MM-DD) — 비용 일별 집계용.
+function dateKeyKst(): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, "0")}-${String(kst.getUTCDate()).padStart(2, "0")}`;
+}
+// userId → cohortId 캐시(파일럿 규모 소수 → 메모리 캐시로 반복 조회 방지).
+const pilotCohortCache = new Map<string, string | null>();
+async function resolvePilotCohortId(userId?: string): Promise<string | null> {
+  if (!userId) return null;
+  if (pilotCohortCache.has(userId)) return pilotCohortCache.get(userId)!;
+  const enr = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, select: { cohortId: true }, orderBy: { createdAt: "desc" } }).catch(() => null);
+  const cid = enr?.cohortId ?? null;
+  pilotCohortCache.set(userId, cid);
+  return cid;
+}
+// LLM 비용 일별 집계 기록(fire-and-forget — 실패해도 핵심 흐름 방해 금지). 원문 미저장.
+// cohortId 미상은 "" 로 저장(널 다중행 방지). feature 는 ctx.feature 우선, 없으면 schemaName.
+// promptVersion 은 프롬프트 개선 전후 오류/비용 비교용(없으면 "").
+async function recordCareerAiCost(p: { userId?: string; feature: string; model: string; promptVersion?: string; inputTokens: number; outputTokens: number; retried: number; failed: boolean }): Promise<void> {
+  try {
+    const cohortId = (await resolvePilotCohortId(p.userId)) ?? "";
+    const dateKey = dateKeyKst();
+    const promptVersion = p.promptVersion ?? "";
+    const est = estimateLlmCost(p.model, p.inputTokens, p.outputTokens);
+    await prisma.careerAiCostDaily.upsert({
+      where: { cohortId_feature_dateKey_model_promptVersion: { cohortId, feature: p.feature, dateKey, model: p.model, promptVersion } },
+      create: { cohortId, feature: p.feature, dateKey, model: p.model, promptVersion, calls: p.failed ? 0 : 1, inputTokens: BigInt(p.inputTokens), outputTokens: BigInt(p.outputTokens), retries: p.retried, failures: p.failed ? 1 : 0, estCostUsd: est },
+      update: { calls: { increment: p.failed ? 0 : 1 }, inputTokens: { increment: BigInt(p.inputTokens) }, outputTokens: { increment: BigInt(p.outputTokens) }, retries: { increment: p.retried }, failures: { increment: p.failed ? 1 : 0 }, estCostUsd: { increment: est } }
+    });
+  } catch {
+    /* 비용 기록 실패 무시 */
+  }
+}
+
+// Phase 15 — LLM 단일 비행(single-flight) + 즉시 결과 재사용으로 중복 생성/청구를 서버에서 방지한다.
+// 동일 (userId, feature, 입력)의 동시 요청은 1회 LLM 호출로 합치고, 완료 직후 짧은 TTL 동안 같은 입력엔
+// 캐시 결과를 돌려준다(더블클릭·즉시 재시도 방어). TTL 이후에는 정상적으로 다시 호출된다(영구 차단 아님).
+// 한계: 인메모리·per-instance라 다중 인스턴스 간 중복은 막지 못한다(rate limit과 동일 — 문서에 명시).
+const LLM_DEDUP_TTL_MS = Number(process.env.LLM_DEDUP_TTL_MS ?? 10_000);
+const llmInFlight = new Map<string, Promise<Record<string, unknown>>>();
+const llmRecentResults = new Map<string, { value: Record<string, unknown>; at: number }>();
+setInterval(() => {
+  const cutoff = Date.now() - LLM_DEDUP_TTL_MS;
+  for (const [k, v] of llmRecentResults) if (v.at < cutoff) llmRecentResults.delete(k);
+}, 30_000).unref?.();
+
 async function careerChatComplete(
   system: string,
   user: string,
@@ -16250,63 +16553,116 @@ async function careerChatComplete(
   // strict=true 면 스키마 키를 정확히 강제한다(중첩 객체 키가 중요할 때).
   // 단, strict 모드는 maxItems 등 일부 키워드를 불허하므로 해당 키워드가 없는
   // 스키마에만 켤 것.
-  strict = false
+  strict = false,
+  // ctx 를 주면(대화형 챗) 코치 진행 원칙 주입 + 이전 상담 요약 로드 + 종료 시 요약 저장.
+  // promptVersion 은 비용/오류 집계에 프롬프트 버전 차원을 남긴다(선택).
+  ctx?: { userId: string; feature: string; promptVersion?: string }
 ): Promise<Record<string, unknown>> {
   if (!openai) throw new Error("openai_unavailable");
-  try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        { role: "system", content: system },
-        { role: "user", content: user }
-      ],
-      text: { format: { type: "json_schema", name: schemaName, schema, ...(strict ? { strict: true } : {}) } }
-    });
-    return JSON.parse(response.output_text ?? "{}") as Record<string, unknown>;
-  } catch (err) {
-    console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
-    const completion = await openai.chat.completions.create({
-      model: openaiTranslationModel,
-      temperature: 0.6,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user }
-      ]
-    });
-    return JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>;
+  // 대화형(스키마에 reply 필드)인 경우에만 코치 원칙을 붙인다(채점·생성 프롬프트는 제외).
+  const isConversational = Boolean((schema as { properties?: Record<string, unknown> })?.properties?.reply);
+  let sys = system;
+  if (isConversational) {
+    sys += "\n\n" + CAREER_COACH_DIRECTIVES;
+    if (ctx) {
+      const prior = await loadRecentConsults(ctx.userId, 2);
+      if (prior) sys += "\n\n[이전 상담 요약 — 이어서 진행]\n" + prior;
+    }
   }
+  const afterComplete = async (parsed: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    if (ctx && isConversational && parsed?.done === true) await recordConsultSummary(ctx.userId, ctx.feature, parsed);
+    return parsed;
+  };
+  // 비용 집계 키 — ctx.feature 우선, 없으면 schemaName(모든 호출 커버).
+  const costFeature = ctx?.feature ?? schemaName;
+  // 실제 LLM 호출 본체. 단일 비행 래퍼가 이 함수를 최대 1회만 실행하도록 보장한다.
+  const run = async (): Promise<Record<string, unknown>> => {
+    let retried = 0;
+    try {
+      try {
+        const response = await openai!.responses.create({
+          model: openaiMatchingModel,
+          input: [
+            { role: "system", content: sys },
+            { role: "user", content: user }
+          ],
+          text: { format: { type: "json_schema", name: schemaName, schema, ...(strict ? { strict: true } : {}) } }
+        });
+        const u = (response as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
+        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: u?.input_tokens ?? 0, outputTokens: u?.output_tokens ?? 0, retried: 0, failed: false });
+        return await afterComplete(JSON.parse(response.output_text ?? "{}") as Record<string, unknown>);
+      } catch (err) {
+        console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
+        retried = 1;
+        const completion = await openai!.chat.completions.create({
+          model: openaiTranslationModel,
+          temperature: 0.6,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: user }
+          ]
+        });
+        const u = (completion as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
+        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiTranslationModel, promptVersion: ctx?.promptVersion, inputTokens: u?.prompt_tokens ?? 0, outputTokens: u?.completion_tokens ?? 0, retried: 1, failed: false });
+        return await afterComplete(JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>);
+      }
+    } catch (fatal) {
+      // 두 경로 모두 실패 — 실패 카운트만 기록하고 상위로 던진다.
+      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: 0, outputTokens: 0, retried, failed: true });
+      throw fatal;
+    }
+  };
+
+  // 단일 비행 — ctx가 있을 때만(사용자·기능 식별 가능). 키 = userId + feature + 입력 해시.
+  const dedupKey = ctx ? `${ctx.userId} ${costFeature} ${simpleHash(sys + " " + user)}` : null;
+  if (!dedupKey) return run();
+  const cached = llmRecentResults.get(dedupKey);
+  if (cached && Date.now() - cached.at < LLM_DEDUP_TTL_MS) return cached.value; // 즉시 재시도 → 캐시 결과 재사용(재청구 없음)
+  const inflight = llmInFlight.get(dedupKey);
+  if (inflight) return inflight; // 동시 중복 → 진행 중 호출에 합류
+  const p = run();
+  // 성공 시에만 짧게 캐시(실패는 캐시 안 함 → 안전한 재시도 허용). 항상 in-flight 해제.
+  p.then(
+    (val) => llmRecentResults.set(dedupKey, { value: val, at: Date.now() }),
+    () => {}
+  ).finally(() => llmInFlight.delete(dedupKey));
+  llmInFlight.set(dedupKey, p);
+  return p;
 }
 
 const JOB_CHAT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "recommend", "done"],
+  required: ["reply", "recommend", "done", "choices"],
   properties: {
     reply: { type: "string" },
     recommend: { type: "array", items: { type: "string" }, maxItems: 3 },
-    done: { type: "boolean" }
+    done: { type: "boolean" },
+    choices: { type: "array", items: { type: "string" }, maxItems: 5 }
   }
 } as const;
 
 const MATERIAL_CHAT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "materials", "done"],
+  required: ["reply", "materials", "done", "choices"],
   properties: {
     reply: { type: "string" },
     materials: { type: "array", items: { type: "string" } },
-    done: { type: "boolean" }
+    done: { type: "boolean" },
+    choices: { type: "array", items: { type: "string" }, maxItems: 5 }
   }
 } as const;
 
 const DIAGNOSIS_CHAT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "done", "result"],
+  required: ["reply", "done", "result", "choices"],
   properties: {
     reply: { type: "string" },
     done: { type: "boolean" },
+    choices: { type: "array", items: { type: "string" }, maxItems: 5 },
     result: {
       type: ["object", "null"],
       additionalProperties: false,
@@ -16362,7 +16718,8 @@ app.post(
     try {
       const systemPrompt =
         (await getCareerPrompt("job")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean }' +
+        CAREER_CHOICES_HINT + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "recommend": string[], "done": boolean, "choices": string[] }' +
         aiLangDirective(locale);
 
       // 학생 프로필(전공·학교·스킬·자기소개)을 초기 컨텍스트로 넣어 개인화한다.
@@ -16404,10 +16761,11 @@ app.post(
         (exclude.length ? `[이미 보여준 직무] ${exclude.join(", ")}\n\n` : "") +
         `[후보 직무]\n${poolText}`;
 
-      const parsedJson = (await careerChatComplete(systemPrompt, userPrompt, "job_chat", JOB_CHAT_SCHEMA)) as {
+      const parsedJson = (await careerChatComplete(systemPrompt, userPrompt, "job_chat", JOB_CHAT_SCHEMA, false, { userId: req.auth!.userId, feature: "job_chat" })) as {
         reply?: unknown;
         recommend?: unknown;
         done?: unknown;
+        choices?: unknown;
       };
       const reply = typeof parsedJson.reply === "string" ? parsedJson.reply.trim() : "";
       let recommend = Array.isArray(parsedJson.recommend)
@@ -16443,7 +16801,9 @@ app.post(
       }
       const done = parsedJson.done === true || selected.length >= 3;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
-      return res.json({ ok: true, reply, recommend, done });
+      // 추천 직무가 있을 땐 직무 카드로 선택하므로 일반 choices 칩은 숨긴다(중복 방지).
+      const choices = recommend.length ? [] : pickChatChoices(parsedJson.choices);
+      return res.json({ ok: true, reply, recommend, done, choices });
     } catch (err) {
       console.error("[career-launch/job-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
@@ -16472,8 +16832,9 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("material")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean }' +
+        (await getCareerPrompt("material")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" +
+        CAREER_CHOICES_HINT + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "materials": string[], "done": boolean, "choices": string[] }' +
         aiLangDirective(locale);
       // 재입장 시 대화 기록이 비어도 이미 정리한 정보로 이어가도록 — 같은 내용을 다시 묻지 않게.
       const continuing = messages.length === 0 && gathered.length > 0;
@@ -16487,10 +16848,11 @@ app.post(
         `학생이 고른 관심 직무(이 순서대로 하나씩 다뤄):\n${selected.length ? selected.map((s, i) => `${i + 1}. ${s}`).join("\n") : "(미정)"}\n\n` +
         (gathered.length ? `[이미 정리한 정보](이 내용은 다시 묻지 말고 이어서 보완):\n${gathered.map((m, i) => `${i + 1}. ${m}`).join("\n")}\n\n` : "") +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "material_chat", MATERIAL_CHAT_SCHEMA, false, { userId: req.auth!.userId, feature: "material_chat" })) as {
         reply?: unknown;
         materials?: unknown;
         done?: unknown;
+        choices?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const materials = Array.isArray(pj.materials)
@@ -16498,7 +16860,7 @@ app.post(
         : [];
       const done = pj.done === true;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
-      return res.json({ ok: true, reply, materials, done });
+      return res.json({ ok: true, reply, materials, done, choices: pickChatChoices(pj.choices) });
     } catch (err) {
       console.error("[career-launch/material-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
@@ -16525,17 +16887,19 @@ app.post(
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
       const systemPrompt =
-        (await getCareerPrompt("diagnosis")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
+        (await getCareerPrompt("diagnosis")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" +
+        CAREER_CHOICES_HINT + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "choices": string[], "result": { "percent": number, "level": string, "strengths": string[], "improvements": string[] } | null }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 인사하고 첫 질문을 해줘)";
       const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "diagnosis_chat", DIAGNOSIS_CHAT_SCHEMA)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "diagnosis_chat", DIAGNOSIS_CHAT_SCHEMA, false, { userId: req.auth!.userId, feature: "diagnosis_chat" })) as {
         reply?: unknown;
         done?: unknown;
         result?: unknown;
+        choices?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
@@ -16553,7 +16917,8 @@ app.post(
       }
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
       if (result) emitTalentEvent(req.auth!.userId, TalentEventType.CAREER_DIAGNOSIS_COMPLETED, { entityType: "diagnosis", metadata: { percent: result.percent } });
-      return res.json({ ok: true, reply, done, result });
+      // 진단 결과가 나온 최종 턴(done)엔 선택 칩을 숨긴다.
+      return res.json({ ok: true, reply, done, result, choices: done ? [] : pickChatChoices(pj.choices) });
     } catch (err) {
       console.error("[career-launch/diagnosis-chat] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
@@ -16567,10 +16932,11 @@ app.post(
 const EXPERIENCE_MINING_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["reply", "done", "extracted"],
+  required: ["reply", "done", "extracted", "choices"],
   properties: {
     reply: { type: "string" },
     done: { type: "boolean" },
+    choices: { type: "array", items: { type: "string" }, maxItems: 5 },
     extracted: {
       type: "object",
       additionalProperties: false,
@@ -16616,26 +16982,30 @@ app.post(
         .join(", ");
 
       const systemPrompt =
-        "너는 신입·대학생 전문 Career Coach다. 목표는 직무를 성급히 추천하는 게 아니라, 사용자의 경험 하나를 충분히 파악해 Experience Bank 로 구조화하는 것이다.\n" +
+        "너는 구직자 전문 Career Coach다. 목표는 사용자의 경험을 '가볍게' 훑어 무엇을 했고 거기서 어떤 강점이 보이는지 빠르게 파악하는 것이다. 상세한 행동·성과·수치는 2주차 이력서 작성에서 다루므로 여기선 깊게 캐지 않는다.\n" +
+        "대상은 학생만이 아니다 — 직장 경력·인턴 경험이 있는 사람도 많다. '대학생활'로 좁히지 말고, 지금까지 살아온 모든 경험(직장 경력·인턴·프로젝트·학교·활동 등)을 폭넓게 다룬다.\n" +
         "대화 원칙:\n" +
-        "1. 한 번에 최대 2개의 질문만 한다.\n" +
-        "2. 추상적인 답변이 나오면 구체적인 사례·행동·수치를 질문한다.\n" +
-        "3. 사용자가 '경험이 없다'고 해도 그대로 받아들이지 않는다. 학교 프로젝트·아르바이트·동아리·개인 프로젝트·취미·SNS·봉사·군대 경험에서도 역량을 찾아낸다.\n" +
+        "1. 한 번에 질문은 1개만. 짧고 가볍게.\n" +
+        "2. 수치·성과를 캐묻지 않는다. '무슨 경험인지 + 그때 네 역할 + 뭘 잘했다고 느꼈는지' 정도만 자연스럽게 파악한다. 답이 추상적이어도 한 번 더 파고들 뿐, 집요하게 물고 늘어지지 않는다.\n" +
+        "3. 사용자가 '경험이 없다'고 해도 그대로 받아들이지 않는다. 직장 경력·인턴·프로젝트·아르바이트·학교 활동·동아리·취미·SNS·봉사·군대 등 어떤 경험에서도 강점을 찾아낸다.\n" +
         "4. 답변하지 않은 내용을 임의로 만들어내지 않는다.\n" +
-        "5. 하나의 경험을 충분히(보통 4~6번 주고받으며) 파고든 뒤에만 done=true 로 하고 extracted 를 채운다. 그 전에는 done=false, extracted 는 빈 문자열/빈 배열.\n" +
-        "6. extracted: experience(무엇), period(기간), role(역할), actions(한 일 배열), results(성과 배열 — 확인된 것만), skills(사용 기술), competencies(역량, 예: 커뮤니케이션·문제해결·운영). 존댓말, 따뜻한 톤.\n" +
+        "5. 한 경험을 1~2번만 주고받아 핵심(무엇·역할·강점)이 잡히면 바로 done=true 로 하고 extracted 를 채운다. 4번 이상 캐묻지 않는다. 상세는 이력서 단계 몫이다.\n" +
+        "5-1. 학생이 '이제 됐어요/정리해줘/그만/충분해요'처럼 마치려 하면, 더 묻지 말고 즉시 done=true 로 하고 지금까지 내용만으로 extracted 를 채운다.\n" +
+        "6. extracted: experience(무엇), period(대략, 모르면 빈 문자열), role(역할), actions(간단히·자연스럽게 나온 것만, 없으면 빈 배열), results(확인된 것만, 없으면 빈 배열 — 무리해서 캐지 말 것), skills(사용 기술), competencies(역량, 예: 커뮤니케이션·문제해결·운영). 존댓말, 따뜻하고 가벼운 톤.\n" +
         (bankSummary ? `이미 정리된 경험: ${bankSummary}. 새로운 경험을 다룬다.\n` : "") +
-        CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "extracted": { "experience": string, "period": string, "role": string, "actions": string[], "results": string[], "skills": string[], "competencies": string[] } }' +
+        CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" +
+        CAREER_CHOICES_HINT + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "choices": string[], "extracted": { "experience": string, "period": string, "role": string, "actions": string[], "results": string[], "skills": string[], "competencies": string[] } }' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
-        : "(아직 대화 없음 — 인사하고, 대학생활 중 가장 많은 시간을 쏟은 활동을 하나 물어봐)";
+        : "(아직 대화 없음 — 인사하고, 지금까지 해온 일이나 활동 중 가장 몰입했거나 많은 시간을 쏟은 경험을 하나 물어봐. 직장 경력이 있으면 그 경력부터 물어도 좋다. '대학생활'로 한정하지 말 것)";
       const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "experience_mining", EXPERIENCE_MINING_SCHEMA)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "experience_mining", EXPERIENCE_MINING_SCHEMA, false, { userId: req.auth!.userId, feature: "experience_mining" })) as {
         reply?: unknown;
         done?: unknown;
         extracted?: Record<string, unknown>;
+        choices?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
       const done = pj.done === true;
@@ -16666,9 +17036,116 @@ app.post(
           update: { state: mergedState as object }
         });
       }
-      return res.json({ ok: true, reply, done, extracted: saved, experienceBank });
+      return res.json({ ok: true, reply, done, extracted: saved, experienceBank, choices: done ? [] : pickChatChoices(pj.choices) });
     } catch (err) {
       console.error("[career-launch/experience-mining] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to continue chat" });
+    }
+  }
+);
+
+// ── Week 1: 강점 스토리 — 경험을 면접·자소서용 짧은 '강점 이야기'로. state.strengthStories 에 append. ──
+const STRENGTH_STORY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["reply", "done", "choices", "extracted"],
+  properties: {
+    reply: { type: "string" },
+    done: { type: "boolean" },
+    choices: { type: "array", items: { type: "string" }, maxItems: 5 },
+    extracted: {
+      type: "object",
+      additionalProperties: false,
+      required: ["title", "strength", "situation", "action", "result"],
+      properties: {
+        title: { type: "string" },
+        strength: { type: "string" },
+        situation: { type: "string" },
+        action: { type: "string" },
+        result: { type: "string" }
+      }
+    }
+  }
+} as const;
+const strengthStorySchema = z.object({
+  messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().max(4000) })).max(60),
+  locale: z.string().max(12).optional()
+});
+app.post(
+  "/career-launch/strength-story",
+  authenticate,
+  requireCareerEnrollment,
+  rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "career-strength-story", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_strength_story", hasChatUserTurn),
+  async (req, res) => {
+    const parsed = strengthStorySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const { messages, locale } = parsed.data;
+    const uid = req.auth!.userId;
+    try {
+      const [profileSummary, progRow] = await Promise.all([
+        buildCandidateProfileSummary(uid),
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } })
+      ]);
+      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+      const bank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as unknown[]) : [];
+      const bankSummary = bank
+        .map((e) => (e && typeof e === "object" ? (e as { experience?: string }).experience : null))
+        .filter(Boolean)
+        .join(", ");
+      const stories = Array.isArray(progState.strengthStories) ? (progState.strengthStories as unknown[]) : [];
+      const doneTitles = stories
+        .map((s) => (s && typeof s === "object" ? (s as { title?: string }).title : null))
+        .filter(Boolean)
+        .join(", ");
+
+      const systemPrompt =
+        "너는 신입·구직자 전문 Career Coach다. 목표는 사용자의 경험에서 '강점이 드러나는 짧은 이야기(스토리)' 하나를 함께 만드는 것이다. 이 스토리는 나중에 면접 답변과 자기소개서의 씨앗이 된다.\n" +
+        "스토리 한 개 = [상황(어떤 상황) → 행동(내가 구체적으로 한 것) → 결과(그래서 어떻게 됐는지)] 흐름 + 그 안에서 드러난 '강점' 한 가지.\n" +
+        "대화 원칙:\n" +
+        "1. 한 번에 질문은 1개만. 짧고 쉽게.\n" +
+        "2. 정리된 경험이 있으면 그걸 소재로 '그때 어떤 상황이었어요?', '구체적으로 뭘 했어요?', '결과가 어땠어요?'를 가볍게 물어 이야기로 만들어. 수치는 있으면 '대략'이라도 담고, 없으면 없는 대로.\n" +
+        "3. 화려하게 지어내지 마. 사용자가 말한 사실만으로 구성해.\n" +
+        "4. 상황·행동·결과·강점이 어느 정도 잡히면(보통 2~3번 주고받으면) done=true 로 하고 extracted 를 채워. 그 전에는 done=false, extracted 는 빈 문자열.\n" +
+        "4-1. 학생이 '이제 됐어요/정리해줘/그만/충분해요'처럼 마치려 하면, 더 묻지 말고 즉시 done=true 로 하고 지금까지 내용만으로 extracted 를 채워.\n" +
+        "5. extracted: title(스토리 한 줄 요약, 예: '카페 알바에서 대기줄을 줄인 경험'), strength(드러난 강점 하나, 예: '문제해결'), situation, action, result. 존댓말, 따뜻하고 가벼운 톤.\n" +
+        (bankSummary ? `정리된 경험(소재로 활용): ${bankSummary}.\n` : "") +
+        (doneTitles ? `이미 만든 스토리: ${doneTitles}. 새로운 스토리를 다룬다.\n` : "") +
+        CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + CAREER_CHOICES_HINT + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "choices": string[], "extracted": { "title": string, "strength": string, "situation": string, "action": string, "result": string } }' +
+        aiLangDirective(locale);
+      const convo = messages.length
+        ? messages.map((m) => `${m.role === "bot" ? "코치" : "학생"}: ${m.text}`).join("\n")
+        : "(아직 대화 없음 — 인사하고, 정리된 경험이 있으면 그중 하나를 소재로 '그때 어떤 상황이었는지' 가볍게 물어봐. 없으면 강점이 드러났던 순간을 하나 물어봐)";
+      const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `지금까지 대화:\n${convo}`;
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "strength_story", STRENGTH_STORY_SCHEMA, false, { userId: uid, feature: "strength_story" })) as {
+        reply?: unknown;
+        done?: unknown;
+        extracted?: Record<string, unknown>;
+        choices?: unknown;
+      };
+      const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
+      const done = pj.done === true;
+      if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
+      const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+      const ex = (pj.extracted ?? {}) as Record<string, unknown>;
+      const title = str(ex.title);
+      let saved: Record<string, unknown> | null = null;
+      let strengthStories = stories;
+      if (done && title) {
+        saved = { id: randomBytes(8).toString("hex"), title, strength: str(ex.strength), situation: str(ex.situation), action: str(ex.action), result: str(ex.result) };
+        strengthStories = [...stories, saved];
+        const mergedState = { ...progState, strengthStories };
+        await prisma.careerLaunchProgress.upsert({
+          where: { studentUserId: uid },
+          create: { studentUserId: uid, state: mergedState as object },
+          update: { state: mergedState as object }
+        });
+      }
+      return res.json({ ok: true, reply, done, extracted: saved, strengthStories, choices: done ? [] : pickChatChoices(pj.choices) });
+    } catch (err) {
+      console.error("[career-launch/strength-story] failed", err);
       return res.status(500).json({ ok: false, message: "failed to continue chat" });
     }
   }
@@ -17042,7 +17519,7 @@ app.post(
           ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${RESUME_FOCUS_LABEL[focus]}' 항목만 다룬다. 이 항목에 대해서만 질문하고 답을 받는다. 다른 섹션(그 외 이력서 항목)은 절대 묻지도, 채우지도, 언급하지도 마라. 이 항목을 충분히 채웠으면 done:true 로 마무리하고 다른 섹션으로 넘어가지 마라. data 에는 이 섹션에 해당하는 필드만 채우고 나머지 필드는 비워 둔다.`
           : "";
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective + focusHardScope + "\n\n" +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -17059,7 +17536,7 @@ app.post(
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_chat", RESUME_DATA_SCHEMA, true)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "resume_chat", RESUME_DATA_SCHEMA, true, { userId: req.auth!.userId, feature: "resume_chat" })) as {
         reply?: unknown;
         data?: unknown;
         done?: unknown;
@@ -17078,22 +17555,18 @@ app.post(
       });
       // 저장 즉시 실제 aply.global Resume 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerResumeToResume(req.auth!.userId);
-      // 경력(exp)·활동(expOther) 은 '없음'도 정상 — 대화가 done 이면 데이터가 비어도 해당 스텝을
-      // 완료 처리(doneSteps)해, 회사 경력이 없는(또는 활동이 없는) 학생도 W2 를 막힘없이 진행한다.
-      if (done && (focus === "exp" || focus === "expOther")) {
-        const stepId = focus === "exp" ? "w2-exp" : "w2-exp-other";
+      // 경력·활동·학력·스킬·어학은 '없음'도 정상 — 대화가 done 이면 데이터가 비어도 해당 스텝을
+      // 완료 처리(doneSteps)해, 해당 항목이 없는 학생도 W2 를 막힘없이 진행한다(기본정보만 실제 내용 필요).
+      const OPTIONAL_STEP: Record<string, string> = { edu: "w2-edu", exp: "w2-exp", expOther: "w2-exp-other", skill: "w2-skill", lang: "w2-lang" };
+      if (done && focus && OPTIONAL_STEP[focus]) {
+        const stepId = OPTIONAL_STEP[focus];
         try {
-          const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId }, select: { state: true } });
-          const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
-          const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
-          if (!doneSteps.includes(stepId)) {
-            st.doneSteps = [...doneSteps, stepId];
-            await prisma.careerLaunchProgress.upsert({
-              where: { studentUserId: req.auth!.userId },
-              create: { studentUserId: req.auth!.userId, state: st as object },
-              update: { state: st as object }
-            });
-          }
+          // 자동저장(PATCH /progress)과 동시 실행될 수 있으므로 직렬화 병합으로 doneSteps 를 추가한다(덮어쓰기 방지).
+          await updateCareerProgressState(req.auth!.userId, (prev) => {
+            const doneSteps = Array.isArray(prev.doneSteps) ? (prev.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+            if (!doneSteps.includes(stepId)) prev.doneSteps = [...doneSteps, stepId];
+            return prev;
+          });
         } catch (e) {
           console.error("[career-launch] mark exp step done failed", e);
         }
@@ -17117,21 +17590,16 @@ app.get("/career-launch/resume-data", authenticate, requireCareerEnrollment, asy
 });
 
 // 진행 스텝(doneSteps)에 여러 스텝을 멱등 추가/제거. 편집형 빌더 저장 시 섹션 완료 반영.
+// Phase 15 — 자동저장·AI저장과 동시 실행될 수 있어 직렬화 병합 헬퍼로 처리(lost-update 방지).
 async function setCareerStepsDone(userId: string, add: string[], remove: string[] = []): Promise<void> {
   try {
-    const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
-    const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
-    const cur = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
-    const set = new Set(cur);
-    for (const s of add) set.add(s);
-    for (const s of remove) set.delete(s);
-    const next = [...set];
-    if (next.length === cur.length && next.every((s) => cur.includes(s))) return; // 변경 없음
-    st.doneSteps = next;
-    await prisma.careerLaunchProgress.upsert({
-      where: { studentUserId: userId },
-      create: { studentUserId: userId, state: st as object },
-      update: { state: st as object }
+    await updateCareerProgressState(userId, (prev) => {
+      const cur = Array.isArray(prev.doneSteps) ? (prev.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+      const set = new Set(cur);
+      for (const s of add) set.add(s);
+      for (const s of remove) set.delete(s);
+      prev.doneSteps = [...set];
+      return prev;
     });
   } catch (e) {
     console.error("[career-launch] setCareerStepsDone failed", e);
@@ -17216,13 +17684,12 @@ app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, 
     if (isExpScope) {
       const stepId = scope === "exp" ? "w2-exp" : "w2-exp-other";
       try {
-        const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId }, select: { state: true } });
-        const st = (prog?.state && typeof prog.state === "object" ? { ...(prog.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
-        const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
-        if (doneSteps.includes(stepId)) {
-          st.doneSteps = doneSteps.filter((s) => s !== stepId);
-          await prisma.careerLaunchProgress.update({ where: { studentUserId: req.auth!.userId }, data: { state: st as object } });
-        }
+        // 자동저장과 동시 실행 가능 — 직렬화 병합으로 doneStep 을 제거한다(덮어쓰기 방지).
+        await updateCareerProgressState(req.auth!.userId, (prev) => {
+          const doneSteps = Array.isArray(prev.doneSteps) ? (prev.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+          if (doneSteps.includes(stepId)) prev.doneSteps = doneSteps.filter((s) => s !== stepId);
+          return prev;
+        });
       } catch (e) {
         console.error("[career-launch] reset doneSteps failed", e);
       }
@@ -17378,7 +17845,7 @@ app.post(
         ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${focusLabel}' 문항만 다룬다. 이 문항에 대해서만 질문하고 답을 받아 완성한다. 다른 문항(지원 동기·성장 과정·성격의 장단점·입사 후 포부 중 이 문항 외)은 절대 묻지도, 작성하지도, 언급하지도 마라. 이 문항을 충분히 채웠으면 done:true 로 마무리한다. data.items 에는 question 이 '${focusLabel}' 인 항목만 채운다.`
         : "";
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + focusDirective + focusHardScope + "\n\n" +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -17392,7 +17859,7 @@ app.post(
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
         `[현재까지 데이터]\n${JSON.stringify(data ?? {})}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_chat", COVER_DATA_SCHEMA, true)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_chat", COVER_DATA_SCHEMA, true, { userId: req.auth!.userId, feature: "cover_chat" })) as {
         reply?: unknown;
         data?: unknown;
         done?: unknown;
@@ -17491,8 +17958,16 @@ app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, a
 // GET /career-launch/progress — 저장된 진행 상태 조회.
 app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   try {
-    const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
-    return res.json({ ok: true, state: row?.state ?? {} });
+    const userId = req.auth!.userId;
+    const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } });
+    const state = (row?.state && typeof row.state === "object" ? { ...(row.state as Record<string, unknown>) } : {}) as Record<string, unknown>;
+    // targetJob 폴백 — state 에 없으면 '확정된 목표 직무'(careerTargetJob)에서 파생해 채운다.
+    // 대시보드의 1주차 완료 판정(confirmed careerTargetJob)과 클라 스텝 완료('관심 직무 선정')를 항상 일치시킨다.
+    if (!state.targetJob) {
+      const tgt = await prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" }, select: { jobKey: true, reason: true } }).catch(() => null);
+      if (tgt) state.targetJob = (tgt.reason && tgt.reason.trim()) || getJobFamily(tgt.jobKey)?.label || tgt.jobKey;
+    }
+    return res.json({ ok: true, state });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -17617,40 +18092,3433 @@ async function maybeAutoIssueCareerCertificate(userId: string, state: Record<str
   }
 }
 
+// Phase 15 — CareerLaunchProgress.state 안전 병합.
+// 여러 경로(자동저장 PATCH·AI 채팅의 doneSteps·생성 완료)가 같은 state blob 을 read-merge-write 하므로
+// Serializable 트랜잭션으로 직렬화하고, Postgres 직렬화/쓰기 충돌(P2034/40001/deadlock) 시 제한 재시도한다.
+// 재시도 때 최신 prev 를 다시 읽어 mutate 하므로 이전 동시 변경을 덮어쓰지 않는다(lost-update 방지).
+const doneStepsOf = (state: Record<string, unknown>): string[] =>
+  Array.isArray(state.doneSteps) ? (state.doneSteps as unknown[]).filter((x): x is string => typeof x === "string") : [];
+
+// Phase 16(KI-1) — 미션/주차 완료를 자체 DB(CareerActivityEvent)에 적재해 파일럿 funnel 분석을 가능케 한다.
+// 전이(새로 추가된 doneStep) 시점에만 호출되므로 중복 없이 1회. fire-and-forget(실패해도 저장 흐름 무영향).
+async function recordProgressMilestones(userId: string, newlySteps: string[]): Promise<void> {
+  try {
+    const rows = newlySteps.flatMap((step) => {
+      const wm = /^w([1-4])/.exec(step); // 대부분 스텝 id 는 w{N}... 형식
+      const week = wm ? Number(wm[1]) : null;
+      const events = [{ studentUserId: userId, cohortId: null as string | null, kind: "mission_complete", week, step }];
+      if (/^w[1-4]s4$/.test(step)) events.push({ studentUserId: userId, cohortId: null, kind: "week_complete", week, step }); // wNs4 = 해당 주차 완료
+      return events;
+    });
+    if (!rows.length) return;
+    const cohortId = await resolvePilotCohortId(userId);
+    await prisma.careerActivityEvent.createMany({ data: rows.map((r) => ({ ...r, cohortId })) });
+  } catch (e) {
+    console.error("[career-launch] milestone activity emit failed", e);
+  }
+}
+
+async function updateCareerProgressState(
+  userId: string,
+  mutate: (prev: Record<string, unknown>) => Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  let newlyDone: string[] = [];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.careerLaunchProgress.findUnique({ where: { studentUserId: userId } });
+          const prev = (existing?.state && typeof existing.state === "object" ? existing.state : {}) as Record<string, unknown>;
+          const prevDone = new Set(doneStepsOf(prev));
+          const next = mutate({ ...prev });
+          // 이 트랜잭션에서 새로 완료된 스텝(전이). Serializable + 재시도라 최종 성공분 기준으로만 남는다.
+          newlyDone = doneStepsOf(next).filter((s) => !prevDone.has(s));
+          await tx.careerLaunchProgress.upsert({
+            where: { studentUserId: userId },
+            create: { studentUserId: userId, state: next as object },
+            update: { state: next as object }
+          });
+          return next;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+      // 커밋 후 마일스톤 이벤트 적재(fire-and-forget). 전이 시점에만 실행되어 중복 없음.
+      if (newlyDone.length) void recordProgressMilestones(userId, newlyDone);
+      return result;
+    } catch (txErr) {
+      const code = (txErr as { code?: string })?.code;
+      const serialization = code === "P2034" || /40001|40P01|could not serialize|deadlock/i.test((txErr as Error)?.message ?? "");
+      if (serialization && attempt < 3) continue;
+      throw txErr;
+    }
+  }
+}
+
 app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = progressPatchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
-    const existing = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: req.auth!.userId } });
-    const prev = (existing?.state && typeof existing.state === "object" ? existing.state : {}) as Record<string, unknown>;
-    const merged = { ...prev, ...parsed.data };
-
-    // 진단 이력 — 성과 리포트의 '사전 → 사후 향상도'는 여기서만 만들어진다.
-    // 클라이언트가 값을 지어내지 못하도록 서버가 직접 기록한다:
-    //   diagnosisInitial : 최초 1회만 기록(이후 덮어쓰지 않음)
-    //   diagnosisFinal   : 수료 재진단(body.finalDiagnosis === true)일 때만 기록
-    const incoming = (parsed.data as Record<string, unknown>).diagnosis;
-    if (incoming && typeof incoming === "object") {
-      const stamped = { ...(incoming as Record<string, unknown>), at: new Date().toISOString() };
-      if (!prev.diagnosisInitial) {
-        // 이 기능 이전에 이미 진단한 학생은 diagnosisInitial 이 없다.
-        // 그때 들어오는 진단(=수료 재진단일 수도 있다)을 사전 진단으로 기록하면
-        // 기존 점수가 baseline 에서 사라져 향상도가 0이 된다.
-        // 따라서 기존 진단이 있으면 그것을 사전 진단으로 승격하고,
-        // 아예 처음 진단하는 학생만 이번 값을 사전 진단으로 삼는다.
-        merged.diagnosisInitial = prev.diagnosis ?? stamped;
+    const uid = req.auth!.userId;
+    // 동시 저장(자동저장·AI저장·멀티탭) lost-update 방지 — 직렬화 병합 헬퍼 사용.
+    const merged = await updateCareerProgressState(uid, (prev) => {
+      const m = { ...prev, ...parsed.data } as Record<string, unknown>;
+      // 진단 이력 — 성과 리포트의 '사전 → 사후 향상도'는 여기서만 만들어진다.
+      //   diagnosisInitial : 최초 1회만 기록(이후 덮어쓰지 않음)
+      //   diagnosisFinal   : 수료 재진단(body.finalDiagnosis === true)일 때만 기록
+      const incoming = (parsed.data as Record<string, unknown>).diagnosis;
+      if (incoming && typeof incoming === "object") {
+        const stamped = { ...(incoming as Record<string, unknown>), at: new Date().toISOString() };
+        if (!prev.diagnosisInitial) m.diagnosisInitial = prev.diagnosis ?? stamped;
+        if ((req.body as Record<string, unknown>).finalDiagnosis === true) m.diagnosisFinal = stamped;
       }
-      if ((req.body as Record<string, unknown>).finalDiagnosis === true) merged.diagnosisFinal = stamped;
-    }
-    delete (merged as Record<string, unknown>).finalDiagnosis; // 플래그는 상태에 남기지 않는다
-    await prisma.careerLaunchProgress.upsert({
-      where: { studentUserId: req.auth!.userId },
-      create: { studentUserId: req.auth!.userId, state: merged as object },
-      update: { state: merged as object }
+      delete m.finalDiagnosis; // 플래그는 상태에 남기지 않는다
+      return m;
     });
-    // 완주 조건 충족 시 수료증 자동 발급(중복은 내부에서 방지).
-    void maybeAutoIssueCareerCertificate(req.auth!.userId, merged as Record<string, unknown>);
+    // 완주 조건 충족 시 수료증 자동 발급(중복은 내부에서 방지). 트랜잭션 밖 fire-and-forget.
+    void maybeAutoIssueCareerCertificate(uid, merged);
     return res.json({ ok: true, state: merged });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// 공통 Career Profile(Phase 2) — repository + API + AI 컨텍스트 빌더.
+// 순수 로직은 ./career-profile 에, DB 접근/엔드포인트는 여기에.
+// ══════════════════════════════════════════════════════════════════════
+function cpNow(): string {
+  return new Date().toISOString();
+}
+
+// 기존 소스(이력서·자소서·진행상태)를 읽어 초기 병합 입력으로 정규화.
+async function loadCareerProfileSources(userId: string) {
+  const [resumeRow, coverRow, progRow] = await Promise.all([
+    prisma.careerResumeData.findUnique({ where: { studentUserId: userId } }),
+    prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId } }),
+    prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } })
+  ]);
+  const resume = (resumeRow?.content && typeof resumeRow.content === "object" ? resumeRow.content : {}) as ResumeContentInput;
+  const cover = (coverRow?.content && typeof coverRow.content === "object" ? coverRow.content : {}) as CoverContentInput;
+  const state = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+  const progress: ProgressInput = {
+    diagnosis: state.diagnosis as ProgressInput["diagnosis"],
+    selectedJobs: state.selectedJobs as string[] | undefined,
+    materials: state.materials as string[] | undefined,
+    experienceBank: state.experienceBank as Array<Record<string, unknown>> | undefined
+  };
+  return { resume, cover, progress };
+}
+
+// 최초 접근 시 기존 데이터를 1회 병합해 Career Profile 을 만든다(지연 병합). 원본은 그대로 둔다.
+async function getOrCreateCareerProfile(userId: string): Promise<{ data: CareerProfileData; revision: number; mergedAt: Date | null }> {
+  const existing = await prisma.careerProfile.findUnique({ where: { studentUserId: userId } });
+  if (existing) return { data: normalizeProfile(existing.data, cpNow()), revision: existing.revision, mergedAt: existing.mergedAt };
+  const now = cpNow();
+  const sources = await loadCareerProfileSources(userId);
+  const data = buildInitialCareerProfile(sources, now);
+  try {
+    const created = await prisma.careerProfile.create({ data: { studentUserId: userId, data: data as object, revision: 1, mergedAt: new Date() } });
+    // 초기 병합은 값(PII) 대신 영역별 상태 요약만 이력에 남긴다.
+    await prisma.careerProfileEvent
+      .create({ data: { studentUserId: userId, area: "*", action: "init_merge", source: "resume+cover+progress", after: redactProfileForLog(data) as object } })
+      .catch(() => null);
+    return { data, revision: created.revision, mergedAt: created.mergedAt };
+  } catch {
+    // 경합으로 이미 생성됐으면 재조회.
+    const again = await prisma.careerProfile.findUnique({ where: { studentUserId: userId } });
+    if (again) return { data: normalizeProfile(again.data, now), revision: again.revision, mergedAt: again.mergedAt };
+    return { data, revision: 1, mergedAt: null };
+  }
+}
+
+// 낙관적 동시성 저장 — expectedRevision 이 주어지면 일치할 때만 저장(충돌 시 conflict).
+async function saveCareerProfileData(userId: string, data: CareerProfileData, expectedRevision?: number): Promise<{ revision: number } | { conflict: true; revision: number }> {
+  const cur = await prisma.careerProfile.findUnique({ where: { studentUserId: userId }, select: { revision: true } });
+  if (!cur) {
+    const created = await prisma.careerProfile.create({ data: { studentUserId: userId, data: data as object, revision: 1, mergedAt: new Date() } });
+    return { revision: created.revision };
+  }
+  if (expectedRevision != null && expectedRevision !== cur.revision) return { conflict: true, revision: cur.revision };
+  const updated = await prisma.careerProfile.update({ where: { studentUserId: userId }, data: { data: data as object, revision: cur.revision + 1 } });
+  return { revision: updated.revision };
+}
+
+// 영역+값 단위 업데이트를 적용하고 이력을 남긴다(클라이언트/서버 공용). 전체 덮어쓰기 불가.
+async function applyCareerProfileUpdate(
+  userId: string,
+  up: ProfileUpdate,
+  expectedRevision?: number
+): Promise<{ ok: true; data: CareerProfileData; revision: number } | { ok: false; conflict: true; revision: number }> {
+  const now = cpNow();
+  const { data } = await getOrCreateCareerProfile(userId);
+  const { data: next, event } = applyProfileUpdate(data, up, now);
+  const saved = await saveCareerProfileData(userId, next, expectedRevision);
+  if ("conflict" in saved) return { ok: false, conflict: true, revision: saved.revision };
+  if (event.action !== "noop") {
+    await prisma.careerProfileEvent
+      .create({
+        data: {
+          studentUserId: userId,
+          area: event.area,
+          itemKey: event.itemKey ?? null,
+          action: event.action,
+          status: event.status ?? null,
+          source: event.source ?? up.source ?? null,
+          before: (event.before ?? null) as object,
+          after: (event.after ?? null) as object
+        }
+      })
+      .catch(() => null);
+  }
+  return { ok: true, data: next, revision: saved.revision };
+}
+
+// 저장된 프로필에 최신 소스 사실을 병합해 '살아있는' 프로필을 돌려준다(사용자 결정 보존).
+// 초기 병합 이후 이력서·자소서·진단이 갱신돼도 프로필이 낡지 않게 한다. 변경분은 저장(실패 무시).
+async function getLiveCareerProfile(userId: string): Promise<CareerProfileData> {
+  const { data } = await getOrCreateCareerProfile(userId);
+  try {
+    const sources = await loadCareerProfileSources(userId);
+    const fresh = buildInitialCareerProfile(sources, cpNow());
+    const merged = mergeSourceFactsIntoProfile(data, fresh, cpNow());
+    if (merged.changed) await prisma.careerProfile.update({ where: { studentUserId: userId }, data: { data: merged.data as object } }).catch(() => null);
+    return merged.data;
+  } catch {
+    return data;
+  }
+}
+
+// AI 엔드포인트가 프롬프트에 주입할 Career Profile 요약(전체가 아니라 토큰 절약 요약).
+async function getCareerProfileContext(userId: string, opts?: { areas?: ProfileAreaKey[]; maxChars?: number }): Promise<string> {
+  try {
+    const live = await getLiveCareerProfile(userId);
+    return buildCareerProfileContext(live, opts);
+  } catch {
+    return "";
+  }
+}
+void getCareerProfileContext;
+
+// GET /career-launch/profile — 내 Career Profile(최초 접근 시 기존 데이터 지연 병합).
+app.get("/career-launch/profile", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const { data, revision, mergedAt } = await getOrCreateCareerProfile(req.auth!.userId);
+    const asks = careerProfileAsksNeeded(data, PROFILE_AREA_KEYS);
+    return res.json({ ok: true, profile: data, revision, mergedAt, asks: asks.ask, confirmedAreas: asks.confirmedAreas });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// PATCH /career-launch/profile — 영역+값 단위 업데이트(확인/거부/충돌해결). 전체 덮어쓰기 불가.
+const careerProfilePatchSchema = z.object({
+  area: z.string(),
+  value: z.unknown().optional(),
+  intent: z.enum(["user", "reject", "resolve"]),
+  source: z.string().max(40).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  itemKey: z.string().max(120).optional(),
+  revision: z.number().int().optional()
+});
+app.patch("/career-launch/profile", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = careerProfilePatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const { area, value, intent, source, confidence, itemKey, revision } = parsed.data;
+  if (!isProfileAreaKey(area)) return res.status(400).json({ ok: false, message: "unknown area" });
+  try {
+    const up: ProfileUpdate = { area, value, intent, source: source ?? "user", confidence, itemKey };
+    const result = await applyCareerProfileUpdate(req.auth!.userId, up, revision);
+    if (!result.ok) return res.status(409).json({ ok: false, code: "revision_conflict", revision: result.revision });
+    return res.json({ ok: true, profile: result.data, revision: result.revision });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /career-launch/profile/history — 변경 이력(최근 50건).
+app.get("/career-launch/profile/history", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const events = await prisma.careerProfileEvent.findMany({ where: { studentUserId: req.auth!.userId }, orderBy: { createdAt: "desc" }, take: 50 });
+    return res.json({ ok: true, events });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Week 1 '나를 이해하고 직무 탐험'(Phase 4) — 대표경험·추천직무·직무체험·결정.
+// 순수 로직/템플릿/zod 는 ./career-week1 에. LLM 은 careerChatComplete(구조화 출력).
+// ══════════════════════════════════════════════════════════════════════
+
+// 학생의 cohortId(활성 우선). 신규 Week1 레코드에 귀속.
+async function week1CohortId(userId: string): Promise<string | null> {
+  const enr = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
+  return enr?.cohortId ?? null;
+}
+
+
+// ── 대표 경험 CRUD ──
+app.get("/career-launch/experiences", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const items = await prisma.careerExperience.findMany({ where: { studentUserId: req.auth!.userId }, orderBy: { updatedAt: "desc" } });
+    return res.json({ ok: true, experiences: items });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/career-launch/experiences", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "w1-exp-create" }), async (req, res) => {
+  const parsed = ExperienceCardSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const d = parsed.data;
+    const created = await prisma.careerExperience.create({
+      data: {
+        studentUserId: userId,
+        cohortId,
+        title: d.title,
+        category: d.category || null,
+        structuredData: d.structuredData as object,
+        skills: d.skills,
+        strengths: d.strengths,
+        relatedJobFamilies: d.relatedJobFamilies,
+        source: d.source || "experience_mining",
+        confidence: d.confidence ?? null,
+        userConfirmed: d.userConfirmed,
+        confirmedAt: d.userConfirmed ? new Date() : null
+      }
+    });
+    // 확인된 경험은 Career Profile 대표경험에 inferred→confirmed 로 반영(중복 저장 최소화·프로필 공유).
+    if (d.userConfirmed) {
+      await applyCareerProfileUpdate(userId, { area: "signatureExperiences", value: { title: d.title, skills: d.skills }, intent: "user", source: "week1", itemKey: `exp-${created.id}` }).catch(() => null);
+    }
+    return res.json({ ok: true, experience: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.patch("/career-launch/experiences/:id", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = ExperienceCardSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const existing = await prisma.careerExperience.findFirst({ where: { id: String(req.params.id), studentUserId: userId } });
+    if (!existing) return res.status(404).json({ ok: false, message: "not found" });
+    const d = parsed.data;
+    const confirming = d.userConfirmed === true && !existing.userConfirmed;
+    const updated = await prisma.careerExperience.update({
+      where: { id: existing.id },
+      data: {
+        ...(d.title != null ? { title: d.title } : {}),
+        ...(d.category != null ? { category: d.category } : {}),
+        ...(d.structuredData != null ? { structuredData: d.structuredData as object } : {}),
+        ...(d.skills != null ? { skills: d.skills } : {}),
+        ...(d.strengths != null ? { strengths: d.strengths } : {}),
+        ...(d.relatedJobFamilies != null ? { relatedJobFamilies: d.relatedJobFamilies } : {}),
+        ...(d.userConfirmed != null ? { userConfirmed: d.userConfirmed } : {}),
+        ...(confirming ? { confirmedAt: new Date() } : {})
+      }
+    });
+    if (confirming) {
+      await applyCareerProfileUpdate(userId, { area: "signatureExperiences", value: { title: updated.title, skills: updated.skills }, intent: "user", source: "week1", itemKey: `exp-${updated.id}` }).catch(() => null);
+    }
+    return res.json({ ok: true, experience: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.delete("/career-launch/experiences/:id", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const r = await prisma.careerExperience.deleteMany({ where: { id: String(req.params.id), studentUserId: req.auth!.userId } });
+    if (r.count === 0) return res.status(404).json({ ok: false, message: "not found" });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+
+// ── 목표 직무 확정(사용자 확인 후 confirmed) ──
+const w1TargetSchema = z.object({
+  jobKey: z.string().max(40),
+  targetType: z.enum(TARGET_TYPES).optional().default("primary"),
+  status: z.enum(TARGET_STATUSES).optional().default("confirmed"),
+  reason: z.string().max(600).optional()
+});
+app.post("/career-launch/week1/target", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = w1TargetSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const jobKey = isJobFamilyKey(parsed.data.jobKey) ? parsed.data.jobKey : resolveJobFamily(parsed.data.jobKey);
+  if (!jobKey) return res.status(400).json({ ok: false, message: "unknown job family" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const d = parsed.data;
+    const confirmed = d.status === "confirmed";
+    const target = await prisma.careerTargetJob.upsert({
+      where: { studentUserId_jobKey: { studentUserId: userId, jobKey } },
+      create: { studentUserId: userId, cohortId, jobKey, targetType: d.targetType, status: d.status, reason: d.reason ?? null, confirmedAt: confirmed ? new Date() : null },
+      update: { targetType: d.targetType, status: d.status, reason: d.reason ?? null, confirmedAt: confirmed ? new Date() : null }
+    });
+    // 1순위 확정 → Career Profile 목표 직무에 사용자 확정으로 반영(전 AI 공유).
+    if (confirmed && d.targetType === "primary") {
+      // 단일 목표 보장 — 다른 직무군이 이전에 1순위로 확정돼 있으면 강등(week2 근거가 유일하게 되도록).
+      await prisma.careerTargetJob.updateMany({ where: { studentUserId: userId, targetType: "primary", status: "confirmed", NOT: { jobKey } }, data: { status: "exploring", confirmedAt: null } }).catch(() => null);
+      const fam = getJobFamily(jobKey);
+      const label = fam?.label ?? jobKey;
+      // 사용자가 실제로 고른 구체 직무명(reason 에 담김, 예: "백엔드 개발자")을 우선 사용 — 직무군 라벨("소프트웨어 개발")로
+      // 뭉개지 않게. 프로필 목표·selectedJobs 동기화·표시 모두 이 구체명을 쓴다(없으면 직무군 라벨 폴백).
+      const displayRole = d.reason?.trim() || label;
+      await applyCareerProfileUpdate(userId, { area: "targetRole", value: displayRole, intent: "user", source: "week1" }).catch(() => null);
+      emitTalentEvent(userId, TalentEventType.CAREER_TARGET_JOB_CONFIRMED, { entityType: "job_family", entityId: jobKey });
+      // 트랙 연결 — 확정 목표를 selectedJobs 에도 반영. 하류(자료조사·결과물·운영 '직무 선택' 지표)와
+      // JobsChat 트랙이 같은 진실을 보게 해, 깊은 흐름만 밟은 학생의 목표가 다음 단계로 이어지도록.
+      try {
+        const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
+        const st = (progRow?.state && typeof progRow.state === "object" ? (progRow.state as Record<string, unknown>) : {}) as Record<string, unknown>;
+        const cur = Array.isArray(st.selectedJobs) ? (st.selectedJobs as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0) : [];
+        // 확정 목표를 selectedJobs 에 포함(앞세움) + state.targetJob 에 기록 → WeekStepper 가 추가 조회 없이 '목표 1순위'를 표시.
+        const next = cur.includes(displayRole) ? cur : [displayRole, ...cur].slice(0, 3);
+        const merged = { ...st, selectedJobs: next, targetJob: displayRole };
+        await prisma.careerLaunchProgress.upsert({ where: { studentUserId: userId }, create: { studentUserId: userId, state: merged as object }, update: { state: merged as object } });
+      } catch {
+        /* selectedJobs·targetJob 동기화 실패는 확정 자체를 막지 않음 */
+      }
+    }
+    return res.json({ ok: true, target });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+
+// ══════════════════════════════════════════════════════════════════════
+// Week 2 '실제 지원 가능한 서류 완성'(Phase 5) — 공고 분석·이력서/자소서 버전·근거·일관성·점수·예상질문.
+// 순수 로직/점수가중치/zod 는 ./career-week2 에. LLM 은 careerChatComplete(구조화 출력).
+// ══════════════════════════════════════════════════════════════════════
+
+// LLM 압축 컨텍스트(전체 프로필 X). 필요한 정보만 선별.
+async function buildWeek2LlmContext(userId: string, opts?: { includeResume?: boolean; includeCover?: boolean; jd?: unknown }): Promise<string> {
+  const parts: string[] = [];
+  try {
+    const p = await getCareerProfileContext(userId, { maxChars: 900 });
+    if (p) parts.push(p);
+  } catch {
+    /* ignore */
+  }
+  try {
+    const exps = await prisma.careerExperience.findMany({ where: { studentUserId: userId, userConfirmed: true }, orderBy: { updatedAt: "desc" }, take: 6 });
+    if (exps.length) parts.push("[확인된 대표 경험]\n" + exps.map((e) => `- (id:${e.id}) ${e.title}${e.skills?.length ? ` [스킬:${e.skills.slice(0, 5).join(",")}]` : ""}`).join("\n"));
+  } catch {
+    /* ignore */
+  }
+  const target = await prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" } }).catch(() => null);
+  if (target) parts.push(`[목표 직무] ${getJobFamily(target.jobKey)?.label ?? target.jobKey}`);
+  if (opts?.includeResume) {
+    const r = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId } }).catch(() => null);
+    if (r?.content) parts.push("[현재 이력서 데이터]\n" + JSON.stringify(r.content).slice(0, 1400));
+  }
+  if (opts?.includeCover) {
+    const c = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId } }).catch(() => null);
+    if (c?.content) parts.push("[현재 자기소개서]\n" + JSON.stringify(c.content).slice(0, 1200));
+  }
+  if (opts?.jd) parts.push("[기준 공고 구조화]\n" + JSON.stringify(opts.jd).slice(0, 1600));
+  return parts.join("\n\n");
+}
+
+const NO_FABRICATION = "중요: 사실을 추가하지 마. 성과 수치·사용하지 않은 기술·맡지 않은 역할을 지어내지 마. 근거가 부족한 문장은 status를 unsupported 로 표시하고, 확인이 필요하면 needsConfirmation=true 로 둬. 공고에 없는 기업문화/인재상을 만들어내지 마.";
+
+// LLM json_schema
+const JD_ANALYSIS_SCHEMA = { type: "object", additionalProperties: false, required: ["coreResponsibilities", "requiredCompetencies", "preferredCompetencies", "emphasizedKeywords", "expectedExperience", "evaluationCriteria", "matched", "missing", "needsCheck", "emphasizeInResume", "emphasizeInCover", "avoidOverclaiming", "likelyInterview"], properties: { coreResponsibilities: { type: "array", items: { type: "string" } }, requiredCompetencies: { type: "array", items: { type: "string" } }, preferredCompetencies: { type: "array", items: { type: "string" } }, emphasizedKeywords: { type: "array", items: { type: "string" } }, expectedExperience: { type: "array", items: { type: "string" } }, evaluationCriteria: { type: "array", items: { type: "string" } }, matched: { type: "array", items: { type: "object", additionalProperties: false, required: ["requirement", "evidence", "sourceExperienceId"], properties: { requirement: { type: "string" }, evidence: { type: "string" }, sourceExperienceId: { type: ["string", "null"] } } } }, missing: { type: "array", items: { type: "string" } }, needsCheck: { type: "array", items: { type: "string" } }, emphasizeInResume: { type: "array", items: { type: "string" } }, emphasizeInCover: { type: "array", items: { type: "string" } }, avoidOverclaiming: { type: "array", items: { type: "string" } }, likelyInterview: { type: "array", items: { type: "string" } } } } as const;
+const JD_STRUCTURE_SCHEMA = { type: "object", additionalProperties: false, required: ["companyName", "jobTitle", "jobDescription", "responsibilities", "requirements", "preferredQualifications", "requiredSkills", "employmentType", "coverLetterPrompts"], properties: { companyName: { type: "string" }, jobTitle: { type: "string" }, jobDescription: { type: "string" }, responsibilities: { type: "array", items: { type: "string" } }, requirements: { type: "array", items: { type: "string" } }, preferredQualifications: { type: "array", items: { type: "string" } }, requiredSkills: { type: "array", items: { type: "string" } }, employmentType: { type: "string" }, coverLetterPrompts: { type: "array", items: { type: "string" } } } } as const;
+const SOURCE_LINK_JSON = { type: "object", additionalProperties: false, required: ["id", "field", "text", "sourceExperienceId", "sourceProfileField", "confidence", "needsConfirmation", "status"], properties: { id: { type: "string" }, field: { type: "string" }, text: { type: "string" }, sourceExperienceId: { type: ["string", "null"] }, sourceProfileField: { type: ["string", "null"] }, confidence: { type: "number" }, needsConfirmation: { type: "boolean" }, status: { type: "string", enum: ["verified", "needs_confirmation", "unsupported", "conflicted", "user_edited", "rejected"] } } } as const;
+const RESUME_DRAFT_SCHEMA = { type: "object", additionalProperties: false, required: ["content", "sourceLinks"], properties: { content: { type: "object", additionalProperties: false, required: ["headline", "targetRole", "coreCompetencies", "experiences", "skills"], properties: { headline: { type: "string" }, targetRole: { type: "string" }, coreCompetencies: { type: "array", items: { type: "string" } }, experiences: { type: "array", items: { type: "object", additionalProperties: true, properties: { title: { type: "string" }, org: { type: "string" }, period: { type: "string" }, bullets: { type: "array", items: { type: "string" } } } } }, skills: { type: "array", items: { type: "string" } } } }, sourceLinks: { type: "array", items: SOURCE_LINK_JSON } } } as const;
+const COVER_PROMPTS_SCHEMA = { type: "object", additionalProperties: false, required: ["prompts"], properties: { prompts: { type: "array", items: { type: "object", additionalProperties: false, required: ["prompt", "intent", "fromJd", "recommendedExperience"], properties: { prompt: { type: "string" }, intent: { type: "string" }, fromJd: { type: "boolean" }, recommendedExperience: { type: "string" } } } } } } as const;
+const COVER_DRAFT_SCHEMA = { type: "object", additionalProperties: false, required: ["items", "sourceLinks"], properties: { items: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "prompt", "answer", "intent"], properties: { id: { type: "string" }, prompt: { type: "string" }, answer: { type: "string" }, intent: { type: "string" } } } }, sourceLinks: { type: "array", items: SOURCE_LINK_JSON } } } as const;
+const CONSISTENCY_SCHEMA = { type: "object", additionalProperties: false, required: ["findings"], properties: { findings: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "severity", "category", "message", "refs"], properties: { id: { type: "string" }, severity: { type: "string", enum: ["critical", "warning", "suggestion", "passed"] }, category: { type: "string" }, message: { type: "string" }, refs: { type: "array", items: { type: "string" } } } } } } } as const;
+const W2_RESUME_SCORE_SCHEMA = { type: "object", additionalProperties: false, required: ["breakdown", "strong", "improvements"], properties: { breakdown: { type: "object", additionalProperties: false, required: ["baseCompleteness", "experienceSpecificity", "jobRelevance", "evidenceReliability", "readability", "jdAlignment"], properties: { baseCompleteness: { type: "number" }, experienceSpecificity: { type: "number" }, jobRelevance: { type: "number" }, evidenceReliability: { type: "number" }, readability: { type: "number" }, jdAlignment: { type: "number" } } }, strong: { type: "array", items: { type: "string" } }, improvements: { type: "array", items: { type: "string" } } } } as const;
+const W2_COVER_SCORE_SCHEMA = { type: "object", additionalProperties: false, required: ["breakdown", "strong", "improvements"], properties: { breakdown: { type: "object", additionalProperties: false, required: ["promptFulfillment", "experienceSpecificity", "motivationConnection", "jobRelevance", "evidenceReliability", "clarity"], properties: { promptFulfillment: { type: "number" }, experienceSpecificity: { type: "number" }, motivationConnection: { type: "number" }, jobRelevance: { type: "number" }, evidenceReliability: { type: "number" }, clarity: { type: "number" } } }, strong: { type: "array", items: { type: "string" } }, improvements: { type: "array", items: { type: "string" } } } } as const;
+const W2_JD_MATCH_SCHEMA = { type: "object", additionalProperties: false, required: ["breakdown", "matched", "missing"], properties: { breakdown: { type: "object", additionalProperties: false, required: ["requiredCoverage", "preferredCoverage", "relatedExperience", "skillsCerts"], properties: { requiredCoverage: { type: "number" }, preferredCoverage: { type: "number" }, relatedExperience: { type: "number" }, skillsCerts: { type: "number" } } }, matched: { type: "array", items: { type: "string" } }, missing: { type: "array", items: { type: "string" } } } } as const;
+const W2_IQ_SCHEMA = { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "object", additionalProperties: false, required: ["question", "type", "source", "sourceReference", "difficulty", "evaluationCriteria", "followUpCandidates", "riskLevel"], properties: { question: { type: "string" }, type: { type: "string", enum: ["intro", "motivation", "job_competency", "experience_verify", "problem_solving", "collaboration", "failure_conflict", "jd_requirement", "follow_up", "fact_check"] }, source: { type: "string" }, sourceReference: { type: "string" }, difficulty: { type: "string", enum: ["low", "medium", "high"] }, evaluationCriteria: { type: "array", items: { type: "string" } }, followUpCandidates: { type: "array", items: { type: "string" } }, riskLevel: { type: "string", enum: ["low", "medium", "high"] } } } } } } as const;
+
+// 소유권 검증 헬퍼.
+async function ownTarget(userId: string, id: string) {
+  return prisma.careerApplicationTarget.findFirst({ where: { id, studentUserId: userId } });
+}
+
+// ── 기준 채용공고 생성/선택 ──
+const w2TargetSchema = z.object({ sourceType: z.enum(JD_SOURCE_TYPES).optional().default("paste"), positionId: z.string().max(80).optional(), sourceUrl: z.string().max(1000).optional(), companyName: z.string().max(200).optional(), jobTitle: z.string().max(200).optional(), rawContent: z.string().max(20000).optional(), structuredData: z.unknown().optional() });
+app.post("/career-launch/week2/application-target", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "w2-target" }), async (req, res) => {
+  const parsed = w2TargetSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const d = parsed.data;
+    let structured = JdStructuredSchema.safeParse(d.structuredData);
+    // 내부 공고면 Position 에서 구조화 시드.
+    if (d.positionId && !structured.success) {
+      const pos = await prisma.position.findUnique({ where: { id: d.positionId } }).catch(() => null);
+      if (pos) {
+        structured = JdStructuredSchema.safeParse({
+          companyName: d.companyName ?? "", jobTitle: pos.title, jobDescription: pos.mainResponsibilities ?? "",
+          responsibilities: pos.mainResponsibilities ? [pos.mainResponsibilities] : [], requirements: pos.requiredQualifications ? [pos.requiredQualifications] : [],
+          preferredQualifications: pos.preferredQualifications ? [pos.preferredQualifications] : [], employmentType: String(pos.employmentType ?? "")
+        });
+      }
+    }
+    const created = await prisma.careerApplicationTarget.create({
+      data: {
+        studentUserId: userId, cohortId, positionId: d.positionId ?? null, sourceType: d.sourceType, sourceUrl: d.sourceUrl ?? null,
+        companyName: d.companyName ?? (structured.success ? structured.data.companyName : null), jobTitle: d.jobTitle ?? (structured.success ? structured.data.jobTitle : null),
+        rawContent: d.rawContent ?? null, structuredData: (structured.success ? structured.data : {}) as object, status: structured.success ? "structured" : "captured", capturedAt: new Date()
+      }
+    });
+    // 패키지 생성(공고당 1, 멱등).
+    const target = await prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" } }).catch(() => null);
+    await prisma.careerApplicationPackage.upsert({
+      where: { studentUserId_applicationTargetId: { studentUserId: userId, applicationTargetId: created.id } },
+      create: { studentUserId: userId, cohortId, applicationTargetId: created.id, targetJobKey: target?.jobKey ?? null, status: "draft" },
+      update: {}
+    });
+    return res.json({ ok: true, target: created });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 공고 구조화(붙여넣기 원문 → 구조화) ──
+app.post("/career-launch/week2/application-target/:id/structure", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-structure" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const target = await ownTarget(userId, String(req.params.id));
+    if (!target) return res.status(404).json({ ok: false, message: "not found" });
+    if (!target.rawContent) return res.status(400).json({ ok: false, message: "no raw content" });
+    if (!openai) return sendAiUnavailable(res);
+    const systemPrompt = "너는 채용공고 파서야. 아래 공고 원문을 구조화된 JSON으로 정리해줘. 원문에 없는 내용은 만들지 마. 자소서 문항이 명시돼 있으면 coverLetterPrompts 에 담아.";
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, target.rawContent.slice(0, 12000), "w2_jd_structure", JD_STRUCTURE_SCHEMA);
+    } catch (err) {
+      console.error("[w2/structure] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const p = JdStructuredSchema.safeParse(raw);
+    if (!p.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const updated = await prisma.careerApplicationTarget.update({ where: { id: target.id }, data: { structuredData: p.data as object, companyName: target.companyName ?? p.data.companyName, jobTitle: target.jobTitle ?? p.data.jobTitle, status: "structured" } });
+    return res.json({ ok: true, target: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 공고 요구역량 분석(캐시) ──
+app.post("/career-launch/week2/application-target/:id/analyze", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-analyze" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const force = (req.body as { force?: boolean })?.force === true;
+    const target = await ownTarget(userId, String(req.params.id));
+    if (!target) return res.status(404).json({ ok: false, message: "not found" });
+    if (!force && target.analysisData) return res.json({ ok: true, analysis: target.analysisData, cached: true });
+    if (!openai) return sendAiUnavailable(res);
+    const ctx = await buildWeek2LlmContext(userId, { jd: target.structuredData });
+    const systemPrompt = "너는 커리어 코치야. 아래 기준 공고와 사용자 경험을 비교해 요구역량을 구조화 분석해줘. 이미 갖춘 것(matched, 근거 경험 id 연결)·부족한 것(missing)·확인 필요(needsCheck)·이력서/자소서에서 강조할 것·넣지 말아야 할 과장(avoidOverclaiming)·면접에서 검증될 것을 정리해. " + NO_FABRICATION;
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, ctx, "w2_jd_analysis", JD_ANALYSIS_SCHEMA);
+    } catch (err) {
+      console.error("[w2/analyze] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const p = JdAnalysisSchema.safeParse(raw);
+    if (!p.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const updated = await prisma.careerApplicationTarget.update({ where: { id: target.id }, data: { analysisData: p.data as object, status: "analyzed" } });
+    return res.json({ ok: true, analysis: updated.analysisData });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 이력서 버전 생성(대표/공고맞춤, 문장별 근거) ──
+const w2ResumeVerSchema = z.object({ variant: z.enum(["master", "targeted"]).optional().default("master"), applicationTargetId: z.string().max(80).optional() });
+app.post("/career-launch/week2/resume-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-resume-ver" }), async (req, res) => {
+  const parsed = w2ResumeVerSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const { variant, applicationTargetId } = parsed.data;
+    let jd: unknown = undefined;
+    if (variant === "targeted") {
+      if (!applicationTargetId) return res.status(400).json({ ok: false, message: "applicationTargetId required" });
+      const target = await ownTarget(userId, applicationTargetId);
+      if (!target) return res.status(404).json({ ok: false, message: "target not found" });
+      jd = target.analysisData ?? target.structuredData;
+    }
+    if (!openai) return sendAiUnavailable(res);
+    const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
+    const systemPrompt =
+      `너는 커리어 코치야. 사용자의 확인된 정보로 ${variant === "targeted" ? "이 공고에 맞춘" : "대표"} 이력서 초안을 만들어줘. ` +
+      "목표 직무와 관련된 경험을 앞에 배치하고, 모호한 형용사 대신 실제 행동을 써. 같은 경험을 여러 항목에 중복하지 마. 문장을 과하게 길게 만들지 마. " +
+      (variant === "targeted" ? "공고 키워드는 실제 경험 근거가 있을 때만 사용하고 억지로 반복하지 마. " : "") +
+      "각 문장/불릿은 sourceLinks 에 근거(sourceExperienceId 또는 sourceProfileField)와 status(verified/needs_confirmation/unsupported)를 연결해. " +
+      NO_FABRICATION;
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, ctx, "w2_resume_draft", RESUME_DRAFT_SCHEMA);
+    } catch (err) {
+      console.error("[w2/resume-version] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const pj = raw as { content?: unknown; sourceLinks?: unknown };
+    const content = ResumeVersionContentSchema.safeParse(pj.content);
+    if (!content.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const links = Array.isArray(pj.sourceLinks) ? pj.sourceLinks.map((l) => SourceLinkSchema.safeParse(l)).filter((r) => r.success).map((r) => (r as { data: unknown }).data) : [];
+    // 같은 (variant, target) 버전은 최신으로 교체(대표 이력서 원본은 CareerResumeData — 건드리지 않음).
+    const existing = await prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", variant, applicationTargetId: applicationTargetId ?? null } });
+    const validation = { counts: countByStatus(links as never) };
+    const version = existing
+      ? await prisma.careerDocumentVersion.update({ where: { id: existing.id }, data: { content: content.data as object, sourceLinks: links as object, validationData: validation as object, version: existing.version + 1, generatedBy: "ai", promptVersion: WEEK2_PROMPT_VERSIONS.resumeDraft } })
+      : await prisma.careerDocumentVersion.create({ data: { studentUserId: userId, cohortId, documentType: "resume", variant, applicationTargetId: applicationTargetId ?? null, content: content.data as object, sourceLinks: links as object, validationData: validation as object, generatedBy: "ai", promptVersion: WEEK2_PROMPT_VERSIONS.resumeDraft } });
+    if (variant === "targeted" && applicationTargetId) await prisma.careerApplicationPackage.updateMany({ where: { studentUserId: userId, applicationTargetId }, data: { resumeVersionId: version.id } });
+    return res.json({ ok: true, version });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 자소서 권장 문항 생성 ──
+app.post("/career-launch/week2/cover-prompts", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-cover-prompts" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
+    let jd: unknown = undefined;
+    if (applicationTargetId) {
+      const target = await ownTarget(userId, applicationTargetId);
+      if (target) {
+        const struct = JdStructuredSchema.safeParse(target.structuredData);
+        // 공고에 실제 문항이 있으면 그대로 사용(생성 안 함).
+        if (struct.success && struct.data.coverLetterPrompts.length) {
+          return res.json({ ok: true, prompts: struct.data.coverLetterPrompts.map((p) => ({ prompt: p, intent: "", fromJd: true, recommendedExperience: "" })), fromJd: true });
+        }
+        jd = target.analysisData ?? target.structuredData;
+      }
+    }
+    if (!openai) return sendAiUnavailable(res);
+    const ctx = await buildWeek2LlmContext(userId, { jd });
+    const systemPrompt = "공고에 자소서 문항이 없어. 이 공고와 직무에 맞는 권장 자소서 문항 4~6개를 만들어줘(지원동기·직무경험·문제해결·협업·입사후기여 등에서 적절히). 공고가 요구하지 않는 문항을 필수처럼 표시하지 마. 각 문항에 intent 와 추천 근거 경험을 연결해.";
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, ctx, "w2_cover_prompts", COVER_PROMPTS_SCHEMA);
+    } catch (err) {
+      console.error("[w2/cover-prompts] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const p = CoverPromptSetSchema.safeParse(raw);
+    if (!p.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    return res.json({ ok: true, prompts: p.data.prompts, fromJd: false });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 자소서 초안 생성(문항별 근거) ──
+const w2CoverDraftSchema = z.object({ applicationTargetId: z.string().max(80).optional(), prompts: z.array(z.string().max(500)).min(1).max(12) });
+app.post("/career-launch/week2/cover-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-cover-ver" }), async (req, res) => {
+  const parsed = w2CoverDraftSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const { applicationTargetId, prompts } = parsed.data;
+    let jd: unknown = undefined;
+    if (applicationTargetId) {
+      const target = await ownTarget(userId, applicationTargetId);
+      jd = target?.analysisData ?? target?.structuredData;
+    }
+    if (!openai) return sendAiUnavailable(res);
+    const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
+    const systemPrompt =
+      "너는 커리어 코치야. 아래 문항들에 대해 사용자의 확인된 경험을 근거로 자기소개서 초안을 써줘. " +
+      "문항 의도에 따라 구조를 조정하고(모든 문항을 기계적 STAR로 만들지 마), 각 문단/핵심 문장은 sourceLinks 에 근거 경험을 연결해. " +
+      "존재하지 않는 성과·거짓 수치·사용하지 않은 기술·맡지 않은 역할·확인되지 않은 기업 정보·과도한 입사 후 포부를 생성하지 마. " +
+      `문항 목록: ${JSON.stringify(prompts)}`;
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, ctx, "w2_cover_draft", COVER_DRAFT_SCHEMA);
+    } catch (err) {
+      console.error("[w2/cover-version] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const pj = raw as { items?: unknown; sourceLinks?: unknown };
+    const content = CoverVersionContentSchema.safeParse({ items: pj.items });
+    if (!content.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const links = Array.isArray(pj.sourceLinks) ? pj.sourceLinks.map((l) => SourceLinkSchema.safeParse(l)).filter((r) => r.success).map((r) => (r as { data: unknown }).data) : [];
+    const existing = await prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", variant: "targeted", applicationTargetId: applicationTargetId ?? null } });
+    const validation = { counts: countByStatus(links as never) };
+    const version = existing
+      ? await prisma.careerDocumentVersion.update({ where: { id: existing.id }, data: { content: content.data as object, sourceLinks: links as object, validationData: validation as object, version: existing.version + 1, generatedBy: "ai", promptVersion: WEEK2_PROMPT_VERSIONS.coverDraft } })
+      : await prisma.careerDocumentVersion.create({ data: { studentUserId: userId, cohortId, documentType: "cover", variant: "targeted", applicationTargetId: applicationTargetId ?? null, content: content.data as object, sourceLinks: links as object, validationData: validation as object, generatedBy: "ai", promptVersion: WEEK2_PROMPT_VERSIONS.coverDraft } });
+    if (applicationTargetId) await prisma.careerApplicationPackage.updateMany({ where: { studentUserId: userId, applicationTargetId }, data: { coverVersionId: version.id } });
+    return res.json({ ok: true, version });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 문서 버전 수정(사용자 편집 + 문장 상태 갱신) ──
+const w2DocPatchSchema = z.object({ content: z.unknown().optional(), sourceLinks: z.array(SourceLinkSchema).optional() });
+app.patch("/career-launch/week2/document-version/:id", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = w2DocPatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const existing = await prisma.careerDocumentVersion.findFirst({ where: { id: String(req.params.id), studentUserId: userId } });
+    if (!existing) return res.status(404).json({ ok: false, message: "not found" });
+    const data: Record<string, unknown> = { generatedBy: "hybrid" };
+    if (parsed.data.content != null) data.content = parsed.data.content as object;
+    if (parsed.data.sourceLinks != null) {
+      data.sourceLinks = parsed.data.sourceLinks as object;
+      data.validationData = { counts: countByStatus(parsed.data.sourceLinks as never) } as object;
+    }
+    const updated = await prisma.careerDocumentVersion.update({ where: { id: existing.id }, data });
+    return res.json({ ok: true, version: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 일관성 검사(이력서·자소서·프로필·공고) ──
+app.post("/career-launch/week2/consistency", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-consistency" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
+    if (!applicationTargetId) return res.status(400).json({ ok: false, message: "applicationTargetId required" });
+    const target = await ownTarget(userId, applicationTargetId);
+    if (!target) return res.status(404).json({ ok: false, message: "target not found" });
+    const [resumeV, coverV] = await Promise.all([
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } })
+    ]);
+    if (!openai) return sendAiUnavailable(res);
+    const ctx = await buildWeek2LlmContext(userId, { jd: target.analysisData ?? target.structuredData });
+    const docCtx = `[이력서 버전]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1600)}\n\n[자소서 버전]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1400)}`;
+    const systemPrompt =
+      "너는 서류 검토관이야. 이력서·자기소개서·프로필·기준 공고를 비교해 불일치를 찾아줘. " +
+      "검사: 기간/직책/성과수치/프로젝트설명/기술사용 불일치, 목표직무 불일치, 같은 경험의 다른 설명, 공고와 무관한 과도한 강조, 자소서 주장에 이력서 근거 부족, AI가 추가한 확인되지 않은 사실. " +
+      "severity 는 critical/warning/suggestion/passed. 단순 문체 취향은 critical 로 분류하지 마. 각 finding 에 refs(관련 항목)를 달아.";
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, `${ctx}\n\n${docCtx}`, "w2_consistency", CONSISTENCY_SCHEMA);
+    } catch (err) {
+      console.error("[w2/consistency] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const p = ConsistencyResultSchema.safeParse(raw);
+    if (!p.success) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const criticalUnresolved = countCriticalUnresolved(p.data.findings);
+    await prisma.careerApplicationPackage.updateMany({ where: { studentUserId: userId, applicationTargetId }, data: { validationData: { findings: p.data.findings, criticalUnresolved } as object, status: "checking" } });
+    return res.json({ ok: true, findings: p.data.findings, criticalUnresolved });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 일관성 항목 해결/확인 처리(사용자).
+const w2ResolveSchema = z.object({ applicationTargetId: z.string().max(80), findingId: z.string().max(80), resolved: z.boolean().optional(), userAcknowledged: z.boolean().optional() });
+app.post("/career-launch/week2/consistency/resolve", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = w2ResolveSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const pkg = await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId: parsed.data.applicationTargetId } });
+    if (!pkg) return res.status(404).json({ ok: false, message: "package not found" });
+    const val = (pkg.validationData && typeof pkg.validationData === "object" ? pkg.validationData : { findings: [] }) as { findings?: Array<Record<string, unknown>> };
+    const findings = (val.findings ?? []).map((f) => (f.id === parsed.data.findingId ? { ...f, resolved: parsed.data.resolved ?? f.resolved, userAcknowledged: parsed.data.userAcknowledged ?? f.userAcknowledged } : f));
+    const criticalUnresolved = countCriticalUnresolved(findings as never);
+    await prisma.careerApplicationPackage.update({ where: { id: pkg.id }, data: { validationData: { findings, criticalUnresolved } as object } });
+    return res.json({ ok: true, criticalUnresolved });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 점수(이력서·자소서·JD매치 + Readiness 종합) ──
+app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-scores" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
+    if (!applicationTargetId) return res.status(400).json({ ok: false, message: "applicationTargetId required" });
+    const target = await ownTarget(userId, applicationTargetId);
+    if (!target) return res.status(404).json({ ok: false, message: "target not found" });
+    const [resumeV, coverV, pkg] = await Promise.all([
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } })
+    ]);
+    if (!openai) return sendAiUnavailable(res);
+    const jd = target.analysisData ?? target.structuredData;
+    const rCtx = `[이력서]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1200)}`;
+    const cCtx = `[자소서]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1000)}`;
+    // 3종 채점 병렬(각 실패는 null 허용).
+    const [rRaw, cRaw, jRaw] = await Promise.all([
+      careerChatComplete("이력서를 6항목(baseCompleteness·experienceSpecificity·jobRelevance·evidenceReliability·readability·jdAlignment) 0~100으로 채점하고 강점·개선점을 줘. 점수만 올리려 문장 추가를 유도하지 마.", rCtx, "w2_resume_score", W2_RESUME_SCORE_SCHEMA).catch(() => null),
+      careerChatComplete("자기소개서를 6항목(promptFulfillment·experienceSpecificity·motivationConnection·jobRelevance·evidenceReliability·clarity) 0~100으로 채점하고 강점·개선점을 줘.", cCtx, "w2_cover_score", W2_COVER_SCORE_SCHEMA).catch(() => null),
+      careerChatComplete("공고 대비 매치를 4항목(requiredCoverage·preferredCoverage·relatedExperience·skillsCerts) 0~100으로 채점하고 충족/미충족 항목을 줘. 시장 수요를 사실처럼 지어내지 마.", rCtx, "w2_jd_match", W2_JD_MATCH_SCHEMA).catch(() => null)
+    ]);
+    const rParsed = rRaw ? ResumeScoreSchema.safeParse(rRaw) : null;
+    const cParsed = cRaw ? CoverScoreSchema.safeParse(cRaw) : null;
+    const jParsed = jRaw ? JdMatchScoreSchema.safeParse(jRaw) : null;
+    const resumeTotal = rParsed?.success ? resumeScoreTotal(rParsed.data.breakdown) : null;
+    const coverTotal = cParsed?.success ? coverScoreTotal(cParsed.data.breakdown) : null;
+    const jdTotal = jParsed?.success ? jdMatchTotal(jParsed.data.breakdown) : null;
+    // 검증 상태 집계.
+    const allLinks = [...(Array.isArray(resumeV?.sourceLinks) ? (resumeV!.sourceLinks as never[]) : []), ...(Array.isArray(coverV?.sourceLinks) ? (coverV!.sourceLinks as never[]) : [])];
+    const unsupportedCount = countUnsupported(allLinks as never);
+    const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { criticalUnresolved?: number };
+    const readiness = computeApplicationReadiness({ resumeTotal, coverTotal, jdMatchTotal: jdTotal, unsupportedCount, criticalUnresolved: val.criticalUnresolved ?? 0 });
+    const scoreData = { resume: rParsed?.success ? { total: resumeTotal, ...rParsed.data } : null, cover: cParsed?.success ? { total: coverTotal, ...cParsed.data } : null, jdMatch: jParsed?.success ? { total: jdTotal, ...jParsed.data } : null, readiness };
+    if (pkg) await prisma.careerApplicationPackage.update({ where: { id: pkg.id }, data: { scoreData: scoreData as object, readinessScore: readiness.score } });
+    return res.json({ ok: true, scores: scoreData });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 지원 패키지 최종 확정 ──
+app.post("/career-launch/week2/finalize", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
+    const acknowledgeWarnings = (req.body as { acknowledgeWarnings?: boolean })?.acknowledgeWarnings === true;
+    if (!applicationTargetId) return res.status(400).json({ ok: false, message: "applicationTargetId required" });
+    const pkg = await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } });
+    if (!pkg) return res.status(404).json({ ok: false, message: "package not found" });
+    const val = (pkg.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { criticalUnresolved?: number };
+    // critical 미해결이면 사용자 명시 확인 없이는 막는다.
+    if ((val.criticalUnresolved ?? 0) > 0 && !acknowledgeWarnings) {
+      return res.status(409).json({ ok: false, code: "critical_unresolved", criticalUnresolved: val.criticalUnresolved });
+    }
+    const finalized = await prisma.careerApplicationPackage.update({ where: { id: pkg.id }, data: { status: "finalized", finalizedAt: new Date() } });
+    return res.json({ ok: true, package: finalized });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 3 예상 면접 질문 생성·저장(진행은 Phase 6) ──
+app.post("/career-launch/week2/interview-questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "w2-iq" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const force = (req.body as { force?: boolean })?.force === true;
+    const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
+    const pkg = applicationTargetId ? await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } }) : await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } });
+    const existing = await prisma.careerInterviewQuestionSet.findFirst({ where: { studentUserId: userId, applicationPackageId: pkg?.id ?? null }, orderBy: { createdAt: "desc" } });
+    if (!force && existing) return res.json({ ok: true, questionSet: existing, cached: true });
+    if (!openai) return sendAiUnavailable(res);
+    const target = applicationTargetId ? await ownTarget(userId, applicationTargetId) : null;
+    const [resumeV, coverV] = await Promise.all([
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume" }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover" }, orderBy: { updatedAt: "desc" } })
+    ]);
+    const ctx = await buildWeek2LlmContext(userId, { jd: target?.analysisData ?? target?.structuredData });
+    const docCtx = `[이력서]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1200)}\n[자소서]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1000)}`;
+    const systemPrompt =
+      "너는 면접관이야. 이 지원 패키지(공고 요구역량·이력서 경험·자소서 주장·근거 약한 부분·확인 필요 성과·취약점)를 근거로 Week3 모의면접에 쓸 예상 질문 10~14개를 만들어줘. " +
+      "각 질문에 type·source·sourceReference·difficulty·evaluationCriteria·followUpCandidates·riskLevel 을 채워. 없는 사실을 전제한 질문은 만들지 마.";
+    let raw: unknown;
+    try {
+      raw = await careerChatComplete(systemPrompt, `${ctx}\n\n${docCtx}`, "w2_interview_questions", W2_IQ_SCHEMA);
+    } catch (err) {
+      console.error("[w2/interview-questions] failed", err);
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "ai response empty" });
+    }
+    const p = InterviewQuestionSetSchema.safeParse(raw);
+    if (!p.success || p.data.questions.length === 0) return res.status(502).json({ ok: false, message: "ai response invalid" });
+    const cohortId = await week1CohortId(userId);
+    const set = await prisma.careerInterviewQuestionSet.create({ data: { studentUserId: userId, cohortId, applicationPackageId: pkg?.id ?? null, questions: p.data.questions as object, promptVersion: WEEK2_PROMPT_VERSIONS.interviewQuestions } });
+    return res.json({ ok: true, questionSet: set });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 2 종합 상태 + 완료 판정 ──
+app.get("/career-launch/week2", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [targets, versions, packages, iqSet, targetJob, resumeData, coverData] = await Promise.all([
+      prisma.careerApplicationTarget.findMany({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerDocumentVersion.findMany({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerApplicationPackage.findMany({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } }),
+      prisma.careerInterviewQuestionSet.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" } }),
+      prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" } }),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId } })
+    ]);
+    const pkg = packages[0] ?? null;
+    const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { criticalUnresolved?: number };
+    const allLinks = versions.flatMap((v) => (Array.isArray(v.sourceLinks) ? (v.sourceLinks as never[]) : []));
+    const completion = computeWeek2Completion({
+      targetJobConfirmed: Boolean(targetJob),
+      masterResumeExists: Boolean(resumeData?.content && Object.keys(resumeData.content).length),
+      applicationTargetSelected: targets.length > 0,
+      jdAnalyzed: targets.some((t) => t.status === "analyzed"),
+      targetedResumeExists: versions.some((v) => v.documentType === "resume" && v.variant === "targeted"),
+      coverRequiredDone: versions.some((v) => v.documentType === "cover") || Boolean(coverData?.content && Array.isArray((coverData.content as { items?: unknown[] }).items) && ((coverData.content as { items?: unknown[] }).items?.length ?? 0) > 0),
+      criticalResolvedOrAck: (val.criticalUnresolved ?? 0) === 0,
+      unsupportedReviewed: countUnsupported(allLinks as never) === 0,
+      readinessScoreExists: typeof pkg?.readinessScore === "number",
+      packageFinalized: pkg?.status === "finalized",
+      interviewQuestionsGenerated: Boolean(iqSet)
+    });
+    return res.json({ ok: true, targets, versions, package: pkg, interviewQuestionSet: iqSet, completion });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Week 3~4 '실전 모의면접 & 오답노트'(Phase 6) — 세션·평가·취약패턴·오답 재훈련·성장.
+// 순수 로직/taxonomy/통과기준 은 ./career-week34 에. LLM 은 careerChatComplete(구조화 출력).
+// ══════════════════════════════════════════════════════════════════════
+
+const IV_SAFETY = "안전/공정 필수: AI 점수를 실제 합격 가능성으로 표현하지 마. 성별·나이·출신·국적 등 보호특성을 평가에 쓰지 마. 억양·말투를 역량 부족으로 단정하지 마. 비원어민이면 언어 표현과 직무 역량을 분리해서 설명해. 모욕하거나 위축시키는 표현을 쓰지 마. 위험하거나 차별적인 질문을 만들지 마. 없는 사실을 전제하지 마.";
+
+// 면접 LLM 컨텍스트(압축) — 프로필 + 패키지 + 공고분석 + 서류 근거 + 예상질문.
+async function buildInterviewCtx(userId: string, pkg: { applicationTargetId?: string | null } | null): Promise<string> {
+  const parts: string[] = [];
+  try {
+    const p = await getCareerProfileContext(userId, { maxChars: 800 });
+    if (p) parts.push(p);
+  } catch {
+    /* ignore */
+  }
+  if (pkg?.applicationTargetId) {
+    const target = await prisma.careerApplicationTarget.findFirst({ where: { id: pkg.applicationTargetId, studentUserId: userId } }).catch(() => null);
+    if (target) parts.push("[기준 공고 분석]\n" + JSON.stringify(target.analysisData ?? target.structuredData).slice(0, 1200));
+    const [rv, cv] = await Promise.all([
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", applicationTargetId: pkg.applicationTargetId }, orderBy: { updatedAt: "desc" } }).catch(() => null),
+      prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId: pkg.applicationTargetId }, orderBy: { updatedAt: "desc" } }).catch(() => null)
+    ]);
+    if (rv) parts.push("[이력서]\n" + JSON.stringify(rv.content).slice(0, 1000));
+    if (cv) parts.push("[자소서]\n" + JSON.stringify(cv.content).slice(0, 800));
+  }
+  return parts.join("\n\n");
+}
+
+// LLM json_schema
+const IV_ANSWER_EVAL_SCHEMA = { type: "object", additionalProperties: false, required: ["scores", "total", "good", "keyProblem", "problemSpan", "whyImprove", "recommendedStructure", "useExperience", "recommendedFollowUp", "weaknessTypes", "confidence"], properties: { scores: { type: "object", additionalProperties: false, required: ["questionUnderstanding", "relevance", "specificity", "evidence", "structure", "jobConnection", "consistency", "delivery"], properties: { questionUnderstanding: { type: "number" }, relevance: { type: "number" }, specificity: { type: "number" }, evidence: { type: "number" }, structure: { type: "number" }, jobConnection: { type: "number" }, consistency: { type: "number" }, delivery: { type: "number" } } }, total: { type: "number" }, good: { type: "array", items: { type: "string" } }, keyProblem: { type: "string" }, problemSpan: { type: "string" }, whyImprove: { type: "string" }, recommendedStructure: { type: "string" }, useExperience: { type: "string" }, recommendedFollowUp: { type: "string" }, weaknessTypes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } } } as const;
+const IV_WEAKNESS_SCHEMA = { type: "object", additionalProperties: false, required: ["weaknesses"], properties: { weaknesses: { type: "array", items: { type: "object", additionalProperties: false, required: ["weaknessType", "title", "evidence", "occurrenceCount", "severity", "priority", "coachingStrategy"], properties: { weaknessType: { type: "string" }, title: { type: "string" }, evidence: { type: "array", items: { type: "string" } }, occurrenceCount: { type: "number" }, severity: { type: "string", enum: ["low", "medium", "high"] }, priority: { type: "number" }, coachingStrategy: { type: "string" } } } } } } as const;
+const IV_W3_REPORT_SCHEMA = { type: "object", additionalProperties: false, required: ["totalScore", "strongCompetencies", "bestAnswer", "topWeaknesses", "jdRequirementEval", "documentConsistency", "interviewerWillCheck", "week4Order", "coachSummary", "humanReviewRequired"], properties: { totalScore: { type: "number" }, strongCompetencies: { type: "array", items: { type: "string" } }, bestAnswer: { type: "string" }, topWeaknesses: { type: "array", items: { type: "string" } }, jdRequirementEval: { type: "array", items: { type: "object", additionalProperties: false, required: ["requirement", "assessment"], properties: { requirement: { type: "string" }, assessment: { type: "string" } } } }, documentConsistency: { type: "string" }, interviewerWillCheck: { type: "array", items: { type: "string" } }, week4Order: { type: "array", items: { type: "string" } }, coachSummary: { type: "string" }, humanReviewRequired: { type: "boolean" } } } as const;
+const IV_PLAN_SCHEMA = { type: "object", additionalProperties: false, required: ["steps"], properties: { steps: { type: "array", items: { type: "object", additionalProperties: false, required: ["title", "why", "weaknessType"], properties: { title: { type: "string" }, why: { type: "string" }, weaknessType: { type: "string" } } } } } } as const;
+const IV_COACHING_SCHEMA = { type: "object", additionalProperties: false, required: ["keyIssue", "whyWeak", "recommendedStructure", "useExperience", "hint"], properties: { keyIssue: { type: "string" }, whyWeak: { type: "string" }, recommendedStructure: { type: "string" }, useExperience: { type: "string" }, hint: { type: "string" } } } as const;
+const IV_SIMILAR_SCHEMA = { type: "object", additionalProperties: false, required: ["question", "competency", "context"], properties: { question: { type: "string" }, competency: { type: "string" }, context: { type: "string" } } } as const;
+const IV_GROWTH_SCHEMA = { type: "object", additionalProperties: false, required: ["mostImproved", "remainingWeaknesses", "bestAnswerExample", "confirmedCompetencies", "interviewerWillCheck", "interviewDayTips", "next7Days", "next30Days", "coachMessage"], properties: { mostImproved: { type: "array", items: { type: "string" } }, remainingWeaknesses: { type: "array", items: { type: "string" } }, bestAnswerExample: { type: "string" }, confirmedCompetencies: { type: "array", items: { type: "string" } }, interviewerWillCheck: { type: "array", items: { type: "string" } }, interviewDayTips: { type: "array", items: { type: "string" } }, next7Days: { type: "array", items: { type: "string" } }, next30Days: { type: "array", items: { type: "string" } }, coachMessage: { type: "string" } } } as const;
+
+// 답변 평가(LLM). 실패 시 null.
+async function evaluateInterviewAnswer(question: string, answerText: string, ctx: string): Promise<import("./career-week34").AnswerEvaluation | null> {
+  if (!openai) return null;
+  const sys =
+    "너는 면접 평가관이야. 아래 질문과 사용자 답변을 8축(questionUnderstanding·relevance·specificity·evidence·structure·jobConnection·consistency·delivery)으로 0~100 채점하고 total 을 계산해. " +
+    "텍스트 기반이므로 말투·표정·시선은 평가하지 마. 잘한 점, 핵심 문제, 문제 구간, 개선 이유, 추천 답변 구조, 활용할 경험, 추천 꼬리질문을 줘. " +
+    "감지된 취약패턴 코드(weaknessTypes)를 다음에서 골라: QUESTION_MISREAD, ABSTRACT_ANSWER, MISSING_CONTEXT, UNCLEAR_ROLE, MISSING_ACTION, MISSING_RESULT, WEAK_EVIDENCE, POOR_STRUCTURE, TOO_LONG, TOO_SHORT, WEAK_JOB_CONNECTION, INCONSISTENT_WITH_DOCUMENT, UNVERIFIED_CLAIM, DEFENSIVE_RESPONSE, WEAK_MOTIVATION, LACK_OF_REFLECTION, FOLLOWUP_BREAKDOWN. " +
+    "완성 답변을 대신 써주지 말고 구조·방향을 제시해. 예시엔 사용자의 실제 경험만 써. " +
+    IV_SAFETY;
+  try {
+    const raw = await careerChatComplete(sys, `${ctx}\n\n[질문]\n${question}\n\n[답변]\n${answerText.slice(0, 4000)}`, "iv_answer_eval", IV_ANSWER_EVAL_SCHEMA);
+    const p = AnswerEvaluationSchema.safeParse(raw);
+    if (!p.success) return null;
+    return { ...p.data, total: answerEvalTotal(p.data.scores) };
+  } catch (err) {
+    if (isAiUpstreamError(err)) throw err;
+    return null;
+  }
+}
+
+async function activePackage(userId: string) {
+  return prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } });
+}
+
+// ── 면접 세션 시작(initial_mock / final_mock / practice) ──
+const ivStartSchema = z.object({ sessionType: z.enum(SESSION_TYPES).optional().default("initial_mock"), inputMode: z.enum(["text", "voice_to_text"]).optional().default("text") });
+app.post("/career-launch/interview/session/start", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "iv-start" }), async (req, res) => {
+  const parsed = ivStartSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const pkg = await activePackage(userId);
+    // 질문 소스: Phase5 예상질문 우선. 최종면접은 일부 재사용 + 유사/신규 혼합(라벨만; MVP는 예상질문 재사용).
+    const qset = await prisma.careerInterviewQuestionSet.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" } });
+    let baseQuestions = Array.isArray(qset?.questions) ? (qset!.questions as Array<{ question?: string; type?: string; sourceReference?: string; difficulty?: string; evaluationCriteria?: string[] }>) : [];
+    if (baseQuestions.length === 0) {
+      // 예상질문이 없으면 생성(간단). 없으면 실패.
+      if (!openai) return sendAiUnavailable(res);
+      const ctx = await buildInterviewCtx(userId, pkg);
+      try {
+        const raw = (await careerChatComplete("이 지원자의 공고·이력서·자소서를 근거로 실전 모의면접 핵심 질문 8개를 만들어줘. 각 질문에 type·difficulty 를 붙여. " + IV_SAFETY, ctx, "iv_qgen", { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "object", additionalProperties: false, required: ["question", "type", "difficulty"], properties: { question: { type: "string" }, type: { type: "string" }, difficulty: { type: "string" } } } } } })) as { questions?: Array<{ question: string; type: string; difficulty: string }> };
+        baseQuestions = Array.isArray(raw.questions) ? raw.questions : [];
+      } catch (err) {
+        if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+        return res.status(502).json({ ok: false, message: "질문 생성 실패" });
+      }
+    }
+    const picked = baseQuestions.slice(0, INTERVIEW_LIMITS.maxCoreQuestions);
+    if (picked.length === 0) return res.status(400).json({ ok: false, message: "no questions — Week2 예상질문을 먼저 생성해 주세요" });
+    const session = await prisma.careerInterviewSession.create({
+      data: { studentUserId: userId, cohortId, applicationPackageId: pkg?.id ?? null, sessionType: parsed.data.sessionType, status: "in_progress", inputMode: parsed.data.inputMode, questionSetVersion: qset?.promptVersion ?? null, scoringVersion: SCORING_VERSION, promptVersion: WEEK34_VERSIONS.answerEval, startedAt: new Date(), cursor: 0 }
+    });
+    await prisma.careerInterviewQuestion.createMany({ data: picked.map((q, i) => ({ studentUserId: userId, sessionId: session.id, question: String(q.question ?? ""), type: String(q.type ?? "experience"), difficulty: String(q.difficulty ?? "medium"), evaluationCriteria: (q.evaluationCriteria ?? []) as object, sourceQuestionId: q.sourceReference ?? null, order: i })) });
+    const first = await prisma.careerInterviewQuestion.findFirst({ where: { sessionId: session.id }, orderBy: { order: "asc" } });
+    return res.json({ ok: true, session, question: first, total: picked.length });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 세션 조회(질문·답변·상태) ──
+app.get("/career-launch/interview/session/:id", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const session = await prisma.careerInterviewSession.findFirst({ where: { id: String(req.params.id), studentUserId: userId } });
+    if (!session) return res.status(404).json({ ok: false, message: "not found" });
+    const [questions, answers] = await Promise.all([
+      prisma.careerInterviewQuestion.findMany({ where: { sessionId: session.id, studentUserId: userId }, orderBy: { order: "asc" } }),
+      prisma.careerInterviewAnswer.findMany({ where: { sessionId: session.id, studentUserId: userId } })
+    ]);
+    // 진행 중이면 점수/평가는 숨긴다(실전감).
+    const inProgress = session.status === "in_progress";
+    const safeAnswers = answers.map((a) => (inProgress ? { id: a.id, questionId: a.questionId, answeredAt: a.answeredAt } : a));
+    return res.json({ ok: true, session, questions, answers: safeAnswers });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 답변 제출(저장 먼저 → 평가 → 조건부 꼬리질문). 진행 중엔 점수 미노출 ──
+const ivAnswerSchema = z.object({ questionId: z.string().max(80), answerText: z.string().max(6000), duration: z.number().int().min(0).max(36000).optional() });
+app.post("/career-launch/interview/session/:id/answer", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "iv-answer" }), async (req, res) => {
+  const parsed = ivAnswerSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const session = await prisma.careerInterviewSession.findFirst({ where: { id: String(req.params.id), studentUserId: userId } });
+    if (!session) return res.status(404).json({ ok: false, message: "not found" });
+    const question = await prisma.careerInterviewQuestion.findFirst({ where: { id: parsed.data.questionId, sessionId: session.id, studentUserId: userId } });
+    if (!question) return res.status(404).json({ ok: false, message: "question not found" });
+    // 1) 답변 먼저 저장(멱등·유실 방지).
+    const saved = await prisma.careerInterviewAnswer.upsert({
+      where: { sessionId_questionId: { sessionId: session.id, questionId: question.id } },
+      create: { studentUserId: userId, sessionId: session.id, questionId: question.id, answerText: parsed.data.answerText, duration: parsed.data.duration ?? null, answeredAt: new Date() },
+      update: { answerText: parsed.data.answerText, duration: parsed.data.duration ?? null, answeredAt: new Date() }
+    });
+    // 2) 평가(진행 중엔 결과를 클라에 안 돌려줌 — 저장만).
+    const pkg = await prisma.careerApplicationPackage.findUnique({ where: { id: session.applicationPackageId ?? "" } }).catch(() => null);
+    const ctx = await buildInterviewCtx(userId, pkg);
+    let ev: import("./career-week34").AnswerEvaluation | null = null;
+    try {
+      ev = await evaluateInterviewAnswer(question.question, parsed.data.answerText, ctx);
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    }
+    if (ev) await prisma.careerInterviewAnswer.update({ where: { id: saved.id }, data: { evaluationData: ev as object, score: ev.total, confidence: ev.confidence } });
+    // 3) 조건부 꼬리질문(제한 내, 최종면접 제외).
+    let followUp = null;
+    const existingFollowups = await prisma.careerInterviewQuestion.count({ where: { sessionId: session.id, parentQuestionId: question.id } });
+    if (ev && session.sessionType !== "final_mock" && existingFollowups < INTERVIEW_LIMITS.maxFollowupsPerQuestion && followUpNeeded(ev) && ev.recommendedFollowUp) {
+      const totalQ = await prisma.careerInterviewQuestion.count({ where: { sessionId: session.id } });
+      if (totalQ < INTERVIEW_LIMITS.maxTotalQuestions) {
+        followUp = await prisma.careerInterviewQuestion.create({ data: { studentUserId: userId, sessionId: session.id, question: ev.recommendedFollowUp, type: "follow_up", parentQuestionId: question.id, order: question.order, difficulty: question.difficulty } });
+      }
+    }
+    // 4) 다음 질문(꼬리질문 우선, 없으면 order 순 미답변).
+    const answeredIds = (await prisma.careerInterviewAnswer.findMany({ where: { sessionId: session.id }, select: { questionId: true } })).map((a) => a.questionId);
+    const next = followUp ?? (await prisma.careerInterviewQuestion.findFirst({ where: { sessionId: session.id, id: { notIn: answeredIds } }, orderBy: [{ order: "asc" }, { createdAt: "asc" }] }));
+    await prisma.careerInterviewSession.update({ where: { id: session.id }, data: { cursor: answeredIds.length } });
+    return res.json({ ok: true, saved: true, next: next ?? null, done: !next });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 세션 종료 → (최초면접이면) 약점 분석 + Week3 리포트 + 오답노트 + 훈련계획 ──
+app.post("/career-launch/interview/session/:id/complete", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "iv-complete" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const session = await prisma.careerInterviewSession.findFirst({ where: { id: String(req.params.id), studentUserId: userId } });
+    if (!session) return res.status(404).json({ ok: false, message: "not found" });
+    const [questions, answers] = await Promise.all([
+      prisma.careerInterviewQuestion.findMany({ where: { sessionId: session.id }, orderBy: { order: "asc" } }),
+      prisma.careerInterviewAnswer.findMany({ where: { sessionId: session.id } })
+    ]);
+    const scored = answers.filter((a) => typeof a.score === "number");
+    const total = scored.length ? Math.round(scored.reduce((s, a) => s + (a.score ?? 0), 0) / scored.length) : 0;
+    await prisma.careerInterviewSession.update({ where: { id: session.id }, data: { status: "completed", completedAt: new Date(), reportData: { total } as object } });
+
+    // 최초면접만 심층 분석(비용 절약). 최종면접은 성장 리포트에서 처리.
+    if (session.sessionType !== "initial_mock") return res.json({ ok: true, session: { ...session, status: "completed" }, total });
+    if (!openai) return res.json({ ok: true, total, analyzed: false });
+    const qa = questions.map((q) => { const a = answers.find((x) => x.questionId === q.id); return `Q(${q.type}): ${q.question}\nA: ${(a?.answerText ?? "").slice(0, 600)}\n[문제] ${((a?.evaluationData as { keyProblem?: string } | null)?.keyProblem ?? "")}`; }).join("\n\n");
+    const pkg = await prisma.careerApplicationPackage.findUnique({ where: { id: session.applicationPackageId ?? "" } }).catch(() => null);
+    const ctx = await buildInterviewCtx(userId, pkg);
+
+    // 반복 취약 패턴 분석(단일 발생 과장 금지).
+    let weaknesses: import("./career-week34").WeaknessAnalysis["weaknesses"] = [];
+    try {
+      const raw = await careerChatComplete("면접 전체 답변에서 반복된 취약 패턴을 찾아줘. 개별 질문 점수 나열이 아니라 여러 답변에 반복된 패턴 위주로. 단일 답변에서 한 번 나타난 문제를 반복 패턴으로 과장하지 마(occurrenceCount 정직하게). weaknessType 은 지정 코드에서 선택. " + IV_SAFETY, `${ctx}\n\n[면접 Q&A]\n${qa}`, "iv_weakness", IV_WEAKNESS_SCHEMA);
+      const p = WeaknessAnalysisSchema.safeParse(raw);
+      if (p.success) weaknesses = p.data.weaknesses;
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    }
+    // 기존 약점 초기화 후 저장(최초면접 재실행 대비).
+    await prisma.careerInterviewWeakness.deleteMany({ where: { studentUserId: userId, applicationPackageId: pkg?.id ?? null, status: "open" } });
+    for (const w of weaknesses) {
+      await prisma.careerInterviewWeakness.create({ data: { studentUserId: userId, cohortId, applicationPackageId: pkg?.id ?? null, weaknessType: w.weaknessType, title: w.title || weaknessLabel(w.weaknessType), evidence: w.evidence as object, severity: w.severity, occurrenceCount: w.occurrenceCount, priority: w.priority, coachingStrategy: w.coachingStrategy } });
+    }
+
+    // 핵심 오답노트 생성(취약도 높은 질문 5+). 최저 점수 답변부터.
+    const weakAnswers = [...scored].sort((a, b) => (a.score ?? 0) - (b.score ?? 0)).slice(0, Math.max(5, Math.min(7, scored.length)));
+    for (const a of weakAnswers) {
+      const q = questions.find((x) => x.id === a.questionId);
+      const ev = (a.evaluationData ?? null) as { weaknessTypes?: string[]; keyProblem?: string } | null;
+      const wId = weaknesses.length ? undefined : undefined;
+      await prisma.careerInterviewCorrection.upsert({
+        where: { id: `${session.id}-${a.questionId}` }, // 안정 키 없어 create 로 처리 → findFirst 대체
+        create: { id: `${session.id}-${a.questionId}`, studentUserId: userId, cohortId, weaknessId: wId, originalQuestionId: a.questionId, originalAnswerId: a.id, question: q?.question ?? "", questionType: q?.type ?? null, status: "discovered", initialScore: a.score ?? null, latestScore: a.score ?? null },
+        update: {}
+      }).catch(() => null);
+    }
+
+    // Week3 종합 리포트.
+    let report: import("./career-week34").Week3Report | null = null;
+    try {
+      const raw = await careerChatComplete("면접 결과를 종합 리포트로 정리해줘. 점수만 강조하지 말고 코치가 해석해서: 강한 역량, 가장 좋은 답변, 우선 개선 취약패턴 3개, 공고 요구역량별 평가, 지원서-답변 일관성, 면접관이 추가 확인할 부분, 핵심 오답, Week4 훈련 순서, 총평을 줘. humanReviewRequired 는 확신이 낮으면 true. " + IV_SAFETY, `${ctx}\n\n[면접 Q&A]\n${qa}\n[종합점수] ${total}`, "iv_w3_report", IV_W3_REPORT_SCHEMA);
+      const p = Week3ReportSchema.safeParse(raw);
+      if (p.success) report = { ...p.data, totalScore: total };
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    }
+    // 훈련계획.
+    let plan: unknown = null;
+    try {
+      const raw = await careerChatComplete("위 취약 패턴을 바탕으로 Week4 개인 훈련계획(순서)을 만들어줘. 가장 중요한 것부터.", `취약패턴: ${weaknesses.map((w) => w.title).join(", ")}`, "iv_plan", IV_PLAN_SCHEMA);
+      const p = TrainingPlanSchema.safeParse(raw);
+      if (p.success) plan = p.data;
+    } catch {
+      /* optional */
+    }
+    await prisma.careerInterviewSession.update({ where: { id: session.id }, data: { reportData: { total, report, trainingPlan: plan } as object } });
+    emitTalentEvent(userId, TalentEventType.MOCK_INTERVIEW_COMPLETED, { entityType: "interview", entityId: session.id, metadata: { sessionType: "initial_mock" } });
+    return res.json({ ok: true, total, report, weaknesses: weaknesses.map((w) => ({ ...w, label: weaknessLabel(w.weaknessType) })), trainingPlan: plan });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 세션 일시정지/재개 ──
+app.post("/career-launch/interview/session/:id/pause", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const toStatus = ((req.body as { status?: string })?.status === "in_progress" ? "in_progress" : "paused") as string;
+    const r = await prisma.careerInterviewSession.updateMany({ where: { id: String(req.params.id), studentUserId: userId, status: { in: ["in_progress", "paused"] } }, data: { status: toStatus } });
+    if (r.count === 0) return res.status(404).json({ ok: false, message: "not found" });
+    return res.json({ ok: true, status: toStatus });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 3 종합 상태 ──
+app.get("/career-launch/week3", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [sessions, weaknesses, corrections, pkg] = await Promise.all([
+      prisma.careerInterviewSession.findMany({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" } }),
+      prisma.careerInterviewWeakness.findMany({ where: { studentUserId: userId } }),
+      prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId } }),
+      activePackage(userId)
+    ]);
+    const initial = sessions.find((s) => s.sessionType === "initial_mock" && s.status === "completed");
+    const answersCount = initial ? await prisma.careerInterviewAnswer.count({ where: { sessionId: initial.id, score: { not: null } } }) : 0;
+    const report = (initial?.reportData ?? null) as { report?: unknown; trainingPlan?: unknown; total?: number } | null;
+    const completion = computeWeek3Completion({
+      packageExists: Boolean(pkg), strategyViewed: sessions.length > 0, initialMockCompleted: Boolean(initial), minQuestionsAnswered: answersCount >= INTERVIEW_LIMITS.minCoreQuestions,
+      perQuestionEvaluated: answersCount > 0, weaknessAnalyzed: weaknesses.length > 0, correctionNotes: corrections.length, reportViewed: Boolean(report?.report), trainingPlanCreated: Boolean(report?.trainingPlan)
+    });
+    return res.json({ ok: true, sessions, weaknesses: weaknesses.map((w) => ({ ...w, label: weaknessLabel(w.weaknessType) })), corrections, report: report?.report ?? null, trainingPlan: report?.trainingPlan ?? null, completion });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4: 오답 코칭(구조 제시) ──
+async function ownCorrection(userId: string, id: string) {
+  return prisma.careerInterviewCorrection.findFirst({ where: { id, studentUserId: userId } });
+}
+app.post("/career-launch/week4/correction/:id/coach", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "w4-coach" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const c = await ownCorrection(userId, String(req.params.id));
+    if (!c) return res.status(404).json({ ok: false, message: "not found" });
+    if (c.coachingData && !((req.body as { force?: boolean })?.force)) return res.json({ ok: true, coaching: c.coachingData, cached: true });
+    if (!openai) return sendAiUnavailable(res);
+    const origAnswer = c.originalAnswerId ? await prisma.careerInterviewAnswer.findUnique({ where: { id: c.originalAnswerId } }) : null;
+    const pkg = await activePackage(userId);
+    const ctx = await buildInterviewCtx(userId, pkg);
+    let coaching: unknown = null;
+    try {
+      const raw = await careerChatComplete("이 질문에서 사용자의 최초 답변이 약했던 핵심 문제 한 가지를 짚고, 개선된 답변 구조(취약패턴에 맞게, 모든 답을 STAR로 강제하지 말 것)와 활용할 경험, 사용자가 스스로 다시 답하도록 힌트를 줘. 한 번에 너무 많은 피드백을 주지 마. " + IV_SAFETY, `${ctx}\n[질문]\n${c.question}\n[최초답변]\n${(origAnswer?.answerText ?? "").slice(0, 1500)}`, "iv_coaching", IV_COACHING_SCHEMA);
+      const p = CorrectionCoachingSchema.safeParse(raw);
+      if (p.success) coaching = p.data;
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "coaching 실패" });
+    }
+    await prisma.careerInterviewCorrection.update({ where: { id: c.id }, data: { coachingData: coaching as object, status: c.status === "discovered" ? "coaching" : c.status } });
+    return res.json({ ok: true, coaching });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4: 재도전/유사질문/꼬리질문 답변 제출 + 평가 + 통과 판정 ──
+const w4AttemptSchema = z.object({ attemptType: z.enum(ATTEMPT_TYPES), answerText: z.string().max(6000), questionText: z.string().max(1000).optional() });
+app.post("/career-launch/week4/correction/:id/attempt", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "w4-attempt" }), async (req, res) => {
+  const parsed = w4AttemptSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const c = await ownCorrection(userId, String(req.params.id));
+    if (!c) return res.status(404).json({ ok: false, message: "not found" });
+    const { attemptType, answerText } = parsed.data;
+    // 같은 질문 재도전 상한(외운 답변 방지).
+    if (attemptType === "same_question" && c.attemptCount >= INTERVIEW_LIMITS.maxRetriesPerQuestion) {
+      return res.status(409).json({ ok: false, code: "retry_limit", message: "같은 질문 재도전 한도 — 유사 질문으로 전환해 주세요" });
+    }
+    const questionText = parsed.data.questionText ?? c.question;
+    // 1) 시도 먼저 저장.
+    const pkg = await activePackage(userId);
+    const ctx = await buildInterviewCtx(userId, pkg);
+    let ev: import("./career-week34").AnswerEvaluation | null = null;
+    try {
+      ev = await evaluateInterviewAnswer(questionText, answerText, ctx);
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    }
+    const attempt = await prisma.careerInterviewCorrectionAttempt.create({ data: { studentUserId: userId, correctionId: c.id, questionText, answerText, attemptType, evaluationData: (ev ?? undefined) as object, score: ev?.total ?? null } });
+    // 2) 통과 판정(같은질문+유사질문 종합). 유사질문 시도일 때 판정.
+    const attempts = await prisma.careerInterviewCorrectionAttempt.findMany({ where: { correctionId: c.id }, orderBy: { createdAt: "asc" } });
+    const sameImproved = attempts.some((a) => a.attemptType === "same_question" && (a.score ?? 0) > (c.initialScore ?? 0));
+    const similarAttempt = attempts.find((a) => a.attemptType === "similar_question" && typeof a.score === "number");
+    let pass: import("./career-week34").PassResult | null = null;
+    if (attemptType === "similar_question" && ev) {
+      pass = evaluateCorrectionPass({
+        sameQuestionImproved: sameImproved,
+        similarUsedStructure: (ev.scores.structure ?? 0) >= 60,
+        consistentWithDocument: (ev.scores.consistency ?? 0) >= 60,
+        evidenceConcrete: (ev.scores.evidence ?? 0) >= 60,
+        roleClear: !(ev.weaknessTypes ?? []).includes("UNCLEAR_ROLE"),
+        jobConnected: (ev.scores.jobConnection ?? 0) >= 55,
+        noNewCritical: !(ev.weaknessTypes ?? []).some((w) => ["INCONSISTENT_WITH_DOCUMENT", "UNVERIFIED_CLAIM"].includes(w)),
+        aiConfidence: ev.confidence ?? 0.6
+      });
+      await prisma.careerInterviewCorrectionAttempt.update({ where: { id: attempt.id }, data: { passed: pass.passed } });
+    }
+    // 3) 오답 상태·점수 갱신.
+    const newStatus: CorrectionStatus = pass?.passed ? "passed" : attemptType === "similar_question" ? "transfer_test" : "retrying";
+    await prisma.careerInterviewCorrection.update({
+      where: { id: c.id },
+      data: {
+        attemptCount: attemptType === "same_question" ? c.attemptCount + 1 : c.attemptCount,
+        transferAttemptCount: attemptType === "similar_question" ? c.transferAttemptCount + 1 : c.transferAttemptCount,
+        latestScore: ev?.total ?? c.latestScore,
+        status: canTransitionCorrection(c.status as CorrectionStatus, newStatus) ? newStatus : c.status,
+        lastPracticedAt: new Date(),
+        ...(pass?.passed ? { passedAt: new Date(), passReason: pass as object } : {})
+      }
+    });
+    // 진행 중엔 상세 점수 대신 개선 방향 위주로 반환(피로 방지: 자극적 점수 강조 X).
+    return res.json({ ok: true, attemptType, improved: ev ? (ev.total > (c.latestScore ?? c.initialScore ?? 0)) : null, evaluation: ev ? { good: ev.good, keyProblem: ev.keyProblem, recommendedStructure: ev.recommendedStructure, total: ev.total } : null, pass, nextSuggestion: attemptType === "same_question" ? "similar_question" : pass?.passed ? "done" : "retry" });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4: 유사 질문 생성 ──
+app.post("/career-launch/week4/correction/:id/similar", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "w4-similar" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const c = await ownCorrection(userId, String(req.params.id));
+    if (!c) return res.status(404).json({ ok: false, message: "not found" });
+    if (!openai) return sendAiUnavailable(res);
+    let similar: unknown = null;
+    try {
+      const raw = await careerChatComplete("아래 원본 질문과 같은 역량을 '다른 맥락·다른 표현'으로 검증하는 유사 질문 1개를 만들어줘. 단어만 바꾸지 말고 같은 역량을 다르게 물어. " + IV_SAFETY, `[원본 질문]\n${c.question}`, "iv_similar", IV_SIMILAR_SCHEMA);
+      const p = SimilarQuestionSchema.safeParse(raw);
+      if (p.success) similar = p.data;
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "유사 질문 생성 실패" });
+    }
+    await prisma.careerInterviewCorrection.update({ where: { id: c.id }, data: { status: canTransitionCorrection(c.status as CorrectionStatus, "transfer_test") ? "transfer_test" : c.status } }).catch(() => null);
+    return res.json({ ok: true, similar });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4: 오답 상태 변경(수동, 검증된 전이만) ──
+const w4StatusSchema = z.object({ status: z.enum(CORRECTION_STATUSES) });
+app.post("/career-launch/week4/correction/:id/status", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = w4StatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const c = await ownCorrection(userId, String(req.params.id));
+    if (!c) return res.status(404).json({ ok: false, message: "not found" });
+    // passed 로의 수동 전이는 막는다(평가로만). paused/archived/coaching/retrying 만 허용.
+    if (parsed.data.status === "passed") return res.status(400).json({ ok: false, message: "passed 는 평가로만 결정됩니다" });
+    if (!canTransitionCorrection(c.status as CorrectionStatus, parsed.data.status)) return res.status(400).json({ ok: false, message: "invalid transition" });
+    const updated = await prisma.careerInterviewCorrection.update({ where: { id: c.id }, data: { status: parsed.data.status } });
+    return res.json({ ok: true, correction: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4: 성장 리포트(최초 vs 최종) ──
+app.post("/career-launch/week4/growth", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "w4-growth" }), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await week1CohortId(userId);
+    const force = (req.body as { force?: boolean })?.force === true;
+    const [initial, final, corrections, weaknesses, existing] = await Promise.all([
+      prisma.careerInterviewSession.findFirst({ where: { studentUserId: userId, sessionType: "initial_mock", status: "completed" }, orderBy: { createdAt: "asc" } }),
+      prisma.careerInterviewSession.findFirst({ where: { studentUserId: userId, sessionType: "final_mock", status: "completed" }, orderBy: { createdAt: "desc" } }),
+      prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId } }),
+      prisma.careerInterviewWeakness.findMany({ where: { studentUserId: userId } }),
+      prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId } })
+    ]);
+    if (!initial || !final) return res.json({ ok: true, report: null, needsFinalMock: !final, needsInitialMock: !initial });
+    if (!force && existing) return res.json({ ok: true, report: existing, cached: true });
+    // 축별 평균(공통 평가항목).
+    const axisAvg = async (sessionId: string) => {
+      const ans = await prisma.careerInterviewAnswer.findMany({ where: { sessionId }, select: { evaluationData: true } });
+      const acc: Record<string, number[]> = {};
+      for (const a of ans) {
+        const s = (a.evaluationData as { scores?: Record<string, number> } | null)?.scores ?? {};
+        for (const [k, v] of Object.entries(s)) (acc[k] ??= []).push(v);
+      }
+      const out: Record<string, number> = {};
+      for (const [k, arr] of Object.entries(acc)) out[k] = Math.round(arr.reduce((x, y) => x + y, 0) / arr.length);
+      return out;
+    };
+    const [initAxes, finalAxes] = await Promise.all([axisAvg(initial.id), axisAvg(final.id)]);
+    const initTotal = (initial.reportData as { total?: number } | null)?.total ?? 0;
+    const finalTotal = (final.reportData as { total?: number } | null)?.total ?? 0;
+    const passedCorrections = corrections.filter((c) => c.status === "passed").length;
+    const transferAttempts = await prisma.careerInterviewCorrectionAttempt.findMany({ where: { studentUserId: userId, attemptType: "similar_question" } });
+    const growth = computeGrowth({
+      initialTotal: initTotal, finalTotal: finalTotal, initialAxes: initAxes as never, finalAxes: finalAxes as never,
+      correctionsTotal: corrections.length, correctionsPassed: passedCorrections, transferTotal: transferAttempts.length, transferPassed: transferAttempts.filter((a) => a.passed).length,
+      weaknessesTotal: weaknesses.length, weaknessesResolved: passedCorrections, followupHandled: 0.5, scoringVersion: SCORING_VERSION
+    });
+    // 정성 리포트(LLM).
+    let qualitative: unknown = null;
+    if (openai) {
+      try {
+        const raw = await careerChatComplete("최초 면접과 최종 면접 결과를 비교해 성장 리포트를 써줘. 가장 개선된 항목, 남은 약점, 강하게 확인된 역량, 면접관이 추가 확인할 부분, 면접 당일 주의사항, 다음 7일·30일 행동계획, 코치 최종 메시지. 점수만 강조하지 말고 격려하는 톤으로. " + IV_SAFETY, `[성장지표]\n${JSON.stringify(growth)}\n[남은 취약]\n${weaknesses.filter((w) => w.status === "open").map((w) => w.title).join(", ")}`, "iv_growth", IV_GROWTH_SCHEMA);
+        const p = GrowthReportSchema.safeParse(raw);
+        if (p.success) qualitative = p.data;
+      } catch (err) {
+        if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      }
+    }
+    const humanReviewRequired = growth.finalScore < 50 || corrections.some((c) => c.status !== "passed" && (c.passReason as { needsHumanReview?: boolean } | null)?.needsHumanReview === true);
+    const report = await prisma.careerInterviewGrowthReport.upsert({
+      where: { studentUserId: userId },
+      create: { studentUserId: userId, cohortId, initialSessionId: initial.id, finalSessionId: final.id, comparisonData: { initAxes, finalAxes, initTotal, finalTotal } as object, growthData: growth as object, remainingWeaknesses: weaknesses.filter((w) => w.status === "open").map((w) => w.title) as object, nextActions: (qualitative ?? {}) as object, humanReviewRequired },
+      update: { finalSessionId: final.id, comparisonData: { initAxes, finalAxes, initTotal, finalTotal } as object, growthData: growth as object, remainingWeaknesses: weaknesses.filter((w) => w.status === "open").map((w) => w.title) as object, nextActions: (qualitative ?? {}) as object, humanReviewRequired }
+    });
+    emitTalentEvent(userId, TalentEventType.CAREER_LAUNCH_COMPLETED, { entityType: "growth_report", entityId: report.id });
+    return res.json({ ok: true, report, growth, qualitative });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── Week 4 종합 상태 ──
+app.get("/career-launch/week4", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [corrections, sessions, growth, attempts] = await Promise.all([
+      prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId }, orderBy: { createdAt: "asc" } }),
+      prisma.careerInterviewSession.findMany({ where: { studentUserId: userId } }),
+      prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId } }),
+      prisma.careerInterviewCorrectionAttempt.findMany({ where: { studentUserId: userId } })
+    ]);
+    const trained = corrections.filter((c) => c.attemptCount > 0 || c.transferAttemptCount > 0).length;
+    const passed = corrections.filter((c) => c.status === "passed").length;
+    const transferDone = corrections.filter((c) => c.transferAttemptCount > 0).length;
+    const finalMock = sessions.some((s) => s.sessionType === "final_mock" && s.status === "completed");
+    const completion = computeWeek4Completion({
+      correctionsTrained: trained, sameQuestionRetried: corrections.some((c) => c.attemptCount > 0), requiredTransferDone: transferDone >= Math.min(5, corrections.length),
+      finalMockCompleted: finalMock, comparisonDone: Boolean(growth), growthReportExists: Boolean(growth), plan30Viewed: Boolean((growth?.nextActions as { next30Days?: unknown[] } | null)?.next30Days)
+    });
+    const transferPassRate = attempts.filter((a) => a.attemptType === "similar_question").length ? Math.round((attempts.filter((a) => a.attemptType === "similar_question" && a.passed).length / attempts.filter((a) => a.attemptType === "similar_question").length) * 100) : 0;
+    return res.json({ ok: true, corrections, resolvedCount: passed, remainingCount: corrections.length - passed, transferPassRate, growthReport: growth, completion });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// Phase 7 — 경쟁·직무 리그·동기부여·운영자 개입.
+// 점수/리그/개입 순수로직은 ./career-league. 서버에서만 점수 계산(클라 변경 불가).
+// ══════════════════════════════════════════════════════════════════════
+
+// 여러 페이즈 데이터를 모아 점수 입력을 만든다(완료판정 프록시 + 실제 산출물 기준).
+async function gatherScoreInput(userId: string): Promise<{ input: ScoreInput; badge: BadgeState; cohortId: string | null }> {
+  const cohortId = await week1CohortId(userId);
+  const [profile, target, pkg, decision, growth, weaknesses, corrections, trials, mocks, transfer, experiences, firstMock] = await Promise.all([
+    prisma.careerProfile.findUnique({ where: { studentUserId: userId } }).catch(() => null),
+    prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" } }).catch(() => null),
+    prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } }).catch(() => null),
+    prisma.careerJobDecisionReport.findUnique({ where: { studentUserId: userId } }).catch(() => null),
+    prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId } }).catch(() => null),
+    prisma.careerInterviewWeakness.findMany({ where: { studentUserId: userId } }).catch(() => []),
+    prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId } }).catch(() => []),
+    prisma.careerJobTrial.count({ where: { studentUserId: userId, status: "evaluated" } }).catch(() => 0),
+    prisma.careerInterviewSession.count({ where: { studentUserId: userId, status: "completed" } }).catch(() => 0),
+    prisma.careerInterviewCorrectionAttempt.count({ where: { studentUserId: userId, attemptType: "similar_question" } }).catch(() => 0),
+    prisma.careerExperience.count({ where: { studentUserId: userId, userConfirmed: true } }).catch(() => 0),
+    prisma.careerInterviewSession.findFirst({ where: { studentUserId: userId, sessionType: "initial_mock", status: "completed" } }).catch(() => null)
+  ]);
+  const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { criticalUnresolved?: number };
+  const gdata = (growth?.growthData && typeof growth.growthData === "object" ? growth.growthData : {}) as { scoreGrowthRate?: number; correctionPassRate?: number };
+  // 완료 주차 프록시(방문·채팅 아님, 실제 산출물 기준).
+  const w1 = Boolean(target);
+  const w2 = pkg?.status === "finalized";
+  const w3 = Boolean(firstMock) && weaknesses.length > 0;
+  const w4 = Boolean(growth);
+  const weeksCompleted = [w1, w2, w3, w4].filter(Boolean).length;
+  const passedCorr = corrections.filter((c) => c.status === "passed").length;
+  const input: ScoreInput = {
+    weeksCompleted,
+    artifact: {
+      profileConfirmed: Boolean(profile),
+      targetConfirmed: Boolean(target),
+      readiness: typeof pkg?.readinessScore === "number" ? pkg.readinessScore : null,
+      reportsCount: (decision ? 1 : 0) + (growth ? 1 : 0),
+      unsupportedCount: 0,
+      criticalCount: val.criticalUnresolved ?? 0
+    },
+    growth: { comparable: Boolean(growth), scoreGrowthRate: typeof gdata.scoreGrowthRate === "number" ? gdata.scoreGrowthRate : null, correctionPassRate: typeof gdata.correctionPassRate === "number" ? gdata.correctionPassRate : null },
+    practice: { trialsCompleted: trials, mocksCompleted: mocks, transferAttempts: transfer },
+    correction: { total: corrections.length, passed: passedCorr, weaknessTotal: weaknesses.length, weaknessResolved: weaknesses.filter((w) => w.status === "resolved").length }
+  };
+  const badge: BadgeState = {
+    firstConsult: experiences > 0 || Boolean(target),
+    experienceFound: experiences > 0,
+    jobExplored: trials > 0,
+    targetConfirmed: Boolean(target),
+    firstPackage: Boolean(pkg),
+    factChecked: (val.criticalUnresolved ?? 0) === 0 && Boolean(pkg),
+    firstMock: Boolean(firstMock),
+    correctionStarted: corrections.some((c) => c.status !== "discovered"),
+    transferPassed: transfer > 0 && corrections.some((c) => c.status === "passed"),
+    interviewGrowth: Boolean(growth) && (gdata.scoreGrowthRate ?? 0) > 0,
+    completed4Weeks: weeksCompleted === 4,
+    consistentParticipation: weeksCompleted >= 3
+  };
+  return { input, badge, cohortId };
+}
+
+// 기수 리그 보장(cohort 타입, 기수당 1).
+async function ensureCohortLeague(cohortId: string): Promise<{ id: string; name: string } | null> {
+  const existing = await prisma.careerLeague.findFirst({ where: { cohortId, type: "cohort" } });
+  if (existing) return existing;
+  return prisma.careerLeague.create({ data: { cohortId, type: "cohort", name: "기수 전체 리그", scoringVersion: LEAGUE_SCORING_VERSION } }).catch(() => null);
+}
+
+// 내 점수 재계산 + 저장 + 배지 평가(서버에서만 계산).
+async function recomputeMyLeagueScore(userId: string): Promise<{ total: number; leagueId: string | null }> {
+  const { input, badge, cohortId } = await gatherScoreInput(userId);
+  const score = computeLeagueScore(input);
+  const league = cohortId ? await ensureCohortLeague(cohortId) : null;
+  const prev = league ? await prisma.careerLeagueScore.findUnique({ where: { studentUserId_leagueId: { studentUserId: userId, leagueId: league.id } } }).catch(() => null) : null;
+  if (league) {
+    await prisma.careerLeagueScore.upsert({
+      where: { studentUserId_leagueId: { studentUserId: userId, leagueId: league.id } },
+      create: { studentUserId: userId, cohortId, leagueId: league.id, scoringVersion: score.version, missionScore: score.breakdown.mission, artifactScore: score.breakdown.artifact, growthScore: score.breakdown.growth, practiceScore: score.breakdown.practice, correctionScore: score.breakdown.correction, contributionScore: score.breakdown.contribution, totalScore: score.total, previousRank: prev?.rank ?? null, sourceSnapshot: score as object, calculatedAt: new Date() },
+      update: { scoringVersion: score.version, missionScore: score.breakdown.mission, artifactScore: score.breakdown.artifact, growthScore: score.breakdown.growth, practiceScore: score.breakdown.practice, correctionScore: score.breakdown.correction, contributionScore: score.breakdown.contribution, totalScore: score.total, previousRank: prev?.rank ?? prev?.previousRank ?? null, sourceSnapshot: score as object, calculatedAt: new Date() }
+    });
+  }
+  // 배지(중복 방지 unique). 조회 시 반복 생성 안 함.
+  const earned = (await prisma.careerAchievement.findMany({ where: { studentUserId: userId }, select: { badgeKey: true } })).map((b) => b.badgeKey);
+  const newBadges = evaluateBadges(badge, earned);
+  for (const key of newBadges) {
+    await prisma.careerAchievement.create({ data: { studentUserId: userId, badgeKey: key, criteriaVersion: LEAGUE_SCORING_VERSION, sourceData: {} } }).catch(() => null);
+  }
+  return { total: score.total, leagueId: league?.id ?? null };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// UX Phase 2 — 학생 대시보드 view model 조합(결정적, LLM 미호출).
+// 코치 메시지는 최근 상담 요약 + 다음 행동을 조합한 템플릿(대시보드 조회마다 LLM 호출 안 함).
+// 핵심(enrollment/week/nextAction) 실패는 오류, 보조(seminar/league/growth) 실패는 부분 표시.
+// ═══════════════════════════════════════════════════════════════════════
+
+// Phase 16(KI-10) — 서버 문자열 다국어. 클라 locale 을 lang 쿼리로 받아 대시보드 코치/다음행동을 현지화한다.
+// 렌더링·번역 품질은 로컬 검증 불가(NOT MEASURED) — 실화면 확인 필요.
+function srvT(lang: string | undefined, ko: string, en: string, zh: string, vi: string, ja: string, id: string): string {
+  switch (lang) {
+    case "en": return en;
+    case "zh-CN": return zh;
+    case "vi": return vi;
+    case "ja": return ja;
+    case "id": return id;
+    default: return ko;
+  }
+}
+// 다음 행동 key → 라우트(정적, 문자열 없음). 표시 문자열은 nextActionStrings 로 현지화.
+const NEXT_ACTION_ROUTE: Record<string, { destination: string; estimatedMinutes: number; actionType: string }> = {
+  first_consult: { destination: "/career-launch/week/1", estimatedMinutes: 10, actionType: "first_consult" },
+  confirm_target: { destination: "/career-launch/week/1", estimatedMinutes: 10, actionType: "explore_job" },
+  complete_week: { destination: "/career-launch/dashboard", estimatedMinutes: 10, actionType: "continue_week" },
+  resolve_critical: { destination: "/career-launch/resume-collect", estimatedMinutes: 8, actionType: "fact_check" },
+  resolve_unsupported: { destination: "/career-launch/resume-collect", estimatedMinutes: 8, actionType: "fact_check" },
+  first_mock: { destination: "/career-launch/week/3", estimatedMinutes: 15, actionType: "first_mock" },
+  pass_correction: { destination: "/career-launch/week/4", estimatedMinutes: 12, actionType: "correction" },
+  review_growth: { destination: "/career-launch/deliverables", estimatedMinutes: 5, actionType: "review_growth" }
+};
+// key 별 현지화 label·reason·expectedResult·cta. 보간값(주차·건수)은 input 에서.
+function nextActionStrings(lang: string | undefined, key: string, input: { weeksCompleted: number; artifact: { criticalCount: number; unsupportedCount: number } }, delta: number): { label: string; reason: string; expectedResult: string; cta: string } {
+  const growthReason = delta > 0
+    ? srvT(lang, "지금 하면 성장에 가장 도움이 돼요", "This helps your growth most right now", "现在做对成长最有帮助", "Làm ngay giúp bạn phát triển nhất", "今やると成長に一番役立ちます", "Melakukannya sekarang paling membantu pertumbuhanmu")
+    : srvT(lang, "다음 단계로 이어져요", "It leads to the next step", "顺利进入下一步", "Dẫn tới bước tiếp theo", "次のステップにつながります", "Menuju langkah berikutnya");
+  switch (key) {
+    case "first_consult":
+      return {
+        label: srvT(lang, "전담 코치와 첫 상담을 시작해요", "Start your first coaching session", "开始与专属教练的首次咨询", "Bắt đầu buổi tư vấn đầu tiên với coach", "専属コーチと初回相談を始めます", "Mulai sesi konseling pertama dengan coach"),
+        reason: srvT(lang, "강점과 어울리는 직무 방향부터 함께 정해요", "Let's set a role direction that fits your strengths", "先一起确定与优势相符的职业方向", "Cùng xác định hướng nghề phù hợp điểm mạnh", "強みに合う職種の方向から一緒に決めます", "Tentukan arah peran yang cocok dengan kelebihanmu"),
+        expectedResult: srvT(lang, "나의 강점·목표 방향", "Your strengths & target direction", "我的优势·目标方向", "Điểm mạnh & hướng mục tiêu của tôi", "私の強み・目標の方向", "Kelebihan & arah targetku"),
+        cta: srvT(lang, "첫 상담 시작하기", "Start first coaching", "开始首次咨询", "Bắt đầu tư vấn đầu tiên", "初回相談を始める", "Mulai konseling pertama")
+      };
+    case "confirm_target":
+      return {
+        label: srvT(lang, "목표 직무를 확정해요", "Confirm your target role", "确定目标职务", "Xác nhận nghề mục tiêu", "目標職種を確定します", "Konfirmasi peran target"),
+        reason: growthReason,
+        expectedResult: srvT(lang, "목표 직무 확정", "Target role confirmed", "目标职务确定", "Nghề mục tiêu đã xác nhận", "目標職種の確定", "Peran target dikonfirmasi"),
+        cta: srvT(lang, "직무 탐험 시작하기", "Start exploring roles", "开始探索职务", "Bắt đầu khám phá nghề", "職種探索を始める", "Mulai jelajahi peran")
+      };
+    case "complete_week":
+      return {
+        label: srvT(lang, `${input.weeksCompleted + 1}주차 필수 미션을 완료해요`, `Finish Week ${input.weeksCompleted + 1}'s required missions`, `完成第${input.weeksCompleted + 1}周的必修任务`, `Hoàn thành nhiệm vụ bắt buộc Tuần ${input.weeksCompleted + 1}`, `Week ${input.weeksCompleted + 1}の必須ミッションを完了します`, `Selesaikan misi wajib Minggu ${input.weeksCompleted + 1}`),
+        reason: growthReason,
+        expectedResult: srvT(lang, "이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini"),
+        cta: srvT(lang, "이번 주 이어서 하기", "Continue this week", "继续本周", "Tiếp tục tuần này", "今週の続きをする", "Lanjutkan minggu ini")
+      };
+    case "resolve_critical":
+      return {
+        label: srvT(lang, `지원서 critical ${input.artifact.criticalCount}건을 해결해요`, `Resolve ${input.artifact.criticalCount} critical issues in your application`, `解决申请材料中的 ${input.artifact.criticalCount} 处关键问题`, `Xử lý ${input.artifact.criticalCount} vấn đề nghiêm trọng trong hồ sơ`, `応募書類の重要な問題 ${input.artifact.criticalCount}件を解決します`, `Selesaikan ${input.artifact.criticalCount} isu kritis di lamaran`),
+        reason: growthReason,
+        expectedResult: srvT(lang, "검증된 지원서", "A verified application", "已核验的申请材料", "Hồ sơ đã kiểm chứng", "検証済みの応募書類", "Lamaran terverifikasi"),
+        cta: srvT(lang, "사실 확인 마치기", "Finish fact-checking", "完成事实核验", "Hoàn tất kiểm tra sự thật", "事実確認を終える", "Selesaikan cek fakta")
+      };
+    case "resolve_unsupported":
+      return {
+        label: srvT(lang, `근거 부족 문장 ${Math.min(2, input.artifact.unsupportedCount)}건을 확인해요`, `Review ${Math.min(2, input.artifact.unsupportedCount)} unsupported sentences`, `确认 ${Math.min(2, input.artifact.unsupportedCount)} 处缺乏依据的句子`, `Kiểm tra ${Math.min(2, input.artifact.unsupportedCount)} câu thiếu căn cứ`, `根拠不足の文 ${Math.min(2, input.artifact.unsupportedCount)}件を確認します`, `Tinjau ${Math.min(2, input.artifact.unsupportedCount)} kalimat tanpa dasar`),
+        reason: growthReason,
+        expectedResult: srvT(lang, "근거 있는 이력서", "A well-supported resume", "有依据的简历", "CV có căn cứ", "根拠のある履歴書", "Resume berdasar bukti"),
+        cta: srvT(lang, "확인할 문장 검토하기", "Review the sentences", "检查待确认的句子", "Xem lại các câu cần kiểm tra", "確認する文を検討する", "Tinjau kalimatnya")
+      };
+    case "first_mock":
+      return {
+        label: srvT(lang, "최초 모의면접을 완료해요", "Finish your first mock interview", "完成首次模拟面试", "Hoàn thành phỏng vấn thử đầu tiên", "初回模擬面接を完了します", "Selesaikan wawancara simulasi pertama"),
+        reason: growthReason,
+        expectedResult: srvT(lang, "첫 모의면접 리포트", "First mock interview report", "首次模拟面试报告", "Báo cáo phỏng vấn thử đầu", "初回模擬面接レポート", "Laporan wawancara simulasi pertama"),
+        cta: srvT(lang, "첫 모의면접 시작하기", "Start your first mock interview", "开始首次模拟面试", "Bắt đầu phỏng vấn thử đầu tiên", "初回模擬面接を始める", "Mulai wawancara simulasi pertama")
+      };
+    case "pass_correction":
+      return {
+        label: srvT(lang, "유사 질문 하나를 통과해 핵심 오답을 해결해요", "Pass a similar question to resolve a key correction", "通过一道相似题以解决核心错题", "Vượt một câu tương tự để xử lý lỗi chính", "類似質問を一つ通過して重要な復習を解決します", "Lewati satu pertanyaan serupa untuk selesaikan koreksi utama"),
+        reason: growthReason,
+        expectedResult: srvT(lang, "해결한 오답", "A resolved correction", "已解决的错题", "Lỗi đã được sửa", "解決した復習", "Koreksi yang selesai"),
+        cta: srvT(lang, "오답 다시 답해보기", "Re-answer the correction", "重新作答错题", "Trả lời lại lỗi", "復習に答え直す", "Jawab ulang koreksi")
+      };
+    default: // review_growth
+      return {
+        label: srvT(lang, "최종 성장을 확인해요", "Check your final growth", "查看最终成长", "Xem sự phát triển cuối cùng", "最終的な成長を確認します", "Cek pertumbuhan akhirmu"),
+        reason: srvT(lang, "4주 여정의 변화를 확인해요", "See how you changed over the 4-week journey", "回顾4周历程中的变化", "Xem thay đổi qua hành trình 4 tuần", "4週間の道のりの変化を確認します", "Lihat perubahanmu sepanjang perjalanan 4 minggu"),
+        expectedResult: srvT(lang, "성장 리포트", "Growth report", "成长报告", "Báo cáo phát triển", "成長レポート", "Laporan pertumbuhan"),
+        cta: srvT(lang, "최종 성장 확인하기", "Check final growth", "查看最终成长", "Xem phát triển cuối", "最終成長を確認する", "Cek pertumbuhan akhir")
+      };
+  }
+}
+
+app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const lang = typeof req.query.lang === "string" ? req.query.lang : "ko"; // 클라 locale — 코치/다음행동 현지화(KI-10)
+    // 핵심 데이터.
+    const enrollment = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, include: { cohort: { select: { id: true, name: true, university: true, startsAt: true, endsAt: true } } }, orderBy: { createdAt: "desc" } });
+    const progress = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } }).catch(() => null);
+    const st = (progress?.state && typeof progress.state === "object" ? progress.state : {}) as { doneSteps?: unknown; diagnosis?: unknown };
+    const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as string[]) : [];
+    const lastActivityMs = progress?.updatedAt ? new Date(progress.updatedAt).getTime() : null;
+    const daysSinceActivity = lastActivityMs != null ? Math.floor((Date.now() - lastActivityMs) / 864e5) : null;
+
+    // 산출물·주차 완료 신호(gatherScoreInput 재사용 — 실제 산출물 기준).
+    const { input, badge } = await gatherScoreInput(userId);
+    const weekComplete = [input.weeksCompleted >= 1, input.weeksCompleted >= 2, input.weeksCompleted >= 3, input.weeksCompleted >= 4];
+    // 더 정확한 주차별 완료(산출물 기준).
+    const wDone = [badge.targetConfirmed, input.artifact.readiness != null && input.artifact.profileConfirmed && badge.firstPackage, badge.firstMock, badge.completed4Weeks || badge.interviewGrowth];
+    const weeksDoneCount = wDone.filter(Boolean).length;
+    const hadActivity = doneSteps.length > 0 || Boolean(st.diagnosis) || badge.targetConfirmed || badge.firstConsult;
+    // 현재 주차 = 완료되지 않은 첫 주차(전부 완료면 4).
+    const currentWeek = wDone.findIndex((d) => !d) === -1 ? 4 : wDone.findIndex((d) => !d) + 1;
+
+    // enrollmentStatus.
+    let enrollmentStatus: "new" | "active" | "stalled" | "completed" = "active";
+    if (!hadActivity) enrollmentStatus = "new";
+    else if (weeksDoneCount >= 4) enrollmentStatus = "completed";
+    else if ((daysSinceActivity ?? 0) >= 3) enrollmentStatus = "stalled";
+
+    // 다음 행동(결정적). 신규는 첫 상담 고정, 그 외 computeNextActions 최상위. 문자열은 lang 으로 현지화.
+    let nextAction;
+    if (!hadActivity) {
+      nextAction = { key: "first_consult", ...nextActionStrings(lang, "first_consult", input, 0), ...NEXT_ACTION_ROUTE.first_consult, projectedDelta: 0 };
+    } else {
+      const actions = computeNextActions(input, 1);
+      const top = actions[0];
+      if (top && NEXT_ACTION_ROUTE[top.key]) {
+        nextAction = { key: top.key, ...nextActionStrings(lang, top.key, input, top.projectedDelta), ...NEXT_ACTION_ROUTE[top.key], projectedDelta: top.projectedDelta };
+      } else {
+        // 전부 완료 → 최종 성장 확인.
+        nextAction = { key: "review_growth", ...nextActionStrings(lang, "review_growth", input, 0), ...NEXT_ACTION_ROUTE.review_growth, projectedDelta: 0 };
+      }
+    }
+
+    // 코치 메시지(템플릿, LLM 아님). 최근 상담 요약 + 목표 직무 기억 + 오늘 할 일.
+    const priorConsult = await loadRecentConsults(userId, 1).catch(() => "");
+    const targetJob = await prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" }, select: { jobKey: true, readinessData: true } }).catch(() => null);
+    const targetTitle = targetJob ? ((targetJob.readinessData as { label?: string } | null)?.label ?? targetJob.jobKey) : null;
+    const remembered = targetTitle
+      ? srvT(lang, `목표 직무를 '${targetTitle}'(으)로 정했어요.`, `You set your target role to '${targetTitle}'.`, `你已将目标职务定为“${targetTitle}”。`, `Bạn đã chọn nghề mục tiêu là '${targetTitle}'.`, `目標職種を「${targetTitle}」に決めました。`, `Kamu menetapkan peran target '${targetTitle}'.`)
+      : priorConsult
+        ? srvT(lang, "지난 상담 내용을 기억하고 있어요.", "I remember our last conversation.", "我记得上次的咨询内容。", "Tôi nhớ nội dung buổi tư vấn trước.", "前回の相談内容を覚えています。", "Aku ingat obrolan terakhir kita.")
+        : null;
+    const recentlyCompleted = weeksDoneCount > 0
+      ? srvT(lang, `Week ${weeksDoneCount}까지 마쳤어요.`, `You've finished through Week ${weeksDoneCount}.`, `你已完成到第${weeksDoneCount}周。`, `Bạn đã hoàn thành đến Tuần ${weeksDoneCount}.`, `Week ${weeksDoneCount}まで終えました。`, `Kamu sudah menyelesaikan hingga Minggu ${weeksDoneCount}.`)
+      : null;
+    const coach = { remembered, recentlyCompleted, todayFocus: nextAction.label, purpose: nextAction.reason, estimatedMinutes: nextAction.estimatedMinutes, expectedResult: nextAction.expectedResult, cta: nextAction.cta };
+
+    // Career Profile 요약(확정 정보 개수 — 재질문 방지 근거). 읽기 전용.
+    let profileSummary: { targetJob: string | null; confirmedCount: number; knownFacts: string[] } = { targetJob: targetTitle ?? null, confirmedCount: 0, knownFacts: [] };
+    try {
+      const live = await getLiveCareerProfile(userId);
+      const asks = careerProfileAsksNeeded(live, PROFILE_AREA_KEYS);
+      const confirmed = (asks.confirmedAreas ?? []) as string[];
+      profileSummary = { targetJob: targetTitle ?? null, confirmedCount: confirmed.length, knownFacts: confirmed.slice(0, 4) };
+    } catch {
+      /* 프로필 요약 실패는 보조 — 무시 */
+    }
+
+    // 결과물 상태(최대 나열, 클라에서 3개 노출).
+    const [resume, cover, pkg] = await Promise.all([
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true, updatedAt: true } }).catch(() => null),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true, updatedAt: true } }).catch(() => null),
+      prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" }, select: { status: true, updatedAt: true, validationData: true } }).catch(() => null)
+    ]);
+    const rc = (resume?.content ?? {}) as Record<string, unknown>;
+    const cc = (cover?.content ?? {}) as { items?: unknown[] };
+    const pkgVal = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { unsupportedCount?: number; criticalUnresolved?: number };
+    const artifacts = [
+      { type: "target_job", label: "목표 직무", status: targetTitle ? "완성" : "작성 전", detail: targetTitle ?? null, destination: "/career-launch/week/1", remaining: targetTitle ? 0 : null },
+      { type: "resume", label: "공고 맞춤 이력서", status: Object.keys(rc).length ? (pkgVal.unsupportedCount ? "확인 필요" : "작성 중") : "작성 전", updatedAt: resume?.updatedAt ?? null, destination: "/career-launch/resume-collect", remaining: pkgVal.unsupportedCount ?? null },
+      { type: "cover", label: "자기소개서", status: (cc.items?.length ?? 0) > 0 ? "작성 중" : "작성 전", updatedAt: cover?.updatedAt ?? null, destination: "/career-launch/cover-collect", remaining: null },
+      { type: "package", label: "지원 패키지", status: pkg?.status === "finalized" ? "완성" : pkg ? "작성 중" : "작성 전", updatedAt: pkg?.updatedAt ?? null, destination: "/career-launch/deliverables", remaining: pkgVal.criticalUnresolved ?? null }
+    ].filter((a) => a.status !== "작성 전" || a.type === "target_job" || a.type === "resume");
+
+    // 성장 요약(있을 때만 — 0점 그래프 금지).
+    let growthSummary: { available: boolean; scoreGrowthRate?: number; correctionResolved?: number; correctionTotal?: number } = { available: false };
+    if (input.growth.comparable && input.growth.scoreGrowthRate != null) {
+      growthSummary = { available: true, scoreGrowthRate: input.growth.scoreGrowthRate, correctionResolved: input.correction.passed, correctionTotal: input.correction.total };
+    }
+
+    // 리그·기수 활동 요약(보조).
+    let leagueSummary: { bucket: string | null; nextActionPreview: string | null } = { bucket: null, nextActionPreview: null };
+    let cohortActivity: { activeThisWeek: number | null } = { activeThisWeek: null };
+    try {
+      const cohortId = enrollment?.cohortId ?? null;
+      if (cohortId) {
+        const weekAgo = new Date(Date.now() - 7 * 864e5);
+        const enrolledIds = (await prisma.careerEnrollment.findMany({ where: { cohortId }, select: { studentUserId: true } })).map((e) => e.studentUserId);
+        const active = enrolledIds.length ? await prisma.careerLaunchProgress.count({ where: { studentUserId: { in: enrolledIds }, updatedAt: { gte: weekAgo } } }) : 0;
+        cohortActivity = { activeThisWeek: active };
+      }
+      const na = computeNextActions(input, 1)[0];
+      leagueSummary = { bucket: null, nextActionPreview: na ? na.label : null };
+    } catch {
+      /* 보조 실패 무시 */
+    }
+
+    // 다음 세미나(보조).
+    let nextSeminar: { week: number; title: string | null; startsAt: Date; online: boolean } | null = null;
+    try {
+      if (enrollment?.cohortId) {
+        const sem = await prisma.careerSeminar.findFirst({ where: { cohortId: enrollment.cohortId, startsAt: { gte: new Date() } }, orderBy: { startsAt: "asc" } });
+        if (sem) nextSeminar = { week: sem.week, title: sem.title, startsAt: sem.startsAt, online: sem.online };
+      }
+    } catch {
+      /* 무시 */
+    }
+
+    return res.json({
+      ok: true,
+      enrollmentStatus,
+      cohort: enrollment?.cohort ? { id: enrollment.cohort.id, name: enrollment.cohort.name, university: enrollment.cohort.university } : null,
+      currentWeek,
+      weeksDoneCount,
+      weekComplete: wDone,
+      lastActivityDaysAgo: daysSinceActivity,
+      coach,
+      nextAction,
+      profileSummary,
+      artifacts,
+      growthSummary,
+      leagueSummary,
+      cohortActivity,
+      nextSeminar
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// UX Phase 5 — 결과물 허브 / 면접 오답노트 / 나의 성장 view model(결정적, LLM 미호출).
+// 내부 모델명 미노출, 상태를 사용자 표현으로, 저장된 결과·규칙 기반 요약만. 기존 데이터 무변경.
+// ═══════════════════════════════════════════════════════════════════════
+
+// GET 결과물 허브 — 나의 방향/지원 패키지/면접 준비 3그룹.
+app.get("/career-launch/artifacts", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [target, experiences, resume, cover, pkg, target2, growth, initialMock] = await Promise.all([
+      prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" }, select: { jobKey: true, readinessData: true } }).catch(() => null),
+      prisma.careerExperience.count({ where: { studentUserId: userId, userConfirmed: true } }).catch(() => 0),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true, updatedAt: true } }).catch(() => null),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true, updatedAt: true } }).catch(() => null),
+      prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" }, select: { status: true, updatedAt: true, validationData: true } }).catch(() => null),
+      prisma.careerApplicationTarget.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" }, select: { status: true } }).catch(() => null),
+      prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId }, select: { id: true } }).catch(() => null),
+      prisma.careerInterviewSession.findFirst({ where: { studentUserId: userId, sessionType: "initial_mock", status: "completed" }, select: { id: true } }).catch(() => null)
+    ]);
+    const targetTitle = target ? ((target.readinessData as { label?: string } | null)?.label ?? target.jobKey) : null;
+    const rc = (resume?.content ?? {}) as Record<string, unknown>;
+    const cc = (cover?.content ?? {}) as { items?: unknown[] };
+    const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { unsupportedCount?: number; criticalUnresolved?: number };
+    const st = (has: boolean, finalized: boolean, needsConfirm: boolean) => (finalized ? "finalized" : needsConfirm ? "needs_confirmation" : has ? "in_progress" : "not_started");
+    const direction = [
+      { type: "target_job", label: "목표 직무", status: targetTitle ? "finalized" : "not_started", detail: targetTitle, destination: "/career-launch/week/1" },
+      { type: "experiences", label: "대표 경험", status: experiences > 0 ? "finalized" : "not_started", detail: experiences > 0 ? `${experiences}개 확인` : null, destination: "/career-launch/experience" }
+    ];
+    const applicationPackage = [
+      { type: "resume", label: "공고 맞춤 이력서", status: st(Object.keys(rc).length > 0, false, (val.unsupportedCount ?? 0) > 0), detail: null, updatedAt: resume?.updatedAt ?? null, remaining: val.unsupportedCount ?? 0, destination: "/career-launch/resume-collect" },
+      { type: "cover", label: "자기소개서", status: st((cc.items?.length ?? 0) > 0, false, false), detail: null, updatedAt: cover?.updatedAt ?? null, remaining: 0, destination: "/career-launch/cover-collect" },
+      { type: "target", label: "기준 채용공고", status: target2?.status === "finalized" ? "finalized" : target2 ? "in_progress" : "not_started", detail: null, destination: "/career-launch/week/2" },
+      { type: "package", label: "지원 패키지", status: pkg?.status === "finalized" ? "finalized" : pkg ? "needs_confirmation" : "not_started", detail: null, updatedAt: pkg?.updatedAt ?? null, remaining: val.criticalUnresolved ?? 0, destination: "/career-launch/deliverables" }
+    ];
+    const interviewPrep = [
+      { type: "initial_mock", label: "최초 모의면접", status: initialMock ? "finalized" : "not_started", detail: null, destination: "/career-launch/week/3" },
+      { type: "growth", label: "성장 리포트", status: growth ? "finalized" : "not_started", detail: null, destination: "/career-launch/growth" }
+    ];
+    const all = [...direction, ...applicationPackage, ...interviewPrep];
+    const finalized = all.filter((a) => a.status === "finalized").length;
+    const needsConfirm = all.filter((a) => a.status === "needs_confirmation");
+    return res.json({
+      ok: true,
+      summary: { targetJob: targetTitle, finalizedCount: finalized, needsConfirmCount: needsConfirm.length, firstNeedsConfirm: needsConfirm[0] ?? null },
+      groups: { direction, applicationPackage, interviewPrep }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 면접 오답노트 — 상태 그룹 + 요약.
+const CORRECTION_GROUP: Record<string, string> = { discovered: "practice_first", coaching: "practice_first", retrying: "retrying", transfer_test: "transfer", passed: "passed", paused: "paused" };
+app.get("/career-launch/corrections", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const corrections = await prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId, status: { not: "archived" } }, orderBy: { createdAt: "asc" } });
+    const cards = corrections.map((c) => {
+      const coaching = (c.coachingData && typeof c.coachingData === "object" ? c.coachingData : {}) as { oneLine?: string; diagnosis?: string };
+      return {
+        id: c.id,
+        question: c.question,
+        weakness: c.weaknessId ? weaknessLabel(c.questionType ?? "") : null,
+        coachOneLine: coaching.oneLine ?? coaching.diagnosis ?? null,
+        status: c.status,
+        group: CORRECTION_GROUP[c.status] ?? "practice_first",
+        attemptCount: c.attemptCount,
+        transferAttempts: c.transferAttemptCount,
+        transferPassed: c.status === "passed",
+        initialScore: c.initialScore,
+        latestScore: c.latestScore,
+        lastPracticedAt: c.lastPracticedAt
+      };
+    });
+    const passed = cards.filter((c) => c.status === "passed").length;
+    const transferTotal = cards.filter((c) => c.transferAttempts > 0).length;
+    const transferPassed = cards.filter((c) => c.status === "passed" && c.transferAttempts > 0).length;
+    const nextRecommended = cards.find((c) => c.group === "practice_first") ?? cards.find((c) => c.group === "retrying") ?? null;
+    return res.json({
+      ok: true,
+      summary: { total: cards.length, passed, inTraining: cards.filter((c) => c.group === "retrying" || c.group === "transfer").length, transferPassRatePct: transferTotal ? Math.round((transferPassed / transferTotal) * 100) : null, nextRecommended },
+      cards
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 나의 성장 — 개인 변화 우선. 저장된 성장 리포트 + 규칙 요약(LLM 아님).
+app.get("/career-launch/growth", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const { input, badge } = await gatherScoreInput(userId);
+    const growth = await prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId } }).catch(() => null);
+    const comparison = (growth?.comparisonData && typeof growth.comparisonData === "object" ? growth.comparisonData : null) as { initialScore?: number; finalScore?: number; axes?: { key: string; label: string; initial: number; final: number }[] } | null;
+    const gdata = (growth?.growthData && typeof growth.growthData === "object" ? growth.growthData : {}) as { scoreGrowthRate?: number };
+    const remaining = Array.isArray(growth?.remainingWeaknesses) ? (growth!.remainingWeaknesses as unknown[]) : [];
+    const next = (growth?.nextActions && typeof growth.nextActions === "object" ? growth.nextActions : {}) as Record<string, unknown>;
+    // 성장 한 문장 요약(데이터 있을 때만 수치).
+    const parts: string[] = [];
+    if (badge.targetConfirmed) parts.push("목표 직무를 정하고");
+    if (badge.firstPackage) parts.push("지원 패키지를 완성했으며");
+    const scoreDelta = comparison?.initialScore != null && comparison?.finalScore != null ? comparison.finalScore - comparison.initialScore : null;
+    if (scoreDelta != null) parts.push(`면접 답변 점수가 최초보다 ${scoreDelta >= 0 ? "+" : ""}${scoreDelta}점 달라졌어요`);
+    const summarySentence = parts.length ? `4주 동안 ${parts.join(", ")}.`.replace(/,([^,]*)$/, "$1") : "아직 비교할 성장 데이터가 쌓이는 중이에요.";
+    const weekOutcomes = [
+      { week: 1, done: badge.targetConfirmed, label: badge.targetConfirmed ? "목표 직무 확정" : "목표 직무 정하기 전" },
+      { week: 2, done: badge.firstPackage, label: badge.firstPackage ? "지원 패키지 완성" : "지원 패키지 작성 중" },
+      { week: 3, done: badge.firstMock, label: badge.firstMock ? "최초 모의면접 완료" : "최초 모의면접 전" },
+      { week: 4, done: badge.completed4Weeks || badge.interviewGrowth, label: badge.interviewGrowth ? "오답 해결·최종 면접" : "오답 훈련 중" }
+    ];
+    return res.json({
+      ok: true,
+      summarySentence,
+      weekOutcomes,
+      interviewComparison: comparison ? { available: true, initialScore: comparison.initialScore ?? null, finalScore: comparison.finalScore ?? null, delta: scoreDelta, axes: comparison.axes ?? [] } : { available: false },
+      correctionSummary: { total: input.correction.total, passed: input.correction.passed, weaknessResolved: input.correction.weaknessResolved, weaknessTotal: input.correction.weaknessTotal },
+      remainingWeaknesses: remaining.slice(0, 5),
+      nextActions: next,
+      scoreGrowthRate: input.growth.comparable ? gdata.scoreGrowthRate ?? input.growth.scoreGrowthRate ?? null : null,
+      hasGrowthReport: Boolean(growth)
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생: 내 리그·점수·다음행동·배지·공동목표·피드 ──
+app.get("/career-launch/league", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    await recomputeMyLeagueScore(userId); // 진입 시 내 점수만 갱신(전체 재계산 아님).
+    const { input, cohortId } = await gatherScoreInput(userId);
+    const league = cohortId ? await ensureCohortLeague(cohortId) : null;
+    let myRank: number | null = null;
+    let percentile: number | null = null;
+    let memberCount = 0;
+    let bucket: string | null = null;
+    let rankHidden = false;
+    if (league) {
+      const scores = await prisma.careerLeagueScore.findMany({ where: { leagueId: league.id }, orderBy: { totalScore: "desc" }, select: { studentUserId: true, totalScore: true } });
+      memberCount = scores.length;
+      const idx = scores.findIndex((s) => s.studentUserId === userId);
+      if (idx >= 0) {
+        myRank = idx + 1;
+        percentile = computePercentile(myRank, memberCount);
+        bucket = rankBucket(percentile);
+      }
+      rankHidden = shouldHideRank(memberCount); // 소규모 상세순위 숨김
+    }
+    const myScore = await prisma.careerLeagueScore.findUnique({ where: { studentUserId_leagueId: { studentUserId: userId, leagueId: league?.id ?? "" } } }).catch(() => null);
+    const nextActions = computeNextActions(input);
+    const badges = await prisma.careerAchievement.findMany({ where: { studentUserId: userId }, orderBy: { earnedAt: "desc" } });
+    const badgeMeta = badges.map((b) => ({ ...b, ...(BADGES.find((x) => x.key === b.badgeKey) ?? {}) }));
+    const goals = cohortId ? await prisma.careerCohortGoal.findMany({ where: { cohortId, status: "active" } }) : [];
+    // 익명 활동 피드(개인 식별 없이 최근 성취 집계).
+    let recentAch = 0;
+    if (cohortId) {
+      const peerIds = (await prisma.careerEnrollment.findMany({ where: { cohortId }, select: { studentUserId: true } })).map((e) => e.studentUserId);
+      recentAch = await prisma.careerAchievement.count({ where: { studentUserId: { in: peerIds }, earnedAt: { gte: new Date(Date.now() - 7 * 864e5) } } }).catch(() => 0);
+    }
+    const feed = [] as string[];
+    if (recentAch > 0) feed.push(`이번 주 우리 기수에서 성취 ${recentAch}개가 달성됐어요.`);
+    return res.json({
+      ok: true,
+      score: myScore ? { total: myScore.totalScore, breakdown: { mission: myScore.missionScore, artifact: myScore.artifactScore, growth: myScore.growthScore, practice: myScore.practiceScore, correction: myScore.correctionScore, contribution: myScore.contributionScore }, version: myScore.scoringVersion, rankDelta: myScore.previousRank != null && myRank != null ? myScore.previousRank - myRank : null } : null,
+      league: league ? { id: league.id, name: league.name, memberCount, rank: rankHidden ? null : myRank, percentile, bucket, rankHidden } : null,
+      nextActions,
+      badges: badgeMeta,
+      cohortGoals: goals,
+      activityFeed: feed,
+      contributionDisabled: true
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 점수 재계산(학생 트리거 — 내 것만, 안전).
+app.post("/career-launch/league/recalculate", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "league-recalc" }), async (req, res) => {
+  try {
+    const r = await recomputeMyLeagueScore(req.auth!.userId);
+    return res.json({ ok: true, total: r.total });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 9 — 파일럿 운영·측정. 신규 핵심 기능 없음(측정/모니터링/리포트).
+// 개인정보: 운영자 화면은 학생 식별이 정당(관리 목적). 설문/정성 피드백 원문은
+// 이벤트/집계에 넣지 않는다(category·severity 만). 프로덕션/실사용자 초대·발송 없음.
+// ═══════════════════════════════════════════════════════════════════════
+
+// 파일럿 학생 1인의 프로그램 진행/상태/퍼널 원자료를 모은다(cohort 단위 배치 조회).
+type PilotStudentRow = {
+  userId: string;
+  name: string | null;
+  email: string;
+  enrolledAtMs: number;
+  lastActivityMs: number | null;
+  daysSinceActivity: number | null;
+  weeksCompleted: number;
+  hadAnyActivity: boolean;
+  targetConfirmed: boolean;
+  packageFinalized: boolean;
+  initialMockDone: boolean;
+  finalMockDone: boolean;
+  correctionOpened: boolean;
+  transferPassed: boolean;
+  programCompleted: boolean;
+  realApplication: boolean;
+  firstConsult: boolean;
+  week2Started: boolean;
+  week3Started: boolean;
+  week4Started: boolean;
+  openInterventionPriority: "critical" | "high" | "medium" | "low" | null;
+  overrideStatus: PilotStudentStatus | null;
+  status: PilotStudentStatus;
+  statusSource: "operator" | "auto";
+  statusReasons: string[];
+  needsConfirm: boolean;
+};
+
+async function loadPilotStudents(cohortId: string): Promise<PilotStudentRow[]> {
+  const enrollments = await prisma.careerEnrollment.findMany({
+    where: { cohortId },
+    include: { student: { select: { id: true, name: true, realName: true, email: true } } },
+    orderBy: { createdAt: "asc" }
+  });
+  const ids = enrollments.map((e) => e.studentUserId);
+  if (!ids.length) return [];
+  const [progressRows, targets, packages, sessions, corrections, growths, outcomes, interventions] = await Promise.all([
+    prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } } }),
+    prisma.careerTargetJob.findMany({ where: { studentUserId: { in: ids }, status: "confirmed" }, select: { studentUserId: true } }),
+    prisma.careerApplicationPackage.findMany({ where: { studentUserId: { in: ids }, status: "finalized" }, select: { studentUserId: true } }),
+    prisma.careerInterviewSession.findMany({ where: { studentUserId: { in: ids }, status: "completed" }, select: { studentUserId: true, sessionType: true } }),
+    prisma.careerInterviewCorrection.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, status: true } }),
+    prisma.careerInterviewGrowthReport.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true } }),
+    prisma.careerEmploymentOutcome.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true } }),
+    prisma.careerIntervention.findMany({ where: { cohortId, status: { notIn: ["resolved", "dismissed"] } }, select: { studentUserId: true, priority: true } })
+  ]);
+  const progBy = new Map(progressRows.map((p) => [p.studentUserId, p] as const));
+  const setOf = (arr: { studentUserId: string }[]) => new Set(arr.map((r) => r.studentUserId));
+  const targetSet = setOf(targets);
+  const packageSet = setOf(packages);
+  const growthSet = setOf(growths);
+  const outcomeSet = setOf(outcomes);
+  const initialMockSet = new Set(sessions.filter((s) => s.sessionType === "initial_mock").map((s) => s.studentUserId));
+  const finalMockSet = new Set(sessions.filter((s) => s.sessionType === "final_mock").map((s) => s.studentUserId));
+  const correctionBy = new Map<string, string[]>();
+  for (const c of corrections) {
+    const a = correctionBy.get(c.studentUserId) ?? [];
+    a.push(c.status);
+    correctionBy.set(c.studentUserId, a);
+  }
+  const ivPriority = new Map<string, "critical" | "high" | "medium" | "low">();
+  const rank = { critical: 4, high: 3, medium: 2, low: 1 } as const;
+  for (const iv of interventions) {
+    const p = (iv.priority as "critical" | "high" | "medium" | "low") ?? "low";
+    const cur = ivPriority.get(iv.studentUserId);
+    if (!cur || rank[p] > rank[cur]) ivPriority.set(iv.studentUserId, p);
+  }
+
+  return enrollments.map((e) => {
+    const uid = e.studentUserId;
+    const prog = progBy.get(uid);
+    const st = (prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+    const doneSteps = Array.isArray(st.doneSteps) ? (st.doneSteps as string[]) : [];
+    const overrideStatus = typeof st.pilotStatusOverride === "string" && PILOT_STUDENT_STATUSES_INCLUDES(st.pilotStatusOverride) ? (st.pilotStatusOverride as PilotStudentStatus) : null;
+    const corrStatuses = correctionBy.get(uid) ?? [];
+    const lastMs = prog?.updatedAt ? new Date(prog.updatedAt).getTime() : null;
+    const daysSince = lastMs != null ? Math.floor((Date.now() - lastMs) / 864e5) : null;
+    const weeksCompleted = [1, 2, 3, 4].filter((w) => doneSteps.includes(`w${w}s4`)).length;
+    const hadAnyActivity = doneSteps.length > 0 || Boolean(st.diagnosis) || targetSet.has(uid) || initialMockSet.has(uid) || packageSet.has(uid);
+    const openPriority = ivPriority.get(uid) ?? null;
+    const auto = computeStudentStatus({
+      enrolled: true,
+      registered: true,
+      hadAnyActivity,
+      daysSinceActivity: daysSince,
+      weeksCompleted,
+      programCompleted: growthSet.has(uid) || doneSteps.includes("w4s4"),
+      openInterventionPriority: openPriority
+    });
+    const resolved = resolveStudentStatus(auto, overrideStatus);
+    return {
+      userId: uid,
+      name: e.student?.realName ?? e.student?.name ?? null,
+      email: e.student?.email ?? "",
+      enrolledAtMs: new Date(e.createdAt).getTime(),
+      lastActivityMs: lastMs,
+      daysSinceActivity: daysSince,
+      weeksCompleted,
+      hadAnyActivity,
+      targetConfirmed: targetSet.has(uid),
+      packageFinalized: packageSet.has(uid),
+      initialMockDone: initialMockSet.has(uid),
+      finalMockDone: finalMockSet.has(uid),
+      correctionOpened: corrStatuses.length > 0,
+      transferPassed: corrStatuses.includes("passed"),
+      programCompleted: growthSet.has(uid) || doneSteps.includes("w4s4"),
+      realApplication: outcomeSet.has(uid),
+      firstConsult: doneSteps.length > 0 || Boolean(st.diagnosis),
+      week2Started: doneSteps.some((s) => s.startsWith("w2")) || packageSet.has(uid),
+      week3Started: doneSteps.some((s) => s.startsWith("w3")) || initialMockSet.has(uid),
+      week4Started: doneSteps.some((s) => s.startsWith("w4")) || corrStatuses.some((s) => s !== "discovered"),
+      openInterventionPriority: openPriority,
+      overrideStatus,
+      status: resolved.status,
+      statusSource: resolved.source,
+      statusReasons: resolved.reasons,
+      needsConfirm: auto.needsOperatorConfirm && !overrideStatus
+    };
+  });
+}
+
+// 파일럿 학생 행 → 퍼널 학생(단계 도달 여부). 세부 시각이 없으면 lastActivity/enrolled 로 근사.
+function pilotRowToFunnelStudent(r: PilotStudentRow): FunnelStudent {
+  const at = r.lastActivityMs ?? r.enrolledAtMs;
+  const mk = (reached: boolean) => ({ reached, at: reached ? at : null });
+  return {
+    invitedAt: r.enrolledAtMs,
+    steps: {
+      invited: { reached: true, at: r.enrolledAtMs },
+      registered: { reached: true, at: r.enrolledAtMs },
+      first_consult: mk(r.firstConsult),
+      week1_completed: mk(r.weeksCompleted >= 1),
+      target_confirmed: mk(r.targetConfirmed),
+      week2_started: mk(r.week2Started),
+      package_finalized: mk(r.packageFinalized),
+      week3_started: mk(r.week3Started),
+      initial_mock_completed: mk(r.initialMockDone),
+      correction_opened: mk(r.correctionOpened),
+      week4_started: mk(r.week4Started),
+      transfer_passed: mk(r.transferPassed),
+      final_mock_completed: mk(r.finalMockDone),
+      program_completed: mk(r.programCompleted),
+      real_application: mk(r.realApplication)
+    }
+  };
+}
+
+// pilotStatusOverride 유효성(순수 모듈 상수 재사용).
+function PILOT_STUDENT_STATUSES_INCLUDES(v: string): boolean {
+  return (["invited", "registered", "onboarding", "active", "at_risk", "intervention_required", "paused", "completed", "withdrawn"] as string[]).includes(v);
+}
+
+// 파일럿 준비 상태 입력 구성(자동 항목 계산 + 운영자 수동 체크는 monitoringConfiguration.manualChecks).
+async function buildReadinessInput(cohortId: string) {
+  const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId } });
+  if (!cohort) return null;
+  const [weeksCount, seminarsCount, enrolledCount] = await Promise.all([
+    prisma.careerCohortWeek.count({ where: { cohortId } }),
+    prisma.careerSeminar.count({ where: { cohortId } }),
+    prisma.careerEnrollment.count({ where: { cohortId } })
+  ]);
+  const mon = (cohort.monitoringConfiguration && typeof cohort.monitoringConfiguration === "object" ? cohort.monitoringConfiguration : {}) as { manualChecks?: Record<string, boolean>; supportContact?: string };
+  const flags = (cohort.featureFlags && typeof cohort.featureFlags === "object" ? cohort.featureFlags : {}) as Record<string, boolean>;
+  const survey = (cohort.surveyConfiguration && typeof cohort.surveyConfiguration === "object" ? cohort.surveyConfiguration : null);
+  return {
+    cohort,
+    input: {
+      cohortExists: true,
+      startAt: Boolean(cohort.startsAt || cohort.pilotStartAt),
+      endAt: Boolean(cohort.endsAt || cohort.pilotEndAt),
+      weeksScheduledCount: weeksCount,
+      seminarsCount,
+      enrolledCount,
+      participantLimit: cohort.participantLimit,
+      featureFlagsSet: Object.values(flags).some(Boolean),
+      llmEnvReady: Boolean(openai),
+      surveyConfigured: survey !== null,
+      supportContactSet: Boolean(mon.supportContact),
+      manualChecks: (mon.manualChecks ?? {}) as Record<string, boolean>
+    }
+  };
+}
+
+// GET 준비 체크리스트.
+app.get("/career-launch/ops/pilot/:cohortId/readiness", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const built = await buildReadinessInput(cohortId);
+    if (!built) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const r = computeReadiness(built.input);
+    return res.json({ ok: true, cohort: { id: built.cohort.id, name: built.cohort.name, university: built.cohort.university, isPilot: built.cohort.isPilot }, readiness: r, checklist: READINESS_CHECKLIST });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 모니터링 화면(전체현황 + 학생별 + 문제현황 + 중단조건 + SLA).
+app.get("/career-launch/ops/pilot/:cohortId/monitor", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const rows = await loadPilotStudents(cohortId);
+    const todayStart = Date.now() - 864e5;
+    // 전체 현황.
+    const overview = {
+      enrolled: rows.length,
+      active: rows.filter((r) => r.status === "active").length,
+      atRisk: rows.filter((r) => r.status === "at_risk").length,
+      interventionRequired: rows.filter((r) => r.status === "intervention_required").length,
+      completed: rows.filter((r) => r.status === "completed").length,
+      activeToday: rows.filter((r) => r.lastActivityMs != null && r.lastActivityMs >= todayStart).length,
+      stalled3d: rows.filter((r) => (r.daysSinceActivity ?? 0) >= 3 && !r.programCompleted).length,
+      weekCompletion: [1, 2, 3, 4].map((w) => ({ week: w, count: rows.filter((r) => r.weeksCompleted >= w).length }))
+    };
+    // 미해결 개입(SLA 포함).
+    const openIvs = await prisma.careerIntervention.findMany({ where: { cohortId, status: { notIn: ["resolved", "dismissed"] } }, include: { student: { select: { id: true, name: true, realName: true } } }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }], take: 200 });
+    const ivLogs = await prisma.careerInterventionLog.findMany({ where: { interventionId: { in: openIvs.map((i) => i.id) }, action: { not: "note" } }, orderBy: { createdAt: "asc" }, select: { interventionId: true, createdAt: true } });
+    const firstResp = new Map<string, number>();
+    for (const l of ivLogs) if (!firstResp.has(l.interventionId)) firstResp.set(l.interventionId, new Date(l.createdAt).getTime());
+    const now = Date.now();
+    const interventions = openIvs.map((iv) => {
+      const sla = computeSlaStatus({ createdAtMs: new Date(iv.createdAt).getTime(), firstResponseAtMs: firstResp.get(iv.id) ?? null, priority: iv.priority, reasonCodes: iv.reasonCodes, nowMs: now });
+      return { id: iv.id, studentName: iv.student?.realName ?? iv.student?.name ?? null, priority: iv.priority, status: iv.status, reasonCodes: iv.reasonCodes, sla };
+    });
+    const slaBreaches = interventions.filter((i) => i.sla.breached);
+    // 문제 현황(관측형) — 최근 정성 피드백(원문 없음).
+    const [qualCritical, qualHigh, contentLost, alreadyAnswered, interviewBlocked, costAgg] = await Promise.all([
+      prisma.careerQualitativeFeedback.count({ where: { cohortId, severity: "critical", resolvedAt: null } }),
+      prisma.careerQualitativeFeedback.count({ where: { cohortId, severity: "high", resolvedAt: null } }),
+      prisma.careerQualitativeFeedback.count({ where: { cohortId, category: "content_lost", resolvedAt: null } }),
+      prisma.careerQualitativeFeedback.count({ where: { cohortId, category: "already_answered", resolvedAt: null } }),
+      prisma.careerQualitativeFeedback.count({ where: { cohortId, category: "interview_blocked", resolvedAt: null } }),
+      prisma.careerAiCostDaily.groupBy({ by: ["dateKey"], where: { cohortId }, _sum: { estCostUsd: true } })
+    ]);
+    // 중단 조건 자동 판정(관측 가능한 지표만 — 나머지는 운영자 수동 확인).
+    const funnel = computeFunnel(rows.map(pilotRowToFunnelStudent));
+    const maxDropoff = funnel.steps.reduce((mx, s) => (s.conversionFromPrev != null ? Math.max(mx, 100 - s.conversionFromPrev) : mx), 0);
+    const todayKey = dateKeyKst();
+    const costByDate = new Map(costAgg.map((c) => [c.dateKey, c._sum.estCostUsd ?? 0] as const));
+    const baseDates = [...costByDate.entries()].filter(([d]) => d !== todayKey);
+    const baselineDaily = baseDates.length ? baseDates.reduce((a, b) => a + b[1], 0) / baseDates.length : 0;
+    const stopMetrics: StopMetrics = {
+      artifactSaveFailures: contentLost,
+      confirmedReaskCount: alreadyAnswered,
+      interviewAnswerLosses: interviewBlocked,
+      llmCostToday: costByDate.get(todayKey) ?? 0,
+      llmCostBaselineDaily: baselineDaily,
+      p0Count: 0,
+      p1RepeatMax: 0,
+      maxStepDropoffRate: Math.round(maxDropoff),
+      funnelSampleSize: rows.length,
+      interventionListAvailable: true
+    };
+    const stopConditions = evaluateStopConditions(stopMetrics);
+    // 학생별.
+    const students = rows.map((r) => ({
+      userId: r.userId,
+      name: r.name,
+      status: r.status,
+      statusSource: r.statusSource,
+      statusReasons: r.statusReasons,
+      needsConfirm: r.needsConfirm,
+      weeksCompleted: r.weeksCompleted,
+      lastActivityDaysAgo: r.daysSinceActivity,
+      targetConfirmed: r.targetConfirmed,
+      packageFinalized: r.packageFinalized,
+      initialMockDone: r.initialMockDone,
+      finalMockDone: r.finalMockDone,
+      transferPassed: r.transferPassed,
+      openInterventionPriority: r.openInterventionPriority
+    }));
+    return res.json({ ok: true, cohort: { id: cohort.id, name: cohort.name, university: cohort.university, isPilot: cohort.isPilot, pilotStartAt: cohort.pilotStartAt, pilotEndAt: cohort.pilotEndAt }, overview, students, interventions, problems: { slaBreaches: slaBreaches.length, qualCritical, qualHigh }, stopConditions });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 핵심 퍼널(15단계, 실인원 + 전환율 + 중앙 소요시간).
+app.get("/career-launch/ops/pilot/:cohortId/funnel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const rows = await loadPilotStudents(cohortId);
+    const funnel = computeFunnel(rows.map(pilotRowToFunnelStudent));
+    // KPI 목표(운영자 수정 가능) 병합.
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { monitoringConfiguration: true } });
+    const mon = (cohort?.monitoringConfiguration && typeof cohort.monitoringConfiguration === "object" ? cohort.monitoringConfiguration : {}) as { kpiTargets?: Record<string, number> };
+    // 참여(engagement) — 체류시간·재진입·제안 수락률·행동 신호(다음 파일럿 계기로 수집).
+    const activityRows = await prisma.careerActivityEvent.findMany({ where: { cohortId }, select: { kind: true, week: true, createdAt: true } });
+    const engagement = computeEngagement(activityRows.map((a): ActivityEvent => ({ kind: a.kind as ActivityEvent["kind"], week: a.week ?? null, atMs: new Date(a.createdAt).getTime() })));
+    return res.json({ ok: true, funnel, kpiTargets: { ...PILOT_KPI_TARGETS, ...(mon.kpiTargets ?? {}) }, smallSample: funnel.total < 8, engagement, engagementNote: activityRows.length === 0 ? "행동 이벤트 없음 — 프론트 계기가 다음 파일럿에서 수집" : undefined });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET LLM 비용 모니터링(기능별·일별 집계 + 추정).
+app.get("/career-launch/ops/pilot/:cohortId/cost", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const rows = await prisma.careerAiCostDaily.findMany({ where: { cohortId }, orderBy: { dateKey: "asc" } });
+    const completers = (await loadPilotStudents(cohortId)).filter((r) => r.programCompleted).length;
+    const enrolled = await prisma.careerEnrollment.count({ where: { cohortId } });
+    const num = (b: bigint) => Number(b);
+    const byFeature = new Map<string, { calls: number; inputTokens: number; outputTokens: number; retries: number; cacheHits: number; failures: number; estCostUsd: number }>();
+    const byDate = new Map<string, number>();
+    // 프롬프트 버전별 오류/비용(프롬프트 개선 전후 비교).
+    const byPromptVersion = new Map<string, { calls: number; failures: number; retries: number; estCostUsd: number }>();
+    let totalCost = 0;
+    let totalCalls = 0;
+    let totalFail = 0;
+    for (const r of rows) {
+      const f = byFeature.get(r.feature) ?? { calls: 0, inputTokens: 0, outputTokens: 0, retries: 0, cacheHits: 0, failures: 0, estCostUsd: 0 };
+      f.calls += r.calls;
+      f.inputTokens += num(r.inputTokens);
+      f.outputTokens += num(r.outputTokens);
+      f.retries += r.retries;
+      f.cacheHits += r.cacheHits;
+      f.failures += r.failures;
+      f.estCostUsd += r.estCostUsd;
+      byFeature.set(r.feature, f);
+      byDate.set(r.dateKey, (byDate.get(r.dateKey) ?? 0) + r.estCostUsd);
+      const pvKey = `${r.feature}@${r.promptVersion || "-"}`;
+      const pv = byPromptVersion.get(pvKey) ?? { calls: 0, failures: 0, retries: 0, estCostUsd: 0 };
+      pv.calls += r.calls;
+      pv.failures += r.failures;
+      pv.retries += r.retries;
+      pv.estCostUsd += r.estCostUsd;
+      byPromptVersion.set(pvKey, pv);
+      totalCost += r.estCostUsd;
+      totalCalls += r.calls;
+      totalFail += r.failures;
+    }
+    const dates = [...byDate.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    const todayKey = dateKeyKst();
+    const baselineDates = dates.filter((d) => d[0] !== todayKey);
+    const baselineDaily = baselineDates.length ? baselineDates.reduce((a, b) => a + b[1], 0) / baselineDates.length : 0;
+    return res.json({
+      ok: true,
+      totals: {
+        estCostUsd: Number(totalCost.toFixed(4)),
+        calls: totalCalls,
+        failures: totalFail,
+        failRatePct: totalCalls + totalFail > 0 ? Math.round((totalFail / (totalCalls + totalFail)) * 100) : 0,
+        perEnrolledUsd: enrolled ? Number((totalCost / enrolled).toFixed(4)) : null,
+        perCompleterUsd: completers ? Number((totalCost / completers).toFixed(4)) : null
+      },
+      byFeature: [...byFeature.entries()].map(([feature, v]) => ({ feature, ...v, estCostUsd: Number(v.estCostUsd.toFixed(4)) })).sort((a, b) => b.estCostUsd - a.estCostUsd),
+      byPromptVersion: [...byPromptVersion.entries()].map(([key, v]) => ({ key, ...v, estCostUsd: Number(v.estCostUsd.toFixed(4)), failRatePct: v.calls + v.failures > 0 ? Math.round((v.failures / (v.calls + v.failures)) * 100) : 0 })).sort((a, b) => b.estCostUsd - a.estCostUsd),
+      byDate: dates.map(([date, cost]) => ({ date, estCostUsd: Number(cost.toFixed(4)) })),
+      today: { dateKey: todayKey, costUsd: Number((byDate.get(todayKey) ?? 0).toFixed(4)), baselineDailyUsd: Number(baselineDaily.toFixed(4)), spike: baselineDaily > 0 && (byDate.get(todayKey) ?? 0) > baselineDaily * 3 },
+      knownFeatures: COST_FEATURES
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 일일 운영 리포트(사실 데이터 — AI 요약과 구분, 원문 미포함).
+app.get("/career-launch/ops/pilot/:cohortId/daily-report", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const rows = await loadPilotStudents(cohortId);
+    const dayStart = Date.now() - 864e5;
+    const todayKey = dateKeyKst();
+    const [costToday, qualToday, ivOpen, ivResolvedToday] = await Promise.all([
+      prisma.careerAiCostDaily.aggregate({ where: { cohortId, dateKey: todayKey }, _sum: { estCostUsd: true, failures: true } }),
+      prisma.careerQualitativeFeedback.groupBy({ by: ["category"], where: { cohortId, createdAt: { gte: new Date(dayStart) } }, _count: true }),
+      prisma.careerIntervention.count({ where: { cohortId, status: { notIn: ["resolved", "dismissed"] } } }),
+      prisma.careerIntervention.count({ where: { cohortId, status: "resolved", resolvedAt: { gte: new Date(dayStart) } } })
+    ]);
+    return res.json({
+      ok: true,
+      date: todayKey,
+      facts: {
+        totalParticipants: rows.length,
+        activeToday: rows.filter((r) => r.lastActivityMs != null && r.lastActivityMs >= dayStart).length,
+        weekProgress: [1, 2, 3, 4].map((w) => ({ week: w, completed: rows.filter((r) => r.weeksCompleted >= w).length })),
+        stalled: rows.filter((r) => (r.daysSinceActivity ?? 0) >= 3 && !r.programCompleted).map((r) => ({ userId: r.userId, name: r.name, daysSinceActivity: r.daysSinceActivity })),
+        interventionRequired: rows.filter((r) => r.status === "intervention_required").length,
+        interventionsOpen: ivOpen,
+        interventionsResolvedToday: ivResolvedToday,
+        qualitativeToday: qualToday.map((q) => ({ category: q.category, count: q._count })),
+        llmFailuresToday: costToday._sum.failures ?? 0,
+        llmCostTodayUsd: Number((costToday._sum.estCostUsd ?? 0).toFixed(4))
+      },
+      // AI 요약은 별도 엔드포인트(개입 ai-summary)에서만 — 여기선 사실만 제공한다.
+      note: "사실 데이터만 포함. AI 해석·요약은 포함하지 않음. 실제 사용자 답변 원문/민감 상담 내용 없음."
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 정성 피드백 목록(category·severity 만, 원문 없음).
+app.get("/career-launch/ops/pilot/:cohortId/feedback", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const rows = await prisma.careerQualitativeFeedback.findMany({ where: { cohortId }, orderBy: { createdAt: "desc" }, take: 300, include: { student: { select: { id: true, name: true, realName: true } } } });
+    return res.json({
+      ok: true,
+      categories: QUALITATIVE_CATEGORIES,
+      feedback: rows.map((f) => ({ id: f.id, userId: f.studentUserId, name: f.student?.realName ?? f.student?.name ?? null, category: f.category, severity: f.severity, currentWeek: f.currentWeek, currentStep: f.currentStep, sessionId: f.sessionId, resolvedAt: f.resolvedAt, createdAt: f.createdAt }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// PATCH 정성 피드백 해결 표시.
+app.patch("/career-launch/ops/pilot/feedback/:id/resolve", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    await prisma.careerQualitativeFeedback.update({ where: { id: String(req.params.id) }, data: { resolvedAt: new Date() } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// PATCH 학생 파일럿 상태 운영자 override(withdrawn/intervention_required 등 확정). progress.state 에 저장.
+const pilotStatusSchema = z.object({ status: z.enum(["invited", "registered", "onboarding", "active", "at_risk", "intervention_required", "paused", "completed", "withdrawn"]).nullable() });
+app.patch("/career-launch/ops/pilot/students/:id/status", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = pilotStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = String(req.params.id);
+    const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } });
+    const st = (prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+    if (parsed.data.status) st.pilotStatusOverride = parsed.data.status;
+    else delete st.pilotStatusOverride;
+    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: userId }, create: { studentUserId: userId, state: st as object }, update: { state: st as object } });
+    return res.json({ ok: true, status: parsed.data.status });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET 파일럿 종료 리포트(참여·결과물·AI품질·성장·경쟁·운영·비용·평가). 사실 집계 중심.
+app.get("/career-launch/ops/pilot/:cohortId/final-report", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const rows = await loadPilotStudents(cohortId);
+    const total = rows.length;
+    const pilotUserIds = rows.map((r) => r.userId);
+    const [surveys, satisfactions, quals, ivs, costAgg, activityRows, convCalls, packages] = await Promise.all([
+      prisma.careerPilotSurvey.findMany({ where: { cohortId } }),
+      prisma.careerLaunchSatisfaction.findMany({ where: { cohortId } }),
+      prisma.careerQualitativeFeedback.groupBy({ by: ["category"], where: { cohortId }, _count: true }),
+      prisma.careerIntervention.findMany({ where: { cohortId }, select: { status: true, priority: true, createdAt: true, resolvedAt: true } }),
+      prisma.careerAiCostDaily.aggregate({ where: { cohortId }, _sum: { estCostUsd: true, calls: true, retries: true, failures: true } }),
+      prisma.careerActivityEvent.findMany({ where: { cohortId }, select: { kind: true, week: true, createdAt: true } }),
+      // 대화형(코치) 호출 수 — confirmed 재질문율의 분모.
+      prisma.careerAiCostDaily.aggregate({ where: { cohortId, feature: { in: ["job_chat", "material_chat", "cover_chat", "consult"] } }, _sum: { calls: true } }),
+      pilotUserIds.length ? prisma.careerApplicationPackage.findMany({ where: { studentUserId: { in: pilotUserIds } }, select: { validationData: true } }) : Promise.resolve([])
+    ]);
+    // 참여(engagement) 집계.
+    const engagement = computeEngagement(activityRows.map((a): ActivityEvent => ({ kind: a.kind as ActivityEvent["kind"], week: a.week ?? null, atMs: new Date(a.createdAt).getTime() })));
+    // confirmed 재질문율 = 이미 답했어요 신고 / 대화형 호출 수(둘 다 서버 집계). 분모 0이면 null.
+    const alreadyAnswered = quals.find((q) => q.category === "already_answered")?._count ?? 0;
+    const convCallCount = convCalls._sum.calls ?? 0;
+    const reaskRatePct = convCallCount > 0 ? Number(((alreadyAnswered / convCallCount) * 100).toFixed(1)) : null;
+    // 근거 부족 문장(unsupported)·critical — 패키지 검증 데이터에서 집계.
+    let unsupportedTotal = 0;
+    let criticalTotal = 0;
+    for (const p of packages) {
+      const v = (p.validationData && typeof p.validationData === "object" ? p.validationData : {}) as { unsupportedCount?: number; criticalUnresolved?: number };
+      unsupportedTotal += typeof v.unsupportedCount === "number" ? v.unsupportedCount : 0;
+      criticalTotal += typeof v.criticalUnresolved === "number" ? v.criticalUnresolved : 0;
+    }
+    // 설문 평균(척도 문항). surveyKey.questionKey 별 평균.
+    const surveyAgg = new Map<string, { sum: number; n: number }>();
+    for (const s of surveys) {
+      const ans = (s.answers && typeof s.answers === "object" ? s.answers : {}) as Record<string, number>;
+      for (const [k, v] of Object.entries(ans)) {
+        if (typeof v !== "number") continue;
+        const key = `${s.surveyKey}.${k}`;
+        const a = surveyAgg.get(key) ?? { sum: 0, n: 0 };
+        a.sum += v;
+        a.n += 1;
+        surveyAgg.set(key, a);
+      }
+    }
+    const completers = rows.filter((r) => r.programCompleted).length;
+    const cost = costAgg._sum;
+    const report = {
+      cohort: { id: cohort.id, name: cohort.name, university: cohort.university, isPilot: cohort.isPilot },
+      participation: {
+        invited: total,
+        registered: total,
+        active: rows.filter((r) => r.hadAnyActivity).length,
+        weekCompleters: [1, 2, 3, 4].map((w) => ({ week: w, count: rows.filter((r) => r.weeksCompleted >= w).length })),
+        completed: completers,
+        withdrawn: rows.filter((r) => r.status === "withdrawn").length
+      },
+      artifacts: {
+        targetConfirmed: rows.filter((r) => r.targetConfirmed).length,
+        packageFinalized: rows.filter((r) => r.packageFinalized).length,
+        initialMock: rows.filter((r) => r.initialMockDone).length,
+        transferPassed: rows.filter((r) => r.transferPassed).length,
+        finalMock: rows.filter((r) => r.finalMockDone).length,
+        realApplication: rows.filter((r) => r.realApplication).length
+      },
+      aiQuality: {
+        qualitativeByCategory: quals.map((q) => ({ category: q.category, count: q._count })),
+        llmCalls: cost.calls ?? 0,
+        llmRetries: cost.retries ?? 0,
+        llmFailures: cost.failures ?? 0,
+        // confirmed 재질문율(자동 집계): 이미답했어요 신고 / 대화형 호출. 분모 0이면 null.
+        reask: { alreadyAnsweredReports: alreadyAnswered, conversationalCalls: convCallCount, reaskRatePct },
+        // 근거 부족·critical 문장(패키지 검증 집계).
+        unsupportedClaims: unsupportedTotal,
+        criticalUnresolved: criticalTotal
+      },
+      engagement: {
+        byWeek: engagement.byWeek,
+        suggestion: engagement.suggestion,
+        signals: engagement.signals,
+        note: activityRows.length === 0 ? "행동 이벤트 없음 — 다음 파일럿에서 프론트 계기가 수집합니다." : undefined
+      },
+      competition: {
+        surveyAverages: [...surveyAgg.entries()].filter(([k]) => k.startsWith("competition.")).map(([k, v]) => ({ key: k, avg: Number((v.sum / v.n).toFixed(2)), n: v.n }))
+      },
+      operations: {
+        interventionSignals: ivs.length,
+        interventionsResolved: ivs.filter((i) => i.status === "resolved").length,
+        interventionsDismissed: ivs.filter((i) => i.status === "dismissed").length
+      },
+      cost: {
+        totalUsd: Number((cost.estCostUsd ?? 0).toFixed(4)),
+        perEnrolledUsd: total ? Number(((cost.estCostUsd ?? 0) / total).toFixed(4)) : null,
+        perCompleterUsd: completers ? Number(((cost.estCostUsd ?? 0) / completers).toFixed(4)) : null
+      },
+      userRatings: {
+        surveyAverages: [...surveyAgg.entries()].map(([k, v]) => ({ key: k, avg: Number((v.sum / v.n).toFixed(2)), n: v.n })),
+        satisfactionAvg: satisfactions.length ? Number((satisfactions.reduce((a, b) => a + b.rating, 0) / satisfactions.length).toFixed(2)) : null,
+        npsResponses: satisfactions.filter((s) => s.npsScore != null).length
+      },
+      verdictOptions: ["EXPAND", "ITERATE", "PAUSE"],
+      note: "사실 집계 중심. 최종 판정(EXPAND/ITERATE/PAUSE)과 개선 우선순위는 운영자가 근거를 보고 결정한다."
+    };
+    return res.json({ ok: true, report });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생: 아직 응답하지 않은 짧은 설문 목록(중복 노출 방지). ──
+app.get("/career-launch/survey/pending", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const answered = await prisma.careerPilotSurvey.findMany({ where: { studentUserId: userId }, select: { surveyKey: true } });
+    const answeredSet = new Set(answered.map((a) => a.surveyKey));
+    const pending = SURVEY_KEYS.filter((k) => !answeredSet.has(k)).map((k) => ({ surveyKey: k, ...SURVEY_DEFINITIONS[k] }));
+    return res.json({ ok: true, pending });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생: 짧은 설문 제출(척도 1~5 + 선택 주관식). surveyKey 별 1건(중복 노출 방지). ──
+app.post("/career-launch/survey", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = surveyResponseSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await resolvePilotCohortId(userId);
+    const clean = sanitizeSurveyAnswers(parsed.data.surveyKey as SurveyKey, parsed.data.answers);
+    const survey = await prisma.careerPilotSurvey.upsert({
+      where: { studentUserId_surveyKey: { studentUserId: userId, surveyKey: parsed.data.surveyKey } },
+      create: { studentUserId: userId, cohortId, surveyKey: parsed.data.surveyKey, answers: clean as object, comment: parsed.data.comment ?? null },
+      update: {} // 이미 응답했으면 재기록하지 않는다(반복 노출 방지 정책과 일치).
+    });
+    return res.json({ ok: true, id: survey.id });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생: 행동 이벤트(계기) — 다음 파일럿 분석용. 정해진 kind + week/step/sessionId 만(원문 없음). ──
+app.post("/career-launch/activity", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = activityEventSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await resolvePilotCohortId(userId);
+    await prisma.careerActivityEvent.create({ data: { studentUserId: userId, cohortId, kind: parsed.data.kind, week: parsed.data.week ?? null, step: parsed.data.step ?? null, sessionId: parsed.data.sessionId ?? null } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생: 정성 피드백 신호(원문 없이 category 만). ──
+app.post("/career-launch/feedback", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = qualitativeFeedbackSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const userId = req.auth!.userId;
+    const cohortId = await resolvePilotCohortId(userId);
+    const fb = await prisma.careerQualitativeFeedback.create({
+      data: { studentUserId: userId, cohortId, category: parsed.data.category, severity: severityForCategory(parsed.data.category), currentWeek: parsed.data.currentWeek ?? null, currentStep: parsed.data.currentStep ?? null, sessionId: parsed.data.sessionId ?? null }
+    });
+    return res.json({ ok: true, id: fb.id });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Phase 11 — 대학·기관 B2B 멀티테넌트. 인가는 서버측 membership + 중앙 permission
+// matrix(career-org.ts)로 강제한다(클라 organizationId 불신, 화면 숨김 아님).
+// 개인정보: 감사 로그·리포트에 민감 원문 미저장, 작은 표본 숨김.
+// 실제 이메일 발송·결제·프로덕션 배포 없음.
+// ═══════════════════════════════════════════════════════════════════════
+
+// 로그인 사용자의 특정 기관 내 유효 역할(서버 조회). 전역 OPERATOR=aply_super.
+async function resolveActorOrgRoles(req: import("express").Request, organizationId: string): Promise<ActorRole[]> {
+  if (req.auth?.role === MemberRole.OPERATOR) return ["aply_super"];
+  if (!req.auth) return [];
+  const ms = await prisma.organizationMembership.findMany({ where: { organizationId, userId: req.auth.userId, status: "active" }, select: { role: true } });
+  return ms.map((m) => m.role).filter((r): r is ActorRole => (ORG_ROLES as readonly string[]).includes(r));
+}
+// 권한 검사 — 통과 시 역할 배열 반환, 실패 시 403 응답 후 null.
+async function requireOrgPerm(req: import("express").Request, res: import("express").Response, organizationId: string, permission: Permission): Promise<ActorRole[] | null> {
+  const roles = await resolveActorOrgRoles(req, organizationId);
+  if (!canAny(roles, permission)) {
+    res.status(403).json({ ok: false, message: "forbidden" });
+    return null;
+  }
+  return roles;
+}
+// 감사 로그 — 민감 원문(비밀번호·토큰·이력서/상담 원문) 미저장. changeData 는 요약 변경분만.
+async function writeOrgAudit(p: { organizationId: string | null; actorId: string; actorRole: string; action: AuditAction; targetType?: string; targetId?: string; changeData?: Record<string, unknown> }): Promise<void> {
+  try {
+    await prisma.organizationAuditLog.create({ data: { organizationId: p.organizationId, actorId: p.actorId, actorRole: p.actorRole, action: p.action, targetType: p.targetType ?? null, targetId: p.targetId ?? null, changeData: (p.changeData ?? undefined) as object | undefined } });
+  } catch {
+    /* 감사 실패는 무시(핵심 흐름 방해 금지) */
+  }
+}
+const roleLabel = (roles: ActorRole[]) => roles[0] ?? "unknown";
+
+// ── 기관 CRUD (생성/라이선스는 APLY 운영자) ──
+const orgCreateSchema = z.object({ name: z.string().trim().min(1).max(160), type: z.enum(ORG_TYPES), primaryContact: z.string().max(120).optional(), contactEmail: z.string().email().optional(), timezone: z.string().max(60).optional(), locale: z.string().max(10).optional() });
+app.post("/career-launch/orgs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = orgCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const org = await prisma.organization.create({ data: { name: parsed.data.name, type: parsed.data.type, status: "onboarding", primaryContact: parsed.data.primaryContact ?? null, contactEmail: parsed.data.contactEmail ?? null, timezone: parsed.data.timezone ?? "Asia/Seoul", locale: parsed.data.locale ?? "ko" } });
+    await writeOrgAudit({ organizationId: org.id, actorId: req.auth!.userId, actorRole: "aply_super", action: "org.create", targetType: "organization", targetId: org.id, changeData: { after: { name: org.name, type: org.type } } });
+    return res.status(201).json({ ok: true, organization: org });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 목록 — APLY 는 전체, 기관 멤버는 소속 기관만.
+app.get("/career-launch/orgs", authenticate, async (req, res) => {
+  try {
+    if (req.auth!.role === MemberRole.OPERATOR) {
+      const orgs = await prisma.organization.findMany({ orderBy: { createdAt: "desc" }, take: 500 });
+      return res.json({ ok: true, organizations: orgs, scope: "all" });
+    }
+    const ms = await prisma.organizationMembership.findMany({ where: { userId: req.auth!.userId, status: "active" }, select: { organizationId: true } });
+    const ids = Array.from(new Set(ms.map((m) => m.organizationId)));
+    const orgs = ids.length ? await prisma.organization.findMany({ where: { id: { in: ids } }, orderBy: { createdAt: "desc" } }) : [];
+    return res.json({ ok: true, organizations: orgs, scope: "member" });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/career-launch/orgs/:orgId", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const roles = await requireOrgPerm(req, res, orgId, "org:read");
+  if (!roles) return;
+  try {
+    const org = await prisma.organization.findUnique({ where: { id: orgId }, include: { licenses: true } });
+    if (!org) return res.status(404).json({ ok: false, message: "not found" });
+    return res.json({ ok: true, organization: org, myRoles: roles });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const orgUpdateSchema = z.object({ name: z.string().trim().min(1).max(160).optional(), status: z.enum(ORG_STATUSES).optional(), primaryContact: z.string().max(120).nullable().optional(), contactEmail: z.string().email().nullable().optional(), configuration: z.record(z.string(), z.unknown()).optional() });
+app.patch("/career-launch/orgs/:orgId", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = orgUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  // status 변경은 org:update, 설정은 org:manage_settings.
+  const needed: Permission = parsed.data.configuration !== undefined ? "org:manage_settings" : "org:update";
+  const roles = await requireOrgPerm(req, res, orgId, needed);
+  if (!roles) return;
+  try {
+    const before = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true, status: true } });
+    if (!before) return res.status(404).json({ ok: false, message: "not found" });
+    const d = parsed.data;
+    const data: Record<string, unknown> = {};
+    if (d.name !== undefined) data.name = d.name;
+    if (d.status !== undefined) data.status = d.status; // 상태 변경 시 기존 학생 데이터는 보존.
+    if (d.primaryContact !== undefined) data.primaryContact = d.primaryContact;
+    if (d.contactEmail !== undefined) data.contactEmail = d.contactEmail;
+    if (d.configuration !== undefined) data.configuration = d.configuration as object;
+    const org = await prisma.organization.update({ where: { id: orgId }, data });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: d.status && d.status !== before.status ? "org.status_change" : d.configuration ? "org.settings_change" : "org.update", targetType: "organization", targetId: orgId, changeData: { before: { name: before.name, status: before.status }, after: { name: org.name, status: org.status } } });
+    return res.json({ ok: true, organization: org });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 기관 멤버(담당자) 관리 ──
+app.get("/career-launch/orgs/:orgId/members", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "org:read"))) return;
+  try {
+    const members = await prisma.organizationMembership.findMany({ where: { organizationId: orgId }, include: { user: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "asc" } });
+    return res.json({ ok: true, members: members.map((m) => ({ id: m.id, userId: m.userId, name: m.user?.realName ?? m.user?.name ?? null, email: m.user?.email ?? null, role: m.role, status: m.status })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const memberAddSchema = z.object({ email: z.string().email(), role: z.enum(ORG_ROLES) });
+app.post("/career-launch/orgs/:orgId/members", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = memberAddSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const roles = await requireOrgPerm(req, res, orgId, "org:manage_members");
+  if (!roles) return;
+  try {
+    const user = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase() }, select: { id: true } });
+    if (!user) return res.status(404).json({ ok: false, message: "해당 이메일의 사용자를 찾을 수 없습니다(먼저 가입 필요)" });
+    const m = await prisma.organizationMembership.upsert({ where: { organizationId_userId_role: { organizationId: orgId, userId: user.id, role: parsed.data.role } }, create: { organizationId: orgId, userId: user.id, role: parsed.data.role, status: "active" }, update: { status: "active" } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "org.member_add", targetType: "membership", targetId: m.id, changeData: { after: { userId: user.id, role: parsed.data.role } } });
+    return res.status(201).json({ ok: true, membership: m });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.delete("/career-launch/orgs/:orgId/members/:membershipId", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const roles = await requireOrgPerm(req, res, orgId, "org:manage_members");
+  if (!roles) return;
+  try {
+    const m = await prisma.organizationMembership.findUnique({ where: { id: String(req.params.membershipId) } });
+    if (!m || m.organizationId !== orgId) return res.status(404).json({ ok: false, message: "not found" });
+    await prisma.organizationMembership.update({ where: { id: m.id }, data: { status: "inactive" } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "org.member_remove", targetType: "membership", targetId: m.id, changeData: { before: { userId: m.userId, role: m.role } } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 프로그램 템플릿(APLY) ──
+app.get("/career-launch/templates", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const templates = await prisma.careerProgramTemplate.findMany({ orderBy: [{ name: "asc" }, { version: "desc" }], take: 200 });
+    return res.json({ ok: true, templates });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+const templateCreateSchema = z.object({ name: z.string().trim().min(1).max(120), programVersion: z.string().max(40).optional(), configuration: z.record(z.string(), z.unknown()) });
+app.post("/career-launch/templates", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = templateCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const t = await prisma.careerProgramTemplate.create({ data: { name: parsed.data.name, programVersion: parsed.data.programVersion ?? "v2", configuration: parsed.data.configuration as object, createdBy: req.auth!.userId } });
+    return res.status(201).json({ ok: true, template: t });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+// 새 버전 — 같은 name 의 최신 version+1(진행 중 기수는 스냅샷을 따르므로 영향 없음).
+app.post("/career-launch/templates/:id/version", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = z.object({ configuration: z.record(z.string(), z.unknown()) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const base = await prisma.careerProgramTemplate.findUnique({ where: { id: String(req.params.id) } });
+    if (!base) return res.status(404).json({ ok: false, message: "not found" });
+    const latest = await prisma.careerProgramTemplate.findFirst({ where: { name: base.name }, orderBy: { version: "desc" }, select: { version: true } });
+    const t = await prisma.careerProgramTemplate.create({ data: { name: base.name, version: (latest?.version ?? 1) + 1, programVersion: base.programVersion, configuration: parsed.data.configuration as object, createdBy: req.auth!.userId } });
+    return res.status(201).json({ ok: true, template: t });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 기관 기수: 목록 / 템플릿 기반 생성 / 복제 ──
+app.get("/career-launch/orgs/:orgId/cohorts", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "cohort:read"))) return;
+  try {
+    const cohorts = await prisma.careerCohort.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } });
+    return res.json({ ok: true, cohorts });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const orgCohortCreateSchema = z.object({ name: z.string().trim().min(1).max(80), templateId: z.string().optional(), startsAt: z.string().datetime().optional(), endsAt: z.string().datetime().optional(), participantLimit: z.number().int().min(1).max(1000).optional() });
+app.post("/career-launch/orgs/:orgId/cohorts", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = orgCohortCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const roles = await requireOrgPerm(req, res, orgId, "cohort:create");
+  if (!roles) return;
+  try {
+    const org = await prisma.organization.findUnique({ where: { id: orgId } });
+    if (!org) return res.status(404).json({ ok: false, message: "org not found" });
+    if (!orgAllowsNewActivation(org.status as OrgStatus)) return res.status(409).json({ ok: false, message: `기관 상태(${org.status})에서는 기수 생성이 제한됩니다` });
+    const template = parsed.data.templateId ? await prisma.careerProgramTemplate.findUnique({ where: { id: parsed.data.templateId } }) : null;
+    const inviteCode = await genUniqueInviteCode();
+    const cohort = await prisma.careerCohort.create({
+      data: {
+        organizationId: orgId,
+        university: org.name, // 레거시 필드 호환(표시용).
+        name: parsed.data.name,
+        inviteCode,
+        templateId: template?.id ?? null,
+        startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : null,
+        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null,
+        participantLimit: parsed.data.participantLimit ?? null,
+        programVersion: template?.programVersion ?? null
+      }
+    });
+    // 템플릿 스냅샷 — 이후 템플릿 수정과 무관하게 이 기수는 이 설정을 따른다.
+    if (template) {
+      await prisma.careerCohortTemplateSnapshot.create({ data: { cohortId: cohort.id, templateId: template.id, templateVersion: template.version, configuration: template.configuration as object } });
+    }
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "cohort.create", targetType: "cohort", targetId: cohort.id, changeData: { after: { name: cohort.name, templateId: template?.id ?? null } } });
+    return res.status(201).json({ ok: true, cohort });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 복제 — 설정/주차/세미나/설문/flag/리포트 설정만. 학생·결과물·점수·상담·개입·설문응답 미복제.
+app.post("/career-launch/cohorts/:cohortId/clone", authenticate, async (req, res) => {
+  const cohortId = String(req.params.cohortId);
+  const parsed = z.object({ name: z.string().trim().min(1).max(80) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const src = await prisma.careerCohort.findUnique({ where: { id: cohortId }, include: { weeks: true, seminars: true } });
+    if (!src || !src.organizationId) return res.status(404).json({ ok: false, message: "복제 대상 기수(기관 소속)를 찾을 수 없습니다" });
+    const roles = await requireOrgPerm(req, res, src.organizationId, "cohort:clone");
+    if (!roles) return;
+    const inviteCode = await genUniqueInviteCode();
+    const clone = await prisma.careerCohort.create({
+      data: {
+        organizationId: src.organizationId,
+        university: src.university,
+        name: parsed.data.name,
+        inviteCode,
+        templateId: src.templateId,
+        programVersion: src.programVersion,
+        participantLimit: src.participantLimit,
+        featureFlags: (src.featureFlags ?? undefined) as object | undefined,
+        surveyConfiguration: (src.surveyConfiguration ?? undefined) as object | undefined,
+        monitoringConfiguration: (src.monitoringConfiguration ?? undefined) as object | undefined
+      }
+    });
+    // 주차 설정·세미나 구성 복제(일정은 비움 — 새 기수에서 지정).
+    for (const w of src.weeks) await prisma.careerCohortWeek.create({ data: { cohortId: clone.id, week: w.week, opensAt: null, forceOpen: false } }).catch(() => null);
+    for (const s of src.seminars) await prisma.careerSeminar.create({ data: { cohortId: clone.id, week: s.week, title: s.title, startsAt: s.startsAt, location: s.location, online: s.online, url: s.url } }).catch(() => null);
+    // 템플릿 스냅샷도 복사(있으면).
+    const snap = await prisma.careerCohortTemplateSnapshot.findUnique({ where: { cohortId: src.id } });
+    if (snap) await prisma.careerCohortTemplateSnapshot.create({ data: { cohortId: clone.id, templateId: snap.templateId, templateVersion: snap.templateVersion, configuration: snap.configuration as object } }).catch(() => null);
+    await writeOrgAudit({ organizationId: src.organizationId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "cohort.clone", targetType: "cohort", targetId: clone.id, changeData: { after: { from: src.id, name: clone.name } } });
+    return res.status(201).json({ ok: true, cohort: clone });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 라이선스/좌석 ──
+app.get("/career-launch/orgs/:orgId/license", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "license:read"))) return;
+  try {
+    const [org, license, cohorts] = await Promise.all([
+      prisma.organization.findUnique({ where: { id: orgId }, select: { status: true } }),
+      prisma.organizationLicense.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } }),
+      prisma.careerCohort.findMany({ where: { organizationId: orgId }, select: { id: true } })
+    ]);
+    const cohortIds = cohorts.map((c) => c.id);
+    // 좌석 사용량 — 기관 소속 기수 전체 enrollment 기준(중복 학생 1좌석).
+    const enrollments = cohortIds.length ? await prisma.careerEnrollment.findMany({ where: { cohortId: { in: cohortIds } }, select: { studentUserId: true } }) : [];
+    const studentIds = Array.from(new Set(enrollments.map((e) => e.studentUserId)));
+    const [progress, growth] = studentIds.length
+      ? await Promise.all([
+          prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, state: true } }),
+          prisma.careerInterviewGrowthReport.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true } })
+        ])
+      : [[], []];
+    const activatedSet = new Set(progress.filter((p) => { const st = (p.state && typeof p.state === "object" ? p.state : {}) as { doneSteps?: unknown; diagnosis?: unknown }; return Boolean(st.diagnosis) || (Array.isArray(st.doneSteps) && st.doneSteps.length > 0); }).map((p) => p.studentUserId));
+    const completedSet = new Set(growth.map((g) => g.studentUserId));
+    const seatStudents: SeatStudent[] = studentIds.map((id) => ({ studentUserId: id, activated: activatedSet.has(id), completed: completedSet.has(id) }));
+    const usage = computeSeatUsage(seatStudents, license?.contractedSeats ?? null);
+    const licenseStatus: LicenseStatus = license ? deriveLicenseStatus({ stored: license.status as LicenseStatus, endAtMs: license.endAt ? new Date(license.endAt).getTime() : null, nowMs: Date.now(), allocated: usage.allocated, contractedSeats: license.contractedSeats ?? null }) : "draft";
+    return res.json({ ok: true, license: license ? { ...license, derivedStatus: licenseStatus } : null, usage, orgStatus: org?.status ?? null });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+const licenseSchema = z.object({ contractedSeats: z.number().int().min(1).max(100000).nullable().optional(), startAt: z.string().datetime().nullable().optional(), endAt: z.string().datetime().nullable().optional(), status: z.enum(LICENSE_STATUSES).optional(), overagePolicy: z.enum(["block", "allow"]).optional() });
+app.put("/career-launch/orgs/:orgId/license", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = licenseSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const existing = await prisma.organizationLicense.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } });
+    const d = parsed.data;
+    const data = { contractedSeats: d.contractedSeats ?? null, startAt: d.startAt ? new Date(d.startAt) : null, endAt: d.endAt ? new Date(d.endAt) : null, status: d.status ?? "active", overagePolicy: d.overagePolicy ?? "block" };
+    const license = existing ? await prisma.organizationLicense.update({ where: { id: existing.id }, data }) : await prisma.organizationLicense.create({ data: { organizationId: orgId, ...data } });
+    return res.json({ ok: true, license });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 학생 등록: 개별 / CSV 검증 / CSV 커밋 / 초대링크 / 등록취소 ──
+async function orgSeatGuard(orgId: string): Promise<{ ok: boolean; reason?: string }> {
+  const [org, license, cohorts] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: orgId }, select: { status: true } }),
+    prisma.organizationLicense.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } }),
+    prisma.careerCohort.findMany({ where: { organizationId: orgId }, select: { id: true } })
+  ]);
+  if (!org) return { ok: false, reason: "org not found" };
+  const cohortIds = cohorts.map((c) => c.id);
+  const enrollments = cohortIds.length ? await prisma.careerEnrollment.findMany({ where: { cohortId: { in: cohortIds } }, select: { studentUserId: true } }) : [];
+  const usage = computeSeatUsage(enrollments.map((e) => ({ studentUserId: e.studentUserId, activated: false, completed: false })), license?.contractedSeats ?? null);
+  const licenseStatus: LicenseStatus = license ? deriveLicenseStatus({ stored: license.status as LicenseStatus, endAtMs: license.endAt ? new Date(license.endAt).getTime() : null, nowMs: Date.now(), allocated: usage.allocated, contractedSeats: license.contractedSeats ?? null }) : "active";
+  const r = canAllocateSeat(usage, org.status as OrgStatus, licenseStatus);
+  return { ok: r.allowed, reason: r.reason };
+}
+
+app.post("/career-launch/orgs/:orgId/cohorts/:cohortId/enroll", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const cohortId = String(req.params.cohortId);
+  const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const roles = await requireOrgPerm(req, res, orgId, "student:enroll");
+  if (!roles) return;
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { organizationId: true } });
+    if (!cohort || cohort.organizationId !== orgId) return res.status(404).json({ ok: false, message: "cohort not in org" });
+    const user = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase() }, select: { id: true } });
+    if (!user) return res.status(404).json({ ok: false, message: "사용자를 찾을 수 없습니다(먼저 가입 필요)" });
+    const existing = await prisma.careerEnrollment.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: user.id } } }).catch(() => null);
+    if (existing) return res.json({ ok: true, enrollment: existing, deduped: true }); // 중복 등록 → 좌석 중복 차감 없음.
+    const seat = await orgSeatGuard(orgId);
+    if (!seat.ok) return res.status(409).json({ ok: false, message: seat.reason });
+    const enrollment = await prisma.careerEnrollment.create({ data: { cohortId, studentUserId: user.id } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "student.enroll", targetType: "enrollment", targetId: enrollment.id, changeData: { after: { cohortId } } });
+    return res.status(201).json({ ok: true, enrollment });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// CSV 미리보기·검증(등록 안 함).
+app.post("/career-launch/orgs/:orgId/students/csv/validate", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "student:enroll"))) return;
+  const parsed = z.object({ rows: z.array(z.record(z.string(), z.unknown())).max(2000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const result = validateCsvRows(parsed.data.rows);
+  return res.json({ ok: true, result, maxRows: CSV_MAX_ROWS });
+});
+
+// CSV 커밋 — 유효/비중복 행만 등록(멱등: 이미 등록된 학생은 스킵). 좌석 초과 시 신규만 제한.
+app.post("/career-launch/orgs/:orgId/cohorts/:cohortId/students/csv/commit", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const cohortId = String(req.params.cohortId);
+  const roles = await requireOrgPerm(req, res, orgId, "student:enroll");
+  if (!roles) return;
+  const parsed = z.object({ rows: z.array(z.record(z.string(), z.unknown())).max(2000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { organizationId: true } });
+    if (!cohort || cohort.organizationId !== orgId) return res.status(404).json({ ok: false, message: "cohort not in org" });
+    const validation = validateCsvRows(parsed.data.rows);
+    const emails = validation.rows.filter((r) => r.ok && r.email).map((r) => r.email!) as string[];
+    const users = emails.length ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { id: true, email: true } }) : [];
+    const byEmail = new Map(users.map((u) => [u.email?.toLowerCase() ?? "", u.id] as const));
+    let enrolled = 0;
+    let skippedExisting = 0;
+    let notFound = 0;
+    let seatBlocked = 0;
+    for (const email of emails) {
+      const uid = byEmail.get(email);
+      if (!uid) { notFound++; continue; }
+      const existing = await prisma.careerEnrollment.findUnique({ where: { cohortId_studentUserId: { cohortId, studentUserId: uid } } }).catch(() => null);
+      if (existing) { skippedExisting++; continue; }
+      const seat = await orgSeatGuard(orgId);
+      if (!seat.ok) { seatBlocked++; continue; }
+      await prisma.careerEnrollment.create({ data: { cohortId, studentUserId: uid } }).then(() => enrolled++).catch(() => null);
+    }
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "student.csv_upload", targetType: "cohort", targetId: cohortId, changeData: { after: { enrolled, skippedExisting, notFound, seatBlocked } } });
+    return res.json({ ok: true, result: { enrolled, skippedExisting, notFound, seatBlocked, invalidRows: validation.invalid + validation.duplicates } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// 초대 링크 생성 — 기수 inviteCode 기반 링크(외부 발송 없음, 상태 관리만).
+app.get("/career-launch/orgs/:orgId/cohorts/:cohortId/invite-link", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const cohortId = String(req.params.cohortId);
+  if (!(await requireOrgPerm(req, res, orgId, "student:enroll"))) return;
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { organizationId: true, inviteCode: true } });
+    if (!cohort || cohort.organizationId !== orgId) return res.status(404).json({ ok: false, message: "cohort not in org" });
+    const base = process.env.PUBLIC_WEB_URL ?? "https://aply.global";
+    return res.json({ ok: true, inviteCode: cohort.inviteCode, link: `${base}/career-launch?invite=${cohort.inviteCode}`, note: "외부 이메일 발송은 승인 후. 현재는 링크·코드 제공만." });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.delete("/career-launch/orgs/:orgId/cohorts/:cohortId/enroll/:studentUserId", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const cohortId = String(req.params.cohortId);
+  const roles = await requireOrgPerm(req, res, orgId, "student:unenroll");
+  if (!roles) return;
+  try {
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { organizationId: true } });
+    if (!cohort || cohort.organizationId !== orgId) return res.status(404).json({ ok: false, message: "cohort not in org" });
+    await prisma.careerEnrollment.deleteMany({ where: { cohortId, studentUserId: String(req.params.studentUserId) } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "student.unenroll", targetType: "enrollment", targetId: cohortId, changeData: { after: { studentUserId: String(req.params.studentUserId) } } });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 강사·상담자 배정 ──
+const staffSchema = z.object({ email: z.string().email(), role: z.enum(["instructor", "counselor"]), scopeType: z.enum(["organization", "cohort", "week", "student", "intervention"]), scopeId: z.string().max(80).optional(), cohortId: z.string().optional() });
+app.post("/career-launch/orgs/:orgId/staff", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = staffSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const roles = await requireOrgPerm(req, res, orgId, "staff:assign");
+  if (!roles) return;
+  try {
+    const user = await prisma.user.findFirst({ where: { email: parsed.data.email.toLowerCase() }, select: { id: true } });
+    if (!user) return res.status(404).json({ ok: false, message: "사용자를 찾을 수 없습니다" });
+    const a = await prisma.careerStaffAssignment.create({ data: { organizationId: orgId, cohortId: parsed.data.cohortId ?? null, userId: user.id, role: parsed.data.role, scopeType: parsed.data.scopeType, scopeId: parsed.data.scopeId ?? null } });
+    // 배정 역할을 org membership 으로도 부여(권한 매트릭스 적용 대상이 되도록).
+    await prisma.organizationMembership.upsert({ where: { organizationId_userId_role: { organizationId: orgId, userId: user.id, role: parsed.data.role } }, create: { organizationId: orgId, userId: user.id, role: parsed.data.role, status: "active" }, update: { status: "active" } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "staff.assign", targetType: "staff_assignment", targetId: a.id, changeData: { after: { userId: user.id, role: parsed.data.role, scopeType: parsed.data.scopeType } } });
+    return res.status(201).json({ ok: true, assignment: a });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.get("/career-launch/orgs/:orgId/staff", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "cohort:read"))) return;
+  try {
+    const staff = await prisma.careerStaffAssignment.findMany({ where: { organizationId: orgId, status: "active" }, include: { user: { select: { id: true, name: true, realName: true, email: true } } }, orderBy: { createdAt: "desc" } });
+    return res.json({ ok: true, staff: staff.map((s) => ({ id: s.id, userId: s.userId, name: s.user?.realName ?? s.user?.name ?? null, role: s.role, scopeType: s.scopeType, scopeId: s.scopeId, cohortId: s.cohortId })) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 기관 대시보드(집계) ──
+app.get("/career-launch/orgs/:orgId/dashboard", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const roles = await requireOrgPerm(req, res, orgId, "cohort:read");
+  if (!roles) return;
+  try {
+    const [org, cohorts, license] = await Promise.all([
+      prisma.organization.findUnique({ where: { id: orgId } }),
+      prisma.careerCohort.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } }),
+      prisma.organizationLicense.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "desc" } })
+    ]);
+    if (!org) return res.status(404).json({ ok: false, message: "not found" });
+    const cohortIds = cohorts.map((c) => c.id);
+    const enrollments = cohortIds.length ? await prisma.careerEnrollment.findMany({ where: { cohortId: { in: cohortIds } }, select: { studentUserId: true, cohortId: true } }) : [];
+    const studentIds = Array.from(new Set(enrollments.map((e) => e.studentUserId)));
+    const [progress, packages, growths] = studentIds.length
+      ? await Promise.all([
+          prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, state: true, updatedAt: true } }),
+          prisma.careerApplicationPackage.count({ where: { studentUserId: { in: studentIds }, status: "finalized" } }),
+          prisma.careerInterviewGrowthReport.count({ where: { studentUserId: { in: studentIds } } })
+        ])
+      : [[], 0, 0];
+    const progByUser = new Map(progress.map((p) => [p.studentUserId, p] as const));
+    const weekDone = (uid: string, w: number) => { const st = (progByUser.get(uid)?.state ?? {}) as { doneSteps?: unknown }; const ds = Array.isArray(st.doneSteps) ? (st.doneSteps as string[]) : []; return ds.includes(`w${w}s4`); };
+    const completed = studentIds.filter((id) => weekDone(id, 4)).length;
+    const activatedSet = new Set(progress.filter((p) => { const st = (p.state && typeof p.state === "object" ? p.state : {}) as { doneSteps?: unknown; diagnosis?: unknown }; return Boolean(st.diagnosis) || (Array.isArray(st.doneSteps) && st.doneSteps.length > 0); }).map((p) => p.studentUserId));
+    const usage = computeSeatUsage(studentIds.map((id) => ({ studentUserId: id, activated: activatedSet.has(id), completed: weekDone(id, 4) })), license?.contractedSeats ?? null);
+    const nowMs = Date.now();
+    const cohortRows = cohorts.map((c) => {
+      const ids = enrollments.filter((e) => e.cohortId === c.id).map((e) => e.studentUserId);
+      const active = ids.filter((id) => { const u = progByUser.get(id); return u?.updatedAt && nowMs - new Date(u.updatedAt).getTime() < 3 * 864e5; }).length;
+      const w4 = ids.filter((id) => weekDone(id, 4)).length;
+      return { id: c.id, name: c.name, enrolled: ids.length, active, completed: w4, startsAt: c.startsAt, endsAt: c.endsAt, status: c.status };
+    });
+    const summary = {
+      cohortsActive: cohorts.filter((c) => c.status === "active").length,
+      cohortsTotal: cohorts.length,
+      contractedSeats: license?.contractedSeats ?? null,
+      allocatedSeats: usage.allocated,
+      activatedSeats: usage.activated,
+      totalParticipants: studentIds.length,
+      completed,
+      completionRatePct: studentIds.length ? Math.round((completed / studentIds.length) * 100) : 0,
+      packagesFinalized: packages,
+      growthReports: growths
+    };
+    return res.json({ ok: true, organization: { id: org.id, name: org.name, type: org.type, status: org.status }, summary, cohorts: cohortRows, myRoles: roles });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 기관 성과 리포트: 생성(스냅샷) / 목록 / 조회 ──
+app.post("/career-launch/orgs/:orgId/reports", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const parsed = z.object({ cohortId: z.string().nullable().optional(), reportType: z.enum(["organization_summary", "cohort_performance"]) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const roles = await requireOrgPerm(req, res, orgId, "report:generate");
+  if (!roles) return;
+  try {
+    const cohortId = parsed.data.cohortId ?? null;
+    const cohorts = cohortId ? await prisma.careerCohort.findMany({ where: { id: cohortId, organizationId: orgId } }) : await prisma.careerCohort.findMany({ where: { organizationId: orgId } });
+    if (cohortId && !cohorts.length) return res.status(404).json({ ok: false, message: "cohort not in org" });
+    const cohortIds = cohorts.map((c) => c.id);
+    const enrollments = cohortIds.length ? await prisma.careerEnrollment.findMany({ where: { cohortId: { in: cohortIds } }, select: { studentUserId: true } }) : [];
+    const studentIds = Array.from(new Set(enrollments.map((e) => e.studentUserId)));
+    const [progress, targets, packages, sessions, growths, satisfactions] = studentIds.length
+      ? await Promise.all([
+          prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, state: true } }),
+          prisma.careerTargetJob.count({ where: { studentUserId: { in: studentIds }, status: "confirmed" } }),
+          prisma.careerApplicationPackage.count({ where: { studentUserId: { in: studentIds }, status: "finalized" } }),
+          prisma.careerInterviewSession.count({ where: { studentUserId: { in: studentIds }, status: "completed" } }),
+          prisma.careerInterviewGrowthReport.findMany({ where: { studentUserId: { in: studentIds } }, select: { growthData: true } }),
+          prisma.careerLaunchSatisfaction.findMany({ where: { studentUserId: { in: studentIds } }, select: { rating: true, npsScore: true } })
+        ])
+      : [[], 0, 0, 0, [], []];
+    const progByUser = new Map(progress.map((p) => [p.studentUserId, (p.state ?? {}) as { doneSteps?: unknown }] as const));
+    const weekDone = (uid: string, w: number) => { const ds = progByUser.get(uid)?.doneSteps; return Array.isArray(ds) && (ds as string[]).includes(`w${w}s4`); };
+    const n = studentIds.length;
+    const growthRates = growths.map((g) => ((g.growthData as { scoreGrowthRate?: number } | null)?.scoreGrowthRate ?? 0));
+    const avgGrowth = growthRates.length ? Math.round(growthRates.reduce((a, b) => a + b, 0) / growthRates.length) : null;
+    const hide = shouldHideGroup(n); // 작은 표본은 세부 분류 숨김.
+    const snapshot = {
+      cover: { organizationName: (await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } }))?.name ?? null, cohortId, reportType: parsed.data.reportType, participants: n, generatedAt: new Date().toISOString() },
+      participation: hide ? { hidden: true, reason: "표본 5명 미만 — 개인정보 보호를 위해 세부 분류 숨김", participants: n } : {
+        participants: n,
+        weekCompleters: [1, 2, 3, 4].map((w) => ({ week: w, count: studentIds.filter((id) => weekDone(id, w)).length })),
+        completed: studentIds.filter((id) => weekDone(id, 4)).length
+      },
+      outcomes: hide ? { hidden: true } : { targetConfirmed: targets, packagesFinalized: packages, interviewSessions: sessions, avgGrowthRate: avgGrowth },
+      satisfaction: satisfactions.length >= 5 ? { avgRating: Number((satisfactions.reduce((a, b) => a + b.rating, 0) / satisfactions.length).toFixed(2)), responses: satisfactions.length } : { hidden: true, reason: "응답 5건 미만" }
+    };
+    const report = await prisma.careerOrganizationReport.create({ data: { organizationId: orgId, cohortId, reportType: parsed.data.reportType, metricVersion: METRIC_VERSION, snapshotData: snapshot as object, generatedBy: req.auth!.userId } });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "report.generate", targetType: "report", targetId: report.id, changeData: { after: { reportType: parsed.data.reportType, participants: n } } });
+    return res.status(201).json({ ok: true, report });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.get("/career-launch/orgs/:orgId/reports", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "report:read"))) return;
+  try {
+    const reports = await prisma.careerOrganizationReport.findMany({ where: { organizationId: orgId }, orderBy: { generatedAt: "desc" }, take: 100, select: { id: true, cohortId: true, reportType: true, metricVersion: true, generatedAt: true } });
+    return res.json({ ok: true, reports });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+app.get("/career-launch/orgs/:orgId/reports/:reportId", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  const roles = await requireOrgPerm(req, res, orgId, "report:download");
+  if (!roles) return;
+  try {
+    const report = await prisma.careerOrganizationReport.findUnique({ where: { id: String(req.params.reportId) } });
+    if (!report || report.organizationId !== orgId) return res.status(404).json({ ok: false, message: "not found" });
+    await writeOrgAudit({ organizationId: orgId, actorId: req.auth!.userId, actorRole: roleLabel(roles), action: "report.download", targetType: "report", targetId: report.id });
+    return res.json({ ok: true, report });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 기관 감사 로그 ──
+app.get("/career-launch/orgs/:orgId/audit", authenticate, async (req, res) => {
+  const orgId = String(req.params.orgId);
+  if (!(await requireOrgPerm(req, res, orgId, "audit:read"))) return;
+  try {
+    const action = typeof req.query.action === "string" ? req.query.action : undefined;
+    const logs = await prisma.organizationAuditLog.findMany({ where: { organizationId: orgId, ...(action ? { action } : {}) }, orderBy: { createdAt: "desc" }, take: 300 });
+    return res.json({ ok: true, logs });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// UX Phase 6 — 운영 홈 view model(주의 큐 + 핵심 지표). "오늘 누구를 먼저 도울까"에 답한다.
+// 개입+SLA+정체+지표+비용 조합(원문 미반환). 기존 권한(requireRoles OPERATOR)·격리 로직 재사용.
+// ═══════════════════════════════════════════════════════════════════════
+app.get("/career-launch/ops/operation-home", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const now = Date.now();
+    // 개입(미해결) + SLA.
+    const openIvs = await prisma.careerIntervention.findMany({ where: { status: { notIn: ["resolved", "dismissed"] } }, include: { student: { select: { id: true, name: true, realName: true } } }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }], take: 500 });
+    const ivLogs = openIvs.length ? await prisma.careerInterventionLog.findMany({ where: { interventionId: { in: openIvs.map((i) => i.id) }, action: { not: "note" } }, orderBy: { createdAt: "asc" }, select: { interventionId: true, createdAt: true } }) : [];
+    const firstResp = new Map<string, number>();
+    for (const l of ivLogs) if (!firstResp.has(l.interventionId)) firstResp.set(l.interventionId, new Date(l.createdAt).getTime());
+    const ivWithSla = openIvs.map((iv) => {
+      const sla = computeSlaStatus({ createdAtMs: new Date(iv.createdAt).getTime(), firstResponseAtMs: firstResp.get(iv.id) ?? null, priority: iv.priority, reasonCodes: iv.reasonCodes, nowMs: now });
+      const ageHours = Math.floor((now - new Date(iv.createdAt).getTime()) / 3_600_000);
+      return { id: iv.id, studentName: iv.student?.realName ?? iv.student?.name ?? null, priority: iv.priority, reasonCodes: iv.reasonCodes, ageHours, sla };
+    });
+    const critical = ivWithSla.filter((i) => i.priority === "critical");
+    const humanReq = ivWithSla.filter((i) => i.reasonCodes.includes("human_review_requested") || i.reasonCodes.includes("fatigue_or_quit"));
+    const factConflict = ivWithSla.filter((i) => i.reasonCodes.includes("critical_unresolved") || i.reasonCodes.includes("unsupported_claims"));
+    const slaBreached = ivWithSla.filter((i) => i.sla.breached);
+    const high = ivWithSla.filter((i) => i.priority === "high");
+    const oldest = (arr: { ageHours: number }[]) => (arr.length ? Math.max(...arr.map((x) => x.ageHours)) : 0);
+
+    // 정체 학생(3일+, 미완료).
+    const enrollments = await prisma.careerEnrollment.findMany({ select: { studentUserId: true } });
+    const studentIds = Array.from(new Set(enrollments.map((e) => e.studentUserId)));
+    const [progress, targets, packages, initialMocks, finalMocks, growths, costAgg] = await Promise.all([
+      studentIds.length ? prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: studentIds } }, select: { studentUserId: true, state: true, updatedAt: true } }) : Promise.resolve([]),
+      studentIds.length ? prisma.careerTargetJob.count({ where: { studentUserId: { in: studentIds }, status: "confirmed" } }) : Promise.resolve(0),
+      studentIds.length ? prisma.careerApplicationPackage.count({ where: { studentUserId: { in: studentIds }, status: "finalized" } }) : Promise.resolve(0),
+      studentIds.length ? prisma.careerInterviewSession.count({ where: { studentUserId: { in: studentIds }, sessionType: "initial_mock", status: "completed" } }) : Promise.resolve(0),
+      studentIds.length ? prisma.careerInterviewSession.count({ where: { studentUserId: { in: studentIds }, sessionType: "final_mock", status: "completed" } }) : Promise.resolve(0),
+      studentIds.length ? prisma.careerInterviewGrowthReport.count({ where: { studentUserId: { in: studentIds } } }) : Promise.resolve(0),
+      prisma.careerAiCostDaily.aggregate({ _sum: { estCostUsd: true, calls: true } }).catch(() => ({ _sum: { estCostUsd: 0, calls: 0 } }))
+    ]);
+    const weekAgo = now - 7 * 864e5;
+    const dayStart = now - 864e5;
+    let active = 0;
+    let stalled = 0;
+    let week1Done = 0;
+    for (const p of progress) {
+      const upd = p.updatedAt ? new Date(p.updatedAt).getTime() : 0;
+      const st = (p.state && typeof p.state === "object" ? p.state : {}) as { doneSteps?: unknown };
+      const ds = Array.isArray(st.doneSteps) ? (st.doneSteps as string[]) : [];
+      const complete4 = ds.includes("w4s4");
+      if (upd >= dayStart) active++;
+      if (upd < now - 3 * 864e5 && !complete4) stalled++;
+      if (ds.includes("w1s4")) week1Done++;
+    }
+    const total = studentIds.length || 1;
+    const pct = (n: number) => Math.round((n / total) * 100);
+
+    // 주의 큐(즉시/오늘/이번주).
+    const item = (type: string, label: string, count: number, oldestAgoHours: number, href: string, breached = 0) => ({ type, label, count, oldestAgoHours, href, slaBreached: breached });
+    const immediate = [
+      critical.length ? item("critical_intervention", "즉시 도움이 필요한 학생", critical.length, oldest(critical), "/career-launch/ops/interventions") : null
+    ].filter(Boolean);
+    const today = [
+      humanReq.length ? item("human_request", "사람의 확인을 요청한 학생", humanReq.length, oldest(humanReq), "/career-launch/ops/interventions") : null,
+      factConflict.length ? item("fact_conflict", "지원서 사실 확인이 필요한 학생", factConflict.length, oldest(factConflict), "/career-launch/ops/interventions") : null,
+      high.length ? item("high_intervention", "오늘 확인할 개입", high.length, oldest(high), "/career-launch/ops/interventions") : null,
+      slaBreached.length ? item("sla_breach", "SLA를 넘긴 개입", slaBreached.length, oldest(slaBreached), "/career-launch/ops/interventions", slaBreached.length) : null,
+      stalled ? item("stalled", "3일 이상 멈춘 학생", stalled, 0, "/career-launch/ops/students") : null
+    ].filter(Boolean);
+
+    return res.json({
+      ok: true,
+      attentionQueue: { immediate, today, thisWeek: [] },
+      coreMetrics: {
+        enrolled: studentIds.length,
+        active,
+        stalled,
+        interventionNeeded: openIvs.length,
+        week1CompletionRate: { pct: pct(week1Done), count: week1Done, total: studentIds.length },
+        packageRate: { pct: pct(packages), count: packages },
+        initialMockRate: { pct: pct(initialMocks), count: initialMocks },
+        finalMockRate: { pct: pct(finalMocks), count: finalMocks },
+        completionRate: { pct: pct(growths), count: growths },
+        targetConfirmed: targets,
+        totalLlmCostUsd: Number((costAgg._sum.estCostUsd ?? 0).toFixed(2))
+      },
+      note: "집계·규칙 기반. 상담 원문·개인정보 미포함."
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: KPI·North Star(공통 산식, 화면 중복 금지). 목표값은 설정(monitoringConfiguration.kpiTargets). ──
+app.get("/career-launch/ops/kpi/:cohortId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const cohort = await prisma.careerCohort.findUnique({ where: { id: cohortId }, select: { monitoringConfiguration: true, participantLimit: true } });
+    if (!cohort) return res.status(404).json({ ok: false, message: "cohort not found" });
+    const enrollments = await prisma.careerEnrollment.findMany({ where: { cohortId }, select: { studentUserId: true } });
+    const ids = Array.from(new Set(enrollments.map((e) => e.studentUserId)));
+    // 초대 인원 근사 = participantLimit 있으면 그 값, 없으면 등록 인원(초대 트래킹 별도 없음).
+    const invited = cohort.participantLimit ?? ids.length;
+    const empty = ids.length === 0;
+    const [progress, targets, packages, initialMocks, corrections, growths, docVersions, alreadyAnswered, convCalls, interventions, ivResolved, surveys, outcomes] = empty
+      ? [[], 0, 0, 0, [], [], [], 0, { _sum: { calls: 0 } }, 0, 0, [], 0]
+      : await Promise.all([
+          prisma.careerLaunchProgress.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, state: true } }),
+          prisma.careerTargetJob.count({ where: { studentUserId: { in: ids }, status: "confirmed" } }),
+          prisma.careerApplicationPackage.count({ where: { studentUserId: { in: ids }, status: "finalized" } }),
+          prisma.careerInterviewSession.count({ where: { studentUserId: { in: ids }, sessionType: "initial_mock", status: "completed" } }),
+          prisma.careerInterviewCorrection.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true, attemptCount: true } }),
+          prisma.careerInterviewGrowthReport.findMany({ where: { studentUserId: { in: ids } }, select: { studentUserId: true } }),
+          prisma.careerDocumentVersion.findMany({ where: { studentUserId: { in: ids } }, select: { generatedBy: true } }).catch(() => [] as { generatedBy: string | null }[]),
+          prisma.careerQualitativeFeedback.count({ where: { cohortId, category: "already_answered" } }),
+          prisma.careerAiCostDaily.aggregate({ where: { cohortId, feature: { in: ["job_chat", "material_chat", "cover_chat", "consult"] } }, _sum: { calls: true } }),
+          prisma.careerIntervention.count({ where: { cohortId } }),
+          prisma.careerIntervention.count({ where: { cohortId, status: "resolved" } }),
+          prisma.careerPilotSurvey.findMany({ where: { cohortId, surveyKey: "week4_end" }, select: { answers: true } }),
+          prisma.careerEmploymentOutcome.count({ where: { studentUserId: { in: ids } } })
+        ]);
+    const growthSet = new Set(growths.map((g) => g.studentUserId));
+    const retryDoneSet = new Set(corrections.filter((c) => c.attemptCount > 0).map((c) => c.studentUserId));
+    const progBy = new Map(progress.map((p) => [p.studentUserId, (p.state && typeof p.state === "object" ? p.state : {}) as { doneSteps?: unknown; diagnosis?: unknown }]));
+    const firstConsult = ids.filter((id) => { const st = progBy.get(id); return Boolean(st?.diagnosis) || (Array.isArray(st?.doneSteps) && (st!.doneSteps as string[]).length > 0); }).length;
+    // North Star per student.
+    const nsStudents: NorthStarStudent[] = ids.map((id) => {
+      const st = progBy.get(id);
+      const ds = Array.isArray(st?.doneSteps) ? (st!.doneSteps as string[]) : [];
+      return {
+        studentUserId: id,
+        resumeFinalized: ds.includes("w2s4") || packages > 0, // 근사(패키지 확정 포함)
+        coverFinalized: ds.includes("w3s4"),
+        initialMockDone: ds.includes("w4s4") || false,
+        retryDone: retryDoneSet.has(id),
+        growthViewed: growthSet.has(id)
+      };
+    });
+    const northStar = computeNorthStar(nsStudents);
+    const recommendPositive = surveys.filter((s) => { const a = (s.answers && typeof s.answers === "object" ? s.answers : {}) as { recommend?: number }; return typeof a.recommend === "number" && a.recommend >= 4; }).length;
+    const kpiInput: KpiInput = {
+      invited,
+      enrolled: ids.length,
+      firstConsult,
+      targetConfirmed: targets,
+      packageFinalized: packages,
+      initialMock: initialMocks,
+      retryDone: retryDoneSet.size,
+      completed: growthSet.size,
+      artifactsCreated: docVersions.length,
+      // 사용자 확인 근사: 사용자가 편집/확정에 관여(generatedBy user|hybrid)한 버전.
+      artifactsConfirmed: docVersions.filter((d) => d.generatedBy === "user" || d.generatedBy === "hybrid").length,
+      reaskReports: alreadyAnswered,
+      conversationalCalls: convCalls._sum.calls ?? 0,
+      interventionTargets: interventions,
+      interventionRecovered: ivResolved,
+      surveyResponses: surveys.length,
+      recommendPositive,
+      realApplications: outcomes
+    };
+    const kpis = computeKpiSet(kpiInput);
+    const mon = (cohort.monitoringConfiguration && typeof cohort.monitoringConfiguration === "object" ? cohort.monitoringConfiguration : {}) as { kpiTargets?: Record<string, number> };
+    const targetsMerged = mergeKpiTargets(mon.kpiTargets);
+    const kpiRows = KPI_DEFINITIONS.filter((d) => kpis[d.key]).map((d) => ({ key: d.key, name: d.name, ...kpis[d.key], status: kpiStatus(d.key, kpis[d.key], targetsMerged), target: targetsMerged[d.key.replace(/_rate$/, "Rate")] ?? null }));
+    return res.json({
+      ok: true,
+      metricVersion: KPI_METRICS_VERSION,
+      smallSample: ids.length < KPI_MIN_SAMPLE,
+      northStar,
+      kpis: kpiRows,
+      targets: targetsMerged
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: 기수 요약 ──
+app.get("/career-launch/ops/cohort-summary/:cohortId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const enrollments = await prisma.careerEnrollment.findMany({ where: { cohortId }, select: { studentUserId: true } });
+    const ids = enrollments.map((e) => e.studentUserId);
+    const [packages, mocks, growths, corrections, interventions] = await Promise.all([
+      prisma.careerApplicationPackage.count({ where: { studentUserId: { in: ids }, status: "finalized" } }),
+      prisma.careerInterviewSession.count({ where: { studentUserId: { in: ids }, sessionType: "initial_mock", status: "completed" } }),
+      prisma.careerInterviewGrowthReport.findMany({ where: { studentUserId: { in: ids } }, select: { growthData: true } }),
+      prisma.careerInterviewCorrection.findMany({ where: { studentUserId: { in: ids } }, select: { status: true } }),
+      prisma.careerIntervention.count({ where: { cohortId, status: { notIn: ["resolved", "dismissed"] } } })
+    ]);
+    const passedCorr = corrections.filter((c) => c.status === "passed").length;
+    const growthRates = growths.map((g) => ((g.growthData as { scoreGrowthRate?: number } | null)?.scoreGrowthRate ?? 0)).filter((x) => typeof x === "number");
+    const avgGrowth = growthRates.length ? Math.round(growthRates.reduce((a, b) => a + b, 0) / growthRates.length) : 0;
+    return res.json({ ok: true, summary: { totalEnrolled: ids.length, packagesFinalized: packages, initialMocksCompleted: mocks, correctionResolveRate: corrections.length ? Math.round((passedCorr / corrections.length) * 100) : 0, avgGrowthRate: avgGrowth, interventionsOpen: interventions } });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: 개입 신호 스캔(규칙 기반) ──
+app.post("/career-launch/ops/interventions/scan/:cohortId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = String(req.params.cohortId);
+    const enrollments = await prisma.careerEnrollment.findMany({ where: { cohortId }, select: { id: true, studentUserId: true } });
+    let created = 0;
+    for (const enr of enrollments) {
+      const userId = enr.studentUserId;
+      const [pkg, growth, corrections, progress] = await Promise.all([
+        prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } }).catch(() => null),
+        prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId } }).catch(() => null),
+        prisma.careerInterviewCorrection.findMany({ where: { studentUserId: userId } }).catch(() => []),
+        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } }).catch(() => null)
+      ]);
+      const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { criticalUnresolved?: number };
+      const lastActive = progress?.updatedAt ?? null;
+      const daysSince = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / 864e5) : 999;
+      const signals: InterventionSignals = {
+        daysSinceActivity: daysSince,
+        requiredMissionIncomplete: !growth, // 4주 미완료 프록시
+        criticalCount: val.criticalUnresolved ?? 0,
+        unsupportedCount: 0,
+        repeatedWeaknessUnresolved: corrections.filter((c) => c.status !== "passed").length >= 3,
+        lowAiConfidence: growth?.humanReviewRequired === true,
+        humanReviewRequested: growth?.humanReviewRequired === true,
+        fatigueOrQuitExpressed: false,
+        deadlineImminentLowProgress: false
+      };
+      const { priority, reasonCodes } = computeInterventionPriority(signals);
+      // low 는 개입 생성 안 함(노이즈 방지). 기존 open 있으면 갱신.
+      if (priority === "low") continue;
+      const existing = await prisma.careerIntervention.findFirst({ where: { studentUserId: userId, cohortId, status: { notIn: ["resolved", "dismissed"] } } });
+      if (existing) {
+        await prisma.careerIntervention.update({ where: { id: existing.id }, data: { priority, reasonCodes, evidence: { signals, facts: [`최근 활동 ${daysSince}일 전`] } as object } });
+      } else {
+        await prisma.careerIntervention.create({ data: { studentUserId: userId, enrollmentId: enr.id, cohortId, priority, status: "open", reasonCodes, evidence: { signals, facts: [`최근 활동 ${daysSince}일 전`] } as object } });
+        created++;
+      }
+    }
+    return res.json({ ok: true, created, scanned: enrollments.length });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: 개입 목록 ──
+app.get("/career-launch/ops/interventions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const cohortId = typeof req.query.cohortId === "string" ? req.query.cohortId : undefined;
+    const priority = typeof req.query.priority === "string" ? req.query.priority : undefined;
+    const interventions = await prisma.careerIntervention.findMany({
+      where: { ...(cohortId ? { cohortId } : {}), ...(priority ? { priority } : {}), status: { notIn: ["dismissed"] } },
+      orderBy: [{ priority: "asc" }, { updatedAt: "desc" }],
+      take: 200,
+      include: { student: { select: { id: true, name: true, email: true } } }
+    });
+    return res.json({ ok: true, interventions });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: 개입 상태/담당/메모/해결/기각 + 감사 로그 ──
+const opsInterventionSchema = z.object({ status: z.enum(INTERVENTION_STATUSES).optional(), assignedAdminId: z.string().max(80).optional(), note: z.string().max(2000).optional(), nextReviewAt: z.string().optional(), dismissReason: z.string().max(500).optional() });
+app.patch("/career-launch/ops/interventions/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsInterventionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const iv = await prisma.careerIntervention.findUnique({ where: { id: String(req.params.id) } });
+    if (!iv) return res.status(404).json({ ok: false, message: "not found" });
+    const d = parsed.data;
+    const prevStatus = iv.status as import("./career-league").InterventionStatus;
+    const data: Record<string, unknown> = {};
+    if (d.status && d.status !== prevStatus) {
+      if (!canTransitionIntervention(prevStatus, d.status)) return res.status(400).json({ ok: false, message: "invalid transition" });
+      if (d.status === "dismissed" && !d.dismissReason) return res.status(400).json({ ok: false, message: "dismiss 사유가 필요합니다" });
+      data.status = d.status;
+      if (d.status === "resolved") data.resolvedAt = new Date();
+    }
+    if (d.assignedAdminId != null) data.assignedAdminId = d.assignedAdminId;
+    if (d.nextReviewAt) data.nextReviewAt = new Date(d.nextReviewAt);
+    const updated = await prisma.careerIntervention.update({ where: { id: iv.id }, data });
+    // 감사 로그.
+    await prisma.careerInterventionLog.create({ data: { interventionId: iv.id, actorId: req.auth!.userId, action: d.status ? `status:${d.status}` : d.assignedAdminId ? "assign" : "note", previousStatus: prevStatus, nextStatus: (data.status as string) ?? prevStatus, note: d.note ?? d.dismissReason ?? null } }).catch(() => null);
+    return res.json({ ok: true, intervention: updated });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 운영자: AI 운영 요약(사실과 분리) ──
+app.post("/career-launch/ops/interventions/:id/ai-summary", authenticate, requireRoles([MemberRole.OPERATOR]), rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "ops-ai-summary" }), async (req, res) => {
+  try {
+    const iv = await prisma.careerIntervention.findUnique({ where: { id: String(req.params.id) } });
+    if (!iv) return res.status(404).json({ ok: false, message: "not found" });
+    if (!openai) return sendAiUnavailable(res);
+    const ev = (iv.evidence && typeof iv.evidence === "object" ? iv.evidence : {}) as { facts?: string[]; signals?: Record<string, unknown> };
+    const sys = "너는 커리어 프로그램 운영 보조야. 아래 '사실 데이터'만 근거로 운영자용 요약을 만들어줘. 사실과 AI 해석을 명확히 구분하고(facts / interpretation / recommendedAction / dataToCheck / nextCheck), 학생의 의도나 심리를 단정하지 마. 진단하지 마.";
+    const schema = { type: "object", additionalProperties: false, required: ["interpretation", "recommendedAction", "dataToCheck", "nextCheck"], properties: { interpretation: { type: "string" }, recommendedAction: { type: "string" }, dataToCheck: { type: "array", items: { type: "string" } }, nextCheck: { type: "string" } } } as const;
+    let summary: unknown = null;
+    try {
+      summary = await careerChatComplete(sys, `[사실]\n${(ev.facts ?? []).join("\n")}\n우선순위: ${iv.priority}\n신호: ${JSON.stringify(iv.reasonCodes)}`, "ops_ai_summary", schema);
+    } catch (err) {
+      if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+      return res.status(502).json({ ok: false, message: "요약 실패" });
+    }
+    await prisma.careerIntervention.update({ where: { id: iv.id }, data: { aiSummary: { facts: ev.facts ?? [], ai: summary } as object } });
+    return res.json({ ok: true, aiSummary: summary, facts: ev.facts ?? [] });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -17768,7 +21636,7 @@ app.post(
         `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
         `지금까지 대화:\n${convo}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA)) as {
+      const pj = (await careerChatComplete(systemPrompt, userPrompt, `interview_${focus}`, INTERVIEW_SCHEMA, false, { userId: req.auth!.userId, feature: `interview_${focus}` })) as {
         reply?: unknown;
         done?: unknown;
         strengths?: unknown;
@@ -17984,10 +21852,14 @@ app.post(
       let hasData = false;
       if (week === 1) {
         const diagnosis = progState.diagnosis ?? null;
+        const experiences = Array.isArray(progState.experienceBank) ? progState.experienceBank : [];
         const selectedJobs = Array.isArray(progState.selectedJobs) ? progState.selectedJobs : [];
+        const targetJob = typeof progState.targetJob === "string" ? progState.targetJob : null;
         const materials = Array.isArray(progState.materials) ? progState.materials : [];
-        input = { diagnosis, selectedJobs, materials };
-        hasData = Boolean(diagnosis) || selectedJobs.length > 0 || materials.length > 0;
+        const strengthStories = Array.isArray(progState.strengthStories) ? progState.strengthStories : [];
+        // 1주차 결과물 전체를 입력·해시에 반영 → 무엇이든 바뀌면 피드백이 stale 로 감지된다.
+        input = { diagnosis, experiences, selectedJobs, targetJob, materials, strengthStories };
+        hasData = Boolean(diagnosis) || experiences.length > 0 || selectedJobs.length > 0 || materials.length > 0 || strengthStories.length > 0;
       } else if (week === 2) {
         const content = (resumeRow?.content ?? {}) as Record<string, unknown>;
         input = content;
@@ -18003,11 +21875,13 @@ app.post(
       const sig = simpleHash(JSON.stringify(input));
       const autoFeedback = (progState.autoFeedback && typeof progState.autoFeedback === "object" ? progState.autoFeedback : {}) as Record<string, { sig?: string; text?: string }>;
       const cached = autoFeedback[String(week)];
-      if (cached && cached.sig === sig && typeof cached.text === "string" && cached.text.trim()) {
-        return res.json({ ok: true, feedback: cached.text, cached: true });
+      const cachedText = cached && typeof cached.text === "string" && cached.text.trim() ? cached.text : null;
+      if (cachedText && cached!.sig === sig) {
+        return res.json({ ok: true, feedback: cachedText, cached: true });
       }
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
-      if (parsed.data.generate === false) return res.json({ ok: true, feedback: null, needsGenerate: true });
+      // 내용이 바뀐 경우엔 옛 피드백을 함께 돌려주고 stale=true 로 표시(사라지지 않게 — 최신화는 '다시 받기'로).
+      if (parsed.data.generate === false) return res.json({ ok: true, feedback: cachedText, stale: Boolean(cachedText), needsGenerate: true });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
       {
@@ -19717,7 +23591,16 @@ const cohortPatchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   status: z.enum(["active", "ended"]).optional(),
   startsAt: z.string().datetime().nullable().optional(),
-  endsAt: z.string().datetime().nullable().optional()
+  endsAt: z.string().datetime().nullable().optional(),
+  // Phase 9 파일럿 config.
+  isPilot: z.boolean().optional(),
+  programVersion: z.string().max(40).nullable().optional(),
+  featureFlags: z.record(z.string(), z.boolean()).nullable().optional(),
+  participantLimit: z.number().int().min(1).max(1000).nullable().optional(),
+  pilotStartAt: z.string().datetime().nullable().optional(),
+  pilotEndAt: z.string().datetime().nullable().optional(),
+  surveyConfiguration: z.record(z.string(), z.unknown()).nullable().optional(),
+  monitoringConfiguration: z.record(z.string(), z.unknown()).nullable().optional()
 });
 app.patch("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = cohortPatchSchema.safeParse(req.body);
@@ -19730,6 +23613,14 @@ app.patch("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRo
     if (parsed.data.status !== undefined) data.status = parsed.data.status;
     if (parsed.data.startsAt !== undefined) data.startsAt = parsed.data.startsAt ? new Date(parsed.data.startsAt) : null;
     if (parsed.data.endsAt !== undefined) data.endsAt = parsed.data.endsAt ? new Date(parsed.data.endsAt) : null;
+    if (parsed.data.isPilot !== undefined) data.isPilot = parsed.data.isPilot;
+    if (parsed.data.programVersion !== undefined) data.programVersion = parsed.data.programVersion;
+    if (parsed.data.featureFlags !== undefined) data.featureFlags = parsed.data.featureFlags ?? undefined;
+    if (parsed.data.participantLimit !== undefined) data.participantLimit = parsed.data.participantLimit;
+    if (parsed.data.pilotStartAt !== undefined) data.pilotStartAt = parsed.data.pilotStartAt ? new Date(parsed.data.pilotStartAt) : null;
+    if (parsed.data.pilotEndAt !== undefined) data.pilotEndAt = parsed.data.pilotEndAt ? new Date(parsed.data.pilotEndAt) : null;
+    if (parsed.data.surveyConfiguration !== undefined) data.surveyConfiguration = parsed.data.surveyConfiguration ?? undefined;
+    if (parsed.data.monitoringConfiguration !== undefined) data.monitoringConfiguration = parsed.data.monitoringConfiguration ?? undefined;
     const c = await prisma.careerCohort.update({ where: { id }, data });
     return res.json({ ok: true, item: c });
   } catch (error) {

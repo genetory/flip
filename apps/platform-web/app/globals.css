@@ -246,7 +246,67 @@ All colors MUST be HSL.
 .landing-blob-b { animation: landing-float-b 19s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .landing-blob-a, .landing-blob-b { animation: none !important; }
+  /* UX Phase 8 — reduced-motion 환경에서 불필요한 전역 애니메이션/전환을 최소화한다. */
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
+
+/* UX Phase 8 — 긴 문자열(줄바꿈 없는 URL·이메일·긴 직무/기관명) 안전 표시.
+   말줄임 대신 자연 줄바꿈으로 UI 밀림/가로 오버플로를 방지한다. */
+.break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
+/* ── Career Launch 매거진 에디토리얼 타입 스케일 ──────────────
+   중요한 것은 크게(display/headline), 부가 정보는 작게(eyebrow/caption).
+   Pretendard 기준, 한국어 줄바꿈(break-keep)·균형 줄바꿈(balance) 적용. */
+.cl-eyebrow {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cl-eyebrow, #8B95A1);
+}
+.cl-display {
+  font-size: clamp(28px, 6vw, 40px);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  word-break: keep-all;
+  color: #191F28;
+}
+.cl-headline {
+  font-size: clamp(20px, 4vw, 26px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  word-break: keep-all;
+  color: #191F28;
+}
+.cl-title {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #191F28;
+}
+.cl-lead {
+  font-size: clamp(14.5px, 2.4vw, 16.5px);
+  font-weight: 500;
+  line-height: 1.6;
+  word-break: keep-all;
+  color: #4E5968;
+}
+.cl-body { font-size: 14px; line-height: 1.65; color: #4E5968; }
+.cl-caption { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: #8B95A1; }
+/* 매거진 헤어라인 구분선 */
+.cl-rule { height: 1px; background: #EEF1F5; border: 0; }
+/* 섹션 헤더(eyebrow + headline) 상단 여백 리듬 */
+.cl-section { margin-top: 2.25rem; }
+.cl-section:first-child { margin-top: 0; }
 
 /* 접근성 — 키보드 탐색 시 포커스 가시화(마우스 클릭에는 표시되지 않음). */
 :focus-visible {

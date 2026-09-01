@@ -171,7 +171,7 @@ export default function ResumeCollectPage() {
           {/* 상단 바 */}
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              {t("← 2주차", "← Week 2", "← 第2周", "← Tuần 2", "← Week 2", "← Minggu 2")}
+              {t("← 지원 패키지", "← Application package", "← 申请材料包", "← Bộ hồ sơ ứng tuyển", "← 応募パッケージ", "← Paket lamaran")}
             </Link>
             <div className="flex items-center gap-3">
               <SaveIndicator state={saveState} t={t} />
