@@ -360,22 +360,22 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
     }
   },
   // Week 3
-  "w3-motive": {
+  "w3-cover": {
     title: {
-      ko: "지원 동기",
-      en: "Motivation to apply",
-      "zh-CN": "申请动机",
-      vi: "Động lực ứng tuyển",
-      ja: "志望動機",
-      id: "Motivasi melamar"
+      ko: "자기소개서 작성",
+      en: "Write your cover letter",
+      "zh-CN": "撰写自我介绍书",
+      vi: "Viết thư giới thiệu",
+      ja: "自己紹介書を作成",
+      id: "Tulis surat lamaran"
     },
     desc: {
-      ko: "왜 이 직무·회사에 지원하는지 AI와 대화하며 지원 동기 문항을 채워요.",
-      en: "Fill in the motivation question by chatting with AI about why you're applying to this job and company.",
-      "zh-CN": "与AI对话，说明为何申请该职务和公司，填写申请动机题目。",
-      vi: "Điền câu hỏi động lực bằng cách trò chuyện với AI về lý do bạn ứng tuyển công việc và công ty này.",
-      ja: "なぜこの職務・会社に応募するのかをAIと対話しながら志望動機の項目を埋めます。",
-      id: "Isi pertanyaan motivasi lewat obrolan dengan AI tentang alasan kamu melamar pekerjaan dan perusahaan ini."
+      ko: "기본 문항(지원 동기·성장 과정·강점·포부)으로 시작하되, 지원 회사에 맞춰 문항 제목을 바꾸고 추가·삭제할 수 있어요. 직접 쓰거나 AI와 대화하며 채워요.",
+      en: "Start from the default sections (motivation, background, strengths, goals), but rename them and add or remove to match the company. Write directly or with AI.",
+      "zh-CN": "从默认文项（申请动机·成长经历·优势·抱负）开始，也可按公司要求改标题、增删。可直接写或与AI对话填写。",
+      vi: "Bắt đầu từ mục mặc định (động lực, quá trình, điểm mạnh, mục tiêu), rồi đổi tên và thêm/xóa theo công ty. Tự viết hoặc cùng AI.",
+      ja: "デフォルト項目（志望動機・成長過程・強み・抱負）から始め、会社に合わせてタイトル変更や追加・削除ができます。直接またはAIと対話して記入。",
+      id: "Mulai dari bagian bawaan (motivasi, latar belakang, kelebihan, tujuan), lalu ganti judul dan tambah/hapus sesuai perusahaan. Tulis langsung atau dengan AI."
     }
   },
   "w3-growth": {

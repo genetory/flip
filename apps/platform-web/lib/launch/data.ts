@@ -153,32 +153,12 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/culture/w2s4" }
       },
       {
-        id: "w3-motive",
+        id: "w3-cover",
         group: "cover",
-        title: "지원 동기",
-        desc: "왜 이 직무·회사에 지원하는지 AI와 대화하며 지원 동기 문항을 채워요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect?section=motive" }
-      },
-      {
-        id: "w3-growth",
-        group: "cover",
-        title: "성장 과정",
-        desc: "지금의 나를 만든 경험을 대화로 풀어 성장 과정 문항을 채워요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect?section=growth" }
-      },
-      {
-        id: "w3-strength",
-        group: "cover",
-        title: "성격의 장단점·강점",
-        desc: "직무에 살릴 강점과 보완점을 구체적 사례로 대화하며 정리해요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect?section=strength" }
-      },
-      {
-        id: "w3-aspiration",
-        group: "cover",
-        title: "입사 후 포부",
-        desc: "입사 후 이루고 싶은 목표와 회사에 줄 기여를 대화로 구체화해요.",
-        action: { label: "시작하기", href: "/career-launch/cover-collect?section=aspiration" }
+        title: "자기소개서 작성",
+        minutes: 30,
+        desc: "기본 문항(지원 동기·성장 과정·강점·포부)으로 시작하되, 지원 회사에 맞춰 문항 제목을 바꾸고 추가·삭제할 수 있어요. 직접 쓰거나 AI와 대화하며 채워요.",
+        action: { label: "시작하기", href: "/career-launch/cover-collect" }
       },
       {
         id: "w3s4",

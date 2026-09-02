@@ -18,11 +18,8 @@ export const STEP_KIND: Record<string, string> = {
   "w2-exp-other": "resume-exp-other",
   "w2-skill": "resume-skill",
   "w2-lang": "resume-lang",
-  // week3 자기소개서 — 문항 단위(순서대로 누적)
-  "w3-motive": "cover1",
-  "w3-growth": "cover2",
-  "w3-strength": "cover3",
-  "w3-aspiration": "cover4",
+  // 자기소개서 — 동적 문항(제목·개수 자유). 문항 하나라도 답하면 완료.
+  "w3-cover": "cover",
   // week4
   w4s1: "both",
   "w4-self": "interview-self",
@@ -68,10 +65,7 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     }
     case "resume-skill": kd = skillN > 0; break;
     case "resume-lang": kd = langN > 0; break;
-    case "cover1": kd = coverN >= 1; break;
-    case "cover2": kd = coverN >= 2; break;
-    case "cover3": kd = coverN >= 3; break;
-    case "cover4": kd = coverN >= 4; break;
+    case "cover": kd = coverN >= 1; break;
     case "interview-self": kd = (prog.interview?.practiced ?? []).includes("self"); break;
     case "interview-job": kd = (prog.interview?.practiced ?? []).includes("job"); break;
     case "interview-fit": kd = (prog.interview?.practiced ?? []).includes("fit"); break;

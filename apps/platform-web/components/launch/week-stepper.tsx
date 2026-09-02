@@ -304,17 +304,21 @@ export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey =
         </ResultCard>
       );
     }
-    // 자기소개서 — 문항별(한 스텝 = 한 문항). 해당 문항의 질문+답변만 보여준다.
-    if (kind === "cover1" || kind === "cover2" || kind === "cover3" || kind === "cover4") {
-      const idx = kind === "cover1" ? 0 : kind === "cover2" ? 1 : kind === "cover3" ? 2 : 3;
-      const section = (["motive", "growth", "strength", "aspiration"] as const)[idx];
+    // 자기소개서 — 작성한 문항(제목+답변)들을 모아 보여준다(동적 문항).
+    if (kind === "cover") {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
-      const it = filled[idx];
-      if (!it) return null;
+      if (!filled.length) return null;
       return (
-        <ResultCard continueHref={`/career-launch/cover-collect?section=${section}`} continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref={`/career-launch/cover-collect?section=${section}&restart=1`}>
-          <p className="break-keep text-[12.5px] font-bold text-[#191F28]">📝 {it.question}</p>
-          <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{it.answer}</p>
+        <ResultCard continueHref="/career-launch/cover-collect" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/cover-collect">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📝 {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} <span className="text-[#0B46E8]">{t(`${filled.length}문항`, `${filled.length}`, `${filled.length} 项`, `${filled.length}`, `${filled.length}項目`, `${filled.length}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {filled.slice(0, 5).map((it, i) => (
+              <li key={i} className="rounded-xl border border-[#EEF1F5] bg-white px-3 py-2">
+                <p className="break-keep text-[12.5px] font-bold text-[#191F28]">{it.question}</p>
+                <p className="mt-0.5 line-clamp-2 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{it.answer}</p>
+              </li>
+            ))}
+          </ul>
         </ResultCard>
       );
     }
