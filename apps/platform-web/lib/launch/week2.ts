@@ -98,7 +98,7 @@ export async function fetchWeek2Status(): Promise<Week2Status> {
     completion: (d.completion as Week2Status["completion"]) ?? { complete: false, checks: [], doneCount: 0 }
   };
 }
-export async function createApplicationTarget(input: { sourceType?: string; positionId?: string; companyName?: string; jobTitle?: string; rawContent?: string }): Promise<ApplicationTarget> {
+export async function createApplicationTarget(input: { sourceType?: string; positionId?: string; sourceUrl?: string; companyName?: string; jobTitle?: string; rawContent?: string }): Promise<ApplicationTarget> {
   const d = await req("/career-launch/week2/application-target", { method: "POST", headers: authHeaders(true), body: JSON.stringify(input) });
   return d.target as ApplicationTarget;
 }

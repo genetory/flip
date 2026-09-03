@@ -26,6 +26,8 @@ import {
   type ConsistencyFinding,
   type ScoreData
 } from "../../lib/launch/week2";
+import { getMyFavoritePositions, getMyAppliedPositions, getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";
+import { fetchJobPosting } from "../../lib/resume-maker-client";
 
 export function Week2PackageCard() {
   const t = useLaunchT();
@@ -89,12 +91,109 @@ export function Week2PackageCard() {
   );
 }
 
-// ── 기준 공고(붙여넣기/직접입력 → 구조화 → 분석) ──
+// ── 기준 공고(우리 공고 선택 / 검색 / 링크 / 붙여넣기 → 구조화 → 분석) ──
+type TargetMode = "internal" | "search" | "url" | "paste";
+function posCompany(p: PublicPositionListItem): string {
+  return p.sourceCompanyName || p.partnerOrganization?.name || "";
+}
+// 내부 공고 → 분석 시드용 텍스트(서버가 Position 에서 구조화 못 하면 이 원문으로 폴백 구조화).
+function posToRaw(p: PublicPositionListItem): string {
+  return [
+    p.title,
+    posCompany(p),
+    p.mainResponsibilities ? `주요업무:\n${p.mainResponsibilities}` : "",
+    p.requiredQualifications ? `자격요건:\n${p.requiredQualifications}` : "",
+    p.preferredQualifications ? `우대사항:\n${p.preferredQualifications}` : "",
+    p.additionalNotes ? `기타:\n${p.additionalNotes}` : ""
+  ].filter(Boolean).join("\n\n");
+}
 function TargetSection({ target, onChanged }: { target: ApplicationTarget | null; onChanged: () => Promise<void> }) {
   const t = useLaunchT();
+  const [mode, setMode] = useState<TargetMode>("internal");
   const [raw, setRaw] = useState("");
+  const [url, setUrl] = useState("");
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<PublicPositionListItem[]>([]);
+  const [mine, setMine] = useState<PublicPositionListItem[] | null>(null);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
+
+  // 내 공고(찜/지원) 지연 로드.
+  useEffect(() => {
+    if (target || mode !== "internal" || mine !== null) return;
+    let alive = true;
+    setBusy("mine");
+    void (async () => {
+      try {
+        const [fav, applied] = await Promise.all([
+          getMyFavoritePositions().catch(() => [] as PublicPositionListItem[]),
+          getMyAppliedPositions().catch(() => [] as PublicPositionListItem[])
+        ]);
+        const map = new Map<string, PublicPositionListItem>();
+        [...applied, ...fav].forEach((p) => map.set(p.id, p));
+        if (alive) setMine(Array.from(map.values()));
+      } finally {
+        if (alive) setBusy("");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [target, mode, mine]);
+
+  // 우리 공고 선택(내부) — 서버가 Position 에서 구조화 시드. 시드 실패 시 원문으로 폴백 구조화.
+  const pickPosition = async (p: PublicPositionListItem) => {
+    setBusy("create");
+    setErr("");
+    try {
+      const created = await createApplicationTarget({ sourceType: "internal", positionId: p.id, companyName: posCompany(p), jobTitle: p.title, rawContent: posToRaw(p) });
+      trackCareerFunnel("career_application_target_selected", { applicationTargetSource: "internal" });
+      if (created.status !== "structured") await structureTarget(created.id);
+      await onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "실패");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const runSearch = async () => {
+    const kw = q.trim();
+    if (!kw) return;
+    setBusy("search");
+    setErr("");
+    try {
+      const page = await getPublicPositionsPage({ search: kw, limit: 20 });
+      setResults(page.items);
+      if (page.items.length === 0) setErr(t("검색 결과가 없어요. 다른 키워드로 찾아보세요.", "No results. Try another keyword.", "无结果，换个关键词。", "Không có kết quả. Thử từ khóa khác.", "結果なし。別のキーワードで。", "Tidak ada hasil. Coba kata kunci lain."));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "실패");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const createFromUrl = async () => {
+    const clean = url.trim();
+    if (!clean) return;
+    setBusy("url");
+    setErr("");
+    try {
+      const text = await fetchJobPosting(clean);
+      if (!text || text.trim().length < 30) {
+        setErr(t("공고 내용을 불러오지 못했어요. 내용을 직접 붙여넣어 주세요.", "Couldn't read the posting. Paste the content directly.", "无法读取公告，请直接粘贴内容。", "Không đọc được tin. Hãy dán nội dung trực tiếp.", "求人を読み取れませんでした。内容を貼り付けてください。", "Tidak bisa membaca lowongan. Tempel isinya langsung."));
+        return;
+      }
+      const created = await createApplicationTarget({ sourceType: "url", sourceUrl: clean, rawContent: text });
+      trackCareerFunnel("career_application_target_selected", { applicationTargetSource: "url" });
+      await structureTarget(created.id);
+      await onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "실패");
+    } finally {
+      setBusy("");
+    }
+  };
 
   const create = async () => {
     if (!raw.trim()) return;
@@ -126,16 +225,81 @@ function TargetSection({ target, onChanged }: { target: ApplicationTarget | null
     }
   };
 
+  const renderPos = (p: PublicPositionListItem) => (
+    <button key={p.id} type="button" disabled={busy === "create"} onClick={() => void pickPosition(p)} className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#E5E8EB] px-3 py-2.5 text-left transition hover:border-[#0B46E8] disabled:opacity-50">
+      <span className="min-w-0">
+        <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{p.title}</span>
+        <span className="block truncate text-[12px] text-[#8B95A1]">{posCompany(p) || t("회사명 미정", "Company TBD", "公司待定", "Chưa rõ công ty", "会社未定", "Perusahaan TBD")}</span>
+      </span>
+      <span className="shrink-0 rounded-lg bg-[#F2F4F6] px-2.5 py-1 text-[11.5px] font-bold text-[#4E5968]">{t("선택", "Pick", "选择", "Chọn", "選択", "Pilih")}</span>
+    </button>
+  );
+
   return (
     <Card>
-      <SectionTitle sub={t("공고 내용을 붙여넣으면 AI가 요구역량을 분석해요", "Paste the posting — AI analyzes the requirements", "粘贴公告，AI分析要求", "Dán tin tuyển dụng — AI phân tích yêu cầu", "求人を貼ると要件を分析", "Tempel lowongan — AI analisis syarat")}>{t("기준 채용공고", "Target job posting", "基准招聘公告", "Tin tuyển dụng mục tiêu", "基準求人", "Lowongan target")}</SectionTitle>
+      <SectionTitle sub={t("우리 공고에서 고르거나 링크·붙여넣기로 가져오면 AI가 요구역량을 분석해요", "Pick from our postings or add via link/paste — AI analyzes the requirements", "从我们的公告中选择或用链接/粘贴导入，AI分析要求", "Chọn từ tin của chúng tôi hoặc thêm qua link/dán — AI phân tích yêu cầu", "求人から選ぶかリンク・貼付で取り込むとAIが要件を分析", "Pilih dari lowongan kami atau tambah via link/tempel — AI analisis syarat")}>{t("기준 채용공고", "Target job posting", "基准招聘公告", "Tin tuyển dụng mục tiêu", "基準求人", "Lowongan target")}</SectionTitle>
       {!target ? (
         <div className="mt-3">
-          <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={5} placeholder={t("채용공고 내용을 붙여넣어 주세요", "Paste the job posting here", "在此粘贴招聘公告", "Dán nội dung tin tuyển dụng", "求人内容を貼り付け", "Tempel isi lowongan")} className="w-full resize-none rounded-xl border border-[#E5E8EB] p-3 text-[16px] leading-relaxed outline-none focus:border-[#0B46E8]" />
-          <button type="button" onClick={() => void create()} disabled={busy === "create" || !raw.trim()} className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
-            {busy === "create" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}
-            {t("공고 등록", "Add posting", "登记公告", "Thêm tin", "求人を登録", "Tambah lowongan")}
-          </button>
+          <div className="flex gap-1 rounded-xl bg-[#F2F4F6] p-1">
+            {([
+              ["internal", t("내 공고", "My postings", "我的公告", "Tin của tôi", "自分の求人", "Lowongan saya")],
+              ["search", t("검색", "Search", "搜索", "Tìm", "検索", "Cari")],
+              ["url", t("링크", "Link", "链接", "Link", "リンク", "Link")],
+              ["paste", t("붙여넣기", "Paste", "粘贴", "Dán", "貼付", "Tempel")]
+            ] as [TargetMode, string][]).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => { setMode(key); setErr(""); }} className={`flex-1 rounded-lg px-2 py-1.5 text-[12px] font-bold transition ${mode === key ? "bg-white text-[#191F28] shadow-sm" : "text-[#8B95A1]"}`}>{label}</button>
+            ))}
+          </div>
+
+          <div className="mt-3">
+            {mode === "internal" ? (
+              busy === "mine" ? (
+                <p className="flex items-center gap-2 py-4 text-[12.5px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+              ) : mine && mine.length > 0 ? (
+                <div className="space-y-1.5">
+                  <p className="text-[11.5px] text-[#8B95A1]">{t("찜하거나 지원한 공고에서 골라요", "Pick from postings you saved or applied to", "从收藏或已申请的公告中选择", "Chọn từ tin đã lưu hoặc đã ứng tuyển", "保存・応募した求人から選択", "Pilih dari lowongan yang disimpan/dilamar")}</p>
+                  {mine.map((p) => renderPos(p))}
+                </div>
+              ) : (
+                <p className="py-4 text-[12.5px] text-[#8B95A1]">{t("찜하거나 지원한 공고가 아직 없어요. '검색'이나 '링크'로 가져오세요.", "No saved or applied postings yet. Use Search or Link.", "还没有收藏或申请的公告，请用搜索或链接。", "Chưa có tin đã lưu/ứng tuyển. Dùng Tìm hoặc Link.", "保存・応募した求人がまだありません。検索かリンクを。", "Belum ada lowongan tersimpan/dilamar. Gunakan Cari atau Link.")}</p>
+              )
+            ) : null}
+
+            {mode === "search" ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} placeholder={t("회사·직무로 검색", "Search company or role", "按公司/职位搜索", "Tìm theo công ty/vị trí", "会社・職種で検索", "Cari perusahaan/peran")} className="min-w-0 flex-1 rounded-xl border border-[#E5E8EB] px-3 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]" />
+                  <button type="button" onClick={() => void runSearch()} disabled={busy === "search" || !q.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                    {busy === "search" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}{t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
+                  </button>
+                </div>
+                {results.length > 0 ? <div className="space-y-1.5">{results.map((p) => renderPos(p))}</div> : null}
+              </div>
+            ) : null}
+
+            {mode === "url" ? (
+              <div className="space-y-2">
+                <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void createFromUrl(); }} placeholder={t("채용공고 링크 붙여넣기", "Paste job posting link", "粘贴招聘链接", "Dán link tin tuyển dụng", "求人リンクを貼付", "Tempel link lowongan")} className="w-full rounded-xl border border-[#E5E8EB] px-3 py-2.5 text-[14px] outline-none focus:border-[#0B46E8]" />
+                <button type="button" onClick={() => void createFromUrl()} disabled={busy === "url" || !url.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                  {busy === "url" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4" weight="fill" />}{t("링크에서 가져오기", "Fetch from link", "从链接获取", "Lấy từ link", "リンクから取得", "Ambil dari link")}
+                </button>
+                <p className="text-[11.5px] text-[#8B95A1]">{t("일부 사이트는 로그인·차단으로 못 가져올 수 있어요. 그럴 땐 '붙여넣기'를 쓰세요.", "Some sites can't be read (login/blocking). Use Paste instead.", "部分网站因登录/拦截无法读取，请改用粘贴。", "Một số trang không đọc được (đăng nhập/chặn). Hãy dùng Dán.", "一部サイトはログイン等で取得不可。貼付をご利用ください。", "Beberapa situs tak terbaca. Gunakan Tempel.")}</p>
+              </div>
+            ) : null}
+
+            {mode === "paste" ? (
+              <div>
+                <textarea value={raw} onChange={(e) => setRaw(e.target.value)} rows={5} placeholder={t("채용공고 내용을 붙여넣어 주세요", "Paste the job posting here", "在此粘贴招聘公告", "Dán nội dung tin tuyển dụng", "求人内容を貼り付け", "Tempel isi lowongan")} className="w-full resize-none rounded-xl border border-[#E5E8EB] p-3 text-[16px] leading-relaxed outline-none focus:border-[#0B46E8]" />
+                <button type="button" onClick={() => void create()} disabled={busy === "create" || !raw.trim()} className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                  {busy === "create" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}{t("공고 등록", "Add posting", "登记公告", "Thêm tin", "求人を登録", "Tambah lowongan")}
+                </button>
+              </div>
+            ) : null}
+
+            {busy === "create" && (mode === "internal" || mode === "search") ? (
+              <p className="mt-2 flex items-center gap-1.5 text-[12px] text-[#8B95A1]"><CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("공고 등록 중…", "Adding…", "登记中…", "Đang thêm…", "登録中…", "Menambah…")}</p>
+            ) : null}
+          </div>
         </div>
       ) : (
         <div className="mt-3 space-y-2.5">
