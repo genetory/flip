@@ -203,7 +203,7 @@ export function FourWeekJourney({ vm }: { vm: DashboardVM }) {
 }
 
 // 영역 5 — 최근 결과물(최대 3). 상태(a.status)는 서버 한국어 → 알려진 값만 로컬 라벨로 매핑.
-const ART_TONE: Record<string, string> = { 완성: "text-[#0A9B59]", "확인 필요": "text-[#C77700]", "작성 중": "text-[#1B64DA]", "작성 전": "text-[#8B95A1]" };
+const ART_TONE: Record<string, string> = { 완성: "text-[#0B46E8]", "확인 필요": "text-[#C77700]", "작성 중": "text-[#4E5968]", "작성 전": "text-[#8B95A1]" };
 function artStatusLabel(t: LaunchT, s: string): string {
   switch (s) {
     case "완성": return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
