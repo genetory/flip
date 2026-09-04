@@ -13,8 +13,8 @@ import { useLaunchT } from "../../../lib/launch/i18n";
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
-const STATUS_TONE: Record<string, string> = { finalized: "text-[#0A9B59]", needs_confirmation: "text-[#C77700]", in_progress: "text-[#1B64DA]", draft: "text-[#6339E5]", improvable: "text-[#1B64DA]", not_started: "text-[#B0B8C1]", archived: "text-[#8B95A1]" };
-const StatusIcon = ({ s }: { s: string }) => (s === "finalized" ? <CheckCircle size={18} weight="fill" className="text-[#0A9B59]" /> : s === "needs_confirmation" ? <WarningCircle size={18} weight="fill" className="text-[#C77700]" /> : <Circle size={18} className="text-[#C9CDD2]" />);
+const STATUS_TONE: Record<string, string> = { finalized: "text-[#0B46E8]", needs_confirmation: "text-[#C77700]", in_progress: "text-[#4E5968]", draft: "text-[#6339E5]", improvable: "text-[#1B64DA]", not_started: "text-[#B0B8C1]", archived: "text-[#8B95A1]" };
+const StatusIcon = ({ s }: { s: string }) => (s === "finalized" ? <CheckCircle size={18} weight="fill" className="text-[#0B46E8]" /> : s === "needs_confirmation" ? <WarningCircle size={18} weight="fill" className="text-[#C77700]" /> : <Circle size={18} className="text-[#C9CDD2]" />);
 
 // 결과물 상태 라벨 — 공유 한국어 상수(copy.ts) 대신 페이지 내에서 6개국어 처리.
 function artifactStatusLabel(t: LaunchT, s: string): string {
