@@ -19717,7 +19717,7 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
     // 코치 메시지(템플릿, LLM 아님). 최근 상담 요약 + 목표 직무 기억 + 오늘 할 일.
     const priorConsult = await loadRecentConsults(userId, 1).catch(() => "");
     const targetJob = await prisma.careerTargetJob.findFirst({ where: { studentUserId: userId, status: "confirmed", targetType: "primary" }, select: { jobKey: true, readinessData: true } }).catch(() => null);
-    const targetTitle = targetJob ? ((targetJob.readinessData as { label?: string } | null)?.label ?? targetJob.jobKey) : null;
+    const targetTitle = targetJob ? ((targetJob.readinessData as { label?: string } | null)?.label ?? getJobFamily(targetJob.jobKey)?.label ?? targetJob.jobKey) : null;
     const remembered = targetTitle
       ? srvT(lang, `목표 직무를 '${targetTitle}'(으)로 정했어요.`, `You set your target role to '${targetTitle}'.`, `你已将目标职务定为“${targetTitle}”。`, `Bạn đã chọn nghề mục tiêu là '${targetTitle}'.`, `目標職種を「${targetTitle}」に決めました。`, `Kamu menetapkan peran target '${targetTitle}'.`)
       : priorConsult
@@ -19830,7 +19830,7 @@ app.get("/career-launch/artifacts", authenticate, requireCareerEnrollment, async
       prisma.careerInterviewGrowthReport.findUnique({ where: { studentUserId: userId }, select: { id: true } }).catch(() => null),
       prisma.careerInterviewSession.findFirst({ where: { studentUserId: userId, sessionType: "initial_mock", status: "completed" }, select: { id: true } }).catch(() => null)
     ]);
-    const targetTitle = target ? ((target.readinessData as { label?: string } | null)?.label ?? target.jobKey) : null;
+    const targetTitle = target ? ((target.readinessData as { label?: string } | null)?.label ?? getJobFamily(target.jobKey)?.label ?? target.jobKey) : null;
     const rc = (resume?.content ?? {}) as Record<string, unknown>;
     const cc = (cover?.content ?? {}) as { items?: unknown[] };
     const val = (pkg?.validationData && typeof pkg.validationData === "object" ? pkg.validationData : {}) as { unsupportedCount?: number; criticalUnresolved?: number };
