@@ -21631,13 +21631,19 @@ app.post(
       const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
-      // 공고별 모의면접 — 특정 공고를 기준으로 질문을 던지도록 추가 지시.
-      const postingDirective = jobPosting
-        ? "\n\n[공고별 모의면접] 아래 [이번 면접 대상 공고]의 회사·직무·요구역량을 기준으로 질문해. 그 공고가 실제로 원하는 역량과 경험을 학생이 갖췄는지 확인하는 실무 면접처럼 진행하고, 요구역량과 학생의 이력서·경험을 연결해 파고들어. 공고에 없는 일반론만 묻지 말고, 이 공고에 지원한 지원자를 평가하듯 구체적으로 물어봐."
-        : "";
+      // 공고별 모의면접이면 일반 직무면접(interview_job) 대신, '이 공고'에서만 나올 수 있는 질문을 하도록 전용 지시로 교체.
+      const focusInstruction = jobPosting
+        ? "[이번 면접: 공고별 실무 면접] 너는 아래 [이번 면접 대상 공고]에 지원한 지원자를 평가하는 실무 면접관이야. 모든 질문은 반드시 '이 공고'에서만 나올 수 있는 구체적인 것이어야 해.\n" +
+          "1. 공고의 '주요 업무'에 적힌 실제 일을 가정한 시나리오·문제해결 질문을 던져(예: 공고에 '광고 성과 분석·개선'이 있으면 '전환율이 갑자기 떨어지면 원인을 어떻게 좁혀갈 건가요?'처럼).\n" +
+          "2. 공고의 '요구/우대 역량·기술·도구'를 직접 짚어, 그걸 실제로 다뤄봤는지·얼마나 깊은지 확인하는 질문을 해.\n" +
+          "3. 이 직무·도메인·회사에서 자주 부딪히는 상황이나 판단을 묻는 질문을 섞어.\n" +
+          "4. 매 질문마다 공고의 다른 업무·역량을 다뤄, 질문이 서로 겹치지 않게 해.\n" +
+          "[절대 금지] '어떤 프로젝트를 했나요', '그 과정에서 맡은 역할이 뭐였나요', '경험을 말해보세요', '직무 관련 경험이 있나요' 같이 어느 공고에나 통하는 뻔한 일반 질문만 반복하지 마 — 이 면접에서는 그런 질문을 하지 마. 지원자의 이력서·경험은 '이 공고의 업무를 해낼 수 있는지' 확인하는 근거로만 연결해.\n" +
+          "공고 내용이 부족하면 그 직무가 실제로 하는 일을 바탕으로 구체적 질문을 만들되, 여전히 일반론은 피해."
+        : await getCareerPrompt(`interview_${focus}`);
       const systemPrompt =
         (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        (await getCareerPrompt(`interview_${focus}`)) + postingDirective + "\n\n" +
+        focusInstruction + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "strengths": string[], "improvements": string[], "modelAnswer": string }. ' +
         'done이 true(면접 마무리)일 때만 strengths(이번 라운드에서 잘한 점 2~3개)·improvements(개선점 2~3개)·modelAnswer(모범 답변 방향 1~2문장)를 채운다. 진행 중이면 strengths·improvements는 빈 배열, modelAnswer는 빈 문자열. 점수·등급은 매기지 말고 격려하는 톤으로.' +
         aiLangDirective(locale);
