@@ -38,18 +38,6 @@ export async function fetchWeekFeedback(week: number, generate = false): Promise
   return { text: typeof data.feedback === "string" ? data.feedback : null, needsGenerate: data.needsGenerate === true, stale: data.stale === true };
 }
 
-// 학생: 이력서·자소서 '내용' AI 요약(최종 점검 섹션) — 각각 따로. 무료(포인트 없음).
-export async function fetchDocsSummary(opts: { force?: boolean; generate?: boolean; locale?: string } = {}): Promise<{ resume: string | null; cover: string | null; stale: boolean; needsGenerate: boolean }> {
-  const generate = opts.generate ?? true;
-  const data = await req("/career-launch/docs-summary", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ force: opts.force ?? false, generate, locale: opts.locale }) });
-  return {
-    resume: typeof data.resumeSummary === "string" ? data.resumeSummary : null,
-    cover: typeof data.coverSummary === "string" ? data.coverSummary : null,
-    stale: data.stale === true,
-    needsGenerate: data.needsGenerate === true
-  };
-}
-
 // Week 1 Career Report — Career Score(6영역) + 강점/부족역량 + Career Roadmap.
 export type CareerReport = {
   total: number;

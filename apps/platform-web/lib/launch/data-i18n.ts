@@ -232,6 +232,24 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Ubah satu pengalaman jadi cerita singkat situasi–aksi–hasil. Ini jadi senjata ampuh yang kamu pakai lagi di surat lamaran Minggu 2 dan wawancara."
     }
   },
+  w1company: {
+    title: {
+      ko: "목표 기업 탐색",
+      en: "Explore target companies",
+      "zh-CN": "探索目标企业",
+      vi: "Khám phá công ty mục tiêu",
+      ja: "目標企業を探す",
+      id: "Jelajahi perusahaan target"
+    },
+    desc: {
+      ko: "정한 직무로 지금 채용 중인 기업을 살펴보고, 가고 싶은 목표 기업을 3곳 정도 담아둬요. 2주차 지원 서류를 이 기업들에 맞춰 준비해요.",
+      en: "Browse companies hiring now for your chosen role and save about 3 target companies. You'll tailor your Week 2 documents to them.",
+      "zh-CN": "浏览正在招聘你所选职务的企业，收藏约3家目标企业。第2周的申请材料将据此准备。",
+      vi: "Xem các công ty đang tuyển cho nghề bạn chọn và lưu khoảng 3 công ty mục tiêu. Hồ sơ Tuần 2 sẽ điều chỉnh theo họ.",
+      ja: "選んだ職種で今採用中の企業を見て、行きたい目標企業を3社ほど保存します。2週目の応募書類をこの企業に合わせて準備します。",
+      id: "Telusuri perusahaan yang sedang merekrut untuk peranmu dan simpan sekitar 3 perusahaan target. Dokumen Minggu 2 akan disesuaikan dengan mereka."
+    }
+  },
   // Week 2
   "w2-basic": {
     title: {

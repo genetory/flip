@@ -37,6 +37,17 @@ export type ExperienceEntry = {
 };
 // 강점 스토리 — 경험을 면접·자소서용 짧은 이야기로(상황·행동·결과 + 강점). Week1에서 만들고 이후 재사용.
 export type StrengthStory = { id: string; title: string; strength: string; situation: string; action: string; result: string };
+// 목표 기업 후보 — 우리 공고에서 담거나 직접 추가. positionId 있으면 공고 상세로 연결.
+export type TargetCompany = { name: string; role?: string; positionId?: string };
+// 공고별 모의면접 기록 — 질문·답변 대화와 준비도 리포트를 누적 저장해 나중에 다시 본다.
+export type PostingInterviewLog = {
+  id: string;
+  company?: string;
+  title?: string;
+  at: string; // ISO
+  messages: { role: "bot" | "user"; text: string }[];
+  report?: { strengths: string[]; improvements: string[]; modelAnswer: string } | null;
+};
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
   // 진단 대화 기록(질문·답변) — '다시 보기' 시 대화를 그대로 복원하기 위해 저장.
@@ -47,6 +58,8 @@ export type CareerProgress = {
   diagnosisFinal?: { percent?: number } | null;
   selectedJobs?: string[];
   targetJob?: string | null; // 확정한 1순위 목표 직무명(2주차 서류 기준). week1/target 확정 시 기록.
+  targetCompanies?: TargetCompany[]; // 1주차 '목표 기업 탐색'에서 담은 관심 기업 후보.
+  postingInterviews?: PostingInterviewLog[]; // 4주차 공고별 모의면접 기록(최근 것부터).
   strengthStories?: StrengthStory[]; // 강점 스토리(면접·자소서 씨앗).
   materials?: string[];
   doneSteps?: string[];

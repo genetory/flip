@@ -11,6 +11,7 @@ export const STEP_KIND: Record<string, string> = {
   w1s2: "jobs",
   w1s3: "materials",
   w1story: "story",
+  w1company: "companies",
   // week2 이력서 — 표시 섹션 단위
   "w2-basic": "resume-basic",
   "w2-edu": "resume-edu",
@@ -47,6 +48,7 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "diag": kd = Boolean(prog.diagnosis && typeof prog.diagnosis.percent === "number"); break;
     case "experience": kd = (prog.experienceBank?.length ?? 0) > 0; break;
     case "story": kd = (prog.strengthStories?.length ?? 0) > 0; break;
+    case "companies": kd = (prog.targetCompanies?.length ?? 0) > 0; break;
     // '관심 직무 선정'은 목표 직무를 확정해야(=targetJob) 완료 — 대시보드의 1주차 완료 판정(targetConfirmed)과 정합.
     // (직무만 고르고 목표를 안 정하면 체크리스트는 완료인데 홈은 미완료로 남는 불일치를 막는다.)
     case "jobs": kd = Boolean(prog.targetJob && prog.targetJob.trim()); break;

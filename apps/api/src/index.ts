@@ -21583,6 +21583,15 @@ app.post("/career-launch/me/employment-status", authenticate, requireCareerEnrol
 const interviewChatSchema = z.object({
   messages: z.array(z.object({ role: z.enum(["bot", "user"]), text: z.string().trim().max(2000) })).max(120).default([]),
   focus: z.enum(["self", "job", "fit", "pressure"]),
+  // 공고별 모의면접(4주차) — 특정 채용공고를 기준으로 질문. 없으면 기존 일반 모의면접.
+  jobPosting: z
+    .object({
+      title: z.string().trim().max(200).optional(),
+      company: z.string().trim().max(200).optional(),
+      description: z.string().trim().max(6000).optional(),
+      requirements: z.array(z.string().trim().max(400)).max(20).optional()
+    })
+    .optional(),
   locale: z.string().max(10).optional()
 });
 const INTERVIEW_SCHEMA = {
@@ -21608,7 +21617,7 @@ app.post(
     const parsed = interviewChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-    const { messages, focus, locale } = parsed.data;
+    const { messages, focus, jobPosting, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
       const [profileSummary, resumeRow, coverRow, progRow] = await Promise.all([
@@ -21622,17 +21631,25 @@ app.post(
       const selectedJobs = Array.isArray(progState.selectedJobs) ? (progState.selectedJobs as string[]) : [];
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
+      // 공고별 모의면접 — 특정 공고를 기준으로 질문을 던지도록 추가 지시.
+      const postingDirective = jobPosting
+        ? "\n\n[공고별 모의면접] 아래 [이번 면접 대상 공고]의 회사·직무·요구역량을 기준으로 질문해. 그 공고가 실제로 원하는 역량과 경험을 학생이 갖췄는지 확인하는 실무 면접처럼 진행하고, 요구역량과 학생의 이력서·경험을 연결해 파고들어. 공고에 없는 일반론만 묻지 말고, 이 공고에 지원한 지원자를 평가하듯 구체적으로 물어봐."
+        : "";
       const systemPrompt =
         (await getCareerPrompt("interview")) + "\n\n" + CAREER_SCOPE + "\n\n" +
-        (await getCareerPrompt(`interview_${focus}`)) + "\n\n" +
+        (await getCareerPrompt(`interview_${focus}`)) + postingDirective + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "done": boolean, "strengths": string[], "improvements": string[], "modelAnswer": string }. ' +
         'done이 true(면접 마무리)일 때만 strengths(이번 라운드에서 잘한 점 2~3개)·improvements(개선점 2~3개)·modelAnswer(모범 답변 방향 1~2문장)를 채운다. 진행 중이면 strengths·improvements는 빈 배열, modelAnswer는 빈 문자열. 점수·등급은 매기지 말고 격려하는 톤으로.' +
         aiLangDirective(locale);
       const convo = messages.length
         ? messages.map((m) => `${m.role === "bot" ? "면접관" : "학생"}: ${m.text}`).join("\n")
         : "(아직 대화 없음 — 가볍게 인사하고 이 유형의 첫 질문을 던져줘)";
+      const postingBlock = jobPosting
+        ? `[이번 면접 대상 공고]\n${[jobPosting.company ? `회사: ${jobPosting.company}` : "", jobPosting.title ? `직무: ${jobPosting.title}` : "", jobPosting.requirements?.length ? `요구역량: ${jobPosting.requirements.join(", ")}` : "", jobPosting.description ? `공고 내용:\n${jobPosting.description.slice(0, 4000)}` : ""].filter(Boolean).join("\n")}\n\n`
+        : "";
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
+        postingBlock +
         `[선정 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미정)"}\n\n` +
         `[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n` +
         `[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}\n\n` +
@@ -23327,65 +23344,6 @@ app.post(
   }
 );
 
-// POST /career-launch/docs-summary — 이력서+자소서 '내용'을 AI로 짧게 요약(최종 점검 섹션용).
-// 피드백/평가가 아니라 무엇이 담겼는지 요약. 캐시(sig)·버튼식(generate)·포인트 차감(1).
-const DOCS_SUMMARY_SCHEMA = { type: "object", additionalProperties: false, required: ["resume", "cover"], properties: { resume: { type: "string" }, cover: { type: "string" } } };
-const DOCS_SUMMARY_VERSION = 2;
-app.post(
-  "/career-launch/docs-summary",
-  authenticate,
-  requireCareerEnrollment,
-  rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-docs-summary", message: "잠시 후 다시 시도해 주세요." }),
-  async (req, res) => {
-    const uid = req.auth!.userId;
-    try {
-      const [progRow, resumeRow, coverRow] = await Promise.all([
-        prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
-        prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
-        prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
-      ]);
-      const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
-      const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
-      const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
-      const hasResume = hasResumeDataContent(normalizeResumeData(resumeContent));
-      const hasCover = hasCoverContent(normalizeCoverData(coverContent));
-      if (!hasResume && !hasCover) return res.json({ ok: true, summary: null });
-
-      const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent }));
-      const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
-      const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
-      const locale = typeof (req.body as { locale?: unknown })?.locale === "string" ? (req.body as { locale: string }).locale : "ko";
-      const cached = (progState.docsSummary && typeof progState.docsSummary === "object" ? progState.docsSummary : {}) as { v?: number; sig?: string; resume?: string; cover?: string };
-      if (!force && cached.v === DOCS_SUMMARY_VERSION && ((cached.resume ?? "").trim() || (cached.cover ?? "").trim())) {
-        const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
-        return res.json({ ok: true, resumeSummary: cached.resume ?? "", coverSummary: cached.cover ?? "", stale, cached: true });
-      }
-      if (!generate) return res.json({ ok: true, resumeSummary: null, coverSummary: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-
-      const systemPrompt =
-        "너는 취업 코치야. 학생의 이력서와 자기소개서 '내용'을 각각 따로 요약해줘. resume 필드에는 이력서 내용을(핵심 경력·스킬·강점) 2~4문장으로, cover 필드에는 자기소개서 내용을(핵심 메시지·지원 방향) 2~4문장으로. 담백하고 읽기 쉽게, 평가·조언이 아니라 '무엇이 담겼는지' 정리하는 요약이야. 해당 문서가 비었으면 그 필드는 빈 문자열로 둬. " +
-        'JSON 한 개 객체로만 응답: { "resume": string, "cover": string }' +
-        aiLangDirective(locale);
-      const userPrompt = `[이력서]\n${hasResume ? JSON.stringify(resumeContent) : "(없음)"}\n\n[자기소개서]\n${hasCover ? JSON.stringify(coverContent) : "(없음)"}`;
-      const pj = (await careerChatComplete(systemPrompt, userPrompt, "docs_summary", DOCS_SUMMARY_SCHEMA)) as { resume?: unknown; cover?: unknown };
-      const resumeSummary = hasResume && typeof pj.resume === "string" ? pj.resume.trim() : "";
-      const coverSummary = hasCover && typeof pj.cover === "string" ? pj.cover.trim() : "";
-      if (!resumeSummary && !coverSummary) return res.status(502).json({ ok: false, message: "ai response empty" });
-
-      const mergedState = { ...progState, docsSummary: { v: DOCS_SUMMARY_VERSION, sig: currentSig, resume: resumeSummary, cover: coverSummary } };
-      await prisma.careerLaunchProgress.upsert({
-        where: { studentUserId: uid },
-        create: { studentUserId: uid, state: mergedState as object },
-        update: { state: mergedState as object }
-      });
-      return res.json({ ok: true, resumeSummary, coverSummary, stale: false });
-    } catch (err) {
-      console.error("[career-launch/docs-summary] failed", err);
-      return res.status(500).json({ ok: false, message: "failed to summarize" });
-    }
-  }
-);
 
 // ── Career Launch 운영자(어드민) — 프롬프트 편집 ──
 // GET /career-launch/ops/prompts — 스텝별 프롬프트(기본값 + 편집분) 목록.

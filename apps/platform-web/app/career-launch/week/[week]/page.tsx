@@ -25,6 +25,7 @@ import { InterviewRetryCard } from "../../../../components/launch/InterviewRetry
 import { Week2PackageCard } from "../../../../components/launch/Week2PackageCard";
 import { Week3InterviewCard } from "../../../../components/launch/Week3InterviewCard";
 import { Week4CorrectionCard } from "../../../../components/launch/Week4CorrectionCard";
+import { PostingInterviewCard } from "../../../../components/launch/PostingInterviewCard";
 import { WeekHero, WeekCompletionCriteria, NextWeekPreview, type WeekFrameStatus } from "../../../../components/launch/week/week-frame";
 import { WeekLearn } from "../../../../components/launch/week-learn";
 import { WeekPacing } from "../../../../components/launch/week-pacing";
@@ -37,6 +38,7 @@ import { trackCareerFunnel } from "../../../../lib/analytics";
 import { CareerChatModal } from "../../../../components/launch/CareerChatModal";
 import { ExperienceChat } from "../../../../components/launch/ExperienceChat";
 import { StrengthStoryChat } from "../../../../components/launch/StrengthStoryChat";
+import { TargetCompanyExplorer } from "../../../../components/launch/TargetCompanyExplorer";
 import { DiagnosisChat } from "../../../../components/launch/DiagnosisChat";
 import { JobsChat } from "../../../../components/launch/JobsChat";
 import { MaterialsChat } from "../../../../components/launch/MaterialsChat";
@@ -100,6 +102,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
     if (path.endsWith("/diagnosis")) body = <DiagnosisChat embedded onClose={close} />;
     else if (path.endsWith("/experience")) body = <ExperienceChat embedded onClose={close} />;
     else if (path.endsWith("/story")) body = <StrengthStoryChat embedded onClose={close} />;
+    else if (path.endsWith("/company")) body = <TargetCompanyExplorer embedded onClose={close} />;
     else if (path.endsWith("/jobs")) body = <JobsChat embedded onClose={close} />;
     else if (path.endsWith("/materials")) body = <MaterialsChat embedded onClose={close} />;
     else if (path.endsWith("/interview")) body = <InterviewChat embedded onClose={close} section={section} />;
@@ -199,9 +202,10 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </>
             ) : null}
 
-            {/* Week 4 — 주 흐름(오답 코칭→재도전→유사질문 전이→최종면접→성장) + 복습 도구(재도전·답변노트) 묶음 */}
+            {/* Week 4 — 공고별 모의면접(핵심) + 오답 코칭→재도전 복습 도구 묶음 */}
             {plan.week === 4 ? (
               <>
+                <PostingInterviewCard />
                 <Week4CorrectionCard />
                 <div className="flex flex-col gap-4">
                   <InterviewRetryCard />

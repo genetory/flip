@@ -86,6 +86,13 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/story" }
       },
       {
+        id: "w1company",
+        title: "목표 기업 탐색",
+        minutes: 10,
+        desc: "정한 직무로 지금 채용 중인 기업을 살펴보고, 가고 싶은 목표 기업을 3곳 정도 담아둬요. 2주차 지원 서류를 이 기업들에 맞춰 준비해요.",
+        action: { label: "시작하기", href: "/career-launch/company" }
+      },
+      {
         id: "w1s4",
         title: "한국 기업문화 이해",
         minutes: 10,

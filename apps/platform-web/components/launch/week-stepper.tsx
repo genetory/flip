@@ -4,8 +4,6 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowRight, Check, Lock } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
-import { fetchDocsSummary } from "../../lib/launch/feedback-client";
-import { useLanguage } from "../i18n/LanguageProvider";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
@@ -476,60 +474,23 @@ export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey =
   );
 }
 
-// 최종 점검 — 이력서·자소서 내용을 AI로 각각 따로 요약해 자동 표시(무료·캐시).
+// 최종 점검 — AI 요약 대신, 완성한 실제 서류를 미리보기로 확인하고 고칠 곳은 지원 패키지 주차에서 수정.
 function FinalDocsSummary({ resumeReady, coverReady }: { resumeReady: boolean; coverReady: boolean }) {
   const t = useLaunchT();
-  const { locale } = useLanguage();
-  const [state, setState] = useState<"loading" | "done" | "error">("loading");
-  const [resumeSum, setResumeSum] = useState("");
-  const [coverSum, setCoverSum] = useState("");
-  const startedRef = useRef(false);
-
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    let alive = true;
-    void (async () => {
-      try {
-        const r = await fetchDocsSummary({ generate: true, locale }); // 무료 — 자동 생성/캐시
-        if (!alive) return;
-        setResumeSum(r.resume ?? "");
-        setCoverSum(r.cover ?? "");
-        setState("done");
-      } catch {
-        if (alive) setState("error");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const block = (emoji: string, title: string, summary: string, editHref: string, editLabel: string) => (
-    <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[13px] font-bold text-[#191F28]">{emoji} {title}</p>
-        <Link href={editHref} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{editLabel}</Link>
+  const row = (emoji: string, title: string, previewHref: string, editHref: string) => (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
+      <p className="min-w-0 truncate text-[13px] font-bold text-[#191F28]">{emoji} {title} <span className="ml-1 text-[11.5px] font-semibold text-[#0A9B59]">✓ {t("완성", "Done", "完成", "Xong", "完成", "Selesai")}</span></p>
+      <div className="flex shrink-0 gap-1.5">
+        <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-bold text-[#191F28] transition hover:bg-[#F6F8FB]">{t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}</Link>
+        <Link href={editHref} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("수정", "Edit", "编辑", "Sửa", "修正", "Edit")}</Link>
       </div>
-      {state === "loading" ? (
-        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약하는 중…", "Summarizing…", "摘要中…", "Đang tóm tắt…", "要約中…", "Meringkas…")}</p>
-      ) : summary.trim() ? (
-        <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-[1.75] text-[#4E5968]">{summary}</p>
-      ) : (
-        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약을 불러오지 못했어요.", "Couldn't load the summary.", "无法加载摘要。", "Không thể tải tóm tắt.", "要約を読み込めませんでした。", "Tidak dapat memuat ringkasan.")}</p>
-      )}
     </div>
   );
-
   return (
-    <div className="mt-3 space-y-3.5 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
-      {resumeReady
-        ? block("📄", t("이력서 요약", "Resume summary", "简历摘要", "Tóm tắt CV", "履歴書の要約", "Ringkasan resume"), resumeSum, "/career-launch/week/2", t("이력서 수정", "Edit resume", "编辑简历", "Sửa CV", "履歴書を修正", "Edit resume"))
-        : null}
-      {coverReady
-        ? block("📝", t("자기소개서 요약", "Cover letter summary", "自我介绍书摘要", "Tóm tắt thư giới thiệu", "自己紹介書の要約", "Ringkasan surat lamaran"), coverSum, "/career-launch/week/2", t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran"))
-        : null}
+    <div className="mt-3 space-y-2.5 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
+      <p className="text-[12.5px] leading-relaxed text-[#4E5968]">{t("완성한 서류를 지원 전 마지막으로 확인해요. 고칠 곳은 '수정'에서 다듬으면 돼요.", "Give your finished documents one last look before applying. Fix anything via 'Edit'.", "投递前最后确认完成的材料，需要修改就点'编辑'。", "Xem lại hồ sơ hoàn thiện lần cuối trước khi ứng tuyển. Sửa gì thì bấm 'Sửa'.", "応募前に完成した書類を最終確認します。直したい所は「修正」で。", "Periksa dokumen jadimu sekali lagi sebelum melamar. Perbaiki lewat 'Edit'.")}</p>
+      {resumeReady ? row("📄", t("내 이력서", "My resume", "我的简历", "CV của tôi", "私の履歴書", "Resume saya"), "/career-launch/resume-preview", "/career-launch/week/2") : null}
+      {coverReady ? row("📝", t("내 자기소개서", "My cover letter", "我的自我介绍书", "Thư giới thiệu của tôi", "私の自己紹介書", "Surat lamaran saya"), "/career-launch/cover-preview", "/career-launch/week/2") : null}
     </div>
   );
 }
