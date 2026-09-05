@@ -86,14 +86,16 @@ export default function CorrectionNotebookPage() {
   const t = useLaunchT();
   const [vm, setVm] = useState<CorrectionsVM | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
-  const [logs, setLogs] = useState<PostingInterviewLog[]>([]);
+  const [pLogs, setPLogs] = useState<PostingInterviewLog[]>([]); // 공고별
+  const [bLogs, setBLogs] = useState<PostingInterviewLog[]>([]); // 기본(내 서류)
   const [viewLog, setViewLog] = useState<PostingInterviewLog | null>(null);
   const load = () => {
     setPhase("loading");
     void Promise.all([fetchCorrections(), fetchProgress().catch(() => null)])
       .then(([d, prog]) => {
         setVm(d);
-        setLogs(Array.isArray(prog?.postingInterviews) ? prog!.postingInterviews! : []);
+        setPLogs(Array.isArray(prog?.postingInterviews) ? prog!.postingInterviews! : []);
+        setBLogs(Array.isArray(prog?.basicInterviews) ? prog!.basicInterviews! : []);
         setPhase("ready");
         trackCareerFunnel("career_correction_notebook_viewed", {});
       })
@@ -101,18 +103,26 @@ export default function CorrectionNotebookPage() {
   };
   useEffect(load, []);
 
-  // 공고별 면접에서 점수 낮은 문항(오답) — 로그별로 묶어 표시.
-  const postingLows = logs
+  // 공고별 + 기본 면접에서 점수 낮은 문항(오답) — 로그별로 묶어 표시.
+  const postingLows = [...pLogs, ...bLogs]
     .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number" && it.score < POSTING_LOW) }))
     .filter((x) => x.items.length > 0);
   const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
   const updateLog = (updated: PostingInterviewLog) => {
     setViewLog(updated);
-    setLogs((prev) => {
-      const next = prev.map((l) => (l.id === updated.id ? updated : l));
-      void patchProgress({ postingInterviews: next }).catch(() => {});
-      return next;
-    });
+    if (updated.source === "basic") {
+      setBLogs((prev) => {
+        const next = prev.map((l) => (l.id === updated.id ? updated : l));
+        void patchProgress({ basicInterviews: next }).catch(() => {});
+        return next;
+      });
+    } else {
+      setPLogs((prev) => {
+        const next = prev.map((l) => (l.id === updated.id ? updated : l));
+        void patchProgress({ postingInterviews: next }).catch(() => {});
+        return next;
+      });
+    }
   };
 
   return (
@@ -207,7 +217,7 @@ export default function CorrectionNotebookPage() {
               ) : null}
 
               {postingLowCount > 0 ? (
-                <DashboardSection title={t("공고별 면접 오답", "Posting interview corrections", "公告面试错题", "Lỗi phỏng vấn theo tin", "求人別面接の復習", "Koreksi wawancara lowongan")}>
+                <DashboardSection title={t("모의면접 문항 오답 (기본·공고별)", "Mock interview corrections (basic & posting)", "模拟面试错题（基础·公告）", "Lỗi phỏng vấn thử (cơ bản & theo tin)", "模擬面接の復習（基本・求人別）", "Koreksi wawancara (dasar & lowongan)")}>
                   <div className="flex flex-col gap-2.5">
                     {postingLows.flatMap(({ log, items }) =>
                       items.map((it, j) => {

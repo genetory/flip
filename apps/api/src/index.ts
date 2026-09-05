@@ -21777,6 +21777,71 @@ app.post("/career-launch/posting-interview/score", authenticate, requireCareerEn
   }
 });
 
+// ── 기본 모의면접(카드형) — 내 이력서·자소서 기반, 유형별(self/job/fit/pressure) 질문 생성·채점 ──
+const BASIC_FOCUS = z.enum(["self", "job", "fit", "pressure"]);
+const BASIC_FOCUS_RULE: Record<string, string> = {
+  self: "자기소개 면접: 지원 동기, 성격의 장단점·강점, 성장 배경·가치관, 입사 후 포부 등 '이 사람이 누구인지'를 묻는 질문. 이력서 경력을 하나씩 캐묻지 말 것.",
+  job: "직무 면접: 학생의 경력·프로젝트·스킬을 근거로 실제로 한 일, 성과, 문제 해결 방식, 직무 이해도를 파고드는 실무 질문.",
+  fit: "인성·컬처핏 면접: 협업·갈등 해결, 가치관, 일하는 태도, (유학생인 경우) 한국 조직 적응 등 태도를 보는 질문.",
+  pressure: "압박 면접: 답변의 근거·수치·본인 역할을 검증하고 약점을 파고드는 까다로운 질문(인신공격이 아니라 근거 확인)."
+};
+async function basicDocContext(uid: string): Promise<string> {
+  const [summary, resumeRow, coverRow] = await Promise.all([
+    buildCandidateProfileSummary(uid),
+    prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+    prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+  ]);
+  return `${summary ? `[학생 프로필]\n${summary}\n\n` : ""}[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}`;
+}
+
+const basicQSchema = z.object({ focus: BASIC_FOCUS, count: z.number().int().min(3).max(8).optional(), locale: z.string().max(10).optional() });
+app.post("/career-launch/basic-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "basic-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
+  const parsed = basicQSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const uid = req.auth!.userId;
+    const { focus, count, locale } = parsed.data;
+    const n = count ?? 5;
+    const ctx = await basicDocContext(uid);
+    const systemPrompt =
+      `너는 한국 기업 면접관이야. 아래 학생의 이력서·자기소개서를 바탕으로 '${focus}' 유형의 기본 면접 질문 ${n}개를 만들어. ` +
+      (BASIC_FOCUS_RULE[focus] ?? "") + " 학생이 실제로 쓴 내용에 근거하되 없는 사실은 지어내지 마. 질문끼리 겹치지 않게 다양하게. " +
+      'JSON 한 개 객체로만 응답: { "questions": string[] }' + aiLangDirective(locale);
+    const pj = (await careerChatComplete(systemPrompt, ctx, "basic_interview_questions", POSTING_QUESTIONS_SCHEMA)) as { questions?: unknown };
+    const questions = Array.isArray(pj.questions) ? pj.questions.filter((q): q is string => typeof q === "string" && q.trim().length > 0).map((q) => q.trim()).slice(0, n) : [];
+    if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, questions });
+  } catch (err) {
+    console.error("[basic-interview/questions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
+const basicScoreSchema = z.object({ focus: BASIC_FOCUS, question: z.string().trim().min(1).max(600), answer: z.string().trim().min(1).max(4000), locale: z.string().max(10).optional() });
+app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "basic-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
+  const parsed = basicScoreSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const uid = req.auth!.userId;
+    const { focus, question, answer, locale } = parsed.data;
+    const ctx = await basicDocContext(uid);
+    const systemPrompt =
+      `너는 '${focus}' 유형의 한국 기업 면접관이야. 학생의 이력서·자기소개서를 참고해 답변을 평가해. ` +
+      "score 는 0~100 정수. modelAnswer 는 이 학생에게 어울리는 모범답안을 1인칭 2~4문장으로(학생 서류의 실제 경험 활용, 없는 사실 금지). feedback 은 코칭 2~3문장. strengths·improvements 각 1~3개. 격려하는 톤. " +
+      'JSON 한 개 객체로만 응답: { "score": number, "modelAnswer": string, "feedback": string, "strengths": string[], "improvements": string[] }' + aiLangDirective(locale);
+    const userPrompt = `${ctx}\n\n[질문]\n${question}\n\n[학생 답변]\n${answer}`;
+    const pj = (await careerChatComplete(systemPrompt, userPrompt, "basic_interview_score", POSTING_SCORE_SCHEMA)) as { score?: unknown; modelAnswer?: unknown; feedback?: unknown; strengths?: unknown; improvements?: unknown };
+    const score = Math.max(0, Math.min(100, Math.round(typeof pj.score === "number" ? pj.score : 0)));
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : []);
+    return res.json({ ok: true, score, modelAnswer: typeof pj.modelAnswer === "string" ? pj.modelAnswer.trim() : "", feedback: typeof pj.feedback === "string" ? pj.feedback.trim() : "", strengths: list(pj.strengths), improvements: list(pj.improvements) });
+  } catch (err) {
+    console.error("[basic-interview/score] failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
 // GET /career-launch/passport — 본인 Talent Passport(Readiness·Verified 등급·다음 액션).
 // 기존 데이터를 조립하는 파생 뷰라 스키마 변경 없음.
 app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async (req, res) => {

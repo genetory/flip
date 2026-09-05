@@ -5,8 +5,7 @@
 import { useState } from "react";
 import { CaretDown, CircleNotch, ArrowClockwise, PaperPlaneRight } from "@phosphor-icons/react";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { scorePostingAnswer } from "../../lib/launch/posting-interview";
-import type { InterviewJobPosting } from "../../lib/launch/interview";
+import type { PostingScore } from "../../lib/launch/posting-interview";
 import type { PostingInterviewItem } from "../../lib/launch/progress-client";
 
 function scoreTone(s: number): { text: string; bg: string } {
@@ -16,22 +15,22 @@ function scoreTone(s: number): { text: string; bg: string } {
   return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
 }
 
-export function PostingResultList({ items, posting, onItemsChange }: { items: PostingInterviewItem[]; posting?: InterviewJobPosting; onItemsChange?: (items: PostingInterviewItem[]) => void }) {
+export function PostingResultList({ items, rescore, onItemsChange }: { items: PostingInterviewItem[]; rescore?: (question: string, answer: string) => Promise<PostingScore>; onItemsChange?: (items: PostingInterviewItem[]) => void }) {
   const t = useLaunchT();
   const [open, setOpen] = useState<number | null>(0);
   const [retryIdx, setRetryIdx] = useState<number | null>(null);
   const [retryText, setRetryText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const canRetry = Boolean(posting && onItemsChange);
+  const canRetry = Boolean(rescore && onItemsChange);
 
   const doRetry = async (i: number) => {
     const a = retryText.trim();
-    if (!a || busy || !posting || !onItemsChange) return;
+    if (!a || busy || !rescore || !onItemsChange) return;
     setBusy(true);
     setErr("");
     try {
-      const s = await scorePostingAnswer(posting, items[i].question, a);
+      const s = await rescore(items[i].question, a);
       onItemsChange(items.map((it, j) => (j === i ? { ...it, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements } : it)));
       setRetryIdx(null);
       setRetryText("");

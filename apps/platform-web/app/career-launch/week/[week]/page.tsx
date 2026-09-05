@@ -43,6 +43,7 @@ import { DiagnosisChat } from "../../../../components/launch/DiagnosisChat";
 import { JobsChat } from "../../../../components/launch/JobsChat";
 import { MaterialsChat } from "../../../../components/launch/MaterialsChat";
 import { InterviewChat } from "../../../../components/launch/InterviewChat";
+import { BasicInterviewSession } from "../../../../components/launch/BasicInterviewSession";
 import { WeekSeminar } from "../../../../components/launch/week-seminar";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../../components/launch/LaunchAmbientBackground";
@@ -93,7 +94,9 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
   const renderChatModal = () => {
     if (!chatHref) return null;
     const path = chatHref.split("?")[0];
-    const section = chatHref.includes("?") ? new URLSearchParams(chatHref.split("?")[1]).get("section") ?? undefined : undefined;
+    const query = chatHref.includes("?") ? new URLSearchParams(chatHref.split("?")[1]) : new URLSearchParams();
+    const section = query.get("section") ?? undefined;
+    const focus = query.get("focus") ?? undefined;
     const close = () => {
       setChatHref(null);
       setRefreshKey((k) => k + 1);
@@ -105,6 +108,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
     else if (path.endsWith("/company")) body = <TargetCompanyExplorer embedded onClose={close} />;
     else if (path.endsWith("/jobs")) body = <JobsChat embedded onClose={close} />;
     else if (path.endsWith("/materials")) body = <MaterialsChat embedded onClose={close} />;
+    else if (path.endsWith("/basic-interview")) body = <BasicInterviewSession embedded onClose={close} focus={focus === "job" ? "job" : focus === "fit" ? "fit" : focus === "pressure" ? "pressure" : "self"} />;
     else if (path.endsWith("/interview")) body = <InterviewChat embedded onClose={close} section={section} />;
     return body ? <CareerChatModal onClose={close}>{body}</CareerChatModal> : null;
   };

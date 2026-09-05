@@ -55,7 +55,9 @@ export type PostingInterviewLog = {
   company?: string;
   title?: string;
   at: string; // ISO
-  posting?: import("./interview").InterviewJobPosting; // 재도전 채점에 필요
+  source?: "posting" | "basic"; // 공고별 / 기본(내 서류) — 재도전 채점 방식 구분
+  focus?: "self" | "job" | "fit" | "pressure"; // 기본 면접 유형(source="basic")
+  posting?: import("./interview").InterviewJobPosting; // 공고별 재도전 채점에 필요
   items?: PostingInterviewItem[]; // 카드형(신규)
   // 구버전(채팅형) 호환 — 읽기 전용으로만 표시.
   messages?: { role: "bot" | "user"; text: string }[];
@@ -73,6 +75,7 @@ export type CareerProgress = {
   targetJob?: string | null; // 확정한 1순위 목표 직무명(2주차 서류 기준). week1/target 확정 시 기록.
   targetCompanies?: TargetCompany[]; // 1주차 '목표 기업 탐색'에서 담은 관심 기업 후보.
   postingInterviews?: PostingInterviewLog[]; // 4주차 공고별 모의면접 기록(최근 것부터).
+  basicInterviews?: PostingInterviewLog[]; // 3주차 기본(내 서류) 모의면접 기록(최근 것부터).
   strengthStories?: StrengthStory[]; // 강점 스토리(면접·자소서 씨앗).
   materials?: string[];
   doneSteps?: string[];

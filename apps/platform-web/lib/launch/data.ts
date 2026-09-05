@@ -182,32 +182,32 @@ export const WEEKS: WeekPlan[] = [
   {
     week: 3,
     title: "실전 모의면접 & 약점 발견",
-    subtitle: "공고·서류 기반 실전 모의면접으로 내 약점을 찾아요",
+    subtitle: "내 이력서·자소서로 기본 면접을 연습하고 약점을 찾아요",
     goal: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 주 집중 훈련할 지점을 잡는 단계예요.",
     steps: [
       {
         id: "w4-self",
         title: "자기소개 면접",
         desc: "AI 면접관이 1분 자기소개·지원 동기·성격을 물어봐요. 직접 답하며 첫인상 라운드를 연습해요.",
-        action: { label: "면접 보기", href: "/career-launch/interview?section=self" }
+        action: { label: "면접 보기", href: "/career-launch/basic-interview?focus=self" }
       },
       {
         id: "w4-job",
         title: "직무 면접",
         desc: "선정 직무와 이력서의 경력·프로젝트를 파고드는 실무 면접이에요. 구체적 경험을 답하며 연습해요.",
-        action: { label: "면접 보기", href: "/career-launch/interview?section=job" }
+        action: { label: "면접 보기", href: "/career-launch/basic-interview?focus=job" }
       },
       {
         id: "w4-fit",
         title: "인성·컬처핏 면접",
         desc: "협업·가치관·한국 적응(한국어·비자·근속)을 보는 면접이에요. 태도와 진정성을 답하며 연습해요.",
-        action: { label: "면접 보기", href: "/career-launch/interview?section=fit" }
+        action: { label: "면접 보기", href: "/career-launch/basic-interview?focus=fit" }
       },
       {
         id: "w4-pressure",
         title: "압박 면접",
         desc: "꼬리질문·검증으로 답변의 근거를 파고드는 실전 대비 면접이에요. 흔들리지 않게 연습해요.",
-        action: { label: "면접 보기", href: "/career-launch/interview?section=pressure" }
+        action: { label: "면접 보기", href: "/career-launch/basic-interview?focus=pressure" }
       },
       {
         id: "w4s4",

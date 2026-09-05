@@ -69,20 +69,20 @@ const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
   },
   3: {
     title: {
-      ko: "실전 모의면접 & 약점 발견",
-      en: "Real mock interviews & finding weaknesses",
-      "zh-CN": "实战模拟面试与发现弱点",
-      vi: "Phỏng vấn thử thực chiến & tìm điểm yếu",
-      ja: "実戦模擬面接＆弱点発見",
-      id: "Wawancara simulasi nyata & temukan kelemahan"
+      ko: "기본 면접 & 약점 발견",
+      en: "Basic interviews & finding weaknesses",
+      "zh-CN": "基础面试与发现弱点",
+      vi: "Phỏng vấn cơ bản & tìm điểm yếu",
+      ja: "基本面接＆弱点発見",
+      id: "Wawancara dasar & temukan kelemahan"
     },
     subtitle: {
-      ko: "공고·서류 기반 실전 모의면접으로 내 약점을 찾아요",
-      en: "Find your weaknesses through mock interviews based on postings and your documents",
-      "zh-CN": "通过基于招聘公告和材料的实战模拟面试，找出你的弱点",
-      vi: "Tìm điểm yếu qua phỏng vấn thử dựa trên tin tuyển dụng và hồ sơ của bạn",
-      ja: "求人・書類ベースの実戦模擬面接で自分の弱点を見つけます",
-      id: "Temukan kelemahanmu lewat wawancara simulasi berbasis lowongan dan dokumenmu"
+      ko: "내 이력서·자소서로 유형별 면접을 연습하고 약점을 찾아요",
+      en: "Practice interviews by type with your resume and cover letter, and find your weaknesses",
+      "zh-CN": "用我的简历与自我介绍书按类型练习面试，找出弱点",
+      vi: "Luyện phỏng vấn theo loại bằng CV & thư của bạn và tìm điểm yếu",
+      ja: "自分の履歴書・自己紹介書で類型別に面接を練習し、弱点を見つけます",
+      id: "Latih wawancara per jenis dengan resume & suratmu, dan temukan kelemahan"
     },
     goal: {
       ko: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 주 집중 훈련할 지점을 잡는 단계예요.",

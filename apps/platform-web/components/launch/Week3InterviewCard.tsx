@@ -54,7 +54,7 @@ export function Week3InterviewCard() {
       {showChat ? <CareerChatModal onClose={closeChat}><Week3InterviewChat embedded onClose={closeChat} /></CareerChatModal> : null}
       <Card>
         <div className="flex items-center justify-between gap-2">
-          <SectionTitle sub={t("공고·서류 기반 종합 실전면접으로 약점을 찾아요", "Find weaknesses via a full mock based on posting and documents", "基于公告与材料的综合实战面试找出弱点", "Tìm điểm yếu qua phỏng vấn dựa trên tin & hồ sơ", "求人・書類ベースの総合面接で弱点発見", "Temukan kelemahan lewat wawancara berbasis lowongan & dokumen")}>{t("실전 모의면접", "Real mock interview", "实战模拟面试", "Phỏng vấn thử", "実戦模擬面接", "Wawancara simulasi")}</SectionTitle>
+          <SectionTitle sub={t("내 이력서·자소서 기반 종합 실전면접으로 약점을 찾아요", "Find weaknesses via a full mock based on your resume & cover letter", "基于我的简历与自我介绍书的综合实战面试找出弱点", "Tìm điểm yếu qua phỏng vấn dựa trên CV & thư của bạn", "自分の履歴書・自己紹介書ベースの総合面接で弱点発見", "Temukan kelemahan lewat wawancara berbasis resume & surat lamaranmu")}>{t("실전 종합 모의면접", "Full mock interview", "综合实战模拟面试", "Phỏng vấn tổng hợp", "総合模擬面接", "Wawancara komprehensif")}</SectionTitle>
           <Pill tone={status.completion.complete ? "green" : "grey"}>{status.completion.doneCount}/9</Pill>
         </div>
         <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">

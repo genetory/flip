@@ -15,7 +15,7 @@ import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../..
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
 // 모달로 여는 채팅 라우트(페이지 이동 대신 onOpenChat 호출).
-const CHAT_ROUTE = /\/career-launch\/(diagnosis|experience|story|jobs|materials|interview)/;
+const CHAT_ROUTE = /\/career-launch\/(diagnosis|experience|story|jobs|materials|basic-interview|interview)/;
 export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey = 0 }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void; refreshKey?: number }) {
   const t = useLaunchT();
   // 채팅 라우트면 모달을 열고(onOpenChat), 아니면 기존처럼 페이지 이동(Link).
@@ -320,21 +320,26 @@ export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey =
         </ResultCard>
       );
     }
-    // 면접 — 유형별 모의면접(자기소개/직무/인성). 완료했으면 카드 + 다시 연습 링크.
-    if (kind === "interview-self" || kind === "interview-job" || kind === "interview-fit") {
-      const type = kind === "interview-self" ? "self" : kind === "interview-job" ? "job" : "fit";
-      if (!practicedTypes.includes(type)) return null;
+    // 면접 — 유형별 기본 면접(자기소개/직무/인성/압박). 완료했으면 점수 요약 + 다시 연습 링크.
+    if (kind === "interview-self" || kind === "interview-job" || kind === "interview-fit" || kind === "interview-pressure") {
+      const type = kind.replace("interview-", "") as "self" | "job" | "fit" | "pressure";
+      const basicLogs = (prog.basicInterviews ?? []).filter((l) => l.focus === type && (l.items?.length ?? 0) > 0);
+      if (basicLogs.length === 0 && !practicedTypes.includes(type)) return null;
       const label =
         type === "self"
           ? t("자기소개 면접", "Self-introduction interview", "自我介绍面试", "Phỏng vấn giới thiệu bản thân", "自己紹介面接", "Wawancara perkenalan diri")
           : type === "job"
             ? t("직무 면접", "Job interview", "职务面试", "Phỏng vấn công việc", "職務面接", "Wawancara pekerjaan")
-            : t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya");
+            : type === "fit"
+              ? t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya")
+              : t("압박 면접", "Pressure interview", "压力面试", "Phỏng vấn áp lực", "圧迫面接", "Wawancara tekanan");
+      const latest = basicLogs[0];
+      const avg = latest?.items?.length ? Math.round(latest.items.reduce((s, it) => s + it.score, 0) / latest.items.length) : null;
       return (
         <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 연습 완료`, `${label} practice done`, `${label} 练习完成`, `Đã luyện tập ${label}`, `${label} 練習完了`, `Latihan ${label} selesai`)}</p>
-            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
+            <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 완료`, `${label} done`, `${label} 完成`, `Đã xong ${label}`, `${label} 完了`, `${label} selesai`)}{avg != null ? ` · ${t("평균", "Avg", "平均", "TB", "平均", "Rata")} ${avg}` : ""}</p>
+            <Link href={`/career-launch/basic-interview?focus=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
           </div>
           <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">{t("면접관과 실전처럼 주고받으며 연습을 마쳤어요. 필요하면 다시 연습해봐요.", "You practiced a realistic back-and-forth with the interviewer. Practice again anytime you need.", "你与面试官进行了实战般的问答练习。需要的话可以再练习。", "Bạn đã luyện tập hỏi đáp thực tế với người phỏng vấn. Cần thì hãy luyện lại nhé.", "面接官と実践のようにやり取りしながら練習を終えました。必要ならまた練習してみましょう。", "Anda berlatih tanya-jawab layaknya nyata dengan pewawancara. Latih lagi kapan pun perlu.")}</p>
         </div>

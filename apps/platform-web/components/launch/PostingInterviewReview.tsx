@@ -5,6 +5,7 @@
 import { X } from "@phosphor-icons/react";
 import { RichText } from "./rich-text";
 import { PostingResultList } from "./PostingResultList";
+import { logRescore } from "../../lib/launch/interview-logs";
 import { useLaunchT } from "../../lib/launch/i18n";
 import type { PostingInterviewLog, PostingInterviewItem } from "../../lib/launch/progress-client";
 
@@ -33,7 +34,7 @@ export function PostingInterviewReview({ log, onClose, onLogChange }: { log: Pos
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-5 py-5">
           {items.length ? (
-            <PostingResultList items={items} posting={log.posting} onItemsChange={(next: PostingInterviewItem[]) => onLogChange({ ...log, items: next })} />
+            <PostingResultList items={items} rescore={logRescore(log)} onItemsChange={(next: PostingInterviewItem[]) => onLogChange({ ...log, items: next })} />
           ) : log.messages?.length ? (
             <div className="space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
               {log.messages.map((m, i) =>

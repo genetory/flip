@@ -188,6 +188,8 @@ export type CareerFunnelEvent =
   | "career_target_company_saved"
   | "career_posting_interview_started"
   | "career_posting_interview_completed"
+  | "career_basic_interview_started"
+  | "career_basic_interview_completed"
   | "career_week1_completed"
   | "career_week2_started"
   | "career_resume_source_selected"

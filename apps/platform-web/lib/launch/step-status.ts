@@ -68,10 +68,16 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "resume-skill": kd = skillN > 0; break;
     case "resume-lang": kd = langN > 0; break;
     case "cover": kd = coverN >= 1; break;
-    case "interview-self": kd = (prog.interview?.practiced ?? []).includes("self"); break;
-    case "interview-job": kd = (prog.interview?.practiced ?? []).includes("job"); break;
-    case "interview-fit": kd = (prog.interview?.practiced ?? []).includes("fit"); break;
-    case "interview-pressure": kd = (prog.interview?.practiced ?? []).includes("pressure"); break;
+    // 기본 면접(카드형)을 한 세트라도 마치면(basicInterviews) 완료 — 구 대화형 practiced 도 폴백.
+    case "interview-self":
+    case "interview-job":
+    case "interview-fit":
+    case "interview-pressure": {
+      const f = kind.replace("interview-", "");
+      const doneBasic = (prog.basicInterviews ?? []).some((l) => l.focus === f && (l.items?.length ?? 0) > 0);
+      kd = doneBasic || (prog.interview?.practiced ?? []).includes(f);
+      break;
+    }
     case "both": kd = hasResumeContent(resume) && hasCoverContent(cover); break;
     default: kd = false;
   }
