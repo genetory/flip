@@ -21714,6 +21714,69 @@ app.post(
   }
 );
 
+// ── 공고별 모의면접(카드형) — 공고 기반 질문 생성 + 답변별 채점(점수·모범답안·피드백) ──
+const POSTING_JD_SHAPE = z.object({
+  title: z.string().trim().max(200).optional(),
+  company: z.string().trim().max(200).optional(),
+  description: z.string().trim().max(6000).optional(),
+  requirements: z.array(z.string().trim().max(400)).max(20).optional()
+});
+function postingBlockText(jp: z.infer<typeof POSTING_JD_SHAPE>): string {
+  return [jp.company ? `회사: ${jp.company}` : "", jp.title ? `직무: ${jp.title}` : "", jp.requirements?.length ? `요구역량: ${jp.requirements.join(", ")}` : "", jp.description ? `공고 내용:\n${jp.description.slice(0, 4000)}` : ""].filter(Boolean).join("\n");
+}
+const POSTING_Q_RULES =
+  "질문은 반드시 '이 공고'에서만 나올 수 있는 구체적인 것이어야 해. (1) 공고의 주요 업무를 가정한 시나리오·문제해결 질문, (2) 요구/우대 역량·기술·도구를 직접 짚는 확인 질문, (3) 이 직무·도메인에서 자주 부딪히는 상황 판단 질문을 섞어. 각 질문은 공고의 다른 업무·역량을 다뤄 서로 겹치지 않게 해. '어떤 프로젝트를 했나요/그 과정에서 맡은 역할이 뭐였나요/경험을 말해보세요' 같이 어느 공고에나 통하는 뻔한 일반 질문은 만들지 마.";
+
+const postingQuestionsSchema = z.object({ jobPosting: POSTING_JD_SHAPE, count: z.number().int().min(3).max(10).optional(), locale: z.string().max(10).optional() });
+const POSTING_QUESTIONS_SCHEMA = { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "string" } } } };
+app.post("/career-launch/posting-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "posting-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
+  const parsed = postingQuestionsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const { jobPosting, count, locale } = parsed.data;
+    const n = count ?? 6;
+    const systemPrompt =
+      `너는 한국 기업 실무 면접관이야. 아래 공고에 지원한 지원자를 평가할 면접 질문 ${n}개를 만들어. ` + POSTING_Q_RULES + " " +
+      'JSON 한 개 객체로만 응답: { "questions": string[] }. questions 는 질문 문자열 배열.' +
+      aiLangDirective(locale);
+    const userPrompt = `[이번 면접 대상 공고]\n${postingBlockText(jobPosting)}`;
+    const pj = (await careerChatComplete(systemPrompt, userPrompt, "posting_interview_questions", POSTING_QUESTIONS_SCHEMA)) as { questions?: unknown };
+    const questions = Array.isArray(pj.questions) ? pj.questions.filter((q): q is string => typeof q === "string" && q.trim().length > 0).map((q) => q.trim()).slice(0, n) : [];
+    if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, questions });
+  } catch (err) {
+    console.error("[posting-interview/questions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
+const postingScoreSchema = z.object({ jobPosting: POSTING_JD_SHAPE, question: z.string().trim().min(1).max(600), answer: z.string().trim().min(1).max(4000), locale: z.string().max(10).optional() });
+const POSTING_SCORE_SCHEMA = { type: "object", additionalProperties: false, required: ["score", "modelAnswer", "feedback", "strengths", "improvements"], properties: { score: { type: "number" }, modelAnswer: { type: "string" }, feedback: { type: "string" }, strengths: { type: "array", items: { type: "string" } }, improvements: { type: "array", items: { type: "string" } } } };
+app.post("/career-launch/posting-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "posting-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
+  const parsed = postingScoreSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const { jobPosting, question, answer, locale } = parsed.data;
+    const systemPrompt =
+      "너는 아래 공고의 실무 면접관이야. 이 공고 기준으로 지원자의 답변을 평가해. " +
+      "score 는 0~100 정수(이 공고의 요구에 비춘 답변의 구체성·적합성·설득력). " +
+      "modelAnswer 는 이 공고·이 질문에 맞는 모범답안을 지원자 1인칭으로 2~4문장 예시로(공고의 요구역량을 반영하되 없는 사실은 지어내지 말고 방향 위주). " +
+      "feedback 은 이 답변에 대한 코칭 2~3문장. strengths·improvements 는 각각 1~3개. 격려하는 톤. " +
+      'JSON 한 개 객체로만 응답: { "score": number, "modelAnswer": string, "feedback": string, "strengths": string[], "improvements": string[] }' +
+      aiLangDirective(locale);
+    const userPrompt = `[이번 면접 대상 공고]\n${postingBlockText(jobPosting)}\n\n[질문]\n${question}\n\n[지원자 답변]\n${answer}`;
+    const pj = (await careerChatComplete(systemPrompt, userPrompt, "posting_interview_score", POSTING_SCORE_SCHEMA)) as { score?: unknown; modelAnswer?: unknown; feedback?: unknown; strengths?: unknown; improvements?: unknown };
+    const score = Math.max(0, Math.min(100, Math.round(typeof pj.score === "number" ? pj.score : 0)));
+    const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 4) : []);
+    return res.json({ ok: true, score, modelAnswer: typeof pj.modelAnswer === "string" ? pj.modelAnswer.trim() : "", feedback: typeof pj.feedback === "string" ? pj.feedback.trim() : "", strengths: list(pj.strengths), improvements: list(pj.improvements) });
+  } catch (err) {
+    console.error("[posting-interview/score] failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
 // GET /career-launch/passport — 본인 Talent Passport(Readiness·Verified 등급·다음 액션).
 // 기존 데이터를 조립하는 파생 뷰라 스키마 변경 없음.
 app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async (req, res) => {

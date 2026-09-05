@@ -10,11 +10,11 @@ import { trackCareerFunnel } from "../../lib/analytics";
 import { getPublicPositionsPage, getRecommendedPositions, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { RECOMMENDED_JOBS } from "../../lib/launch/data";
 import { fetchJobPosting } from "../../lib/resume-maker-client";
-import { fetchProgress, type PostingInterviewLog } from "../../lib/launch/progress-client";
+import { fetchProgress, patchProgress, type PostingInterviewLog } from "../../lib/launch/progress-client";
 import type { InterviewJobPosting } from "../../lib/launch/interview";
 import { CareerChatModal } from "./CareerChatModal";
-import { PostingInterviewChat } from "./PostingInterviewChat";
-import { PostingInterviewLogView } from "./PostingInterviewLogView";
+import { PostingInterviewSession } from "./PostingInterviewSession";
+import { PostingInterviewReview } from "./PostingInterviewReview";
 
 type Mode = "reco" | "search" | "url";
 
@@ -177,7 +177,7 @@ export function PostingInterviewCard() {
 
   return (
     <>
-      {active ? <CareerChatModal onClose={closeChat}><PostingInterviewChat posting={active} embedded onClose={closeChat} /></CareerChatModal> : null}
+      {active ? <CareerChatModal onClose={closeChat}><PostingInterviewSession posting={active} embedded onClose={closeChat} /></CareerChatModal> : null}
       <Card>
         <SectionTitle sub={t("가고 싶은 공고를 골라 그 공고 기준으로 면접을 연습해요. 공고를 바꿔가며 계속 연습할 수 있어요.", "Pick a posting and practice an interview based on it — as many postings as you like.", "选一个公告，据此练习面试。可不断更换公告练习。", "Chọn một tin và luyện phỏng vấn theo tin đó — bao nhiêu tin tùy thích.", "求人を選んでその求人基準で面接練習。求人を変えて何度でも。", "Pilih lowongan dan latih wawancara sesuai lowongan itu — sebanyak yang kamu mau.")}>{t("공고별 모의면접", "Posting mock interview", "公告模拟面试", "Phỏng vấn theo tin", "求人別模擬面接", "Wawancara per lowongan")}</SectionTitle>
 
@@ -235,12 +235,14 @@ export function PostingInterviewCard() {
             <div className="mt-2 flex flex-col gap-1.5">
               {logs.map((l) => {
                 const label = [l.company, l.title].filter(Boolean).join(" · ") || t("공고별 모의면접", "Posting mock interview", "公告模拟面试", "Phỏng vấn theo tin", "求人別模擬面接", "Wawancara per lowongan");
-                const answers = l.messages.filter((m) => m.role === "user").length;
+                const n = l.items?.length ?? (l.messages?.filter((m) => m.role === "user").length ?? 0);
+                const avg = l.items?.length ? Math.round(l.items.reduce((s, it) => s + it.score, 0) / l.items.length) : null;
+                const meta = [logDate(l.at), n ? t(`${n}문항`, `${n} Q`, `${n} 题`, `${n} câu`, `${n}問`, `${n} soal`) : "", avg != null ? `${t("평균", "Avg", "平均", "TB", "平均", "Rata")} ${avg}` : ""].filter(Boolean).join(" · ");
                 return (
                   <button key={l.id} type="button" onClick={() => setViewLog(l)} className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5 text-left transition hover:border-[#0B46E8]/40">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-bold text-[#191F28]">{label}</p>
-                      <p className="truncate text-[11.5px] text-[#8B95A1]">{logDate(l.at)}{answers ? ` · ${t(`답변 ${answers}개`, `${answers} answers`, `${answers} 个回答`, `${answers} câu trả lời`, `回答 ${answers}件`, `${answers} jawaban`)}` : ""}</p>
+                      <p className="truncate text-[11.5px] text-[#8B95A1]">{meta}</p>
                     </div>
                     <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" />
                   </button>
@@ -251,7 +253,22 @@ export function PostingInterviewCard() {
         ) : null}
       </Card>
 
-      {viewLog ? <CareerChatModal onClose={() => setViewLog(null)}><PostingInterviewLogView log={viewLog} onClose={() => setViewLog(null)} /></CareerChatModal> : null}
+      {viewLog ? (
+        <CareerChatModal onClose={() => setViewLog(null)}>
+          <PostingInterviewReview
+            log={viewLog}
+            onClose={() => setViewLog(null)}
+            onLogChange={(updated) => {
+              setViewLog(updated);
+              setLogs((prev) => {
+                const next = prev.map((l) => (l.id === updated.id ? updated : l));
+                void patchProgress({ postingInterviews: next }).catch(() => {});
+                return next;
+              });
+            }}
+          />
+        </CareerChatModal>
+      ) : null}
     </>
   );
 }

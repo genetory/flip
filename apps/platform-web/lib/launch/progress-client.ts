@@ -39,13 +39,26 @@ export type ExperienceEntry = {
 export type StrengthStory = { id: string; title: string; strength: string; situation: string; action: string; result: string };
 // 목표 기업 후보 — 우리 공고에서 담거나 직접 추가. positionId 있으면 공고 상세로 연결.
 export type TargetCompany = { name: string; role?: string; positionId?: string };
-// 공고별 모의면접 기록 — 질문·답변 대화와 준비도 리포트를 누적 저장해 나중에 다시 본다.
+// 공고별 모의면접 한 문항의 채점 결과(카드형).
+export type PostingInterviewItem = {
+  question: string;
+  answer: string;
+  score: number;
+  modelAnswer: string;
+  feedback: string;
+  strengths?: string[];
+  improvements?: string[];
+};
+// 공고별 모의면접 기록 — 문항별 답변·점수·모범답안을 누적 저장해 나중에 다시 보고 오답노트처럼 재도전한다.
 export type PostingInterviewLog = {
   id: string;
   company?: string;
   title?: string;
   at: string; // ISO
-  messages: { role: "bot" | "user"; text: string }[];
+  posting?: import("./interview").InterviewJobPosting; // 재도전 채점에 필요
+  items?: PostingInterviewItem[]; // 카드형(신규)
+  // 구버전(채팅형) 호환 — 읽기 전용으로만 표시.
+  messages?: { role: "bot" | "user"; text: string }[];
   report?: { strengths: string[]; improvements: string[]; modelAnswer: string } | null;
 };
 export type CareerProgress = {
