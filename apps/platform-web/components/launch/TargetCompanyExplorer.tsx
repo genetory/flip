@@ -16,6 +16,15 @@ import { trackCareerFunnel } from "../../lib/analytics";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 const posCompany = (p: PublicPositionListItem) => p.partnerOrganization?.name || p.sourceCompanyName || "";
+const posThumb = (p: PublicPositionListItem) => p.thumbnailImages?.[0] || p.partnerOrganization?.companyLogoImageData || undefined;
+// 공고를 대략 파악할 수 있게 요약 불렛 3개 — 주요업무/자격요건을 줄·구분자·문장 기준으로 쪼갠다.
+function posBullets(p: PublicPositionListItem): string[] {
+  const raw = [p.mainResponsibilities, p.requiredQualifications].filter(Boolean).join("\n").trim();
+  if (!raw) return p.preferredJobRole ? [p.preferredJobRole.trim()] : [];
+  let parts = raw.split(/\r?\n|[•·▪‣∙・]|;|,\s/).map((s) => s.replace(/^[-*\s]+/, "").replace(/\s+/g, " ").trim()).filter((s) => s.length > 1);
+  if (parts.length < 2) parts = raw.split(/(?<=[.!?。])\s+/).map((s) => s.replace(/\s+/g, " ").trim()).filter((s) => s.length > 1);
+  return parts.slice(0, 3).map((s) => s.slice(0, 70));
+}
 
 export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void }) {
   const t = useLaunchT();
@@ -105,17 +114,36 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
   const CompanyRow = ({ p }: { p: PublicPositionListItem }) => {
     const name = posCompany(p);
     const on = isSaved(name);
+    const thumb = posThumb(p);
+    const bullets = posBullets(p);
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-[18px] w-[18px]" weight="fill" /></span>
+      <div className="flex items-start gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-[#EEF1F5] object-cover" />
+        ) : (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-[18px] w-[18px]" weight="fill" /></span>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-bold text-[#191F28]">{name || t("회사명 미정", "Company TBD", "公司待定", "Chưa rõ công ty", "会社未定", "Perusahaan TBD")}</p>
-          <p className="truncate text-[11.5px] text-[#8B95A1]">{p.title}</p>
+          <p className="truncate text-[11.5px] font-semibold text-[#4E5968]">{p.title}</p>
+          {bullets.length ? (
+            <ul className="mt-1 space-y-0.5">
+              {bullets.map((b, i) => (
+                <li key={i} className="flex gap-1.5 text-[11.5px] leading-[1.45] text-[#8B95A1]">
+                  <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" />
+                  <span className="min-w-0 truncate">{b}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-        <Link href={`/talent/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("공고 보기", "View posting", "查看公告", "Xem tin", "求人を見る", "Lihat lowongan")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#191F28]"><ArrowUpRight className="h-4 w-4" weight="bold" /></Link>
-        <button type="button" onClick={() => (on ? remove(name) : addFromPosition(p))} disabled={!name} className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11.5px] font-bold transition disabled:opacity-40 ${on ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#DDE7FC]"}`}>
-          {on ? <><Check className="h-3.5 w-3.5" weight="bold" /> {t("담음", "Saved", "已收藏", "Đã lưu", "保存済", "Tersimpan")}</> : <><Plus className="h-3.5 w-3.5" weight="bold" /> {t("담기", "Save", "收藏", "Lưu", "保存", "Simpan")}</>}
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link href={`/talent/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("공고 보기", "View posting", "查看公告", "Xem tin", "求人を見る", "Lihat lowongan")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#191F28]"><ArrowUpRight className="h-4 w-4" weight="bold" /></Link>
+          <button type="button" onClick={() => (on ? remove(name) : addFromPosition(p))} disabled={!name} className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11.5px] font-bold transition disabled:opacity-40 ${on ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#DDE7FC]"}`}>
+            {on ? <><Check className="h-3.5 w-3.5" weight="bold" /> {t("담음", "Saved", "已收藏", "Đã lưu", "保存済", "Tersimpan")}</> : <><Plus className="h-3.5 w-3.5" weight="bold" /> {t("담기", "Save", "收藏", "Lưu", "保存", "Simpan")}</>}
+          </button>
+        </div>
       </div>
     );
   };
