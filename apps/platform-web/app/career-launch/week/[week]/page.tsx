@@ -18,13 +18,7 @@ import { Recruiter10sCard } from "../../../../components/launch/Recruiter10sCard
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
-import { InterviewScoreCard } from "../../../../components/launch/InterviewScoreCard";
-import { AnswerBankCard } from "../../../../components/launch/AnswerBankCard";
-import { InterviewQuestionsCard } from "../../../../components/launch/InterviewQuestionsCard";
-import { InterviewRetryCard } from "../../../../components/launch/InterviewRetryCard";
 import { Week2PackageCard } from "../../../../components/launch/Week2PackageCard";
-import { Week3InterviewCard } from "../../../../components/launch/Week3InterviewCard";
-import { Week4CorrectionCard } from "../../../../components/launch/Week4CorrectionCard";
 import { PostingInterviewCard } from "../../../../components/launch/PostingInterviewCard";
 import { WeekHero, WeekCompletionCriteria, NextWeekPreview, type WeekFrameStatus } from "../../../../components/launch/week/week-frame";
 import { WeekLearn } from "../../../../components/launch/week-learn";
@@ -195,26 +189,19 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </>
             ) : null}
 
-            {/* Week 3 — 주 흐름(실전 모의면접→리포트→취약패턴→오답노트) + 예상질문·평가 도구 묶음 */}
-            {plan.week === 3 ? (
-              <>
-                <Week3InterviewCard />
-                <div className="flex flex-col gap-4">
-                  <InterviewQuestionsCard />
-                  <InterviewScoreCard />
-                </div>
-              </>
-            ) : null}
+            {/* Week 3 — 유형별 기본 면접(카드·채점형)은 '이번 주 해야 할 일' 스텝으로 진행. 별도 카드 없음. */}
 
-            {/* Week 4 — 공고별 모의면접(핵심) + 오답 코칭→재도전 복습 도구 묶음 */}
+            {/* Week 4 — 공고별 모의면접(핵심) + 면접 오답노트 복습 링크 */}
             {plan.week === 4 ? (
               <>
                 <PostingInterviewCard />
-                <Week4CorrectionCard />
-                <div className="flex flex-col gap-4">
-                  <InterviewRetryCard />
-                  <AnswerBankCard />
-                </div>
+                <Link href="/career-launch/corrections" className="group flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#0B46E8]/40">
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-bold text-[#0B1227]">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノートを見直す", "Tinjau catatan wawancara")}</p>
+                    <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("기본·공고별 면접에서 점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on in your basic and posting interviews.", "重做基础与公告面试中的低分题。", "Làm lại câu điểm thấp trong phỏng vấn cơ bản và theo tin.", "基本・求人別面接で点数の低かった問題を解き直します。", "Ulangi soal berskor rendah dari wawancara dasar dan lowongan.")}</p>
+                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[#0B46E8] transition group-hover:bg-[#DDE7FC]"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+                </Link>
               </>
             ) : null}
 

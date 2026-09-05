@@ -19072,8 +19072,9 @@ app.post("/career-launch/interview/session/start", authenticate, requireCareerEn
         const raw = (await careerChatComplete("이 지원자의 공고·이력서·자소서를 근거로 실전 모의면접 핵심 질문 8개를 만들어줘. 각 질문에 type·difficulty 를 붙여. " + IV_SAFETY, ctx, "iv_qgen", { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "object", additionalProperties: false, required: ["question", "type", "difficulty"], properties: { question: { type: "string" }, type: { type: "string" }, difficulty: { type: "string" } } } } } })) as { questions?: Array<{ question: string; type: string; difficulty: string }> };
         baseQuestions = Array.isArray(raw.questions) ? raw.questions : [];
       } catch (err) {
-        if (isAiUpstreamError(err)) return sendAiUnavailable(res);
-        return res.status(502).json({ ok: false, message: "질문 생성 실패" });
+        console.error("[iv/session/start] question generation failed", err);
+        // 429/401/5xx 뿐 아니라 그 외 AI 호출 실패도 친절한 '일시 사용 불가'로 안내(raw 502 대신).
+        return sendAiUnavailable(res);
       }
     }
     const picked = baseQuestions.slice(0, INTERVIEW_LIMITS.maxCoreQuestions);
