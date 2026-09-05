@@ -8,8 +8,20 @@ import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeade
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
 import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../../../lib/launch/hub-client";
+import { fetchProgress, patchProgress, type PostingInterviewLog } from "../../../lib/launch/progress-client";
+import { PostingInterviewReview } from "../../../components/launch/PostingInterviewReview";
+import { CareerChatModal } from "../../../components/launch/CareerChatModal";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
+
+// 공고별 면접에서 이 점수 미만 문항을 '오답'으로 모은다.
+const POSTING_LOW = 70;
+function scoreTone(s: number): { text: string; bg: string } {
+  if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
+  if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
+  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-[#FFF6E5]" };
+  return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
+}
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
@@ -74,17 +86,34 @@ export default function CorrectionNotebookPage() {
   const t = useLaunchT();
   const [vm, setVm] = useState<CorrectionsVM | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  const [logs, setLogs] = useState<PostingInterviewLog[]>([]);
+  const [viewLog, setViewLog] = useState<PostingInterviewLog | null>(null);
   const load = () => {
     setPhase("loading");
-    void fetchCorrections()
-      .then((d) => {
+    void Promise.all([fetchCorrections(), fetchProgress().catch(() => null)])
+      .then(([d, prog]) => {
         setVm(d);
+        setLogs(Array.isArray(prog?.postingInterviews) ? prog!.postingInterviews! : []);
         setPhase("ready");
         trackCareerFunnel("career_correction_notebook_viewed", {});
       })
       .catch(() => setPhase("error"));
   };
   useEffect(load, []);
+
+  // 공고별 면접에서 점수 낮은 문항(오답) — 로그별로 묶어 표시.
+  const postingLows = logs
+    .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number" && it.score < POSTING_LOW) }))
+    .filter((x) => x.items.length > 0);
+  const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
+  const updateLog = (updated: PostingInterviewLog) => {
+    setViewLog(updated);
+    setLogs((prev) => {
+      const next = prev.map((l) => (l.id === updated.id ? updated : l));
+      void patchProgress({ postingInterviews: next }).catch(() => {});
+      return next;
+    });
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
@@ -115,7 +144,7 @@ export default function CorrectionNotebookPage() {
             <div className="mt-5">
               <ErrorState onRetry={load} />
             </div>
-          ) : vm.summary.total === 0 ? (
+          ) : vm.summary.total === 0 && postingLowCount === 0 ? (
             <div className="mt-5">
               <EmptyState
                 title={t("아직 면접 오답노트가 없어요", "No interview review notes yet", "还没有面试错题本", "Chưa có sổ lỗi phỏng vấn", "まだ面接復習ノートがありません", "Belum ada catatan koreksi wawancara")}
@@ -126,6 +155,8 @@ export default function CorrectionNotebookPage() {
             </div>
           ) : (
             <div className="mt-5 flex flex-col gap-7">
+              {vm.summary.total > 0 ? (
+              <>
               {/* 상단 요약 + 다음 훈련(상단 고정 성격) */}
               <div className="rounded-2xl bg-[#191F28] p-5 text-white">
                 <p className="text-[14.5px] font-semibold">
@@ -172,6 +203,32 @@ export default function CorrectionNotebookPage() {
                   </DashboardSection>
                 );
               })}
+              </>
+              ) : null}
+
+              {postingLowCount > 0 ? (
+                <DashboardSection title={t("공고별 면접 오답", "Posting interview corrections", "公告面试错题", "Lỗi phỏng vấn theo tin", "求人別面接の復習", "Koreksi wawancara lowongan")}>
+                  <div className="flex flex-col gap-2.5">
+                    {postingLows.flatMap(({ log, items }) =>
+                      items.map((it, j) => {
+                        const tone = scoreTone(it.score);
+                        const co = [log.company, log.title].filter(Boolean).join(" · ");
+                        return (
+                          <button key={`${log.id}:${j}`} type="button" onClick={() => setViewLog(log)} className="flex w-full items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
+                            <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-lg ${tone.bg}`}><span className={`text-[15px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
+                              {co ? <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{co}</span> : null}
+                              <span className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1B64DA]">{t("다시 답하기", "Try again", "重新作答", "Trả lời lại", "もう一度答える", "Coba lagi")} <ArrowRight size={13} weight="bold" /></span>
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </DashboardSection>
+              ) : null}
+
               <p className="text-[12px] text-[#B0B8C1]">
                 {t(
                   "같은 질문을 반복하기보다, 다른 표현의 질문으로 바꿔가며 연습해요. 오늘은 여기까지 해도 괜찮아요.",
@@ -187,6 +244,11 @@ export default function CorrectionNotebookPage() {
         </div>
       </main>
       <AplyFooter />
+      {viewLog ? (
+        <CareerChatModal onClose={() => setViewLog(null)}>
+          <PostingInterviewReview log={viewLog} onClose={() => setViewLog(null)} onLogChange={updateLog} />
+        </CareerChatModal>
+      ) : null}
     </div>
   );
 }
