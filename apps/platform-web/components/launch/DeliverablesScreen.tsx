@@ -89,7 +89,7 @@ export function DeliverablesScreen() {
                   loading={!loaded}
                   editHref="/career-launch/cover-collect"
                   fullHref="/career-launch/cover-preview"
-                  emptyLabel={t("3주차에서 작성해요", "Write it in Week 3", "在第3周撰写", "Viết ở Tuần 3", "Week 3で作成", "Tulis di Minggu 3")}
+                  emptyLabel={t("2주차에서 작성해요", "Write it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Tulis di Minggu 2")}
                   t={t}
                 >
                   <CoverRender data={cover} />
@@ -108,7 +108,7 @@ export function DeliverablesScreen() {
                   <p className="text-[14px] font-bold text-[#0B1227]">{t("APLY에서 지원하기", "Apply on APLY", "在 APLY 投递", "Ứng tuyển trên APLY", "APLYで応募する", "Lamar di APLY")}</p>
                   <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("완성한 서류로 실제 공고에 지원", "Use your documents on real jobs", "用完成的文件投递真实职位", "Dùng hồ sơ cho việc làm thật", "完成した書類で実際の求人に応募", "Gunakan dokumenmu untuk lowongan nyata")}</p>
                 </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#0B46E8] shadow-[0_2px_8px_rgba(11,70,232,0.12)] transition group-hover:translate-x-0.5"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#0B46E8] shadow-[0_2px_8px_rgba(11,70,232,0.12)] transition"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
               </Link>
             </div>
           </div>

@@ -32,7 +32,8 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
 }
 
 export type CoverSection = "motive" | "growth" | "strength" | "aspiration";
-export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData, focus?: CoverSection): Promise<CoverChatResult> {
+// focus: 기본 4문항 키(CoverSection) 또는 사용자가 만든 커스텀 문항 제목(string). 서버는 알려진 키면 문항별 지시를, 아니면 일반 코칭을 준다.
+export async function requestCoverChat(messages: CoverChatMsg[], data: CoverData, focus?: string): Promise<CoverChatResult> {
   const d = await req("/career-launch/cover-chat", {
     method: "POST",
     headers: authHeaders(true),

@@ -35,13 +35,48 @@ export type ExperienceEntry = {
   skills: string[]; // 사용 기술
   competencies: string[]; // 역량
 };
+// 강점 스토리 — 경험을 면접·자소서용 짧은 이야기로(상황·행동·결과 + 강점). Week1에서 만들고 이후 재사용.
+export type StrengthStory = { id: string; title: string; strength: string; situation: string; action: string; result: string };
+// 목표 기업 후보 — 우리 공고에서 담거나 직접 추가. positionId 있으면 공고 상세로 연결.
+export type TargetCompany = { name: string; role?: string; positionId?: string };
+// 공고별 모의면접 한 문항의 채점 결과(카드형).
+export type PostingInterviewItem = {
+  question: string;
+  answer: string;
+  score: number;
+  modelAnswer: string;
+  feedback: string;
+  strengths?: string[];
+  improvements?: string[];
+};
+// 공고별 모의면접 기록 — 문항별 답변·점수·모범답안을 누적 저장해 나중에 다시 보고 오답노트처럼 재도전한다.
+export type PostingInterviewLog = {
+  id: string;
+  company?: string;
+  title?: string;
+  at: string; // ISO
+  source?: "posting" | "basic"; // 공고별 / 기본(내 서류) — 재도전 채점 방식 구분
+  focus?: "self" | "job" | "fit" | "pressure"; // 기본 면접 유형(source="basic")
+  posting?: import("./interview").InterviewJobPosting; // 공고별 재도전 채점에 필요
+  items?: PostingInterviewItem[]; // 카드형(신규)
+  // 구버전(채팅형) 호환 — 읽기 전용으로만 표시.
+  messages?: { role: "bot" | "user"; text: string }[];
+  report?: { strengths: string[]; improvements: string[]; modelAnswer: string } | null;
+};
 export type CareerProgress = {
   diagnosis?: CareerDiagnosis | null;
+  // 진단 대화 기록(질문·답변) — '다시 보기' 시 대화를 그대로 복원하기 위해 저장.
+  diagnosisTranscript?: Array<{ role: "bot" | "user"; text: string }> | null;
   experienceBank?: ExperienceEntry[];
   // 사전(1주차)·사후(4주차 수료) 진단 점수 — 향상도 산출용.
   diagnosisInitial?: { percent?: number } | null;
   diagnosisFinal?: { percent?: number } | null;
   selectedJobs?: string[];
+  targetJob?: string | null; // 확정한 1순위 목표 직무명(2주차 서류 기준). week1/target 확정 시 기록.
+  targetCompanies?: TargetCompany[]; // 1주차 '목표 기업 탐색'에서 담은 관심 기업 후보.
+  postingInterviews?: PostingInterviewLog[]; // 4주차 공고별 모의면접 기록(최근 것부터).
+  basicInterviews?: PostingInterviewLog[]; // 3주차 기본(내 서류) 모의면접 기록(최근 것부터).
+  strengthStories?: StrengthStory[]; // 강점 스토리(면접·자소서 씨앗).
   materials?: string[];
   doneSteps?: string[];
   interview?: CareerInterview | null;

@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowClockwise, ArrowRight, Check, Lock } from "@phosphor-icons/react";
 import Link from "next/link";
 import { RECOMMENDED_JOBS, type Step } from "../../lib/launch/data";
-import { fetchDocsSummary } from "../../lib/launch/feedback-client";
-import { useLanguage } from "../i18n/LanguageProvider";
 import { fetchProgress, patchProgress, type CareerProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData, hasResumeContent, type ResumeData, type ResumeExperience } from "../../lib/launch/resume-data";
 import { fetchCoverData, hasCoverContent, type CoverData } from "../../lib/launch/cover-data";
+import { confirmTargetJob } from "../../lib/launch/week1";
 import { STEP_KIND, isStepDone } from "../../lib/launch/step-status";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../../lib/launch/data-i18n";
@@ -16,8 +15,8 @@ import { useStepText, useJobReason, useStepActionLabel, useJobName } from "../..
 // 주차 페이지용 스텝 목록 — 1주차처럼 순차 잠금 + 스텝별(섹션별) 결과 표시.
 // 완료 상태는 백엔드(progress)에 저장돼 기기 간 동기화된다.
 // 모달로 여는 채팅 라우트(페이지 이동 대신 onOpenChat 호출).
-const CHAT_ROUTE = /\/career-launch\/(diagnosis|jobs|materials|interview)/;
-export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void }) {
+const CHAT_ROUTE = /\/career-launch\/(diagnosis|experience|story|jobs|materials|basic-interview|interview)/;
+export function WeekStepper({ steps, sequential = true, onOpenChat, refreshKey = 0 }: { steps: Step[]; sequential?: boolean; onOpenChat?: (href: string) => void; refreshKey?: number }) {
   const t = useLaunchT();
   // 채팅 라우트면 모달을 열고(onOpenChat), 아니면 기존처럼 페이지 이동(Link).
   const StepAction = ({ href, className, children }: { href: string; className: string; children: React.ReactNode }) =>
@@ -35,6 +34,22 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
   const [cover, setCover] = useState<CoverData>({});
   const [ready, setReady] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [targetBusy, setTargetBusy] = useState<string | null>(null);
+
+  // 관심 직무 중 1순위를 목표로 확정(2주차 서류 기준). 서버가 라벨→직무군 해석, reason 에 원문 보존.
+  const confirmTarget = async (role: string) => {
+    setTargetBusy(role);
+    try {
+      await confirmTargetJob(role, "primary", "confirmed", role);
+      // 낙관적 반영 — 서버 상태 재조회(load) 결과가 늦어도 '관심 직무 선정' 스텝이 즉시 완료로 바뀌게 한다.
+      setProg((p) => ({ ...p, targetJob: role }));
+      await load();
+    } catch {
+      // 실패 시 상태 유지
+    } finally {
+      setTargetBusy(null);
+    }
+  };
 
   // 진행 상태 로드/재동기화 — 자동수집(이력서·자소서)이 늦게 반영될 때 수동 새로고침용.
   const load = async () => {
@@ -57,7 +72,13 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const eduN = resume.educations?.length ?? 0;
+  // 대화(모달)에서 나오면 부모가 refreshKey 를 올린다 → 완료 상태·결과를 다시 불러온다.
+  useEffect(() => {
+    if (refreshKey > 0) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  const eduN = (resume.educations ?? []).filter((e) => (e.school ?? "").trim().length > 0).length;
   const expN = resume.experiences?.length ?? 0;
   const skillN = resume.skills?.length ?? 0;
   const langN = resume.languages?.length ?? 0;
@@ -73,6 +94,18 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
     if (STEP_KIND[id]) return; // 결과 스텝은 수동 체크 불가
     const cur = prog.doneSteps ?? [];
     const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    setProg((p) => ({ ...p, doneSteps: next }));
+    void patchProgress({ doneSteps: next }).catch(() => {
+      // 저장 실패해도 화면 상태 유지
+    });
+  };
+
+  // '해당 없음'으로 채울 수 있는 이력서 섹션(기본정보 제외 — 이름은 필수). 대화 없이 바로 완료 처리.
+  const OPTIONAL_NONE = new Set(["w2-edu", "w2-exp", "w2-exp-other", "w2-skill", "w2-lang"]);
+  const markNone = (id: string) => {
+    const cur = prog.doneSteps ?? [];
+    if (cur.includes(id)) return;
+    const next = [...cur, id];
     setProg((p) => ({ ...p, doneSteps: next }));
     void patchProgress({ doneSteps: next }).catch(() => {
       // 저장 실패해도 화면 상태 유지
@@ -127,17 +160,60 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         </ResultCard>
       );
     }
+    if (kind === "experience" && (prog.experienceBank?.length ?? 0) > 0) {
+      const n = prog.experienceBank!.length;
+      return (
+        <ResultCard continueHref="/career-launch/experience" continueLabel={t("경험 더 찾기", "Find more", "再发掘", "Tìm thêm", "もっと探す", "Cari lagi")} restartHref="/career-launch/experience">
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("Experience Bank", "Experience Bank", "经验库", "Experience Bank", "Experience Bank", "Experience Bank")} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 条`, `${n}`, `${n}件`, `${n}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {prog.experienceBank!.slice(0, 4).map((e, i) => (
+              <li key={i} className="flex gap-1.5 break-keep rounded-xl border border-[#EEF1F5] bg-white px-3 py-2 text-[12.5px] text-[#333D4B]"><span className="text-[#0B46E8]">•</span>{e.experience}</li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
+    if (kind === "story" && (prog.strengthStories?.length ?? 0) > 0) {
+      const n = prog.strengthStories!.length;
+      return (
+        <ResultCard continueHref="/career-launch/story" continueLabel={t("스토리 더 만들기", "Add more", "再做一个", "Tạo thêm", "もっと作る", "Buat lagi")} restartHref="/career-launch/story">
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("강점 스토리", "Strength stories", "优势故事", "Câu chuyện điểm mạnh", "強みストーリー", "Cerita kelebihan")} <span className="text-[#0B46E8]">{t(`${n}개`, `${n}`, `${n} 个`, `${n}`, `${n}件`, `${n}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {prog.strengthStories!.slice(0, 4).map((s, i) => (
+              <li key={i} className="flex items-center gap-1.5 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#333D4B]">{s.title}</span>
+                {s.strength ? <span className="shrink-0 rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[10.5px] font-bold text-[#0B46E8]">{s.strength}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </ResultCard>
+      );
+    }
     if (kind === "jobs" && (prog.selectedJobs?.length ?? 0) > 0) {
+      const target = prog.targetJob ?? null;
       return (
         <ResultCard continueHref="/career-launch/jobs" continueLabel={t("이어서", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/jobs?restart=1">
-          <p className="text-[13.5px] font-bold text-[#191F28]">{t("선정한 직무", "Selected jobs", "已选职位", "Công việc đã chọn", "選んだ職務", "Pekerjaan yang dipilih")} <span className="text-[#0B46E8]">{t(`${prog.selectedJobs!.length}개`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length} 个`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length}件`, `${prog.selectedJobs!.length}`)}</span></p>
+          <p className="text-[13.5px] font-bold text-[#191F28]">{t("관심 직무", "Jobs of interest", "感兴趣职位", "Công việc quan tâm", "関心のある職務", "Pekerjaan diminati")} <span className="text-[#0B46E8]">{t(`${prog.selectedJobs!.length}개`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length} 个`, `${prog.selectedJobs!.length}`, `${prog.selectedJobs!.length}件`, `${prog.selectedJobs!.length}`)}</span></p>
+          <p className={`mt-0.5 break-keep text-[12px] leading-relaxed ${target ? "text-[#8B95A1]" : "font-semibold text-[#C77700]"}`}>{target ? t("2주차 지원 서류가 이 목표 직무에 맞춰져요. 바꾸려면 다른 직무를 정하면 돼요.", "Week 2 docs follow this target. To change it, set another role.", "第2周材料以此目标为准。如需更改，另设一个职务即可。", "Hồ sơ Tuần 2 theo mục tiêu này. Muốn đổi, đặt nghề khác.", "2週目の書類はこの目標に合わせます。変更は別の職務を選べばOK。", "Dokumen Minggu 2 mengikuti target ini. Untuk ubah, pilih peran lain.") : t("여기서 1순위 '목표 직무'를 정해야 이 단계가 완료돼요. 2주차 서류가 그 직무에 맞춰집니다.", "Set your primary target here to complete this step — Week 2 docs follow it.", "在这里定下首选'目标职务'才算完成本步骤，第2周材料以此为准。", "Đặt 'nghề mục tiêu' số 1 tại đây để hoàn thành bước này — hồ sơ Tuần 2 theo đó.", "ここで第一の『目標職務』を決めるとこのステップが完了します。2週目の書類がそれに合わせます。", "Tetapkan 'peran target' utama di sini untuk menyelesaikan langkah ini — dokumen Minggu 2 mengikutinya.")}</p>
           <ul className="mt-2 space-y-2">
             {prog.selectedJobs!.map((role) => {
               const job = RECOMMENDED_JOBS.find((x) => x.role === role);
+              const isTarget = target === role;
               return (
-                <li key={role} className="rounded-xl border border-[#EEF1F5] bg-white p-3">
-                  <p className="text-[13px] font-bold text-[#191F28]">{jobName(role)}</p>
-                  {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
+                <li key={role} className={`rounded-xl border p-3 ${isTarget ? "border-[#0B46E8] bg-[#F5F8FF]" : "border-[#EEF1F5] bg-white"}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="break-keep text-[13px] font-bold text-[#191F28]">{isTarget ? "🎯 " : ""}{jobName(role)}</p>
+                      {job?.reason ? <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
+                    </div>
+                    {isTarget ? (
+                      <span className="shrink-0 rounded-lg bg-[#0B46E8] px-2.5 py-1 text-[11px] font-bold text-white">{t("목표", "Target", "目标", "Mục tiêu", "目標", "Target")}</span>
+                    ) : (
+                      <button type="button" onClick={() => void confirmTarget(role)} disabled={targetBusy !== null} className="shrink-0 rounded-lg bg-[#EDF1FD] px-2.5 py-1.5 text-[11.5px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC] disabled:opacity-50">
+                        {targetBusy === role ? "…" : t("목표로 정하기", "Set as target", "设为目标", "Đặt mục tiêu", "目標に設定", "Jadikan target")}
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -173,7 +249,7 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         <ResultCard continueHref="/career-launch/resume-collect?section=edu" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/resume-collect?section=edu&restart=1">
           <p className="text-[13.5px] font-bold text-[#191F28]">📄 {t("학력", "Education", "教育经历", "Học vấn", "学歴", "Pendidikan")} <span className="text-[#0B46E8]">{t(`${eduN}개`, `${eduN}`, `${eduN} 项`, `${eduN}`, `${eduN}件`, `${eduN}`)}</span></p>
           <ul className="mt-1.5 space-y-1">
-            {resume.educations!.map((e, i) => (
+            {resume.educations!.filter((e) => (e.school ?? "").trim().length > 0).map((e, i) => (
               <li key={i} className="flex gap-1.5 break-keep text-[12.5px] text-[#4E5968]">
                 <span className="text-[#3A6B00]">•</span>{[e.school, e.major, e.period].filter(Boolean).join(" · ")}
               </li>
@@ -226,35 +302,44 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         </ResultCard>
       );
     }
-    // 자기소개서 — 문항별(한 스텝 = 한 문항). 해당 문항의 질문+답변만 보여준다.
-    if (kind === "cover1" || kind === "cover2" || kind === "cover3" || kind === "cover4") {
-      const idx = kind === "cover1" ? 0 : kind === "cover2" ? 1 : kind === "cover3" ? 2 : 3;
-      const section = (["motive", "growth", "strength", "aspiration"] as const)[idx];
+    // 자기소개서 — 작성한 문항(제목+답변)들을 모아 보여준다(동적 문항).
+    if (kind === "cover") {
       const filled = (cover.items ?? []).filter((x) => (x.answer ?? "").trim());
-      const it = filled[idx];
-      if (!it) return null;
+      if (!filled.length) return null;
       return (
-        <ResultCard continueHref={`/career-launch/cover-collect?section=${section}`} continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref={`/career-launch/cover-collect?section=${section}&restart=1`}>
-          <p className="break-keep text-[12.5px] font-bold text-[#191F28]">📝 {it.question}</p>
-          <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#4E5968]">{it.answer}</p>
+        <ResultCard continueHref="/career-launch/cover-collect" continueLabel={t("이어하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan")} restartHref="/career-launch/cover-collect">
+          <p className="text-[13.5px] font-bold text-[#191F28]">📝 {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} <span className="text-[#0B46E8]">{t(`${filled.length}문항`, `${filled.length}`, `${filled.length} 项`, `${filled.length}`, `${filled.length}項目`, `${filled.length}`)}</span></p>
+          <ul className="mt-2 space-y-1.5">
+            {filled.slice(0, 5).map((it, i) => (
+              <li key={i} className="rounded-xl border border-[#EEF1F5] bg-white px-3 py-2">
+                <p className="break-keep text-[12.5px] font-bold text-[#191F28]">{it.question}</p>
+                <p className="mt-0.5 line-clamp-2 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{it.answer}</p>
+              </li>
+            ))}
+          </ul>
         </ResultCard>
       );
     }
-    // 면접 — 유형별 모의면접(자기소개/직무/인성). 완료했으면 카드 + 다시 연습 링크.
-    if (kind === "interview-self" || kind === "interview-job" || kind === "interview-fit") {
-      const type = kind === "interview-self" ? "self" : kind === "interview-job" ? "job" : "fit";
-      if (!practicedTypes.includes(type)) return null;
+    // 면접 — 유형별 기본 면접(자기소개/직무/인성/압박). 완료했으면 점수 요약 + 다시 연습 링크.
+    if (kind === "interview-self" || kind === "interview-job" || kind === "interview-fit" || kind === "interview-pressure") {
+      const type = kind.replace("interview-", "") as "self" | "job" | "fit" | "pressure";
+      const basicLogs = (prog.basicInterviews ?? []).filter((l) => l.focus === type && (l.items?.length ?? 0) > 0);
+      if (basicLogs.length === 0 && !practicedTypes.includes(type)) return null;
       const label =
         type === "self"
           ? t("자기소개 면접", "Self-introduction interview", "自我介绍面试", "Phỏng vấn giới thiệu bản thân", "自己紹介面接", "Wawancara perkenalan diri")
           : type === "job"
             ? t("직무 면접", "Job interview", "职务面试", "Phỏng vấn công việc", "職務面接", "Wawancara pekerjaan")
-            : t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya");
+            : type === "fit"
+              ? t("인성·컬처핏 면접", "Personality & culture-fit interview", "人品·文化契合面试", "Phỏng vấn tính cách · phù hợp văn hóa", "人柄·カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya")
+              : t("압박 면접", "Pressure interview", "压力面试", "Phỏng vấn áp lực", "圧迫面接", "Wawancara tekanan");
+      const latest = basicLogs[0];
+      const avg = latest?.items?.length ? Math.round(latest.items.reduce((s, it) => s + it.score, 0) / latest.items.length) : null;
       return (
         <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 연습 완료`, `${label} practice done`, `${label} 练习完成`, `Đã luyện tập ${label}`, `${label} 練習完了`, `Latihan ${label} selesai`)}</p>
-            <Link href={`/career-launch/interview?section=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
+            <p className="text-[13px] font-bold text-[#191F28]">🎤 {t(`${label} 완료`, `${label} done`, `${label} 完成`, `Đã xong ${label}`, `${label} 完了`, `${label} selesai`)}{avg != null ? ` · ${t("평균", "Avg", "平均", "TB", "平均", "Rata")} ${avg}` : ""}</p>
+            <Link href={`/career-launch/basic-interview?focus=${type}`} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("다시 연습", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}</Link>
           </div>
           <p className="mt-1 break-keep text-[12.5px] text-[#4E5968]">{t("면접관과 실전처럼 주고받으며 연습을 마쳤어요. 필요하면 다시 연습해봐요.", "You practiced a realistic back-and-forth with the interviewer. Practice again anytime you need.", "你与面试官进行了实战般的问答练习。需要的话可以再练习。", "Bạn đã luyện tập hỏi đáp thực tế với người phỏng vấn. Cần thì hãy luyện lại nhé.", "面接官と実践のようにやり取りしながら練習を終えました。必要ならまた練習してみましょう。", "Anda berlatih tanya-jawab layaknya nyata dengan pewawancara. Latih lagi kapan pun perlu.")}</p>
         </div>
@@ -296,8 +381,21 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
         // 순차 연계 — 이전 스텝을 모두 완료해야 이 스텝을 시작할 수 있다(sequential=false 면 잠금 없음).
         const locked = sequential && ready && !done && !steps.slice(0, i).every((p) => isDone(p.id));
         const toggleable = !result && !locked;
+        // 한 주차 안의 소그룹(예: 지원 패키지 = 이력서/자기소개서) 시작 지점에 구분 헤더.
+        const groupStart = s.group && s.group !== steps[i - 1]?.group;
         return (
-          <li key={s.id} className="flex gap-4">
+          <Fragment key={s.id}>
+          {groupStart ? (
+            <li className="flex items-center gap-2.5 pb-2 pt-1 first:pt-0">
+              <span className="text-[12.5px] font-black uppercase tracking-[0.08em] text-[#0B46E8]">
+                {s.group === "resume"
+                  ? t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")
+                  : t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}
+              </span>
+              <span className="h-px flex-1 bg-[#EEF1F5]" />
+            </li>
+          ) : null}
+          <li className="flex gap-4">
             <div className="flex flex-col items-center">
               <button
                 type="button"
@@ -353,15 +451,27 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
                   ) : null}
                 </div>
               ) : s.action ? (
-                <StepAction
-                  href={s.action.href}
-                  className="group mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
-                >
-                  {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" weight="bold" aria-hidden />
-                </StepAction>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <StepAction
+                    href={s.action.href}
+                    className="group inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  >
+                    {actionLabel(s.action.label)} <ArrowRight className="h-3.5 w-3.5 transition" weight="bold" aria-hidden />
+                  </StepAction>
+                  {OPTIONAL_NONE.has(s.id) ? (
+                    <button
+                      type="button"
+                      onClick={() => markNone(s.id)}
+                      className="rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[12.5px] font-semibold text-[#8B95A1] transition hover:border-[#0B46E8]/40 hover:text-[#4E5968]"
+                    >
+                      {t("해당 없음", "None", "无", "Không có", "該当なし", "Tidak ada")}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </li>
+          </Fragment>
         );
       })}
     </ol>
@@ -369,60 +479,23 @@ export function WeekStepper({ steps, sequential = true, onOpenChat }: { steps: S
   );
 }
 
-// 최종 점검 — 이력서·자소서 내용을 AI로 각각 따로 요약해 자동 표시(무료·캐시).
+// 최종 점검 — AI 요약 대신, 완성한 실제 서류를 미리보기로 확인하고 고칠 곳은 지원 패키지 주차에서 수정.
 function FinalDocsSummary({ resumeReady, coverReady }: { resumeReady: boolean; coverReady: boolean }) {
   const t = useLaunchT();
-  const { locale } = useLanguage();
-  const [state, setState] = useState<"loading" | "done" | "error">("loading");
-  const [resumeSum, setResumeSum] = useState("");
-  const [coverSum, setCoverSum] = useState("");
-  const startedRef = useRef(false);
-
-  useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-    let alive = true;
-    void (async () => {
-      try {
-        const r = await fetchDocsSummary({ generate: true, locale }); // 무료 — 자동 생성/캐시
-        if (!alive) return;
-        setResumeSum(r.resume ?? "");
-        setCoverSum(r.cover ?? "");
-        setState("done");
-      } catch {
-        if (alive) setState("error");
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const block = (emoji: string, title: string, summary: string, editHref: string, editLabel: string) => (
-    <div>
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[13px] font-bold text-[#191F28]">{emoji} {title}</p>
-        <Link href={editHref} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{editLabel}</Link>
+  const row = (emoji: string, title: string, previewHref: string, editHref: string) => (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
+      <p className="min-w-0 truncate text-[13px] font-bold text-[#191F28]">{emoji} {title} <span className="ml-1 text-[11.5px] font-semibold text-[#0A9B59]">✓ {t("완성", "Done", "完成", "Xong", "完成", "Selesai")}</span></p>
+      <div className="flex shrink-0 gap-1.5">
+        <Link href={previewHref} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-bold text-[#191F28] transition hover:bg-[#F6F8FB]">{t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}</Link>
+        <Link href={editHref} className="rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]">{t("수정", "Edit", "编辑", "Sửa", "修正", "Edit")}</Link>
       </div>
-      {state === "loading" ? (
-        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약하는 중…", "Summarizing…", "摘要中…", "Đang tóm tắt…", "要約中…", "Meringkas…")}</p>
-      ) : summary.trim() ? (
-        <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-[1.75] text-[#4E5968]">{summary}</p>
-      ) : (
-        <p className="mt-1.5 text-[12.5px] text-[#B0B8C1]">{t("요약을 불러오지 못했어요.", "Couldn't load the summary.", "无法加载摘要。", "Không thể tải tóm tắt.", "要約を読み込めませんでした。", "Tidak dapat memuat ringkasan.")}</p>
-      )}
     </div>
   );
-
   return (
-    <div className="mt-3 space-y-3.5 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
-      {resumeReady
-        ? block("📄", t("이력서 요약", "Resume summary", "简历摘要", "Tóm tắt CV", "履歴書の要約", "Ringkasan resume"), resumeSum, "/career-launch/week/2", t("이력서 수정", "Edit resume", "编辑简历", "Sửa CV", "履歴書を修正", "Edit resume"))
-        : null}
-      {coverReady
-        ? block("📝", t("자기소개서 요약", "Cover letter summary", "自我介绍书摘要", "Tóm tắt thư giới thiệu", "自己紹介書の要約", "Ringkasan surat lamaran"), coverSum, "/career-launch/week/3", t("자기소개서 수정", "Edit cover letter", "编辑自我介绍书", "Sửa thư giới thiệu", "自己紹介書を修正", "Edit surat lamaran"))
-        : null}
+    <div className="mt-3 space-y-2.5 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
+      <p className="text-[12.5px] leading-relaxed text-[#4E5968]">{t("완성한 서류를 지원 전 마지막으로 확인해요. 고칠 곳은 '수정'에서 다듬으면 돼요.", "Give your finished documents one last look before applying. Fix anything via 'Edit'.", "投递前最后确认完成的材料，需要修改就点'编辑'。", "Xem lại hồ sơ hoàn thiện lần cuối trước khi ứng tuyển. Sửa gì thì bấm 'Sửa'.", "応募前に完成した書類を最終確認します。直したい所は「修正」で。", "Periksa dokumen jadimu sekali lagi sebelum melamar. Perbaiki lewat 'Edit'.")}</p>
+      {resumeReady ? row("📄", t("내 이력서", "My resume", "我的简历", "CV của tôi", "私の履歴書", "Resume saya"), "/career-launch/resume-preview", "/career-launch/week/2") : null}
+      {coverReady ? row("📝", t("내 자기소개서", "My cover letter", "我的自我介绍书", "Thư giới thiệu của tôi", "私の自己紹介書", "Surat lamaran saya"), "/career-launch/cover-preview", "/career-launch/week/2") : null}
     </div>
   );
 }

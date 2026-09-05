@@ -24,15 +24,15 @@ export function SectionChatModal({
   const t = useLaunchT();
   useLockBodyScroll();
   const vp = useVisualViewport();
-  // AI 포인트 소진(402) 감지 → 안내 메시지.
+  // AI 일시 사용 불가/한도 감지 → 안내 메시지(커리어 런치는 무료 — 포인트 아님).
   const isQuota = (e: unknown) => e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
   const quotaText = t(
-    "AI 포인트를 모두 사용했어요. 충전 후 다시 시도해 주세요.",
-    "You've used all your AI points. Please recharge and try again.",
-    "AI 积分已用完，请充值后再试。",
-    "Bạn đã dùng hết điểm AI. Vui lòng nạp thêm và thử lại.",
-    "AIポイントを使い切りました。チャージ後にもう一度お試しください。",
-    "Poin AI habis. Silakan isi ulang lalu coba lagi."
+    "지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.",
+    "AI is busy right now. Please try again in a moment.",
+    "AI 当前繁忙，请稍后再试。",
+    "AI đang bận. Vui lòng thử lại sau giây lát.",
+    "現在AIの利用が集中しています。少し後にお試しください。",
+    "AI sedang sibuk. Silakan coba lagi sesaat lagi."
   );
   const notifyUsage = () => {
     if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));

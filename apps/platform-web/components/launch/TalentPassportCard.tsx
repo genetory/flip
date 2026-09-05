@@ -225,7 +225,7 @@ export function TalentPassportCard() {
                     <p className="text-[13.5px] font-bold text-[#0B1227]">{a.label}</p>
                     <p className="truncate text-[12px] text-[#8B95A1]">{a.reason}</p>
                   </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5 group-hover:text-[#0B46E8]" weight="bold" aria-hidden />
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:text-[#0B46E8]" weight="bold" aria-hidden />
                 </Link>
               ))}
             </div>

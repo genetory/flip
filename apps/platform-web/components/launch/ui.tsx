@@ -92,7 +92,7 @@ export function Stepper({ steps }: { steps: Step[] }) {
                   ? t("완료 취소", "Mark as incomplete", "取消完成", "Bỏ đánh dấu hoàn thành", "完了を取り消す", "Batalkan selesai")
                   : t("완료로 표시", "Mark as done", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")}
                 className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
-                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:bg-[#E5E8EB]"
                 }`}
               >
                 {done ? <Check className="h-[15px] w-[15px]" weight="bold" /> : i + 1}
@@ -148,7 +148,7 @@ export function LaunchButton({
   const styles: Record<string, string> = {
     primary: "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]",
     lime: "bg-[#B7FF5A] text-[#111111] hover:brightness-105",
-    outline: "border border-[#D7DCE3] bg-white text-[#191F28] hover:border-[#0B46E8]/40"
+    outline: "bg-[#F2F4F6] text-[#191F28] hover:border-[#0B46E8]/40"
   };
   const cls = `${base} ${styles[variant]}`;
   if (href) return <Link href={href} className={cls}>{children}</Link>;

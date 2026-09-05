@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-client";
+import { WEEKS } from "../../../../lib/launch/data";
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
@@ -20,6 +21,10 @@ export default function CultureLessonPage() {
   const params = useParams();
   const id = String((params as { id?: string })?.id ?? "");
   const lesson = useLocalizedCulture(id);
+  // 이 학습 스텝이 속한 주차로 돌아간다(대시보드가 아니라). id 로 WEEKS 에서 소속 주차를 찾음.
+  const backWeek = WEEKS.find((w) => w.steps.some((s) => s.id === id))?.week ?? 1;
+  const backHref = `/career-launch/week/${backWeek}`;
+  const backLabel = t(`${backWeek}주차`, `Week ${backWeek}`, `第${backWeek}周`, `Tuần ${backWeek}`, `${backWeek}週目`, `Minggu ${backWeek}`);
   const [done, setDone] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const quiz = lesson?.quiz ?? [];
@@ -61,8 +66,8 @@ export default function CultureLessonPage() {
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
+          <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {backLabel}
           </Link>
 
           {!lesson ? (
@@ -244,10 +249,10 @@ export default function CultureLessonPage() {
                     ✓ {t("학습 완료", "Lesson complete", "学习完成", "Hoàn thành bài học", "学習完了", "Pelajaran selesai")}
                   </div>
                   <Link
-                    href="/career-launch/dashboard"
+                    href={backHref}
                     className="flex items-center justify-center rounded-xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
                   >
-                    {t("대시보드로 →", "To dashboard →", "前往仪表盘 →", "Đến bảng điều khiển →", "ダッシュボードへ →", "Ke dasbor →")}
+                    {t(`${backLabel}로 →`, `To ${backLabel} →`, `返回${backLabel} →`, `Về ${backLabel} →`, `${backLabel}へ →`, `Ke ${backLabel} →`)}
                   </Link>
                 </div>
               ) : (

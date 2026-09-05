@@ -10,6 +10,7 @@ import { hasCoverContent } from "../../../../../lib/launch/cover-data";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
 import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
+import { useToast } from "../../../../../components/toast/ToastProvider";
 import { useJobReason, useStepText } from "../../../../../lib/launch/data-i18n";
 
 type Tab = "overview" | "growth" | "docs" | "interview" | "ops";
@@ -33,6 +34,7 @@ type ScoreData = { total?: number; why?: string; tips?: string[] };
 //   운영   — 독려 메일 · 운영자 메모 · 단계 초기화
 export default function LaunchOpsStudentDetailPage() {
   const t = useLaunchT();
+  const toast = useToast();
   const jobReason = useJobReason();
   const stepText = useStepText();
   const INTERVIEW_LABEL: Record<string, string> = {
@@ -78,7 +80,7 @@ export default function LaunchOpsStudentDetailPage() {
       await resetStudentStep(id, target);
       await load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("초기화에 실패했어요.", "Failed to reset.", "重置失败。", "Đặt lại không thành công.", "リセットに失敗しました。", "Gagal mereset."));
+      toast.error(e instanceof Error ? e.message : t("초기화에 실패했어요.", "Failed to reset.", "重置失败。", "Đặt lại không thành công.", "リセットに失敗しました。", "Gagal mereset."));
     } finally {
       setResetting("");
     }
@@ -95,13 +97,13 @@ export default function LaunchOpsStudentDetailPage() {
     try {
       const r = await nudgeStudents([id], message);
       await load();
-      alert(
-        r.delivery === "smtp"
-          ? t("독려 메일을 보냈어요.", "Reminder sent.", "已发送提醒邮件。", "Đã gửi email nhắc nhở.", "リマインダーを送信しました。", "Pengingat terkirim.")
-          : t("메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요(로그만 기록).", "SMTP isn't configured, so nothing was actually sent (logged only).", "未配置 SMTP，未实际发送（仅记录日志）。", "SMTP chưa cấu hình nên chưa gửi thật (chỉ ghi log).", "SMTPが未設定のため実際には送信されていません（ログのみ）。", "SMTP belum dikonfigurasi, jadi tidak terkirim (hanya dicatat).")
-      );
+      if (r.delivery === "smtp") {
+        toast.success(t("독려 메일을 보냈어요.", "Reminder sent.", "已发送提醒邮件。", "Đã gửi email nhắc nhở.", "リマインダーを送信しました。", "Pengingat terkirim."));
+      } else {
+        toast.info(t("메일 서버(SMTP)가 설정되지 않아 실제 발송은 되지 않았어요(로그만 기록).", "SMTP isn't configured, so nothing was actually sent (logged only).", "未配置 SMTP，未实际发送（仅记录日志）。", "SMTP chưa cấu hình nên chưa gửi thật (chỉ ghi log).", "SMTPが未設定のため実際には送信されていません（ログのみ）。", "SMTP belum dikonfigurasi, jadi tidak terkirim (hanya dicatat)."));
+      }
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
+      toast.error(e instanceof Error ? e.message : t("독려 메일 발송에 실패했어요.", "Failed to send reminder.", "发送提醒失败。", "Gửi nhắc nhở thất bại.", "リマインダー送信に失敗しました。", "Gagal mengirim pengingat."));
     } finally {
       setNudging(false);
     }
@@ -115,7 +117,7 @@ export default function LaunchOpsStudentDetailPage() {
       await saveStudentMemo(id, memo);
       setMemoSaved(true);
     } catch (e) {
-      alert(e instanceof Error ? e.message : t("메모를 저장하지 못했어요.", "Couldn't save the memo.", "无法保存备注。", "Không thể lưu ghi chú.", "メモを保存できませんでした。", "Gagal menyimpan memo."));
+      toast.error(e instanceof Error ? e.message : t("메모를 저장하지 못했어요.", "Couldn't save the memo.", "无法保存备注。", "Không thể lưu ghi chú.", "メモを保存できませんでした。", "Gagal menyimpan memo."));
     } finally {
       setMemoSaving(false);
     }

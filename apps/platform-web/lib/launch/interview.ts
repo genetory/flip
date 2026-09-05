@@ -21,6 +21,8 @@ function authHeaders(json = false): Record<string, string> {
 
 export type InterviewFocus = "self" | "job" | "fit" | "pressure";
 export type InterviewChatMsg = { role: "bot" | "user"; text: string };
+// 공고별 모의면접 — 특정 공고를 기준으로 질문. 없으면 일반 모의면접.
+export type InterviewJobPosting = { title?: string; company?: string; description?: string; requirements?: string[] };
 // 준비도 리포트 — 점수 없이 정성 피드백(마무리 시에만).
 export type InterviewReport = { strengths: string[]; improvements: string[]; modelAnswer: string };
 export type InterviewChatResult = { reply: string; done: boolean; report: InterviewReport | null };
@@ -33,11 +35,11 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return d;
 }
 
-export async function requestInterviewChat(messages: InterviewChatMsg[], focus: InterviewFocus): Promise<InterviewChatResult> {
+export async function requestInterviewChat(messages: InterviewChatMsg[], focus: InterviewFocus, jobPosting?: InterviewJobPosting): Promise<InterviewChatResult> {
   const d = await req("/career-launch/interview-chat", {
     method: "POST",
     headers: authHeaders(true),
-    body: JSON.stringify({ messages, focus, locale: "ko" })
+    body: JSON.stringify({ messages, focus, jobPosting, locale: "ko" })
   });
   const r = d.report && typeof d.report === "object" ? (d.report as Record<string, unknown>) : null;
   const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);

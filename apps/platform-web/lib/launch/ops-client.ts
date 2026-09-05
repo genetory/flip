@@ -317,3 +317,22 @@ export async function issueCertificate(cohortId: string, studentUserId: string):
 export async function revokeCertificate(cohortId: string, studentUserId: string): Promise<void> {
   await req(`/career-launch/ops/cohorts/${encodeURIComponent(cohortId)}/certificates/${encodeURIComponent(studentUserId)}`, { method: "DELETE", headers: authHeaders() });
 }
+
+// UX Phase 6 — 운영 홈 view model(주의 큐 + 핵심 지표). 원문·개인정보 미포함.
+export type AttentionItem = { type: string; label: string; count: number; oldestAgoHours: number; href: string; slaBreached: number };
+export type OperationHome = {
+  attentionQueue: { immediate: AttentionItem[]; today: AttentionItem[]; thisWeek: AttentionItem[] };
+  coreMetrics: {
+    enrolled: number; active: number; stalled: number; interventionNeeded: number;
+    week1CompletionRate: { pct: number; count: number; total: number };
+    packageRate: { pct: number; count: number };
+    initialMockRate: { pct: number; count: number };
+    finalMockRate: { pct: number; count: number };
+    completionRate: { pct: number; count: number };
+    targetConfirmed: number; totalLlmCostUsd: number;
+  };
+};
+export async function fetchOperationHome(): Promise<OperationHome> {
+  const d = await req("/career-launch/ops/operation-home", { headers: authHeaders() });
+  return d as unknown as OperationHome;
+}

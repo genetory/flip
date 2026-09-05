@@ -1,6 +1,6 @@
 // Experience Bank 채굴 — AI Career Coach 와 대화하며 경험 하나를 구조화한다.
 import { notifyAiBlocked } from "../ai-blocked";
-import type { ExperienceEntry } from "./progress-client";
+import type { ExperienceEntry, StrengthStory } from "./progress-client";
 
 const TOKEN_KEY = "platform_access_token";
 function apiBase(): string {
@@ -26,7 +26,7 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
 }
 
 export type ExpMiningMsg = { role: "bot" | "user"; text: string };
-export type ExpMiningResult = { reply: string; done: boolean; extracted: ExperienceEntry | null; experienceBank: ExperienceEntry[] };
+export type ExpMiningResult = { reply: string; done: boolean; extracted: ExperienceEntry | null; experienceBank: ExperienceEntry[]; choices: string[] };
 
 export async function requestExperienceMining(messages: ExpMiningMsg[], locale = "ko"): Promise<ExpMiningResult> {
   const d = await req("/career-launch/experience-mining", {
@@ -39,7 +39,21 @@ export async function requestExperienceMining(messages: ExpMiningMsg[], locale =
     reply: typeof d.reply === "string" ? d.reply : "",
     done: d.done === true,
     extracted: d.extracted && typeof d.extracted === "object" ? (d.extracted as ExperienceEntry) : null,
-    experienceBank: bank
+    experienceBank: bank,
+    choices: Array.isArray(d.choices) ? (d.choices.filter((c) => typeof c === "string") as string[]) : []
+  };
+}
+
+// Week 1 강점 스토리 — 경험을 면접·자소서용 짧은 이야기로 만든다(대화형).
+export type StrengthStoryResult = { reply: string; done: boolean; extracted: StrengthStory | null; strengthStories: StrengthStory[]; choices: string[] };
+export async function requestStrengthStory(messages: ExpMiningMsg[], locale = "ko"): Promise<StrengthStoryResult> {
+  const d = await req("/career-launch/strength-story", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ messages, locale }) });
+  return {
+    reply: typeof d.reply === "string" ? d.reply : "",
+    done: d.done === true,
+    extracted: d.extracted && typeof d.extracted === "object" ? (d.extracted as StrengthStory) : null,
+    strengthStories: Array.isArray(d.strengthStories) ? (d.strengthStories as StrengthStory[]) : [],
+    choices: Array.isArray(d.choices) ? (d.choices.filter((c) => typeof c === "string") as string[]) : []
   };
 }
 

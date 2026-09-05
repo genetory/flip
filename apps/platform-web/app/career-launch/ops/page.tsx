@@ -3,26 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Users, GraduationCap, ChartBar as BarChart3, SlidersHorizontal, ArrowRight } from "@phosphor-icons/react";
-import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../lib/launch/ops-client";
+import { fetchOpsStudents, studentProgress, fetchOperationHome, type OpsStudent, type OperationHome } from "../../../lib/launch/ops-client";
 import { fetchCohorts, type OpsCohort } from "../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../lib/launch/i18n";
+import { trackCareerFunnel } from "../../../lib/analytics";
 
-// Career Launch 운영 콘솔 대표 홈 — 핵심 지표 요약 + 섹션 바로가기 + 진행이 더딘 학생.
+// Career Launch 운영 현황 홈 — 오늘 확인할 항목(주의 큐) + 핵심 지표 + 섹션 바로가기.
 export default function LaunchOpsHomePage() {
   const t = useLaunchT();
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [cohorts, setCohorts] = useState<OpsCohort[]>([]);
+  const [attn, setAttn] = useState<OperationHome | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
+    trackCareerFunnel("career_admin_home_viewed");
     void (async () => {
       try {
-        const [s, c] = await Promise.all([fetchOpsStudents(), fetchCohorts().catch(() => [] as OpsCohort[])]);
+        const [s, c, a] = await Promise.all([fetchOpsStudents(), fetchCohorts().catch(() => [] as OpsCohort[]), fetchOperationHome().catch(() => null)]);
         if (alive) {
           setStudents(s);
           setCohorts(c);
+          setAttn(a);
         }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
@@ -77,7 +81,7 @@ export default function LaunchOpsHomePage() {
       href: "/career-launch/ops/report",
       icon: BarChart3,
       title: t("리포트", "Report", "报告", "Báo cáo", "レポート", "Laporan"),
-      desc: t("기수별 단계 완료율을 봐요", "Stage completion by cohort", "按期查看阶段完成率", "Tỷ lệ hoàn thành theo khóa", "期別の完了率を確認", "Tingkat penyelesaian per angkatan"),
+      desc: t("기수별 진행 현황을 봐요", "Cohort progress overview", "按期查看阶段完成率", "Tỷ lệ hoàn thành theo khóa", "期別の完了率を確認", "Tingkat penyelesaian per angkatan"),
       badge: t(`평균 ${stats.avgProgress}%`, `avg ${stats.avgProgress}%`, `平均${stats.avgProgress}%`, `TB ${stats.avgProgress}%`, `平均${stats.avgProgress}%`, `rata ${stats.avgProgress}%`),
       tone: "ops-pill-blue"
     },
@@ -102,9 +106,47 @@ export default function LaunchOpsHomePage() {
     <main className="pb-16 pt-6 md:pt-10">
       <section className="ops-content-section">
         <header>
-          <h1>{t("Launch 운영 콘솔", "Launch admin console", "Launch 运营控制台", "Bảng quản trị Launch", "Launch 運営コンソール", "Konsol admin Launch")}</h1>
-          <p>{t("기수·학생·피드백을 한곳에서 관리하고, 오늘 챙길 일을 바로 확인하세요.", "Manage cohorts, students, and feedback in one place, and see what needs attention today.", "在一处管理期次、学生与反馈，并查看今天要处理的事。", "Quản lý khóa, sinh viên và phản hồi ở một nơi, xem việc cần làm hôm nay.", "期・学生・フィードバックを一元管理し、今日やるべきことを確認しましょう。", "Kelola angkatan, siswa, dan umpan balik di satu tempat, lihat yang perlu ditangani hari ini.")}</p>
+          <h1>{t("운영 현황", "Operations", "运营现况", "Tình hình vận hành", "運営状況", "Operasi")}</h1>
+          <p>{t("오늘 먼저 도와야 할 학생부터 확인하세요.", "Start with the students who need help first today.", "先查看今天最需要帮助的学生。", "Bắt đầu với sinh viên cần giúp trước hôm nay.", "今日まず助けるべき学生から確認しましょう。", "Mulai dari siswa yang paling perlu dibantu hari ini.")}</p>
         </header>
+
+        {/* UX Phase 6 — 오늘 확인할 항목(주의 큐). 진행률 표보다 먼저. */}
+        {attn && (attn.attentionQueue.immediate.length > 0 || attn.attentionQueue.today.length > 0) ? (
+          <article className="ops-partner-list-card" style={{ borderColor: "rgba(240,68,82,0.25)" }}>
+            <div className="ops-partner-list-top">
+              <h2>{t("오늘 확인할 항목", "Today's priorities", "今天要确认的事", "Ưu tiên hôm nay", "今日確認する項目", "Prioritas hari ini")}</h2>
+              <Link href="/career-launch/ops/interventions" className="ops-btn">
+                {t("개입 목록", "Interventions", "介入列表", "Danh sách can thiệp", "介入リスト", "Daftar intervensi")}
+              </Link>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[...attn.attentionQueue.immediate.map((i) => ({ ...i, tier: "immediate" as const })), ...attn.attentionQueue.today.map((i) => ({ ...i, tier: "today" as const }))].map((i) => (
+                <Link
+                  key={i.type}
+                  href={i.href}
+                  onClick={() => trackCareerFunnel("career_admin_attention_item_clicked", { interventionReason: i.type })}
+                  style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, border: "1px solid var(--line)", background: i.tier === "immediate" ? "#FEF2F2" : "#fff", textDecoration: "none" }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: 999, flex: "none", background: i.tier === "immediate" ? "#F04452" : i.slaBreached ? "#C77700" : "#3182F6" }} />
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: "var(--ink)" }}>
+                      {i.label} · {i.count}명
+                    </span>
+                    <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "var(--ink-faint)" }}>
+                      {i.oldestAgoHours > 0 ? t(`가장 오래된 요청: ${i.oldestAgoHours}시간 전`, `Oldest: ${i.oldestAgoHours}h ago`, `最早：${i.oldestAgoHours}小时前`, `Cũ nhất: ${i.oldestAgoHours}h trước`, `最も古い: ${i.oldestAgoHours}時間前`, `Terlama: ${i.oldestAgoHours}j lalu`) : t("확인이 필요해요", "Needs review", "需要确认", "Cần xem", "確認が必要", "Perlu ditinjau")}
+                      {i.slaBreached ? " · SLA 초과" : ""}
+                    </span>
+                  </span>
+                  <ArrowRight size={15} color="var(--ink-faint)" />
+                </Link>
+              ))}
+            </div>
+          </article>
+        ) : attn ? (
+          <article className="ops-partner-list-card">
+            <p style={{ padding: "8px 4px", fontSize: 13.5, color: "var(--ink-soft)" }}>{t("지금 바로 확인해야 할 학생은 없어요.", "No students need immediate attention right now.", "目前没有需要立即处理的学生。", "Hiện không có sinh viên cần xử lý ngay.", "今すぐ確認が必要な学生はいません。", "Tidak ada siswa yang perlu ditangani segera.")}</p>
+          </article>
+        ) : null}
 
         {error ? (
           <p className="ops-error-card">

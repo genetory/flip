@@ -147,7 +147,7 @@ export default function CohortOutcomeReportPage() {
               <p className="rp-method-title">산출 근거 · 방법론</p>
               <ul className="rp-method-list">
                 <li>
-                  <strong>취업 준비도</strong>는 AI 자가진단(경력 · 어학 · 비자 · 직무 이해 · 서류 · 면접 준비)으로 <strong>사전 · 사후 2회 측정</strong>합니다. 학생들이 4주 커리큘럼(취업 진단 → 직무 선정 → 이력서 → 자기소개서 → 모의면접 3라운드)을 완주하며{" "}
+                  <strong>취업 준비도</strong>는 AI 취업 준비도 측정(경력 · 어학 · 비자 · 직무 이해 · 서류 · 면접 준비)으로 <strong>사전 · 사후 2회 측정</strong>합니다. 학생들이 4주 커리큘럼(취업 진단 → 직무 선정 → 이력서 → 자기소개서 → 모의면접 3라운드)을 완주하며{" "}
                   <strong>
                     {summary.avgBefore}% → {summary.avgAfter}% (+{summary.avgGain}%p)
                   </strong>{" "}

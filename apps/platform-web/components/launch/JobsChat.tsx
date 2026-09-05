@@ -1,13 +1,14 @@
 "use client";
-import { CaretLeft, X } from "@phosphor-icons/react";
+import { CaretLeft, X, PaperPlaneRight } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { RichText } from "./rich-text";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../lib/launch/progress-client";
-import { trackCareerStepComplete } from "../../lib/analytics";
+import { trackCareerStepComplete, trackCareerFunnel } from "../../lib/analytics";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
+import { CoachingIntroScreen } from "./coaching/CoachingSessionShell";
 import { RealOpeningsPreview } from "./RealOpeningsPreview";
 import { AplyFooter } from "../AplyFooter";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -29,6 +30,8 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const startedRef = useRef(false);
+  // UX Phase 3 — 빈 채팅창으로 시작하지 않도록 상담 시작 화면(CoachingIntroScreen)으로 게이트.
+  const [started, setStarted] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [shownRoles, setShownRoles] = useState<string[]>([]);
@@ -44,13 +47,15 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   const [saved, setSaved] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState("");
+  // AI 가 선택형 질문을 하면 그 보기들 — 탭하면 그 답으로 전송.
+  const [choices, setChoices] = useState<string[]>([]);
 
   const endRef = useRef<HTMLDivElement>(null);
 
   const rolesToJobs = (roles: string[]): RecommendedJob[] =>
     roles.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((j): j is RecommendedJob => Boolean(j));
 
-  const appendFromAi = (reply: string, recommend: string[]) => {
+  const appendFromAi = (reply: string, recommend: string[], choicesArg: string[] = []) => {
     setMessages((m) => {
       const add: Msg[] = [];
       if (reply) add.push({ role: "bot", kind: "text", text: reply });
@@ -59,11 +64,12 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
       return [...m, ...add];
     });
     if (recommend.length) setShownRoles((prev) => Array.from(new Set([...prev, ...recommend])));
+    setChoices(choicesArg);
   };
 
-  // 진입 — 세션 로딩 후 1회. AI에게 첫 인사·질문을 요청한다. ?restart=1 이면 선택 초기화.
+  // 진입 — 상담 시작(사용자가 시작 버튼 클릭) 후 1회. AI에게 첫 인사·질문을 요청한다. ?restart=1 이면 선택 초기화.
   useEffect(() => {
-    if (!isReady || startedRef.current) return;
+    if (!isReady || !started || startedRef.current) return;
     startedRef.current = true;
     const restart = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("restart") === "1";
     setLoading(true);
@@ -79,8 +85,8 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
       }
       setSelected(sel);
       try {
-        const { reply, recommend } = await requestJobChat([], sel);
-        appendFromAi(reply || t(`${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, `Hi ${displayName} 👋 Tell me freely what kind of work interests you?`, `${displayName}，你好 👋 可以随意告诉我你对什么样的工作感兴趣吗？`, `Chào ${displayName} 👋 Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào nhé?`, `${displayName}さん、こんにちは 👋 どんな仕事に興味があるか気軽に教えてくれますか？`, `Hai ${displayName} 👋 Ceritakan dengan santai pekerjaan seperti apa yang kamu minati?`), recommend);
+        const { reply, recommend, choices: ch } = await requestJobChat([], sel);
+        appendFromAi(reply || t(`${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, `Hi ${displayName} 👋 Tell me freely what kind of work interests you?`, `${displayName}，你好 👋 可以随意告诉我你对什么样的工作感兴趣吗？`, `Chào ${displayName} 👋 Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào nhé?`, `${displayName}さん、こんにちは 👋 どんな仕事に興味があるか気軽に教えてくれますか？`, `Hai ${displayName} 👋 Ceritakan dengan santai pekerjaan seperti apa yang kamu minati?`), recommend, ch);
       } catch {
         setMessages([{ role: "bot", kind: "text", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
@@ -88,17 +94,23 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady]);
+  }, [isReady, started]);
+
+  // 상담 시작 화면 노출 계측.
+  useEffect(() => {
+    if (isReady && !started) trackCareerFunnel("career_coaching_intro_viewed", { sessionType: "job_decision", week: 1 });
+  }, [isReady, started]);
 
   useEffect(() => {
-    const _sc = endRef.current?.parentElement;
-    if (_sc) _sc.scrollTo({ top: _sc.scrollHeight, behavior: "smooth" });
+    // 내부 고정 스크롤 박스를 없애 컨텐츠가 페이지 스크롤에 함께 흐르도록 함(첫 커리어 상담과 동일).
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [messages, loading]);
 
   const send = (raw: string) => {
     const a = raw.trim();
     if (!a || loading) return;
     setInput("");
+    setChoices([]); // 답을 보내면 이전 선택지는 치운다(다음 AI 응답이 새로 채움).
     const nextMsgs: Msg[] = [...messages, { role: "user", kind: "text", text: a }];
     setMessages(nextMsgs);
     setLoading(true);
@@ -107,11 +119,15 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
         const history: JobChatMsg[] = nextMsgs
           .filter((m): m is Extract<Msg, { kind: "text" }> => m.kind === "text")
           .map((m) => ({ role: m.role, text: m.text }));
-        const { reply, recommend } = await requestJobChat(history, selected, shownRoles);
-        appendFromAi(reply, recommend);
+        const { reply, recommend, choices: ch } = await requestJobChat(history, selected, shownRoles);
+        appendFromAi(reply, recommend, ch);
+        // Phase 9 — AI 응답 성공(신뢰성 측정). 원문 미포함.
+        trackCareerFunnel("career_coaching_response_completed", { sessionType: "job_decision", week: 1 });
       } catch (e) {
         const quota = e instanceof Error && /quota|402|포인트|ticket/i.test(e.message);
-        setMessages((m) => [...m, { role: "bot", kind: "text", text: quota ? t("AI 포인트를 모두 사용했어요. 충전 후 다시 시도해 주세요.", "You've used all your AI points. Please recharge and try again.", "AI 积分已用完，请充值后再试。", "Bạn đã dùng hết điểm AI. Vui lòng nạp thêm và thử lại.", "AIポイントを使い切りました。チャージ後にもう一度お試しください。", "Poin AI habis. Silakan isi ulang lalu coba lagi.") : t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
+        // Phase 9 — AI 응답 실패(신뢰성 측정). 사용자 입력·기록은 유지된다.
+        trackCareerFunnel("career_coaching_response_failed", { sessionType: "job_decision", week: 1, errorType: quota ? "quota" : "unknown" });
+        setMessages((m) => [...m, { role: "bot", kind: "text", text: quota ? t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.") : t("잠시 문제가 생겼어요 😥 다시 한 번 말해줄래요?", "Something went wrong 😥 Could you say that once more?", "出了点问题 😥 可以再说一次吗？", "Có chút trục trặc 😥 Bạn nói lại một lần nữa nhé?", "少し問題が発生しました 😥 もう一度言っていただけますか？", "Ada sedikit masalah 😥 Bisa ulangi sekali lagi?") }]);
       } finally {
         setLoading(false);
       }
@@ -165,8 +181,8 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
     setLoading(true);
     void (async () => {
       try {
-        const { reply, recommend } = await requestJobChat([], []);
-        appendFromAi(reply || t(`${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, `Shall we chat again, ${displayName}? Tell me freely what kind of work interests you 👋`, `${displayName}，我们再聊聊吧？可以随意告诉我你对什么样的工作感兴趣 👋`, `Cùng trò chuyện lại nhé ${displayName}? Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào 👋`, `${displayName}さん、もう一度話しましょうか？どんな仕事に興味があるか気軽に教えてください 👋`, `Yuk ngobrol lagi, ${displayName}? Ceritakan dengan santai pekerjaan seperti apa yang kamu minati 👋`), recommend);
+        const { reply, recommend, choices: ch } = await requestJobChat([], []);
+        appendFromAi(reply || t(`${displayName}님, 다시 이야기 나눠볼까요? 어떤 일에 관심이 있는지 편하게 들려주세요 👋`, `Shall we chat again, ${displayName}? Tell me freely what kind of work interests you 👋`, `${displayName}，我们再聊聊吧？可以随意告诉我你对什么样的工作感兴趣 👋`, `Cùng trò chuyện lại nhé ${displayName}? Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào 👋`, `${displayName}さん、もう一度話しましょうか？どんな仕事に興味があるか気軽に教えてください 👋`, `Yuk ngobrol lagi, ${displayName}? Ceritakan dengan santai pekerjaan seperti apa yang kamu minati 👋`), recommend, ch);
       } catch {
         setMessages([{ role: "bot", kind: "text", text: t("지금은 대화를 시작하기 어려워요 😥 잠시 후 다시 들어와줄래요?", "We can't start the chat right now 😥 Could you come back in a moment?", "现在无法开始对话 😥 请稍后再进来好吗？", "Hiện chưa thể bắt đầu trò chuyện 😥 Bạn quay lại sau một lát nhé?", "今は会話を開始できません 😥 少し経ってからもう一度来ていただけますか？", "Saat ini belum bisa memulai obrolan 😥 Bisa kembali lagi sebentar lagi?") }]);
       } finally {
@@ -178,6 +194,39 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   // 마지막 추천 묶음 인덱스 — 그 아래에만 '다른 직무 보기 / 직접 입력'을 붙인다.
   const lastJobsIdx = messages.reduce((acc, m, i) => (m.kind === "jobs" ? i : acc), -1);
 
+  // UX Phase 3 — 상담 시작 화면(빈 채팅창으로 시작하지 않음). 시작 클릭 시 실제 상담 진입.
+  if (!started) {
+    return (
+      <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+        {embedded ? (
+          <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
+            <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("1:1 커리어 상담", "1:1 career coaching", "1:1 职业咨询", "Tư vấn nghề 1:1", "1:1キャリア相談", "Konseling karier 1:1")}</p>
+            <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-full text-[#4E5968] transition hover:bg-[#F6F8FB]"><X className="h-5 w-5" weight="bold" /></button>
+          </div>
+        ) : (
+          <CareerLaunchHeader />
+        )}
+        <main className={embedded ? "flex-1 overflow-y-auto" : "flex-1"}>
+          <CoachingIntroScreen
+            intro={{
+              title: t("관심 직무 3개 정하기", "Choose 3 target roles", "确定3个目标职务", "Chọn 3 nghề mục tiêu", "関心のある職種を3つ決める", "Pilih 3 peran target"),
+              problem: t("강점과 관심을 바탕으로 어울리는 목표 직무를 함께 좁혀요.", "We'll narrow down target roles that fit your strengths and interests.", "根据你的优势和兴趣，一起缩小合适的目标职务。", "Cùng thu hẹp nghề mục tiêu phù hợp với điểm mạnh và sở thích của bạn.", "強みと関心をもとに、合う目標職種を一緒に絞ります。", "Kita persempit peran target yang cocok dengan kelebihan dan minatmu."),
+              estimateText: t("핵심 질문 2~3개 정도", "About 2–3 key questions", "大约2~3个关键问题", "Khoảng 2–3 câu hỏi chính", "主要な質問2～3個ほど", "Sekitar 2–3 pertanyaan inti"),
+              artifactLabel: t("목표 직무 후보 3개", "3 target role candidates", "3个目标职务候选", "3 nghề mục tiêu ứng viên", "目標職種候補3つ", "3 kandidat peran target"),
+              known: [],
+              toConfirm: [t("관심 있는 일의 방향", "Direction of work you're interested in", "感兴趣的工作方向", "Hướng công việc bạn quan tâm", "関心のある仕事の方向", "Arah pekerjaan yang diminati"), t("해봤거나 잘하는 것", "What you've done or are good at", "做过或擅长的事", "Điều bạn từng làm hoặc giỏi", "やったことや得意なこと", "Yang pernah kamu lakukan atau kuasai")],
+              ctaLabel: t("상담 시작하기", "Start coaching", "开始咨询", "Bắt đầu tư vấn", "相談を始める", "Mulai konseling")
+            }}
+            onStart={() => {
+              setStarted(true);
+              trackCareerFunnel("career_coaching_started", { sessionType: "job_decision", week: 1 });
+            }}
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
       {embedded ? (
@@ -188,32 +237,17 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
       ) : (
         <CareerLaunchHeader />
       )}
-      <main className="flex-1">
-        <div className="mx-auto flex h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col px-5 pb-4 pt-4 md:pt-6">
-          {/* 헤더 */}
-          <div className="flex items-center justify-between gap-3">
-            {embedded ? null : (
-            <>
-            <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
-            </Link>
-            <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
-            </>
-            )}
-            <div className="flex items-center gap-2.5">
-              <span className="text-[12px] font-bold text-[#0B46E8]">{selected.length}/{MAX_PICK} {t("선택", "selected", "已选", "đã chọn", "選択", "dipilih")}</span>
-              {!saved ? (
-                <button
-                  type="button"
-                  onClick={() => send("이 부분은 넘어가고 다음으로 진행해줘.")}
-                  disabled={loading}
-                  className="rounded-full border border-[#D7DCE3] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8] disabled:opacity-40"
-                >
-                  {t("넘어가기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")} ⏭
-                </button>
-              ) : null}
+      <main className={embedded ? "flex-1 overflow-y-auto" : "flex-1"}>
+        <div className="mx-auto flex w-full max-w-5xl flex-col px-5 pb-28 pt-4 md:pb-40 md:pt-6">
+          {/* 헤더 — 첫 커리어 상담과 동일: 페이지일 때만 1주차·종료하고 나가기(모달은 상단바 X로 나감) */}
+          {embedded ? null : (
+            <div className="flex items-center justify-between gap-3">
+              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+              </Link>
+              <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
-          </div>
+          )}
           <div className="mt-3.5">
             <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 관심 직무", "Week 1 · Jobs", "第1周 · 职务", "Tuần 1 · Công việc", "Week 1 · 職務", "Minggu 1 · Pekerjaan")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</h1>
@@ -221,26 +255,26 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
           </div>
 
           {/* 대화 */}
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-[#EEF1F5] bg-[#F8FAFC] p-4">
+          <div className="mt-4 min-h-[42vh] space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
             {messages.map((m, i) => {
               if (m.kind === "text") {
                 return m.role === "bot" ? (
                   <div key={i} className="flex items-end gap-2">
-                    <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                    <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                    <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
                       <RichText text={m.text} />
                     </div>
                   </div>
                 ) : (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white"><RichText text={m.text} /></div>
+                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
                   </div>
                 );
               }
               // 추천 직무 묶음(채팅 안에서 바로 선택)
               return (
                 <div key={i} className="flex items-start gap-2">
-                  <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                  <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="grid w-full max-w-[88%] gap-2">
                     {m.jobs.map((job) => {
                       const isSel = selected.includes(job.role);
@@ -327,12 +361,27 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
             })}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
                 <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
                 </div>
+              </div>
+            ) : null}
+            {/* AI 선택형 질문의 보기 — 말풍선 아래에 탭 버튼으로(입력창 옆 빠른응답과 구분) */}
+            {choices.length > 0 && !loading ? (
+              <div className="flex flex-wrap gap-1.5 pl-10">
+                {choices.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => send(c)}
+                    className="rounded-full border border-[#0B46E8]/30 bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
             ) : null}
             <div ref={endRef} />
@@ -344,10 +393,26 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
             <div className="mt-3 flex flex-col gap-3">
               <RealOpeningsPreview roles={selected} />
               <div className="flex flex-col gap-2 sm:flex-row">
+                {embedded ? (
+                  <button
+                    type="button"
+                    onClick={() => onClose?.()}
+                    className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  >
+                    {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
+                  </button>
+                ) : (
+                  <Link
+                    href="/career-launch/week/1"
+                    className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  >
+                    {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={restartChat}
-                  className="flex h-[46px] items-center justify-center rounded-xl border border-[#D7DCE3] bg-white px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                  className="h-[46px] shrink-0 rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
                 >
                   {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
                 </button>
@@ -367,55 +432,64 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                       key={q.send}
                       type="button"
                       onClick={() => send(q.send)}
-                      className="rounded-full border border-[#D7DCE3] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8] hover:text-[#0B46E8]"
+                      className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
                     >
                       {q.label}
                     </button>
                   ))}
                 </div>
               ) : null}
-              <div className="flex items-end gap-2">
-              <form
-                className="flex flex-1 items-end gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  send(input);
-                }}
-              >
-                <textarea ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
-                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                      e.preventDefault();
-                      send(input);
-                    }
+              {/* 통합 입력 바(텍스트필드+전송 44px 정렬). '선정 완료'는 전체폭 하단 행으로 분리해 높이 충돌 제거. */}
+              <div className="space-y-2">
+                <form
+                  className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    send(input);
                   }}
-                  rows={1}
-                  placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
-                  disabled={loading}
-                  className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] transition focus:border-[#0B46E8] focus:outline-none disabled:bg-[#F8FAFC]"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || loading}
-                  className={`h-[46px] shrink-0 rounded-xl px-4 text-[14px] font-bold transition ${
-                    input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
-                  }`}
                 >
-                  {t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
-                </button>
-              </form>
-              {selected.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={save}
-                  className="h-[46px] shrink-0 rounded-xl bg-[#B7FF5A] px-4 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
-                >
-                  {t("선정 완료", "Confirm selection", "完成选择", "Hoàn tất chọn", "選定完了", "Selesai memilih")} ({selected.length})
-                </button>
-              ) : null}
+                  <textarea ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      // 한글 IME 조합 중 Enter 는 무시(마지막 글자 중복 방지)
+                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        send(input);
+                      }
+                    }}
+                    rows={1}
+                    placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
+                    disabled={loading}
+                    className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || loading}
+                    aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
+                      input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"
+                    }`}
+                  >
+                    <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
+                  </button>
+                </form>
+                {selected.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-center text-[11.5px] text-[#8B95A1]">
+                      {selected.length < MAX_PICK
+                        ? t(`최대 ${MAX_PICK}개까지 더 골라도 되고, 이대로 완료해도 돼요`, `Pick up to ${MAX_PICK}, or finish as is`, `最多可选${MAX_PICK}个，也可就此完成`, `Chọn tối đa ${MAX_PICK}, hoặc hoàn tất luôn`, `最大${MAX_PICK}個まで、このまま完了もOK`, `Pilih hingga ${MAX_PICK}, atau selesai begini`)
+                        : t("3개 다 골랐어요 👍", "All 3 picked 👍", "已选满3个 👍", "Đã chọn đủ 3 👍", "3つ選びました 👍", "Sudah pilih 3 👍")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={save}
+                      className="w-full rounded-xl bg-[#B7FF5A] px-4 py-3 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
+                    >
+                      {t("선정 완료", "Confirm selection", "完成选择", "Hoàn tất chọn", "選定完了", "Selesai memilih")} ({selected.length}/{MAX_PICK})
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           )}

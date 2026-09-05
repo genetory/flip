@@ -7,6 +7,7 @@ import { CareerLaunchLoginPage } from "../../components/launch/CareerLaunchLogin
 import { EnrollmentGate } from "../../components/launch/enrollment-gate";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
+import { trackCareerFunnel } from "../../lib/analytics";
 
 // 진입 게이트 3단계 — 어느 상태에서든 "무슨 서비스인지" 인지되도록 소개를 함께 노출한다.
 //  1) 비로그인       → 서비스 소개 + 로그인 (CareerLaunchLoginPage)
@@ -15,6 +16,11 @@ import { useLaunchT } from "../../lib/launch/i18n";
 export default function LaunchEntryRoute() {
   const t = useLaunchT();
   const { isReady, isAuthenticated } = useAuthSession();
+
+  // Phase 9 — Career Launch 유입(페이지 조회) 1회 계측. 실제 시작(started)과 구분.
+  useEffect(() => {
+    trackCareerFunnel("career_launch_viewed");
+  }, []);
 
   if (!isReady) return <FullscreenSpinner label={t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")} />;
   // 비로그인 → 로그인(소개 포함).

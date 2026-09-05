@@ -160,7 +160,7 @@ export default function CareerSurveyPage() {
                   type="button"
                   onClick={() => void submit()}
                   disabled={saving}
-                  className="mt-5 w-full rounded-xl bg-[#3182f6] px-4 py-3 text-[14px] font-bold text-white transition-all active:scale-[0.98] disabled:opacity-60"
+                  className="mt-5 w-full rounded-xl bg-[#3182f6] px-4 py-3 text-[14px] font-bold text-white transition-all disabled:opacity-60"
                 >
                   {saving ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("제출하기", "Submit", "提交", "Gửi", "送信する", "Kirim")}
                 </button>

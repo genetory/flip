@@ -11,6 +11,10 @@ import {
   FileText,
   SlidersHorizontal,
   ChartBar as BarChart3,
+  Rocket,
+  Buildings,
+  Lifebuoy as LifeBuoy,
+  Bank as University,
   CaretDown as ChevronDown,
   type Icon as LucideIcon
 } from "@phosphor-icons/react";
@@ -47,6 +51,12 @@ function useOpsNav() {
           href: "/career-launch/ops/students",
           label: t("학생 현황", "Student status", "学生状态", "Tình trạng sinh viên", "学生の状況", "Status siswa"),
           icon: Users
+        },
+        {
+          // 코치 개입 — 위험 신호 학생 대응. 기존엔 ops 홈 본문에서만 진입 가능했음(발견성 보강).
+          href: "/career-launch/ops/interventions",
+          label: t("코치 개입", "Interventions", "教练介入", "Can thiệp", "コーチ介入", "Intervensi"),
+          icon: LifeBuoy
         }
       ]
     },
@@ -54,6 +64,11 @@ function useOpsNav() {
       key: "program",
       title: t("프로그램 운영", "Program operations", "项目运营", "Vận hành chương trình", "プログラム運営", "Operasi program"),
       items: [
+        {
+          href: "/career-launch/ops/orgs",
+          label: t("기관(B2B)", "Organizations", "机构(B2B)", "Tổ chức (B2B)", "機関(B2B)", "Organisasi"),
+          icon: Buildings
+        },
         {
           href: "/career-launch/ops/cohorts",
           label: t("기수 관리", "Cohorts", "期次管理", "Quản lý khóa", "期の管理", "Angkatan"),
@@ -79,6 +94,17 @@ function useOpsNav() {
           href: "/career-launch/ops/report",
           label: t("리포트", "Report", "报告", "Báo cáo", "レポート", "Laporan"),
           icon: BarChart3
+        },
+        {
+          href: "/career-launch/ops/pilot",
+          label: t("파일럿 운영", "Pilot ops", "试点运营", "Vận hành thí điểm", "パイロット運営", "Operasi pilot"),
+          icon: Rocket
+        },
+        {
+          // 대학 B2B 판매·재계약용 롤업 대시보드(기관 orgs와 별개 — University→Talent→Hire 퍼널).
+          href: "/career-launch/ops/university",
+          label: t("대학 리포트", "University", "大学报告", "Báo cáo ĐH", "大学レポート", "Laporan universitas"),
+          icon: University
         }
       ]
     }

@@ -80,9 +80,34 @@ model User {
   careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
   careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
   careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
+  careerProfile                        CareerProfile?                @relation("CareerProfileStudent")
+  careerProfileEvents                  CareerProfileEvent[]          @relation("CareerProfileEventStudent")
+  careerExperiences                    CareerExperience[]            @relation("CareerExperienceStudent")
+  careerJobTrials                      CareerJobTrial[]              @relation("CareerJobTrialStudent")
+  careerTargetJobs                     CareerTargetJob[]             @relation("CareerTargetJobStudent")
+  careerJobDecisionReport              CareerJobDecisionReport?      @relation("CareerJobDecisionReportStudent")
+  careerApplicationTargets             CareerApplicationTarget[]     @relation("CareerApplicationTargetStudent")
+  careerDocumentVersions               CareerDocumentVersion[]       @relation("CareerDocumentVersionStudent")
+  careerApplicationPackages            CareerApplicationPackage[]    @relation("CareerApplicationPackageStudent")
+  careerInterviewQuestionSets          CareerInterviewQuestionSet[]  @relation("CareerInterviewQuestionSetStudent")
+  careerInterviewSessions              CareerInterviewSession[]      @relation("CareerInterviewSessionStudent")
+  careerInterviewQuestions             CareerInterviewQuestion[]     @relation("CareerInterviewQuestionStudent")
+  careerInterviewAnswers               CareerInterviewAnswer[]       @relation("CareerInterviewAnswerStudent")
+  careerInterviewWeaknesses            CareerInterviewWeakness[]     @relation("CareerInterviewWeaknessStudent")
+  careerInterviewCorrections           CareerInterviewCorrection[]   @relation("CareerInterviewCorrectionStudent")
+  careerInterviewCorrectionAttempts    CareerInterviewCorrectionAttempt[] @relation("CareerInterviewCorrectionAttemptStudent")
+  careerInterviewGrowthReport          CareerInterviewGrowthReport?  @relation("CareerInterviewGrowthReportStudent")
+  careerLeagueScores                   CareerLeagueScore[]           @relation("CareerLeagueScoreStudent")
+  careerAchievements                   CareerAchievement[]           @relation("CareerAchievementStudent")
+  careerInterventions                  CareerIntervention[]          @relation("CareerInterventionStudent")
   careerEnrollments                    CareerEnrollment[]            @relation("CareerEnrollmentStudent")
   careerEmploymentOutcomes             CareerEmploymentOutcome[]     @relation("CareerEmploymentOutcomeStudent")
   careerLaunchSatisfactions            CareerLaunchSatisfaction[]    @relation("CareerLaunchSatisfactionStudent")
+  careerPilotSurveys                   CareerPilotSurvey[]           @relation("CareerPilotSurveyStudent")
+  careerQualitativeFeedbacks           CareerQualitativeFeedback[]   @relation("CareerQualitativeFeedbackStudent")
+  careerActivityEvents                 CareerActivityEvent[]         @relation("CareerActivityEventStudent")
+  organizationMemberships              OrganizationMembership[]      @relation("OrgMembershipUser")
+  careerStaffAssignments               CareerStaffAssignment[]       @relation("CareerStaffAssignmentUser")
   careerLaunchCertificatesReceived     CareerLaunchCertificate[]     @relation("CareerLaunchCertificateStudent")
   careerLaunchCertificatesIssued       CareerLaunchCertificate[]     @relation("CareerLaunchCertificateIssuer")
   certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
@@ -956,11 +981,585 @@ model CareerLaunchProgress {
   student User @relation("CareerLaunchProgressStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 }
 
+// 공통 Career Profile(Phase 2) — 진단·직무·이력서·자소서·모의면접이 공유하는 구조화 프로필.
+// data: { areas: {areaKey -> Field|Field[]}, rejected: [...] }. 기존 3개 소스에서 최초 1회 병합(mergedAt).
+// 원본(CareerResumeData/CareerCoverLetterData/CareerLaunchProgress)은 그대로 유지한다.
+model CareerProfile {
+  id            String    @id @default(uuid())
+  studentUserId String    @unique
+  data          Json      @default("{}")
+  revision      Int       @default(0) // 낙관적 동시성/병합 버전
+  mergedAt      DateTime? // 기존 데이터 최초 병합 시각(1회)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student User @relation("CareerProfileStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Career Profile 변경 이력(감사 + 거부 해석 추적). 영역·값 단위로만 기록한다.
+model CareerProfileEvent {
+  id            String   @id @default(uuid())
+  studentUserId String
+  area          String
+  itemKey       String?
+  action        String // init_merge | confirm | infer | reject | conflict | update | outdate
+  status        String?
+  source        String?
+  before        Json?
+  after         Json?
+  createdAt     DateTime @default(now())
+
+  student User @relation("CareerProfileEventStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId, createdAt])
+  @@index([studentUserId, area])
+}
+
+// Week 1(직무 탐험, Phase 4) — 대표 경험 카드. 학생당 다건. 구조화 STAR + 역량/강점/직무군.
+model CareerExperience {
+  id                 String    @id @default(uuid())
+  studentUserId      String
+  cohortId           String?
+  title              String
+  category           String?
+  structuredData     Json      @default("{}") // { situation, task, actions[], result, evidence }
+  skills             String[]  @default([])
+  strengths          String[]  @default([])
+  relatedJobFamilies String[]  @default([])
+  source             String?
+  confidence         Float?
+  userConfirmed      Boolean   @default(false)
+  confirmedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  student User @relation("CareerExperienceStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+}
+
+// Week 1 — 직무 미니체험. (studentUserId, jobKey) 당 1행(재시작=덮어쓰기, 멱등).
+model CareerJobTrial {
+  id             String    @id @default(uuid())
+  studentUserId  String
+  cohortId       String?
+  jobKey         String
+  templateId     String
+  status         String    @default("in_progress") // in_progress | submitted | evaluated
+  difficulty     String    @default("medium")
+  promptData     Json      @default("{}")
+  submissionData Json?
+  evaluationData Json?
+  score          Int?
+  interestScore  Int?
+  interestData   Json?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student User @relation("CareerJobTrialStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, jobKey])
+  @@index([studentUserId])
+}
+
+// Week 1 — 목표/도전/대안 직무. (studentUserId, jobKey) 당 1행.
+model CareerTargetJob {
+  id            String    @id @default(uuid())
+  studentUserId String
+  cohortId      String?
+  jobKey        String
+  targetType    String    @default("primary") // primary | challenge | alternative
+  status        String    @default("provisional") // provisional | exploring | confirmed | rejected
+  reason        String?
+  readinessData Json?
+  confirmedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student User @relation("CareerTargetJobStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, jobKey])
+  @@index([studentUserId])
+}
+
+// Week 1 — 직무 결정 리포트(학생당 1, 재생성 upsert).
+model CareerJobDecisionReport {
+  id             String   @id @default(uuid())
+  studentUserId  String   @unique
+  cohortId       String?
+  comparedJobs   Json     @default("[]")
+  recommendation Json     @default("{}")
+  evidence       Json     @default("[]")
+  concerns       Json     @default("[]")
+  nextActions    Json     @default("[]")
+  userDecision   Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  student User @relation("CareerJobDecisionReportStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Week 2(지원 패키지, Phase 5) — 기준 채용공고. 원문(rawContent)과 AI 구조화/분석을 분리 저장.
+model CareerApplicationTarget {
+  id             String    @id @default(uuid())
+  studentUserId  String
+  cohortId       String?
+  positionId     String? // APLY 내부 공고면 느슨 참조(FK 아님)
+  sourceType     String    @default("paste") // internal | saved | url | paste | manual
+  sourceUrl      String?
+  companyName    String?
+  jobTitle       String?
+  rawContent     String? // 원문
+  structuredData Json      @default("{}") // JdStructured
+  analysisData   Json? // JdAnalysis
+  status         String    @default("captured") // captured | structured | analyzed
+  capturedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student User @relation("CareerApplicationTargetStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+}
+
+// Week 2 — 문서 버전(대표/공고맞춤). 대표 이력서를 덮어쓰지 않고 별도 버전으로 관리.
+model CareerDocumentVersion {
+  id                  String    @id @default(uuid())
+  studentUserId       String
+  cohortId            String?
+  documentType        String // resume | cover
+  variant             String    @default("master") // master | targeted
+  applicationTargetId String? // targeted 면 어느 공고 기준
+  version             Int       @default(1)
+  content             Json      @default("{}") // ResumeVersionContent | CoverVersionContent
+  sourceLinks         Json      @default("[]") // SourceLink[] — 문장별 근거/검증
+  validationData      Json? // 검증 집계
+  generatedBy         String? // ai | user | hybrid
+  promptVersion       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student User @relation("CareerDocumentVersionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId, documentType])
+  @@index([studentUserId, applicationTargetId])
+}
+
+// Week 2 — 지원 패키지(공고당 1). 이력서·자소서 버전 + 점수 + 검증 + 최종 확정.
+model CareerApplicationPackage {
+  id                  String    @id @default(uuid())
+  studentUserId       String
+  cohortId            String?
+  targetJobKey        String? // Week1 목표 직무군
+  applicationTargetId String
+  resumeVersionId     String?
+  coverVersionId      String?
+  status              String    @default("draft") // draft | checking | finalized
+  readinessScore      Int?
+  scoreData           Json? // { resume, cover, jdMatch, readiness }
+  validationData      Json? // consistency findings 요약
+  finalizedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student User @relation("CareerApplicationPackageStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, applicationTargetId])
+  @@index([studentUserId])
+}
+
+// Week 2 → Week 3 인계 — 예상 면접 질문 세트(생성·저장까지만, 진행은 Phase 6).
+model CareerInterviewQuestionSet {
+  id                   String   @id @default(uuid())
+  studentUserId        String
+  cohortId             String?
+  applicationPackageId String?
+  questions            Json     @default("[]") // InterviewQuestion[]
+  promptVersion        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  student User @relation("CareerInterviewQuestionSetStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+}
+
+// Week 3~4(실전 모의면접, Phase 6) — 면접 세션.
+model CareerInterviewSession {
+  id                   String    @id @default(uuid())
+  studentUserId        String
+  cohortId             String?
+  applicationPackageId String?
+  sessionType          String    @default("initial_mock") // initial_mock | practice | retry | final_mock
+  status               String    @default("ready") // ready | in_progress | paused | completed | abandoned | failed
+  inputMode            String    @default("text") // text | voice_to_text
+  questionSetVersion   String?
+  scoringVersion       String?
+  promptVersion        String?
+  reportData           Json? // 세션 종합 평가/리포트 캐시
+  cursor               Int       @default(0) // 진행 커서(다음 질문)
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  student User @relation("CareerInterviewSessionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId, sessionType])
+}
+
+// Week 3~4 — 세션 질문(꼬리질문은 parentQuestionId).
+model CareerInterviewQuestion {
+  id                 String   @id @default(uuid())
+  studentUserId      String
+  sessionId          String
+  sourceQuestionId   String? // Phase5 예상질문 등 원본
+  question           String
+  type               String
+  sourceData         Json? // 생성 근거
+  evaluationCriteria Json      @default("[]")
+  difficulty         String    @default("medium")
+  order              Int       @default(0)
+  parentQuestionId   String? // 꼬리질문이면 부모
+  createdAt          DateTime  @default(now())
+
+  student User @relation("CareerInterviewQuestionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId, sessionId])
+}
+
+// Week 3~4 — 질문별 답변 + 평가.
+model CareerInterviewAnswer {
+  id             String    @id @default(uuid())
+  studentUserId  String
+  sessionId      String
+  questionId     String
+  answerText     String    @default("")
+  audioAssetId   String? // 음성 인프라 있을 때만(현재 미사용)
+  duration       Int? // 답변 시간(초)
+  evaluationData Json? // AnswerEvaluation
+  score          Int?
+  confidence     Float?
+  answeredAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student User @relation("CareerInterviewAnswerStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+  @@index([studentUserId, sessionId])
+}
+
+// Week 3 — 반복 취약 패턴.
+model CareerInterviewWeakness {
+  id                   String   @id @default(uuid())
+  studentUserId        String
+  cohortId             String?
+  applicationPackageId String?
+  weaknessType         String
+  title                String
+  evidence             Json     @default("[]")
+  severity             String    @default("medium")
+  occurrenceCount      Int       @default(1)
+  priority             Int       @default(5)
+  coachingStrategy     String?
+  status               String    @default("open") // open | resolved
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  student User @relation("CareerInterviewWeaknessStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+}
+
+// Week 4 — 오답노트(취약점 기반 재훈련 단위).
+model CareerInterviewCorrection {
+  id                  String    @id @default(uuid())
+  studentUserId       String
+  cohortId            String?
+  weaknessId          String?
+  originalQuestionId  String?
+  originalAnswerId    String?
+  question            String    @default("")
+  questionType        String?
+  status              String    @default("discovered") // discovered|coaching|retrying|transfer_test|passed|paused|archived
+  coachingData        Json?
+  passCriteria        Json?
+  attemptCount        Int       @default(0)
+  transferAttemptCount Int      @default(0)
+  initialScore        Int?
+  latestScore         Int?
+  passedAt            DateTime?
+  passReason          Json?
+  lastPracticedAt     DateTime?
+  nextPracticeAt      DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  student User @relation("CareerInterviewCorrectionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId])
+}
+
+// Week 4 — 오답 재도전 시도(같은질문/유사질문/꼬리질문).
+model CareerInterviewCorrectionAttempt {
+  id             String   @id @default(uuid())
+  studentUserId  String
+  correctionId   String
+  sessionId      String?
+  questionText   String   @default("")
+  answerText     String   @default("")
+  attemptType    String   @default("same_question") // same_question | similar_question | follow_up
+  evaluationData Json?
+  score          Int?
+  passed         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  student User @relation("CareerInterviewCorrectionAttemptStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([studentUserId, correctionId])
+}
+
+// Week 4 — 최초·최종 비교 + 성장 리포트(학생당 1, 재생성 upsert).
+model CareerInterviewGrowthReport {
+  id                   String   @id @default(uuid())
+  studentUserId        String   @unique
+  cohortId             String?
+  applicationPackageId String?
+  initialSessionId     String?
+  finalSessionId       String?
+  comparisonData       Json?
+  growthData           Json?
+  remainingWeaknesses  Json     @default("[]")
+  nextActions          Json     @default("{}")
+  humanReviewRequired  Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  student User @relation("CareerInterviewGrowthReportStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+}
+
+// Phase 7 — 경쟁·리그·동기부여·운영자 개입.
+model CareerLeague {
+  id             String   @id @default(uuid())
+  cohortId       String
+  type           String // cohort | job_family | weekly_growth | correction | consistency
+  jobFamilyKey   String?
+  name           String
+  status         String   @default("active")
+  minMembers     Int      @default(10)
+  maxMembers     Int      @default(20)
+  scoringVersion String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([cohortId, type])
+}
+
+model CareerLeagueMember {
+  id            String    @id @default(uuid())
+  leagueId      String
+  enrollmentId  String
+  studentUserId String
+  joinedAt      DateTime  @default(now())
+  leftAt        DateTime?
+  status        String    @default("active")
+
+  @@unique([leagueId, enrollmentId])
+  @@index([studentUserId])
+}
+
+model CareerLeagueScore {
+  id                String   @id @default(uuid())
+  studentUserId     String
+  cohortId          String?
+  leagueId          String?
+  scoringVersion    String
+  missionScore      Int      @default(0)
+  artifactScore     Int      @default(0)
+  growthScore       Int      @default(0)
+  practiceScore     Int      @default(0)
+  correctionScore   Int      @default(0)
+  contributionScore Int      @default(0)
+  totalScore        Int      @default(0)
+  rank              Int?
+  percentile        Int?
+  previousRank      Int?
+  rankDelta         Int?
+  sourceSnapshot    Json?
+  calculatedAt      DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  student User @relation("CareerLeagueScoreStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, leagueId])
+  @@index([leagueId])
+}
+
+model CareerLeagueSnapshot {
+  id             String   @id @default(uuid())
+  leagueId       String
+  scoringVersion String?
+  snapshotAt     DateTime @default(now())
+  rankingData    Json     @default("[]")
+  aggregateData  Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([leagueId, snapshotAt])
+}
+
+model CareerAchievement {
+  id              String   @id @default(uuid())
+  studentUserId   String
+  enrollmentId    String?
+  badgeKey        String
+  criteriaVersion String?
+  sourceData      Json?
+  earnedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  student User @relation("CareerAchievementStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, badgeKey])
+  @@index([studentUserId])
+}
+
+model CareerCohortGoal {
+  id            String    @id @default(uuid())
+  cohortId      String
+  goalType      String
+  targetValue   Int
+  currentValue  Int       @default(0)
+  startAt       DateTime?
+  endAt         DateTime?
+  status        String    @default("active")
+  configuration Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([cohortId])
+}
+
+model CareerIntervention {
+  id             String    @id @default(uuid())
+  studentUserId  String
+  enrollmentId   String?
+  cohortId       String?
+  priority       String    @default("medium") // critical|high|medium|low|resolved
+  status         String    @default("open") // open|assigned|contacted|in_review|waiting_user|resolved|dismissed
+  reasonCodes    String[]  @default([])
+  evidence       Json?
+  aiSummary      Json?
+  assignedAdminId String?
+  nextReviewAt   DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  student User @relation("CareerInterventionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([cohortId, priority])
+  @@index([studentUserId])
+}
+
+model CareerInterventionLog {
+  id             String   @id @default(uuid())
+  interventionId String
+  actorId        String?
+  action         String
+  previousStatus String?
+  nextStatus     String?
+  note           String?
+  createdAt      DateTime @default(now())
+
+  @@index([interventionId])
+}
+
+// ── Phase 9 파일럿 측정 모델(모두 additive) ──
+
+// 파일럿 주차별 짧은 인앱 설문 응답 — surveyKey 별 1건(중복 노출 방지). 5점 척도 응답 + 선택 주관식.
+model CareerPilotSurvey {
+  id            String   @id @default(uuid())
+  studentUserId String
+  cohortId      String?
+  surveyKey     String // consult_end | week1_end | week2_end | week3_end | week4_end | competition
+  answers       Json // { questionKey: 1..5 }
+  comment       String? // 선택 주관식(최대 500자)
+  createdAt     DateTime @default(now())
+
+  student User @relation("CareerPilotSurveyStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@unique([studentUserId, surveyKey])
+  @@index([cohortId, surveyKey])
+}
+
+// 정성 피드백 신호 — 원문 없이 category·severity 만 저장한다(개인정보/원문 미포함).
+model CareerQualitativeFeedback {
+  id            String    @id @default(uuid())
+  studentUserId String
+  cohortId      String?
+  category      String // already_answered | want_human | content_lost | ...
+  severity      String    @default("medium") // critical | high | medium | low
+  currentWeek   Int?
+  currentStep   String?
+  sessionId     String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  student User @relation("CareerQualitativeFeedbackStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([cohortId, category])
+  @@index([studentUserId])
+}
+
+// LLM 비용 일별 집계 — cohort × feature × 날짜(KST YYYY-MM-DD) × model × promptVersion 로 합산.
+// 원문 미저장. 토큰·재시도·캐시·실패·추정비용만. promptVersion 으로 프롬프트 개선 전후 오류/비용 비교.
+model CareerAiCostDaily {
+  id            String   @id @default(uuid())
+  cohortId      String? // null=기수 미상(등록 매핑 실패)
+  feature       String // consult | resume | interview_eval | ...
+  dateKey       String // KST "YYYY-MM-DD"
+  model         String   @default("")
+  promptVersion String   @default("") // 프롬프트 버전(없으면 "")
+  calls         Int      @default(0)
+  inputTokens   BigInt   @default(0)
+  outputTokens  BigInt   @default(0)
+  retries       Int      @default(0)
+  cacheHits     Int      @default(0)
+  failures      Int      @default(0)
+  estCostUsd    Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cohortId, feature, dateKey, model, promptVersion])
+  @@index([cohortId, dateKey])
+}
+
+// Phase 10 행동 이벤트(append-only) — 다음 파일럿 분석용. 원문/개인정보 없음(정해진 kind + week/step/sessionId).
+model CareerActivityEvent {
+  id            String   @id @default(uuid())
+  studentUserId String
+  cohortId      String?
+  kind          String // week_enter | next_action_click | league_view | suggestion_accept | skip | ...
+  week          Int?
+  step          String?
+  sessionId     String?
+  createdAt     DateTime @default(now())
+
+  student User @relation("CareerActivityEventStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+
+  @@index([cohortId, kind])
+  @@index([studentUserId, createdAt])
+}
+
 // Career Launch 기수(Cohort) — 대학·기수 단위로 운영한다. 등록(CareerEnrollment)된
 // 학생만 프로그램에 접근할 수 있고, 운영자가 어드민에서 기수·등록을 관리한다.
 model CareerCohort {
   id         String    @id @default(uuid())
-  university String // 대학명 (예: 고려대학교)
+  university String // 대학명 (예: 고려대학교) — 레거시 테넌트 키. Organization 도입 후에도 호환 위해 유지.
   name       String // 기수 이름 (예: 2기)
   inviteCode String    @unique // 초대코드 자가등록용
   startsAt   DateTime?
@@ -968,6 +1567,20 @@ model CareerCohort {
   status     String    @default("active") // active | ended
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+
+  // ── Phase 11 B2B(additive) — 기관 연결. nullable → 기존 기수 무영향, backfill 로 채운다. ──
+  organizationId String?
+  templateId     String? // 생성 시 사용한 프로그램 템플릿(스냅샷은 CareerCohortTemplateSnapshot)
+
+  // ── Phase 9 파일럿 운영 config(additive) ──
+  isPilot                 Boolean   @default(false) // 파일럿 기수 식별
+  programVersion          String? // 예: "v2"
+  featureFlags            Json? // { career_launch_v2: true, ... }
+  participantLimit        Int? // 파일럿 정원(10~20)
+  pilotStartAt            DateTime?
+  pilotEndAt              DateTime?
+  surveyConfiguration     Json? // { enabledSurveys: [...], ... }
+  monitoringConfiguration Json? // { kpiTargets: {...}, manualChecks: {...}, supportContact, stopFlags: {...} }
 
   enrollments        CareerEnrollment[]
   employmentOutcomes CareerEmploymentOutcome[]
@@ -977,6 +1590,157 @@ model CareerCohort {
   weeks              CareerCohortWeek[]
 
   @@index([status])
+  @@index([organizationId])
+}
+
+// ══ Phase 11 대학·기관 B2B 운영 확장(모두 additive) ══════════════════════
+
+// 기관(대학 외 기관 포함). 채용사 PartnerOrganization 과 별개(교육/운영 테넌트).
+model Organization {
+  id            String   @id @default(uuid())
+  name          String
+  type          String // university | college | vocational_school | public_agency | employment_center | nonprofit | corporate_program | other
+  status        String   @default("prospect") // prospect|onboarding|active|suspended|expired|archived
+  slug          String?  @unique
+  primaryContact String?
+  contactEmail  String?
+  timezone      String?  @default("Asia/Seoul")
+  locale        String?  @default("ko")
+  configuration Json? // { branding, privacy, reportConfig, dataRetentionPolicy, settings }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships OrganizationMembership[]
+  licenses    OrganizationLicense[]
+  reports     CareerOrganizationReport[]
+  auditLogs   OrganizationAuditLog[]
+
+  @@index([status])
+  @@index([type])
+}
+
+// 기관 소속 사용자 + 기관 범위 역할. 서버가 이 membership 으로 org-scope 를 강제한다.
+model OrganizationMembership {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  role           String // org_admin | org_observer | instructor | counselor
+  status         String   @default("active") // active | inactive
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("OrgMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, role])
+  @@index([userId])
+  @@index([organizationId, role])
+}
+
+// 프로그램 템플릿 — 4주 구성·규칙·설문·flag·KPI 등을 configuration 에 담는다. 버전 관리.
+model CareerProgramTemplate {
+  id             String   @id @default(uuid())
+  name           String
+  version        Int      @default(1)
+  programVersion String? // 예: "v2"
+  status         String   @default("active") // active | archived
+  configuration  Json // { durationWeeks, weeks, missions, completion, seminars, surveys, flags, jobTrials, packageRules, interviewRules, competition, interventionRules, notifications, kpiTargets, reportConfig }
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  snapshots CareerCohortTemplateSnapshot[]
+
+  @@index([status])
+}
+
+// 기수 생성 시 템플릿 스냅샷 — 이후 템플릿을 수정해도 진행 중 기수는 이 스냅샷을 따른다.
+model CareerCohortTemplateSnapshot {
+  id              String   @id @default(uuid())
+  cohortId        String   @unique
+  templateId      String?
+  templateVersion Int?
+  configuration   Json
+  createdAt       DateTime @default(now())
+
+  template CareerProgramTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+}
+
+// 기관 라이선스/좌석. 결제는 없지만 추후 연결 가능한 사용량 데이터.
+model OrganizationLicense {
+  id              String    @id @default(uuid())
+  organizationId  String
+  contractedSeats Int?
+  startAt         DateTime?
+  endAt           DateTime?
+  status          String    @default("draft") // draft|active|exhausted|expired|suspended
+  overagePolicy   String?   @default("block") // block | allow
+  configuration   Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// 강사·상담자 배정(기관/기수/주차/학생/개입 범위).
+model CareerStaffAssignment {
+  id             String    @id @default(uuid())
+  organizationId String?
+  cohortId       String?
+  userId         String
+  role           String // instructor | counselor
+  scopeType      String // organization | cohort | week | student | intervention
+  scopeId        String? // scopeType 에 따른 대상 id(week 는 "1".."4")
+  status         String    @default("active") // active | inactive
+  startAt        DateTime?
+  endAt          DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation("CareerStaffAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([cohortId])
+  @@index([userId])
+}
+
+// 기관 제출용 성과 리포트 스냅샷(집계만, 원문 없음). 생성 시점 지표 고정 + metricVersion.
+model CareerOrganizationReport {
+  id             String   @id @default(uuid())
+  organizationId String
+  cohortId       String? // null=기관 전체
+  reportType     String // organization_summary | cohort_performance
+  metricVersion  String
+  snapshotData   Json
+  generatedBy    String?
+  generatedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, cohortId])
+}
+
+// 기관 감사 로그 — 민감 원문(비밀번호·토큰·이력서/상담 원문) 미저장. before/after 는 요약 변경분만.
+model OrganizationAuditLog {
+  id             String   @id @default(uuid())
+  organizationId String?
+  actorId        String?
+  actorRole      String?
+  action         String
+  targetType     String?
+  targetId       String?
+  changeData     Json? // { before, after } — 민감 원문 제외
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([action])
 }
 
 // Career Launch 기수별 주차 오픈 일정 — 운영자가 각 주차(1~4)의 오픈일을 지정하거나

@@ -41,11 +41,12 @@ export function CoverLetterSheet({
     >
       <h1 className="text-center text-[22px] font-bold tracking-[0.28em] text-slate-900">{title}</h1>
       {companyName ? <p className="mt-2 text-center text-[12.5px] font-semibold text-slate-500">{companyName}</p> : null}
-      <div className="mt-7 h-px bg-slate-200" />
+      {/* 답변이 있는 문항이 있을 때만 구분선 — 빈 자소서엔 유령 디바이더가 안 생기게 */}
       {filled.length === 0 ? (
         <p className="mt-16 text-center text-[13px] text-slate-300">{emptyLabel}</p>
       ) : (
         <div className="mt-7 space-y-7">
+          <div className="h-px bg-slate-200" />
           {filled.map((it, i) => (
             <section key={it.id}>
               <h3 className="text-[14px] font-bold text-slate-900">
