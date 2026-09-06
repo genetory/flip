@@ -8,6 +8,7 @@ import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
+import { HeroOpenings } from "../../../components/launch/HeroOpenings";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
@@ -275,6 +276,8 @@ export default function LaunchDashboardPage() {
               </div>
             </div>
           </section>
+          {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) */}
+          <HeroOpenings />
           {/* ═══ UX Phase 2 — 오늘의 커리어 준비(코치·현재 주차·오늘 할 일·4주 여정·결과물·성장·함께) ═══ */}
           {vmPhase === "loading" ? (
             <div className="mt-2 flex flex-col gap-3">
