@@ -50,13 +50,18 @@ export function HeroOpenings() {
         if (alive) setJobs(sel);
 
         const jobEntries = sel.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((e): e is (typeof RECOMMENDED_JOBS)[number] => Boolean(e));
-        // 공고가 이 직무와 얼마나 맞는지 — 직무명·태그가 제목/희망직무/주요업무에 나오면 가점.
+        // 너무 넓어 다른 직무까지 걸리는 범용어는 매칭에서 제외(예: AI 공고가 '개발/엔지니어'로 잡히는 문제).
+        const GENERIC = new Set(["개발", "개발자", "it", "컴퓨터", "컴퓨터공학", "소프트웨어", "프로그래밍", "프로그래머", "엔지니어", "engineer", "developer", "dev", "경영", "서비스"]);
+        // 공고가 이 직무와 얼마나 맞는지 — 직무명·구체 태그가 제목/희망직무/주요업무에 나오면 가점(범용어 제외).
         const relevance = (p: PublicPositionListItem): number => {
           const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
           let s = 0;
           for (const je of jobEntries) {
             if (je.role && hay.includes(je.role.toLowerCase())) s += 3;
-            for (const tag of je.tags ?? []) if (tag && tag.length > 1 && hay.includes(tag.toLowerCase())) s += 1;
+            for (const tag of je.tags ?? []) {
+              const tl = tag.trim().toLowerCase();
+              if (tl.length > 1 && !GENERIC.has(tl) && hay.includes(tl)) s += 1;
+            }
           }
           return s;
         };
