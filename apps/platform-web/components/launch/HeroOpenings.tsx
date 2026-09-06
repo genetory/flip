@@ -49,22 +49,44 @@ export function HeroOpenings() {
         const sel = Array.isArray(prog?.selectedJobs) ? prog!.selectedJobs!.filter((j) => j?.trim()) : [];
         if (alive) setJobs(sel);
 
-        let items: PublicPositionListItem[] = [];
-        if (sel.length) {
-          const queries = sel.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)?.query || r);
-          const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
-          const seen = new Set<string>();
-          for (const pg of pages) {
-            for (const it of pg?.items ?? []) {
-              if (seen.has(it.id)) continue;
-              seen.add(it.id);
-              items.push(it);
-            }
+        const jobEntries = sel.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((e): e is (typeof RECOMMENDED_JOBS)[number] => Boolean(e));
+        // 공고가 이 직무와 얼마나 맞는지 — 직무명·태그가 제목/희망직무/주요업무에 나오면 가점.
+        const relevance = (p: PublicPositionListItem): number => {
+          const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
+          let s = 0;
+          for (const je of jobEntries) {
+            if (je.role && hay.includes(je.role.toLowerCase())) s += 3;
+            for (const tag of je.tags ?? []) if (tag && tag.length > 1 && hay.includes(tag.toLowerCase())) s += 1;
           }
-        } else {
-          items = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
+          return s;
+        };
+
+        // 개인화 추천 + 관심 직무 검색을 모아 후보 풀 구성.
+        const seen = new Set<string>();
+        const all: PublicPositionListItem[] = [];
+        const push = (arr: PublicPositionListItem[]) => {
+          for (const it of arr) {
+            if (seen.has(it.id)) continue;
+            seen.add(it.id);
+            all.push(it);
+          }
+        };
+        const rec = await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }));
+        push(rec.items);
+        if (sel.length) {
+          const queries = jobEntries.map((je) => je.query || je.role);
+          const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
+          for (const pg of pages) push(pg?.items ?? []);
         }
         if (!alive) return;
+
+        // 직무와 실제로 어울리는 공고만(관련도>0). 너무 적으면 전체로 폴백.
+        let items = all;
+        if (jobEntries.length) {
+          const relevant = all.filter((p) => relevance(p) > 0).sort((a, b) => relevance(b) - relevance(a));
+          items = relevant.length >= 3 ? relevant : all;
+        }
+
         const deck = shuffle(items);
         poolRef.current = items;
         deckRef.current = deck;
