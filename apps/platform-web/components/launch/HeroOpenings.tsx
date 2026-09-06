@@ -12,7 +12,14 @@ import { useLaunchT } from "../../lib/launch/i18n";
 
 const posCompany = (p: PublicPositionListItem) => p.partnerOrganization?.name || p.sourceCompanyName || "";
 const posThumb = (p: PublicPositionListItem) => p.thumbnailImages?.[0] || p.partnerOrganization?.companyLogoImageData || undefined;
-const posSummary = (p: PublicPositionListItem) => (p.mainResponsibilities || p.preferredJobRole || p.requiredQualifications || "").replace(/\s+/g, " ").trim().slice(0, 70);
+// 공고를 대략 파악할 수 있게 요약 불렛 3개 — 주요업무/자격요건을 줄·구분자·문장 기준으로 쪼갠다.
+function posBullets(p: PublicPositionListItem): string[] {
+  const raw = [p.mainResponsibilities, p.requiredQualifications].filter(Boolean).join("\n").trim();
+  if (!raw) return p.preferredJobRole ? [p.preferredJobRole.trim()] : [];
+  let parts = raw.split(/\r?\n|[•·▪‣∙・]|;|,\s/).map((s) => s.replace(/^[-*\s]+/, "").replace(/\s+/g, " ").trim()).filter((s) => s.length > 1);
+  if (parts.length < 2) parts = raw.split(/(?<=[.!?。])\s+/).map((s) => s.replace(/\s+/g, " ").trim()).filter((s) => s.length > 1);
+  return parts.slice(0, 3).map((s) => s.slice(0, 70));
+}
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -72,24 +79,28 @@ export function HeroOpenings() {
     };
   }, []);
 
+  // 더보기 — 기존 5개를 지우고 다른 랜덤 5개로 교체(누적 아님). 덱 끝나면 다시 섞어 계속.
   const more = () => {
+    const pool = poolRef.current;
+    if (pool.length <= PAGE) {
+      setShown(shuffle(pool));
+      return;
+    }
     let deck = deckRef.current;
     let p = ptrRef.current;
-    // 덱을 다 보여줬으면 다시 섞어서 계속(랜덤 5개씩 이어감).
-    if (p >= deck.length) {
-      deck = shuffle(poolRef.current);
+    if (p + PAGE > deck.length) {
+      deck = shuffle(pool);
       deckRef.current = deck;
       p = 0;
     }
-    const next = deck.slice(p, p + PAGE);
-    ptrRef.current = p + next.length;
-    setShown((prev) => [...prev, ...next]);
+    ptrRef.current = p + PAGE;
+    setShown(deck.slice(p, p + PAGE));
   };
 
   if (loaded && jobs.length === 0 && shown.length === 0) return null;
 
   return (
-    <div className="mt-6">
+    <div>
       {/* 준비 중인 직무 */}
       {jobs.length > 0 ? (
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -107,13 +118,13 @@ export function HeroOpenings() {
             <p className="text-[14px] font-black text-[#191F28]">{t("나에게 어울리는 공고", "Openings that fit you", "适合你的公告", "Tin phù hợp với bạn", "あなたに合う求人", "Lowongan yang cocok")}</p>
             <Link href="/talent/jobs" className="text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</Link>
           </div>
-          <div className="grid gap-2.5 sm:grid-cols-2">
+          <div className="flex flex-col gap-2.5">
             {shown.map((p, i) => {
               const name = posCompany(p);
               const thumb = posThumb(p);
-              const summary = posSummary(p);
+              const bullets = posBullets(p);
               return (
-                <Link key={`${p.id}:${i}`} href={`/talent/jobs/${p.id}`} className="flex items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-3 transition hover:border-[#0B46E8]/40">
+                <Link key={`${p.id}:${i}`} href={`/talent/jobs/${p.id}`} className="flex items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-3.5 transition hover:border-[#0B46E8]/40">
                   {thumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={thumb} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-[#EEF1F5] object-cover" />
@@ -123,7 +134,16 @@ export function HeroOpenings() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{p.title}</span>
                     {name ? <span className="block truncate text-[11.5px] font-semibold text-[#4E5968]">{name}</span> : null}
-                    {summary ? <span className="mt-0.5 block break-keep text-[11px] leading-[1.45] text-[#8B95A1] line-clamp-2">{summary}</span> : null}
+                    {bullets.length ? (
+                      <ul className="mt-1 space-y-0.5">
+                        {bullets.map((b, j) => (
+                          <li key={j} className="flex gap-1.5 text-[11.5px] leading-[1.45] text-[#8B95A1]">
+                            <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" />
+                            <span className="min-w-0 truncate">{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </span>
                 </Link>
               );

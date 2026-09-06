@@ -276,8 +276,6 @@ export default function LaunchDashboardPage() {
               </div>
             </div>
           </section>
-          {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) */}
-          <HeroOpenings />
           {/* ═══ UX Phase 2 — 오늘의 커리어 준비(코치·현재 주차·오늘 할 일·4주 여정·결과물·성장·함께) ═══ */}
           {vmPhase === "loading" ? (
             <div className="mt-2 flex flex-col gap-3">
@@ -296,6 +294,9 @@ export default function LaunchDashboardPage() {
 
               {/* 영역 1 — 전담 코치 메시지(최상단) */}
               <CoachTodayCard vm={vm} />
+
+              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 코치 카드 아래 */}
+              <HeroOpenings />
 
               {/* 영역 3 — 오늘 할 일(단일 행동) */}
               {vm.enrollmentStatus !== "new" ? <NextActionCard vm={vm} /> : null}
