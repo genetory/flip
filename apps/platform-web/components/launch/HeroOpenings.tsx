@@ -50,46 +50,53 @@ export function HeroOpenings() {
         if (alive) setJobs(sel);
 
         const jobEntries = sel.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((e): e is (typeof RECOMMENDED_JOBS)[number] => Boolean(e));
-        // 너무 넓어 다른 직무까지 걸리는 범용어는 매칭에서 제외(예: AI 공고가 '개발/엔지니어'로 잡히는 문제).
-        const GENERIC = new Set(["개발", "개발자", "it", "컴퓨터", "컴퓨터공학", "소프트웨어", "프로그래밍", "프로그래머", "엔지니어", "engineer", "developer", "dev", "경영", "서비스"]);
-        // 공고가 이 직무와 얼마나 맞는지 — 직무명·구체 태그가 제목/희망직무/주요업무에 나오면 가점(범용어 제외).
+        // 너무 넓어 다른 직무까지 걸리는 범용어는 매칭에서 제외(예: AI 공고가 '개발/파이썬/엔지니어'로 잡히는 문제).
+        const GENERIC = new Set(["개발", "개발자", "it", "컴퓨터", "컴퓨터공학", "소프트웨어", "프로그래밍", "프로그래머", "엔지니어", "engineer", "developer", "dev", "경영", "서비스", "ui", "api", "db", "구현", "설계", "문서화", "java", "python"]);
+        const tokenize = (s: string) => s.toLowerCase().split(/[\s·,/&]+/).map((x) => x.trim()).filter((x) => x.length > 1);
+        // 직무별 구체 키워드(범용어 제외) — 태그 + 영문 스킬(android·kotlin·ios·swift 등)까지 포함해 영문 공고도 매칭.
+        const kwOf = (je: (typeof RECOMMENDED_JOBS)[number]) => {
+          const set = new Set<string>();
+          for (const tag of je.tags ?? []) {
+            const tl = tag.trim().toLowerCase();
+            if (tl.length > 1 && !GENERIC.has(tl)) set.add(tl);
+          }
+          for (const sk of je.skills ?? []) for (const tok of tokenize(sk)) if (!GENERIC.has(tok)) set.add(tok);
+          return set;
+        };
+        const jobKws = jobEntries.map((je) => ({ role: je.role.toLowerCase(), kws: kwOf(je) }));
         const relevance = (p: PublicPositionListItem): number => {
           const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
           let s = 0;
-          for (const je of jobEntries) {
-            if (je.role && hay.includes(je.role.toLowerCase())) s += 3;
-            for (const tag of je.tags ?? []) {
-              const tl = tag.trim().toLowerCase();
-              if (tl.length > 1 && !GENERIC.has(tl) && hay.includes(tl)) s += 1;
-            }
+          for (const jk of jobKws) {
+            if (jk.role && hay.includes(jk.role)) s += 3;
+            for (const kw of jk.kws) if (hay.includes(kw)) s += 1;
           }
           return s;
         };
 
-        // 개인화 추천 + 관심 직무 검색을 모아 후보 풀 구성.
+        // 관심 직무 검색으로만 후보 풀 구성(개인화 추천은 직무와 무관한 공고를 끌어와 제외).
         const seen = new Set<string>();
-        const all: PublicPositionListItem[] = [];
-        const push = (arr: PublicPositionListItem[]) => {
-          for (const it of arr) {
-            if (seen.has(it.id)) continue;
-            seen.add(it.id);
-            all.push(it);
-          }
-        };
-        const rec = await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }));
-        push(rec.items);
+        const searched: PublicPositionListItem[] = [];
         if (sel.length) {
           const queries = jobEntries.map((je) => je.query || je.role);
           const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
-          for (const pg of pages) push(pg?.items ?? []);
+          for (const pg of pages) {
+            for (const it of pg?.items ?? []) {
+              if (seen.has(it.id)) continue;
+              seen.add(it.id);
+              searched.push(it);
+            }
+          }
         }
         if (!alive) return;
 
-        // 직무와 실제로 어울리는 공고만(관련도>0). 너무 적으면 전체로 폴백.
-        let items = all;
-        if (jobEntries.length) {
-          const relevant = all.filter((p) => relevance(p) > 0).sort((a, b) => relevance(b) - relevance(a));
-          items = relevant.length >= 3 ? relevant : all;
+        // 직무 키워드와 실제로 맞는 공고만(관련도>0). 관심 직무가 없거나 매칭이 0이면 개인화 추천으로 폴백.
+        let items: PublicPositionListItem[];
+        if (jobKws.length) {
+          const relevant = searched.filter((p) => relevance(p) > 0).sort((a, b) => relevance(b) - relevance(a));
+          items = relevant.length > 0 ? relevant : searched;
+        } else {
+          items = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
         }
 
         const deck = shuffle(items);
