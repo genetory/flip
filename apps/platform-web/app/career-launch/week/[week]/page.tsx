@@ -14,10 +14,8 @@ import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedba
 import { InterviewPrepChecklist } from "../../../../components/launch/InterviewPrepChecklist";
 import { CareerReportCard } from "../../../../components/launch/CareerReportCard";
 import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
-import { Recruiter10sCard } from "../../../../components/launch/Recruiter10sCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
-import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
 import { PostingInterviewCard } from "../../../../components/launch/PostingInterviewCard";
 import { WeekHero, WeekCompletionCriteria, NextWeekPreview, type WeekFrameStatus } from "../../../../components/launch/week/week-frame";
 import { WeekLearn } from "../../../../components/launch/week-learn";
@@ -179,8 +177,6 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               <div className="flex flex-col gap-4">
                 <ResumeScoreCard />
                 <CoverScoreCard />
-                <Recruiter10sCard />
-                <CoverReviewCard />
                 <StoryBankCard />
               </div>
             ) : null}
