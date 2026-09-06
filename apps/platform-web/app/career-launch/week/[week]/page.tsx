@@ -18,7 +18,6 @@ import { Recruiter10sCard } from "../../../../components/launch/Recruiter10sCard
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
 import { CoverReviewCard } from "../../../../components/launch/CoverReviewCard";
-import { Week2PackageCard } from "../../../../components/launch/Week2PackageCard";
 import { PostingInterviewCard } from "../../../../components/launch/PostingInterviewCard";
 import { WeekHero, WeekCompletionCriteria, NextWeekPreview, type WeekFrameStatus } from "../../../../components/launch/week/week-frame";
 import { WeekLearn } from "../../../../components/launch/week-learn";
@@ -174,19 +173,16 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
             {/* Week 1 직무 결정 — '관심 직무 선정' 스텝(③)에서 고르고, 그 결과 패널에서 1순위를 목표로 확정한다.
                 (구 ExploreCard 추천→체험→결정 흐름은 스텝과 중복이라 제거, 목표 확정을 스텝 ③ 결과로 통합) */}
 
-            {/* Week 2 — 주 흐름(지원 패키지: 기준 공고→분석→공고맞춤 서류→일관성→점수→확정→예상질문)
-                + 그 아래 이력서·자소서 점검 도구를 하나의 묶음으로(각 카드는 근거 없으면 스스로 숨음). */}
+            {/* Week 2 — 이력서·자소서 심층 평가 도구 묶음(각 카드는 근거 없으면 스스로 숨음).
+                공고 맞춤(기준 채용공고) 흐름은 4주차 공고별 면접으로 이관돼 여기선 제거. */}
             {plan.week === 2 ? (
-              <>
-                <Week2PackageCard />
-                <div className="flex flex-col gap-4">
-                  <ResumeScoreCard />
-                  <Recruiter10sCard />
-                  <StoryBankCard />
-                  <CoverScoreCard />
-                  <CoverReviewCard />
-                </div>
-              </>
+              <div className="flex flex-col gap-4">
+                <ResumeScoreCard />
+                <CoverScoreCard />
+                <Recruiter10sCard />
+                <CoverReviewCard />
+                <StoryBankCard />
+              </div>
             ) : null}
 
             {/* Week 3 — 유형별 기본 면접(카드·채점형)은 '이번 주 해야 할 일' 스텝으로 진행. 별도 카드 없음. */}

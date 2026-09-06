@@ -3,7 +3,8 @@
 // 재사용 점수 리포트 카드 — Resume/Cover/Interview Score 공용. "받기" 버튼식(생성 1회 캐시).
 // 소비 컴포넌트가 fetchScore(라벨까지 i18n으로 정규화한 ScoreView 반환)만 넘기면 된다.
 import { useEffect, useRef, useState } from "react";
-import { Sparkle, CircleNotch } from "@phosphor-icons/react";
+import Link from "next/link";
+import { Sparkle, CircleNotch, PencilSimple, ArrowClockwise } from "@phosphor-icons/react";
 import { Card } from "./ui";
 import { useLaunchT } from "../../lib/launch/i18n";
 
@@ -32,7 +33,9 @@ export function ScoreCard({
   badgeLabel,
   ctaTitle,
   ctaDesc,
-  ctaLabel
+  ctaLabel,
+  editHref,
+  editLabel
 }: {
   fetchScore: ScoreFetch;
   scoreLabel: string;
@@ -41,6 +44,8 @@ export function ScoreCard({
   ctaTitle: string;
   ctaDesc: string;
   ctaLabel: string;
+  editHref?: string;
+  editLabel?: string;
 }) {
   const t = useLaunchT();
   const [state, setState] = useState<"loading" | "ready" | "done" | "none" | "error">("loading");
@@ -168,6 +173,19 @@ export function ScoreCard({
               </ul>
             </div>
           ))}
+
+          {/* 하단 — 수정하고 다시 받기(상시) */}
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("개선점을 고친 뒤 다시 평가받아 점수를 올려보세요.", "Fix the tips, then re-evaluate to raise your score.", "修改建议后重新评估以提高分数。", "Sửa theo gợi ý rồi đánh giá lại để tăng điểm.", "改善点を直して再評価し、点数を上げましょう。", "Perbaiki tips lalu nilai ulang untuk menaikkan skor.")}</p>
+            <div className="flex shrink-0 gap-2">
+              {editHref ? (
+                <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40"><PencilSimple className="h-4 w-4" weight="bold" /> {editLabel ?? t("수정하러 가기", "Edit", "去修改", "Sửa", "修正する", "Edit")}</Link>
+              ) : null}
+              <button type="button" onClick={() => run(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <ArrowClockwise className="h-4 w-4" weight="bold" />}{busy ? t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…") : t("다시 평가받기", "Re-evaluate", "重新评估", "Đánh giá lại", "再評価", "Nilai ulang")}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 

@@ -22322,7 +22322,7 @@ app.post(
 const RESUME_SCORE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["total", "specificity", "achievement", "relevance", "readability", "why", "tips"],
+  required: ["total", "specificity", "achievement", "relevance", "readability", "why", "strong", "tips"],
   properties: {
     total: { type: "number" },
     specificity: { type: "number" },
@@ -22330,10 +22330,11 @@ const RESUME_SCORE_SCHEMA = {
     relevance: { type: "number" },
     readability: { type: "number" },
     why: { type: "string" },
+    strong: { type: "array", items: { type: "string" } },
     tips: { type: "array", items: { type: "string" } }
   }
 } as const;
-const RESUME_SCORE_VERSION = 1;
+const RESUME_SCORE_VERSION = 2;
 app.post(
   "/career-launch/resume-score",
   authenticate,
@@ -22365,10 +22366,12 @@ app.post(
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
-        "너는 채용 담당자 관점의 이력서 코치야. 학생의 이력서를 4항목으로 0~100 평가한다: " +
+        "너는 채용 담당자 관점의 이력서 코치야. 학생의 이력서를 심층 평가한다. 4항목을 0~100으로: " +
         "specificity(구체성 — 무엇을 했는지 명확한가), achievement(성과 표현 — 숫자·결과로 드러나는가), relevance(직무 연관성 — 선정 직무와 얼마나 맞는가), readability(가독성 — 구조·표현이 깔끔한가). " +
-        "total 은 종합 점수(0~100). why 는 왜 이 점수인지 2~3문장. tips 는 바로 고칠 구체적 개선 제안 2~4개(예: '동아리 활동에 참여 인원·기간·성과 수치를 추가'). 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "total": number, "specificity": number, "achievement": number, "relevance": number, "readability": number, "why": string, "tips": string[] }' +
+        "total 은 종합 점수(0~100). why 는 왜 이 점수인지 2~3문장. " +
+        "strong 은 이 이력서에서 이미 잘한 점을 2~3개, 어느 부분이 왜 좋은지 콕 집어. " +
+        "tips 는 심층 개선 제안 3~5개 — 각 팁은 (1) 이력서의 어느 항목·문장을 (2) 무엇을 (3) 왜·어떻게 고칠지 구체적으로. 예: '경력의 인턴 항목 — 담당 업무만 있고 성과가 없음 → 처리 건수·개선율 같은 숫자를 넣으면 기여가 드러나요'. 두루뭉술한 조언(예: 성과를 강조하세요) 금지, 이 이력서의 실제 내용을 인용해. 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "specificity": number, "achievement": number, "relevance": number, "readability": number, "why": string, "strong": string[], "tips": string[] }' +
         aiLangDirective("ko");
       const userPrompt =
         `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[이력서]\n${JSON.stringify(resumeContent)}`;
@@ -22385,6 +22388,7 @@ app.post(
           readability: clampScore(pj.readability)
         },
         why: typeof pj.why === "string" ? pj.why.trim() : "",
+        strong: strList(pj.strong),
         tips: strList(pj.tips)
       };
       if (!data.why) return res.status(502).json({ ok: false, message: "ai response empty" });
@@ -22408,7 +22412,7 @@ app.post(
 const COVER_SCORE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["total", "logic", "specificity", "relevance", "companyUnderstanding", "authenticity", "why", "aiFlags", "tips"],
+  required: ["total", "logic", "specificity", "relevance", "companyUnderstanding", "authenticity", "why", "strong", "aiFlags", "tips"],
   properties: {
     total: { type: "number" },
     logic: { type: "number" },
@@ -22417,11 +22421,12 @@ const COVER_SCORE_SCHEMA = {
     companyUnderstanding: { type: "number" },
     authenticity: { type: "number" },
     why: { type: "string" },
+    strong: { type: "array", items: { type: "string" } },
     aiFlags: { type: "array", items: { type: "string" } },
     tips: { type: "array", items: { type: "string" } }
   }
 } as const;
-const COVER_SCORE_VERSION = 1;
+const COVER_SCORE_VERSION = 2;
 app.post(
   "/career-launch/cover-score",
   authenticate,
@@ -22453,10 +22458,13 @@ app.post(
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
-        "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 5항목으로 0~100 평가한다: " +
+        "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 심층 평가한다. 5항목을 0~100으로: " +
         "logic(논리성 — 흐름·인과가 자연스러운가), specificity(구체성 — 경험·사례가 구체적인가), relevance(직무 연관성 — 선정 직무와 맞는가), companyUnderstanding(기업 이해도 — 회사·직무 이해가 드러나는가), authenticity(진정성 — 자기 이야기로 진솔한가). " +
-        "total 은 종합(0~100). why 는 2~3문장. aiFlags 는 'AI 티가 나거나 너무 추상적인 표현'을 짚어준다(있으면 2~4개, 없으면 빈 배열). tips 는 바로 고칠 개선 제안 2~4개. 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
-        'JSON 한 개 객체로만 응답: { "total": number, "logic": number, "specificity": number, "relevance": number, "companyUnderstanding": number, "authenticity": number, "why": string, "aiFlags": string[], "tips": string[] }' +
+        "total 은 종합(0~100). why 는 2~3문장. " +
+        "strong 은 이 자기소개서에서 이미 잘한 점 2~3개를 어느 문항·문장이 왜 좋은지 콕 집어. " +
+        "aiFlags 는 'AI 티가 나거나 너무 추상적인 표현'을 실제 문장을 인용해 짚어준다(있으면 2~4개, 없으면 빈 배열). " +
+        "tips 는 심층 개선 제안 3~5개 — 각 팁은 (1) 어느 문항·문장을 (2) 무엇을 (3) 왜·어떻게 고칠지 구체적으로, 이 자소서의 실제 내용을 인용해. 두루뭉술한 조언 금지. 낮아도 격려하는 존댓말 톤. " + CAREER_SCOPE + "\n\n" +
+        'JSON 한 개 객체로만 응답: { "total": number, "logic": number, "specificity": number, "relevance": number, "companyUnderstanding": number, "authenticity": number, "why": string, "strong": string[], "aiFlags": string[], "tips": string[] }' +
         aiLangDirective("ko");
       const userPrompt = `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(미선정)"}\n\n[자기소개서]\n${JSON.stringify(coverContent)}`;
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "cover_score", COVER_SCORE_SCHEMA)) as Record<string, unknown>;
@@ -22473,6 +22481,7 @@ app.post(
           authenticity: clampScore(pj.authenticity)
         },
         why: typeof pj.why === "string" ? pj.why.trim() : "",
+        strong: strList(pj.strong),
         aiFlags: strList(pj.aiFlags),
         tips: strList(pj.tips)
       };

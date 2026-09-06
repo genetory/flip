@@ -70,6 +70,7 @@ export type ResumeScore = {
   total: number;
   breakdown: { specificity: number; achievement: number; relevance: number; readability: number };
   why: string;
+  strong?: string[];
   tips: string[];
 };
 export async function fetchResumeScore(opts: { force?: boolean; generate?: boolean } = {}): Promise<{
@@ -89,6 +90,7 @@ export type CoverScore = {
   total: number;
   breakdown: { logic: number; specificity: number; relevance: number; companyUnderstanding: number; authenticity: number };
   why: string;
+  strong?: string[];
   aiFlags: string[];
   tips: string[];
 };
