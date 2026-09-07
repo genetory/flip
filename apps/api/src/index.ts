@@ -22292,13 +22292,20 @@ app.post(
       const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
 
       const expBankSig = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<{ id?: unknown }>).map((e) => e?.id).join(",") : "";
-      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeDone, coverDone, practiced: practiced.length, expBankSig }));
+      // 직무별 탭 — jobKey 지정 시 그 직무 기준 리포트를 개별 생성·캐시(서로 안 지움).
+      const bodyJob = req.body && typeof (req.body as { jobKey?: unknown }).jobKey === "string" ? (req.body as { jobKey: string }).jobKey.trim() : "";
+      const activeJob = bodyJob && selectedJobs.includes(bodyJob) ? bodyJob : (selectedJobs[0] ?? "");
+      const isPrimary = !activeJob || activeJob === (selectedJobs[0] ?? "");
+      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeDone, coverDone, practiced: practiced.length, expBankSig, activeJob }));
       const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
       const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
-      const cached = (progState.careerReport && typeof progState.careerReport === "object" ? progState.careerReport : {}) as { v?: number; sig?: string; data?: unknown };
+      const jobsMap = (progState.careerReportJobs && typeof progState.careerReportJobs === "object" ? progState.careerReportJobs : {}) as Record<string, { v?: number; sig?: string; data?: unknown }>;
+      const cached = isPrimary
+        ? ((progState.careerReport && typeof progState.careerReport === "object" ? progState.careerReport : {}) as { v?: number; sig?: string; data?: unknown })
+        : (jobsMap[activeJob] && typeof jobsMap[activeJob] === "object" ? jobsMap[activeJob] : {});
       if (!force && cached.v === CAREER_REPORT_VERSION && cached.data) {
         const stale = typeof cached.sig === "string" && cached.sig !== currentSig;
-        return res.json({ ok: true, report: cached.data, stale, cached: true });
+        return res.json({ ok: true, report: cached.data, stale, cached: true, jobKey: activeJob });
       }
       if (!generate) return res.json({ ok: true, report: null, needsGenerate: true, stale: false });
       if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
@@ -22312,7 +22319,7 @@ app.post(
         "2. total 은 6영역을 종합한 전체 Career Score(0~100). 낮아도 반드시 격려하는 톤.\n" +
         "3. why: 왜 이 점수인지 2~3문장으로 따뜻하게 설명.\n" +
         "4. strengths: 학생이 이미 가진 강점 2~4개(구체적 근거). gaps: 앞으로 보완할 역량 2~4개.\n" +
-        "5. roadmap: targetRole(선정 직무 중 가장 적합한 1개), targetCompanies(어울리는 기업 유형 2~3개), recommendedExperience(추천 경험 정리 2~3개), toImprove(보완 항목 2~3개).\n" +
+        `5. roadmap: targetRole ${activeJob ? `는 반드시 '${activeJob}' 로 고정하고, 모든 평가와 로드맵을 이 직무 기준으로 작성` : "(선정 직무 중 가장 적합한 1개)"}, targetCompanies(어울리는 기업 유형 2~3개), recommendedExperience(추천 경험 정리 2~3개), toImprove(보완 항목 2~3개).\n` +
         "존댓말, 응원하는 톤. " + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "total": number, "areas": { "direction": number, "experience": number, "competency": number, "resume": number, "cover": number, "interview": number }, "why": string, "strengths": string[], "gaps": string[], "roadmap": { "targetRole": string, "targetCompanies": string[], "recommendedExperience": string[], "toImprove": string[] } }' +
         aiLangDirective("ko");
@@ -22334,7 +22341,8 @@ app.post(
         `[자가진단]\n준비도 ${diagnosis.percent}% / ${diagnosis.level ?? ""}\n강점: ${(diagnosis.strengths ?? []).join(", ") || "-"}\n개선: ${(diagnosis.improvements ?? []).join(", ") || "-"}\n\n` +
         `[Experience Bank]\n${expText}\n\n` +
         `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(아직 미선정)"}\n\n` +
-        `[현재 서류 상태]\n이력서 작성: ${resumeDone ? "완료" : "미완료"} / 자기소개서: ${coverDone ? "완료" : "미완료"} / 모의면접 연습: ${practiced.length}회`;
+        `[현재 서류 상태]\n이력서 작성: ${resumeDone ? "완료" : "미완료"} / 자기소개서: ${coverDone ? "완료" : "미완료"} / 모의면접 연습: ${practiced.length}회` +
+        (activeJob ? `\n\n[이번 리포트 대상 직무]\n${activeJob} — 이 직무 기준으로 평가/로드맵을 작성해줘.` : "");
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "career_report", CAREER_REPORT_SCHEMA)) as {
         total?: unknown;
         areas?: Record<string, unknown>;
@@ -22372,17 +22380,19 @@ app.post(
 
       // 완주 시 58→82 표현용 — 최초 생성 점수를 한 번만 before 로 저장.
       const prevBefore = typeof progState.careerScoreBefore === "number" ? (progState.careerScoreBefore as number) : null;
+      const reportCache = { v: CAREER_REPORT_VERSION, sig: currentSig, data };
       const mergedState: Record<string, unknown> = {
         ...progState,
-        careerReport: { v: CAREER_REPORT_VERSION, sig: currentSig, data },
-        careerScoreBefore: prevBefore ?? data.total
+        careerReportJobs: activeJob ? { ...jobsMap, [activeJob]: reportCache } : jobsMap,
+        // 1순위 직무 리포트는 careerReport 로도 미러링(대시보드·성장 지표 호환).
+        ...(isPrimary ? { careerReport: reportCache, careerScoreBefore: prevBefore ?? data.total } : {})
       };
       await prisma.careerLaunchProgress.upsert({
         where: { studentUserId: uid },
         create: { studentUserId: uid, state: mergedState as object },
         update: { state: mergedState as object }
       });
-      return res.json({ ok: true, report: data, stale: false });
+      return res.json({ ok: true, report: data, stale: false, jobKey: activeJob });
     } catch (err) {
       console.error("[career-launch/career-report] failed", err);
       return res.status(500).json({ ok: false, message: "failed to generate report" });

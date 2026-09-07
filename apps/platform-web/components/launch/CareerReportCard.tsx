@@ -1,11 +1,10 @@
 "use client";
 
-// Week 1 키스톤 — 커리어 리포트. 진단·선정직무·프로필을 종합한 점수화 리포트.
-// 자동 생성/과금하지 않고, 저장분이 있으면 보여주고 없으면 '받기' 버튼으로 사용자가 요청할 때만 생성.
-// UI: 상단 섹션(체크인 패널)과 동일한 카드 그리드 톤 — 색은 블루+민트+그레이로 절제.
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Sparkle, CircleNotch, Target, TrendUp, Warning, Check, PencilSimple } from "@phosphor-icons/react";
+// Week 1 키스톤 — 커리어 리포트 + 로드맵. 진단·프로필·선정 직무·서류 상태 종합 점수화.
+// 직무별 탭: 관심 직무가 여러 개면 탭으로 전환, 각 직무 기준 리포트/로드맵을 개별 생성·캐시.
+// 자동 과금 없이 저장분이 있으면 보여주고, 없으면 '받기'로 사용자가 요청할 때만 생성.
+import { useEffect, useRef, useState } from "react";
+import { Sparkle, CircleNotch, Target, TrendUp, Warning } from "@phosphor-icons/react";
 import { fetchCareerReport, type CareerReport } from "../../lib/launch/feedback-client";
 import { Card } from "./ui";
 import { DashboardSection } from "./dashboard-states";
@@ -26,18 +25,23 @@ function areaLabels(t: LaunchT): { key: keyof CareerReport["areas"]; label: stri
 
 export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[] }) {
   const t = useLaunchT();
+  const [activeJob, setActiveJob] = useState<string>(selectedJobs[0] ?? "");
   const [state, setState] = useState<"loading" | "ready" | "done" | "none" | "error">("loading");
   const [report, setReport] = useState<CareerReport | null>(null);
   const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const reqId = useRef(0);
 
+  // 활성 직무 기준 캐시 조회(생성 안 함). 탭 전환마다 재조회.
   useEffect(() => {
-    let alive = true;
+    const id = ++reqId.current;
+    setState("loading");
+    setReport(null);
     void (async () => {
       try {
-        const r = await fetchCareerReport({ generate: false });
-        if (!alive) return;
+        const r = await fetchCareerReport({ generate: false, jobKey: activeJob || undefined });
+        if (id !== reqId.current) return;
         if (r.report) {
           setReport(r.report);
           setStale(r.stale);
@@ -48,20 +52,17 @@ export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[
           setState("none"); // 진단 전 → 숨김
         }
       } catch {
-        if (alive) setState("error");
+        if (id === reqId.current) setState("error");
       }
     })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  }, [activeJob]);
 
   const run = async (force: boolean) => {
     if (busy) return;
     setBusy(true);
     setFailed(false);
     try {
-      const r = await fetchCareerReport({ force, generate: true });
+      const r = await fetchCareerReport({ force, generate: true, jobKey: activeJob || undefined });
       if (r.report) {
         setReport(r.report);
         setStale(false);
@@ -79,24 +80,28 @@ export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[
   if (state === "none" || state === "loading") return null; // 진단 전이거나 로딩 중엔 숨김
 
   const rm = report?.roadmap;
-  const hasRoadmap = state === "done" && !!rm && (Boolean(rm.targetRole) || selectedJobs.length > 0 || rm.targetCompanies.length > 0 || rm.recommendedExperience.length > 0 || rm.toImprove.length > 0);
+  const hasRoadmap = state === "done" && !!rm && (Boolean(rm.targetRole) || rm.targetCompanies.length > 0 || rm.recommendedExperience.length > 0 || rm.toImprove.length > 0);
+  const tabs = selectedJobs.length > 1 ? (
+    <div className="cl-role-tabs">
+      {selectedJobs.map((j) => (
+        <button key={j} type="button" onClick={() => setActiveJob(j)} className={j === activeJob ? "cl-role-chip on" : "cl-role-chip"}>{j}</button>
+      ))}
+    </div>
+  ) : null;
 
   return (
     <>
     <DashboardSection
       title={t("커리어 리포트", "Career Report", "职业报告", "Career Report", "キャリアレポート", "Laporan Karier")}
-      sub={t("진단·선정 직무를 종합한 나의 커리어 방향", "Your career direction from diagnosis and chosen roles", "综合诊断与所选职务的职业方向", "Hướng nghề từ chẩn đoán và nghề đã chọn", "診断と選定職種を統合したキャリア方向", "Arah karier dari diagnosis dan peran pilihan")}
-      action={state === "done" ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">
-          <Target className="h-3.5 w-3.5" weight="fill" /> {t("방향 준비 완료", "Direction ready", "方向已就绪", "Đã sẵn hướng", "方向準備完了", "Arah siap")}
-        </span>
-      ) : undefined}
+      sub={t("직무별로 나의 커리어 방향을 점수로", "Your career direction by role, scored", "按职务给出职业方向评分", "Hướng nghề theo từng nghề, chấm điểm", "職種ごとにキャリア方向をスコア化", "Arah karier per peran, dinilai")}
     >
+      {tabs}
+
       {state === "ready" ? (
         <Card className="md:!p-6">
           <div className="text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]" aria-hidden><Target className="h-6 w-6" weight="fill" /></span>
-            <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t("나의 커리어 리포트를 받아보세요", "Get your Career Report", "领取你的职业报告", "Nhận Career Report của bạn", "あなたのキャリアレポートを受け取りましょう", "Dapatkan Career Report-mu")}</p>
+            <p className="mt-3 text-[15px] font-bold text-[#191F28]">{activeJob ? t(`'${activeJob}' 리포트를 받아보세요`, `Get the '${activeJob}' report`, `领取“${activeJob}”报告`, `Nhận báo cáo '${activeJob}'`, `「${activeJob}」レポートを受け取りましょう`, `Dapatkan laporan '${activeJob}'`) : t("나의 커리어 리포트를 받아보세요", "Get your Career Report", "领取你的职业报告", "Nhận Career Report của bạn", "あなたのキャリアレポートを受け取りましょう", "Dapatkan Career Report-mu")}</p>
             <p className="mx-auto mt-1 max-w-[420px] break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("진단·선정 직무를 종합해 커리어 점수(6영역)·강점·로드맵을 정리해드려요.", "We combine your diagnosis and chosen roles into a Career Score, strengths, and a roadmap.", "综合你的诊断与所选职务，为你整理职业分数、优势与路线图。", "Kết hợp chẩn đoán và nghề đã chọn thành Career Score, điểm mạnh và lộ trình.", "診断と選定職種を統合してCareer Score・強み・ロードマップを整理します。", "Menggabungkan diagnosis dan peran pilihanmu menjadi Career Score, kelebihan, dan roadmap.")}</p>
             <button
               type="button"
@@ -174,26 +179,14 @@ export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[
     {hasRoadmap && rm ? (
       <DashboardSection
         title={t("커리어 로드맵", "Career Roadmap", "职业路线图", "Lộ trình nghề", "キャリアロードマップ", "Roadmap Karier")}
-        sub={t("목표까지 무엇을 준비할지", "What to prepare toward your goal", "为目标需要准备什么", "Cần chuẩn bị gì để đạt mục tiêu", "目標に向けて何を準備するか", "Apa yang perlu disiapkan menuju tujuan")}
+        sub={activeJob ? t(`'${activeJob}' 기준 준비 방향`, `Prep plan for '${activeJob}'`, `“${activeJob}”的准备方向`, `Kế hoạch cho '${activeJob}'`, `「${activeJob}」の準備方向`, `Rencana untuk '${activeJob}'`) : t("목표까지 무엇을 준비할지", "What to prepare toward your goal", "为目标需要准备什么", "Cần chuẩn bị gì để đạt mục tiêu", "目標に向けて何を準備するか", "Apa yang perlu disiapkan menuju tujuan")}
       >
         <div className="cl-mini">
           <div className="cl-road-grid">
-            {rm.targetRole || selectedJobs.length > 0 ? (
-              <div className="span2">
+            {rm.targetRole ? (
+              <div>
                 <p className="lb">{t("목표 직무", "Target role", "目标职务", "Nghề mục tiêu", "目標職務", "Peran target")}</p>
-                {(() => {
-                  // 확정 목표 + 관심 직무들을 칩으로. 확정(=targetRole)은 강조, 나머지는 함께 고려 중.
-                  const chips = Array.from(new Set([rm.targetRole, ...selectedJobs].filter((x): x is string => Boolean(x && x.trim()))));
-                  return (
-                    <div className="cl-role-chips">
-                      {chips.map((role) => {
-                        const on = role === rm.targetRole;
-                        return <span key={role} className={on ? "cl-role-chip on" : "cl-role-chip"}>{on ? <Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> : null}{role}</span>;
-                      })}
-                    </div>
-                  );
-                })()}
-                <Link href="/career-launch/week/1" className="cl-role-change"><PencilSimple className="h-3.5 w-3.5" weight="bold" aria-hidden /> {t("목표 직무 바꾸기", "Change target role", "更改目标职务", "Đổi nghề mục tiêu", "目標職種を変更", "Ubah peran target")}</Link>
+                <p className="vl accent">{rm.targetRole}</p>
               </div>
             ) : null}
             {rm.targetCompanies.length > 0 ? (
