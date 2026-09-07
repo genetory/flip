@@ -4,7 +4,7 @@
 // 자동 생성/과금하지 않고, 저장분이 있으면 보여주고 없으면 '받기' 버튼으로 사용자가 요청할 때만 생성.
 // UI: 상단 섹션(체크인 패널)과 동일한 카드 그리드 톤 — 색은 블루+민트+그레이로 절제.
 import { useEffect, useState } from "react";
-import { Sparkle, CircleNotch, Target, TrendUp, Warning, MapTrifold } from "@phosphor-icons/react";
+import { Sparkle, CircleNotch, Target, TrendUp, Warning, Buildings, Lightbulb, Wrench } from "@phosphor-icons/react";
 import { fetchCareerReport, type CareerReport } from "../../lib/launch/feedback-client";
 import { Card } from "./ui";
 import { DashboardSection } from "./dashboard-states";
@@ -77,7 +77,11 @@ export function CareerReportCard() {
 
   if (state === "none" || state === "loading") return null; // 진단 전이거나 로딩 중엔 숨김
 
+  const rm = report?.roadmap;
+  const hasRoadmap = state === "done" && !!rm && (Boolean(rm.targetRole) || rm.targetCompanies.length > 0 || rm.recommendedExperience.length > 0 || rm.toImprove.length > 0);
+
   return (
+    <>
     <DashboardSection
       title={t("커리어 리포트", "Career Report", "职业报告", "Career Report", "キャリアレポート", "Laporan Karier")}
       sub={t("진단·선정 직무를 종합한 나의 커리어 방향", "Your career direction from diagnosis and chosen roles", "综合诊断与所选职务的职业方向", "Hướng nghề từ chẩn đoán và nghề đã chọn", "診断と選定職種を統合したキャリア方向", "Arah karier dari diagnosis dan peran pilihan")}
@@ -158,37 +162,6 @@ export function CareerReportCard() {
               </ul>
             </div>
           ) : null}
-
-          {/* 커리어 로드맵 */}
-          <div className="cl-mini full">
-            <p className="cl-eyebrow inline-flex items-center gap-1.5" style={{ color: "var(--cl-faint)" }}><MapTrifold className="h-3.5 w-3.5" weight="fill" /> {t("커리어 로드맵", "Career Roadmap", "职业路线图", "Lộ trình nghề", "キャリアロードマップ", "Roadmap Karier")}</p>
-            <div className="road-grid mt-3">
-              {report.roadmap.targetRole ? (
-                <div>
-                  <p className="text-[11px] font-bold text-[#8B95A1]">{t("목표 직무", "Target role", "目标职务", "Nghề mục tiêu", "目標職務", "Peran target")}</p>
-                  <p className="mt-0.5 text-[14px] font-bold text-[#0B46E8]">{report.roadmap.targetRole}</p>
-                </div>
-              ) : null}
-              {report.roadmap.targetCompanies.length > 0 ? (
-                <div>
-                  <p className="text-[11px] font-bold text-[#8B95A1]">{t("목표 기업", "Target companies", "目标企业", "Công ty mục tiêu", "目標企業", "Perusahaan target")}</p>
-                  <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{report.roadmap.targetCompanies.join(" · ")}</p>
-                </div>
-              ) : null}
-              {report.roadmap.recommendedExperience.length > 0 ? (
-                <div>
-                  <p className="text-[11px] font-bold text-[#8B95A1]">{t("추천 경험", "Recommended experience", "推荐经验", "Kinh nghiệm gợi ý", "推奨経験", "Pengalaman disarankan")}</p>
-                  <ul className="mt-0.5 space-y-0.5">{report.roadmap.recommendedExperience.map((s, i) => <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>)}</ul>
-                </div>
-              ) : null}
-              {report.roadmap.toImprove.length > 0 ? (
-                <div>
-                  <p className="text-[11px] font-bold text-[#8B95A1]">{t("보완할 것", "To improve", "需补强", "Cần cải thiện", "補うこと", "Perlu diperbaiki")}</p>
-                  <ul className="mt-0.5 space-y-0.5">{report.roadmap.toImprove.map((s, i) => <li key={i} className="break-keep text-[13px] leading-relaxed text-[#4E5968]">· {s}</li>)}</ul>
-                </div>
-              ) : null}
-            </div>
-          </div>
         </div>
       ) : null}
 
@@ -196,5 +169,52 @@ export function CareerReportCard() {
         <Card className="md:!p-6"><p className="text-[13px] text-[#8B95A1]">{t("리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the report. Please try again in a moment.", "无法加载报告，请稍后再试。", "Không thể tải báo cáo. Vui lòng thử lại.", "レポートを読み込めませんでした。少し後に再試行してください。", "Tidak dapat memuat laporan. Silakan coba lagi.")}</p></Card>
       ) : null}
     </DashboardSection>
+
+    {hasRoadmap && rm ? (
+      <DashboardSection
+        title={t("커리어 로드맵", "Career Roadmap", "职业路线图", "Lộ trình nghề", "キャリアロードマップ", "Roadmap Karier")}
+        sub={t("목표까지 무엇을 준비할지", "What to prepare toward your goal", "为目标需要准备什么", "Cần chuẩn bị gì để đạt mục tiêu", "目標に向けて何を準備するか", "Apa yang perlu disiapkan menuju tujuan")}
+      >
+        <div className="cl-road">
+          {rm.targetRole ? (
+            <div className="cl-road-card hi">
+              <span className="cl-road-ic"><Target className="h-5 w-5" weight="fill" aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="lb">{t("목표 직무", "Target role", "目标职务", "Nghề mục tiêu", "目標職務", "Peran target")}</p>
+                <p className="vl">{rm.targetRole}</p>
+              </div>
+            </div>
+          ) : null}
+          {rm.targetCompanies.length > 0 ? (
+            <div className="cl-road-card">
+              <span className="cl-road-ic"><Buildings className="h-5 w-5" weight="fill" aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="lb">{t("목표 기업", "Target companies", "目标企业", "Công ty mục tiêu", "目標企業", "Perusahaan target")}</p>
+                <p className="vl">{rm.targetCompanies.join(" · ")}</p>
+              </div>
+            </div>
+          ) : null}
+          {rm.recommendedExperience.length > 0 ? (
+            <div className="cl-road-card">
+              <span className="cl-road-ic"><Lightbulb className="h-5 w-5" weight="fill" aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="lb">{t("추천 경험", "Recommended experience", "推荐经验", "Kinh nghiệm gợi ý", "推奨経験", "Pengalaman disarankan")}</p>
+                <ul>{rm.recommendedExperience.map((s, i) => <li key={i}>· {s}</li>)}</ul>
+              </div>
+            </div>
+          ) : null}
+          {rm.toImprove.length > 0 ? (
+            <div className="cl-road-card">
+              <span className="cl-road-ic"><Wrench className="h-5 w-5" weight="fill" aria-hidden /></span>
+              <div className="min-w-0">
+                <p className="lb">{t("보완할 것", "To improve", "需补强", "Cần cải thiện", "補うこと", "Perlu diperbaiki")}</p>
+                <ul>{rm.toImprove.map((s, i) => <li key={i}>· {s}</li>)}</ul>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </DashboardSection>
+    ) : null}
+    </>
   );
 }
