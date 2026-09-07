@@ -1,10 +1,10 @@
 "use client";
 
-// 4주 프로그램 게임 월드맵 — SVG 구불구불 길 + 스테이지 노드(4주 + 취업).
-// 현재 위치 비행기 글로우. 스테이지 탭 → 아래 시트에 그 주차 미션(그 자리 모달로).
+// 4주 프로그램 — 주차 탭 전환. 상단 Week 1~4 탭(진행 표시) + 아래 선택 주차 미션만.
+// 채팅형 미션은 그 자리 모달(기존 배선 재사용). 리포트 탭과 동일한 톤(cl-role-chip).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, ArrowRight, Star, Airplane } from "@phosphor-icons/react";
+import { Check, Lock, ArrowRight } from "@phosphor-icons/react";
 import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
@@ -30,13 +30,7 @@ const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => { const p = href.split("?")[0]; return CHAT_ENDS.some((s) => p.endsWith(s)); };
 
-const TOP = 50;
-const GAP = 128;
-const XS = [18, 82, 18, 82, 50]; // 지그재그 x(%) — 4주 + 취업
-const STOP_COUNT = 5;
-const MAP_H = TOP + (STOP_COUNT - 1) * GAP + 50;
-
-export function WeekMap() {
+export function WeekTabs() {
   const t = useLaunchT();
   const weekText = useWeekText();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -74,7 +68,6 @@ export function WeekMap() {
     return body ? <CareerChatModal onClose={close}>{body}</CareerChatModal> : null;
   };
 
-  // 지금 할 미션 + 현재 주차.
   let currentStepId = "";
   for (const w of WEEKS) {
     const reachable = w.week === 1 || isWeekComplete(w.week - 1, data);
@@ -86,23 +79,6 @@ export function WeekMap() {
   const [selected, setSelected] = useState<number | null>(null);
   const selWeek = selected ?? currentWeek;
   const sel = WEEKS.find((w) => w.week === selWeek)!;
-
-  // 스톱 상태.
-  const stopState = (i: number): "done" | "current" | "locked" | "todo" | "dest" | "dest-done" => {
-    if (i === 4) return isWeekComplete(4, data) ? "dest-done" : "dest";
-    const w = WEEKS[i];
-    const reachable = w.week === 1 || isWeekComplete(w.week - 1, data);
-    if (isWeekComplete(w.week, data)) return "done";
-    if (w.week === currentWeek) return "current";
-    return reachable ? "todo" : "locked";
-  };
-
-  // 길 세그먼트(스톱 i → i+1) — done 이면 accent, 아니면 옅게.
-  const segPath = (i: number) => {
-    const x0 = XS[i], y0 = TOP + i * GAP, x1 = XS[i + 1], y1 = TOP + (i + 1) * GAP;
-    return `M ${x0} ${y0} C ${x0} ${y0 + GAP / 2}, ${x1} ${y1 - GAP / 2}, ${x1} ${y1}`;
-  };
-  const segDone = (i: number) => (i < 4 ? isWeekComplete(WEEKS[i].week, data) : isWeekComplete(4, data));
 
   const openMission = (step: Step) => { const h = step.action?.href; if (h && isChatHref(h)) setChatHref(h); };
   const missionCard = (step: Step, weekN: number, seq: boolean) => {
@@ -130,63 +106,39 @@ export function WeekMap() {
 
   return (
     <>
-      <div className="cl-map" style={{ height: MAP_H }}>
-        <svg viewBox={`0 0 100 ${MAP_H}`} preserveAspectRatio="none" aria-hidden>
-          {[0, 1, 2, 3].map((i) => (
-            <path
-              key={i}
-              d={segPath(i)}
-              fill="none"
-              stroke={segDone(i) ? "var(--cl-accent)" : "var(--cl-line-strong)"}
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeDasharray={segDone(i) ? undefined : "1 9"}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </svg>
-
-        {[0, 1, 2, 3, 4].map((i) => {
-          const st = stopState(i);
-          const isDest = i === 4;
-          const w = isDest ? null : WEEKS[i];
-          const reachable = isDest ? isWeekComplete(4, data) : (w!.week === 1 || isWeekComplete(w!.week - 1, data));
-          const nodeCls = `cl-mapnode ${isDest ? "dest" : ""} ${st === "done" || st === "dest-done" ? "done" : ""} ${st === "current" ? "current" : ""} ${st === "locked" ? "locked" : ""} ${!isDest && selWeek === w!.week ? "selected" : ""}`;
-          const label = isDest ? t("취업 🎉", "Hired 🎉", "就业 🎉", "Trúng tuyển 🎉", "内定 🎉", "Kerja 🎉") : weekText(w!.week, "title");
+      {/* 주차 탭 */}
+      <div className="cl-role-tabs" style={{ overflowX: "auto", paddingBottom: 2 }}>
+        {WEEKS.map((w) => {
+          const done = isWeekComplete(w.week, data);
+          const reachable = w.week === 1 || isWeekComplete(w.week - 1, data);
+          const locked = !reachable && !done;
+          const active = selWeek === w.week;
+          const isCur = w.week === currentWeek && !done;
           return (
-            <button
-              key={i}
-              type="button"
-              className={nodeCls}
-              style={{ left: `${XS[i]}%`, top: `${TOP + i * GAP}px` }}
-              disabled={isDest || !reachable}
-              onClick={() => { if (!isDest && reachable) setSelected(w!.week); }}
-              aria-label={isDest ? "취업" : `Week ${w!.week}`}
-            >
-              <span className="cl-mapdot">
-                {isDest ? <Star className="h-5 w-5" weight="fill" /> : st === "done" ? <Check className="h-5 w-5" weight="bold" /> : st === "locked" ? <Lock className="h-4 w-4" weight="fill" /> : w!.week}
-                {st === "current" ? <Airplane className="cl-mapplane h-6 w-6" weight="fill" aria-hidden /> : null}
-              </span>
-              <span className="cl-maplbl">{label}</span>
+            <button key={w.week} type="button" onClick={() => setSelected(w.week)} className={`cl-role-chip ${active ? "on" : ""}`} style={{ position: "relative" }}>
+              {done ? <Check className="h-3.5 w-3.5" weight="bold" /> : locked ? <Lock className="h-3 w-3" weight="fill" /> : null}
+              {t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`)}
+              {isCur && !active ? <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: 999, background: "var(--cl-accent)" }} /> : null}
             </button>
           );
         })}
       </div>
 
-      {/* 선택 주차 미션 시트 */}
-      <div className="cl-mapsheet">
-        <div className="cl-mapsheet-head">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="thumb" src={WEEK_IMAGE[selWeek]} alt="" loading="lazy" />
-          <div className="min-w-0">
-            <span className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>Week {selWeek} · {selDone ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : t(`${selDc} / ${sel.steps.length} 완료`, `${selDc} / ${sel.steps.length} done`, `${selDc} / ${sel.steps.length} 完成`, `${selDc} / ${sel.steps.length} xong`, `${selDc} / ${sel.steps.length} 完了`, `${selDc} / ${sel.steps.length} selesai`)}</span>
-            <h3>{weekText(selWeek, "title")}</h3>
-          </div>
+      {/* 선택 주차 헤더 */}
+      <div className="cl-mapsheet-head mt-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="thumb" src={WEEK_IMAGE[selWeek]} alt="" loading="lazy" />
+        <div className="min-w-0">
+          <span className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>Week {selWeek} · {selDone ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : t(`${selDc} / ${sel.steps.length} 완료`, `${selDc} / ${sel.steps.length} done`, `${selDc} / ${sel.steps.length} 完成`, `${selDc} / ${sel.steps.length} xong`, `${selDc} / ${sel.steps.length} 完了`, `${selDc} / ${sel.steps.length} selesai`)}</span>
+          <h3>{weekText(selWeek, "title")}</h3>
+          <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{weekText(selWeek, "subtitle")}</p>
         </div>
+      </div>
 
+      {/* 미션 */}
+      <div className="mt-3 flex flex-col gap-3">
         {sel.steps.map((s) => missionCard(s, selWeek, seq))}
-
-        {selWeek === 2 ? <div className="flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div> : null}
+        {selWeek === 2 ? <><ResumeScoreCard /><CoverScoreCard /></> : null}
         {selWeek === 4 ? (
           <>
             <PostingInterviewCard />
