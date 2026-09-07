@@ -11,6 +11,8 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
   const t = useLaunchT();
   const week = Math.min(Math.max(vm.currentWeek || 1, 1), 4);
   const targetJob = vm.profileSummary.targetJob?.trim();
+  const affiliation = vm.cohort?.university?.trim() || vm.cohort?.name?.trim() || "Career Launch";
+  const peers = Math.max((vm.cohortActivity.activeThisWeek ?? 0) - 1, 0); // 본인 제외 동료 수
 
   // 티켓 QR — 커리어 런치 홈으로 연결(스캔 가능한 실제 QR).
   const [qr, setQr] = useState<string>("");
@@ -68,6 +70,14 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
           <div className="cl-meta">
             <div className="k">{t("클래스", "Class", "舱位", "Hạng", "クラス", "Kelas")}</div>
             <div className="v">{t("4주 집중 · AI 코치", "4-week · AI coach", "4周集中 · AI教练", "4 tuần · AI coach", "4週集中 · AIコーチ", "4 minggu · AI coach")}</div>
+          </div>
+          <div className="cl-meta">
+            <div className="k">{t("소속", "Cohort", "所属", "Thuộc về", "所属", "Kohort")}</div>
+            <div className="v" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{affiliation}</div>
+          </div>
+          <div className="cl-meta">
+            <div className="k">{t("함께", "Peers", "同伴", "Đồng đội", "仲間", "Rekan")}</div>
+            <div className="v">{peers >= 1 ? t(`${peers}명 함께`, `${peers} peers`, `${peers} 人`, `${peers} bạn`, `${peers}人`, `${peers} rekan`) : "–"}</div>
           </div>
         </div>
       </div>

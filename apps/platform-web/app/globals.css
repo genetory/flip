@@ -372,7 +372,7 @@ All colors MUST be HSL.
 .cl-port .label { font-size: 12.5px; color: var(--cl-muted); margin-top: 5px; font-weight: 600; word-break: keep-all; }
 .cl-planeline { flex: 1; height: 2px; position: relative; background: repeating-linear-gradient(90deg, var(--cl-line-strong) 0 6px, transparent 6px 12px); }
 .cl-planeline svg { position: absolute; top: 50%; left: var(--cl-planepos, 46%); transform: translate(-50%, -50%) rotate(90deg); color: var(--cl-accent); transition: left 1.1s cubic-bezier(.5,.05,.2,1); }
-.cl-pass-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 22px; align-items: stretch; }
+.cl-pass-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 22px; align-items: stretch; }
 .cl-meta { display: flex; flex-direction: column; }
 .cl-meta .k { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--cl-faint); min-height: 13px; }
 .cl-meta .v { font-size: 15px; font-weight: 800; margin-top: 6px; min-height: 30px; display: flex; align-items: center; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
