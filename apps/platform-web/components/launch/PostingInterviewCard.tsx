@@ -4,7 +4,7 @@
 // 공고 출처: 우리 공고 데이터(관심 직무 추천) / 검색 / 외부 링크.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CircleNotch, Sparkle, MagnifyingGlass, Buildings, ClockCounterClockwise, CaretRight } from "@phosphor-icons/react";
+import { CircleNotch, Sparkle, MagnifyingGlass, Buildings, ClockCounterClockwise, CaretRight, ArrowClockwise } from "@phosphor-icons/react";
 import { Card, SectionTitle } from "./ui";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { trackCareerFunnel } from "../../lib/analytics";
@@ -37,6 +37,15 @@ function positionToPosting(p: PublicPositionListItem): InterviewJobPosting {
     requirements: p.requiredQualifications ? [p.requiredQualifications] : undefined
   };
 }
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const RECO_PAGE = 5;
 
 export function PostingInterviewCard() {
   const t = useLaunchT();
@@ -50,6 +59,10 @@ export function PostingInterviewCard() {
   const [active, setActive] = useState<InterviewJobPosting | null>(null);
   const [logs, setLogs] = useState<PostingInterviewLog[]>([]);
   const alive = useRef(true);
+  // 추천 공고 — 5개씩 보여주고 '더보기'로 랜덤 5개 교체(덱 소진 시 재셔플).
+  const recoPoolRef = useRef<PublicPositionListItem[]>([]);
+  const recoDeckRef = useRef<PublicPositionListItem[]>([]);
+  const recoPtrRef = useRef(0);
 
   useEffect(() => {
     alive.current = true;
@@ -61,22 +74,27 @@ export function PostingInterviewCard() {
 
         // 우리 공고 데이터에서 관심 직무로 채용 중인 공고 추천(없으면 개인화 추천 폴백).
         const jobs = Array.isArray(prog?.selectedJobs) ? prog!.selectedJobs!.filter((j) => j?.trim()) : [];
-        let reco: PublicPositionListItem[] = [];
+        let pool: PublicPositionListItem[] = [];
         if (jobs.length) {
           const queries = jobs.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)?.query || r);
-          const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 6 }).catch(() => null)));
+          const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 15 }).catch(() => null)));
           const seenId = new Set<string>();
           for (const pg of pages) {
             for (const it of pg?.items ?? []) {
-              if (seenId.has(it.id) || reco.length >= 8) continue;
+              if (seenId.has(it.id) || pool.length >= 30) continue;
               seenId.add(it.id);
-              reco.push(it);
+              pool.push(it);
             }
           }
         } else {
-          reco = (await getRecommendedPositions({ limit: 8 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
+          pool = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
         }
-        if (alive.current) setRecos(reco);
+        if (!alive.current) return;
+        const deck = shuffle(pool);
+        recoPoolRef.current = pool;
+        recoDeckRef.current = deck;
+        recoPtrRef.current = Math.min(RECO_PAGE, deck.length);
+        setRecos(deck.slice(0, RECO_PAGE));
       } catch {
         if (alive.current) setRecos([]);
       }
@@ -85,6 +103,24 @@ export function PostingInterviewCard() {
       alive.current = false;
     };
   }, []);
+
+  // 더보기 — 기존 5개를 지우고 다른 랜덤 5개로 교체.
+  const moreReco = () => {
+    const pool = recoPoolRef.current;
+    if (pool.length <= RECO_PAGE) {
+      setRecos(shuffle(pool));
+      return;
+    }
+    let deck = recoDeckRef.current;
+    let p = recoPtrRef.current;
+    if (p + RECO_PAGE > deck.length) {
+      deck = shuffle(pool);
+      recoDeckRef.current = deck;
+      p = 0;
+    }
+    recoPtrRef.current = p + RECO_PAGE;
+    setRecos(deck.slice(p, p + RECO_PAGE));
+  };
 
   const reloadLogs = async () => {
     try {
@@ -197,6 +233,11 @@ export function PostingInterviewCard() {
             ) : recos.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {recos.map((p) => <Row key={p.id} title={p.title} company={posCompany(p)} bullets={posBullets(p)} thumb={posThumb(p)} onStart={() => startWith(positionToPosting(p))} />)}
+                {recoPoolRef.current.length > RECO_PAGE ? (
+                  <button type="button" onClick={moreReco} className="mt-1 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+                    <ArrowClockwise className="h-4 w-4" weight="bold" /> {t("다른 공고 더보기", "Show more openings", "查看更多公告", "Xem thêm tin", "他の求人をもっと見る", "Tampilkan lebih banyak")}
+                  </button>
+                ) : null}
               </div>
             ) : (
               <p className="py-4 text-[12.5px] text-[#8B95A1]">{t("지금 관심 직무로 매칭되는 공고가 적어요. '검색'이나 '링크'로 찾아보세요.", "Few openings match your roles right now. Try Search or Link.", "目前与你所选职务匹配的公告较少，试试搜索或链接。", "Hiện ít tin phù hợp với nghề của bạn. Thử Tìm hoặc Link.", "今は関心職種にマッチする求人が少ないです。検索かリンクで。", "Sedikit lowongan cocok dengan peranmu. Coba Cari atau Link.")}</p>
