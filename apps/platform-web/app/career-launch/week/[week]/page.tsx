@@ -12,7 +12,6 @@ import { WeekDocs } from "../../../../components/launch/week-docs";
 import { WeekGate } from "../../../../components/launch/week-gate";
 import { WeekAutoFeedback } from "../../../../components/launch/week-auto-feedback";
 import { InterviewPrepChecklist } from "../../../../components/launch/InterviewPrepChecklist";
-import { CareerReportCard } from "../../../../components/launch/CareerReportCard";
 import { ResumeScoreCard } from "../../../../components/launch/ResumeScoreCard";
 import { CoverScoreCard } from "../../../../components/launch/CoverScoreCard";
 import { StoryBankCard } from "../../../../components/launch/StoryBankCard";
@@ -269,9 +268,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </ol>
             </div>
 
-            {/* 종료 시점 캡스톤 — Career Report(6영역 점수·강점·로드맵). 4주차 마무리에서 전체를 종합.
-                (진단 전이면 스스로 숨음. 1주차엔 이력서·자소서·면접 영역이 비어 시기상조라 4주차로 이동) */}
-            {plan.week === 4 ? <CareerReportCard /> : null}
+            {/* Career Report(6영역 점수·강점·로드맵)는 홈(대시보드)으로 이동 — 여기선 제거. */}
           </div>
 
           {/* 최종 주차 CTA — 흑백 다크 카드(대시보드 '다음 할 일'과 동일한 결) */}

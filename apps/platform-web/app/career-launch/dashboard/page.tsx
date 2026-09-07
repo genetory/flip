@@ -9,6 +9,7 @@ import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { HeroOpenings } from "../../../components/launch/HeroOpenings";
+import { CareerReportCard } from "../../../components/launch/CareerReportCard";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { fetchProgress, fetchWeekSchedule, type WeekScheduleEntry } from "../../../lib/launch/progress-client";
@@ -315,6 +316,9 @@ export default function LaunchDashboardPage() {
               <DashboardSection title={t("최근 결과물", "Recent deliverables", "最近成果", "Kết quả gần đây", "最近の成果物", "Hasil terbaru")} sub={t("확인이 필요한 것부터", "Start with what needs review", "从需要确认的开始", "Bắt đầu từ những gì cần xem lại", "確認が必要なものから", "Mulai dari yang perlu ditinjau")}>
                 <ArtifactStatusCard artifacts={vm.artifacts} />
               </DashboardSection>
+
+              {/* Career Report(6영역 점수·강점·로드맵) — 진단 후 자체 노출. 4주차에서 홈으로 이동한 캡스톤. */}
+              <CareerReportCard />
 
               {/* 영역 6 — 내 성장(성장 데이터가 생긴 뒤에만 노출. 모의면접 전엔 순서에 안 맞는 CTA를 띄우지 않음) */}
               {vm.growthSummary.available ? (
