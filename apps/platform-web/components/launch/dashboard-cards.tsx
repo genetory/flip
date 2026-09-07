@@ -254,16 +254,16 @@ export function GrowthSummaryCard({ vm }: { vm: DashboardVM }) {
     return <EmptyState title={t("아직 성장 데이터가 없어요", "No growth data yet", "还没有成长数据", "Chưa có dữ liệu phát triển", "まだ成長データがありません", "Belum ada data pertumbuhan")} description={t("첫 모의면접을 마치면 최초 대비 변화를 볼 수 있어요.", "Finish your first mock interview to see the change vs your first.", "完成首次模拟面试后可查看对比首次的变化。", "Hoàn thành phỏng vấn thử đầu tiên để thấy thay đổi so với ban đầu.", "初回模擬面接を終えると最初との変化が見られます。", "Selesaikan wawancara simulasi pertama untuk melihat perubahan dari awal.")} ctaLabel={t("첫 모의면접 시작하기", "Start your first mock interview", "开始首次模拟面试", "Bắt đầu phỏng vấn thử đầu tiên", "初回模擬面接を始める", "Mulai wawancara simulasi pertama")} href="/career-launch/week/3" />;
   }
   return (
-    <div className="grid grid-cols-2 gap-2.5">
-      <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-        <p className="text-[12px] text-[#8B95A1]">{t("면접 성장(최초 대비)", "Interview growth (vs first)", "面试成长(对比首次)", "Tiến bộ PV (so với đầu)", "面接の成長(最初比)", "Pertumbuhan wawancara (vs awal)")}</p>
-        <p className="mt-1 text-[22px] font-bold tabular-nums text-[#0A9B59]">{t(`+${g.scoreGrowthRate}점`, `+${g.scoreGrowthRate} pts`, `+${g.scoreGrowthRate} 分`, `+${g.scoreGrowthRate} điểm`, `+${g.scoreGrowthRate}点`, `+${g.scoreGrowthRate} poin`)}</p>
+    <div className="grid grid-cols-2 gap-3">
+      <div className="cl-mini">
+        <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("면접 성장(최초 대비)", "Interview growth (vs first)", "面试成长(对比首次)", "Tiến bộ PV (so với đầu)", "面接の成長(最初比)", "Pertumbuhan wawancara (vs awal)")}</p>
+        <p className="mt-2 text-[26px] font-black tabular-nums" style={{ color: "var(--cl-mint)" }}>{t(`+${g.scoreGrowthRate}점`, `+${g.scoreGrowthRate} pts`, `+${g.scoreGrowthRate} 分`, `+${g.scoreGrowthRate} điểm`, `+${g.scoreGrowthRate}点`, `+${g.scoreGrowthRate} poin`)}</p>
       </div>
-      <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-        <p className="text-[12px] text-[#8B95A1]">{t("오답 해결", "Corrections resolved", "错题解决", "Lỗi đã sửa", "復習の解決", "Koreksi selesai")}</p>
-        <p className="mt-1 text-[22px] font-bold tabular-nums text-[#191F28]">
+      <div className="cl-mini">
+        <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("오답 해결", "Corrections resolved", "错题解决", "Lỗi đã sửa", "復習の解決", "Koreksi selesai")}</p>
+        <p className="mt-2 text-[26px] font-black tabular-nums text-[#191F28]">
           {g.correctionResolved ?? 0}
-          <span className="text-[14px] text-[#8B95A1]">/{g.correctionTotal ?? 0}</span>
+          <span className="text-[15px] font-bold text-[#B0B8C1]">/{g.correctionTotal ?? 0}</span>
         </p>
       </div>
     </div>
@@ -279,14 +279,14 @@ export function CohortActivityCard({ vm }: { vm: DashboardVM }) {
   if (active == null || active < 2) return null;
   const peers = active - 1; // 본인을 제외한 동료 수
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-      <div className="flex items-start gap-2.5">
-        <span className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EAF2FF]">
-          <Users size={16} className="text-[#3182F6]" />
+    <div className="cl-mini">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EAF2FF]">
+          <Users size={17} className="text-[#3182F6]" />
         </span>
         <div className="min-w-0">
-          <p className="cl-eyebrow text-[#8B95A1]">{t("함께하는 동료", "Peers with you", "同行伙伴", "Đồng đội cùng bạn", "一緒に取り組む仲間", "Rekan bersamamu")}</p>
-          <p className="mt-0.5 text-[14px] leading-snug text-[#191F28]">
+          <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("함께하는 동료", "Peers with you", "同行伙伴", "Đồng đội cùng bạn", "一緒に取り組む仲間", "Rekan bersamamu")}</p>
+          <p className="mt-1 text-[14px] leading-snug text-[#191F28]">
             {t(`같은 기수 동료 ${peers}명이 이번 주 커리어를 준비하고 있어요`, `${peers} peers in your cohort are preparing this week`, `同期 ${peers} 名同伴本周正在准备求职`, `${peers} đồng đội cùng khóa đang chuẩn bị tuần này`, `同じ期の仲間 ${peers}名が今週キャリアを準備しています`, `${peers} rekan seangkatan sedang bersiap minggu ini`)}
           </p>
         </div>
@@ -305,9 +305,9 @@ export function SeminarCard({ vm }: { vm: DashboardVM }) {
     <Link
       href="/career-launch/dashboard"
       onClick={() => trackCareerFunnel("career_seminar_clicked", { currentWeek: s.week })}
-      className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4"
+      className="cl-mini flex items-center gap-3.5"
     >
-      <CalendarBlank size={20} className="flex-none text-[#3182F6]" />
+      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EAF2FF]"><CalendarBlank size={17} className="text-[#3182F6]" /></span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14px] font-bold text-[#191F28]">{s.title ?? `Week ${s.week} ${t("세미나", "Seminar", "研讨会", "Hội thảo", "セミナー", "Seminar")}`}</p>
         <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">
