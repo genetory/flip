@@ -26,7 +26,7 @@ import { LeagueCard } from "../../../components/launch/LeagueCard";
 import { PilotFeedbackWidget } from "../../../components/launch/PilotFeedbackWidget";
 import { fetchDashboard, type DashboardVM } from "../../../lib/launch/dashboard-client";
 import { logActivity } from "../../../lib/launch/pilot-client";
-import { CoachTodayCard, ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
+import { ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
 import { DashboardSection, ErrorState, ResumeState, CardSkeleton } from "../../../components/launch/dashboard-states";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -299,10 +299,7 @@ export default function LaunchDashboardPage() {
               {/* 정체 사용자: 죄책감 없이 이어가기 */}
               {vm.enrollmentStatus === "stalled" ? <ResumeState days={vm.lastActivityDaysAgo} href={vm.nextAction.destination} /> : null}
 
-              {/* 영역 1 — 전담 코치 메시지(최상단) */}
-              <CoachTodayCard vm={vm} />
-
-              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 코치 카드 아래 */}
+              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 코치 카드는 보딩패스와 중복이라 제거 */}
               <HeroOpenings />
 
               {/* 오늘 할 일(NextActionCard)·현재 주차 안내(CurrentWeekCard) 카드 제거 — 4주 여정에서 진행 확인 */}
