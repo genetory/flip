@@ -27,7 +27,7 @@ import { LeagueCard } from "../../../components/launch/LeagueCard";
 import { PilotFeedbackWidget } from "../../../components/launch/PilotFeedbackWidget";
 import { fetchDashboard, type DashboardVM } from "../../../lib/launch/dashboard-client";
 import { logActivity } from "../../../lib/launch/pilot-client";
-import { ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
+import { GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
 import { DashboardSection, ErrorState, ResumeState, CardSkeleton } from "../../../components/launch/dashboard-states";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -311,10 +311,7 @@ export default function LaunchDashboardPage() {
               {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 모의면접은 4주차 도달 시 */}
               <HeroOpenings currentWeek={vm.currentWeek} />
 
-              {/* 영역 5 — 최근 결과물 */}
-              <DashboardSection title={t("여권 스탬프 · 나의 결과물", "Passport stamps · deliverables", "护照印章 · 我的成果", "Tem hộ chiếu · kết quả", "パスポートスタンプ · 成果物", "Stempel paspor · hasil")} sub={t("완성할 때마다 도장을 모아요", "Collect a stamp for each one you finish", "每完成一项就集一枚印章", "Mỗi mục hoàn thành là một con dấu", "完成するたびにスタンプが増えます", "Kumpulkan stempel tiap selesai")}>
-                <ArtifactStatusCard artifacts={vm.artifacts} />
-              </DashboardSection>
+              {/* 여권 스탬프 · 나의 결과물 섹션 제거(요청) */}
 
               {/* Career Report(6영역 점수·강점·로드맵) — 진단 후 자체 노출. 4주차에서 홈으로 이동한 캡스톤. */}
               <CareerReportCard />
