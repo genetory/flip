@@ -429,21 +429,17 @@ All colors MUST be HSL.
 .cl-stop .nm { font-size: 12.5px; font-weight: 700; margin-top: 3px; color: var(--cl-ink); word-break: keep-all; }
 .cl-stop.current .nm { color: var(--cl-accent); }
 
-/* ── 주차 설명 카드(WeekHero) 리뉴얼 ── */
-.cl-weekhero { position: relative; display: grid; grid-template-columns: 1fr; background: var(--cl-card); border-radius: 24px; overflow: hidden; box-shadow: var(--cl-shadow-sm); }
-.cl-weekhero .wh-body { padding: 24px 26px; min-width: 0; }
-.cl-weekhero .wh-art { position: relative; min-height: 128px; order: -1; background: linear-gradient(135deg, color-mix(in srgb, var(--cl-accent) 16%, #fff), color-mix(in srgb, var(--cl-accent) 5%, #fff)); }
-.cl-weekhero .wh-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-@media (min-width: 760px) {
-  .cl-weekhero { grid-template-columns: 1fr 250px; }
-  .cl-weekhero .wh-body { padding: 30px 32px; }
-  .cl-weekhero .wh-art { order: 0; min-height: 100%; }
-}
-.cl-weekhero .wh-eyebrow { font-size: 12px; font-weight: 900; letter-spacing: .14em; color: var(--cl-accent); }
-.cl-weekhero .wh-q { margin-top: 18px; display: flex; gap: 11px; border-radius: 16px; background: color-mix(in srgb, var(--cl-accent) 7%, #fff); padding: 14px 15px; }
-.cl-weekhero .wh-q .ic { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--cl-accent); color: #fff; }
-.cl-weekhero .wh-q .lb { font-size: 11px; font-weight: 800; color: var(--cl-accent); }
-.cl-weekhero .wh-q .qt { margin-top: 3px; font-size: 14.5px; font-weight: 700; line-height: 1.55; color: var(--cl-ink); word-break: keep-all; }
+/* ── 주차 설명 카드(WeekHero) — 홈 카드 톤(담백, 작은 썸네일) ── */
+.cl-weekhero { background: var(--cl-card); border-radius: 20px; padding: 22px 24px; box-shadow: var(--cl-shadow-sm); }
+.cl-weekhero .wh-eyebrow { font-size: 11.5px; font-weight: 900; letter-spacing: .14em; color: var(--cl-accent); }
+.cl-weekhero .wh-title { margin-top: 8px; font-size: 20px; font-weight: 900; letter-spacing: -0.02em; line-height: 1.25; color: var(--cl-ink); word-break: keep-all; }
+.cl-weekhero .wh-sub { margin-top: 6px; font-size: 13.5px; line-height: 1.6; color: var(--cl-muted); word-break: keep-all; }
+.cl-weekhero .wh-thumb { width: 88px; height: 88px; flex: none; border-radius: 16px; object-fit: contain; background: transparent; }
+.cl-weekhero .wh-q { margin-top: 16px; display: flex; gap: 10px; border-radius: 14px; background: color-mix(in srgb, var(--cl-accent) 7%, #fff); padding: 13px 14px; }
+.cl-weekhero .wh-q .ic { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--cl-accent); color: #fff; }
+.cl-weekhero .wh-q .lb { font-size: 10.5px; font-weight: 800; color: var(--cl-accent); }
+.cl-weekhero .wh-q .qt { margin-top: 2px; font-size: 13.5px; font-weight: 700; line-height: 1.5; color: var(--cl-ink); word-break: keep-all; }
+@media (max-width: 420px) { .cl-weekhero .wh-thumb { display: none; } }
 
 /* ── 4주 프로그램 게임 월드맵 ── */
 .cl-map { position: relative; width: 100%; margin: 0 auto; }

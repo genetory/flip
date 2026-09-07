@@ -52,55 +52,54 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
   return (
     <div className="cl-weekhero">
-      <div className="wh-body">
-        <div className="flex items-center gap-2">
-          <span className="wh-eyebrow">WEEK {String(week).padStart(2, "0")}</span>
-          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusTone[status]}`}>{weekStatusLabel(t, status)}</span>
-        </div>
-        <h1 className="cl-display mt-2.5">{title}</h1>
-        <p className="cl-lead mt-2 max-w-[46ch]">{subtitle}</p>
-
-        {/* 이번 주 핵심 질문 */}
-        <div className="wh-q">
-          <span className="ic"><Question className="h-4 w-4" weight="bold" aria-hidden /></span>
-          <div className="min-w-0">
-            <p className="lb">{t("이번 주 핵심 질문", "This week's key question", "本周核心问题", "Câu hỏi chính tuần này", "今週の核心の質問", "Pertanyaan inti minggu ini")}</p>
-            <p className="qt">{question}</p>
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="wh-eyebrow">WEEK {String(week).padStart(2, "0")}</span>
+            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusTone[status]}`}>{weekStatusLabel(t, status)}</span>
           </div>
+          <h2 className="wh-title">{title}</h2>
+          <p className="wh-sub">{subtitle}</p>
         </div>
-
-        {/* 결과물 */}
-        {resultLabels.length > 0 ? (
-          <div className="mt-4">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini")}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {resultLabels.map((r) => (
-                <span key={r} className="rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-semibold text-[#4E5968]">{r}</span>
-              ))}
-            </div>
-          </div>
+        {image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="wh-thumb" src={image} alt="" loading="lazy" />
         ) : null}
+      </div>
 
-        {/* 진행 */}
-        <div className="mt-5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[12.5px] font-bold text-[#191F28]">
-              {t(`${totalCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${totalCount} done`, `${totalCount} 项中完成 ${doneCount} 项`, `${doneCount}/${totalCount} hoàn thành`, `${totalCount}件中${doneCount}件完了`, `${doneCount} dari ${totalCount} selesai`)}
-            </p>
-            <span className="text-[12.5px] font-black tabular-nums text-[#0B46E8]">{pct}%</span>
-          </div>
-          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
-            <div className="h-full rounded-full bg-[#3182F6] transition-[width]" style={{ width: `${pct}%` }} />
-          </div>
+      {/* 이번 주 핵심 질문 */}
+      <div className="wh-q">
+        <span className="ic"><Question className="h-4 w-4" weight="bold" aria-hidden /></span>
+        <div className="min-w-0">
+          <p className="lb">{t("이번 주 핵심 질문", "This week's key question", "本周核心问题", "Câu hỏi chính tuần này", "今週の核心の質問", "Pertanyaan inti minggu ini")}</p>
+          <p className="qt">{question}</p>
         </div>
       </div>
 
-      {image ? (
-        <div className="wh-art">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={image} alt="" loading="lazy" />
+      {/* 결과물 */}
+      {resultLabels.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini")}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {resultLabels.map((r) => (
+              <span key={r} className="rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-semibold text-[#4E5968]">{r}</span>
+            ))}
+          </div>
         </div>
       ) : null}
+
+      {/* 진행 */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[12px] font-bold text-[#191F28]">
+            {t(`${totalCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${totalCount} done`, `${totalCount} 项中完成 ${doneCount} 项`, `${doneCount}/${totalCount} hoàn thành`, `${totalCount}件中${doneCount}件完了`, `${doneCount} dari ${totalCount} selesai`)}
+          </p>
+          <span className="text-[12px] font-black tabular-nums text-[#0B46E8]">{pct}%</span>
+        </div>
+        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
+          <div className="h-full rounded-full bg-[#3182F6] transition-[width]" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
     </div>
   );
 }
