@@ -19841,6 +19841,28 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
       /* 무시 */
     }
 
+    // 활동 스트릭 — CareerActivityEvent 일별 distinct(KST)로 연속일 계산. 서버 기준이라
+    // 교차 기기 동기화된다. 대시보드를 지금 여는 것 자체가 오늘 활동이므로 today 는 항상 포함.
+    let activityStreak = 1;
+    try {
+      const since = new Date(Date.now() - 45 * 864e5);
+      const evs = await prisma.careerActivityEvent.findMany({
+        where: { studentUserId: userId, createdAt: { gte: since } },
+        select: { createdAt: true }
+      });
+      const KST = 9 * 3600 * 1000;
+      const dayKey = (d: Date) => Math.floor((d.getTime() + KST) / 864e5);
+      const days = new Set(evs.map((e) => dayKey(e.createdAt)));
+      const todayKey = Math.floor((Date.now() + KST) / 864e5);
+      days.add(todayKey); // 지금 접속 = 오늘 활동
+      let cursor = todayKey;
+      let n = 0;
+      while (days.has(cursor)) { n += 1; cursor -= 1; }
+      activityStreak = n;
+    } catch {
+      activityStreak = 1;
+    }
+
     return res.json({
       ok: true,
       enrollmentStatus,
@@ -19849,6 +19871,7 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
       weeksDoneCount,
       weekComplete: wDone,
       lastActivityDaysAgo: daysSinceActivity,
+      activityStreak,
       coach,
       nextAction,
       profileSummary,

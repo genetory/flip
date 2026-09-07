@@ -12,32 +12,6 @@ import { useLaunchT } from "../../lib/launch/i18n";
 import { trackCareerFunnel } from "../../lib/analytics";
 import { logActivity } from "../../lib/launch/pilot-client";
 
-const DAY = 86_400_000;
-
-// 로컬 저장 기반 "연속 접속" — 매 방문 시 갱신. 어제 접속했으면 +1, 하루 이상 비면 1로.
-function bumpVisitStreak(): number {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayKey = today.getTime();
-    const raw = localStorage.getItem("cl-visit-streak");
-    let count = 1;
-    let last: number | null = null;
-    if (raw) {
-      const o = JSON.parse(raw) as { last?: number; count?: number };
-      last = typeof o.last === "number" ? o.last : null;
-      count = typeof o.count === "number" && o.count > 0 ? o.count : 1;
-    }
-    if (last === todayKey) return count; // 오늘 이미 반영
-    if (last === todayKey - DAY) count += 1; // 어제 → 연속
-    else count = 1; // 처음이거나 하루 이상 공백
-    localStorage.setItem("cl-visit-streak", JSON.stringify({ last: todayKey, count }));
-    return count;
-  } catch {
-    return 1;
-  }
-}
-
 function Ring({ value, color, label, href }: { value: number | null; color: string; label: string; href: string }) {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -68,11 +42,10 @@ function Ring({ value, color, label, href }: { value: number | null; color: stri
 export function CheckInPanel({ vm }: { vm: DashboardVM }) {
   const t = useLaunchT();
   const c = vm.coach;
-  const [streak, setStreak] = useState<number | null>(null);
+  const streak = vm.activityStreak ?? 1; // 서버 계산 연속 활동일(교차 기기)
   const [resume, setResume] = useState<number | null>(null);
   const [cover, setCover] = useState<number | null>(null);
 
-  useEffect(() => { setStreak(bumpVisitStreak()); }, []);
   useEffect(() => {
     let alive = true;
     // 캐시된 점수만(generate:false). 없으면 null → 링 비움.
@@ -87,7 +60,7 @@ export function CheckInPanel({ vm }: { vm: DashboardVM }) {
     return () => { alive = false; };
   }, []);
 
-  const dotsOn = Math.min(streak ?? 0, 7);
+  const dotsOn = Math.min(streak, 7);
 
   return (
     <div className="cl-checkin">
@@ -109,11 +82,11 @@ export function CheckInPanel({ vm }: { vm: DashboardVM }) {
 
       <div className="cl-side">
         <div className="cl-mini">
-          <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("연속 접속", "Login streak", "连续登录", "Chuỗi truy cập", "連続アクセス", "Rentetan kunjungan")}</p>
+          <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("연속 활동", "Activity streak", "连续活动", "Chuỗi hoạt động", "連続活動", "Rentetan aktivitas")}</p>
           <div className="cl-streak">
             <span className="flame" aria-hidden>🔥</span>
             <div>
-              <div><span className="n">{streak ?? 0}</span><span className="d">{t("일 연속", "days", "天连续", "ngày", "日連続", "hari")}</span></div>
+              <div><span className="n">{streak}</span><span className="d">{t("일 연속", "days", "天连续", "ngày", "日連続", "hari")}</span></div>
               <div className="cl-dots" aria-hidden>
                 {Array.from({ length: 7 }).map((_, i) => <span key={i} className={i < dotsOn ? "on" : undefined} />)}
               </div>

@@ -28,6 +28,8 @@ export type DashboardVM = {
   weeksDoneCount: number;
   weekComplete: boolean[];
   lastActivityDaysAgo: number | null;
+  activityStreak: number; // 서버 계산 연속 활동일(KST, 교차 기기)
+
   coach: DashCoach;
   nextAction: DashNextAction;
   profileSummary: { targetJob: string | null; confirmedCount: number; knownFacts: string[] };
