@@ -28,13 +28,6 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
     return () => window.clearTimeout(id);
   }, [overall]);
 
-  const status =
-    vm.enrollmentStatus === "completed" || overall === 100
-      ? { label: t("완주", "Arrived", "完成", "Hoàn thành", "完走", "Selesai"), tone: "var(--cl-mint)" }
-      : vm.enrollmentStatus === "stalled"
-        ? { label: t("잠시 멈춤", "Paused", "暂停", "Tạm dừng", "一時停止", "Jeda"), tone: "var(--cl-faint)" }
-        : { label: t("순항 중", "In flight", "顺利进行", "Đang bay", "順調", "Berjalan"), tone: "var(--cl-mint)" };
-
   return (
     <section className="cl-pass" aria-label={t("나의 커리어 보딩패스", "My career boarding pass", "我的求职登机牌", "Thẻ lên máy bay sự nghiệp", "私のキャリア搭乗券", "Boarding pass karier saya")}>
       <div className="cl-pass-main">
@@ -65,7 +58,7 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
             <div className="k">{t("현재 주차", "Boarding", "当前周", "Tuần hiện tại", "現在の週", "Minggu")}</div>
             <div className="v">
               <span className="cl-flap"><span className="cell">0</span><span className="cell">{week}</span></span>
-              <span style={{ fontSize: 13, color: "var(--cl-faint)", fontWeight: 800, marginLeft: 6 }}>/ 04</span>
+              <span style={{ fontSize: 12.5, color: "var(--cl-faint)", fontWeight: 800, marginLeft: 6 }}>{t("주차 진행 중", "in progress", "周 进行中", "đang học", "週目 進行中", "berjalan")}</span>
             </div>
           </div>
           <div className="cl-meta">
@@ -75,14 +68,6 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
           <div className="cl-meta">
             <div className="k">{t("클래스", "Class", "舱位", "Hạng", "クラス", "Kelas")}</div>
             <div className="v">{t("4주 집중 · AI 코치", "4-week · AI coach", "4周集中 · AI教练", "4 tuần · AI coach", "4週集中 · AIコーチ", "4 minggu · AI coach")}</div>
-          </div>
-          <div className="cl-meta">
-            <div className="k">{t("완료 주차", "Legs done", "已完成周", "Tuần xong", "完了週", "Selesai")}</div>
-            <div className="v">{t(`${vm.weeksDoneCount} / 4 주차`, `${vm.weeksDoneCount} / 4`, `${vm.weeksDoneCount} / 4 周`, `${vm.weeksDoneCount} / 4`, `${vm.weeksDoneCount} / 4 週`, `${vm.weeksDoneCount} / 4`)}</div>
-          </div>
-          <div className="cl-meta">
-            <div className="k">{t("상태", "Status", "状态", "Trạng thái", "状態", "Status")}</div>
-            <div className="v" style={{ color: status.tone }}>● {status.label}</div>
           </div>
         </div>
       </div>
