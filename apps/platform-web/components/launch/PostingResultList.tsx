@@ -48,10 +48,10 @@ export function PostingResultList({ items, rescore, onItemsChange }: { items: Po
         const isOpen = open === i;
         return (
           <div key={i} className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-            <button type="button" onClick={() => setOpen(isOpen ? null : i)} className="flex w-full items-center gap-3 px-3.5 py-3 text-left">
-              <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-lg ${tone.bg}`}>
-                <span className={`text-[15px] font-black leading-none ${tone.text}`}>{it.score}</span>
-                <span className={`text-[9px] font-bold ${tone.text}`}>/100</span>
+            <button type="button" onClick={() => setOpen(isOpen ? null : i)} className="flex w-full items-center gap-3.5 px-3.5 py-3 text-left">
+              <span className={`flex min-w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-3 ${tone.bg}`}>
+                <span className={`text-[20px] font-black leading-none ${tone.text}`}>{it.score}</span>
+                <span className={`text-[9.5px] font-bold uppercase tracking-wide ${tone.text}`}>/ 100</span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[11px] font-bold text-[#8B95A1]">Q{i + 1}</span>

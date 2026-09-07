@@ -207,8 +207,8 @@ export default function CorrectionNotebookPage() {
                         const tone = scoreTone(it.score);
                         const co = [log.company, log.title].filter(Boolean).join(" · ");
                         return (
-                          <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex w-full items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
-                            <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-lg ${tone.bg}`}><span className={`text-[15px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
+                          <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex w-full items-start gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
+                            <span className={`flex min-w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-3 ${tone.bg}`}><span className={`text-[20px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9.5px] font-bold uppercase tracking-wide ${tone.text}`}>/ 100</span></span>
                             <span className="min-w-0 flex-1">
                               <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
                               {co ? <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{co}</span> : null}
