@@ -334,13 +334,6 @@ export default function LaunchDashboardPage() {
           {/* 완주자 — 최종 성장 리포트·피드백은 '나의 성장'으로, 실제 취업은 APLY로 이어가요. (홈 정리: 하단 레거시 블록 제거) */}
           {vm && (vm.enrollmentStatus === "completed" || overall === 100) ? (
             <div className="mt-8 flex flex-col gap-3">
-              <Link href="/career-launch/deliverables" className="flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#3182F6]/40">
-                <div>
-                  <p className="cl-eyebrow">4-Week Journey</p>
-                  <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{t("완성한 내 결과물 보기", "See everything you built", "查看我完成的成果", "Xem kết quả bạn đã tạo", "作った成果物を見る", "Lihat hasil yang kamu buat")}</p>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" aria-hidden />
-              </Link>
               <Link href="/talent/home" onClick={() => trackCareerFunnel("next_action_clicked", { action: "go_talent" })} className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0B1227] px-5 py-5 text-left transition hover:bg-[#1A2440]">
                 <div className="min-w-0">
                   <p className="text-[15px] font-black text-white">{t("APLY에서 취업 이어가기", "Continue your job search on APLY", "在 APLY 继续求职", "Tiếp tục tìm việc trên APLY", "APLYで就職活動を続ける", "Lanjutkan pencarian kerja di APLY")}</p>
