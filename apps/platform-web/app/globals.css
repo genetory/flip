@@ -472,18 +472,14 @@ All colors MUST be HSL.
 .cl-report .road-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 820px) { .cl-report { grid-template-columns: 1fr; } .cl-report .road-grid { grid-template-columns: 1fr; } }
 
-/* ── 커리어 로드맵 카드(리포트와 다른 결 — 아이콘 타일 + 하이라이트) ── */
-.cl-road { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.cl-road-card { display: flex; gap: 13px; padding: 18px; border-radius: 16px; background: var(--cl-card); box-shadow: var(--cl-shadow-sm); }
-.cl-road-card.hi { background: linear-gradient(135deg, color-mix(in srgb, var(--cl-accent) 9%, #fff), color-mix(in srgb, var(--cl-accent) 4%, #fff)); }
-.cl-road-ic { width: 40px; height: 40px; border-radius: 12px; flex: none; display: grid; place-items: center; background: color-mix(in srgb, var(--cl-accent) 12%, #fff); color: var(--cl-accent); }
-.cl-road-card.hi .cl-road-ic { background: var(--cl-accent); color: #fff; }
-.cl-road-card .lb { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--cl-faint); }
-.cl-road-card .vl { margin-top: 4px; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
-.cl-road-card.hi .vl { color: var(--cl-accent); }
-.cl-road-card ul { margin-top: 5px; display: flex; flex-direction: column; gap: 3px; }
-.cl-road-card li { font-size: 12.5px; line-height: 1.5; color: var(--cl-muted); word-break: keep-all; }
-@media (max-width: 640px) { .cl-road { grid-template-columns: 1fr; } }
+/* ── 커리어 로드맵 — 심플한 라벨+값 그리드(단일 카드) ── */
+.cl-road-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px; }
+.cl-road-grid .lb { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--cl-faint); }
+.cl-road-grid .vl { margin-top: 5px; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
+.cl-road-grid .vl.accent { color: var(--cl-accent); }
+.cl-road-grid ul { margin-top: 5px; display: flex; flex-direction: column; gap: 3px; }
+.cl-road-grid li { font-size: 13px; line-height: 1.55; color: var(--cl-muted); word-break: keep-all; }
+@media (max-width: 640px) { .cl-road-grid { grid-template-columns: 1fr; gap: 16px; } }
 
 /* ── 추천 공고 "게이트 카드" ── */
 .cl-gate { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: stretch; background: var(--cl-card); border-radius: 16px; padding: 15px 18px; box-shadow: var(--cl-shadow-sm); transition: transform .12s ease; }

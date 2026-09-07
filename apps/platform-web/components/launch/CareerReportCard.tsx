@@ -4,7 +4,7 @@
 // 자동 생성/과금하지 않고, 저장분이 있으면 보여주고 없으면 '받기' 버튼으로 사용자가 요청할 때만 생성.
 // UI: 상단 섹션(체크인 패널)과 동일한 카드 그리드 톤 — 색은 블루+민트+그레이로 절제.
 import { useEffect, useState } from "react";
-import { Sparkle, CircleNotch, Target, TrendUp, Warning, Buildings, Lightbulb, Wrench } from "@phosphor-icons/react";
+import { Sparkle, CircleNotch, Target, TrendUp, Warning } from "@phosphor-icons/react";
 import { fetchCareerReport, type CareerReport } from "../../lib/launch/feedback-client";
 import { Card } from "./ui";
 import { DashboardSection } from "./dashboard-states";
@@ -175,43 +175,33 @@ export function CareerReportCard() {
         title={t("커리어 로드맵", "Career Roadmap", "职业路线图", "Lộ trình nghề", "キャリアロードマップ", "Roadmap Karier")}
         sub={t("목표까지 무엇을 준비할지", "What to prepare toward your goal", "为目标需要准备什么", "Cần chuẩn bị gì để đạt mục tiêu", "目標に向けて何を準備するか", "Apa yang perlu disiapkan menuju tujuan")}
       >
-        <div className="cl-road">
-          {rm.targetRole ? (
-            <div className="cl-road-card hi">
-              <span className="cl-road-ic"><Target className="h-5 w-5" weight="fill" aria-hidden /></span>
-              <div className="min-w-0">
+        <div className="cl-mini">
+          <div className="cl-road-grid">
+            {rm.targetRole ? (
+              <div>
                 <p className="lb">{t("목표 직무", "Target role", "目标职务", "Nghề mục tiêu", "目標職務", "Peran target")}</p>
-                <p className="vl">{rm.targetRole}</p>
+                <p className="vl accent">{rm.targetRole}</p>
               </div>
-            </div>
-          ) : null}
-          {rm.targetCompanies.length > 0 ? (
-            <div className="cl-road-card">
-              <span className="cl-road-ic"><Buildings className="h-5 w-5" weight="fill" aria-hidden /></span>
-              <div className="min-w-0">
+            ) : null}
+            {rm.targetCompanies.length > 0 ? (
+              <div>
                 <p className="lb">{t("목표 기업", "Target companies", "目标企业", "Công ty mục tiêu", "目標企業", "Perusahaan target")}</p>
                 <p className="vl">{rm.targetCompanies.join(" · ")}</p>
               </div>
-            </div>
-          ) : null}
-          {rm.recommendedExperience.length > 0 ? (
-            <div className="cl-road-card">
-              <span className="cl-road-ic"><Lightbulb className="h-5 w-5" weight="fill" aria-hidden /></span>
-              <div className="min-w-0">
+            ) : null}
+            {rm.recommendedExperience.length > 0 ? (
+              <div>
                 <p className="lb">{t("추천 경험", "Recommended experience", "推荐经验", "Kinh nghiệm gợi ý", "推奨経験", "Pengalaman disarankan")}</p>
                 <ul>{rm.recommendedExperience.map((s, i) => <li key={i}>· {s}</li>)}</ul>
               </div>
-            </div>
-          ) : null}
-          {rm.toImprove.length > 0 ? (
-            <div className="cl-road-card">
-              <span className="cl-road-ic"><Wrench className="h-5 w-5" weight="fill" aria-hidden /></span>
-              <div className="min-w-0">
+            ) : null}
+            {rm.toImprove.length > 0 ? (
+              <div>
                 <p className="lb">{t("보완할 것", "To improve", "需补强", "Cần cải thiện", "補うこと", "Perlu diperbaiki")}</p>
                 <ul>{rm.toImprove.map((s, i) => <li key={i}>· {s}</li>)}</ul>
               </div>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </DashboardSection>
     ) : null}
