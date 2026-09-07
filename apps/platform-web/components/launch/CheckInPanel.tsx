@@ -4,7 +4,7 @@
 // 대표 CTA 는 여기서만(보딩패스 스텁의 버튼은 제거). 점수는 캐시된 값이 있을 때만 표시하고,
 // 없으면 링만 비운 채 평가 페이지로 유도(허위 수치 없음). 스트릭은 로컬 저장 기반 "연속 접속".
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Airplane } from "@phosphor-icons/react";
 import type { DashboardVM } from "../../lib/launch/dashboard-client";
 import { fetchResumeScore, fetchCoverScore } from "../../lib/launch/feedback-client";
@@ -29,9 +29,32 @@ function Ring({ value, color, label, href }: { value: number | null; color: stri
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [value]);
+  const size = 84;
+  const sw = 9;
+  const r = (size - sw) / 2;
+  const C = 2 * Math.PI * r;
+  const pct = value == null ? 0 : v;
+  const off = C * (1 - Math.max(0, Math.min(100, pct)) / 100);
   return (
     <Link href={href} className="cl-gauge">
-      <span className="cl-ring" style={{ "--val": value == null ? 0 : v, "--col": color } as CSSProperties}>
+      <span className="cl-ring">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--cl-line-strong)" strokeWidth={sw} />
+          {pct > 0 ? (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={color}
+              strokeWidth={sw}
+              strokeLinecap="round"
+              strokeDasharray={C}
+              strokeDashoffset={off}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          ) : null}
+        </svg>
         <b className={value == null ? "empty" : undefined}>{value == null ? "–" : v}</b>
       </span>
       <span className="lab">{label}</span>

@@ -460,8 +460,8 @@ All colors MUST be HSL.
 .cl-dots span.on { background: linear-gradient(90deg, var(--cl-accent), var(--cl-accent-2)); }
 .cl-gauges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .cl-gauge { text-align: center; text-decoration: none; }
-.cl-ring { --val: 0; --col: var(--cl-accent); width: 84px; height: 84px; border-radius: 999px; margin: 0 auto 8px; background: conic-gradient(var(--col) calc(var(--val) * 1%), var(--cl-line-strong) 0); display: grid; place-items: center; position: relative; transition: background .9s ease; }
-.cl-ring::before { content: ""; position: absolute; inset: 9px; border-radius: 999px; background: var(--cl-card); }
+.cl-ring { width: 84px; height: 84px; margin: 0 auto 8px; position: relative; display: grid; place-items: center; }
+.cl-ring svg { position: absolute; inset: 0; }
 .cl-ring b { position: relative; font-size: 20px; font-weight: 900; letter-spacing: -0.02em; color: var(--cl-ink); }
 .cl-ring b.empty { color: var(--cl-faint); }
 .cl-gauge .lab { font-size: 12px; font-weight: 700; color: var(--cl-muted); }
