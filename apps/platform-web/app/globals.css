@@ -445,11 +445,20 @@ All colors MUST be HSL.
 .cl-jnode.station.current { background: var(--cl-accent); border-color: var(--cl-accent); color: #fff; }
 .cl-jnode.dest { border-style: dashed; border-color: var(--cl-accent); color: var(--cl-accent); }
 .cl-jnode.current::after { content: ""; position: absolute; inset: -1px; border-radius: 999px; border: 2px solid var(--cl-accent); animation: cl-pulse 1.8s cubic-bezier(.4,0,.2,1) infinite; }
-/* 카드 */
-.cl-jstation { background: var(--cl-card); border-radius: 18px; padding: 18px 20px; box-shadow: var(--cl-shadow-sm); margin-bottom: 14px; }
-.cl-jstation .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cl-jstation h3 { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; margin: 8px 0 3px; color: var(--cl-ink); word-break: keep-all; }
-.cl-jstation .sub { font-size: 12.5px; color: var(--cl-muted); line-height: 1.5; word-break: keep-all; }
+/* 스테이지 헤더(접었다 펴는 주차) */
+.cl-jstation { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; background: var(--cl-card); border-radius: 18px; padding: 16px 18px; box-shadow: var(--cl-shadow-sm); margin-bottom: 14px; cursor: pointer; transition: box-shadow .2s ease, transform .1s ease; }
+.cl-jstation.locked { cursor: default; opacity: .72; }
+.cl-jstation.open { box-shadow: 0 0 0 2px var(--cl-accent), var(--cl-shadow); }
+.cl-jstation:not(.locked):hover { transform: translateX(2px); }
+.cl-jstation .thumb { width: 56px; height: 56px; border-radius: 15px; object-fit: cover; background: var(--cl-card-2); flex: none; }
+.cl-jstation .body { min-width: 0; }
+.cl-jstation h3 { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; margin: 5px 0 0; color: var(--cl-ink); word-break: keep-all; }
+.cl-jstation .meta { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cl-jstation .prog { font-size: 11.5px; font-weight: 800; color: var(--cl-faint); }
+.cl-jstation .chev { flex: none; color: var(--cl-faint); transition: transform .2s ease; }
+.cl-jstation.open .chev { transform: rotate(180deg); }
+.cl-jmissions { animation: cl-fadein .25s ease; }
+@keyframes cl-fadein { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .cl-jbadge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 .cl-jbadge.done { background: color-mix(in srgb, var(--cl-mint) 14%, #fff); color: var(--cl-mint); }
 .cl-jbadge.current { background: color-mix(in srgb, var(--cl-accent) 12%, #fff); color: var(--cl-accent); }

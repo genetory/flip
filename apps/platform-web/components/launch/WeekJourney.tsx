@@ -4,7 +4,7 @@
 // 완료=체크, 지금 할 것=강조+펄스, 다음=잠금. 채팅형 미션은 그 자리 모달로.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, ArrowRight, Star } from "@phosphor-icons/react";
+import { Check, Lock, ArrowRight, Star, CaretDown } from "@phosphor-icons/react";
 import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
@@ -26,6 +26,7 @@ import { BasicInterviewSession } from "./BasicInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useWeekText } from "../../lib/launch/data-i18n";
 
+const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => {
   const path = href.split("?")[0];
@@ -90,6 +91,10 @@ export function WeekJourney() {
     const first = w.steps.find((s) => !isStepDone(s.id, data));
     if (first) { currentStepId = first.id; break; }
   }
+  const currentWeek = WEEKS.find((w) => w.steps.some((s) => s.id === currentStepId))?.week ?? 4;
+  // 지금 주차만 펼침(나머지는 접힌 정거장). 사용자가 직접 펼치면 그 값을 따른다.
+  const [open, setOpen] = useState<number | null>(null);
+  const activeOpen = open ?? currentWeek;
 
   const openMission = (step: Step) => {
     const href = step.action?.href;
@@ -135,39 +140,49 @@ export function WeekJourney() {
           const stationState = done ? "done" : hasCurrent ? "current" : "todo";
           const seq = w.week !== 3 && w.week !== 4;
           const dc = weekDoneCount(w.steps, data);
+          const isOpen = activeOpen === w.week;
+          const toggle = () => { if (reachable) setOpen(isOpen ? -1 : w.week); };
           return (
             <div key={w.week}>
               <Row node={<span className={`cl-jnode station ${stationState}`}>{done ? <Check className="h-4 w-4" weight="bold" /> : w.week}</span>}>
-                <div className="cl-jstation">
-                  <div className="top">
+                <div className={`cl-jstation ${isOpen ? "open" : ""} ${!reachable ? "locked" : ""}`} onClick={toggle} role="button" tabIndex={reachable ? 0 : -1} onKeyDown={(e) => { if (reachable && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); toggle(); } }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img className="thumb" src={WEEK_IMAGE[w.week]} alt="" loading="lazy" />
+                  <div className="body">
                     <span className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>Week {w.week}</span>
-                    <span className={`cl-jbadge ${stationState}`}>{done ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : hasCurrent ? t("진행 중", "In progress", "进行中", "Đang làm", "進行中", "Berjalan") : reachable ? t("시작 가능", "Ready", "可开始", "Sẵn sàng", "開始可", "Siap") : t("잠금", "Locked", "锁定", "Khóa", "ロック", "Terkunci")}</span>
+                    <h3>{weekText(w.week, "title")}</h3>
+                    <div className="meta">
+                      <span className={`cl-jbadge ${stationState}`}>{done ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : hasCurrent ? t("진행 중", "In progress", "进行中", "Đang làm", "進行中", "Berjalan") : reachable ? t("시작 가능", "Ready", "可开始", "Sẵn sàng", "開始可", "Siap") : t("이전 주차 완료 시 열림", "Opens after previous week", "完成上一周后开放", "Mở sau tuần trước", "前の週の完了後に開く", "Terbuka setelah minggu sebelumnya")}</span>
+                      {reachable ? <span className="prog">{t(`${dc} / ${w.steps.length} 완료`, `${dc} / ${w.steps.length} done`, `${dc} / ${w.steps.length} 完成`, `${dc} / ${w.steps.length} xong`, `${dc} / ${w.steps.length} 完了`, `${dc} / ${w.steps.length} selesai`)}</span> : null}
+                    </div>
                   </div>
-                  <h3>{weekText(w.week, "title")}</h3>
-                  <p className="sub">{weekText(w.week, "subtitle")}</p>
-                  <p className="mt-2 text-[11.5px] font-bold text-[#8B95A1]">{t(`${dc} / ${w.steps.length} 완료`, `${dc} / ${w.steps.length} done`, `${dc} / ${w.steps.length} 完成`, `${dc} / ${w.steps.length} xong`, `${dc} / ${w.steps.length} 完了`, `${dc} / ${w.steps.length} selesai`)}</p>
+                  {reachable ? <CaretDown className="chev h-5 w-5" weight="bold" aria-hidden /> : <Lock className="chev h-4 w-4" weight="fill" aria-hidden />}
                 </div>
               </Row>
 
-              {w.steps.map((s) => missionCard(s, w.week, seq))}
+              {isOpen ? (
+                <div className="cl-jmissions">
+                  {w.steps.map((s) => missionCard(s, w.week, seq))}
 
-              {w.week === 2 ? (
-                <Row node={<span className="cl-jnode" />}>
-                  <div className="cl-jwrap flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div>
-                </Row>
-              ) : null}
-              {w.week === 4 ? (
-                <>
-                  <Row node={<span className="cl-jnode" />}>
-                    <div className="cl-jwrap"><PostingInterviewCard /></div>
-                  </Row>
-                  <Row node={<span className="cl-jnode" />}>
-                    <Link href="/career-launch/corrections" className="cl-jcard">
-                      <div className="ttl">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノート", "Tinjau catatan")}</div>
-                      <div className="desc">{t("점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on.", "重做低分题。", "Làm lại câu điểm thấp.", "点数の低かった問題を解き直します。", "Ulangi soal berskor rendah.")}</div>
-                    </Link>
-                  </Row>
-                </>
+                  {w.week === 2 ? (
+                    <Row node={<span className="cl-jnode" />}>
+                      <div className="cl-jwrap flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div>
+                    </Row>
+                  ) : null}
+                  {w.week === 4 ? (
+                    <>
+                      <Row node={<span className="cl-jnode" />}>
+                        <div className="cl-jwrap"><PostingInterviewCard /></div>
+                      </Row>
+                      <Row node={<span className="cl-jnode" />}>
+                        <Link href="/career-launch/corrections" className="cl-jcard">
+                          <div className="ttl">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノート", "Tinjau catatan")}</div>
+                          <div className="desc">{t("점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on.", "重做低分题。", "Làm lại câu điểm thấp.", "点数の低かった問題を解き直します。", "Ulangi soal berskor rendah.")}</div>
+                        </Link>
+                      </Row>
+                    </>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           );
