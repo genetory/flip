@@ -116,13 +116,13 @@ export function SectionChatModal({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" />
                 </span>
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
                   <RichText text={m.text} />
                 </div>
               </div>
             ) : (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">
+                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">
                   <RichText text={m.text} />
                 </div>
               </div>

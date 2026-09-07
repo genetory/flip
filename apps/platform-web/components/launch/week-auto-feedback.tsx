@@ -93,7 +93,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
               </button>
             </div>
           ) : null}
-          <p className="whitespace-pre-wrap rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
+          <p className="whitespace-pre-wrap break-keep rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
           {/* 능동 코치 — 분석에서 멈추지 않고 다음 주차 행동으로 이어준다 */}
           {showNext && nextW <= 4 ? (
             <Link
@@ -110,7 +110,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
         </div>
       ) : state === "ready" ? (
         <div className="mt-3">
-          <p className="text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives you feedback.", "教练会审阅本周成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
+          <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives you feedback.", "教练会审阅本周成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
           <button
             type="button"
             onClick={generate}
@@ -123,7 +123,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
           {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.")}</p> : null}
         </div>
       ) : state === "none" ? (
-        <p className="mt-3 text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this week's activities first to get feedback.", "先完成本周的活动即可获得反馈。", "Hãy thực hiện hoạt động tuần này trước để nhận phản hồi.", "今週のアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas minggu ini dulu untuk mendapat umpan balik.")}</p>
+        <p className="mt-3 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this week's activities first to get feedback.", "先完成本周的活动即可获得反馈。", "Hãy thực hiện hoạt động tuần này trước để nhận phản hồi.", "今週のアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas minggu ini dulu untuk mendapat umpan balik.")}</p>
       ) : (
         <p className="mt-3 text-[13px] text-[#8B95A1]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
       )}

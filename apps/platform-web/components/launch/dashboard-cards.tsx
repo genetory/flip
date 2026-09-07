@@ -52,7 +52,7 @@ export function CoachTodayCard({ vm }: { vm: DashboardVM }) {
       <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-white/85">
         <Sparkle size={15} weight="fill" /> {t("전담 커리어 코치", "Your career coach", "专属职业教练", "Coach nghề riêng", "専属キャリアコーチ", "Coach karier pribadi")}
       </div>
-      <div className="mt-2.5 space-y-1.5 text-[15px] leading-relaxed">
+      <div className="mt-2.5 space-y-1.5 break-keep text-[15px] leading-relaxed">
         {c.remembered ? <p className="text-white/90">{c.remembered}</p> : null}
         <p className="font-semibold">{c.todayFocus}</p>
         {c.purpose ? <p className="text-[13.5px] text-white/85">{c.purpose}</p> : null}
@@ -91,7 +91,7 @@ export function CurrentWeekCard({ vm, doneCount, requiredCount }: { vm: Dashboar
         <span className="rounded-full bg-[#E8F3FF] px-2.5 py-1 text-[12px] font-bold text-[#1B64DA]">Week {w}</span>
         <span className="text-[15px] font-bold text-[#191F28]">{meta.title}</span>
       </div>
-      <p className="mt-2 text-[13px] leading-relaxed text-[#4E5968]">{meta.goal}</p>
+      <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#4E5968]">{meta.goal}</p>
       <div className="mt-3 flex items-center justify-between text-[12.5px]">
         <span className="font-semibold text-[#191F28]">
           {t(`${requiredCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${requiredCount} done`, `${requiredCount} 项中完成 ${doneCount} 项`, `${doneCount}/${requiredCount} hoàn thành`, `${requiredCount}件中${doneCount}件完了`, `${doneCount} dari ${requiredCount} selesai`)}

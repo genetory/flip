@@ -340,7 +340,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
                         <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0A9B59]">{t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                         <ul className="mt-1.5 space-y-1">
                           {result.strengths.map((s, i) => (
-                            <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
+                            <li key={i} className="flex gap-1.5 break-keep text-[13px] leading-relaxed text-[#333D4B]">
                               <span className="text-[#0A9B59]">✓</span>
                               {s}
                             </li>
@@ -353,7 +353,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
                         <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("이번 4주에 집중하면 좋은 점", "Worth focusing on over these 4 weeks", "接下来 4 周值得重点关注的地方", "Điều nên tập trung trong 4 tuần này", "この4週間で集中すると良い点", "Hal yang baik difokuskan selama 4 minggu ini")}</p>
                         <ul className="mt-1.5 space-y-1">
                           {result.improvements.map((s, i) => (
-                            <li key={i} className="flex gap-1.5 text-[13px] leading-relaxed text-[#333D4B]">
+                            <li key={i} className="flex gap-1.5 break-keep text-[13px] leading-relaxed text-[#333D4B]">
                               <span className="text-[#0B46E8]">💡</span>
                               {s}
                             </li>
