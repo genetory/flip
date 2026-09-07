@@ -51,12 +51,30 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
   const [active, setActive] = useState<InterviewJobPosting | null>(null); // 모의면접 모달 대상
   const [blocked, setBlocked] = useState(false); // 4주차 전 안내 팝업
   const [jobs, setJobs] = useState<string[]>([]);
+  const [activeJob, setActiveJob] = useState(""); // "" = 전체
   const [shown, setShown] = useState<PublicPositionListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const poolRef = useRef<PublicPositionListItem[]>([]);
   const deckRef = useRef<PublicPositionListItem[]>([]);
   const ptrRef = useRef(0);
-  const relRef = useRef<Map<string, number>>(new Map()); // 공고별 적합도(관심 직무 키워드 일치 수)
+  const relRef = useRef<Map<string, number>>(new Map()); // 현재 풀의 공고별 적합도
+  type Pool = { list: PublicPositionListItem[]; rel: Map<string, number> };
+  const byJobRef = useRef<Record<string, Pool>>({}); // 직무별 풀
+  const allRef = useRef<Pool>({ list: [], rel: new Map() }); // 전체(모든 직무 합집합)
+
+  // 선택한 풀을 화면에 반영(랜덤 5개).
+  const showPool = (src: Pool) => {
+    const deck = shuffle(src.list);
+    poolRef.current = src.list;
+    deckRef.current = deck;
+    ptrRef.current = Math.min(PAGE, deck.length);
+    relRef.current = src.rel;
+    setShown(deck.slice(0, PAGE));
+  };
+  const selectJob = (job: string) => {
+    setActiveJob(job);
+    showPool(job ? (byJobRef.current[job] ?? { list: [], rel: new Map() }) : allRef.current);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -70,7 +88,6 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
         // 너무 넓어 다른 직무까지 걸리는 범용어는 매칭에서 제외(예: AI 공고가 '개발/파이썬/엔지니어'로 잡히는 문제).
         const GENERIC = new Set(["개발", "개발자", "it", "컴퓨터", "컴퓨터공학", "소프트웨어", "프로그래밍", "프로그래머", "엔지니어", "engineer", "developer", "dev", "경영", "서비스", "ui", "api", "db", "구현", "설계", "문서화", "java", "python"]);
         const tokenize = (s: string) => s.toLowerCase().split(/[\s·,/&]+/).map((x) => x.trim()).filter((x) => x.length > 1);
-        // 직무별 구체 키워드(범용어 제외) — 태그 + 영문 스킬(android·kotlin·ios·swift 등)까지 포함해 영문 공고도 매칭.
         const kwOf = (je: (typeof RECOMMENDED_JOBS)[number]) => {
           const set = new Set<string>();
           for (const tag of je.tags ?? []) {
@@ -80,48 +97,40 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
           for (const sk of je.skills ?? []) for (const tok of tokenize(sk)) if (!GENERIC.has(tok)) set.add(tok);
           return set;
         };
-        const jobKws = jobEntries.map((je) => ({ role: je.role.toLowerCase(), kws: kwOf(je) }));
-        const relevance = (p: PublicPositionListItem): number => {
+        // 한 직무 기준 적합도 함수.
+        const relFor = (role: string, kws: Set<string>) => (p: PublicPositionListItem): number => {
           const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
-          let s = 0;
-          for (const jk of jobKws) {
-            if (jk.role && hay.includes(jk.role)) s += 3;
-            for (const kw of jk.kws) if (hay.includes(kw)) s += 1;
-          }
+          let s = role && hay.includes(role) ? 3 : 0;
+          for (const kw of kws) if (hay.includes(kw)) s += 1;
           return s;
         };
 
-        // 관심 직무 검색으로만 후보 풀 구성(개인화 추천은 직무와 무관한 공고를 끌어와 제외).
-        const seen = new Set<string>();
-        const searched: PublicPositionListItem[] = [];
-        if (sel.length) {
+        if (jobEntries.length) {
           const queries = jobEntries.map((je) => je.query || je.role);
           const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
-          for (const pg of pages) {
-            for (const it of pg?.items ?? []) {
-              if (seen.has(it.id)) continue;
-              seen.add(it.id);
-              searched.push(it);
+          if (!alive) return;
+          const allSeen = new Map<string, { p: PublicPositionListItem; rel: number }>();
+          jobEntries.forEach((je, i) => {
+            const rel = relFor(je.role.toLowerCase(), kwOf(je));
+            const items = pages[i]?.items ?? [];
+            const relevant = items.filter((p) => rel(p) > 0).sort((a, b) => rel(b) - rel(a));
+            const list = relevant.length > 0 ? relevant : items;
+            byJobRef.current[je.role] = { list, rel: new Map(list.map((p) => [p.id, rel(p)])) };
+            for (const p of list) {
+              const r = rel(p);
+              const prev = allSeen.get(p.id);
+              if (!prev || r > prev.rel) allSeen.set(p.id, { p, rel: r });
             }
-          }
+          });
+          const merged = [...allSeen.values()].sort((a, b) => b.rel - a.rel);
+          allRef.current = { list: merged.map((x) => x.p), rel: new Map(merged.map((x) => [x.p.id, x.rel])) };
+        } else {
+          const rec = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
+          if (!alive) return;
+          allRef.current = { list: rec, rel: new Map() };
         }
         if (!alive) return;
-
-        // 직무 키워드와 실제로 맞는 공고만(관련도>0). 관심 직무가 없거나 매칭이 0이면 개인화 추천으로 폴백.
-        let items: PublicPositionListItem[];
-        if (jobKws.length) {
-          const relevant = searched.filter((p) => relevance(p) > 0).sort((a, b) => relevance(b) - relevance(a));
-          items = relevant.length > 0 ? relevant : searched;
-          relRef.current = new Map(items.map((p) => [p.id, relevance(p)])); // 적합도 표시용
-        } else {
-          items = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
-        }
-
-        const deck = shuffle(items);
-        poolRef.current = items;
-        deckRef.current = deck;
-        ptrRef.current = Math.min(PAGE, deck.length);
-        setShown(deck.slice(0, PAGE));
+        showPool(allRef.current); // 기본 전체
       } finally {
         if (alive) setLoaded(true);
       }
@@ -129,6 +138,7 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 더보기 — 기존 5개를 지우고 다른 랜덤 5개로 교체(누적 아님). 덱 끝나면 다시 섞어 계속.
@@ -159,9 +169,12 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
           <p className="cl-eyebrow mb-2 inline-flex items-center gap-1.5" style={{ color: "var(--cl-faint)" }}>
             <Target className="h-3.5 w-3.5" weight="fill" style={{ color: "var(--cl-accent)" }} aria-hidden /> {t("준비 중인 직무", "Roles you're preparing for", "正在准备的职务", "Nghề bạn đang chuẩn bị", "準備中の職種", "Peran yang kamu siapkan")}
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="cl-role-tabs">
+            {jobs.length > 1 ? (
+              <button type="button" onClick={() => selectJob("")} className={activeJob === "" ? "cl-role-chip on" : "cl-role-chip"}>{t("전체", "All", "全部", "Tất cả", "すべて", "Semua")}</button>
+            ) : null}
             {jobs.map((j) => (
-              <span key={j} className="cl-role-chip">{j}</span>
+              <button key={j} type="button" onClick={() => selectJob(j)} className={activeJob === j ? "cl-role-chip on" : "cl-role-chip"}>{j}</button>
             ))}
           </div>
         </div>
