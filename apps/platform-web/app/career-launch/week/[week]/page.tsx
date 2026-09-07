@@ -169,14 +169,7 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
             {/* Week 1 직무 결정 — '관심 직무 선정' 스텝(③)에서 고르고, 그 결과 패널에서 1순위를 목표로 확정한다.
                 (구 ExploreCard 추천→체험→결정 흐름은 스텝과 중복이라 제거, 목표 확정을 스텝 ③ 결과로 통합) */}
 
-            {/* Week 2 — 이력서·자소서 심층 평가 도구 묶음(각 카드는 근거 없으면 스스로 숨음).
-                공고 맞춤(기준 채용공고) 흐름은 4주차 공고별 면접으로 이관돼 여기선 제거. */}
-            {plan.week === 2 ? (
-              <div className="flex flex-col gap-4">
-                <ResumeScoreCard />
-                <CoverScoreCard />
-              </div>
-            ) : null}
+            {/* Week 2의 이력서·자소서 심층 평가(Score) 카드는 아래 '피드백' 섹션에 배치. */}
 
             {/* Week 3 — 유형별 기본 면접(카드·채점형)은 '이번 주 해야 할 일' 스텝으로 진행. 별도 카드 없음. */}
 
@@ -216,11 +209,10 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
               </div>
             ) : plan.week === 2 ? (
               <div>
-                <SectionTitle>{t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</SectionTitle>
-                <div className="flex flex-col gap-3">
-                  {/* 지원 패키지 = 이력서(week2)·자소서(week3) 피드백을 나란히. 다음 액션은 자소서 블록에서 3주차로 */}
-                  <WeekAutoFeedback week={2} showNext={false} heading={t("이력서 피드백", "Resume feedback", "简历反馈", "Phản hồi CV", "履歴書フィードバック", "Umpan balik resume")} />
-                  <WeekAutoFeedback week={3} nextWeek={3} heading={t("자기소개서 피드백", "Cover letter feedback", "自我介绍书反馈", "Phản hồi thư giới thiệu", "自己紹介書フィードバック", "Umpan balik surat lamaran")} />
+                <SectionTitle sub={t("이력서·자기소개서를 심층 평가하고, 고쳐서 다시 받아요", "Deep-evaluate your resume and cover letter, then fix and re-check", "深度评估简历与自我介绍书，修改后再评估", "Đánh giá sâu CV và thư, sửa rồi nhận lại", "履歴書・自己紹介書を深く評価し、直して再評価", "Nilai mendalam resume & surat, perbaiki lalu nilai ulang")}>{t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</SectionTitle>
+                <div className="mt-3 flex flex-col gap-4">
+                  <ResumeScoreCard />
+                  <CoverScoreCard />
                 </div>
               </div>
             ) : null}
