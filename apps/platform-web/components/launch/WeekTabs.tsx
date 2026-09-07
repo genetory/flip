@@ -26,7 +26,6 @@ import { BasicInterviewSession } from "./BasicInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useWeekText } from "../../lib/launch/data-i18n";
 
-const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => { const p = href.split("?")[0]; return CHAT_ENDS.some((s) => p.endsWith(s)); };
 
@@ -124,31 +123,26 @@ export function WeekTabs() {
         })}
       </div>
 
-      {/* 선택 주차 헤더 */}
-      <div className="cl-mapsheet-head mt-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="thumb" src={WEEK_IMAGE[selWeek]} alt="" loading="lazy" />
-        <div className="min-w-0">
-          <span className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>Week {selWeek} · {selDone ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : t(`${selDc} / ${sel.steps.length} 완료`, `${selDc} / ${sel.steps.length} done`, `${selDc} / ${sel.steps.length} 完成`, `${selDc} / ${sel.steps.length} xong`, `${selDc} / ${sel.steps.length} 完了`, `${selDc} / ${sel.steps.length} selesai`)}</span>
-          <h3>{weekText(selWeek, "title")}</h3>
-          <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{weekText(selWeek, "subtitle")}</p>
-        </div>
+      {/* 선택 주차 제목 + 진행(안내 카드 없이 간결하게) */}
+      <div className="mb-3 mt-6 flex items-end justify-between gap-3">
+        <h2 className="cl-headline text-[#191F28]">{weekText(selWeek, "title")}</h2>
+        <span className="shrink-0 text-[12.5px] font-bold text-[#8B95A1]">{selDone ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : t(`${selDc} / ${sel.steps.length} 완료`, `${selDc} / ${sel.steps.length} done`, `${selDc} / ${sel.steps.length} 完成`, `${selDc} / ${sel.steps.length} xong`, `${selDc} / ${sel.steps.length} 完了`, `${selDc} / ${sel.steps.length} selesai`)}</span>
       </div>
 
-      {/* 미션 */}
-      <div className="mt-3 flex flex-col gap-3">
+      {/* 미션 — 스텝은 2열 그리드, 넓은 컴포넌트(점수·모의면접)는 전체 폭 */}
+      <div className="grid gap-3 sm:grid-cols-2">
         {sel.steps.map((s) => missionCard(s, selWeek, seq))}
-        {selWeek === 2 ? <><ResumeScoreCard /><CoverScoreCard /></> : null}
-        {selWeek === 4 ? (
-          <>
-            <PostingInterviewCard />
-            <Link href="/career-launch/corrections" className="cl-jcard">
-              <div className="ttl">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノート", "Tinjau catatan")}</div>
-              <div className="desc">{t("점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on.", "重做低分题。", "Làm lại câu điểm thấp.", "点数の低かった問題を解き直します。", "Ulangi soal berskor rendah.")}</div>
-            </Link>
-          </>
-        ) : null}
       </div>
+      {selWeek === 2 ? <div className="mt-3 flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div> : null}
+      {selWeek === 4 ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <PostingInterviewCard />
+          <Link href="/career-launch/corrections" className="cl-jcard">
+            <div className="ttl">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノート", "Tinjau catatan")}</div>
+            <div className="desc">{t("점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on.", "重做低分题。", "Làm lại câu điểm thấp.", "点数の低かった問題を解き直します。", "Ulangi soal berskor rendah.")}</div>
+          </Link>
+        </div>
+      ) : null}
       {renderChatModal()}
     </>
   );
