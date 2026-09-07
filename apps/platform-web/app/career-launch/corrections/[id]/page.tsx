@@ -72,7 +72,7 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-3xl px-5 pt-6 md:pt-10">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <Link href="/career-launch/corrections" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}
           </Link>
