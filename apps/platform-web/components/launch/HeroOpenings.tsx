@@ -97,25 +97,39 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
           for (const sk of je.skills ?? []) for (const tok of tokenize(sk)) if (!GENERIC.has(tok)) set.add(tok);
           return set;
         };
-        // 한 직무 기준 적합도 함수.
-        const relFor = (role: string, kws: Set<string>) => (p: PublicPositionListItem): number => {
-          const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
-          let s = role && hay.includes(role) ? 3 : 0;
-          for (const kw of kws) if (hay.includes(kw)) s += 1;
-          return s;
+        // 한 직무 기준 적합도 함수 — 전체 직무명(+4) + 직무 고유 토큰(예: '프론트엔드','ios')(+2) + 키워드(+1).
+        const relFor = (je: (typeof RECOMMENDED_JOBS)[number]) => {
+          const role = je.role.toLowerCase();
+          const kws = kwOf(je);
+          const roleToks = role.split(/[\s·]+/).filter((x) => x.length > 1 && !GENERIC.has(x)); // '개발자' 등 범용어 제외
+          return (p: PublicPositionListItem): number => {
+            const hay = `${p.title} ${p.preferredJobRole ?? ""} ${p.mainResponsibilities ?? ""} ${p.requiredQualifications ?? ""}`.toLowerCase();
+            let s = role && hay.includes(role) ? 4 : 0;
+            for (const tok of roleToks) if (hay.includes(tok)) s += 2;
+            for (const kw of kws) if (hay.includes(kw)) s += 1;
+            return s;
+          };
         };
 
         if (jobEntries.length) {
-          const queries = jobEntries.map((je) => je.query || je.role);
-          const pages = await Promise.all(queries.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
+          // 직무별로 (검색어 + 직무명 + 고유 토큰) 여러 검색어로 후보를 넓게 모으고 관련도로 필터.
+          const jobResults = await Promise.all(
+            jobEntries.map(async (je) => {
+              const rel = relFor(je);
+              const roleToks = je.role.toLowerCase().split(/[\s·]+/).filter((x) => x.length > 1 && !GENERIC.has(x));
+              const terms = Array.from(new Set([je.query || je.role, je.role, ...roleToks].filter((x) => x && x.trim())));
+              const pagesJ = await Promise.all(terms.map((s) => getPublicPositionsPage({ search: s, limit: 20 }).catch(() => null)));
+              const seen = new Set<string>();
+              const cand: PublicPositionListItem[] = [];
+              for (const pg of pagesJ) for (const it of pg?.items ?? []) if (!seen.has(it.id)) { seen.add(it.id); cand.push(it); }
+              const list = cand.filter((p) => rel(p) > 0).sort((a, b) => rel(b) - rel(a));
+              return { role: je.role, rel, list };
+            })
+          );
           if (!alive) return;
           const allSeen = new Map<string, { p: PublicPositionListItem; rel: number }>();
-          jobEntries.forEach((je, i) => {
-            const rel = relFor(je.role.toLowerCase(), kwOf(je));
-            const items = pages[i]?.items ?? [];
-            const relevant = items.filter((p) => rel(p) > 0).sort((a, b) => rel(b) - rel(a));
-            const list = relevant.length > 0 ? relevant : items;
-            byJobRef.current[je.role] = { list, rel: new Map(list.map((p) => [p.id, rel(p)])) };
+          jobResults.forEach(({ role, rel, list }) => {
+            byJobRef.current[role] = { list, rel: new Map(list.map((p) => [p.id, rel(p)])) };
             for (const p of list) {
               const r = rel(p);
               const prev = allSeen.get(p.id);
