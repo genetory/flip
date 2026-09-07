@@ -9,6 +9,8 @@ import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { HeroOpenings } from "../../../components/launch/HeroOpenings";
+import { BoardingPassHero } from "../../../components/launch/BoardingPassHero";
+import { FlightPath } from "../../../components/launch/FlightPath";
 import { CareerReportCard } from "../../../components/launch/CareerReportCard";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
@@ -24,7 +26,7 @@ import { LeagueCard } from "../../../components/launch/LeagueCard";
 import { PilotFeedbackWidget } from "../../../components/launch/PilotFeedbackWidget";
 import { fetchDashboard, type DashboardVM } from "../../../lib/launch/dashboard-client";
 import { logActivity } from "../../../lib/launch/pilot-client";
-import { CoachTodayCard, FourWeekJourney, ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
+import { CoachTodayCard, ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
 import { DashboardSection, ErrorState, ResumeState, CardSkeleton } from "../../../components/launch/dashboard-states";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -230,7 +232,7 @@ export default function LaunchDashboardPage() {
 
   return (
     <EnrollmentGate>
-    <div className="isolate flex min-h-screen flex-col bg-white">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-white">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
@@ -243,7 +245,10 @@ export default function LaunchDashboardPage() {
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
           ) : null}
-          {/* 프로그램 마스트헤드 — 홈 최상단 히어로. 이 프로그램이 무엇인지 한눈에(정적, vm 무관). */}
+          {/* 홈 최상단 히어로 — vm 준비 시 "보딩패스", 로딩/에러 시 정적 마스트헤드(폴백). */}
+          {vm ? (
+            <div className="mt-1"><BoardingPassHero vm={vm} displayName={displayName} overall={overall} /></div>
+          ) : (
           <section className="mt-1 overflow-hidden rounded-2xl border border-[#E7EDFB] bg-gradient-to-br from-[#F4F8FF] via-white to-white">
             <div className="flex flex-col md:flex-row md:items-center">
               {/* 데스크톱: 텍스트 좌 · 이미지 우 / 모바일: 이미지 상 · 텍스트 하 */}
@@ -277,6 +282,7 @@ export default function LaunchDashboardPage() {
               </div>
             </div>
           </section>
+          )}
           {/* ═══ UX Phase 2 — 오늘의 커리어 준비(코치·현재 주차·오늘 할 일·4주 여정·결과물·성장·함께) ═══ */}
           {vmPhase === "loading" ? (
             <div className="mt-2 flex flex-col gap-3">
@@ -302,8 +308,8 @@ export default function LaunchDashboardPage() {
               {/* 오늘 할 일(NextActionCard)·현재 주차 안내(CurrentWeekCard) 카드 제거 — 4주 여정에서 진행 확인 */}
 
               {/* 영역 4 — 4주 여정 */}
-              <DashboardSection title={t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")} sub={t("하나로 연결된 과정이에요", "One connected journey", "一个连贯的过程", "Một hành trình liền mạch", "ひとつながりの過程です", "Satu perjalanan yang terhubung")}>
-                <FourWeekJourney vm={vm} />
+              <DashboardSection title={t("비행 경로 · 4주 여정", "Flight path · 4 weeks", "飞行路线 · 4周旅程", "Lộ trình · 4 tuần", "フライトパス · 4週間", "Rute · 4 minggu")} sub={t("하나로 연결된 과정이에요", "One connected journey", "一个连贯的过程", "Một hành trình liền mạch", "ひとつながりの過程です", "Satu perjalanan yang terhubung")}>
+                <FlightPath vm={vm} />
               </DashboardSection>
 
               {/* 영역 5 — 최근 결과물 */}
