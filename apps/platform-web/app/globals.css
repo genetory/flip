@@ -406,7 +406,18 @@ All colors MUST be HSL.
    비활성 테두리는 연결선(--cl-line-strong)과 다른 회색으로 → 선이 뱃지로 이어져 보이는 착시 제거. */
 .cl-stop .node { position: relative; z-index: 3; width: 32px; height: 32px; border-radius: 999px; margin: 0 auto 12px; display: grid; place-items: center; font-size: 13px; font-weight: 900; background-color: #fff; border: 2px solid #C9CDD2; color: var(--cl-faint); box-shadow: 0 0 0 6px #fff; }
 .cl-stop.done .node { background-color: #fff; border-color: var(--cl-mint); color: var(--cl-mint); }
-.cl-stop.current .node { background-color: #fff; border-color: var(--cl-accent); color: var(--cl-accent); box-shadow: 0 0 0 6px #fff, 0 0 0 9px color-mix(in srgb, var(--cl-accent) 16%, transparent); }
+.cl-stop.current .node { background-color: #fff; border-color: var(--cl-accent); color: var(--cl-accent); box-shadow: 0 0 0 6px #fff; }
+/* 현재 위치 비콘 — 테두리가 확장하며 사라지는 펄스 링(지금 여기). */
+.cl-stop.current .node::after {
+  content: ""; position: absolute; inset: -1px; border-radius: 999px;
+  border: 2px solid var(--cl-accent); pointer-events: none;
+  animation: cl-pulse 1.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes cl-pulse {
+  0%   { transform: scale(1);   opacity: .75; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
 .cl-stop.dest .node { background-color: #fff; border-style: dashed; border-color: var(--cl-accent); color: var(--cl-accent); }
 .cl-stop .wk { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--cl-faint); text-transform: uppercase; }
 .cl-stop .nm { font-size: 12.5px; font-weight: 700; margin-top: 3px; color: var(--cl-ink); word-break: keep-all; }
@@ -486,6 +497,7 @@ All colors MUST be HSL.
 }
 @media (prefers-reduced-motion: reduce) {
   .cl-flap .cell, .cl-planeline svg, .cl-path-fill { animation: none !important; transition: none !important; }
+  .cl-stop.current .node::after { animation: none !important; opacity: 0 !important; }
 }
 
 /* 접근성 — 키보드 탐색 시 포커스 가시화(마우스 클릭에는 표시되지 않음). */
