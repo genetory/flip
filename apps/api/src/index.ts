@@ -2342,6 +2342,24 @@ function getErrorMessage(error: unknown) {
   return String(error);
 }
 
+// 500 원인 진단용 — Prisma 에러코드(P2000 값 초과, P2002 unique 등)·에러명·짧은 스택까지
+// 남긴다. message 만으로는 "이미지 업로드 실패"인지 "DB 제약 위반"인지 구분이 안 됐다.
+function describeThrownError(error: unknown) {
+  const e = error as { name?: unknown; code?: unknown; meta?: unknown; stack?: unknown } | null;
+  return {
+    name: typeof e?.name === "string" ? e.name : undefined,
+    code: typeof e?.code === "string" ? e.code : undefined,
+    meta: e?.meta,
+    message: getErrorMessage(error),
+    stack: typeof e?.stack === "string" ? e.stack.split("\n").slice(0, 5).join("\n") : undefined
+  };
+}
+
+// 파트너/운영자 포지션 저장 실패(500) 시 사용자에게 보여줄 안내. 실제 500 의 대부분은
+// 썸네일 이미지 업로드/용량 문제라, 재시도 전에 사진 수·크기를 줄여보도록 유도한다.
+const POSITION_SAVE_FAILED_MESSAGE =
+  "포지션을 저장하지 못했어요. 이미지 용량이 크면 사진 수를 줄이거나 크기를 줄인 뒤 다시 시도해 주세요. 문제가 계속되면 잠시 후 다시 시도해 주세요.";
+
 function summarizePartnerPositionBody(body: unknown) {
   if (!body || typeof body !== "object") return body;
   const record = body as Record<string, unknown>;
@@ -3499,7 +3517,9 @@ const createPositionSchema = z.object({
   hiringCount: z.coerce.number().int().min(1).max(999).optional(),
   workingHours: z.string().trim().max(240).optional(),
   workLocation: z.string().trim().max(240).optional(),
-  startDate: z.string().datetime().nullable().optional(),
+  // 엄격한 .datetime() 은 date-only("2026-09-07")를 거부해 "invalid request" 로 떨어졌다.
+  // flexibleDateString 은 date-only·ISO 모두 허용하고, 핸들러에서 new Date() 로 정규화한다.
+  startDate: flexibleDateString.nullable().optional(),
   // long-form 본문 필드들은 DB 컬럼이 TEXT 라 무제한이지만 zod 에서만 캡.
   // 실제 채용 공고는 4000자 넘기는 경우가 흔해 20000자로 상향 (악용 방어용).
   mainResponsibilities: z.string().trim().max(20_000).optional(),
@@ -27789,9 +27809,9 @@ app.post("/partner/positions", authenticate, requireRoles([MemberRole.PARTNER, M
   } catch (error) {
     console.error("[partner/positions][create][failed]", {
       userId: req.auth?.userId,
-      message: getErrorMessage(error)
+      ...describeThrownError(error)
     });
-    return res.status(500).json({ ok: false, message: "failed to create partner position" });
+    return res.status(500).json({ ok: false, message: POSITION_SAVE_FAILED_MESSAGE });
   }
 });
 
@@ -27979,8 +27999,8 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
       void embedAndSavePosition(prisma, updated.id);
       return res.json({ ok: true, item: toPosition(updated), message: "수정되었습니다." });
     } catch (error) {
-      console.error("[partner/positions][update][failed][operator]", { positionId: id, message: getErrorMessage(error) });
-      return res.status(500).json({ ok: false, message: "failed to update position" });
+      console.error("[partner/positions][update][failed][operator]", { positionId: id, ...describeThrownError(error) });
+      return res.status(500).json({ ok: false, message: POSITION_SAVE_FAILED_MESSAGE });
     }
   }
 
@@ -28123,9 +28143,9 @@ app.patch("/partner/positions/:id", authenticate, requireRoles([MemberRole.PARTN
     console.error("[partner/positions][update][failed]", {
       positionId: id,
       userId: req.auth?.userId,
-      message: getErrorMessage(error)
+      ...describeThrownError(error)
     });
-    return res.status(500).json({ ok: false, message: "failed to update partner position" });
+    return res.status(500).json({ ok: false, message: POSITION_SAVE_FAILED_MESSAGE });
   }
 });
 

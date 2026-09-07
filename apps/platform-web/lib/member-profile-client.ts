@@ -91,7 +91,22 @@ const FIELD_LABELS_KO: Record<string, string> = {
   officePhotoImageData: "사무실 사진",
   businessRegistrationDocumentData: "사업자등록증",
   fourInsuranceSubscriberListData: "4대보험 가입자 명부",
-  profileImageData: "프로필 사진"
+  profileImageData: "프로필 사진",
+  // 포지션(채용 공고) 폼 필드
+  title: "공고 제목",
+  thumbnailImages: "썸네일 이미지",
+  mainResponsibilities: "주요 업무",
+  requiredQualifications: "필수 자격요건",
+  preferredQualifications: "우대 사항",
+  hiringProcess: "채용 절차",
+  preferredJobRole: "선호 직무",
+  workLocation: "근무 지역",
+  workingHours: "근무 시간",
+  dressCode: "복장 규정",
+  additionalNotes: "추가 안내",
+  hiringCount: "채용 인원",
+  mockInterviewIntent: "모의면접 의도",
+  mockInterviewQuestions: "모의면접 질문"
 };
 
 function humanizeZodErrors(errors: ZodFlatErrors): string | null {
