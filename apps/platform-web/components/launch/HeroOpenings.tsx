@@ -199,7 +199,7 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
         <>
           <div className="mb-2.5 flex items-center justify-between gap-2">
             <p className="text-[14px] font-black text-[#191F28]">{t("나에게 어울리는 공고", "Openings that fit you", "适合你的公告", "Tin phù hợp với bạn", "あなたに合う求人", "Lowongan yang cocok")}</p>
-            <Link href="/talent/jobs" className="text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</Link>
+            <Link href="/talent/jobs" target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</Link>
           </div>
           <div className="flex flex-col gap-2.5">
             {shown.map((p, i) => {
