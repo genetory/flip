@@ -397,8 +397,8 @@ All colors MUST be HSL.
 .cl-stub-no { font-size: 11px; letter-spacing: .28em; text-align: center; opacity: .65; }
 
 /* ── 비행 경로 타임라인 ── */
-.cl-path { position: relative; background: var(--cl-card); border-radius: 20px; padding: 32px 30px 28px; box-shadow: var(--cl-shadow-sm); }
-.cl-path-track { display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; position: relative; }
+.cl-path { position: relative; isolation: isolate; background: var(--cl-card); border-radius: 20px; padding: 32px 30px 28px; box-shadow: var(--cl-shadow-sm); }
+.cl-path-track { display: grid; grid-template-columns: repeat(5, 1fr); align-items: start; position: relative; z-index: 1; } /* 트랙(노드)을 연결선 위 레이어로 */
 .cl-path-line { position: absolute; top: 48px; left: 10%; right: 10%; height: 2px; background: var(--cl-line-strong); z-index: 0; }
 .cl-path-fill { position: absolute; left: 0; top: 0; height: 100%; width: 0; background: linear-gradient(90deg, var(--cl-mint), var(--cl-accent)); border-radius: 999px; transition: width 1.2s ease .2s; }
 .cl-stop { position: relative; z-index: 1; text-align: center; padding: 0 4px; }
