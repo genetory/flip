@@ -14,6 +14,8 @@ import { fetchProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData } from "../../lib/launch/cover-data";
 import { isStepDone, isWeekComplete, weekDoneCount, type LaunchData } from "../../lib/launch/step-status";
+import { WeekHero, type WeekFrameStatus } from "./week/week-frame";
+import { WEEK_CONFIG } from "../../lib/launch/week-config";
 import { CareerChatModal } from "./CareerChatModal";
 import { DiagnosisChat } from "./DiagnosisChat";
 import { ExperienceChat } from "./ExperienceChat";
@@ -26,6 +28,7 @@ import { BasicInterviewSession } from "./BasicInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useWeekText } from "../../lib/launch/data-i18n";
 
+const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => { const p = href.split("?")[0]; return CHAT_ENDS.some((s) => p.endsWith(s)); };
 
@@ -123,14 +126,31 @@ export function WeekTabs() {
         })}
       </div>
 
-      {/* 선택 주차 제목 + 진행(안내 카드 없이 간결하게) */}
-      <div className="mb-3 mt-6 flex items-end justify-between gap-3">
-        <h2 className="cl-headline text-[#191F28]">{weekText(selWeek, "title")}</h2>
-        <span className="shrink-0 text-[12.5px] font-bold text-[#8B95A1]">{selDone ? t("완료", "Done", "完成", "Xong", "完了", "Selesai") : t(`${selDc} / ${sel.steps.length} 완료`, `${selDc} / ${sel.steps.length} done`, `${selDc} / ${sel.steps.length} 完成`, `${selDc} / ${sel.steps.length} xong`, `${selDc} / ${sel.steps.length} 完了`, `${selDc} / ${sel.steps.length} selesai`)}</span>
-      </div>
+      {/* 선택 주차 히어로 — 일러스트 + 핵심 질문 + 결과물 + 진행 */}
+      {(() => {
+        const cfg = WEEK_CONFIG[selWeek];
+        const reachable = selWeek === 1 || isWeekComplete(selWeek - 1, data);
+        const status: WeekFrameStatus = selDone ? "completed" : selDc > 0 ? "in_progress" : reachable ? "available" : "locked";
+        return (
+          <div className="mt-6">
+            <WeekHero
+              week={selWeek}
+              title={weekText(selWeek, "title")}
+              subtitle={weekText(selWeek, "subtitle")}
+              question={cfg?.question ?? weekText(selWeek, "goal")}
+              status={status}
+              doneCount={selDc}
+              totalCount={sel.steps.length}
+              resultLabels={cfg?.resultLabels ?? []}
+              ctaLabel=""
+              image={WEEK_IMAGE[selWeek]}
+            />
+          </div>
+        );
+      })()}
 
       {/* 미션 — 스텝은 2열 그리드, 넓은 컴포넌트(점수·모의면접)는 전체 폭 */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {sel.steps.map((s) => missionCard(s, selWeek, seq))}
       </div>
       {selWeek === 2 ? <div className="mt-3 flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div> : null}
