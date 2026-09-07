@@ -3,7 +3,7 @@
 // UX Phase 4 — 공통 주차 프레임(모든 Week 일관 구조). 기능 나열이 아니라 목표→미션→결과물→완료→다음.
 // step id·route·완료 로직(step-status)은 유지하고 표현만 통일한다.
 import Link from "next/link";
-import { ArrowRight, CheckCircle, Circle, Lock, ArrowDown, Question } from "@phosphor-icons/react";
+import { ArrowRight, CheckCircle, Circle, Lock, ArrowDown } from "@phosphor-icons/react";
 import type { Step } from "../../../lib/launch/data";
 import { isStepDone, type LaunchData } from "../../../lib/launch/step-status";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -69,7 +69,6 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
 
       {/* 이번 주 핵심 질문 */}
       <div className="wh-q">
-        <span className="ic"><Question className="h-4 w-4" weight="bold" aria-hidden /></span>
         <div className="min-w-0">
           <p className="lb">{t("이번 주 핵심 질문", "This week's key question", "本周核心问题", "Câu hỏi chính tuần này", "今週の核心の質問", "Pertanyaan inti minggu ini")}</p>
           <p className="qt">{question}</p>
