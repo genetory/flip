@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { notFound } from "next/navigation";
 import { logActivity } from "../../../../lib/launch/pilot-client";
 import Link from "next/link";
-import { CaretRight, ArrowRight } from "@phosphor-icons/react";
+import { CaretRight, ArrowRight, Check } from "@phosphor-icons/react";
 import { WEEKS } from "../../../../lib/launch/data";
 import { SectionTitle } from "../../../../components/launch/ui";
 import { WeekStepper } from "../../../../components/launch/week-stepper";
@@ -112,6 +112,27 @@ export default function LaunchWeekPage({ params }: { params: Promise<{ week: str
           <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
             {t("← 대시보드", "← Dashboard", "← 仪表板", "← Bảng điều khiển", "← ダッシュボード", "← Dasbor")}
           </Link>
+
+          {/* 주차 네비게이션(스텝바) — 단계별 진행을 한눈에, 주차 이동을 상단에서 바로. */}
+          <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+            {WEEKS.map((w) => {
+              const done = isWeekComplete(w.week, data);
+              const current = w.week === plan.week;
+              return (
+                <Link
+                  key={w.week}
+                  href={`/career-launch/week/${w.week}`}
+                  aria-current={current ? "page" : undefined}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-bold transition ${current ? "bg-[#0B46E8] text-white" : done ? "border border-[#CFE0FF] bg-white text-[#0B46E8] hover:bg-[#F5F8FF]" : "border border-[#EEF1F5] bg-white text-[#8B95A1] hover:text-[#4E5968]"}`}
+                >
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-black ${current ? "bg-white/20 text-white" : done ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F2F4F6] text-[#8B95A1]"}`}>
+                    {done && !current ? <Check className="h-3 w-3" weight="bold" /> : w.week}
+                  </span>
+                  {weekLabel(w.week)}
+                </Link>
+              );
+            })}
+          </div>
 
           {/* ── UX Phase 4 공통 주차 프레임 — Week Hero(핵심질문·결과물·진행·CTA) ── */}
           {(() => {
