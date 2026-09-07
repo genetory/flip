@@ -4,11 +4,24 @@
 // 5개씩 보여주고 '다른 공고 더보기'로 랜덤 5개씩 계속 이어 보여준다.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Buildings, ArrowRight, Shuffle, Target } from "@phosphor-icons/react";
+import { Buildings, Microphone, Lock, Shuffle, Target } from "@phosphor-icons/react";
 import { fetchProgress } from "../../lib/launch/progress-client";
 import { getPublicPositionsPage, getRecommendedPositions, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { RECOMMENDED_JOBS } from "../../lib/launch/data";
+import type { InterviewJobPosting } from "../../lib/launch/interview";
+import { CareerChatModal } from "./CareerChatModal";
+import { PostingInterviewSession } from "./PostingInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
+
+// PublicPositionListItem → 공고별 모의면접 입력. (PostingInterviewCard 와 동일 규칙)
+function positionToPosting(p: PublicPositionListItem): InterviewJobPosting {
+  return {
+    title: p.title,
+    company: posCompany(p),
+    description: [p.mainResponsibilities, p.requiredQualifications, p.preferredQualifications].filter(Boolean).join("\n\n") || undefined,
+    requirements: p.requiredQualifications ? [p.requiredQualifications] : undefined
+  };
+}
 
 const posCompany = (p: PublicPositionListItem) => p.partnerOrganization?.name || p.sourceCompanyName || "";
 const posThumb = (p: PublicPositionListItem) => p.thumbnailImages?.[0] || p.partnerOrganization?.companyLogoImageData || undefined;
@@ -32,8 +45,11 @@ function shuffle<T>(arr: T[]): T[] {
 
 const PAGE = 5;
 
-export function HeroOpenings() {
+export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
   const t = useLaunchT();
+  const canMock = currentWeek >= 4; // 공고별 모의면접은 4주차 도달 후에만
+  const [active, setActive] = useState<InterviewJobPosting | null>(null); // 모의면접 모달 대상
+  const [blocked, setBlocked] = useState(false); // 4주차 전 안내 팝업
   const [jobs, setJobs] = useState<string[]>([]);
   const [shown, setShown] = useState<PublicPositionListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -139,11 +155,15 @@ export function HeroOpenings() {
     <div>
       {/* 준비 중인 직무 */}
       {jobs.length > 0 ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-[#4E5968]"><Target className="h-4 w-4 text-[#0B46E8]" weight="fill" /> {t("준비 중인 직무", "Roles you're preparing for", "正在准备的职务", "Nghề bạn đang chuẩn bị", "準備中の職種", "Peran yang kamu siapkan")}</span>
-          {jobs.map((j) => (
-            <span key={j} className="inline-flex items-center rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{j}</span>
-          ))}
+        <div className="mb-4">
+          <p className="cl-eyebrow mb-2 inline-flex items-center gap-1.5" style={{ color: "var(--cl-faint)" }}>
+            <Target className="h-3.5 w-3.5" weight="fill" style={{ color: "var(--cl-accent)" }} aria-hidden /> {t("준비 중인 직무", "Roles you're preparing for", "正在准备的职务", "Nghề bạn đang chuẩn bị", "準備中の職種", "Peran yang kamu siapkan")}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {jobs.map((j) => (
+              <span key={j} className="inline-flex items-center rounded-full px-3 py-1.5 text-[12.5px] font-bold" style={{ background: "color-mix(in srgb, var(--cl-accent) 10%, #fff)", color: "var(--cl-accent)" }}>{j}</span>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -161,31 +181,41 @@ export function HeroOpenings() {
               const bullets = posBullets(p);
               const fit = (relRef.current.get(p.id) ?? 0) >= 2; // 관심 직무 키워드가 여러 개 맞으면 "잘 맞아요"
               return (
-                <Link key={`${p.id}:${i}`} href={`/talent/jobs/${p.id}`} className="cl-gate">
-                  <span className="logo">
-                    {thumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumb} alt="" />
-                    ) : (
-                      <Buildings className="h-5 w-5" weight="fill" aria-hidden />
-                    )}
-                  </span>
-                  <span className="body">
-                    <span className="ttl-row">
-                      <span className="ttl">{p.title}</span>
-                      {fit ? <span className="cl-fit"><Target className="h-3 w-3" weight="fill" aria-hidden /> {t("잘 맞아요", "Great fit", "很匹配", "Rất hợp", "好相性", "Cocok")}</span> : null}
+                <div key={`${p.id}:${i}`} className="cl-gate">
+                  <Link href={`/talent/jobs/${p.id}`} className="cl-gate-main">
+                    <span className="logo">
+                      {thumb ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={thumb} alt="" />
+                      ) : (
+                        <Buildings className="h-5 w-5" weight="fill" aria-hidden />
+                      )}
                     </span>
-                    {name ? <span className="co">{name}</span> : null}
-                    {bullets.length ? (
-                      <ul className="bl">
-                        {bullets.map((b, j) => (
-                          <li key={j}><span>{b}</span></li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </span>
-                  <ArrowRight className="cl-gate-arrow h-4 w-4" weight="bold" aria-hidden />
-                </Link>
+                    <span className="body">
+                      <span className="ttl-row">
+                        <span className="ttl">{p.title}</span>
+                        {fit ? <span className="cl-fit"><Target className="h-3 w-3" weight="fill" aria-hidden /> {t("잘 맞아요", "Great fit", "很匹配", "Rất hợp", "好相性", "Cocok")}</span> : null}
+                      </span>
+                      {name ? <span className="co">{name}</span> : null}
+                      {bullets.length ? (
+                        <ul className="bl">
+                          {bullets.map((b, j) => (
+                            <li key={j}><span>{b}</span></li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => (canMock ? setActive(positionToPosting(p)) : setBlocked(true))}
+                    className={`cl-gate-btn${canMock ? "" : " locked"}`}
+                    aria-label={t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}
+                  >
+                    {canMock ? <Microphone className="h-3.5 w-3.5" weight="fill" aria-hidden /> : <Lock className="h-3.5 w-3.5" weight="fill" aria-hidden />}
+                    {t("모의면접", "Mock", "模拟面试", "PV thử", "模擬面接", "Wawancara")}
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -197,6 +227,21 @@ export function HeroOpenings() {
         </>
       ) : loaded && jobs.length > 0 ? (
         <p className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-4 text-center text-[12.5px] text-[#8B95A1]">{t("지금 매칭되는 공고가 적어요. 잠시 후 다시 확인해보세요.", "Few matches right now. Check back soon.", "目前匹配较少，请稍后再看。", "Hiện ít tin phù hợp. Kiểm tra lại sau.", "今はマッチが少ないです。後で確認してください。", "Sedikit yang cocok. Cek lagi nanti.")}</p>
+      ) : null}
+
+      {/* 공고별 모의면접(4주차 도달자) — PostingInterviewCard 와 동일 모달 */}
+      {active ? <CareerChatModal onClose={() => setActive(null)}><PostingInterviewSession posting={active} embedded onClose={() => setActive(null)} /></CareerChatModal> : null}
+
+      {/* 4주차 전 안내 팝업 */}
+      {blocked ? (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-5" onClick={() => setBlocked(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Lock className="h-6 w-6" weight="fill" aria-hidden /></span>
+            <p className="mt-3 text-[15.5px] font-black text-[#191F28]">{t("모의면접은 4주차부터예요", "Mock interview opens in Week 4", "模拟面试从第4周开始", "Phỏng vấn thử mở ở Tuần 4", "模擬面接は4週目から", "Wawancara mulai Minggu 4")}</p>
+            <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#4E5968]">{t("공고별 모의면접은 4주차를 진행해야 열려요. 지금은 이번 주차 미션을 이어가 주세요.", "Job-specific mock interviews unlock once you reach Week 4. Continue this week's missions for now.", "公告模拟面试需进行到第4周才会解锁。请先继续本周任务。", "Phỏng vấn thử theo tin mở khi bạn đến Tuần 4. Hãy tiếp tục nhiệm vụ tuần này.", "求人別模擬面接は4週目に到達すると開きます。今は今週のミッションを進めてください。", "Wawancara per lowongan terbuka saat kamu mencapai Minggu 4. Lanjutkan misi minggu ini dulu.")}</p>
+            <button type="button" onClick={() => setBlocked(false)} className="mt-4 w-full rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white">{t("확인", "Got it", "知道了", "Đã hiểu", "了解", "Oke")}</button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

@@ -303,8 +303,8 @@ export default function LaunchDashboardPage() {
               {/* 오늘의 탑승 수속(포커스 CTA) + 연속 접속 + 서류 완성도 게이지 */}
               <CheckInPanel vm={vm} />
 
-              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) */}
-              <HeroOpenings />
+              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 모의면접은 4주차 도달 시 */}
+              <HeroOpenings currentWeek={vm.currentWeek} />
 
               {/* 오늘 할 일(NextActionCard)·현재 주차 안내(CurrentWeekCard) 카드 제거 — 4주 여정에서 진행 확인 */}
 
