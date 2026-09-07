@@ -177,7 +177,7 @@ export function ScoreCard({
           {/* 하단 — 수정하고 다시 받기(상시) */}
           <div className="flex flex-col gap-2.5 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("개선점을 고친 뒤 다시 평가받아 점수를 올려보세요.", "Fix the tips, then re-evaluate to raise your score.", "修改建议后重新评估以提高分数。", "Sửa theo gợi ý rồi đánh giá lại để tăng điểm.", "改善点を直して再評価し、点数を上げましょう。", "Perbaiki tips lalu nilai ulang untuk menaikkan skor.")}</p>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2">
               {editHref ? (
                 <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40"><PencilSimple className="h-4 w-4" weight="bold" /> {editLabel ?? t("수정하러 가기", "Edit", "去修改", "Sửa", "修正する", "Edit")}</Link>
               ) : null}
