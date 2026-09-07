@@ -44,36 +44,39 @@ function weekMeta(t: LaunchT): { title: string; goal: string; result: string }[]
 const tResult = (t: LaunchT) => t("결과물", "Result", "成果", "Kết quả", "成果物", "Hasil");
 
 // 영역 1 — 전담 코치 메시지(최상단). 기억·오늘 할 일·목적·예상시간·CTA. (코치 텍스트는 VM=서버 생성)
+// 코치 메시지 — 목업의 "코치 풀쿼트" 스타일. 대표 CTA 는 상단 보딩패스 히어로가
+// 담당하므로 여기선 대화형 코멘트 + 소프트 링크로. (테두리 없음, 흰 카드+그림자)
 export function CoachTodayCard({ vm }: { vm: DashboardVM }) {
   const t = useLaunchT();
   const c = vm.coach;
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#1B64DA] p-5 text-white shadow-[0_8px_24px_-10px_rgba(49,130,246,0.5)]">
-      <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-white/85">
-        <Sparkle size={15} weight="fill" /> {t("전담 커리어 코치", "Your career coach", "专属职业教练", "Coach nghề riêng", "専属キャリアコーチ", "Coach karier pribadi")}
+    <div className="flex items-start gap-4 rounded-2xl bg-white p-6">
+      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-gradient-to-br from-[#3182F6] to-[#1B64DA] text-white">
+        <Sparkle size={20} weight="fill" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("전담 커리어 코치", "Your career coach", "专属职业教练", "Coach nghề riêng", "専属キャリアコーチ", "Coach karier pribadi")}</p>
+        {c.remembered ? <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{c.remembered}</p> : null}
+        <p className="mt-1.5 break-keep text-[16px] font-bold leading-relaxed text-[#191F28]">“{c.todayFocus}”</p>
+        {c.purpose ? <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{c.purpose}</p> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] font-semibold text-[#8B95A1]">
+          <span className="inline-flex items-center gap-1">
+            <Clock size={13} weight="bold" /> {t(`약 ${c.estimatedMinutes}분`, `About ${c.estimatedMinutes} min`, `约 ${c.estimatedMinutes} 分钟`, `Khoảng ${c.estimatedMinutes} phút`, `約${c.estimatedMinutes}分`, `Sekitar ${c.estimatedMinutes} mnt`)}
+          </span>
+          <span aria-hidden>·</span>
+          <span>{tResult(t)}: {c.expectedResult}</span>
+        </div>
+        <Link
+          href={vm.nextAction.destination}
+          onClick={() => {
+            void logActivity("next_action_click", { week: vm.currentWeek });
+            trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
+          }}
+          className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0B46E8] transition hover:gap-2.5"
+        >
+          {c.cta} <ArrowRight size={15} weight="bold" />
+        </Link>
       </div>
-      <div className="mt-2.5 space-y-1.5 break-keep text-[15px] leading-relaxed">
-        {c.remembered ? <p className="text-white/90">{c.remembered}</p> : null}
-        <p className="font-semibold">{c.todayFocus}</p>
-        {c.purpose ? <p className="text-[13.5px] text-white/85">{c.purpose}</p> : null}
-      </div>
-      <div className="mt-3 flex items-center gap-2 text-[12.5px] text-white/85">
-        <span className="inline-flex items-center gap-1">
-          <Clock size={13} weight="bold" /> {t(`약 ${c.estimatedMinutes}분`, `About ${c.estimatedMinutes} min`, `约 ${c.estimatedMinutes} 分钟`, `Khoảng ${c.estimatedMinutes} phút`, `約${c.estimatedMinutes}分`, `Sekitar ${c.estimatedMinutes} mnt`)}
-        </span>
-        <span aria-hidden>·</span>
-        <span>{tResult(t)}: {c.expectedResult}</span>
-      </div>
-      <Link
-        href={vm.nextAction.destination}
-        onClick={() => {
-          void logActivity("next_action_click", { week: vm.currentWeek }); // 주요 행동 클릭 자체 DB 적재(#3)
-          trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
-        }}
-        className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white px-4 py-3 text-[14.5px] font-bold text-[#1B64DA] transition"
-      >
-        {c.cta} <ArrowRight size={16} weight="bold" />
-      </Link>
     </div>
   );
 }
@@ -203,7 +206,6 @@ export function FourWeekJourney({ vm }: { vm: DashboardVM }) {
 }
 
 // 영역 5 — 최근 결과물(최대 3). 상태(a.status)는 서버 한국어 → 알려진 값만 로컬 라벨로 매핑.
-const ART_TONE: Record<string, string> = { 완성: "text-[#0B46E8]", "확인 필요": "text-[#C77700]", "작성 중": "text-[#4E5968]", "작성 전": "text-[#8B95A1]" };
 function artStatusLabel(t: LaunchT, s: string): string {
   switch (s) {
     case "완성": return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
@@ -213,30 +215,33 @@ function artStatusLabel(t: LaunchT, s: string): string {
     default: return s;
   }
 }
+// 결과물 — 목업의 "여권 스탬프" 그리드. 완료=세이지 도장(살짝 기울임), 진행 중=블루,
+// 시작 전=중립. 상태/라벨/링크는 기존 vm.artifacts 그대로.
 export function ArtifactStatusCard({ artifacts }: { artifacts: DashArtifact[] }) {
   const t = useLaunchT();
-  const items = artifacts.slice(0, 3);
-  if (items.length === 0) return <EmptyState title={t("아직 결과물이 없어요", "No deliverables yet", "还没有成果", "Chưa có kết quả", "まだ成果物がありません", "Belum ada hasil")} description={t("첫 상담부터 시작하면 결과물이 하나씩 만들어져요.", "Start your first coaching and deliverables build up one by one.", "从首次咨询开始，成果会一个个产生。", "Bắt đầu buổi tư vấn đầu tiên, kết quả sẽ hình thành dần.", "最初の相談から始めると成果物が一つずつ作られます。", "Mulai konseling pertama dan hasil terbentuk satu per satu.")} />;
+  if (artifacts.length === 0) return <EmptyState title={t("아직 결과물이 없어요", "No deliverables yet", "还没有成果", "Chưa có kết quả", "まだ成果物がありません", "Belum ada hasil")} description={t("첫 상담부터 시작하면 결과물이 하나씩 만들어져요.", "Start your first coaching and deliverables build up one by one.", "从首次咨询开始，成果会一个个产生。", "Bắt đầu buổi tư vấn đầu tiên, kết quả sẽ hình thành dần.", "最初の相談から始めると成果物が一つずつ作られます。", "Mulai konseling pertama dan hasil terbentuk satu per satu.")} />;
   return (
-    <div className="flex flex-col gap-2.5">
-      {items.map((a) => (
-        <Link
-          key={a.type}
-          href={a.destination}
-          onClick={() => trackCareerFunnel("career_artifact_clicked", { artifactType: a.type, destination: a.destination })}
-          className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30"
-        >
-          <FileText size={20} className="flex-none text-[#8B95A1]" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-bold text-[#191F28]">{a.label}</p>
-            <p className={`mt-0.5 text-[12.5px] font-semibold ${ART_TONE[a.status] ?? "text-[#8B95A1]"}`}>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {artifacts.map((a) => {
+        const got = a.status === "완성";
+        const doing = a.status === "작성 중" || a.status === "확인 필요";
+        const cls = got ? "cl-stamp got" : doing ? "cl-stamp doing" : "cl-stamp";
+        return (
+          <Link
+            key={a.type}
+            href={a.destination}
+            onClick={() => trackCareerFunnel("career_artifact_clicked", { artifactType: a.type, destination: a.destination })}
+            className={cls}
+          >
+            <span className="ic">{got ? <CheckCircle size={24} weight="fill" aria-hidden /> : <FileText size={20} aria-hidden />}</span>
+            <span className="t">{a.label}</span>
+            <span className="s">
               {artStatusLabel(t, a.status)}
-              {a.remaining ? ` · ${t(`확인할 문장 ${a.remaining}개`, `${a.remaining} lines to review`, `${a.remaining} 句待确认`, `${a.remaining} câu cần xem`, `確認する文 ${a.remaining}件`, `${a.remaining} kalimat perlu ditinjau`)}` : a.detail ? ` · ${a.detail}` : ""}
-            </p>
-          </div>
-          <ArrowRight size={16} className="flex-none text-[#C9CDD2]" />
-        </Link>
-      ))}
+              {a.remaining ? ` · ${t(`${a.remaining}개 확인`, `${a.remaining} to review`, `${a.remaining} 句待确认`, `${a.remaining} cần xem`, `${a.remaining}件確認`, `${a.remaining} ditinjau`)}` : ""}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

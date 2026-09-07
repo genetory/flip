@@ -313,7 +313,7 @@ export default function LaunchDashboardPage() {
               </DashboardSection>
 
               {/* 영역 5 — 최근 결과물 */}
-              <DashboardSection title={t("최근 결과물", "Recent deliverables", "最近成果", "Kết quả gần đây", "最近の成果物", "Hasil terbaru")} sub={t("확인이 필요한 것부터", "Start with what needs review", "从需要确认的开始", "Bắt đầu từ những gì cần xem lại", "確認が必要なものから", "Mulai dari yang perlu ditinjau")}>
+              <DashboardSection title={t("여권 스탬프 · 나의 결과물", "Passport stamps · deliverables", "护照印章 · 我的成果", "Tem hộ chiếu · kết quả", "パスポートスタンプ · 成果物", "Stempel paspor · hasil")} sub={t("완성할 때마다 도장을 모아요", "Collect a stamp for each one you finish", "每完成一项就集一枚印章", "Mỗi mục hoàn thành là một con dấu", "完成するたびにスタンプが増えます", "Kumpulkan stempel tiap selesai")}>
                 <ArtifactStatusCard artifacts={vm.artifacts} />
               </DashboardSection>
 
