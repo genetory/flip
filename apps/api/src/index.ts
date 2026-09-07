@@ -22261,7 +22261,7 @@ const CAREER_REPORT_SCHEMA = {
     }
   }
 } as const;
-const CAREER_REPORT_VERSION = 1;
+const CAREER_REPORT_VERSION = 2; // v2: 실제 이력서·자소서 내용 기반 직무 적합성 평가
 app.post(
   "/career-launch/career-report",
   authenticate,
@@ -22296,7 +22296,10 @@ app.post(
       const bodyJob = req.body && typeof (req.body as { jobKey?: unknown }).jobKey === "string" ? (req.body as { jobKey: string }).jobKey.trim() : "";
       const activeJob = bodyJob && selectedJobs.includes(bodyJob) ? bodyJob : (selectedJobs[0] ?? "");
       const isPrimary = !activeJob || activeJob === (selectedJobs[0] ?? "");
-      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeDone, coverDone, practiced: practiced.length, expBankSig, activeJob }));
+      // 실제 서류 내용을 해시에 포함 → 이력서·자소서를 고치면 리포트가 stale 처리되어 다시 받게 된다.
+      const resumeH = simpleHash(JSON.stringify(resumeContent));
+      const coverH = simpleHash(JSON.stringify(coverContent));
+      const currentSig = simpleHash(JSON.stringify({ diagnosis, selectedJobs, resumeH, coverH, practiced: practiced.length, expBankSig, activeJob }));
       const force = Boolean(req.body && (req.body as { force?: unknown }).force === true);
       const generate = !(req.body && (req.body as { generate?: unknown }).generate === false);
       const jobsMap = (progState.careerReportJobs && typeof progState.careerReportJobs === "object" ? progState.careerReportJobs : {}) as Record<string, { v?: number; sig?: string; data?: unknown }>;
@@ -22312,13 +22315,15 @@ app.post(
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
-        "너는 취업 코치야. 학생의 자가진단·프로필·선정 직무·현재 서류 상태를 종합해 'Career Report'를 만든다.\n" +
+        "너는 취업 코치야. 학생의 자가진단·프로필·선정 직무와 '실제로 작성한 이력서·자기소개서 내용'을 함께 읽고 'Career Report'를 만든다.\n" +
         "규칙:\n" +
         "1. areas 6개 영역을 각각 0~100으로 평가한다: direction(직무 방향 명확성), experience(경험 보유), competency(직무 역량), resume(이력서 완성도), cover(자기소개서 완성도), interview(면접 준비). " +
-        "지금은 프로그램 1주차라 아직 이력서·자소서·면접을 시작하지 않았다면 resume·cover·interview는 낮게(20~40) 평가하는 게 자연스럽다. 아래 [현재 서류 상태]를 반영해라.\n" +
+        "resume·cover 는 아래 [이력서]·[자기소개서]의 '실제 작성 내용'을 근거로 — 구체성·완성도·그리고 대상 직무와의 연관성(직무에 맞는 경험·역량·표현이 담겼는지)으로 평가한다. " +
+        "direction·competency 도 이 서류 내용이 대상 직무와 얼마나 맞는지로 판단한다. " +
+        "내용이 비었거나 형식만 있고 알맹이가 없거나 대상 직무와 동떨어졌으면 솔직하게 낮게(20~40), 직무와 잘 맞고 구체적이면 높게. 아직 시작 전이면 낮게 평가하는 게 자연스럽다.\n" +
         "2. total 은 6영역을 종합한 전체 Career Score(0~100). 낮아도 반드시 격려하는 톤.\n" +
         "3. why: 왜 이 점수인지 2~3문장으로 따뜻하게 설명.\n" +
-        "4. strengths: 학생이 이미 가진 강점 2~4개(구체적 근거). gaps: 앞으로 보완할 역량 2~4개.\n" +
+        "4. strengths: 실제 이력서·자기소개서·경험에서 드러난 강점 2~4개(반드시 문서 속 구체적 근거 인용, 일반론 금지). gaps: 대상 직무 기준으로 이 서류에서 부족하거나 안 맞는 점 2~4개(무엇을 어떻게 보완할지 구체적으로).\n" +
         `5. roadmap: targetRole ${activeJob ? `는 반드시 '${activeJob}' 로 고정하고, 모든 평가와 로드맵을 이 직무 기준으로 작성` : "(선정 직무 중 가장 적합한 1개)"}, targetCompanies(어울리는 기업 유형 2~3개), recommendedExperience(추천 경험 정리 2~3개), toImprove(보완 항목 2~3개).\n` +
         "존댓말, 응원하는 톤. " + CAREER_SCOPE + "\n\n" +
         'JSON 한 개 객체로만 응답: { "total": number, "areas": { "direction": number, "experience": number, "competency": number, "resume": number, "cover": number, "interview": number }, "why": string, "strengths": string[], "gaps": string[], "roadmap": { "targetRole": string, "targetCompanies": string[], "recommendedExperience": string[], "toImprove": string[] } }' +
@@ -22341,8 +22346,10 @@ app.post(
         `[자가진단]\n준비도 ${diagnosis.percent}% / ${diagnosis.level ?? ""}\n강점: ${(diagnosis.strengths ?? []).join(", ") || "-"}\n개선: ${(diagnosis.improvements ?? []).join(", ") || "-"}\n\n` +
         `[Experience Bank]\n${expText}\n\n` +
         `[선정 관심 직무]\n${selectedJobs.length ? selectedJobs.join(", ") : "(아직 미선정)"}\n\n` +
-        `[현재 서류 상태]\n이력서 작성: ${resumeDone ? "완료" : "미완료"} / 자기소개서: ${coverDone ? "완료" : "미완료"} / 모의면접 연습: ${practiced.length}회` +
-        (activeJob ? `\n\n[이번 리포트 대상 직무]\n${activeJob} — 이 직무 기준으로 평가/로드맵을 작성해줘.` : "");
+        `[이력서]\n${resumeDone ? JSON.stringify(resumeContent).slice(0, 2200) : "(아직 작성 전)"}\n\n` +
+        `[자기소개서]\n${coverDone ? JSON.stringify(coverContent).slice(0, 1800) : "(아직 작성 전)"}\n\n` +
+        `[모의면접 연습] ${practiced.length}회` +
+        (activeJob ? `\n\n[이번 리포트 대상 직무]\n${activeJob} — 위 이력서·자기소개서가 이 직무에 얼마나 맞는지 근거로 평가/로드맵을 작성해줘.` : "");
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "career_report", CAREER_REPORT_SCHEMA)) as {
         total?: unknown;
         areas?: Record<string, unknown>;
