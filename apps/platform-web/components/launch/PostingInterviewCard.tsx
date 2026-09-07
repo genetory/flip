@@ -3,6 +3,7 @@
 // Week 4 공고별 모의면접 — 가고 싶은 공고를 골라 그 공고 기준으로 면접을 연습(무제한 반복).
 // 공고 출처: 우리 공고 데이터(관심 직무 추천) / 검색 / 외부 링크.
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { CircleNotch, Sparkle, MagnifyingGlass, Buildings, ClockCounterClockwise, CaretRight } from "@phosphor-icons/react";
 import { Card, SectionTitle } from "./ui";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -10,11 +11,10 @@ import { trackCareerFunnel } from "../../lib/analytics";
 import { getPublicPositionsPage, getRecommendedPositions, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { RECOMMENDED_JOBS } from "../../lib/launch/data";
 import { fetchJobPosting } from "../../lib/resume-maker-client";
-import { fetchProgress, patchProgress, type PostingInterviewLog } from "../../lib/launch/progress-client";
+import { fetchProgress, type PostingInterviewLog } from "../../lib/launch/progress-client";
 import type { InterviewJobPosting } from "../../lib/launch/interview";
 import { CareerChatModal } from "./CareerChatModal";
 import { PostingInterviewSession } from "./PostingInterviewSession";
-import { PostingInterviewReview } from "./PostingInterviewReview";
 
 type Mode = "reco" | "search" | "url";
 
@@ -49,7 +49,6 @@ export function PostingInterviewCard() {
   const [err, setErr] = useState("");
   const [active, setActive] = useState<InterviewJobPosting | null>(null);
   const [logs, setLogs] = useState<PostingInterviewLog[]>([]);
-  const [viewLog, setViewLog] = useState<PostingInterviewLog | null>(null);
   const alive = useRef(true);
 
   useEffect(() => {
@@ -239,36 +238,19 @@ export function PostingInterviewCard() {
                 const avg = l.items?.length ? Math.round(l.items.reduce((s, it) => s + it.score, 0) / l.items.length) : null;
                 const meta = [logDate(l.at), n ? t(`${n}문항`, `${n} Q`, `${n} 题`, `${n} câu`, `${n}問`, `${n} soal`) : "", avg != null ? `${t("평균", "Avg", "平均", "TB", "平均", "Rata")} ${avg}` : ""].filter(Boolean).join(" · ");
                 return (
-                  <button key={l.id} type="button" onClick={() => setViewLog(l)} className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5 text-left transition hover:border-[#0B46E8]/40">
+                  <Link key={l.id} href={`/career-launch/corrections/${l.id}`} className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5 text-left transition hover:border-[#0B46E8]/40">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[13px] font-bold text-[#191F28]">{label}</p>
                       <p className="truncate text-[11.5px] text-[#8B95A1]">{meta}</p>
                     </div>
                     <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" />
-                  </button>
+                  </Link>
                 );
               })}
             </div>
           </div>
         ) : null}
       </Card>
-
-      {viewLog ? (
-        <CareerChatModal onClose={() => setViewLog(null)}>
-          <PostingInterviewReview
-            log={viewLog}
-            onClose={() => setViewLog(null)}
-            onLogChange={(updated) => {
-              setViewLog(updated);
-              setLogs((prev) => {
-                const next = prev.map((l) => (l.id === updated.id ? updated : l));
-                void patchProgress({ postingInterviews: next }).catch(() => {});
-                return next;
-              });
-            }}
-          />
-        </CareerChatModal>
-      ) : null}
     </>
   );
 }

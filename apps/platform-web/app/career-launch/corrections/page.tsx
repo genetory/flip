@@ -9,9 +9,7 @@ import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbien
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
 import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../../../lib/launch/hub-client";
-import { fetchProgress, patchProgress, type PostingInterviewLog } from "../../../lib/launch/progress-client";
-import { PostingInterviewReview } from "../../../components/launch/PostingInterviewReview";
-import { CareerChatModal } from "../../../components/launch/CareerChatModal";
+import { fetchProgress, type PostingInterviewLog } from "../../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -89,7 +87,6 @@ export default function CorrectionNotebookPage() {
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [pLogs, setPLogs] = useState<PostingInterviewLog[]>([]); // 공고별
   const [bLogs, setBLogs] = useState<PostingInterviewLog[]>([]); // 기본(내 서류)
-  const [viewLog, setViewLog] = useState<PostingInterviewLog | null>(null);
   const load = () => {
     setPhase("loading");
     void Promise.all([fetchCorrections(), fetchProgress().catch(() => null)])
@@ -109,22 +106,6 @@ export default function CorrectionNotebookPage() {
     .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number" && it.score < POSTING_LOW) }))
     .filter((x) => x.items.length > 0);
   const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
-  const updateLog = (updated: PostingInterviewLog) => {
-    setViewLog(updated);
-    if (updated.source === "basic") {
-      setBLogs((prev) => {
-        const next = prev.map((l) => (l.id === updated.id ? updated : l));
-        void patchProgress({ basicInterviews: next }).catch(() => {});
-        return next;
-      });
-    } else {
-      setPLogs((prev) => {
-        const next = prev.map((l) => (l.id === updated.id ? updated : l));
-        void patchProgress({ postingInterviews: next }).catch(() => {});
-        return next;
-      });
-    }
-  };
 
   return (
     <div className="isolate flex min-h-screen flex-col bg-white">
@@ -226,14 +207,14 @@ export default function CorrectionNotebookPage() {
                         const tone = scoreTone(it.score);
                         const co = [log.company, log.title].filter(Boolean).join(" · ");
                         return (
-                          <button key={`${log.id}:${j}`} type="button" onClick={() => setViewLog(log)} className="flex w-full items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
+                          <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex w-full items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
                             <span className={`flex h-10 w-12 shrink-0 flex-col items-center justify-center rounded-lg ${tone.bg}`}><span className={`text-[15px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
                             <span className="min-w-0 flex-1">
                               <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
                               {co ? <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{co}</span> : null}
                               <span className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1B64DA]">{t("다시 답하기", "Try again", "重新作答", "Trả lời lại", "もう一度答える", "Coba lagi")} <ArrowRight size={13} weight="bold" /></span>
                             </span>
-                          </button>
+                          </Link>
                         );
                       })
                     )}
@@ -256,11 +237,6 @@ export default function CorrectionNotebookPage() {
         </div>
       </main>
       <AplyFooter />
-      {viewLog ? (
-        <CareerChatModal onClose={() => setViewLog(null)}>
-          <PostingInterviewReview log={viewLog} onClose={() => setViewLog(null)} onLogChange={updateLog} />
-        </CareerChatModal>
-      ) : null}
     </div>
   );
 }
