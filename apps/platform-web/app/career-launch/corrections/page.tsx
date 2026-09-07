@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Target } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
+import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
 import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../../../lib/launch/hub-client";
@@ -126,10 +127,11 @@ export default function CorrectionNotebookPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="isolate flex min-h-screen flex-col bg-white">
+      <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-8">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <p className="cl-eyebrow">Week 3 · 4</p>
           <h1 className="cl-display mt-1.5">{t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}</h1>
           <p className="cl-lead mt-2.5 max-w-[52ch]">
