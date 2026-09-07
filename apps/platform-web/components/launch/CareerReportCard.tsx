@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Sparkle, CircleNotch, Target, TrendUp, Warning, MapTrifold } from "@phosphor-icons/react";
 import { fetchCareerReport, type CareerReport } from "../../lib/launch/feedback-client";
 import { Card } from "./ui";
+import { DashboardSection } from "./dashboard-states";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 type LaunchT = ReturnType<typeof useLaunchT>;
@@ -82,18 +83,18 @@ export function CareerReportCard() {
   if (state === "none" || state === "loading") return null; // 진단 전이거나 로딩 중엔 숨김
 
   return (
+    <DashboardSection
+      title={t("커리어 리포트", "Career Report", "职业报告", "Career Report", "キャリアレポート", "Laporan Karier")}
+      sub={t("진단·선정 직무를 종합한 나의 커리어 방향", "Your career direction from diagnosis and chosen roles", "综合诊断与所选职务的职业方向", "Hướng nghề từ chẩn đoán và nghề đã chọn", "診断と選定職種を統合したキャリア方向", "Arah karier dari diagnosis dan peran pilihan")}
+      action={state === "done" ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">
+          <Target className="h-3.5 w-3.5" weight="fill" /> {t("방향 준비 완료", "Direction ready", "方向已就绪", "Đã sẵn hướng", "方向準備完了", "Arah siap")}
+        </span>
+      ) : undefined}
+    >
     <Card className="md:!p-6">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Career Report</p>
-        {state === "done" ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">
-            <Target className="h-3.5 w-3.5" weight="fill" /> CAREER DIRECTION READY
-          </span>
-        ) : null}
-      </div>
-
       {state === "ready" ? (
-        <div className="mt-3 text-center">
+        <div className="text-center">
           <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[22px]" aria-hidden>🎯</span>
           <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t("나의 Career Report를 받아보세요", "Get your Career Report", "领取你的职业报告", "Nhận Career Report của bạn", "あなたのCareer Reportを受け取りましょう", "Dapatkan Career Report-mu")}</p>
           <p className="mx-auto mt-1 max-w-[420px] break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("진단·선정 직무를 종합해 Career Score(6영역)·강점·로드맵을 정리해드려요.", "We combine your diagnosis and chosen roles into a Career Score, strengths, and a roadmap.", "综合你的诊断与所选职务，为你整理职业分数、优势与路线图。", "Kết hợp chẩn đoán và nghề đã chọn thành Career Score, điểm mạnh và lộ trình.", "診断と選定職種を統合してCareer Score・強み・ロードマップを整理します。", "Menggabungkan diagnosis dan peran pilihanmu menjadi Career Score, kelebihan, dan roadmap.")}</p>
@@ -111,7 +112,7 @@ export function CareerReportCard() {
       ) : null}
 
       {state === "done" && report ? (
-        <div className="mt-4 flex flex-col gap-5">
+        <div className="flex flex-col gap-5">
           {stale ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#FFF9EC] px-3 py-2">
               <span className="text-[12px] font-semibold text-[#B7791F]">{t("입력이 바뀌었어요. 다시 받아 최신으로 갱신할 수 있어요.", "Your inputs changed. Refresh to update.", "输入已更改，可重新获取以更新。", "Dữ liệu đã đổi. Nhận lại để cập nhật.", "入力が変わりました。再取得で更新できます。", "Input berubah. Ambil ulang untuk memperbarui.")}</span>
@@ -144,7 +145,7 @@ export function CareerReportCard() {
           {/* 강점 / 부족한 역량 */}
           <div className="grid gap-3 sm:grid-cols-2">
             {report.strengths.length > 0 ? (
-              <div className="rounded-2xl border border-[#EEF1F5] p-4">
+              <div className="rounded-2xl bg-[#F8FAFF] p-4">
                 <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#0A9B59]"><TrendUp className="h-4 w-4" weight="bold" /> {t("내가 가진 강점", "Your strengths", "你的优势", "Điểm mạnh", "あなたの強み", "Kelebihanmu")}</p>
                 <ul className="mt-2 space-y-1">
                   {report.strengths.map((s, i) => <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>)}
@@ -152,7 +153,7 @@ export function CareerReportCard() {
               </div>
             ) : null}
             {report.gaps.length > 0 ? (
-              <div className="rounded-2xl border border-[#EEF1F5] p-4">
+              <div className="rounded-2xl bg-[#FFF7ED] p-4">
                 <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#C77700]"><Warning className="h-4 w-4" weight="bold" /> {t("보완할 역량", "To build", "需补强", "Cần bổ sung", "補うべき力", "Perlu diperkuat")}</p>
                 <ul className="mt-2 space-y-1">
                   {report.gaps.map((s, i) => <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>)}
@@ -195,8 +196,9 @@ export function CareerReportCard() {
       ) : null}
 
       {state === "error" ? (
-        <p className="mt-3 text-[13px] text-[#8B95A1]">{t("리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the report. Please try again in a moment.", "无法加载报告，请稍后再试。", "Không thể tải báo cáo. Vui lòng thử lại.", "レポートを読み込めませんでした。少し後に再試行してください。", "Tidak dapat memuat laporan. Silakan coba lagi.")}</p>
+        <p className="text-[13px] text-[#8B95A1]">{t("리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the report. Please try again in a moment.", "无法加载报告，请稍后再试。", "Không thể tải báo cáo. Vui lòng thử lại.", "レポートを読み込めませんでした。少し後に再試行してください。", "Tidak dapat memuat laporan. Silakan coba lagi.")}</p>
       ) : null}
     </Card>
+    </DashboardSection>
   );
 }
