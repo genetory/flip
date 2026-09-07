@@ -314,8 +314,9 @@ All colors MUST be HSL.
    .cl-surface 로 스코프 → 향후 다크모드/전면 리스킨 확장 지점.
    ══════════════════════════════════════════════════════════════ */
 .cl-surface {
-  --cl-accent: #CB6A4D;      /* 클레이 코랄 — 절제해서 사용(CTA·현재상태·기수) */
-  --cl-accent-2: #D28C63;    /* 미묘한 웜 그라데이션 짝 */
+  --cl-page: #F1F1F4;        /* 홈 페이지 바탕(테두리 없이 흰 카드가 뜨도록 살짝 톤다운) */
+  --cl-accent: #0B46E8;      /* 대표 테마색 — 로고와 같은 브랜드 블루 */
+  --cl-accent-2: #3182F6;    /* 밝은 블루(그라데이션 짝) */
   --cl-mint: #3E9B77;        /* 완료/성공(세이지) */
   --cl-ink: #14181F;
   --cl-muted: #5D6470;
@@ -330,15 +331,37 @@ All colors MUST be HSL.
   --cl-shadow-sm: 0 4px 16px -10px rgba(20,24,31,0.18);
 }
 
+/* ── 홈 전면 리스킨 레이어 ──
+   기존 컴포넌트의 하드코드 hex 유틸리티를 .cl-surface 스코프에서 리매핑한다.
+   컴포넌트를 일일이 안 고치고도 홈 전체가 같은 클레이 룩 + 테두리 없는 구성. */
+/* 파란 액센트 → 클레이 */
+.cl-surface .text-\[\#0B46E8\], .cl-surface .text-\[\#3182F6\], .cl-surface .text-\[\#1B64DA\] { color: var(--cl-accent) !important; }
+.cl-surface .bg-\[\#0B46E8\], .cl-surface .bg-\[\#3182F6\] { background-color: var(--cl-accent) !important; }
+.cl-surface .hover\:bg-\[\#0A3ECB\]:hover { background-color: var(--cl-accent-2) !important; }
+.cl-surface .from-\[\#3182F6\] { --tw-gradient-from: var(--cl-accent) var(--tw-gradient-from-position) !important; }
+.cl-surface .to-\[\#1B64DA\] { --tw-gradient-to: var(--cl-accent-2) var(--tw-gradient-to-position) !important; }
+/* 액센트 틴트 배경 → 웜 클레이 틴트 */
+.cl-surface .bg-\[\#EDF1FD\], .cl-surface .bg-\[\#E8F3FF\], .cl-surface .bg-\[\#EAF2FF\],
+.cl-surface .bg-\[\#F4F8FF\], .cl-surface .bg-\[\#F5F8FF\], .cl-surface .bg-\[\#F8FAFF\] { background-color: color-mix(in srgb, var(--cl-accent) 8%, #fff) !important; }
+/* 성공(그린) → 세이지 */
+.cl-surface .text-\[\#0A9B59\] { color: var(--cl-mint) !important; }
+.cl-surface .bg-\[\#0A9B59\] { background-color: var(--cl-mint) !important; }
+.cl-surface .bg-\[\#E7F7EF\] { background-color: color-mix(in srgb, var(--cl-mint) 12%, #fff) !important; }
+/* 테두리 라인 전면 제거 — 카드 구분은 배경/여백/그림자로 */
+.cl-surface [class*="border-[#"] { border-color: transparent !important; }
+/* 흰 카드 → 은은한 그림자로 분리(테두리 대신) */
+.cl-surface .bg-white { box-shadow: 0 1px 2px rgba(20,24,31,0.03), 0 12px 32px -24px rgba(20,24,31,0.22); }
+/* 앰비언트 오로라는 원래의 브랜드 블루 그대로 유지(대표색이 블루이므로 온브랜드). */
+
 /* ── 보딩패스 히어로 ── */
 .cl-pass {
   position: relative; display: grid; grid-template-columns: 1fr 250px;
-  background: var(--cl-card); border: 1px solid var(--cl-line);
+  background: var(--cl-card);
   border-radius: 26px; box-shadow: var(--cl-shadow); overflow: hidden;
 }
 .cl-pass::before, .cl-pass::after {
   content: ""; position: absolute; right: 249px; width: 24px; height: 24px;
-  background: #F6F7FA; border-radius: 999px; z-index: 3; border: 1px solid var(--cl-line);
+  background: var(--cl-page, #F1F1F4); border-radius: 999px; z-index: 3;
 }
 .cl-pass::before { top: -12px; }
 .cl-pass::after { bottom: -12px; }
@@ -373,7 +396,7 @@ All colors MUST be HSL.
 .cl-stub-no { font-size: 11px; letter-spacing: .28em; text-align: center; opacity: .65; }
 
 /* ── 비행 경로 타임라인 ── */
-.cl-path { position: relative; background: var(--cl-card); border: 1px solid var(--cl-line); border-radius: 20px; padding: 32px 30px 28px; box-shadow: var(--cl-shadow-sm); }
+.cl-path { position: relative; background: var(--cl-card); border-radius: 20px; padding: 32px 30px 28px; box-shadow: var(--cl-shadow-sm); }
 .cl-path-track { display: grid; grid-template-columns: repeat(4, 1fr) 0.5fr; align-items: start; position: relative; }
 .cl-path-line { position: absolute; top: 48px; left: 12%; right: 12%; height: 2px; background: var(--cl-line-strong); z-index: 0; }
 .cl-path-fill { position: absolute; left: 0; top: 0; height: 100%; width: 0; background: linear-gradient(90deg, var(--cl-mint), var(--cl-accent)); border-radius: 999px; transition: width 1.2s ease .2s; }
