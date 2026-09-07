@@ -68,7 +68,7 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
   const avg = items.length ? Math.round(items.reduce((s, it) => s + it.score, 0) / items.length) : null;
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-white">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">

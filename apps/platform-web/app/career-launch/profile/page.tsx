@@ -65,7 +65,7 @@ export default function CareerProfilePage() {
   const languages = resume.languages ?? [];
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-white">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">

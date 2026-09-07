@@ -68,7 +68,7 @@ export default function ArtifactHubPage() {
   useEffect(load, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="cl-surface flex min-h-screen flex-col bg-[#F1F1F4]">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-8">

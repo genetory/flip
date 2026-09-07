@@ -108,7 +108,7 @@ export default function CorrectionNotebookPage() {
   const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-white">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
