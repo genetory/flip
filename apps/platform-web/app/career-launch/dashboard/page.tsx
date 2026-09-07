@@ -24,7 +24,7 @@ import { LeagueCard } from "../../../components/launch/LeagueCard";
 import { PilotFeedbackWidget } from "../../../components/launch/PilotFeedbackWidget";
 import { fetchDashboard, type DashboardVM } from "../../../lib/launch/dashboard-client";
 import { logActivity } from "../../../lib/launch/pilot-client";
-import { CoachTodayCard, CurrentWeekCard, NextActionCard, FourWeekJourney, ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
+import { CoachTodayCard, FourWeekJourney, ArtifactStatusCard, GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
 import { DashboardSection, ErrorState, ResumeState, CardSkeleton } from "../../../components/launch/dashboard-states";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -299,13 +299,7 @@ export default function LaunchDashboardPage() {
               {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 코치 카드 아래 */}
               <HeroOpenings />
 
-              {/* 영역 3 — 오늘 할 일(단일 행동) */}
-              {vm.enrollmentStatus !== "new" ? <NextActionCard vm={vm} /> : null}
-
-              {/* 영역 2 — 현재 주차 */}
-              {vm.enrollmentStatus !== "new" && vm.enrollmentStatus !== "completed" ? (
-                <CurrentWeekCard vm={vm} doneCount={weekDoneCount(WEEKS[vm.currentWeek - 1]?.steps ?? [], data)} requiredCount={WEEKS[vm.currentWeek - 1]?.steps.length ?? 0} />
-              ) : null}
+              {/* 오늘 할 일(NextActionCard)·현재 주차 안내(CurrentWeekCard) 카드 제거 — 4주 여정에서 진행 확인 */}
 
               {/* 영역 4 — 4주 여정 */}
               <DashboardSection title={t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")} sub={t("하나로 연결된 과정이에요", "One connected journey", "一个连贯的过程", "Một hành trình liền mạch", "ひとつながりの過程です", "Satu perjalanan yang terhubung")}>
