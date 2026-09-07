@@ -402,10 +402,11 @@ All colors MUST be HSL.
 .cl-path-line { position: absolute; top: 48px; left: 10%; right: 10%; height: 2px; background: var(--cl-line-strong); z-index: 0; }
 .cl-path-fill { position: absolute; left: 0; top: 0; height: 100%; width: 0; background: linear-gradient(90deg, var(--cl-mint), var(--cl-accent)); border-radius: 999px; transition: width 1.2s ease .2s; }
 .cl-stop { position: relative; z-index: 1; text-align: center; padding: 0 4px; }
-/* 뱃지는 흰 배경 + 흰 헤일로(box-shadow)로 뒤 연결선을 가린다. 상태는 테두리/글자색으로. */
-.cl-stop .node { width: 32px; height: 32px; border-radius: 999px; margin: 0 auto 12px; display: grid; place-items: center; font-size: 13px; font-weight: 900; background: var(--cl-card); border: 2px solid var(--cl-line-strong); color: var(--cl-faint); box-shadow: 0 0 0 4px var(--cl-card); }
+/* 뱃지는 흰 배경 + 흰 헤일로(box-shadow 6px)로 뒤 연결선을 확실히 끊는다. 상태는 테두리/글자색으로.
+   비활성 테두리는 연결선(--cl-line-strong)과 다른 회색으로 → 선이 뱃지로 이어져 보이는 착시 제거. */
+.cl-stop .node { position: relative; z-index: 2; width: 32px; height: 32px; border-radius: 999px; margin: 0 auto 12px; display: grid; place-items: center; font-size: 13px; font-weight: 900; background: var(--cl-card); border: 2px solid #C9CDD2; color: var(--cl-faint); box-shadow: 0 0 0 6px var(--cl-card); }
 .cl-stop.done .node { background: var(--cl-card); border-color: var(--cl-mint); color: var(--cl-mint); }
-.cl-stop.current .node { background: var(--cl-card); border-color: var(--cl-accent); color: var(--cl-accent); box-shadow: 0 0 0 4px var(--cl-card), 0 0 0 7px color-mix(in srgb, var(--cl-accent) 16%, transparent); }
+.cl-stop.current .node { background: var(--cl-card); border-color: var(--cl-accent); color: var(--cl-accent); box-shadow: 0 0 0 6px var(--cl-card), 0 0 0 9px color-mix(in srgb, var(--cl-accent) 16%, transparent); }
 .cl-stop.dest .node { background: var(--cl-card); border-style: dashed; border-color: var(--cl-accent); color: var(--cl-accent); }
 .cl-stop .wk { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--cl-faint); text-transform: uppercase; }
 .cl-stop .nm { font-size: 12.5px; font-weight: 700; margin-top: 3px; color: var(--cl-ink); word-break: keep-all; }
