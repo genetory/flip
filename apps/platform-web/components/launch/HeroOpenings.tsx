@@ -161,7 +161,7 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
           </p>
           <div className="flex flex-wrap gap-2">
             {jobs.map((j) => (
-              <span key={j} className="inline-flex items-center rounded-full px-3 py-1.5 text-[12.5px] font-bold" style={{ background: "color-mix(in srgb, var(--cl-accent) 10%, #fff)", color: "var(--cl-accent)" }}>{j}</span>
+              <span key={j} className="cl-role-chip">{j}</span>
             ))}
           </div>
         </div>

@@ -482,9 +482,10 @@ All colors MUST be HSL.
 .cl-road-grid li { font-size: 13px; line-height: 1.55; color: var(--cl-muted); word-break: keep-all; }
 /* 직무 탭(리포트/로드맵 전환) */
 .cl-role-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-.cl-role-chip { display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 999px; border: 0; cursor: pointer; font-size: 13px; font-weight: 800; letter-spacing: -0.01em; background: var(--cl-card); color: var(--cl-muted); box-shadow: var(--cl-shadow-sm); transition: background .15s, color .15s, transform .1s; }
-.cl-role-chip:hover:not(.on) { color: var(--cl-ink); }
-.cl-role-chip:active { transform: translateY(1px); }
+.cl-role-chip { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 999px; border: 0; font-size: 13.5px; font-weight: 800; letter-spacing: -0.01em; background: var(--cl-card); color: var(--cl-muted); box-shadow: var(--cl-shadow-sm); transition: background .15s, color .15s, transform .1s; }
+button.cl-role-chip { cursor: pointer; }
+button.cl-role-chip:hover:not(.on) { color: var(--cl-ink); }
+button.cl-role-chip:active { transform: translateY(1px); }
 .cl-role-chip.on { background: var(--cl-accent); color: #fff; box-shadow: 0 10px 22px -14px color-mix(in srgb, var(--cl-accent) 80%, transparent); }
 @media (max-width: 640px) { .cl-road-grid { grid-template-columns: 1fr; gap: 16px; } }
 
