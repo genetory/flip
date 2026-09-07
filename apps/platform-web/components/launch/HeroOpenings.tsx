@@ -40,6 +40,7 @@ export function HeroOpenings() {
   const poolRef = useRef<PublicPositionListItem[]>([]);
   const deckRef = useRef<PublicPositionListItem[]>([]);
   const ptrRef = useRef(0);
+  const relRef = useRef<Map<string, number>>(new Map()); // 공고별 적합도(관심 직무 키워드 일치 수)
 
   useEffect(() => {
     let alive = true;
@@ -95,6 +96,7 @@ export function HeroOpenings() {
         if (jobKws.length) {
           const relevant = searched.filter((p) => relevance(p) > 0).sort((a, b) => relevance(b) - relevance(a));
           items = relevant.length > 0 ? relevant : searched;
+          relRef.current = new Map(items.map((p) => [p.id, relevance(p)])); // 적합도 표시용
         } else {
           items = (await getRecommendedPositions({ limit: 20 }).catch(() => ({ items: [] as PublicPositionListItem[] }))).items;
         }
@@ -157,28 +159,32 @@ export function HeroOpenings() {
               const name = posCompany(p);
               const thumb = posThumb(p);
               const bullets = posBullets(p);
+              const fit = (relRef.current.get(p.id) ?? 0) >= 2; // 관심 직무 키워드가 여러 개 맞으면 "잘 맞아요"
               return (
-                <Link key={`${p.id}:${i}`} href={`/talent/jobs/${p.id}`} className="flex items-start gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-3.5 transition hover:border-[#0B46E8]/40">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-[#EEF1F5] object-cover" />
-                  ) : (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-5 w-5" weight="fill" /></span>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{p.title}</span>
-                    {name ? <span className="block truncate text-[11.5px] font-semibold text-[#4E5968]">{name}</span> : null}
+                <Link key={`${p.id}:${i}`} href={`/talent/jobs/${p.id}`} className="cl-gate">
+                  <span className="logo">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumb} alt="" />
+                    ) : (
+                      <Buildings className="h-5 w-5" weight="fill" aria-hidden />
+                    )}
+                  </span>
+                  <span className="body">
+                    <span className="ttl-row">
+                      <span className="ttl">{p.title}</span>
+                      {fit ? <span className="cl-fit"><Target className="h-3 w-3" weight="fill" aria-hidden /> {t("잘 맞아요", "Great fit", "很匹配", "Rất hợp", "好相性", "Cocok")}</span> : null}
+                    </span>
+                    {name ? <span className="co">{name}</span> : null}
                     {bullets.length ? (
-                      <ul className="mt-1 space-y-0.5">
+                      <ul className="bl">
                         {bullets.map((b, j) => (
-                          <li key={j} className="flex gap-1.5 text-[11.5px] leading-[1.45] text-[#8B95A1]">
-                            <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" />
-                            <span className="min-w-0 truncate">{b}</span>
-                          </li>
+                          <li key={j}><span>{b}</span></li>
                         ))}
                       </ul>
                     ) : null}
                   </span>
+                  <ArrowRight className="cl-gate-arrow h-4 w-4" weight="bold" aria-hidden />
                 </Link>
               );
             })}
