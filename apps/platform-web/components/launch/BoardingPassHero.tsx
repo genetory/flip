@@ -50,7 +50,7 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
 
         <div className="cl-pass-meta">
           <div className="cl-meta">
-            <div className="k">Passenger</div>
+            <div className="k">{t("탑승자", "Passenger", "乘客", "Hành khách", "搭乗者", "Penumpang")}</div>
             <div className="v" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
           </div>
           <div className="cl-meta">
@@ -61,11 +61,11 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
             </div>
           </div>
           <div className="cl-meta">
-            <div className="k">Progress</div>
+            <div className="k">{t("진행률", "Progress", "进度", "Tiến độ", "進捗", "Progres")}</div>
             <div className="v accent">{overall}%</div>
           </div>
           <div className="cl-meta">
-            <div className="k">Class</div>
+            <div className="k">{t("클래스", "Class", "舱位", "Hạng", "クラス", "Kelas")}</div>
             <div className="v">{t("4주 집중 · AI 코치", "4-week · AI coach", "4周集中 · AI教练", "4 tuần · AI coach", "4週集中 · AIコーチ", "4 minggu · AI coach")}</div>
           </div>
           <div className="cl-meta">
@@ -73,7 +73,7 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
             <div className="v">{t(`${vm.weeksDoneCount} / 4 주차`, `${vm.weeksDoneCount} / 4`, `${vm.weeksDoneCount} / 4 周`, `${vm.weeksDoneCount} / 4`, `${vm.weeksDoneCount} / 4 週`, `${vm.weeksDoneCount} / 4`)}</div>
           </div>
           <div className="cl-meta">
-            <div className="k">Status</div>
+            <div className="k">{t("상태", "Status", "状态", "Trạng thái", "状態", "Status")}</div>
             <div className="v" style={{ color: status.tone }}>● {status.label}</div>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
 
       <div className="cl-pass-stub">
         <div>
-          <div className="k">Flight</div>
+          <div className="k">{t("편명", "Flight", "航班", "Chuyến", "便名", "Penerbangan")}</div>
           <div className="flight" style={{ fontFamily: "ui-monospace, SF Mono, monospace" }}>CL · WEEK {week}</div>
         </div>
         <div>

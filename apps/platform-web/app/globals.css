@@ -365,7 +365,7 @@ All colors MUST be HSL.
 }
 .cl-pass::before { top: -12px; }
 .cl-pass::after { bottom: -12px; }
-.cl-pass-main { padding: 32px 34px 28px; position: relative; }
+.cl-pass-main { padding: 32px 34px 28px; position: relative; display: flex; flex-direction: column; justify-content: center; }
 .cl-route { display: flex; align-items: center; gap: 16px; margin: 14px 0 22px; }
 .cl-port { min-width: 0; }
 .cl-port .code { font-size: 28px; font-weight: 900; letter-spacing: -0.02em; line-height: 1; color: var(--cl-ink); }
@@ -375,13 +375,13 @@ All colors MUST be HSL.
 .cl-pass-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px 22px; align-items: stretch; }
 .cl-meta { display: flex; flex-direction: column; }
 .cl-meta .k { font-size: 10.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--cl-faint); min-height: 13px; }
-.cl-meta .v { font-size: 15px; font-weight: 800; margin-top: 6px; min-height: 40px; display: flex; align-items: center; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
+.cl-meta .v { font-size: 15px; font-weight: 800; margin-top: 6px; min-height: 30px; display: flex; align-items: center; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
 .cl-meta .v.accent { color: var(--cl-accent); }
 .cl-flap { display: inline-flex; gap: 4px; vertical-align: middle; }
 .cl-flap .cell {
-  position: relative; width: 28px; height: 38px; border-radius: 7px;
+  position: relative; width: 21px; height: 28px; border-radius: 6px;
   background: var(--cl-stub-bg); color: var(--cl-stub-fg);
-  display: grid; place-items: center; font-size: 24px; font-weight: 900; overflow: hidden;
+  display: grid; place-items: center; font-size: 17px; font-weight: 900; overflow: hidden;
   box-shadow: inset 0 -1px 0 rgba(255,255,255,.12);
   animation: cl-flip .5s cubic-bezier(.4,0,.2,1) both;
 }
