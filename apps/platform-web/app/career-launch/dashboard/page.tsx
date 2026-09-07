@@ -313,8 +313,8 @@ export default function LaunchDashboardPage() {
 
               {/* 여권 스탬프 · 나의 결과물 섹션 제거(요청) */}
 
-              {/* Career Report(6영역 점수·강점·로드맵) — 진단 후 자체 노출. 4주차에서 홈으로 이동한 캡스톤. */}
-              <CareerReportCard />
+              {/* Career Report(6영역 점수·강점) + 로드맵 — 진단 후 자체 노출. 로드맵의 목표 직무 칩엔 관심 직무 전달. */}
+              <CareerReportCard selectedJobs={Array.isArray(data.progress.selectedJobs) ? data.progress.selectedJobs : []} />
 
               {/* 영역 6 — 내 성장(성장 데이터가 생긴 뒤에만 노출. 모의면접 전엔 순서에 안 맞는 CTA를 띄우지 않음) */}
               {vm.growthSummary.available ? (

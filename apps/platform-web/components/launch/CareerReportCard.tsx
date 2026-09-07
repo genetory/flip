@@ -4,7 +4,8 @@
 // 자동 생성/과금하지 않고, 저장분이 있으면 보여주고 없으면 '받기' 버튼으로 사용자가 요청할 때만 생성.
 // UI: 상단 섹션(체크인 패널)과 동일한 카드 그리드 톤 — 색은 블루+민트+그레이로 절제.
 import { useEffect, useState } from "react";
-import { Sparkle, CircleNotch, Target, TrendUp, Warning } from "@phosphor-icons/react";
+import Link from "next/link";
+import { Sparkle, CircleNotch, Target, TrendUp, Warning, Check, PencilSimple } from "@phosphor-icons/react";
 import { fetchCareerReport, type CareerReport } from "../../lib/launch/feedback-client";
 import { Card } from "./ui";
 import { DashboardSection } from "./dashboard-states";
@@ -23,7 +24,7 @@ function areaLabels(t: LaunchT): { key: keyof CareerReport["areas"]; label: stri
   ];
 }
 
-export function CareerReportCard() {
+export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[] }) {
   const t = useLaunchT();
   const [state, setState] = useState<"loading" | "ready" | "done" | "none" | "error">("loading");
   const [report, setReport] = useState<CareerReport | null>(null);
@@ -78,7 +79,7 @@ export function CareerReportCard() {
   if (state === "none" || state === "loading") return null; // 진단 전이거나 로딩 중엔 숨김
 
   const rm = report?.roadmap;
-  const hasRoadmap = state === "done" && !!rm && (Boolean(rm.targetRole) || rm.targetCompanies.length > 0 || rm.recommendedExperience.length > 0 || rm.toImprove.length > 0);
+  const hasRoadmap = state === "done" && !!rm && (Boolean(rm.targetRole) || selectedJobs.length > 0 || rm.targetCompanies.length > 0 || rm.recommendedExperience.length > 0 || rm.toImprove.length > 0);
 
   return (
     <>
@@ -177,10 +178,22 @@ export function CareerReportCard() {
       >
         <div className="cl-mini">
           <div className="cl-road-grid">
-            {rm.targetRole ? (
-              <div>
+            {rm.targetRole || selectedJobs.length > 0 ? (
+              <div className="span2">
                 <p className="lb">{t("목표 직무", "Target role", "目标职务", "Nghề mục tiêu", "目標職務", "Peran target")}</p>
-                <p className="vl accent">{rm.targetRole}</p>
+                {(() => {
+                  // 확정 목표 + 관심 직무들을 칩으로. 확정(=targetRole)은 강조, 나머지는 함께 고려 중.
+                  const chips = Array.from(new Set([rm.targetRole, ...selectedJobs].filter((x): x is string => Boolean(x && x.trim()))));
+                  return (
+                    <div className="cl-role-chips">
+                      {chips.map((role) => {
+                        const on = role === rm.targetRole;
+                        return <span key={role} className={on ? "cl-role-chip on" : "cl-role-chip"}>{on ? <Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> : null}{role}</span>;
+                      })}
+                    </div>
+                  );
+                })()}
+                <Link href="/career-launch/week/1" className="cl-role-change"><PencilSimple className="h-3.5 w-3.5" weight="bold" aria-hidden /> {t("목표 직무 바꾸기", "Change target role", "更改目标职务", "Đổi nghề mục tiêu", "目標職種を変更", "Ubah peran target")}</Link>
               </div>
             ) : null}
             {rm.targetCompanies.length > 0 ? (
