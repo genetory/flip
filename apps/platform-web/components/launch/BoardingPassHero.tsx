@@ -2,12 +2,9 @@
 
 // 홈 대시보드 히어로 — "커리어 보딩패스". 정적 마스트헤드를 대체한다.
 // 기능 추가 없이 기존 vm(현재 주차·진행·목표 직무·오늘의 관문·다음 행동)만 표현.
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight } from "@phosphor-icons/react";
 import type { DashboardVM } from "../../lib/launch/dashboard-client";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { trackCareerFunnel } from "../../lib/analytics";
 
 export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM; displayName: string; overall: number }) {
   const t = useLaunchT();
@@ -91,14 +88,10 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
           <div className="k">{t("오늘의 관문", "Today's gate", "今日关卡", "Cửa hôm nay", "今日のゲート", "Gate hari ini")}</div>
           <div className="gate">{vm.coach.todayFocus}</div>
         </div>
-        <Link
-          href={vm.nextAction.destination}
-          onClick={() => trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, currentWeek: vm.currentWeek })}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl text-[14px] font-extrabold text-white transition hover:brightness-105"
-          style={{ background: "linear-gradient(135deg, var(--cl-accent), var(--cl-accent-2))", boxShadow: "0 12px 28px -14px color-mix(in srgb, var(--cl-accent) 80%, transparent)" }}
-        >
-          {vm.nextAction.cta} <ArrowRight className="h-4 w-4" weight="bold" aria-hidden />
-        </Link>
+        <div>
+          <div className="k">{t("소요 시간", "Time", "用时", "Thời gian", "所要時間", "Durasi")}</div>
+          <div className="flight" style={{ fontFamily: "ui-monospace, SF Mono, monospace" }}>{t(`약 ${vm.coach.estimatedMinutes}분`, `~${vm.coach.estimatedMinutes} min`, `约 ${vm.coach.estimatedMinutes} 分`, `~${vm.coach.estimatedMinutes} phút`, `約 ${vm.coach.estimatedMinutes} 分`, `~${vm.coach.estimatedMinutes} mnt`)}</div>
+        </div>
         <div className="cl-barcode" aria-hidden />
         <div className="cl-stub-no" style={{ fontFamily: "ui-monospace, SF Mono, monospace" }}>CAREER · LAUNCH</div>
       </div>

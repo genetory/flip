@@ -10,6 +10,7 @@ import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { HeroOpenings } from "../../../components/launch/HeroOpenings";
 import { BoardingPassHero } from "../../../components/launch/BoardingPassHero";
+import { CheckInPanel } from "../../../components/launch/CheckInPanel";
 import { FlightPath } from "../../../components/launch/FlightPath";
 import { CareerReportCard } from "../../../components/launch/CareerReportCard";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
@@ -299,7 +300,10 @@ export default function LaunchDashboardPage() {
               {/* 정체 사용자: 죄책감 없이 이어가기 */}
               {vm.enrollmentStatus === "stalled" ? <ResumeState days={vm.lastActivityDaysAgo} href={vm.nextAction.destination} /> : null}
 
-              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) — 코치 카드는 보딩패스와 중복이라 제거 */}
+              {/* 오늘의 탑승 수속(포커스 CTA) + 연속 접속 + 서류 완성도 게이지 */}
+              <CheckInPanel vm={vm} />
+
+              {/* 준비 중인 직무 + 어울리는 공고(5개 + 랜덤 더보기) */}
               <HeroOpenings />
 
               {/* 오늘 할 일(NextActionCard)·현재 주차 안내(CurrentWeekCard) 카드 제거 — 4주 여정에서 진행 확인 */}
