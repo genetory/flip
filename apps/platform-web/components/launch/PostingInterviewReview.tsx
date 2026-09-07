@@ -29,12 +29,12 @@ export function PostingInterviewReview({ log, onClose, onLogChange }: { log: Pos
   return (
     <div className="flex h-[100dvh] flex-col bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
-        <p className="min-w-0 truncate text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("면접 다시보기", "Interview review", "面试回看", "Xem lại phỏng vấn", "面接の見直し", "Tinjau wawancara")}</p>
+        <p className="min-w-0 truncate text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{label}</p>
         <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#4E5968] transition hover:bg-[#F6F8FB]"><X className="h-5 w-5" weight="bold" /></button>
       </div>
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-4 md:pt-8">
-          <div className="mt-0">
+          <div className="mt-3.5">
             <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{eyebrow}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{label}</h1>
             {date ? <p className="mt-1.5 text-[12.5px] text-[#8B95A1]">{date}</p> : null}
