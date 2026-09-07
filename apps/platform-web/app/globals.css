@@ -462,6 +462,16 @@ All colors MUST be HSL.
 @media (max-width: 820px) { .cl-checkin { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .cl-ring { transition: none !important; } }
 
+/* ── 커리어 리포트 카드 그리드(체크인 패널과 동일 톤) ── */
+.cl-report { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+.cl-report .full { grid-column: 1 / -1; }
+.cl-report .score-num { font-size: 42px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; color: var(--cl-ink); }
+.cl-report .score-num span { font-size: 17px; font-weight: 800; color: var(--cl-faint); }
+.cl-report .bar-track { height: 8px; flex: 1; overflow: hidden; border-radius: 999px; background: var(--cl-line); }
+.cl-report .bar-fill { height: 100%; border-radius: 999px; background: var(--cl-accent); }
+.cl-report .road-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 820px) { .cl-report { grid-template-columns: 1fr; } .cl-report .road-grid { grid-template-columns: 1fr; } }
+
 /* ── 추천 공고 "게이트 카드" ── */
 .cl-gate { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: stretch; background: var(--cl-card); border-radius: 16px; padding: 15px 18px; box-shadow: var(--cl-shadow-sm); transition: transform .12s ease; }
 .cl-gate:hover { transform: translateX(3px); }
