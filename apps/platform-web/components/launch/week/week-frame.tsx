@@ -81,27 +81,14 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
         </div>
       </div>
 
-      {/* 진행 N/M + CTA (퍼센트 단독 표시 금지) */}
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[13px] font-bold text-[#191F28]">
-            {t(`${totalCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${totalCount} done`, `${totalCount} 项中完成 ${doneCount} 项`, `${doneCount}/${totalCount} hoàn thành`, `${totalCount}件中${doneCount}件完了`, `${doneCount} dari ${totalCount} selesai`)}
-          </p>
-          <div className="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-[#F2F4F6]">
-            <div className="h-full rounded-full bg-[#3182F6]" style={{ width: `${totalCount ? Math.round((doneCount / totalCount) * 100) : 0}%` }} />
-          </div>
+      {/* 진행 N/M — 프로그레스 전체 넓이(대표 CTA 버튼 제거) */}
+      <div className="mt-5">
+        <p className="text-[13px] font-bold text-[#191F28]">
+          {t(`${totalCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${totalCount} done`, `${totalCount} 项中完成 ${doneCount} 项`, `${doneCount}/${totalCount} hoàn thành`, `${totalCount}件中${doneCount}件完了`, `${doneCount} dari ${totalCount} selesai`)}
+        </p>
+        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
+          <div className="h-full rounded-full bg-[#3182F6] transition-[width]" style={{ width: `${totalCount ? Math.round((doneCount / totalCount) * 100) : 0}%` }} />
         </div>
-        {status !== "locked" ? (
-          ctaHref ? (
-            <Link href={ctaHref} onClick={onCta} className="inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-2.5 text-[14px] font-bold text-white transition">
-              {ctaLabel} <ArrowRight size={15} weight="bold" />
-            </Link>
-          ) : (
-            <button onClick={onCta} className="inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-2.5 text-[14px] font-bold text-white transition">
-              {ctaLabel} <ArrowRight size={15} weight="bold" />
-            </button>
-          )
-        ) : null}
       </div>
     </div>
   );
