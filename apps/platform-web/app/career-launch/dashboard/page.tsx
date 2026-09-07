@@ -334,10 +334,10 @@ export default function LaunchDashboardPage() {
           {/* 완주자 — 최종 성장 리포트·피드백은 '나의 성장'으로, 실제 취업은 APLY로 이어가요. (홈 정리: 하단 레거시 블록 제거) */}
           {vm && (vm.enrollmentStatus === "completed" || overall === 100) ? (
             <div className="mt-8 flex flex-col gap-3">
-              <Link href="/career-launch/growth" className="flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#3182F6]/40">
+              <Link href="/career-launch/deliverables" className="flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#3182F6]/40">
                 <div>
                   <p className="cl-eyebrow">4-Week Journey</p>
-                  <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{t("최종 성장 리포트·피드백 보기", "See your growth report and feedback", "查看成长报告与反馈", "Xem báo cáo phát triển và phản hồi", "成長レポート・フィードバックを見る", "Lihat laporan pertumbuhan & umpan balik")}</p>
+                  <p className="mt-0.5 text-[14px] font-bold text-[#191F28]">{t("완성한 내 결과물 보기", "See everything you built", "查看我完成的成果", "Xem kết quả bạn đã tạo", "作った成果物を見る", "Lihat hasil yang kamu buat")}</p>
                 </div>
                 <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" aria-hidden />
               </Link>
