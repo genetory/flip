@@ -4166,6 +4166,25 @@ function normalizeStringArray(value?: string[]) {
 }
 
 let azureContainerClientCache: any | null | undefined;
+// 컨테이너 createIfNotExists 를 업로드마다 반복하지 않기 위한 1회 보장 플래그.
+// public-access 가 꺼진 스토리지 계정에선 access:"blob" 생성이 던질 수 있는데,
+// 그 실패가 업로드 자체(컨테이너가 이미 존재하면 성공)를 막지 않도록 분리한다.
+let azureContainerEnsured = false;
+async function ensureAzureContainer(container: any, prefix: string): Promise<void> {
+  if (azureContainerEnsured) return;
+  try {
+    await container.createIfNotExists({ access: "blob" });
+    azureContainerEnsured = true;
+  } catch (err) {
+    // 계정 정책상 public 컨테이너 생성이 거부돼도(PublicAccessNotPermitted 등)
+    // 컨테이너가 이미 있으면 업로드는 된다 — 여기서 저장을 막지 않는다.
+    console.warn("[storage] createIfNotExists failed, proceeding with upload", {
+      prefix,
+      ...describeThrownError(err)
+    });
+    azureContainerEnsured = true; // 매 업로드마다 재시도하지 않는다.
+  }
+}
 
 function getAzureContainerClient(): any | null {
   if (azureContainerClientCache !== undefined) return azureContainerClientCache;
@@ -4248,7 +4267,7 @@ async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promis
     return raw;
   }
 
-  await container.createIfNotExists({ access: "blob" });
+  await ensureAzureContainer(container, prefix);
   const originalMime = match[1]!;
   const base64Data = match[2]!;
   const original = Buffer.from(base64Data, "base64");
@@ -4260,13 +4279,24 @@ async function uploadDataUrlImageIfNeeded(value: string, prefix: string): Promis
   const ext = inferImageExtFromMime(mime);
   const blobName = `${prefix}/${Date.now()}-${randomBytes(8).toString("hex")}.${ext}`;
   const client = container.getBlockBlobClient(blobName);
-  await client.uploadData(content, {
-    blobHTTPHeaders: {
-      blobContentType: mime,
-      blobCacheControl: "public, max-age=31536000, immutable"
-    }
-  });
-  return client.url;
+  try {
+    await client.uploadData(content, {
+      blobHTTPHeaders: {
+        blobContentType: mime,
+        blobCacheControl: "public, max-age=31536000, immutable"
+      }
+    });
+    return client.url;
+  } catch (err) {
+    // Blob 업로드가 실패해도(스토리지 일시 오류·인증·정책) 저장 전체를 500 으로
+    // 떨어뜨리지 않는다 — 원본 data URL 을 그대로 두어 이미지를 잃지 않고 저장은 진행.
+    // (썸네일은 zod 에서 장당 7.2M자·최대 5장으로 캡돼 있어 DB 폭증 위험은 제한적이다.)
+    console.error("[storage] blob upload failed, keeping original data URL", {
+      prefix,
+      ...describeThrownError(err)
+    });
+    return raw;
+  }
 }
 
 // 사무실 사진처럼 "JSON 배열을 문자열로 직렬화해" 한 컬럼에 넣는 필드용.
