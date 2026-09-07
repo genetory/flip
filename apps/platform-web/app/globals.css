@@ -429,23 +429,42 @@ All colors MUST be HSL.
 .cl-stop .nm { font-size: 12.5px; font-weight: 700; margin-top: 3px; color: var(--cl-ink); word-break: keep-all; }
 .cl-stop.current .nm { color: var(--cl-accent); }
 
-/* ── 4주 프로그램 칸반 보드 ── */
-.cl-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 14px; scroll-snap-type: x proximity; }
-.cl-col { flex: 0 0 340px; width: 340px; display: flex; flex-direction: column; gap: 12px; scroll-snap-align: start; }
-.cl-col-head { background: var(--cl-card); border-radius: 18px; padding: 20px; box-shadow: var(--cl-shadow-sm); }
-.cl-col-head .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.cl-col-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.cl-col-badge.done { background: color-mix(in srgb, var(--cl-mint) 14%, #fff); color: var(--cl-mint); }
-.cl-col-badge.current { background: color-mix(in srgb, var(--cl-accent) 12%, #fff); color: var(--cl-accent); }
-.cl-col-badge.todo { background: var(--cl-card-2); color: var(--cl-faint); }
-.cl-col-head h3 { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; margin: 12px 0 4px; color: var(--cl-ink); word-break: keep-all; }
-.cl-col-head .sub { font-size: 12.5px; color: var(--cl-muted); line-height: 1.55; word-break: keep-all; }
-.cl-col-prog { margin-top: 14px; }
-.cl-col-prog .n { font-size: 11.5px; font-weight: 800; color: var(--cl-faint); margin-bottom: 6px; }
-.cl-col-prog .track { height: 6px; border-radius: 999px; background: var(--cl-line); overflow: hidden; }
-.cl-col-prog .fill { height: 100%; border-radius: 999px; background: var(--cl-accent); transition: width .5s ease; }
-.cl-col-prog.done .fill { background: var(--cl-mint); }
-@media (max-width: 520px) { .cl-col { flex-basis: 84vw; width: 84vw; } }
+/* ── 4주 프로그램 세로 여정 경로 ── */
+.cl-journey { position: relative; display: flex; flex-direction: column; }
+.cl-jrow { display: grid; grid-template-columns: 44px 1fr; gap: 14px; }
+.cl-jrail { position: relative; display: flex; justify-content: center; }
+.cl-jrail::before { content: ""; position: absolute; left: 50%; transform: translateX(-50%); top: 0; bottom: 0; width: 2px; background: var(--cl-line); }
+.cl-journey .cl-jrow:first-child .cl-jrail::before { top: 24px; }
+.cl-journey .cl-jrow:last-child .cl-jrail::before { bottom: calc(100% - 24px); }
+/* 노드 — 흰 배경 + 페이지색 헤일로로 뒤 선을 확실히 끊는다(홈 비행경로와 동일 원리). */
+.cl-jnode { position: relative; z-index: 1; margin-top: 8px; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; background: #fff; box-shadow: 0 0 0 5px var(--cl-page); border: 2px solid #C9CDD2; color: var(--cl-faint); font-size: 12px; font-weight: 900; flex: none; }
+.cl-jnode.done { border-color: var(--cl-mint); color: var(--cl-mint); }
+.cl-jnode.current { border-color: var(--cl-accent); color: var(--cl-accent); }
+.cl-jnode.station { width: 36px; height: 36px; margin-top: 4px; font-size: 14px; }
+.cl-jnode.station.done { background: var(--cl-mint); border-color: var(--cl-mint); color: #fff; }
+.cl-jnode.station.current { background: var(--cl-accent); border-color: var(--cl-accent); color: #fff; }
+.cl-jnode.dest { border-style: dashed; border-color: var(--cl-accent); color: var(--cl-accent); }
+.cl-jnode.current::after { content: ""; position: absolute; inset: -1px; border-radius: 999px; border: 2px solid var(--cl-accent); animation: cl-pulse 1.8s cubic-bezier(.4,0,.2,1) infinite; }
+/* 카드 */
+.cl-jstation { background: var(--cl-card); border-radius: 18px; padding: 18px 20px; box-shadow: var(--cl-shadow-sm); margin-bottom: 14px; }
+.cl-jstation .top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cl-jstation h3 { font-size: 16px; font-weight: 900; letter-spacing: -0.02em; margin: 8px 0 3px; color: var(--cl-ink); word-break: keep-all; }
+.cl-jstation .sub { font-size: 12.5px; color: var(--cl-muted); line-height: 1.5; word-break: keep-all; }
+.cl-jbadge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.cl-jbadge.done { background: color-mix(in srgb, var(--cl-mint) 14%, #fff); color: var(--cl-mint); }
+.cl-jbadge.current { background: color-mix(in srgb, var(--cl-accent) 12%, #fff); color: var(--cl-accent); }
+.cl-jbadge.todo { background: var(--cl-card-2); color: var(--cl-faint); }
+.cl-jcard { display: block; width: 100%; text-align: left; background: var(--cl-card); border-radius: 15px; padding: 15px 17px; box-shadow: var(--cl-shadow-sm); margin-bottom: 12px; border: 0; cursor: pointer; transition: transform .1s; }
+.cl-jcard:hover { transform: translateX(2px); }
+.cl-jcard.current { box-shadow: 0 0 0 2px var(--cl-accent), var(--cl-shadow-sm); }
+.cl-jcard.done { opacity: .62; cursor: default; }
+.cl-jcard.locked { opacity: .5; cursor: default; }
+.cl-jcard .ttl { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
+.cl-jcard.done .ttl { text-decoration: line-through; color: var(--cl-muted); }
+.cl-jcard .desc { margin-top: 3px; font-size: 12px; color: var(--cl-muted); line-height: 1.5; word-break: keep-all; }
+.cl-jcard .go { margin-top: 9px; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--cl-accent); }
+.cl-jwrap { margin-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) { .cl-jnode.current::after { animation: none !important; opacity: 0 !important; } }
 
 /* ── 여권 스탬프(결과물) ── */
 .cl-stamp { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 18px 12px; border-radius: 16px; background: var(--cl-card); box-shadow: var(--cl-shadow-sm); transition: transform .12s ease; }
