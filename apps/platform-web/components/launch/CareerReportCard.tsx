@@ -32,21 +32,26 @@ export function CareerReportCard({ selectedJobs = [] }: { selectedJobs?: string[
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const reqId = useRef(0);
+  const initedRef = useRef(false); // 최초 로드 이후엔 탭 전환 시 화면을 비우지 않는다(깜빡임 방지).
 
-  // 활성 직무 기준 캐시 조회(생성 안 함). 탭 전환마다 재조회.
+  // 활성 직무 기준 캐시 조회(생성 안 함). 탭 전환마다 재조회하되, 결과가 올 때까지 기존 내용 유지.
   useEffect(() => {
     const id = ++reqId.current;
-    setState("loading");
-    setReport(null);
+    if (!initedRef.current) {
+      setState("loading");
+      setReport(null);
+    }
     void (async () => {
       try {
         const r = await fetchCareerReport({ generate: false, jobKey: activeJob || undefined });
         if (id !== reqId.current) return;
+        initedRef.current = true;
         if (r.report) {
           setReport(r.report);
           setStale(r.stale);
           setState("done");
         } else if (r.needsGenerate) {
+          setReport(null);
           setState("ready");
         } else {
           setState("none"); // 진단 전 → 숨김
