@@ -4,14 +4,15 @@
 // 4주 내내 쌓인 데이터(방향·경험은행·서류·스토리·면접)를 홈 톤 흰 카드로. 읽기 전용 집계.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch } from "@phosphor-icons/react";
+import QRCode from "qrcode";
+import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple, Copy } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { SectionTitle } from "../../../components/launch/ui";
-import { fetchProgress, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
+import { fetchProgress, sharePassport, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
 import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
 import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
@@ -50,18 +51,43 @@ export default function CareerProfilePage() {
       setHlBusy(false);
     }
   };
-  const onShare = async () => {
-    if (typeof window === "undefined") return;
-    const url = window.location.href;
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [qr, setQr] = useState("");
+  const [shareBusy, setShareBusy] = useState(false);
+  // 공유 시트 — 공개 링크(/p/token) 발급 + QR 생성.
+  const openShare = async () => {
+    setShareOpen(true);
+    if (shareUrl || shareBusy) return;
+    setShareBusy(true);
     try {
-      if (navigator.share) await navigator.share({ url });
-      else {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
-      }
+      const token = await sharePassport();
+      const url = token ? `${window.location.origin}/p/${token}` : window.location.href;
+      setShareUrl(url);
+      setQr(await QRCode.toDataURL(url, { margin: 1, width: 360, color: { dark: "#0B1227", light: "#ffffff" } }));
     } catch {
-      /* 사용자가 취소 */
+      setShareUrl(typeof window !== "undefined" ? window.location.href : "");
+    } finally {
+      setShareBusy(false);
+    }
+  };
+  const copyShare = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* ignore */
+    }
+  };
+  const nativeShare = async () => {
+    if (!shareUrl) return;
+    try {
+      if (navigator.share) await navigator.share({ url: shareUrl });
+      else await copyShare();
+    } catch {
+      /* 취소 */
     }
   };
 
@@ -132,9 +158,9 @@ export default function CareerProfilePage() {
                 <div className="cl-pp-shine" aria-hidden />
                 <div className="relative flex items-center gap-2">
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
-                  <button type="button" onClick={onShare} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
-                    {copied ? <Check className="h-3.5 w-3.5" weight="bold" /> : <ShareNetwork className="h-3.5 w-3.5" weight="bold" />}
-                    {copied ? t("복사됨", "Copied", "已复制", "Đã sao chép", "コピー済み", "Tersalin") : t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+                  <button type="button" onClick={openShare} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
+                    <ShareNetwork className="h-3.5 w-3.5" weight="bold" />
+                    {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
                   </button>
                 </div>
                 <div className="relative mt-5 flex items-center gap-4">
@@ -312,6 +338,40 @@ export default function CareerProfilePage() {
         </div>
       </main>
       <AplyFooter />
+
+      {/* 공유 시트 — 공개 링크 + QR */}
+      {shareOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/50 p-4" onClick={() => setShareOpen(false)}>
+          <div className="w-full max-w-[360px] rounded-3xl bg-white p-6 shadow-[0_30px_70px_-24px_rgba(11,18,39,0.6)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="text-[15px] font-black tracking-[-0.01em] text-[#191F28]">{t("커리어 패스포트 공유", "Share your passport", "分享职业护照", "Chia sẻ hộ chiếu", "パスポートを共有", "Bagikan paspor")}</p>
+              <button type="button" onClick={() => setShareOpen(false)} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-8 w-8 items-center justify-center rounded-full text-[#8B95A1] transition hover:bg-[#F4F6F9]"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이 링크·QR로 누구나 로그인 없이 내 프로필을 볼 수 있어요.", "Anyone can view your profile with this link or QR — no login.", "任何人都能通过此链接或二维码查看你的档案，无需登录。", "Bất kỳ ai cũng xem được hồ sơ qua link/QR này, không cần đăng nhập.", "このリンク・QRで誰でもログインなしにプロフィールを見られます。", "Siapa pun bisa melihat profilmu lewat link/QR ini tanpa login.")}</p>
+
+            <div className="mt-4 flex items-center justify-center rounded-2xl bg-[#F4F6F9] p-5">
+              {shareBusy || !qr ? (
+                <div className="flex h-[180px] w-[180px] items-center justify-center"><CircleNotch className="h-6 w-6 animate-spin text-[#0B46E8]" weight="bold" /></div>
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={qr} alt="QR" className="h-[180px] w-[180px] rounded-lg" />
+              )}
+            </div>
+
+            {shareUrl ? (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#F4F6F9] px-3 py-2.5">
+                <span className="min-w-0 flex-1 truncate text-[12px] text-[#4E5968]">{shareUrl.replace(/^https?:\/\//, "")}</span>
+                <button type="button" onClick={copyShare} className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{copied ? <Check className="h-3.5 w-3.5" weight="bold" /> : <Copy className="h-3.5 w-3.5" weight="bold" />}{copied ? t("복사됨", "Copied", "已复制", "Đã chép", "コピー済", "Tersalin") : t("복사", "Copy", "复制", "Chép", "コピー", "Salin")}</button>
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex gap-2">
+              <button type="button" onClick={nativeShare} disabled={!shareUrl} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"><ShareNetwork className="h-4 w-4" weight="bold" /> {t("공유하기", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}</button>
+              {qr ? <a href={qr} download="career-passport-qr.png" className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]"><DownloadSimple className="h-4 w-4" weight="bold" /> {t("QR 저장", "Save QR", "保存二维码", "Lưu QR", "QR保存", "Simpan QR")}</a> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
