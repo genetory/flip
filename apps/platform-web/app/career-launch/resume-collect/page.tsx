@@ -75,13 +75,6 @@ export default function ResumeCollectPage() {
     };
   }, [isReady]);
 
-  // 포커스 섹션으로 스크롤(주차 스텝에서 진입 시).
-  useEffect(() => {
-    if (!loaded || !focus) return;
-    const el = document.getElementById(`sec-${focus}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [loaded, focus]);
-
   const emptyDone = useMemo<ResumeSection[]>(() => {
     const e: ResumeSection[] = [];
     if (noExp) e.push("exp");
