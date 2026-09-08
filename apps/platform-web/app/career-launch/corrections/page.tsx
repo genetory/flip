@@ -198,24 +198,31 @@ export default function CorrectionNotebookPage() {
               ) : null}
 
               {postingLowCount > 0 ? (
-                <DashboardSection title={t("모의면접 문항 전체 (기본·공고별)", "All mock interview questions (basic & posting)", "全部模拟面试题（基础·公告）", "Tất cả câu phỏng vấn thử (cơ bản & theo tin)", "模擬面接の全設問（基本・求人別）", "Semua soal wawancara (dasar & lowongan)")}>
-                  <div className="flex flex-col gap-2.5">
-                    {postingLows.flatMap(({ log, items }) =>
-                      items.map((it, j) => {
-                        const tone = scoreTone(it.score);
-                        const co = [log.company, log.title].filter(Boolean).join(" · ");
-                        return (
-                          <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex w-full items-start gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 text-left transition hover:border-[#3182F6]/30">
-                            <span className={`flex min-w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-3 ${tone.bg}`}><span className={`text-[20px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9.5px] font-bold uppercase tracking-wide ${tone.text}`}>/ 100</span></span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
-                              {co ? <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{co}</span> : null}
-                              <span className="mt-1.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1B64DA]">{t("다시 답하기", "Try again", "重新作答", "Trả lời lại", "もう一度答える", "Coba lagi")} <ArrowRight size={13} weight="bold" /></span>
-                            </span>
-                          </Link>
-                        );
-                      })
-                    )}
+                <DashboardSection title={t(`모의면접 문항 전체 ${postingLowCount}개`, `All mock interview questions · ${postingLowCount}`, `全部模拟面试题 ${postingLowCount}`, `Tất cả câu phỏng vấn · ${postingLowCount}`, `模擬面接の全設問 ${postingLowCount}`, `Semua soal wawancara · ${postingLowCount}`)}>
+                  <div className="flex flex-col gap-4">
+                    {postingLows.map(({ log, items }) => {
+                      const co = [log.company, log.title].filter(Boolean).join(" · ") || t("기본 모의면접", "Basic mock interview", "基础模拟面试", "Phỏng vấn thử cơ bản", "基本模擬面接", "Wawancara dasar");
+                      return (
+                        <div key={log.id}>
+                          <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
+                            <p className="truncate text-[12px] font-bold text-[#4E5968]">{co}</p>
+                            <span className="shrink-0 text-[11.5px] font-semibold text-[#8B95A1]">{t(`${items.length}문항`, `${items.length} Qs`, `${items.length}题`, `${items.length} câu`, `${items.length}問`, `${items.length} soal`)}</span>
+                          </div>
+                          <div className="divide-y divide-[#EEF1F5] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                            {items.map((it, j) => {
+                              const tone = scoreTone(it.score);
+                              return (
+                                <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-[#FAFBFC]">
+                                  <span className={`flex h-8 w-9 shrink-0 items-center justify-center rounded-lg text-[14px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}</span>
+                                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#191F28]">{it.question}</span>
+                                  <ArrowRight size={15} weight="bold" className="shrink-0 text-[#C4CAD2]" />
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </DashboardSection>
               ) : null}
