@@ -4,7 +4,8 @@
 // 채팅형 미션은 그 자리 모달(기존 배선 재사용). 리포트 탭과 동일한 톤(cl-role-chip).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, ArrowRight } from "@phosphor-icons/react";
+import { Check, Lock, ArrowRight, Compass, Sparkle, Target, BookOpen, Buildings, GlobeHemisphereEast, FileText, PencilSimpleLine, Microphone, Clock } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
@@ -31,6 +32,22 @@ import { useWeekText } from "../../lib/launch/data-i18n";
 const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => { const p = href.split("?")[0]; return CHAT_ENDS.some((s) => p.endsWith(s)); };
+
+// 미션별 아이콘 — 카드가 획일화되지 않게 각 스텝에 어울리는 아이콘.
+function iconFor(href?: string): Icon {
+  const p = (href ?? "").split("?")[0];
+  if (p.endsWith("/diagnosis")) return Compass;
+  if (p.endsWith("/experience")) return Sparkle;
+  if (p.endsWith("/jobs")) return Target;
+  if (p.endsWith("/materials")) return BookOpen;
+  if (p.endsWith("/company")) return Buildings;
+  if (p.includes("/culture/")) return GlobeHemisphereEast;
+  if (p.includes("/resume-collect")) return FileText;
+  if (p.includes("/cover-collect")) return PencilSimpleLine;
+  if (p.includes("/basic-interview") || p.endsWith("/interview")) return Microphone;
+  if (p.includes("/week/")) return FileText;
+  return Sparkle;
+}
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 // 완료 미션의 결과치 요약(저장된 progress 기준). 없으면 null.
@@ -133,22 +150,34 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     const href = step.action?.href;
     const cls = `cl-jcard ${done ? "done" : current ? "current" : locked ? "locked" : ""}`;
     const summary = done ? stepSummary(step.id, data, t) : null;
-    const inner = done ? (
+    const MIcon = locked ? Lock : iconFor(href);
+    const body = done ? (
       <>
         <div className="ttl">{step.title}</div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
             <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
           </span>
-          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("수정", "Edit", "修改", "Sửa", "修正", "Edit")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
         </div>
       </>
     ) : (
       <>
         <div className="ttl">{step.title}</div>
         {step.desc ? <div className="desc">{step.desc}</div> : null}
-        {current ? <div className="go">{step.action?.label ?? t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></div> : null}
+        {step.minutes || current ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {step.minutes ? <span className="cl-jmin"><Clock className="h-3 w-3" weight="bold" aria-hidden /> ~{step.minutes}{t("분", "m", "分", "p", "分", "m")}</span> : null}
+            {current ? <span className="go">{step.action?.label ?? t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+          </div>
+        ) : null}
       </>
+    );
+    const inner = (
+      <div className="flex items-start gap-3">
+        <span className="cl-jicon"><MIcon className="h-5 w-5" weight={locked ? "fill" : "duotone"} aria-hidden /></span>
+        <div className="min-w-0 flex-1">{body}</div>
+      </div>
     );
     // 잠금/링크 없음만 비활성. 완료 항목은 클릭 시 그 화면(디테일)이 열려 결과를 보고 수정할 수 있다.
     if (locked || !href) return <div key={step.id} className={cls} style={{ cursor: "default" }}>{inner}</div>;
