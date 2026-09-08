@@ -4,7 +4,7 @@
 // 질문 카드 → 답변 → 점수·모범답안 → 결과 리스트(오답노트 재도전). 공고별과 동일 구조.
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CaretLeft, CircleNotch, PaperPlaneRight } from "@phosphor-icons/react";
+import { CaretLeft, CircleNotch, PaperPlaneRight, ArrowRight } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { PostingResultList } from "./PostingResultList";
@@ -154,28 +154,51 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
             </div>
           ) : phase === "answering" ? (
             <div className="mt-5">
-              <div className="mb-3 flex items-center gap-2.5">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]"><div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${total ? ((idx + (lastScore ? 1 : 0)) / total) * 100 : 0}%` }} /></div>
-                <span className="shrink-0 text-[12px] font-bold text-[#4E5968]">{t(`질문 ${idx + 1}`, `Q ${idx + 1}`, `问题 ${idx + 1}`, `Câu ${idx + 1}`, `質問 ${idx + 1}`, `Soal ${idx + 1}`)} / {total}</span>
+              {/* 진행 도트 */}
+              <div className="mb-4 flex items-center gap-2.5">
+                <div className="flex flex-1 items-center gap-1.5">
+                  {Array.from({ length: total }).map((_, i) => {
+                    const answered = i < idx || (i === idx && lastScore);
+                    return <span key={i} className="h-1.5 flex-1 rounded-full transition-colors" style={{ background: answered ? "#0B46E8" : i === idx ? "#9DB6F5" : "#E5E8EB" }} />;
+                  })}
+                </div>
+                <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#4E5968]">{idx + 1} / {total}</span>
               </div>
 
-              <div className="rounded-2xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-5">
-                <p className="flex items-start gap-2 break-keep text-[16px] font-black leading-relaxed text-[#191F28]"><span className="mt-0.5 text-[18px]">🎤</span>{questions[idx]}</p>
+              {/* 질문 카드 */}
+              <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_12px_32px_-22px_rgba(11,18,39,0.4)]">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#EDF1FD] text-[13px]" aria-hidden>🎤</span>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t(`면접관 질문 ${idx + 1}`, `Interviewer · Q${idx + 1}`, `面试官提问 ${idx + 1}`, `Người PV · Câu ${idx + 1}`, `面接官の質問 ${idx + 1}`, `Pewawancara · Q${idx + 1}`)}</p>
+                </div>
+                <p className="mt-3 break-keep text-[18px] font-black leading-[1.5] tracking-[-0.01em] text-[#191F28]">{questions[idx]}</p>
 
                 {lastScore ? (
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`flex h-11 w-14 flex-col items-center justify-center rounded-lg ${scoreTone(lastScore.score).bg}`}><span className={`text-[17px] font-black leading-none ${scoreTone(lastScore.score).text}`}>{lastScore.score}</span><span className={`text-[9px] font-bold ${scoreTone(lastScore.score).text}`}>/100</span></span>
-                      <p className="text-[12.5px] font-bold text-[#4E5968]">{t("이 답변 점수예요", "Your score for this answer", "本次回答得分", "Điểm cho câu trả lời này", "この回答のスコア", "Skor jawaban ini")}</p>
+                  <div className="mt-5 space-y-3">
+                    {/* 점수 히어로 */}
+                    <div className="flex items-center gap-3.5 rounded-2xl bg-[#F4F5F8] p-4">
+                      <div className={`flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl ${scoreTone(lastScore.score).bg}`}>
+                        <span className={`text-[24px] font-black leading-none ${scoreTone(lastScore.score).text}`}>{lastScore.score}</span>
+                        <span className={`text-[10px] font-bold ${scoreTone(lastScore.score).text}`}>/ 100</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-black text-[#191F28]">{lastScore.score >= 75 ? t("아주 좋아요!", "Great answer!", "非常好！", "Rất tốt!", "とても良い！", "Bagus sekali!") : lastScore.score >= 50 ? t("좋아요, 조금만 더!", "Good — a bit more!", "不错，再加把劲！", "Tốt, cố thêm chút!", "良い、あと少し！", "Bagus, sedikit lagi!") : t("보완하면 더 좋아져요", "Room to improve", "还有提升空间", "Còn có thể cải thiện", "改善の余地あり", "Bisa lebih baik")}</p>
+                        <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("이 답변에 대한 평가예요", "Evaluation of this answer", "对本次回答的评估", "Đánh giá câu trả lời này", "この回答の評価です", "Evaluasi jawaban ini")}</p>
+                      </div>
                     </div>
-                    {lastScore.feedback ? <div className="rounded-xl bg-[#FAFBFC] p-3 text-[13px] leading-relaxed"><p className="text-[11.5px] font-bold text-[#C77700]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-0.5 break-keep text-[#4E5968]">{lastScore.feedback}</p></div> : null}
-                    {lastScore.modelAnswer ? <div className="rounded-xl bg-[#F8FAFF] p-3 text-[13px] leading-relaxed"><p className="text-[11.5px] font-bold text-[#0B46E8]">🧭 {t("모범답안", "Model answer", "范例答案", "Câu trả lời mẫu", "模範解答", "Jawaban contoh")}</p><p className="mt-0.5 whitespace-pre-wrap break-keep text-[#333D4B]">{lastScore.modelAnswer}</p></div> : null}
-                    <button type="button" onClick={next} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">{idx < total - 1 ? t("다음 문제 →", "Next question →", "下一题 →", "Câu tiếp →", "次の質問 →", "Soal berikutnya →") : t("결과 보기 →", "See results →", "查看结果 →", "Xem kết quả →", "結果を見る →", "Lihat hasil →")}</button>
+                    {/* 내 답변 */}
+                    {lastScore.answer ? <div className="rounded-2xl border border-[#EEF1F5] p-3.5"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{lastScore.answer}</p></div> : null}
+                    {lastScore.feedback ? <div className="rounded-2xl bg-[#FFF9EC] p-3.5"><p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#C77700]"><span className="h-1.5 w-1.5 rounded-full bg-[#F5A524]" aria-hidden />{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{lastScore.feedback}</p></div> : null}
+                    {lastScore.modelAnswer ? <div className="rounded-2xl bg-[#EDF1FD] p-3.5"><p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#0B46E8]"><span className="h-1.5 w-1.5 rounded-full bg-[#0B46E8]" aria-hidden />{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{lastScore.modelAnswer}</p></div> : null}
+                    <button type="button" onClick={next} className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{idx < total - 1 ? t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Soal berikutnya") : t("결과 보기", "See results", "查看结果", "Xem kết quả", "結果を見る", "Lihat hasil")} <ArrowRight className="h-4 w-4" weight="bold" /></button>
                   </div>
                 ) : (
-                  <div className="mt-3">
-                    <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={5} placeholder={t("실제 면접이라고 생각하고 답변해보세요", "Answer as if it's a real interview", "把它当作真实面试来作答", "Trả lời như phỏng vấn thật", "本番の面接だと思って答えてください", "Jawab seakan wawancara nyata")} className="w-full resize-none rounded-xl border border-[#E5E8EB] p-3 text-[16px] leading-relaxed outline-none focus:border-[#0B46E8]" />
-                    <button type="button" onClick={() => void submit()} disabled={scoring || !input.trim()} className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{scoring ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{t("답변 제출", "Submit answer", "提交回答", "Gửi câu trả lời", "回答を提出", "Kirim jawaban")}</button>
+                  <div className="mt-4">
+                    <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={6} placeholder={t("실제 면접이라고 생각하고 편하게 답변해보세요.", "Answer as if it's a real interview.", "把它当作真实面试来作答。", "Trả lời như phỏng vấn thật.", "本番の面接だと思って答えてください。", "Jawab seakan wawancara nyata.")} className="w-full resize-none rounded-2xl border border-[#E5E8EB] bg-[#FAFBFC] p-4 text-[16px] leading-relaxed outline-none transition focus:border-[#0B46E8] focus:bg-white focus:ring-2 focus:ring-[#EDF1FD]" />
+                    <div className="mt-2.5 flex items-center justify-between gap-3">
+                      <span className="hidden text-[11.5px] text-[#B0B8C1] sm:block">{t("💡 결론 먼저, 그다음 경험·근거 순으로", "💡 Conclusion first, then evidence", "💡 先结论，再举证据", "💡 Kết luận trước, rồi dẫn chứng", "💡 結論→根拠の順で", "💡 Kesimpulan dulu, lalu bukti")}</span>
+                      <button type="button" onClick={() => void submit()} disabled={scoring || !input.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{scoring ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{scoring ? t("채점 중…", "Scoring…", "评分中…", "Đang chấm…", "採点中…", "Menilai…") : t("답변 제출", "Submit answer", "提交回答", "Gửi câu trả lời", "回答を提出", "Kirim jawaban")}</button>
+                    </div>
                   </div>
                 )}
               </div>
