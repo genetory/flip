@@ -231,11 +231,11 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           <div className="mt-2 flex items-center justify-between gap-2">
             {ivStat ? (
               <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-baseline gap-0.5 rounded-full px-2 py-0.5 text-[12px] font-black tabular-nums" style={{ color: scoreVar(ivStat.avg), background: "var(--cl-card-2)" }}>
-                  {ivStat.avg}<span className="text-[9px] font-bold" style={{ color: "var(--cl-faint)" }}>점</span>
-                </span>
                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--cl-muted)", background: "var(--cl-card-2)" }}>
                   {t(`${ivStat.count}문항`, `${ivStat.count} Qs`, `${ivStat.count}题`, `${ivStat.count} câu`, `${ivStat.count}問`, `${ivStat.count} soal`)}
+                </span>
+                <span className="inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[12px] font-black tabular-nums" style={{ color: scoreVar(ivStat.avg), background: "var(--cl-card-2)" }}>
+                  <span className="text-[10px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("평균 점수", "Avg", "平均分", "TB", "平均点", "Rata")}</span>{ivStat.avg}<span className="text-[9px] font-bold" style={{ color: "var(--cl-faint)" }}>점</span>
                 </span>
               </div>
             ) : (
