@@ -18,17 +18,14 @@ export function CareerChatModal({ onClose, children }: { onClose: () => void; ch
   }, [onClose]);
 
   // 브라우저 뒤로가기로 팝업 닫기 — 열릴 때 히스토리 엔트리를 하나 넣고, 뒤로가기(popstate)에서 닫는다.
-  // X/ESC 로 닫으면 넣어둔 엔트리를 정리(뒤로가기로 닫힌 경우엔 이미 소비됨).
+  // cleanup 에서 history.back() 을 호출하면 StrictMode(dev) 이중 실행 시 자기 popstate 로
+  // 팝업이 열리자마자 닫히므로, back() 은 호출하지 않는다(엔트리 하나 남는 정도는 무해).
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.history.pushState({ careerChatModal: true }, "");
     const onPop = () => onClose();
     window.addEventListener("popstate", onPop);
-    return () => {
-      window.removeEventListener("popstate", onPop);
-      if (window.history.state?.careerChatModal) window.history.back();
-    };
-    // onClose 는 마운트 시점 기준으로 충분(닫기 동작은 동일). 한 번만 설치.
+    return () => window.removeEventListener("popstate", onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
