@@ -505,7 +505,7 @@ All colors MUST be HSL.
 .cl-jcard.done { cursor: default; }
 .cl-jcard.locked { opacity: .5; cursor: default; }
 .cl-jcard .ttl { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
-.cl-jcard.done .ttl { text-decoration: line-through; color: var(--cl-muted); }
+.cl-jcard.done .ttl { color: var(--cl-muted); }
 .cl-jcard .desc { margin-top: 3px; font-size: 12px; color: var(--cl-muted); line-height: 1.5; word-break: keep-all; }
 .cl-jcard .go { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: var(--cl-accent); }
 /* 미션 아이콘 타일 + 소요시간 칩 — 카드가 획일화되지 않게 */
