@@ -46,7 +46,7 @@ function DocCard({
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_-6px_rgba(20,24,31,0.18)]">
       {/* A4 미니 프리뷰 */}
-      <Link href={openHref} className="relative block h-[260px] overflow-hidden border-b border-[#EEF1F5] bg-[#F4F6F9]">
+      <Link href={openHref} target="_blank" rel="noopener noreferrer" className="relative block h-[260px] overflow-hidden border-b border-[#EEF1F5] bg-[#F4F6F9]">
         {empty ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <span className="text-[26px]" aria-hidden>📄</span>
@@ -71,7 +71,7 @@ function DocCard({
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <Link href={editHref} className="inline-flex items-center gap-1 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"><PencilSimpleLine className="h-3.5 w-3.5" weight="bold" /> {t("수정", "Edit", "修改", "Sửa", "編集", "Edit")}</Link>
-          <Link href={openHref} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("열기", "Open", "打开", "Mở", "開く", "Buka")} <ArrowUpRight className="h-3.5 w-3.5" weight="bold" /></Link>
+          <Link href={openHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("열기", "Open", "打开", "Mở", "開く", "Buka")} <ArrowUpRight className="h-3.5 w-3.5" weight="bold" /></Link>
         </div>
       </div>
     </div>
