@@ -11,6 +11,7 @@ import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
 import { CoverScoreCard } from "./CoverScoreCard";
 import { PostingInterviewCard } from "./PostingInterviewCard";
+import { WeekAutoFeedback } from "./week-auto-feedback";
 import { fetchProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData } from "../../lib/launch/resume-data";
 import { fetchCoverData } from "../../lib/launch/cover-data";
@@ -252,6 +253,13 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {sel.steps.map((s) => missionCard(s, selWeek, seq))}
       </div>
+      {selWeek === 1 ? (
+        <div className="mt-8">
+          <h2 className="cl-headline">{t("이번 주 피드백", "This week's feedback", "本周反馈", "Phản hồi tuần này", "今週のフィードバック", "Umpan balik minggu ini")}</h2>
+          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives feedback.", "教练审阅本周成果并给出反馈。", "Huấn luyện viên xem kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
+          <div className="mt-3"><WeekAutoFeedback week={1} showNext={false} /></div>
+        </div>
+      ) : null}
       {selWeek === 2 ? <div className="mt-3 flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div> : null}
       {selWeek === 4 ? (
         <div className="mt-3 flex flex-col gap-3">
