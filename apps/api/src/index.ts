@@ -16378,12 +16378,17 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 1,
     step: "자동 · 주차 결과물 코치 피드백",
     default:
-      "너는 한국 취업을 준비하는 학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 주차에 만든 결과물을 보고, 지금 바로 도움이 되는 짧은 코치 피드백을 준다.\n\n" +
+      "너는 한국 취업을 준비하는 학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 주차에 만든 결과물을 꼼꼼히 살펴보고, 지금 바로 도움이 되는 충분히 상세하고 체계적인 코치 피드백을 준다.\n\n" +
       "규칙:\n" +
-      "1. 먼저 잘한 점 1~2가지를 구체적으로 짚어 칭찬해(무엇이 왜 좋은지). 그다음 더 좋아질 수 있는 점 1~2가지를 바로 실행할 수 있는 조언으로 제안해.\n" +
-      "2. 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 부족한 부분이 있어도 다그치지 말고 '다음 한 걸음'을 제안하는 톤으로.\n" +
-      "3. 3~5문장으로 간결하게, 격려하는 톤. (외국인 유학생이라면) 다국어·문화 이해 같은 강점이 보이면 살려줘.\n" +
-      "4. feedback 필드에 피드백 본문만 담아 반환(인사말·머리말 없이 바로 피드백)."
+      "1. [구조] 아래 네 부분으로 나눠서 써. 각 부분은 **볼드** 소제목으로 시작하고, 부분 사이는 빈 줄로 구분해.\n" +
+      "   • **이번 주 총평** — 이번 주 결과물을 한두 문장으로 요약하고 전반적인 완성도를 평가해.\n" +
+      "   • **잘한 점** — 구체적으로 잘한 점 2~3가지를, 학생이 실제로 입력한 내용을 인용하며 '무엇이 왜 좋은지'까지 짚어 칭찬해.\n" +
+      "   • **더 다듬으면 좋은 점** — 보완할 점 2~3가지를, 다그치지 말고 '무엇을 어떻게' 바꾸면 되는지 바로 실행할 수 있는 조언으로 제안해.\n" +
+      "   • **다음 한 걸음** — 다음 주차/다음 활동으로 이어질 구체적인 행동 1~2가지를 제안하며 따뜻하게 응원하고 마무리해.\n" +
+      "2. [근거] 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 결과물이 부족하면 부족한 대로 솔직히 짚되, 비난이 아니라 성장 방향으로 안내하는 톤으로.\n" +
+      "3. [분량] 짧게 요약하지 말고, 각 소제목 아래 2~4문장씩 풍부하게 써. 학생이 자기 결과물을 다시 보고 싶어질 만큼 구체적이고 실질적으로.\n" +
+      "4. (외국인 유학생이라면) 다국어·문화 이해 같은 강점이 보이면 살려 자신감을 줘.\n" +
+      "5. feedback 필드에 본문만 담아 반환(인사말·머리말 없이 바로 소제목부터). 소제목은 **볼드**, 문단 사이는 줄바꿈으로 구분해."
   },
   // ── 완주 최종 피드백(이력서+자소서+면접 종합) ──
   final_feedback: {
@@ -22041,6 +22046,8 @@ app.get("/career-launch/my-timeline", authenticate, requireCareerEnrollment, asy
 });
 
 // ── 주차 자동 피드백(1~3주차) — 그 주차 결과물을 근거로 AI가 자동 생성, 입력이 바뀌면 갱신 ──
+// 프롬프트를 개선할 때마다 올린다 → 캐시 무효화(기존 피드백은 stale 로 표시되고 '다시 받기' 유도).
+const WEEK_FEEDBACK_PROMPT_VERSION = 2;
 const weekFeedbackSchema = z.object({ week: z.number().int().min(1).max(3), generate: z.boolean().optional() });
 const WEEK_FEEDBACK_SCHEMA = {
   type: "object",
@@ -22098,7 +22105,8 @@ app.post(
       if (!hasData) return res.json({ ok: true, feedback: null });
 
       // 캐시 확인 — 입력 해시가 같으면 저장된 피드백 반환(불필요한 재생성·비용 방지).
-      const sig = simpleHash(JSON.stringify(input));
+      // 프롬프트 버전을 해시에 포함 → 프롬프트를 개선하면 기존 캐시가 stale 로 감지돼 '다시 받기'가 뜬다.
+      const sig = simpleHash(JSON.stringify(input) + "|" + WEEK_FEEDBACK_PROMPT_VERSION);
       const autoFeedback = (progState.autoFeedback && typeof progState.autoFeedback === "object" ? progState.autoFeedback : {}) as Record<string, { sig?: string; text?: string }>;
       const cached = autoFeedback[String(week)];
       const cachedText = cached && typeof cached.text === "string" && cached.text.trim() ? cached.text : null;
