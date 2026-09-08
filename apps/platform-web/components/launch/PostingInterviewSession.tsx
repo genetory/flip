@@ -111,7 +111,7 @@ export function PostingInterviewSession({ posting, embedded = false, onClose }: 
   const total = questions.length;
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="min-w-0 truncate text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("공고별 모의면접", "Posting mock interview", "公告模拟面试", "Phỏng vấn theo tin", "求人別模擬面接", "Wawancara per lowongan")}</p>

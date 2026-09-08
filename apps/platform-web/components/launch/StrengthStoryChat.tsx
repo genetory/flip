@@ -107,7 +107,7 @@ export function StrengthStoryChat({ embedded = false, onClose }: { embedded?: bo
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("강점 스토리 만들기", "Build a strength story", "打造优势故事", "Tạo câu chuyện điểm mạnh", "強みストーリー作成", "Buat cerita kelebihan")}</p>

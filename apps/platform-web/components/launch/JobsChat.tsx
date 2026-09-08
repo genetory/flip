@@ -197,7 +197,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   // UX Phase 3 — 상담 시작 화면(빈 채팅창으로 시작하지 않음). 시작 클릭 시 실제 상담 진입.
   if (!started) {
     return (
-      <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+      <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
         {embedded ? (
           <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
             <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("1:1 커리어 상담", "1:1 career coaching", "1:1 职业咨询", "Tư vấn nghề 1:1", "1:1キャリア相談", "Konseling karier 1:1")}</p>
@@ -228,7 +228,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   }
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("관심 직무 찾기", "Find your roles", "寻找兴趣职务", "Tìm nghề quan tâm", "関心のある職種探し", "Cari peran diminati")}</p>

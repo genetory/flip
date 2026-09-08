@@ -141,7 +141,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("첫 커리어 상담", "First career coaching", "求职准备状态自我诊断", "Tự chẩn đoán mức độ sẵn sàng", "就職準備状態のセルフ診断", "Diagnosis Mandiri Kesiapan Karier")}</p>
