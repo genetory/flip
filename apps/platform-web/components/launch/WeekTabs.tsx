@@ -32,6 +32,37 @@ const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
 const isChatHref = (href: string) => { const p = href.split("?")[0]; return CHAT_ENDS.some((s) => p.endsWith(s)); };
 
+type LaunchT = ReturnType<typeof useLaunchT>;
+// 완료 미션의 결과치 요약(저장된 progress 기준). 없으면 null.
+function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | null {
+  const p = data.progress as Record<string, unknown>;
+  const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+  switch (stepId) {
+    case "w1s1": {
+      const pct = (p.diagnosis as { percent?: number } | null | undefined)?.percent;
+      return typeof pct === "number" ? t(`준비도 ${pct}%`, `Readiness ${pct}%`, `准备度 ${pct}%`, `Sẵn sàng ${pct}%`, `準備度 ${pct}%`, `Kesiapan ${pct}%`) : null;
+    }
+    case "w1exp": {
+      const n = arr(p.experienceBank).length;
+      return n ? t(`경험 ${n}개 정리`, `${n} experiences`, `整理经验 ${n} 个`, `${n} kinh nghiệm`, `経験 ${n}件`, `${n} pengalaman`) : null;
+    }
+    case "w1s2": {
+      const j = arr(p.selectedJobs).filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+      return j.length ? `${j.slice(0, 2).join(", ")}${j.length > 2 ? t(` 외 ${j.length - 2}`, ` +${j.length - 2}`, ` 等${j.length - 2}`, ` +${j.length - 2}`, ` 他${j.length - 2}`, ` +${j.length - 2}`) : ""}` : null;
+    }
+    case "w1story": {
+      const n = ((p.storyBank as { data?: { stories?: unknown[] } } | null | undefined)?.data?.stories ?? []).length;
+      return n ? t(`강점 스토리 ${n}개`, `${n} stories`, `优势故事 ${n} 个`, `${n} câu chuyện`, `強みストーリー ${n}件`, `${n} cerita`) : null;
+    }
+    case "w1company": {
+      const n = arr(p.targetCompanies).length;
+      return n ? t(`목표 기업 ${n}곳`, `${n} companies`, `目标企业 ${n} 家`, `${n} công ty`, `目標企業 ${n}社`, `${n} perusahaan`) : null;
+    }
+    default:
+      return null;
+  }
+}
+
 export function WeekTabs() {
   const t = useLaunchT();
   const weekText = useWeekText();
@@ -91,14 +122,21 @@ export function WeekTabs() {
     const locked = !reachable || (seq && !done && !current);
     const href = step.action?.href;
     const cls = `cl-jcard ${done ? "done" : current ? "current" : locked ? "locked" : ""}`;
+    const summary = done ? stepSummary(step.id, data, t) : null;
     const inner = (
       <>
         <div className="ttl">{step.title}</div>
-        {step.desc ? <div className="desc">{step.desc}</div> : null}
+        {summary ? (
+          <div className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
+            <Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> {summary}
+          </div>
+        ) : step.desc ? <div className="desc">{step.desc}</div> : null}
         {current ? <div className="go">{step.action?.label ?? t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></div> : null}
+        {done && href ? <div className="go" style={{ color: "var(--cl-faint)" }}>{t("결과 보기 · 수정", "View · edit", "查看 · 修改", "Xem · sửa", "結果を見る · 修正", "Lihat · edit")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></div> : null}
       </>
     );
-    if (done || locked || !href) return <div key={step.id} className={cls} style={{ cursor: "default" }}>{inner}</div>;
+    // 잠금/링크 없음만 비활성. 완료 항목은 클릭 시 그 화면(디테일)이 열려 결과를 보고 수정할 수 있다.
+    if (locked || !href) return <div key={step.id} className={cls} style={{ cursor: "default" }}>{inner}</div>;
     if (isChatHref(href)) return <button key={step.id} type="button" className={cls} onClick={() => openMission(step)}>{inner}</button>;
     return <Link key={step.id} href={href} className={cls}>{inner}</Link>;
   };

@@ -500,7 +500,7 @@ All colors MUST be HSL.
 .cl-jcard { display: block; width: 100%; text-align: left; background: var(--cl-card); border-radius: 15px; padding: 15px 17px; box-shadow: var(--cl-shadow-sm); border: 0; cursor: pointer; transition: transform .1s; }
 .cl-jcard:hover { transform: translateX(2px); }
 .cl-jcard.current { box-shadow: 0 0 0 2px var(--cl-accent), var(--cl-shadow-sm); }
-.cl-jcard.done { opacity: .62; cursor: default; }
+.cl-jcard.done { cursor: default; }
 .cl-jcard.locked { opacity: .5; cursor: default; }
 .cl-jcard .ttl { font-size: 14px; font-weight: 800; letter-spacing: -0.01em; color: var(--cl-ink); word-break: keep-all; }
 .cl-jcard.done .ttl { text-decoration: line-through; color: var(--cl-muted); }
