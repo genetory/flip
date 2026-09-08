@@ -13,8 +13,17 @@ import { useLaunchT } from "../../../lib/launch/i18n";
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
-const STATUS_TONE: Record<string, string> = { finalized: "text-[#0B46E8]", needs_confirmation: "text-[#C77700]", in_progress: "text-[#4E5968]", draft: "text-[#6339E5]", improvable: "text-[#1B64DA]", not_started: "text-[#B0B8C1]", archived: "text-[#8B95A1]" };
-const StatusIcon = ({ s }: { s: string }) => (s === "finalized" ? <CheckCircle size={18} weight="fill" className="text-[#0B46E8]" /> : s === "needs_confirmation" ? <WarningCircle size={18} weight="fill" className="text-[#C77700]" /> : <Circle size={18} className="text-[#C9CDD2]" />);
+const STATUS_PILL: Record<string, { bg: string; text: string }> = {
+  finalized: { bg: "#EAEFFE", text: "#0B46E8" },
+  needs_confirmation: { bg: "#FFF6E5", text: "#C77700" },
+  improvable: { bg: "#EAEFFE", text: "#1B64DA" },
+  in_progress: { bg: "#F2F4F6", text: "#4E5968" },
+  draft: { bg: "#F0EDFB", text: "#6339E5" },
+  not_started: { bg: "#F2F4F6", text: "#8B95A1" },
+  archived: { bg: "#F2F4F6", text: "#8B95A1" }
+};
+const pillOf = (s: string) => STATUS_PILL[s] ?? { bg: "#F2F4F6", text: "#8B95A1" };
+const StatusIcon = ({ s }: { s: string }) => (s === "finalized" ? <CheckCircle size={20} weight="fill" className="text-[#0B46E8]" /> : s === "needs_confirmation" ? <WarningCircle size={20} weight="fill" className="text-[#C77700]" /> : s === "not_started" ? <Circle size={20} className="text-[#C9CDD2]" /> : <FileText size={19} weight="duotone" className="text-[#4E5968]" />);
 
 // 결과물 상태 라벨 — 공유 한국어 상수(copy.ts) 대신 페이지 내에서 6개국어 처리.
 function artifactStatusLabel(t: LaunchT, s: string): string {
@@ -32,21 +41,23 @@ function artifactStatusLabel(t: LaunchT, s: string): string {
 
 function ArtifactCard({ a }: { a: ArtifactItem }) {
   const t = useLaunchT();
+  const pill = pillOf(a.status);
+  const extra = a.remaining ? t(`확인할 문장 ${a.remaining}개`, `${a.remaining} lines to review`, `${a.remaining} 句待确认`, `${a.remaining} câu cần xem`, `確認する文 ${a.remaining}件`, `${a.remaining} kalimat perlu ditinjau`) : a.detail || "";
   return (
     <Link
       href={a.destination}
       onClick={() => trackCareerFunnel("career_artifact_opened", { artifactType: a.type, destination: a.destination })}
-      className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30"
+      className="flex items-center gap-3.5 rounded-2xl bg-white p-4 shadow-[0_2px_10px_-6px_rgba(20,24,31,0.16)] transition hover:shadow-[0_10px_28px_-14px_rgba(20,24,31,0.34)]"
     >
-      <StatusIcon s={a.status} />
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: pill.bg }}><StatusIcon s={a.status} /></span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14px] font-bold text-[#191F28]">{a.label}</p>
-        <p className={`mt-0.5 text-[12.5px] font-semibold ${STATUS_TONE[a.status] ?? "text-[#8B95A1]"}`}>
-          {artifactStatusLabel(t, a.status)}
-          {a.remaining ? ` · ${t(`확인할 문장 ${a.remaining}개`, `${a.remaining} lines to review`, `${a.remaining} 句待确认`, `${a.remaining} câu cần xem`, `確認する文 ${a.remaining}件`, `${a.remaining} kalimat perlu ditinjau`)}` : a.detail ? ` · ${a.detail}` : ""}
-        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11.5px] font-bold" style={{ background: pill.bg, color: pill.text }}>{artifactStatusLabel(t, a.status)}</span>
+          {extra ? <span className="text-[12px] text-[#8B95A1]">{extra}</span> : null}
+        </div>
       </div>
-      <ArrowRight size={16} className="flex-none text-[#C9CDD2]" />
+      <ArrowRight size={16} weight="bold" className="flex-none text-[#C4CAD2]" />
     </Link>
   );
 }
@@ -99,6 +110,7 @@ export default function ArtifactHubPage() {
           ) : (
             <div className="mt-5 flex flex-col gap-7">
               {/* 상단 요약 */}
+              {(() => { const total = vm.groups.direction.length + vm.groups.applicationPackage.length + vm.groups.interviewPrep.length; const pct = total ? Math.round((vm.summary.finalizedCount / total) * 100) : 0; return (
               <div className="rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#1B64DA] p-5 text-white">
                 <p className="text-[14.5px] font-semibold leading-relaxed">
                   {vm.summary.targetJob
@@ -107,10 +119,17 @@ export default function ArtifactHubPage() {
                 </p>
                 <p className="mt-1.5 text-[13px] text-white/90">
                   {t(`완성한 결과물 ${vm.summary.finalizedCount}개`, `${vm.summary.finalizedCount} finished`, `已完成 ${vm.summary.finalizedCount} 项`, `${vm.summary.finalizedCount} đã hoàn thành`, `完成 ${vm.summary.finalizedCount}件`, `${vm.summary.finalizedCount} selesai`)}
+                  {total ? ` / ${total}` : ""}
                   {vm.summary.needsConfirmCount > 0
                     ? t(` · 확인이 필요한 결과물 ${vm.summary.needsConfirmCount}개`, ` · ${vm.summary.needsConfirmCount} need review`, ` · ${vm.summary.needsConfirmCount} 项待确认`, ` · ${vm.summary.needsConfirmCount} cần xem lại`, ` · 確認が必要 ${vm.summary.needsConfirmCount}件`, ` · ${vm.summary.needsConfirmCount} perlu ditinjau`)
                     : ""}
                 </p>
+                {total ? (
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${pct}%` }} /></div>
+                    <span className="shrink-0 text-[12px] font-black tabular-nums text-white">{pct}%</span>
+                  </div>
+                ) : null}
                 {vm.summary.firstNeedsConfirm ? (
                   <Link
                     href={vm.summary.firstNeedsConfirm.destination}
@@ -121,6 +140,7 @@ export default function ArtifactHubPage() {
                   </Link>
                 ) : null}
               </div>
+              ); })()}
 
               <DashboardSection title={t("나의 방향", "My direction", "我的方向", "Hướng của tôi", "私の方向", "Arah saya")} sub={t("어떤 직무를 목표로 정했는지", "The role you're aiming for", "你确定的目标职务", "Nghề bạn nhắm tới", "目標に定めた職種", "Peran yang kamu tuju")}>
                 <div className="flex flex-col gap-2.5">
