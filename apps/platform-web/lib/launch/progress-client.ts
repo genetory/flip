@@ -195,6 +195,13 @@ export type SharedPassport = {
   target: TalentPassport["target"];
   experienceCount: number;
   languages: { language?: string; level?: string }[];
+  // 공유 카드 콘텐츠 — 내가 어떤 사람인지.
+  headline?: string | null;
+  subline?: string | null;
+  pitch?: string | null;
+  targetJobs?: string[];
+  skills?: string[];
+  highlights?: { head: string; period: string; bullets: string[] }[];
 };
 
 // 내 활동 타임라인(TalentEvent) — 학생 본인의 여정.
