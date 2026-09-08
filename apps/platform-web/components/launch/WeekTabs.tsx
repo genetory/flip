@@ -10,6 +10,7 @@ import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
 import { CoverScoreCard } from "./CoverScoreCard";
+import { InterviewScoreCard } from "./InterviewScoreCard";
 import { PostingInterviewCard } from "./PostingInterviewCard";
 import { WeekAutoFeedback } from "./week-auto-feedback";
 import { fetchProgress } from "../../lib/launch/progress-client";
@@ -116,6 +117,18 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
       const secs = t(`${answered}문항 작성`, `${answered} sections`, `${answered} 个文项`, `${answered} mục`, `${answered}項目`, `${answered} bagian`);
       return company ? `${company} · ${secs}` : secs;
     }
+    case "w4-self":
+    case "w4-job":
+    case "w4-fit":
+    case "w4-pressure": {
+      const focus = stepId.replace("w4-", "") as "self" | "job" | "fit" | "pressure";
+      const logs = (Array.isArray(p.basicInterviews) ? p.basicInterviews : []) as { focus?: string; items?: { score?: number }[] }[];
+      const log = logs.find((l) => l.focus === focus);
+      const items = log?.items ?? [];
+      if (!items.length) return null;
+      const avg = Math.round(items.reduce((s, it) => s + (typeof it.score === "number" ? it.score : 0), 0) / items.length);
+      return t(`평균 ${avg}점 · ${items.length}문항`, `Avg ${avg} · ${items.length} Qs`, `平均 ${avg}分 · ${items.length} 题`, `TB ${avg} · ${items.length} câu`, `平均 ${avg}点 · ${items.length}問`, `Rata ${avg} · ${items.length} soal`);
+    }
     default:
       return null;
   }
@@ -191,6 +204,8 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     const href = step.action?.href;
     const cls = `cl-jcard ${done ? "done" : current ? "current" : locked ? "locked" : ""}`;
     const summary = done ? stepSummary(step.id, data, t) : null;
+    // 면접 스텝은 완료 후에도 계속 다시 볼 수 있게 — '자세히' 대신 '다시 보기'.
+    const isInterview = (href ?? "").split("?")[0].endsWith("/basic-interview");
     const MIcon = locked ? Lock : iconFor(href);
     const body = done ? (
       <>
@@ -199,7 +214,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
             <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
           </span>
-          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: isInterview ? "var(--cl-accent)" : "var(--cl-faint)" }}>{isInterview ? t("다시 보기", "Retake", "再试", "Làm lại", "もう一度", "Ulangi") : t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
         </div>
       </>
     ) : (
@@ -319,6 +334,13 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
             </div>
           </div>
         </>
+      ) : null}
+      {selWeek === 3 ? (
+        <div className="mt-8">
+          <h2 className="cl-headline">{t("면접 피드백", "Interview feedback", "面试反馈", "Phản hồi phỏng vấn", "面接フィードバック", "Umpan balik wawancara")}</h2>
+          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("연습한 모의면접 답변을 코치가 종합해 점수와 강점·보완점을 짚어드려요.", "Your coach reviews your practice answers and highlights your score, strengths, and gaps.", "教练综合你的模拟面试回答，给出分数与优缺点。", "Huấn luyện viên tổng hợp câu trả lời và chỉ ra điểm số, điểm mạnh & điểm cần cải thiện.", "コーチが練習した回答を総合し、点数と強み・改善点を示します。", "Pelatih meninjau jawaban latihanmu dan menyoroti skor, kelebihan, dan kekurangan.")}</p>
+          <div className="mt-3"><InterviewScoreCard /></div>
+        </div>
       ) : null}
       {selWeek === 4 ? (
         <div className="mt-3 flex flex-col gap-3">
