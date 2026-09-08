@@ -245,7 +245,7 @@ export default function CultureLessonPage() {
               {/* 완료 체크 */}
               {done ? (
                 <div className="mt-7 flex flex-col gap-2 sm:flex-row">
-                  <div className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-[14px] font-bold text-emerald-700">
+                  <div className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#EDF1FD] py-3 text-[14px] font-bold text-[#0B46E8]">
                     ✓ {t("학습 완료", "Lesson complete", "学习完成", "Hoàn thành bài học", "学習完了", "Pelajaran selesai")}
                   </div>
                   <Link
