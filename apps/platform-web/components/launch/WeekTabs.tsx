@@ -123,16 +123,21 @@ export function WeekTabs() {
     const href = step.action?.href;
     const cls = `cl-jcard ${done ? "done" : current ? "current" : locked ? "locked" : ""}`;
     const summary = done ? stepSummary(step.id, data, t) : null;
-    const inner = (
+    const inner = done ? (
       <>
         <div className="ttl">{step.title}</div>
-        {summary ? (
-          <div className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
-            <Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> {summary}
-          </div>
-        ) : step.desc ? <div className="desc">{step.desc}</div> : null}
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
+            <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
+          </span>
+          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("수정", "Edit", "修改", "Sửa", "修正", "Edit")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+        </div>
+      </>
+    ) : (
+      <>
+        <div className="ttl">{step.title}</div>
+        {step.desc ? <div className="desc">{step.desc}</div> : null}
         {current ? <div className="go">{step.action?.label ?? t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></div> : null}
-        {done && href ? <div className="go" style={{ color: "var(--cl-faint)" }}>{t("결과 보기 · 수정", "View · edit", "查看 · 修改", "Xem · sửa", "結果を見る · 修正", "Lihat · edit")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></div> : null}
       </>
     );
     // 잠금/링크 없음만 비활성. 완료 항목은 클릭 시 그 화면(디테일)이 열려 결과를 보고 수정할 수 있다.
