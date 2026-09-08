@@ -79,13 +79,6 @@ export const WEEKS: WeekPlan[] = [
         action: { label: "시작하기", href: "/career-launch/materials" }
       },
       {
-        id: "w1story",
-        title: "강점 스토리 만들기",
-        minutes: 15,
-        desc: "정리한 경험 하나를 상황·행동·결과가 담긴 짧은 이야기로 만들어요. 2주차 자기소개서와 면접에서 그대로 써먹는 강력한 무기가 돼요.",
-        action: { label: "시작하기", href: "/career-launch/story" }
-      },
-      {
         id: "w1company",
         title: "목표 기업 탐색",
         minutes: 10,
