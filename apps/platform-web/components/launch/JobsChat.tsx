@@ -9,7 +9,6 @@ import { fetchProgress, patchProgress } from "../../lib/launch/progress-client";
 import { trackCareerStepComplete, trackCareerFunnel } from "../../lib/analytics";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { CoachingIntroScreen } from "./coaching/CoachingSessionShell";
-import { RealOpeningsPreview } from "./RealOpeningsPreview";
 import { AplyFooter } from "../AplyFooter";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -401,7 +400,6 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
           {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
           {saved ? (
             <div className="mt-3 flex flex-col gap-3">
-              <RealOpeningsPreview roles={selected} />
               <div className="flex flex-col gap-2 sm:flex-row">
                 {embedded ? (
                   <button
