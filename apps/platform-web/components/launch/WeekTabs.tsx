@@ -63,7 +63,7 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
   }
 }
 
-export function WeekTabs() {
+export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const t = useLaunchT();
   const weekText = useWeekText();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -110,7 +110,7 @@ export function WeekTabs() {
     if (first) { currentStepId = first.id; break; }
   }
   const currentWeek = WEEKS.find((w) => w.steps.some((s) => s.id === currentStepId))?.week ?? 4;
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(initialWeek && initialWeek >= 1 && initialWeek <= 4 ? initialWeek : null);
   const selWeek = selected ?? currentWeek;
   const sel = WEEKS.find((w) => w.week === selWeek)!;
 

@@ -48,7 +48,7 @@ export function FlightPath({ vm }: { vm: DashboardVM }) {
           return (
             <Link
               key={week}
-              href={locked ? "#" : `/career-launch/week/${week}`}
+              href={locked ? "#" : `/career-launch/program?week=${week}`}
               onClick={(e) => {
                 if (locked) { e.preventDefault(); return; }
                 trackCareerFunnel("career_week_card_clicked", { currentWeek: week });
