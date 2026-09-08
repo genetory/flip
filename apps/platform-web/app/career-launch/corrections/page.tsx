@@ -13,8 +13,6 @@ import { fetchProgress, type PostingInterviewLog } from "../../../lib/launch/pro
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-// 공고별 면접에서 이 점수 미만 문항을 '오답'으로 모은다.
-const POSTING_LOW = 70;
 function scoreTone(s: number): { text: string; bg: string } {
   if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
   if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
@@ -101,9 +99,9 @@ export default function CorrectionNotebookPage() {
   };
   useEffect(load, []);
 
-  // 공고별 + 기본 면접에서 점수 낮은 문항(오답) — 로그별로 묶어 표시.
+  // 공고별 + 기본 면접의 모든 문항 — 로그별로 묶고, 점수 낮은 순(약한 답변 먼저)으로 정렬해 전부 표시.
   const postingLows = [...pLogs, ...bLogs]
-    .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number" && it.score < POSTING_LOW) }))
+    .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number").slice().sort((a, b) => a.score - b.score) }))
     .filter((x) => x.items.length > 0);
   const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
 
@@ -200,7 +198,7 @@ export default function CorrectionNotebookPage() {
               ) : null}
 
               {postingLowCount > 0 ? (
-                <DashboardSection title={t("모의면접 문항 오답 (기본·공고별)", "Mock interview corrections (basic & posting)", "模拟面试错题（基础·公告）", "Lỗi phỏng vấn thử (cơ bản & theo tin)", "模擬面接の復習（基本・求人別）", "Koreksi wawancara (dasar & lowongan)")}>
+                <DashboardSection title={t("모의면접 문항 전체 (기본·공고별)", "All mock interview questions (basic & posting)", "全部模拟面试题（基础·公告）", "Tất cả câu phỏng vấn thử (cơ bản & theo tin)", "模擬面接の全設問（基本・求人別）", "Semua soal wawancara (dasar & lowongan)")}>
                   <div className="flex flex-col gap-2.5">
                     {postingLows.flatMap(({ log, items }) =>
                       items.map((it, j) => {
