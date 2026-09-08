@@ -30,8 +30,8 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
 
   const startedRef = useRef(false);
-  // UX Phase 3 — 빈 채팅창으로 시작하지 않도록 상담 시작 화면(CoachingIntroScreen)으로 게이트.
-  const [started, setStarted] = useState(false);
+  // 다른 1주차 채팅(진단·경험·자료·스토리)과 동일하게 인트로 게이트 없이 바로 채팅 시작.
+  const [started, setStarted] = useState(true);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [shownRoles, setShownRoles] = useState<string[]>([]);
