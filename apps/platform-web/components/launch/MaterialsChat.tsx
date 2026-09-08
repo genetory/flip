@@ -145,9 +145,11 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
   return (
     <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
-        <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
-          <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("직무 깊이 알기", "Explore your roles", "深入了解职务", "Tìm hiểu nghề sâu hơn", "職務を深く知る", "Pahami peran")}</p>
-          <button type="button" onClick={onClose} className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+        <div className="border-b border-[#EEF1F5]">
+          <div className="mx-auto flex w-full max-w-5xl items-center gap-2.5 px-5 py-3">
+            <button type="button" onClick={onClose} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("직무 깊이 알기", "Explore your roles", "深入了解职务", "Tìm hiểu nghề sâu hơn", "職務を深く知る", "Pahami peran")}</p>
+          </div>
         </div>
       ) : (
         <CareerLaunchHeader />

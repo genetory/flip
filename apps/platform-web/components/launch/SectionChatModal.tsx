@@ -99,8 +99,11 @@ export function SectionChatModal({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4" style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined} onClick={onClose}>
       <div className="flex h-full w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="flex items-center justify-between gap-2 border-b border-[#EEF1F5] px-5 py-3.5">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 border-b border-[#EEF1F5] px-5 py-3.5">
+          <button type="button" onClick={onClose} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-2xl px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
+          </button>
+          <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" />
@@ -110,9 +113,6 @@ export function SectionChatModal({
               <p className="truncate text-[14px] font-black text-[#0B1227]">{title}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-2xl px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]">
-            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
-          </button>
         </div>
 
         {/* 대화 */}
