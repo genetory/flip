@@ -20,6 +20,7 @@ import {
   type ResumeExperience,
   type ResumeSection
 } from "../../../lib/launch/resume-data";
+import { fetchProgress } from "../../../lib/launch/progress-client";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
@@ -59,7 +60,7 @@ export default function ResumeCollectPage() {
     let alive = true;
     void (async () => {
       try {
-        const { data: d } = await fetchResumeData();
+        const [{ data: d }, prog] = await Promise.all([fetchResumeData(), fetchProgress().catch(() => null)]);
         if (!alive) return;
         const loadedData: ResumeData = {
           basic: d.basic ?? {},
@@ -69,7 +70,15 @@ export default function ResumeCollectPage() {
           languages: d.languages ?? []
         };
         setData(loadedData);
-        setSaved({ data: loadedData, empties: [] });
+        // 서버 doneSteps 로 '없음' 체크 복원 — 스텝이 완료인데 실제 내용은 없으면 '없음'으로 표시된 것.
+        const done = prog?.doneSteps ?? [];
+        const hasWork = (loadedData.experiences ?? []).some((e) => (e.kind ?? "work") === "work");
+        const hasOther = (loadedData.experiences ?? []).some((e) => e.kind === "other");
+        const restored: ResumeSection[] = [];
+        if (done.includes("w2-exp") && !hasWork) { setNoExp(true); restored.push("exp"); }
+        if (done.includes("w2-exp-other") && !hasOther) { setNoOther(true); restored.push("expOther"); }
+        if (done.includes("w2-lang") && (loadedData.languages ?? []).length === 0) { setNoLang(true); restored.push("lang"); }
+        setSaved({ data: loadedData, empties: restored });
       } catch {
         // 빈 상태 유지
       } finally {
