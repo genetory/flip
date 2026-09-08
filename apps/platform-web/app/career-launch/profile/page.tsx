@@ -67,16 +67,16 @@ export default function CareerProfilePage() {
   // 한줄 소개는 이력서 요약 → 없으면 자기소개서 첫 문항 답변에서 가져온다.
   const coverIntro = (cover.items ?? []).map((it) => (it.answer ?? "").trim()).find(Boolean) ?? "";
   const pitch = (resume.basic?.summary ?? "").trim() || coverIntro;
+  // 관심 직무 — 어떤 직무를 보고 있는지(여러 개). 확정 직무 → 없으면 추천 직무.
+  const targetJobs = (selectedJobs.length ? selectedJobs : recoJobs.map((r) => r.role)).map((j) => (j ?? "").trim()).filter(Boolean);
   const skills = (resume.skills ?? []).map((s) => (s ?? "").trim()).filter(Boolean);
-  const topComps = Array.from(new Set(bank.flatMap((e) => e.competencies ?? []).map((c) => (c ?? "").trim()).filter(Boolean)));
-  const strengths = Array.from(new Set([...skills, ...topComps])).slice(0, 6);
   const highlights = (resume.experiences ?? [])
     .filter((e) => (e.title ?? "").trim() || (e.org ?? "").trim())
-    .slice(0, 3)
-    .map((e) => ({ head: [e.title, e.org].map((x) => (x ?? "").trim()).filter(Boolean).join(" · "), period: (e.period ?? "").trim(), bullet: (e.bullets ?? []).map((b) => (b ?? "").trim()).find(Boolean) ?? "" }));
+    .slice(0, 4)
+    .map((e) => ({ head: [e.title, e.org].map((x) => (x ?? "").trim()).filter(Boolean).join(" · "), period: (e.period ?? "").trim(), bullets: (e.bullets ?? []).map((b) => (b ?? "").trim()).filter(Boolean).slice(0, 2) }));
   const eduLine = educations.map((ed) => [ed.school, ed.major].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(" · ");
   const langLine = languages.map((l) => [l.language, l.level].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(", ");
-  const cardEmpty = !pitch && strengths.length === 0 && highlights.length === 0 && !eduLine && !langLine;
+  const cardEmpty = !pitch && targetJobs.length === 0 && skills.length === 0 && highlights.length === 0 && !eduLine && !langLine;
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -106,22 +106,34 @@ export default function CareerProfilePage() {
 
                 {pitch ? <p className="mt-4 break-keep text-[15px] font-semibold leading-relaxed text-[#333D4B]">{pitch}</p> : null}
 
-                {strengths.length > 0 ? (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {strengths.map((s, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{s}</span>)}
+                {targetJobs.length > 0 ? (
+                  <div className="mt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("보고 있는 직무", "Roles I'm exploring", "关注的职务", "Nghề đang tìm", "見ている職種", "Peran yang dilirik")}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {targetJobs.map((j, i) => <span key={i} className="rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white">{j}</span>)}
+                    </div>
+                  </div>
+                ) : null}
+
+                {skills.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("보유 스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {skills.map((s, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{s}</span>)}
+                    </div>
                   </div>
                 ) : null}
 
                 {highlights.length > 0 ? (
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
                     <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("핵심 경험", "Key experience", "核心经历", "Kinh nghiệm chính", "主な経験", "Pengalaman utama")}</p>
-                    <div className="mt-3 flex flex-col gap-3">
+                    <div className="mt-3 flex flex-col gap-3.5">
                       {highlights.map((h, i) => (
                         <div key={i} className="flex gap-2.5">
                           <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
                           <div className="min-w-0">
                             <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}{h.period ? <span className="font-semibold text-[#8B95A1]"> · {h.period}</span> : null}</p>
-                            {h.bullet ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968] line-clamp-2">{h.bullet}</p> : null}
+                            {h.bullets.map((b, bi) => <p key={bi} className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">· {b}</p>)}
                           </div>
                         </div>
                       ))}
