@@ -3,7 +3,7 @@
 // UX Phase 5 — 면접 오답노트. 상태 코드 대신 사용자 그룹, 점수보다 문제·다음 행동 우선. 반복 압박 최소화.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Target } from "@phosphor-icons/react";
+import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
@@ -123,7 +123,30 @@ export default function CorrectionNotebookPage() {
               "Latih ulang jawaban yang lemah dan pastikan bisa menghadapi pertanyaan dengan ungkapan berbeda."
             )}
           </p>
-          <hr className="cl-rule mt-5" />
+          {/* 언제든 새 면접 — 유형을 골라 바로 시작 */}
+          <div className="mt-6 rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <p className="text-[15px] font-black tracking-[-0.01em] text-[#191F28]">{t("새로운 면접 질문 받기", "Get new interview questions", "获取新的面试问题", "Nhận câu hỏi phỏng vấn mới", "新しい面接質問を受ける", "Dapatkan soal wawancara baru")}</p>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-[#8B95A1]">{t("원하는 유형을 골라 언제든 새 질문으로 연습해요.", "Pick a type and practice with fresh questions anytime.", "选择类型，随时用新问题练习。", "Chọn loại và luyện với câu hỏi mới bất cứ lúc nào.", "タイプを選んでいつでも新しい質問で練習。", "Pilih tipe dan berlatih dengan soal baru kapan saja.")}</p>
+            <div className="mt-3.5 grid gap-2.5 sm:grid-cols-2">
+              {([
+                { focus: "self", Icon: IdentificationCard, title: t("자기소개 면접", "Intro interview", "自我介绍面试", "PV giới thiệu", "自己紹介面接", "Wawancara perkenalan"), desc: t("지원 동기·성격·강점", "Motivation, personality, strengths", "动机·性格·优势", "Động lực, tính cách, điểm mạnh", "志望動機・性格・強み", "Motivasi, kepribadian, kelebihan") },
+                { focus: "job", Icon: Target, title: t("직무 면접", "Job interview", "职务面试", "PV chuyên môn", "職務面接", "Wawancara peran"), desc: t("경력·프로젝트·성과", "Experience, projects, results", "经历·项目·成果", "Kinh nghiệm, dự án, kết quả", "経歴・プロジェクト・成果", "Pengalaman, proyek, hasil") },
+                { focus: "fit", Icon: GlobeHemisphereEast, title: t("인성·컬처핏 면접", "Fit interview", "人性面试", "PV văn hóa", "人柄面接", "Wawancara kecocokan"), desc: t("협업·가치관·조직 적응", "Teamwork, values, fit", "协作·价值观·适应", "Hợp tác, giá trị, thích nghi", "協働・価値観・適応", "Kerja sama, nilai, adaptasi") },
+                { focus: "pressure", Icon: Fire, title: t("압박 면접", "Pressure interview", "压力面试", "PV áp lực", "圧迫面接", "Wawancara tekanan"), desc: t("근거 검증·꼬리질문", "Verification & follow-ups", "验证·追问", "Kiểm chứng & câu đuổi", "根拠検証・追加質問", "Verifikasi & lanjutan") }
+              ] as const).map(({ focus, Icon, title, desc }) => (
+                <Link key={focus} href={`/career-launch/basic-interview?focus=${focus}`} className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-3.5 transition hover:border-[#3182F6]/30 hover:bg-white">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[#0B46E8]"><Icon className="h-5 w-5" weight="duotone" aria-hidden /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-black text-[#191F28]">{title}</span>
+                    <span className="block truncate text-[12px] text-[#8B95A1]">{desc}</span>
+                  </span>
+                  <ArrowRight size={15} weight="bold" className="shrink-0 text-[#C4CAD2]" />
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <hr className="cl-rule mt-6" />
 
           {phase === "loading" ? (
             <div className="mt-5 flex flex-col gap-3">
