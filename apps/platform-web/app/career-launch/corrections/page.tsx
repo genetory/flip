@@ -13,13 +13,6 @@ import { fetchProgress, type PostingInterviewLog } from "../../../lib/launch/pro
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-function scoreTone(s: number): { text: string; bg: string } {
-  if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
-  if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
-  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-[#FFF6E5]" };
-  return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
-}
-
 type LaunchT = ReturnType<typeof useLaunchT>;
 
 const GROUP_ORDER = ["practice_first", "retrying", "transfer", "passed", "paused"];
@@ -231,12 +224,10 @@ export default function CorrectionNotebookPage() {
                 <DashboardSection title={t(`면접 히스토리 ${postingLowCount}문항`, `Interview history · ${postingLowCount}`, `面试记录 ${postingLowCount}`, `Lịch sử phỏng vấn · ${postingLowCount}`, `面接履歴 ${postingLowCount}`, `Riwayat wawancara · ${postingLowCount}`)}>
                   <div className="flex flex-col gap-2.5">
                     {historyRows.map(({ it, log, key }) => {
-                      const tone = scoreTone(it.score);
                       const co = [log.company, log.title].filter(Boolean).join(" · ") || t("기본 모의면접", "Basic mock interview", "基础模拟面试", "Phỏng vấn thử cơ bản", "基本模擬面接", "Wawancara dasar");
                       const meta = [co, fmtDate(log.at)].filter(Boolean).join(" · ");
                       return (
                         <Link key={key} href={`/career-launch/corrections/${log.id}`} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30">
-                          <span className={`flex h-11 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${tone.bg}`}><span className={`text-[17px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
                           <span className="min-w-0 flex-1">
                             <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
                             <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{meta}</span>
