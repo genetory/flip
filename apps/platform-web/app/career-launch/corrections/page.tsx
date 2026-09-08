@@ -3,7 +3,7 @@
 // UX Phase 5 — 면접 오답노트. 상태 코드 대신 사용자 그룹, 점수보다 문제·다음 행동 우선. 반복 압박 최소화.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown } from "@phosphor-icons/react";
+import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown, Buildings } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
@@ -153,6 +153,15 @@ export default function CorrectionNotebookPage() {
                 </Link>
               ))}
             </div>
+            {/* 공고별 — 가고 싶은 공고 기준 맞춤 면접(공고 선택 흐름) */}
+            <Link href="/career-launch/program?week=4" className="mt-2.5 flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-3.5 transition hover:border-[#3182F6]/40">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8] shadow-[0_1px_3px_rgba(17,24,39,0.06)]"><Buildings className="h-5 w-5" weight="duotone" aria-hidden /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-black text-[#191F28]">{t("공고별 모의 면접", "Posting-based interview", "按公告模拟面试", "PV theo tin tuyển", "求人別模擬面接", "Wawancara per lowongan")}</span>
+                <span className="block truncate text-[12px] text-[#4E5968]">{t("가고 싶은 공고를 골라 그 공고 기준으로 연습", "Pick a posting and practice tailored to it", "选择目标公告，按其要求练习", "Chọn tin tuyển và luyện theo tin đó", "行きたい求人を選んでその基準で練習", "Pilih lowongan dan berlatih sesuai lowongan itu")}</span>
+              </span>
+              <ArrowRight size={15} weight="bold" className="shrink-0 text-[#0B46E8]" />
+            </Link>
           </div>
 
           <hr className="cl-rule mt-6" />
