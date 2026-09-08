@@ -54,7 +54,12 @@ type LaunchT = ReturnType<typeof useLaunchT>;
 // 완료 미션의 결과치 요약(저장된 progress 기준). 없으면 null.
 function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | null {
   const p = data.progress as Record<string, unknown>;
+  const r = (data.resume ?? {}) as { basic?: Record<string, unknown>; educations?: unknown[]; experiences?: { kind?: string }[]; skills?: unknown[]; languages?: { language?: string }[] };
+  const c = (data.cover ?? {}) as { company?: string | null; items?: { answer?: string }[] };
   const arr = (v: unknown) => (Array.isArray(v) ? v : []);
+  // 이름 리스트를 "A, B 외 N" 형태로.
+  const listSummary = (names: string[]) =>
+    names.length ? `${names.slice(0, 2).join(", ")}${names.length > 2 ? t(` 외 ${names.length - 2}`, ` +${names.length - 2}`, ` 等${names.length - 2}`, ` +${names.length - 2}`, ` 他${names.length - 2}`, ` +${names.length - 2}`) : ""}` : null;
   switch (stepId) {
     case "w1s1": {
       const pct = (p.diagnosis as { percent?: number } | null | undefined)?.percent;
@@ -75,6 +80,41 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
     case "w1company": {
       const n = arr(p.targetCompanies).length;
       return n ? t(`목표 기업 ${n}곳`, `${n} companies`, `目标企业 ${n} 家`, `${n} công ty`, `目標企業 ${n}社`, `${n} perusahaan`) : null;
+    }
+    case "w2-basic": {
+      const b = (r.basic ?? {}) as Record<string, unknown>;
+      const name = typeof b.name === "string" ? b.name.trim() : "";
+      const filled = ["name", "email", "phone", "summary"].filter((k) => typeof b[k] === "string" && (b[k] as string).trim()).length;
+      if (name) return t(`${name} · 기본정보 작성`, `${name} · basics`, `${name} · 基本信息`, `${name} · thông tin cơ bản`, `${name} · 基本情報`, `${name} · info dasar`);
+      return filled ? t(`기본정보 ${filled}개 작성`, `${filled} basic fields`, `基本信息 ${filled} 项`, `${filled} mục cơ bản`, `基本情報 ${filled}項目`, `${filled} info dasar`) : null;
+    }
+    case "w2-edu": {
+      const n = (r.educations ?? []).length;
+      return n ? t(`학력 ${n}건`, `${n} schools`, `学历 ${n} 项`, `${n} học vấn`, `学歴 ${n}件`, `${n} pendidikan`) : null;
+    }
+    case "w2-exp": {
+      const n = (r.experiences ?? []).filter((e) => (e.kind ?? "work") === "work").length;
+      return n ? t(`경력 ${n}건`, `${n} work items`, `工作经历 ${n} 项`, `${n} kinh nghiệm`, `職歴 ${n}件`, `${n} pengalaman`) : null;
+    }
+    case "w2-exp-other": {
+      const n = (r.experiences ?? []).filter((e) => e.kind === "other").length;
+      return n ? t(`활동·프로젝트 ${n}개`, `${n} activities`, `活动·项目 ${n} 个`, `${n} hoạt động`, `活動・プロジェクト ${n}件`, `${n} aktivitas`) : null;
+    }
+    case "w2-skill": {
+      const sk = (r.skills ?? []).filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+      return listSummary(sk);
+    }
+    case "w2-lang": {
+      const names = (r.languages ?? []).map((l) => (l.language ?? "").trim()).filter(Boolean);
+      return listSummary(names);
+    }
+    case "w3-cover": {
+      const items = c.items ?? [];
+      const answered = items.filter((x) => (x.answer ?? "").trim().length > 0).length;
+      if (!answered) return null;
+      const company = typeof c.company === "string" ? c.company.trim() : "";
+      const secs = t(`${answered}문항 작성`, `${answered} sections`, `${answered} 个文项`, `${answered} mục`, `${answered}項目`, `${answered} bagian`);
+      return company ? `${company} · ${secs}` : secs;
     }
     default:
       return null;

@@ -41,7 +41,9 @@ export function SectionChatModal({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const started = useRef(false);
+  const interacted = useRef(false); // 사용자가 메시지를 보낸 적 있으면 true — 그 전엔 하단 자동 스크롤 안 함
   const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -63,12 +65,18 @@ export function SectionChatModal({
   }, []);
 
   useEffect(() => {
+    // 첫 등장(사용자 입력 전)에는 최상단부터 보이게 — 첫 안내 메시지가 길어도 아래로 안 내려감.
+    if (!interacted.current) {
+      scrollRef.current?.scrollTo({ top: 0 });
+      return;
+    }
     endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [messages, loading]);
 
   const send = (raw: string) => {
     const a = raw.trim();
     if (!a || loading) return;
+    interacted.current = true;
     setInput("");
     const next: Msg[] = [...messages, { role: "user", text: a }];
     setMessages(next);
@@ -108,7 +116,7 @@ export function SectionChatModal({
         </div>
 
         {/* 대화 */}
-        <div className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFC] p-4">
+        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFC] p-4">
           {messages.map((m, i) =>
             m.role === "bot" ? (
               <div key={i} className="flex items-end gap-2">
@@ -147,7 +155,7 @@ export function SectionChatModal({
         {/* 입력 */}
         <div className="border-t border-[#EEF1F5] p-3">
           <p className="mb-2 flex flex-wrap items-center gap-x-1.5 px-1 text-[11px] text-[#B0B8C1]">
-            <span>{t("💬 모국어로 답해도 돼요 · 자동 저장", "💬 Answer in your own language · auto-saved", "💬 可以用母语回答 · 自动保存", "💬 Trả lời bằng tiếng mẹ đẻ · tự động lưu", "💬 母国語で答えてOK · 自動保存", "💬 Jawab dengan bahasa ibu · tersimpan otomatis")}</span>
+            <span>{t("💬 모국어로 답해도 돼요 · 닫은 뒤 ‘저장’을 눌러 반영", "💬 Answer in your own language · tap 'Save' after closing", "💬 可以用母语回答 · 关闭后点击‘保存’", "💬 Trả lời bằng tiếng mẹ đẻ · nhấn 'Lưu' sau khi đóng", "💬 母国語で答えてOK · 閉じたら『保存』で反映", "💬 Jawab dengan bahasa ibu · ketuk 'Simpan' setelah menutup")}</span>
           </p>
           <form
             className="flex items-end gap-2"
