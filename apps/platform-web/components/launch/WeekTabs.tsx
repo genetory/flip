@@ -134,6 +134,19 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
   }
 }
 
+// 면접 스텝의 결과 통계(평균 점수·문항 수) — 카드에 배지로 노출.
+function interviewStat(stepId: string, data: LaunchData): { avg: number; count: number } | null {
+  const focus = stepId.replace("w4-", "");
+  const logs = (Array.isArray((data.progress as Record<string, unknown>).basicInterviews) ? (data.progress as Record<string, unknown>).basicInterviews : []) as { focus?: string; items?: { score?: number }[] }[];
+  const items = logs.find((l) => l.focus === focus)?.items ?? [];
+  if (!items.length) return null;
+  const avg = Math.round(items.reduce((s, it) => s + (typeof it.score === "number" ? it.score : 0), 0) / items.length);
+  return { avg, count: items.length };
+}
+function scoreVar(s: number): string {
+  return s >= 75 ? "var(--cl-mint)" : s >= 50 ? "var(--cl-accent)" : "#C77700";
+}
+
 export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const t = useLaunchT();
   const weekText = useWeekText();
@@ -206,17 +219,42 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     const summary = done ? stepSummary(step.id, data, t) : null;
     // 면접 스텝은 완료 후에도 계속 다시 볼 수 있게 — '자세히' 대신 '다시 보기'.
     const isInterview = (href ?? "").split("?")[0].endsWith("/basic-interview");
+    const ivStat = done && isInterview ? interviewStat(step.id, data) : null;
     const MIcon = locked ? Lock : iconFor(href);
+    const retakeCta = href ? (
+      <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: isInterview ? "var(--cl-accent)" : "var(--cl-faint)" }}>{isInterview ? t("다시 보기", "Retake", "再试", "Làm lại", "もう一度", "Ulangi") : t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span>
+    ) : null;
     const body = done ? (
-      <>
-        <div className="ttl">{step.title}</div>
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
-            <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
-          </span>
-          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: isInterview ? "var(--cl-accent)" : "var(--cl-faint)" }}>{isInterview ? t("다시 보기", "Retake", "再试", "Làm lại", "もう一度", "Ulangi") : t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
-        </div>
-      </>
+      isInterview ? (
+        <>
+          <div className="ttl">{step.title}</div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            {ivStat ? (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-baseline gap-0.5 rounded-full px-2 py-0.5 text-[12px] font-black tabular-nums" style={{ color: scoreVar(ivStat.avg), background: "var(--cl-card-2)" }}>
+                  {ivStat.avg}<span className="text-[9px] font-bold" style={{ color: "var(--cl-faint)" }}>점</span>
+                </span>
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--cl-muted)", background: "var(--cl-card-2)" }}>
+                  {t(`${ivStat.count}문항`, `${ivStat.count} Qs`, `${ivStat.count}题`, `${ivStat.count} câu`, `${ivStat.count}問`, `${ivStat.count} soal`)}
+                </span>
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}><Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> {t("연습 완료", "Practiced", "已练习", "Đã luyện", "練習済み", "Selesai")}</span>
+            )}
+            {retakeCta}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="ttl">{step.title}</div>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
+              <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
+            </span>
+            {retakeCta}
+          </div>
+        </>
+      )
     ) : (
       <>
         <div className="ttl">{step.title}</div>
