@@ -30,8 +30,8 @@ async function req(path: string, body: unknown): Promise<Record<string, unknown>
   return d;
 }
 
-export async function requestBasicQuestions(focus: BasicFocus, count = 5): Promise<string[]> {
-  const d = await req("/career-launch/basic-interview/questions", { focus, count, locale: "ko" });
+export async function requestBasicQuestions(focus: BasicFocus, count = 5, asked?: string[]): Promise<string[]> {
+  const d = await req("/career-launch/basic-interview/questions", { focus, count, asked, locale: "ko" });
   return Array.isArray(d.questions) ? (d.questions as unknown[]).filter((q): q is string => typeof q === "string" && q.trim().length > 0) : [];
 }
 

@@ -29,6 +29,8 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
   const [idx, setIdx] = useState(0);
   const [input, setInput] = useState("");
   const [scoring, setScoring] = useState(false);
+  const [loadingNext, setLoadingNext] = useState(false); // 다음 질문 생성 중
+  const [nextError, setNextError] = useState(false);
   const [items, setItems] = useState<PostingInterviewItem[]>([]);
   const [lastScore, setLastScore] = useState<PostingInterviewItem | null>(null);
   const itemsRef = useRef<PostingInterviewItem[]>([]);
@@ -50,12 +52,13 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     trackCareerFunnel("career_basic_interview_started", { focus });
     void (async () => {
       try {
-        const qs = await requestBasicQuestions(focus, 5);
+        // 갯수 고정 없음 — 첫 질문 하나만 생성하고, 다음 질문은 답변 제출 후 요청 시 생성.
+        const qs = await requestBasicQuestions(focus, 1);
         if (qs.length === 0) {
           setPhase("error");
           return;
         }
-        setQuestions(qs);
+        setQuestions(qs.slice(0, 1));
         setPhase("answering");
       } catch {
         setPhase("error");
@@ -79,12 +82,28 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
       setScoring(false);
     }
   };
-  const next = () => {
-    setLastScore(null);
-    setInput("");
-    if (idx < questions.length - 1) setIdx(idx + 1);
-    else setPhase("results");
+  // 다음 질문 — 그때그때 생성(이전 질문과 겹치지 않게 asked 로 전달).
+  const next = async () => {
+    if (loadingNext) return;
+    setLoadingNext(true);
+    setNextError(false);
+    try {
+      const [q] = await requestBasicQuestions(focus, 1, questions);
+      if (q) {
+        setQuestions((prev) => [...prev, q]);
+        setIdx((i) => i + 1);
+        setLastScore(null);
+        setInput("");
+      } else {
+        setNextError(true);
+      }
+    } catch {
+      setNextError(true);
+    } finally {
+      setLoadingNext(false);
+    }
   };
+  const finish = () => setPhase("results");
 
   const saveLog = async () => {
     if (savedRef.current) return;
@@ -112,8 +131,6 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     void saveLog();
     onClose?.();
   };
-
-  const total = questions.length;
 
   return (
     <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
@@ -154,15 +171,13 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
             </div>
           ) : phase === "answering" ? (
             <div className="mt-5">
-              {/* 진행 도트 */}
-              <div className="mb-4 flex items-center gap-2.5">
-                <div className="flex flex-1 items-center gap-1.5">
-                  {Array.from({ length: total }).map((_, i) => {
-                    const answered = i < idx || (i === idx && lastScore);
-                    return <span key={i} className="h-1.5 flex-1 rounded-full transition-colors" style={{ background: answered ? "#0B46E8" : i === idx ? "#9DB6F5" : "#E5E8EB" }} />;
-                  })}
-                </div>
-                <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#4E5968]">{idx + 1} / {total}</span>
+              {/* 진행 표시 — 갯수 고정 없음, 현재까지 진행한 질문 수만 */}
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#4E5968]">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0B46E8]" aria-hidden />
+                  {t("면접 진행 중", "Interview in progress", "面试进行中", "Đang phỏng vấn", "面接進行中", "Wawancara berlangsung")}
+                </span>
+                <span className="shrink-0 text-[12px] font-bold tabular-nums text-[#8B95A1]">{t(`질문 ${idx + 1}`, `Q ${idx + 1}`, `问题 ${idx + 1}`, `Câu ${idx + 1}`, `質問 ${idx + 1}`, `Soal ${idx + 1}`)}</span>
               </div>
 
               {/* 질문 카드 */}
@@ -190,7 +205,17 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                     {lastScore.answer ? <div className="rounded-2xl border border-[#EEF1F5] p-3.5"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{lastScore.answer}</p></div> : null}
                     {lastScore.feedback ? <div className="rounded-2xl bg-[#FFF9EC] p-3.5"><p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#C77700]"><span className="h-1.5 w-1.5 rounded-full bg-[#F5A524]" aria-hidden />{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{lastScore.feedback}</p></div> : null}
                     {lastScore.modelAnswer ? <div className="rounded-2xl bg-[#EDF1FD] p-3.5"><p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#0B46E8]"><span className="h-1.5 w-1.5 rounded-full bg-[#0B46E8]" aria-hidden />{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{lastScore.modelAnswer}</p></div> : null}
-                    <button type="button" onClick={next} className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{idx < total - 1 ? t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Soal berikutnya") : t("결과 보기", "See results", "查看结果", "Xem kết quả", "結果を見る", "Lihat hasil")} <ArrowRight className="h-4 w-4" weight="bold" /></button>
+                    <div className="mt-1 flex flex-col gap-2">
+                      <button type="button" onClick={() => void next()} disabled={loadingNext} className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                        {loadingNext ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}
+                        {loadingNext ? t("다음 질문 준비 중…", "Preparing next…", "准备下一题…", "Đang chuẩn bị…", "次の質問を準備中…", "Menyiapkan…") : t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Soal berikutnya")}
+                        {loadingNext ? null : <ArrowRight className="h-4 w-4" weight="bold" />}
+                      </button>
+                      <button type="button" onClick={finish} disabled={loadingNext} className="w-full rounded-2xl border border-[#E5E8EB] bg-white px-5 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:opacity-60">
+                        {t("여기까지 · 결과 보기", "Finish · see results", "到此为止 · 查看结果", "Dừng · xem kết quả", "ここまで · 結果を見る", "Selesai · lihat hasil")}
+                      </button>
+                      {nextError ? <p className="text-center text-[12px] font-semibold text-[#F04452]">{t("다음 질문을 만들지 못했어요. 다시 시도해 주세요.", "Couldn't create the next question. Please try again.", "无法生成下一题，请重试。", "Không tạo được câu hỏi tiếp. Thử lại nhé.", "次の質問を作れませんでした。もう一度お試しください。", "Gagal membuat soal berikutnya. Coba lagi.")}</p> : null}
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-4">

@@ -21873,21 +21873,24 @@ async function basicDocContext(uid: string): Promise<string> {
   return `${summary ? `[학생 프로필]\n${summary}\n\n` : ""}[이력서]\n${JSON.stringify(resumeRow?.content ?? {})}\n\n[자기소개서]\n${JSON.stringify(coverRow?.content ?? {})}`;
 }
 
-const basicQSchema = z.object({ focus: BASIC_FOCUS, count: z.number().int().min(3).max(8).optional(), locale: z.string().max(10).optional() });
+const basicQSchema = z.object({ focus: BASIC_FOCUS, count: z.number().int().min(1).max(8).optional(), asked: z.array(z.string().max(600)).max(40).optional(), locale: z.string().max(10).optional() });
 app.post("/career-launch/basic-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "basic-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = basicQSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const uid = req.auth!.userId;
-    const { focus, count, locale } = parsed.data;
+    const { focus, count, locale, asked } = parsed.data;
     const n = count ?? 5;
+    const askedList = Array.isArray(asked) ? asked.map((q) => q.trim()).filter(Boolean).slice(0, 40) : [];
+    const askedBlock = askedList.length ? `\n\n[이미 물어본 질문 — 절대 겹치지 말 것]\n${askedList.map((q, i) => `${i + 1}. ${q}`).join("\n")}` : "";
     const ctx = await basicDocContext(uid);
     const systemPrompt =
       `너는 한국 기업 면접관이야. 아래 학생의 이력서·자기소개서를 바탕으로 '${focus}' 유형의 기본 면접 질문 ${n}개를 만들어. ` +
       (BASIC_FOCUS_RULE[focus] ?? "") + " 학생이 실제로 쓴 내용에 근거하되 없는 사실은 지어내지 마. 질문끼리 겹치지 않게 다양하게. " +
+      (askedList.length ? "아래 '이미 물어본 질문'과 절대 겹치지 말고, 실제 면접처럼 자연스럽게 이어지는 새로운 질문을 만들어. " : "") +
       'JSON 한 개 객체로만 응답: { "questions": string[] }' + aiLangDirective(locale);
-    const pj = (await careerChatComplete(systemPrompt, ctx, "basic_interview_questions", POSTING_QUESTIONS_SCHEMA)) as { questions?: unknown };
+    const pj = (await careerChatComplete(systemPrompt, ctx + askedBlock, "basic_interview_questions", POSTING_QUESTIONS_SCHEMA)) as { questions?: unknown };
     const questions = Array.isArray(pj.questions) ? pj.questions.filter((q): q is string => typeof q === "string" && q.trim().length > 0).map((q) => q.trim()).slice(0, n) : [];
     if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
     return res.json({ ok: true, questions });
