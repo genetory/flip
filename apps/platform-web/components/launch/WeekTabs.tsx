@@ -4,7 +4,7 @@
 // 채팅형 미션은 그 자리 모달(기존 배선 재사용). 리포트 탭과 동일한 톤(cl-role-chip).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Lock, ArrowRight, Compass, Sparkle, Target, BookOpen, Buildings, GlobeHemisphereEast, FileText, PencilSimpleLine, Microphone, Clock } from "@phosphor-icons/react";
+import { Check, Lock, ArrowRight, Compass, Sparkle, Target, BookOpen, Buildings, GlobeHemisphereEast, FileText, PencilSimpleLine, Microphone, Clock, WarningCircle } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
@@ -217,10 +217,9 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           const active = selWeek === w.week;
           const isCur = w.week === currentWeek && !done;
           return (
-            <button key={w.week} type="button" onClick={() => setSelected(w.week)} className={`cl-role-chip ${active ? "on" : ""}`} style={{ position: "relative" }}>
-              {done ? <Check className="h-3.5 w-3.5" weight="bold" /> : locked ? <Lock className="h-3 w-3" weight="fill" /> : null}
+            <button key={w.week} type="button" onClick={() => setSelected(w.week)} className={`cl-role-chip ${active ? "on" : ""}`}>
+              {done ? <Check className="h-3.5 w-3.5" weight="bold" /> : locked ? <Lock className="h-3 w-3" weight="fill" /> : isCur ? <WarningCircle className="h-4 w-4" weight="fill" /> : null}
               {t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`)}
-              {isCur && !active ? <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: 999, background: "var(--cl-accent)" }} /> : null}
             </button>
           );
         })}
