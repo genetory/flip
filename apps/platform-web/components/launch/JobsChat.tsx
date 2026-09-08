@@ -84,6 +84,16 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
         }
       }
       setSelected(sel);
+      // 이미 선정돼 있으면 질문을 새로 시작하지 않고 '선정됨 + 다시 하기' 상태로 보여준다.
+      if (!restart && sel.length > 0) {
+        setSaved(true);
+        setMessages([
+          { role: "bot", kind: "text", text: t("이미 관심 직무를 선정했어요 🙌 아래에서 확인할 수 있어요. 다시 고르고 싶으면 ‘처음부터 다시 선정’을 눌러주세요.", "You've already picked your target roles 🙌 Check them below. To choose again, tap 'Select again from scratch'.", "你已经选好了兴趣职务 🙌 可在下方查看。若想重新选择，请点击‘从头重新选择’。", "Bạn đã chọn nghề quan tâm rồi 🙌 Xem bên dưới. Muốn chọn lại, nhấn 'Chọn lại từ đầu'.", "すでに関心のある職種を選定済みです 🙌 下で確認できます。選び直すには「最初から選び直す」を押してください。", "Kamu sudah memilih peran minat 🙌 Cek di bawah. Untuk memilih ulang, tekan 'Pilih ulang dari awal'.") },
+          { role: "bot", kind: "jobs", jobs: rolesToJobs(sel) }
+        ]);
+        setLoading(false);
+        return;
+      }
       try {
         const { reply, recommend, choices: ch } = await requestJobChat([], sel);
         appendFromAi(reply || t(`${displayName}님, 반가워요 👋 어떤 일에 관심이 있는지 편하게 이야기해줄래요?`, `Hi ${displayName} 👋 Tell me freely what kind of work interests you?`, `${displayName}，你好 👋 可以随意告诉我你对什么样的工作感兴趣吗？`, `Chào ${displayName} 👋 Hãy thoải mái chia sẻ bạn quan tâm đến công việc nào nhé?`, `${displayName}さん、こんにちは 👋 どんな仕事に興味があるか気軽に教えてくれますか？`, `Hai ${displayName} 👋 Ceritakan dengan santai pekerjaan seperti apa yang kamu minati?`), recommend, ch);
