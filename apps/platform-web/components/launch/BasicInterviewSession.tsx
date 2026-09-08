@@ -4,7 +4,7 @@
 // 질문 카드 → 답변 → 점수·모범답안 → 결과 리스트(오답노트 재도전). 공고별과 동일 구조.
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CaretLeft, X, CircleNotch, PaperPlaneRight } from "@phosphor-icons/react";
+import { CaretLeft, CircleNotch, PaperPlaneRight } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { PostingResultList } from "./PostingResultList";
@@ -118,9 +118,11 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
   return (
     <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
       {embedded ? (
-        <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
-          <p className="min-w-0 truncate text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{label}</p>
-          <button type="button" onClick={handleClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#4E5968] transition hover:bg-[#F6F8FB]"><X className="h-5 w-5" weight="bold" /></button>
+        <div className="border-b border-[#EEF1F5]">
+          <div className="mx-auto w-full max-w-3xl px-5 py-3">
+            <button type="button" onClick={handleClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 truncate text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{label}</p>
+          </div>
         </div>
       ) : (
         <CareerLaunchHeader />
