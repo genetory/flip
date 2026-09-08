@@ -3,7 +3,7 @@
 // Week 2 — 자기소개서 편집 빌더(동적 문항). 기본 4문항(지원동기·성장과정·성격 장단점·입사 후 포부)으로 시작하되,
 // 문항 '제목'을 직접 바꾸고 문항을 추가·삭제할 수 있다(회사마다 문항이 다르므로 강제하지 않음).
 // 저장은 디바운스 자동저장(PUT). 데이터는 items:[{question,answer}] — question 이 곧 문항 제목.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, CircleNotch, Eye, Sparkle, ArrowUpRight, Plus, Trash } from "@phosphor-icons/react";
 import { CoverRender } from "../../../components/launch/cover-render";
@@ -16,7 +16,7 @@ import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-type SaveState = "idle" | "saving" | "saved";
+type SaveState = "idle" | "saving" | "saved" | "error";
 type Item = { title: string; answer: string };
 
 export default function CoverCollectPage() {
@@ -33,6 +33,7 @@ export default function CoverCollectPage() {
 
   const [company, setCompany] = useState("");
   const [items, setItems] = useState<Item[]>([]);
+  const [saved, setSaved] = useState<{ company: string; items: Item[] }>({ company: "", items: [] });
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [showPreview, setShowPreview] = useState(false);
@@ -45,9 +46,12 @@ export default function CoverCollectPage() {
       try {
         const { data } = await fetchCoverData();
         if (!alive) return;
-        setCompany(data.company ?? "");
+        const c = data.company ?? "";
         const loadedItems = (data.items ?? []).map((it) => ({ title: (it.question ?? "").trim(), answer: it.answer ?? "" })).filter((it) => it.title || it.answer);
-        setItems(loadedItems.length ? loadedItems : defaultItems());
+        const initItems = loadedItems.length ? loadedItems : defaultItems();
+        setCompany(c);
+        setItems(initItems);
+        setSaved({ company: c, items: initItems });
       } catch {
         setItems(defaultItems());
       } finally {
@@ -68,33 +72,42 @@ export default function CoverCollectPage() {
 
   const preview: CoverData = buildData(company, items);
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleSave = (c: string, list: Item[]) => {
-    if (!loaded) return;
+  // 자동저장 대신 명시적 저장/취소. company/items 는 편집 중 초안, saved 는 마지막 저장본.
+  const dirty = useMemo(
+    () => JSON.stringify({ company, items }) !== JSON.stringify(saved),
+    [company, items, saved]
+  );
+  const onSave = async () => {
+    if (saveState === "saving" || !dirty) return;
     setSaveState("saving");
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      try {
-        await saveCoverData(buildData(c, list));
-        setSaveState("saved");
-      } catch {
-        setSaveState("idle");
-      }
-    }, 700);
+    try {
+      await saveCoverData(buildData(company, items));
+      setSaved({ company, items });
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
   };
+  const onCancel = () => {
+    if (!dirty) return;
+    setCompany(saved.company);
+    setItems(saved.items);
+    setSaveState("idle");
+  };
+  // 저장 안 한 변경이 있으면 페이지 이탈 경고.
+  useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [dirty]);
 
-  const update = (next: Item[]) => {
-    setItems(next);
-    scheduleSave(company, next);
-  };
+  const update = (next: Item[]) => setItems(next);
   const setTitle = (i: number, v: string) => update(items.map((x, idx) => (idx === i ? { ...x, title: v } : x)));
   const setAnswer = (i: number, v: string) => update(items.map((x, idx) => (idx === i ? { ...x, answer: v } : x)));
   const addItem = () => update([...items, { title: "", answer: "" }]);
   const removeItem = (i: number) => update(items.filter((_, idx) => idx !== i));
-  const setCompanyVal = (v: string) => {
-    setCompany(v);
-    scheduleSave(v, items);
-  };
+  const setCompanyVal = (v: string) => setCompany(v);
 
   const aiLabel = t("AI로 채우기", "Fill with AI", "用AI填写", "Điền bằng AI", "AIで埋める", "Isi dengan AI");
   // AI 챗 — 해당 문항 제목을 focus 로 대화하고, 갱신된 답변을 그 문항에 반영·저장.
@@ -105,14 +118,12 @@ export default function CoverCollectPage() {
     const returned = d.items ?? [];
     const match = focusTitle ? returned.find((it) => (it.question ?? "").trim() === focusTitle) : undefined;
     const nextCompany = d.company ?? company;
+    // AI가 채운 내용은 초안으로 반영 — 사용자가 확인 후 '저장'을 눌러야 서버에 반영된다.
     if (match && typeof match.answer === "string") {
-      const next = items.map((x, i) => (i === idx ? { ...x, answer: match.answer! } : x));
       setCompany(nextCompany);
-      setItems(next);
-      void saveCoverData(buildData(nextCompany, next)).catch(() => {});
+      setItems(items.map((x, i) => (i === idx ? { ...x, answer: match.answer! } : x)));
     } else if (nextCompany !== company) {
       setCompany(nextCompany);
-      void saveCoverData(buildData(nextCompany, items)).catch(() => {});
     }
     return { reply, done };
   };
@@ -141,10 +152,17 @@ export default function CoverCollectPage() {
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               {t("← 지원 패키지", "← Application package", "← 申请材料包", "← Bộ hồ sơ ứng tuyển", "← 応募パッケージ", "← Paket lamaran")}
             </Link>
-            <div className="flex items-center gap-3">
-              <SaveIndicator state={saveState} t={t} />
+            <div className="flex items-center gap-2">
+              <SaveIndicator state={saveState} dirty={dirty} t={t} />
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
+              </button>
+              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
+                {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
+              </button>
+              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
+                {saveState === "saving" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Check className="h-4 w-4" weight="bold" />}
+                {t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
               </button>
             </div>
           </div>
@@ -152,7 +170,7 @@ export default function CoverCollectPage() {
           <div className="mt-3.5">
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
             <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("기본 문항으로 시작하되, 문항 제목을 바꾸거나 지원하는 회사 문항에 맞춰 추가·삭제할 수 있어요. 내용은 자동 저장됩니다.", "Start from the default sections, but rename them or add/remove to match the company's prompts. Everything saves automatically.", "从默认文项开始，也可改标题或按公司要求增删。内容自动保存。", "Bắt đầu từ mục mặc định, nhưng bạn có thể đổi tên hoặc thêm/xóa theo yêu cầu công ty. Tự động lưu.", "デフォルト項目から始め、タイトル変更や会社の設問に合わせて追加・削除できます。自動保存されます。", "Mulai dari bagian bawaan, tapi bisa ganti judul atau tambah/hapus sesuai perusahaan. Tersimpan otomatis.")}</p>
+            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("기본 문항으로 시작하되, 문항 제목을 바꾸거나 지원하는 회사 문항에 맞춰 추가·삭제할 수 있어요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Start from the default sections, but rename them or add/remove to match the company's prompts. Tap 'Save' above when you're done.", "从默认文项开始，也可改标题或按公司要求增删。完成后点击上方‘保存’。", "Bắt đầu từ mục mặc định, nhưng bạn có thể đổi tên hoặc thêm/xóa theo yêu cầu công ty. Xong thì nhấn 'Lưu' ở trên.", "デフォルト項目から始め、タイトル変更や会社の設問に合わせて追加・削除できます。書き終えたら上の『保存』を押してください。", "Mulai dari bagian bawaan, tapi bisa ganti judul atau tambah/hapus sesuai perusahaan. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
           </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -217,13 +235,19 @@ export default function CoverCollectPage() {
   );
 }
 
-function SaveIndicator({ state, t }: { state: SaveState; t: ReturnType<typeof useLaunchT> }) {
+function SaveIndicator({ state, dirty, t }: { state: SaveState; dirty: boolean; t: ReturnType<typeof useLaunchT> }) {
   if (state === "saving") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
         <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")}
       </span>
     );
+  }
+  if (state === "error") {
+    return <span className="text-[12px] font-semibold text-[#F04452]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
+  }
+  if (dirty) {
+    return <span className="text-[12px] font-semibold text-[#C77700]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
   }
   if (state === "saved") {
     return (

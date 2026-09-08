@@ -25,7 +25,7 @@ import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
-type SaveState = "idle" | "saving" | "saved";
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 export default function ResumeCollectPage() {
   const t = useLaunchT();
@@ -35,7 +35,9 @@ export default function ResumeCollectPage() {
   // 주차 스텝에서 특정 섹션으로 진입하면 그 섹션만 노출(전체 진입 시 모두 노출).
   const show = (s: ResumeSection) => !focus || focus === s;
 
-  const [data, setData] = useState<ResumeData>({ basic: {}, educations: [], experiences: [], skills: [], languages: [] });
+  const emptyResume: ResumeData = { basic: {}, educations: [], experiences: [], skills: [], languages: [] };
+  const [data, setData] = useState<ResumeData>(emptyResume);
+  const [saved, setSaved] = useState<{ data: ResumeData; empties: ResumeSection[] }>({ data: emptyResume, empties: [] });
   const [loaded, setLoaded] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [noExp, setNoExp] = useState(false);
@@ -53,13 +55,15 @@ export default function ResumeCollectPage() {
       try {
         const { data: d } = await fetchResumeData();
         if (!alive) return;
-        setData({
+        const loadedData: ResumeData = {
           basic: d.basic ?? {},
           educations: d.educations ?? [],
           experiences: d.experiences ?? [],
           skills: d.skills ?? [],
           languages: d.languages ?? []
-        });
+        };
+        setData(loadedData);
+        setSaved({ data: loadedData, empties: [] });
       } catch {
         // 빈 상태 유지
       } finally {
@@ -78,17 +82,6 @@ export default function ResumeCollectPage() {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [loaded, focus]);
 
-  // 디바운스 자동저장
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const doSave = async (next: ResumeData, empties: ResumeSection[]) => {
-    setSaveState("saving");
-    try {
-      await saveResumeData(next, empties);
-      setSaveState("saved");
-    } catch {
-      setSaveState("idle");
-    }
-  };
   const emptyDone = useMemo<ResumeSection[]>(() => {
     const e: ResumeSection[] = [];
     if (noExp) e.push("exp");
@@ -96,20 +89,41 @@ export default function ResumeCollectPage() {
     return e;
   }, [noExp, noOther]);
 
+  // 자동저장 대신 명시적 저장/취소. data 는 편집 중 초안, saved 는 마지막 저장본.
+  const dirty = useMemo(
+    () => JSON.stringify({ data, empties: emptyDone }) !== JSON.stringify({ data: saved.data, empties: saved.empties }),
+    [data, emptyDone, saved]
+  );
+  const onSave = async () => {
+    if (saveState === "saving" || !dirty) return;
+    setSaveState("saving");
+    try {
+      await saveResumeData(data, emptyDone);
+      setSaved({ data, empties: emptyDone });
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  };
+  const onCancel = () => {
+    if (!dirty) return;
+    setData(saved.data);
+    setNoExp(saved.empties.includes("exp"));
+    setNoOther(saved.empties.includes("expOther"));
+    setSaveState("idle");
+  };
+  // 저장 안 한 변경이 있으면 페이지 이탈 경고.
+  useEffect(() => {
+    if (!dirty) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [dirty]);
+
+  // 초안 반영(자동저장 없음) — 저장 버튼으로만 서버 반영.
   function commit(next: ResumeData) {
     setData(next);
-    if (!loaded) return;
-    setSaveState("saving");
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void doSave(next, emptyDone), 700);
   }
-  // 빈 처리 토글 변경 시에도 저장
-  useEffect(() => {
-    if (!loaded) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void doSave(data, emptyDone), 400);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noExp, noOther]);
 
   // ── 필드 헬퍼 ──
   const setBasic = (k: keyof NonNullable<ResumeData["basic"]>, v: string) => commit({ ...data, basic: { ...data.basic, [k]: v } });
@@ -145,8 +159,7 @@ export default function ResumeCollectPage() {
     setData(next);
     if (focus === "exp" && (next.experiences ?? []).some((e) => (e.kind ?? "work") === "work")) setNoExp(false);
     if (focus === "expOther" && (next.experiences ?? []).some((e) => e.kind === "other")) setNoOther(false);
-    // 섹션 스텝 완료 반영(챗 POST는 exp/expOther 외 스텝을 표시하지 않으므로 PUT 저장).
-    void saveResumeData(next, emptyDone).catch(() => {});
+    // AI가 채운 내용은 초안으로 반영 — 사용자가 확인 후 '저장'을 눌러야 서버에 반영된다.
     return { reply, done };
   };
 
@@ -173,10 +186,17 @@ export default function ResumeCollectPage() {
             <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               {t("← 지원 패키지", "← Application package", "← 申请材料包", "← Bộ hồ sơ ứng tuyển", "← 応募パッケージ", "← Paket lamaran")}
             </Link>
-            <div className="flex items-center gap-3">
-              <SaveIndicator state={saveState} t={t} />
+            <div className="flex items-center gap-2">
+              <SaveIndicator state={saveState} dirty={dirty} t={t} />
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
+              </button>
+              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
+                {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
+              </button>
+              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
+                {saveState === "saving" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Check className="h-4 w-4" weight="bold" />}
+                {t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
               </button>
             </div>
           </div>
@@ -185,7 +205,7 @@ export default function ResumeCollectPage() {
           <div className="mt-3.5">
             <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
             <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{focus ? sectionLabel[focus] : t("내 이력서 작성", "Build your resume", "撰写我的简历", "Viết CV của tôi", "履歴書を作成", "Susun resume saya")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 항목만 채우면 돼요. 직접 입력하거나 'AI로 채우기'로 대화하며 완성하세요.", "Just fill in this section — type it in or use 'Fill with AI' to complete it by chatting.", "只需填写此项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần điền mục này — tự nhập hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ入力すればOK。直接入力するか『AIで埋める』で会話しながら完成させましょう。", "Cukup isi bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 내용은 자동 저장됩니다.", "Fill in each item and it updates the preview instantly. Everything saves automatically.", "直接填写各项，右侧预览会即时更新。内容自动保存。", "Điền từng mục và bản xem trước cập nhật ngay. Mọi thứ được lưu tự động.", "各項目を入力すると右のプレビューに即反映。内容は自動保存されます。", "Isi tiap item dan pratinjau langsung diperbarui. Semua tersimpan otomatis.")}</p>
+            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 항목만 채우면 돼요. 직접 입력하거나 'AI로 채우기'로 대화하며 완성하세요.", "Just fill in this section — type it in or use 'Fill with AI' to complete it by chatting.", "只需填写此项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần điền mục này — tự nhập hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ入力すればOK。直接入力するか『AIで埋める』で会話しながら完成させましょう。", "Cukup isi bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Fill in each item and it updates the preview instantly. Tap 'Save' above when you're done.", "直接填写各项，右侧预览会即时更新。完成后点击上方‘保存’。", "Điền từng mục và bản xem trước cập nhật ngay. Xong thì nhấn 'Lưu' ở trên.", "各項目を入力すると右のプレビューに即反映。書き終えたら上の『保存』を押してください。", "Isi tiap item dan pratinjau langsung diperbarui. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
           </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -478,13 +498,19 @@ function TagInput({ values, onChange, placeholder }: { values: string[]; onChang
   );
 }
 
-function SaveIndicator({ state, t }: { state: SaveState; t: ReturnType<typeof useLaunchT> }) {
+function SaveIndicator({ state, dirty, t }: { state: SaveState; dirty: boolean; t: ReturnType<typeof useLaunchT> }) {
   if (state === "saving") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
         <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")}
       </span>
     );
+  }
+  if (state === "error") {
+    return <span className="text-[12px] font-semibold text-[#F04452]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
+  }
+  if (dirty) {
+    return <span className="text-[12px] font-semibold text-[#C77700]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
   }
   if (state === "saved") {
     return (
