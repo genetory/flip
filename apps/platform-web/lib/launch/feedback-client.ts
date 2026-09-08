@@ -26,6 +26,17 @@ async function req(path: string, init: RequestInit): Promise<Record<string, unkn
   return data;
 }
 
+// 커리어 패스포트 AI 헤드라인(공유 카드용). generate=false 면 캐시만 조회.
+export async function fetchProfileHeadline(generate = false): Promise<{ headline: string | null; subline: string | null; needsGenerate: boolean; stale: boolean }> {
+  const d = await req("/career-launch/profile-headline", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ generate }) });
+  return {
+    headline: typeof d.headline === "string" ? d.headline : null,
+    subline: typeof d.subline === "string" ? d.subline : null,
+    needsGenerate: d.needsGenerate === true,
+    stale: d.stale === true
+  };
+}
+
 // 학생: 주차(1~3) 코치 피드백. generate=false 면 캐시만 조회(생성·과금 없음, 없으면 needsGenerate).
 // generate=true 면 실제 생성(AI 포인트 차감). 결과물 없으면 text=null.
 export async function fetchWeekFeedback(week: number, generate = false): Promise<{ text: string | null; needsGenerate: boolean; stale: boolean }> {

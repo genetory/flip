@@ -22001,9 +22001,11 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
     });
     if (!prog) return res.status(404).json({ ok: false, message: "not found" });
     const uid = prog.studentUserId;
-    const [passport, user] = await Promise.all([
+    const [passport, user, resumeRow, coverRow] = await Promise.all([
       buildTalentPassport(uid),
-      prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } })
+      prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } }),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
     ]);
     // 조회수 +1 — 학생에게 '누군가 내 프로필을 봤다'는 신호(단순 카운트).
     {
@@ -22014,7 +22016,19 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
         .update({ where: { studentUserId: uid }, data: { state: { ...st, passportShare: { ...share, views, lastViewedAt: new Date().toISOString() } } as Prisma.InputJsonValue } })
         .catch(() => {});
     }
-    // 공유용 요약 — 연락처·이메일 없이 검증·역량 위주(학생 본인이 공유를 선택).
+    // 공유용 요약 — 연락처·이메일 없이 '이 사람이 어떤 사람인지'(직무·강점·경험) + 검증.
+    const st = (prog.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+    const resume = (resumeRow?.content ?? {}) as { basic?: { summary?: string }; skills?: unknown[]; experiences?: Array<{ title?: string; org?: string; period?: string; bullets?: unknown[] }> };
+    const cover = (coverRow?.content ?? {}) as { items?: Array<{ answer?: string }> };
+    const headlineObj = (st.profileHeadline && typeof st.profileHeadline === "object" ? st.profileHeadline : {}) as { headline?: string; subline?: string };
+    const selectedJobs = (Array.isArray(st.selectedJobs) ? st.selectedJobs : []).map((j) => String(j ?? "").trim()).filter(Boolean);
+    const skills = (Array.isArray(resume.skills) ? resume.skills : []).map((s) => String(s ?? "").trim()).filter(Boolean).slice(0, 10);
+    const coverIntro = (cover.items ?? []).map((it) => String(it?.answer ?? "").trim()).find(Boolean) ?? "";
+    const pitch = String(resume.basic?.summary ?? "").trim() || coverIntro;
+    const highlights = (resume.experiences ?? [])
+      .filter((e) => String(e?.title ?? "").trim() || String(e?.org ?? "").trim())
+      .slice(0, 4)
+      .map((e) => ({ head: [e.title, e.org].map((x) => String(x ?? "").trim()).filter(Boolean).join(" · "), period: String(e.period ?? "").trim(), bullets: (Array.isArray(e.bullets) ? e.bullets : []).map((b) => String(b ?? "").trim()).filter(Boolean).slice(0, 2) }));
     const shared = {
       name: user?.realName || user?.name || null,
       readiness: passport.readiness,
@@ -22025,7 +22039,14 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       scores: passport.scores,
       target: passport.target,
       experienceCount: passport.experienceCount,
-      languages: passport.languages
+      languages: passport.languages,
+      // 공유 카드 콘텐츠 — 내가 어떤 사람인지.
+      headline: headlineObj.headline ?? null,
+      subline: headlineObj.subline ?? null,
+      pitch: pitch || null,
+      targetJobs: selectedJobs,
+      skills,
+      highlights
     };
     return res.json({ ok: true, passport: shared });
   } catch (error) {
@@ -22045,6 +22066,63 @@ app.get("/career-launch/my-timeline", authenticate, requireCareerEnrollment, asy
     return res.json({ ok: true, events: events.map((e) => ({ type: e.eventType, at: e.createdAt.toISOString(), metadata: e.metadata ?? null })) });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ── 커리어 패스포트 AI 헤드라인 — '이 사람을 만나보고 싶게' 만드는 한 줄 + 서브라인(공유 카드용) ──
+const PROFILE_HEADLINE_SCHEMA = { type: "object", additionalProperties: false, required: ["headline", "subline"], properties: { headline: { type: "string" }, subline: { type: "string" } } } as const;
+const profileHeadlineSchema = z.object({ generate: z.boolean().optional() });
+app.post("/career-launch/profile-headline", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-headline", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
+  const parsed = profileHeadlineSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const uid = req.auth!.userId;
+  try {
+    const [progRow, resumeRow, coverRow] = await Promise.all([
+      prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: uid } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid } })
+    ]);
+    const state = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
+    const resume = (resumeRow?.content ?? {}) as Record<string, unknown>;
+    const cover = (coverRow?.content ?? {}) as Record<string, unknown>;
+    const selectedJobs = Array.isArray(state.selectedJobs) ? state.selectedJobs : [];
+    const experienceBank = Array.isArray(state.experienceBank) ? state.experienceBank : [];
+    const input = { selectedJobs, targetJob: state.targetJob ?? null, resume, cover, experienceBank };
+    const hasData = selectedJobs.length > 0 || experienceBank.length > 0 || Object.keys(resume).length > 0 || Object.keys(cover).length > 0;
+    if (!hasData) return res.json({ ok: true, headline: null, subline: null });
+
+    const sig = simpleHash(JSON.stringify(input) + "|v1");
+    const cached = (state.profileHeadline && typeof state.profileHeadline === "object" ? state.profileHeadline : {}) as { sig?: string; headline?: string; subline?: string };
+    if (cached.headline && cached.sig === sig) return res.json({ ok: true, headline: cached.headline, subline: cached.subline ?? "", cached: true });
+    if (parsed.data.generate === false) return res.json({ ok: true, headline: cached.headline ?? null, subline: cached.subline ?? null, stale: Boolean(cached.headline), needsGenerate: true });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    {
+      const deny = await aiGate(uid, "career_week_feedback");
+      if (deny) return res.status(deny.status).json(deny.body);
+    }
+
+    const profileSummary = await buildCandidateProfileSummary(uid);
+    const systemPrompt =
+      "너는 채용 담당자의 눈길을 사로잡는 커리어 카피라이터야. 학생의 이력서·자기소개서·경험을 근거로, 이 사람을 '한번 만나보고 싶게' 만드는 프로필 헤드라인을 만든다.\n" +
+      "규칙:\n" +
+      "1. headline: 15~45자 임팩트 있는 한 줄. '직무 정체성 + 대표 강점/성과'가 드러나게(예: 'Swift로 앱 3개를 직접 출시한 실행형 iOS 주니어'). 뻔한 형용사(열정적·성실한) 금지.\n" +
+      "2. subline: 왜 이 사람을 만나야 하는지 한 문장(강점의 근거·차별점).\n" +
+      "3. 학생이 실제로 입력한 내용만 근거로. 없는 성과·수치를 지어내지 마.\n" +
+      "4. 담백하고 자신감 있게. 1인칭/3인칭 군더더기 없이 카피처럼.\n" +
+      'JSON 한 개 객체로만 응답: { "headline": string, "subline": string }' +
+      aiLangDirective("ko");
+    const userPrompt = (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") + `[관심 직무]\n${JSON.stringify(selectedJobs)}\n\n[이력서]\n${JSON.stringify(resume)}\n\n[자기소개서]\n${JSON.stringify(cover)}\n\n[경험]\n${JSON.stringify(experienceBank)}`;
+    const pj = (await careerChatComplete(systemPrompt, userPrompt, "profile_headline", PROFILE_HEADLINE_SCHEMA)) as { headline?: unknown; subline?: unknown };
+    const headline = typeof pj.headline === "string" ? pj.headline.trim() : "";
+    const subline = typeof pj.subline === "string" ? pj.subline.trim() : "";
+    if (!headline) return res.status(502).json({ ok: false, message: "ai response empty" });
+
+    const merged = { ...state, profileHeadline: { sig, headline, subline } };
+    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: uid }, create: { studentUserId: uid, state: merged as object }, update: { state: merged as object } });
+    return res.json({ ok: true, headline, subline });
+  } catch (err) {
+    console.error("[career-launch/profile-headline] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to generate headline" });
   }
 });
 

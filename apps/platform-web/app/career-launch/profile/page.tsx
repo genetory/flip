@@ -4,7 +4,7 @@
 // 4주 내내 쌓인 데이터(방향·경험은행·서류·스토리·면접)를 홈 톤 흰 카드로. 읽기 전용 집계.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CaretLeft, ShareNetwork, Check } from "@phosphor-icons/react";
+import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
@@ -14,6 +14,7 @@ import { SectionTitle } from "../../../components/launch/ui";
 import { fetchProgress, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
 import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
 import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
+import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -33,6 +34,22 @@ export default function CareerProfilePage() {
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
   const [copied, setCopied] = useState(false);
+  const [headline, setHeadline] = useState<string | null>(null);
+  const [subline, setSubline] = useState<string | null>(null);
+  const [hlBusy, setHlBusy] = useState(false);
+  const onGenHeadline = async () => {
+    if (hlBusy) return;
+    setHlBusy(true);
+    try {
+      const r = await fetchProfileHeadline(true);
+      setHeadline(r.headline);
+      setSubline(r.subline);
+    } catch {
+      /* 안내는 무시 — 버튼 재시도 가능 */
+    } finally {
+      setHlBusy(false);
+    }
+  };
   const onShare = async () => {
     if (typeof window === "undefined") return;
     const url = window.location.href;
@@ -60,6 +77,8 @@ export default function CareerProfilePage() {
       setProg(p);
       setResume(r.data ?? {});
       setCover(c.data ?? {});
+      // AI 헤드라인 캐시 조회(생성은 버튼).
+      void fetchProfileHeadline(false).then((h) => { if (!alive) return; setHeadline(h.headline); setSubline(h.subline); }).catch(() => {});
     })();
     return () => {
       alive = false;
@@ -125,7 +144,14 @@ export default function CareerProfilePage() {
                     <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
                   </div>
                 </div>
-                {pitch ? <p className="relative mt-4 break-keep text-[14px] font-medium leading-relaxed text-white/85 line-clamp-3">{pitch}</p> : null}
+                {headline ? (
+                  <div className="relative mt-4">
+                    <p className="break-keep text-[16px] font-black leading-snug text-white md:text-[17px]">“{headline}”</p>
+                    {subline ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-white/75">{subline}</p> : null}
+                  </div>
+                ) : pitch ? (
+                  <p className="relative mt-4 break-keep text-[14px] font-medium leading-relaxed text-white/85 line-clamp-3">{pitch}</p>
+                ) : null}
               </div>
 
               {/* 바디 */}
@@ -179,6 +205,14 @@ export default function CareerProfilePage() {
                 <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">{mrz}</p>
               </div>
             </div>
+
+            {/* AI 헤드라인 생성/새로고침 */}
+            {!cardEmpty ? (
+              <button type="button" onClick={onGenHeadline} disabled={hlBusy} className="-mt-2 inline-flex items-center gap-1.5 self-start rounded-full border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-60">
+                {hlBusy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4 text-[#0B46E8]" weight="fill" />}
+                {hlBusy ? t("생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…") : headline ? t("AI 소개 문구 다시 만들기", "Regenerate AI headline", "重新生成AI标语", "Tạo lại tiêu đề AI", "AI紹介文を再生成", "Buat ulang headline AI") : t("AI로 소개 문구 만들기", "Create AI headline", "用AI生成标语", "Tạo tiêu đề bằng AI", "AIで紹介文を作成", "Buat headline dengan AI")}
+              </button>
+            ) : null}
 
             {/* ── 나만 보는 커리어 데이터 ── */}
             <div className="mt-2">
