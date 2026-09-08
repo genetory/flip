@@ -4,13 +4,14 @@
 // 왼쪽에서 섹션을 직접 편집하고, 오른쪽에 실시간 A4 미리보기. 변경은 디바운스 자동저장(PUT).
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Plus, Trash, Check, CircleNotch, Eye, Sparkle, CaretUp, CaretDown, SortAscending, ArrowUpRight } from "@phosphor-icons/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, Trash, Check, CircleNotch, Eye, Sparkle, CaretUp, CaretDown, SortAscending, ArrowUpRight, CaretLeft } from "@phosphor-icons/react";
 import { toResumeContent } from "../../../components/launch/resume-render";
 import { ResumePreview } from "../../../components/resume-maker/ResumePreview";
 import { DEFAULT_DESIGN } from "../../../lib/resume-maker-types";
 import { SectionTitle } from "../../../components/launch/ui";
 import { SectionChatModal } from "../../../components/launch/SectionChatModal";
+import { LeaveConfirm } from "../../../components/launch/LeaveConfirm";
 import {
   fetchResumeData,
   saveResumeData,
@@ -30,7 +31,10 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 export default function ResumeCollectPage() {
   const t = useLaunchT();
   const { isReady } = useAuthSession();
+  const router = useRouter();
   const params = useSearchParams();
+  const backHref = "/career-launch/week/2";
+  const [showLeave, setShowLeave] = useState(false);
   const focus = (params.get("section") as ResumeSection | null) ?? null;
   // 주차 스텝에서 특정 섹션으로 진입하면 그 섹션만 노출(전체 진입 시 모두 노출).
   const show = (s: ResumeSection) => !focus || focus === s;
@@ -98,12 +102,14 @@ export default function ResumeCollectPage() {
       setSaveState("error");
     }
   };
+  // 취소 = 편집 그만두고 뒤로. 저장 안 한 변경이 있으면 확인 후 나간다.
   const onCancel = () => {
-    if (!dirty) return;
-    setData(saved.data);
-    setNoExp(saved.empties.includes("exp"));
-    setNoOther(saved.empties.includes("expOther"));
-    setSaveState("idle");
+    if (dirty) setShowLeave(true);
+    else router.push(backHref);
+  };
+  const leaveDiscard = () => {
+    setShowLeave(false);
+    router.push(backHref);
   };
   // 저장 안 한 변경이 있으면 페이지 이탈 경고.
   useEffect(() => {
@@ -176,15 +182,15 @@ export default function ResumeCollectPage() {
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           {/* 상단 바 */}
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/week/2" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              {t("← 지원 패키지", "← Application package", "← 申请材料包", "← Bộ hồ sơ ứng tuyển", "← 応募パッケージ", "← Paket lamaran")}
-            </Link>
+            <button type="button" onClick={onCancel} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
+            </button>
             <div className="flex items-center gap-2">
               <SaveIndicator state={saveState} dirty={dirty} t={t} />
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
               </button>
-              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={onCancel} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]">
                 {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
               </button>
               <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
@@ -326,6 +332,7 @@ export default function ResumeCollectPage() {
       </main>
       <AplyFooter />
       {chatFocus ? <SectionChatModal title={chatTitle[chatFocus]} request={chatRequest} onClose={() => setChatFocus(null)} /> : null}
+      {showLeave ? <LeaveConfirm onStay={() => setShowLeave(false)} onLeave={leaveDiscard} t={t} /> : null}
     </div>
   );
 }
