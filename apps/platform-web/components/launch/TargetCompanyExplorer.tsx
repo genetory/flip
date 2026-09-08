@@ -233,9 +233,9 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
           <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
             <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{saved.length > 0 ? t(`좋아요! 목표 기업 ${saved.length}곳을 담았어요. 2주차에서 이 기업들에 맞춰 서류를 준비해요.`, `Nice! ${saved.length} target companies saved. Tailor your Week 2 docs to them.`, `很好！已收藏 ${saved.length} 家目标企业。第2周据此准备材料。`, `Tuyệt! Đã lưu ${saved.length} công ty. Chuẩn bị hồ sơ Tuần 2 theo họ.`, `いいですね！目標企業を${saved.length}社保存しました。2週目で書類を合わせます。`, `Bagus! ${saved.length} perusahaan tersimpan. Sesuaikan dokumen Minggu 2.`) : t("관심 가는 기업을 하나 이상 담으면 이 단계가 완료돼요.", "Save at least one company to complete this step.", "至少收藏一家企业即可完成本步骤。", "Lưu ít nhất một công ty để hoàn thành bước này.", "1社以上保存するとこのステップが完了します。", "Simpan minimal satu perusahaan untuk menyelesaikan langkah ini.")}</p>
             {embedded ? (
-              <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-[#191F28] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0B1227]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</button>
+              <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</button>
             ) : (
-              <Link href="/career-launch/week/1" className="shrink-0 rounded-xl bg-[#191F28] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0B1227]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</Link>
+              <Link href="/career-launch/week/1" className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</Link>
             )}
           </div>
         </div>

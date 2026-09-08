@@ -168,7 +168,7 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                     </div>
                     {lastScore.feedback ? <div className="rounded-xl bg-[#FAFBFC] p-3 text-[13px] leading-relaxed"><p className="text-[11.5px] font-bold text-[#C77700]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-0.5 break-keep text-[#4E5968]">{lastScore.feedback}</p></div> : null}
                     {lastScore.modelAnswer ? <div className="rounded-xl bg-[#F8FAFF] p-3 text-[13px] leading-relaxed"><p className="text-[11.5px] font-bold text-[#0B46E8]">🧭 {t("모범답안", "Model answer", "范例答案", "Câu trả lời mẫu", "模範解答", "Jawaban contoh")}</p><p className="mt-0.5 whitespace-pre-wrap break-keep text-[#333D4B]">{lastScore.modelAnswer}</p></div> : null}
-                    <button type="button" onClick={next} className="inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0B1227]">{idx < total - 1 ? t("다음 문제 →", "Next question →", "下一题 →", "Câu tiếp →", "次の質問 →", "Soal berikutnya →") : t("결과 보기 →", "See results →", "查看结果 →", "Xem kết quả →", "結果を見る →", "Lihat hasil →")}</button>
+                    <button type="button" onClick={next} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">{idx < total - 1 ? t("다음 문제 →", "Next question →", "下一题 →", "Câu tiếp →", "次の質問 →", "Soal berikutnya →") : t("결과 보기 →", "See results →", "查看结果 →", "Xem kết quả →", "結果を見る →", "Lihat hasil →")}</button>
                   </div>
                 ) : (
                   <div className="mt-3">
@@ -187,7 +187,7 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
               <PostingResultList items={items} rescore={(q, a) => scoreBasicAnswer(focus, q, a)} onItemsChange={setItems} />
               <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
                 <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("점수가 낮은 문항은 '다시 답하기'로 오답노트처럼 연습해요. 기록은 저장돼요.", "Retry low-scoring questions like a review note. Your record is saved.", "对低分题用'重新作答'像错题本一样练习。记录会保存。", "Luyện lại câu điểm thấp như sổ sửa lỗi. Bản ghi được lưu.", "点数の低い問題は「もう一度答える」で復習ノートのように練習。記録は保存されます。", "Latih lagi soal berskor rendah. Rekaman tersimpan.")}</p>
-                <button type="button" onClick={handleClose} className="shrink-0 rounded-xl bg-[#191F28] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0B1227]">{t("저장하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</button>
+                <button type="button" onClick={handleClose} className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("저장하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</button>
               </div>
             </div>
           )}
