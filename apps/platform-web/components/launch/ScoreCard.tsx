@@ -21,8 +21,6 @@ export type ScoreFetch = (opts: { generate?: boolean; force?: boolean }) => Prom
   unavailable: boolean; // 선행 조건 미충족(예: 이력서 미작성) → 카드 숨김
 }>;
 
-const toneColor: Record<string, string> = { good: "text-[var(--cl-mint)]", warn: "text-[#C77700]", info: "text-[var(--cl-accent)]" };
-const toneDot: Record<string, string> = { good: "bg-[var(--cl-mint)]", warn: "bg-[#F5A524]", info: "bg-[var(--cl-accent)]" };
 function barColor(v: number): string {
   return v >= 75 ? "bg-[var(--cl-mint)]" : v >= 50 ? "bg-[var(--cl-accent)]" : "bg-[#F5A524]";
 }
@@ -168,18 +166,6 @@ export function ScoreCard({
           </div>
 
           {view.why ? <p className="break-keep text-[13px] leading-relaxed text-[var(--cl-muted)]">{view.why}</p> : null}
-
-          {view.sections.map((sec, si) => (
-            <div key={si} className="rounded-2xl bg-[var(--cl-card-2)] p-4">
-              <p className={`flex items-center gap-1.5 text-[12.5px] font-bold ${toneColor[sec.tone] ?? toneColor.info}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${toneDot[sec.tone] ?? toneDot.info}`} aria-hidden />
-                {sec.title}
-              </p>
-              <ul className="mt-2 space-y-1">
-                {sec.items.map((it, ii) => <li key={ii} className="break-keep text-[13px] leading-relaxed text-[var(--cl-ink)]">· {it}</li>)}
-              </ul>
-            </div>
-          ))}
 
           {/* 하단 — 수정하고 다시 받기(상시) */}
           <div className="flex flex-col gap-2.5 rounded-2xl bg-[var(--cl-accent-soft)] p-4 sm:flex-row sm:items-center sm:justify-between">
