@@ -67,7 +67,7 @@ export function InterviewChatShell({
   }, [loading]);
   useEffect(() => {
     const sc = endRef.current?.parentElement;
-    if (sc) sc.scrollTo({ top: sc.scrollHeight, behavior: "smooth" });
+    if (sc) sc.scrollTo({ top: sc.scrollHeight, behavior: "auto" });
   }, [messages, loading]);
 
   const submit = (raw: string) => {

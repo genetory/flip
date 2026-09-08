@@ -99,7 +99,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
 
   useEffect(() => {
     // 내부 고정 스크롤 박스를 없애 컨텐츠가 페이지 스크롤에 함께 흐르도록 함(첫 커리어 상담과 동일).
-    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [messages, loading]);
 
   const send = (raw: string) => {

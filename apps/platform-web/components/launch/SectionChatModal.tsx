@@ -63,7 +63,7 @@ export function SectionChatModal({
   }, []);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    endRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [messages, loading]);
 
   const send = (raw: string) => {

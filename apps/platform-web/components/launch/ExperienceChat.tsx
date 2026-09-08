@@ -69,7 +69,7 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
 
   useEffect(() => {
     // 내부 고정 스크롤 박스를 없애 컨텐츠가 페이지 스크롤에 함께 흐르도록 함 — 최신 메시지만 부드럽게 보이게.
-    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [messages, loading, savedFlash]);
 
   // 적당한 지점에서 사용자가 직접 마무리 — 지금까지 내용으로 이 경험을 정리(저장)하도록 요청.

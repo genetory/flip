@@ -92,7 +92,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
 
   useEffect(() => {
     // 내부 고정 스크롤 박스를 없애 컨텐츠가 페이지 스크롤에 함께 흐르도록 함 — 최신 메시지만 부드럽게 보이게.
-    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [messages, loading, result]);
 
   // 적당한 지점에서 사용자가 직접 마무리 — 지금까지 대화로 진단 결과를 내달라고 요청.

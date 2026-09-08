@@ -70,7 +70,7 @@ export function StrengthStoryChat({ embedded = false, onClose }: { embedded?: bo
   }, [isReady]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [messages, loading, savedFlash]);
 
   // 적당한 지점에서 사용자가 직접 마무리 — 지금까지 내용으로 정리(결과 생성)를 요청한다.
