@@ -9,24 +9,13 @@ import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
-import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { AplyFooter } from "../../../components/AplyFooter";
-import { SectionTitle } from "../../../components/launch/ui";
-import { fetchProgress, sharePassport, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
+import { fetchProgress, sharePassport, type CareerProgress } from "../../../lib/launch/progress-client";
 import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
 import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
-
-const INTERVIEW_LABEL: Record<string, string> = { self: "자기소개", job: "직무", fit: "인성·컬처핏", pressure: "압박" };
-
-function Empty({ label }: { label: string }) {
-  return <p className="rounded-xl bg-[var(--cl-card-2)] px-4 py-5 text-center text-[12.5px] text-[#8B95A1]">{label}</p>;
-}
-function Panel({ children }: { children: React.ReactNode }) {
-  return <section className="rounded-2xl bg-white p-5 shadow-[0_2px_12px_-6px_rgba(20,24,31,0.16)]">{children}</section>;
-}
 
 export default function CareerProfilePage() {
   const t = useLaunchT();
@@ -113,12 +102,8 @@ export default function CareerProfilePage() {
 
   const name = user?.name?.trim() || user?.email || "";
   const initial = (name.trim().charAt(0) || "A").toUpperCase();
-  const bank: ExperienceEntry[] = Array.isArray(prog?.experienceBank) ? prog!.experienceBank! : [];
   const selectedJobs = Array.isArray(prog?.selectedJobs) ? prog!.selectedJobs! : [];
   const recoJobs = prog?.jobRecommendation?.data?.jobs ?? [];
-  const stories = (prog?.storyBank?.data?.stories ?? []) as Array<{ category?: string; title?: string }>;
-  const answers = prog?.answerBank?.data?.answers ?? [];
-  const practiced = prog?.interview?.practiced ?? [];
   const educations = resume.educations ?? [];
   const languages = resume.languages ?? [];
   const direction = selectedJobs[0] || recoJobs[0]?.role || "";
@@ -248,92 +233,6 @@ export default function CareerProfilePage() {
 
             {/* Talent Passport — 검증된 Talent 프로필(Readiness·Verified) */}
             <TalentPassportCard />
-            {/* 내 여정 — TalentEvent 타임라인 */}
-            <MyTimelineCard />
-
-            {/* Career Direction */}
-            <Panel>
-              <SectionTitle>{t("커리어 방향", "Career direction", "职业方向", "Định hướng nghề", "キャリアの方向", "Arah karier")}</SectionTitle>
-              {selectedJobs.length === 0 && recoJobs.length === 0 ? (
-                <Empty label={t("1주차에서 직무 방향을 정하면 여기 채워져요.", "Set your direction in Week 1.", "在第1周确定方向后显示。", "Đặt hướng ở Tuần 1.", "Week 1で方向を決めると表示。", "Tentukan arah di Minggu 1.")} />
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {selectedJobs.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedJobs.map((j) => <span key={j} className="rounded-full bg-[var(--cl-accent-soft)] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">{j}</span>)}
-                    </div>
-                  ) : null}
-                  {recoJobs.length > 0 ? (
-                    <div className="flex flex-col gap-1.5">
-                      {recoJobs.slice(0, 3).map((r, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-xl bg-[var(--cl-card-2)] px-3.5 py-2.5">
-                          <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[#191F28]">{r.role}</span>
-                          <span className="shrink-0 text-[12px] font-black text-[#0B46E8]">Fit {r.fit}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </Panel>
-
-            {/* Experience Bank */}
-            <Panel>
-              <SectionTitle sub={t("모든 모듈이 참조하는 중심 데이터", "The central data every module reuses", "所有模块引用的中心数据", "Dữ liệu trung tâm mọi module dùng", "全モジュールが参照する中心データ", "Data pusat semua modul")}>Experience Bank · {bank.length}</SectionTitle>
-              {bank.length === 0 ? (
-                <Empty label={t("1주차 '내 경험 찾아보기'로 채워요.", "Fill it via 'Find my experiences' in Week 1.", "通过第1周‘发掘我的经验’填充。", "Điền qua 'Tìm kinh nghiệm' ở Tuần 1.", "Week 1『経験を見つける』で埋めます。", "Isi lewat 'Temukan pengalaman' di Minggu 1.")} />
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {bank.map((e) => (
-                    <div key={e.id} className="rounded-2xl bg-[var(--cl-card-2)] p-4">
-                      <p className="truncate text-[14px] font-bold text-[#191F28]">{e.experience}</p>
-                      <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[e.role, e.period].filter(Boolean).join(" · ")}</p>
-                      {e.competencies.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {e.competencies.slice(0, 5).map((c, i) => <span key={i} className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[#0B46E8]">{c}</span>)}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-
-            {/* 기본 프로필(학력·어학) */}
-            {educations.length > 0 || languages.length > 0 ? (
-              <Panel>
-                <SectionTitle>{t("기본 프로필", "Basic profile", "基本档案", "Hồ sơ cơ bản", "基本プロフィール", "Profil dasar")}</SectionTitle>
-                <div className="flex flex-col gap-2 rounded-2xl bg-[var(--cl-card-2)] p-4 text-[13px] text-[#333D4B]">
-                  {educations.map((ed, i) => <p key={i}>🎓 {[ed.school, ed.major].filter(Boolean).join(" · ")}</p>)}
-                  {languages.length > 0 ? <p>🗣 {languages.map((l) => l.language).filter(Boolean).join(", ")}</p> : null}
-                </div>
-              </Panel>
-            ) : null}
-
-            {/* Story Bank */}
-            {stories.length > 0 ? (
-              <Panel>
-                <SectionTitle>Story Bank · {stories.length}</SectionTitle>
-                <div className="flex flex-wrap gap-2">
-                  {stories.map((s, i) => <span key={i} className="rounded-full bg-[var(--cl-card-2)] px-3 py-1.5 text-[12.5px] font-semibold text-[#333D4B]">{s.category ? `[${s.category}] ` : ""}{s.title}</span>)}
-                </div>
-              </Panel>
-            ) : null}
-
-            {/* Interview */}
-            {practiced.length > 0 || answers.length > 0 ? (
-              <Panel>
-                <SectionTitle>{t("면접 준비", "Interview prep", "面试准备", "Chuẩn bị PV", "面接準備", "Persiapan wawancara")}</SectionTitle>
-                <div className="flex flex-col gap-3">
-                  {practiced.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {practiced.map((p) => <span key={p} className="rounded-full bg-[var(--cl-accent-soft)] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">🎤 {INTERVIEW_LABEL[p] ?? p}</span>)}
-                    </div>
-                  ) : null}
-                  {answers.length > 0 ? <p className="text-[13px] text-[#4E5968]">{t(`면접 답변 노트 ${answers.length}개 정리됨`, `${answers.length} interview answers drafted`, `已整理 ${answers.length} 条面试回答`, `${answers.length} câu trả lời PV`, `面接回答 ${answers.length}件`, `${answers.length} jawaban wawancara`)}</p> : null}
-                </div>
-              </Panel>
-            ) : null}
           </div>
         </div>
       </main>
