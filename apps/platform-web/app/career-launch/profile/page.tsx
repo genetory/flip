@@ -107,10 +107,10 @@ export default function CareerProfilePage() {
           <div className="mt-4 flex flex-col gap-6">
             {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 여권 ── */}
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.55)] ring-1 ring-black/5">
-              {/* 히어로 밴드 */}
-              <div className="relative overflow-hidden px-6 pb-6 pt-5 text-white" style={{ background: "linear-gradient(135deg,#0A1020 0%,#123A86 52%,#0B46E8 100%)" }}>
-                <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
-                <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: "radial-gradient(circle, rgba(120,170,255,0.45), transparent 65%)" }} aria-hidden />
+              {/* 히어로 밴드 — 모션 오로라 */}
+              <div className="cl-pp-hero overflow-hidden px-6 pb-6 pt-5 text-white">
+                <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
+                <div className="cl-pp-shine" aria-hidden />
                 <div className="relative flex items-center gap-2">
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
                   <button type="button" onClick={onShare} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">

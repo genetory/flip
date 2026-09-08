@@ -632,3 +632,34 @@ textarea:focus-visible,
 select:focus-visible {
   outline: none;
 }
+
+/* ── 커리어 패스포트 공유 카드 — 모션 오로라 히어로 ── */
+.cl-pp-hero { position: relative; isolation: isolate; background: #0A1020; }
+.cl-pp-hero::before {
+  content: ""; position: absolute; inset: -20%; z-index: -1;
+  background:
+    radial-gradient(42% 55% at 18% 22%, rgba(70,120,255,0.60), transparent 62%),
+    radial-gradient(40% 52% at 82% 12%, rgba(139,92,246,0.50), transparent 62%),
+    radial-gradient(55% 70% at 72% 92%, rgba(11,70,232,0.62), transparent 62%),
+    radial-gradient(40% 50% at 30% 90%, rgba(34,197,180,0.35), transparent 62%);
+  filter: blur(8px);
+  animation: cl-aurora 14s ease-in-out infinite alternate;
+}
+@keyframes cl-aurora {
+  0%   { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate3d(-3%, -4%, 0) scale(1.12) rotate(3deg); }
+  100% { transform: translate3d(3%, -6%, 0) scale(1.18) rotate(-2deg); }
+}
+.cl-pp-shine {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,0.16) 50%, transparent 58%);
+  transform: translateX(-120%);
+  animation: cl-pp-shine 7s ease-in-out infinite;
+}
+@keyframes cl-pp-shine {
+  0%, 55% { transform: translateX(-120%); }
+  78%, 100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cl-pp-hero::before, .cl-pp-shine { animation: none; }
+}
