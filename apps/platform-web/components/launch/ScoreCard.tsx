@@ -21,9 +21,10 @@ export type ScoreFetch = (opts: { generate?: boolean; force?: boolean }) => Prom
   unavailable: boolean; // 선행 조건 미충족(예: 이력서 미작성) → 카드 숨김
 }>;
 
-const toneColor: Record<string, string> = { good: "text-[#0A9B59]", warn: "text-[#C77700]", info: "text-[#0B46E8]" };
+const toneColor: Record<string, string> = { good: "text-[var(--cl-mint)]", warn: "text-[#C77700]", info: "text-[var(--cl-accent)]" };
+const toneDot: Record<string, string> = { good: "bg-[var(--cl-mint)]", warn: "bg-[#F5A524]", info: "bg-[var(--cl-accent)]" };
 function barColor(v: number): string {
-  return v >= 75 ? "bg-[#0A9B59]" : v >= 50 ? "bg-[#0B46E8]" : "bg-[#F5A524]";
+  return v >= 75 ? "bg-[var(--cl-mint)]" : v >= 50 ? "bg-[var(--cl-accent)]" : "bg-[#F5A524]";
 }
 
 export function ScoreCard({
@@ -110,9 +111,9 @@ export function ScoreCard({
   return (
     <Card className="md:!p-6">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">{scoreLabel}</p>
+        <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--cl-accent)]">{scoreLabel}</p>
         {state === "done" ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--cl-accent)]">
             <span aria-hidden>{badgeEmoji}</span> {badgeLabel}
           </span>
         ) : null}
@@ -120,14 +121,14 @@ export function ScoreCard({
 
       {state === "ready" ? (
         <div className="mt-3 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[22px]" aria-hidden>{badgeEmoji}</span>
-          <p className="mt-3 text-[15px] font-bold text-[#191F28]">{ctaTitle}</p>
-          <p className="mx-auto mt-1 max-w-[420px] break-keep text-[13px] leading-relaxed text-[#8B95A1]">{ctaDesc}</p>
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--cl-card-2)] text-[22px]" aria-hidden>{badgeEmoji}</span>
+          <p className="mt-3 text-[15px] font-bold text-[var(--cl-ink)]">{ctaTitle}</p>
+          <p className="mx-auto mt-1 max-w-[420px] break-keep text-[13px] leading-relaxed text-[var(--cl-faint)]">{ctaDesc}</p>
           <button
             type="button"
             onClick={() => run(false)}
             disabled={busy}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-5 py-2.5 text-[14px] font-bold text-white transition hover:bg-[#0B1227] disabled:opacity-60"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--cl-accent)] px-5 py-2.5 text-[14px] font-bold text-white transition hover:bg-[var(--cl-accent-2)] disabled:opacity-60"
           >
             {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4" weight="fill" />}
             {busy ? t("분석 중…", "Analyzing…", "分析中…", "Đang phân tích…", "分析中…", "Menganalisis…") : ctaLabel}
@@ -141,47 +142,50 @@ export function ScoreCard({
           {stale ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#FFF9EC] px-3 py-2">
               <span className="text-[12px] font-semibold text-[#B7791F]">{t("입력이 바뀌었어요. 다시 받아 최신으로 갱신할 수 있어요.", "Your inputs changed. Refresh to update.", "输入已更改，可重新获取以更新。", "Dữ liệu đã đổi. Nhận lại để cập nhật.", "入力が変わりました。再取得で更新できます。", "Input berubah. Ambil ulang untuk memperbarui.")}</span>
-              <button type="button" onClick={() => run(true)} disabled={busy} className="rounded-lg bg-[#191F28] px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-60">
+              <button type="button" onClick={() => run(true)} disabled={busy} className="rounded-lg bg-[var(--cl-accent)] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[var(--cl-accent-2)] disabled:opacity-60">
                 {busy ? t("갱신 중…", "Refreshing…", "更新中…", "Đang cập nhật…", "更新中…", "Memperbarui…") : t("다시 받기", "Refresh", "重新获取", "Nhận lại", "再取得", "Ambil ulang")}
               </button>
             </div>
           ) : null}
 
-          <div className="rounded-2xl bg-[#F8FAFF] p-5 text-center">
-            <p className="text-[12px] font-bold text-[#8B95A1]">{scoreLabel}</p>
-            <p className="mt-1 text-[40px] font-black leading-none tracking-[-0.03em] text-[#0B1227]">{view.total}<span className="text-[18px] font-bold text-[#B0B8C1]"> / 100</span></p>
-            {view.why ? <p className="mx-auto mt-3 max-w-[460px] break-keep text-[13px] leading-relaxed text-[#4E5968]">{view.why}</p> : null}
+          <div className="rounded-2xl bg-[var(--cl-card-2)] p-5 text-center">
+            <p className="text-[12px] font-bold text-[var(--cl-faint)]">{scoreLabel}</p>
+            <p className="mt-1 text-[40px] font-black leading-none tracking-[-0.03em] text-[var(--cl-ink)]">{view.total}<span className="text-[18px] font-bold text-[var(--cl-faint)]"> / 100</span></p>
+            {view.why ? <p className="mx-auto mt-3 max-w-[460px] break-keep text-[13px] leading-relaxed text-[var(--cl-muted)]">{view.why}</p> : null}
           </div>
 
           <div className="flex flex-col gap-2.5">
             {view.breakdown.map((b, i) => (
               <div key={i} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-[12.5px] font-semibold text-[#4E5968]">{b.label}</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#EEF1F5]">
+                <span className="w-24 shrink-0 text-[12.5px] font-semibold text-[var(--cl-muted)]">{b.label}</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--cl-line)]">
                   <div className={`h-full rounded-full ${barColor(b.value)}`} style={{ width: `${b.value}%` }} />
                 </div>
-                <span className="w-8 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[#191F28]">{b.value}</span>
+                <span className="w-8 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[var(--cl-ink)]">{b.value}</span>
               </div>
             ))}
           </div>
 
           {view.sections.map((sec, si) => (
-            <div key={si} className="rounded-2xl border border-[#EEF1F5] p-4">
-              <p className={`text-[12.5px] font-bold ${toneColor[sec.tone] ?? toneColor.info}`}>{sec.title}</p>
+            <div key={si} className="rounded-2xl bg-[var(--cl-card-2)] p-4">
+              <p className={`flex items-center gap-1.5 text-[12.5px] font-bold ${toneColor[sec.tone] ?? toneColor.info}`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${toneDot[sec.tone] ?? toneDot.info}`} aria-hidden />
+                {sec.title}
+              </p>
               <ul className="mt-2 space-y-1">
-                {sec.items.map((it, ii) => <li key={ii} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {it}</li>)}
+                {sec.items.map((it, ii) => <li key={ii} className="break-keep text-[13px] leading-relaxed text-[var(--cl-ink)]">· {it}</li>)}
               </ul>
             </div>
           ))}
 
           {/* 하단 — 수정하고 다시 받기(상시) */}
-          <div className="flex flex-col gap-2.5 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("개선점을 고친 뒤 다시 평가받아 점수를 올려보세요.", "Fix the tips, then re-evaluate to raise your score.", "修改建议后重新评估以提高分数。", "Sửa theo gợi ý rồi đánh giá lại để tăng điểm.", "改善点を直して再評価し、点数を上げましょう。", "Perbaiki tips lalu nilai ulang untuk menaikkan skor.")}</p>
+          <div className="flex flex-col gap-2.5 rounded-2xl bg-[var(--cl-accent-soft)] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="break-keep text-[12.5px] leading-relaxed text-[var(--cl-muted)]">{t("개선점을 고친 뒤 다시 평가받아 점수를 올려보세요.", "Fix the tips, then re-evaluate to raise your score.", "修改建议后重新评估以提高分数。", "Sửa theo gợi ý rồi đánh giá lại để tăng điểm.", "改善点を直して再評価し、点数を上げましょう。", "Perbaiki tips lalu nilai ulang untuk menaikkan skor.")}</p>
             <div className="flex shrink-0 flex-wrap gap-2">
               {editHref ? (
-                <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40"><PencilSimple className="h-4 w-4" weight="bold" /> {editLabel ?? t("수정하러 가기", "Edit", "去修改", "Sửa", "修正する", "Edit")}</Link>
+                <Link href={editHref} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--cl-card)] px-3.5 py-2 text-[12.5px] font-bold text-[var(--cl-ink)] shadow-[0_2px_8px_-4px_rgba(20,24,31,0.25)] transition hover:text-[var(--cl-accent)]"><PencilSimple className="h-4 w-4" weight="bold" /> {editLabel ?? t("수정하러 가기", "Edit", "去修改", "Sửa", "修正する", "Edit")}</Link>
               ) : null}
-              <button type="button" onClick={() => run(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+              <button type="button" onClick={() => run(true)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--cl-accent)] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[var(--cl-accent-2)] disabled:opacity-60">
                 {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <ArrowClockwise className="h-4 w-4" weight="bold" />}{busy ? t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…") : t("다시 평가받기", "Re-evaluate", "重新评估", "Đánh giá lại", "再評価", "Nilai ulang")}
               </button>
             </div>

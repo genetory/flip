@@ -318,6 +318,8 @@ All colors MUST be HSL.
   --cl-accent: #0B46E8;      /* 대표 테마색 — 로고와 같은 브랜드 블루 */
   --cl-accent-2: #3182F6;    /* 밝은 블루(그라데이션 짝) */
   --cl-mint: #0D9488;        /* 완료/성공 — 파랑과 어울리는 틸(teal) */
+  --cl-accent-soft: #EAEFFE; /* 액센트 연한 배경(칩·필) */
+  --cl-mint-soft: #E4F3F1;   /* 틸 연한 배경(칩·필) */
   --cl-ink: #14181F;
   --cl-muted: #5D6470;
   --cl-faint: #9AA0AC;
