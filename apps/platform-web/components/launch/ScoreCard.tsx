@@ -148,23 +148,26 @@ export function ScoreCard({
             </div>
           ) : null}
 
-          <div className="rounded-2xl bg-[var(--cl-card-2)] p-5 text-center">
-            <p className="text-[12px] font-bold text-[var(--cl-faint)]">{scoreLabel}</p>
-            <p className="mt-1 text-[40px] font-black leading-none tracking-[-0.03em] text-[var(--cl-ink)]">{view.total}<span className="text-[18px] font-bold text-[var(--cl-faint)]"> / 100</span></p>
-            {view.why ? <p className="mx-auto mt-3 max-w-[460px] break-keep text-[13px] leading-relaxed text-[var(--cl-muted)]">{view.why}</p> : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col items-center justify-center rounded-2xl bg-[var(--cl-card-2)] p-5 text-center">
+              <p className="text-[12px] font-bold text-[var(--cl-faint)]">{scoreLabel}</p>
+              <p className="mt-1 text-[44px] font-black leading-none tracking-[-0.03em] text-[var(--cl-ink)]">{view.total}<span className="text-[18px] font-bold text-[var(--cl-faint)]"> / 100</span></p>
+            </div>
+
+            <div className="flex flex-col justify-center gap-2.5 rounded-2xl bg-[var(--cl-card-2)] p-5">
+              {view.breakdown.map((b, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="w-20 shrink-0 text-[12px] font-semibold text-[var(--cl-muted)]">{b.label}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--cl-line)]">
+                    <div className={`h-full rounded-full ${barColor(b.value)}`} style={{ width: `${b.value}%` }} />
+                  </div>
+                  <span className="w-7 shrink-0 text-right text-[12px] font-bold tabular-nums text-[var(--cl-ink)]">{b.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-col gap-2.5">
-            {view.breakdown.map((b, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-[12.5px] font-semibold text-[var(--cl-muted)]">{b.label}</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--cl-line)]">
-                  <div className={`h-full rounded-full ${barColor(b.value)}`} style={{ width: `${b.value}%` }} />
-                </div>
-                <span className="w-8 shrink-0 text-right text-[12.5px] font-bold tabular-nums text-[var(--cl-ink)]">{b.value}</span>
-              </div>
-            ))}
-          </div>
+          {view.why ? <p className="break-keep text-[13px] leading-relaxed text-[var(--cl-muted)]">{view.why}</p> : null}
 
           {view.sections.map((sec, si) => (
             <div key={si} className="rounded-2xl bg-[var(--cl-card-2)] p-4">
