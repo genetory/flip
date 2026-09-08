@@ -153,7 +153,7 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{t("목표 기업 탐색", "Explore target companies", "探索目标企业", "Khám phá công ty mục tiêu", "目標企業を探す", "Jelajahi perusahaan target")}</p>
-          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-full text-[#4E5968] transition hover:bg-[#F6F8FB]"><X className="h-5 w-5" weight="bold" /></button>
+          <button type="button" onClick={onClose} className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
         </div>
       ) : (
         <CareerLaunchHeader />

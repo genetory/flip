@@ -4,7 +4,7 @@
 // request(history) 가 해당 섹션 focus 로 백엔드 챗을 호출하고, 갱신된 데이터를
 // 부모(빌더)에 반영한 뒤 {reply, done} 을 돌려준다. 편집 필드·A4 미리보기는 부모가 갱신.
 import { useEffect, useRef, useState } from "react";
-import { X, PaperPlaneTilt, CircleNotch, Sparkle } from "@phosphor-icons/react";
+import { CaretLeft, PaperPlaneTilt, CircleNotch, Sparkle } from "@phosphor-icons/react";
 import { RichText } from "./rich-text";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
@@ -110,8 +110,8 @@ export function SectionChatModal({
               <p className="truncate text-[14px] font-black text-[#0B1227]">{title}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F6F8FB]">
-            <X className="h-5 w-5" />
+          <button type="button" onClick={onClose} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-2xl px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]">
+            <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
           </button>
         </div>
 

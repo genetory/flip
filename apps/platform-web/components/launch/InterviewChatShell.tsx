@@ -3,7 +3,7 @@
 // 모든 모의면접 화면(자기소개·직무·인성·압박 4유형 + 실전 모의면접)이 공유하는 공용 채팅 셸.
 // 상단바·뒤로가기·헤더·말풍선·입력창·빠른답변·완료영역의 UI/UX를 한곳에서 통일한다.
 // 입력값·스크롤·포커스는 셸이 관리하고, 대화 로직(messages·send·완료)은 각 화면이 주입한다.
-import { CaretLeft, X, PaperPlaneRight } from "@phosphor-icons/react";
+import { CaretLeft, PaperPlaneRight } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { RichText } from "./rich-text";
@@ -82,7 +82,7 @@ export function InterviewChatShell({
       {embedded ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#EEF1F5] px-5 py-3">
           <p className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{embeddedTitle}</p>
-          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-full text-[#4E5968] transition hover:bg-[#F6F8FB]"><X className="h-5 w-5" weight="bold" /></button>
+          <button type="button" onClick={onClose} className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
         </div>
       ) : (
         <CareerLaunchHeader />
