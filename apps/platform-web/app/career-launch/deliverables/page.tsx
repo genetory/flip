@@ -4,7 +4,7 @@
 // 위에는 목표 직무, 아래에는 면접 준비 요약. 프리뷰 컴포넌트는 컨테이너 폭에 맞춰 자동 스케일.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, PencilSimpleLine, Microphone, Target } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight, PencilSimpleLine, Microphone } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { DashboardSection, ErrorState, CardSkeleton } from "../../../components/launch/dashboard-states";
@@ -85,7 +85,6 @@ export default function DeliverablesPage() {
   const [cover, setCover] = useState<CoverData>({});
   const [rScore, setRScore] = useState<number | null>(null);
   const [cScore, setCScore] = useState<number | null>(null);
-  const [targetJob, setTargetJob] = useState<string>("");
   const [iv, setIv] = useState<{ avg: number; count: number } | null>(null);
 
   const load = () => {
@@ -102,7 +101,6 @@ export default function DeliverablesPage() {
         setCover(c.data ?? {});
         setRScore(rs.score?.total ?? null);
         setCScore(cs.score?.total ?? null);
-        setTargetJob(typeof prog?.targetJob === "string" ? prog.targetJob : "");
         // 기본(내 서류) + 공고별 면접 모두 포함.
         const logs = [...(Array.isArray(prog?.basicInterviews) ? prog!.basicInterviews! : []), ...(Array.isArray(prog?.postingInterviews) ? prog!.postingInterviews! : [])];
         const items = logs.flatMap((l) => l.items ?? []).filter((it) => typeof it.score === "number");
@@ -124,13 +122,6 @@ export default function DeliverablesPage() {
           <p className="cl-eyebrow">Career Launch</p>
           <h1 className="cl-display mt-1.5">{t("나의 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</h1>
           <p className="cl-lead mt-2.5 max-w-[52ch]">{t("4주 동안 만든 이력서·자기소개서와 면접 준비 결과를 한곳에서 확인해요.", "See the resume, cover letter, and interview prep you built over four weeks, all in one place.", "在一处查看你4周里完成的简历、自我介绍书和面试准备成果。", "Xem CV, thư giới thiệu và chuẩn bị phỏng vấn bạn đã làm trong 4 tuần, tại một nơi.", "4週間で作った履歴書・自己紹介書と面接準備の成果を一か所で確認します。", "Lihat resume, surat lamaran, dan persiapan wawancara yang kamu buat selama 4 minggu, di satu tempat.")}</p>
-
-          {targetJob ? (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-[var(--cl-accent-soft)] px-3.5 py-1.5">
-              <Target className="h-4 w-4 text-[#0B46E8]" weight="fill" aria-hidden />
-              <span className="text-[13px] font-bold text-[#0B46E8]">{t(`목표 직무 · ${targetJob}`, `Target role · ${targetJob}`, `目标职务 · ${targetJob}`, `Nghề mục tiêu · ${targetJob}`, `目標職種 · ${targetJob}`, `Peran target · ${targetJob}`)}</span>
-            </div>
-          ) : null}
 
           <hr className="cl-rule mt-5" />
 
