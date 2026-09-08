@@ -16,5 +16,21 @@ export function CareerChatModal({ onClose, children }: { onClose: () => void; ch
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return <div className="fixed inset-0 z-[60] bg-white">{children}</div>;
+
+  // 브라우저 뒤로가기로 팝업 닫기 — 열릴 때 히스토리 엔트리를 하나 넣고, 뒤로가기(popstate)에서 닫는다.
+  // X/ESC 로 닫으면 넣어둔 엔트리를 정리(뒤로가기로 닫힌 경우엔 이미 소비됨).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.history.pushState({ careerChatModal: true }, "");
+    const onPop = () => onClose();
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (window.history.state?.careerChatModal) window.history.back();
+    };
+    // onClose 는 마운트 시점 기준으로 충분(닫기 동작은 동일). 한 번만 설치.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div className="fixed inset-0 z-[60] bg-[#F1F1F4]">{children}</div>;
 }
