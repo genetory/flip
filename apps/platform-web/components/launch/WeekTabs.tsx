@@ -151,6 +151,14 @@ function scoreVar(s: number): string {
   return s >= 75 ? "var(--cl-mint)" : s >= 50 ? "var(--cl-accent)" : "#C77700";
 }
 const isInterviewHref = (href?: string) => (href ?? "").split("?")[0].endsWith("/basic-interview");
+// 면접별로 어떤 질문이 나오는지 한 줄 안내.
+function interviewQType(stepId: string, t: LaunchT): string {
+  const f = stepId.replace("w4-", "");
+  if (f === "self") return t("자기소개·지원 동기·성격·강점 등 ‘나는 어떤 사람인가’를 묻는 질문이 나와요.", "Questions about who you are — intro, motivation, personality, strengths.", "关于‘你是谁’的问题：自我介绍、动机、性格、优势。", "Câu hỏi ‘bạn là ai’ — giới thiệu, động lực, tính cách, điểm mạnh.", "自己紹介・志望動機・性格・強みなど『あなたは誰か』を問う質問。", "Pertanyaan tentang siapa kamu — perkenalan, motivasi, kepribadian, kelebihan.");
+  if (f === "job") return t("경력·프로젝트·성과와 직무 이해도를 파고드는 실무 질문이 나와요.", "Practical questions digging into your experience, projects, results, and job grasp.", "深挖经历、项目、成果与职务理解的实务问题。", "Câu hỏi thực tế về kinh nghiệm, dự án, kết quả và hiểu nghề.", "経歴・プロジェクト・成果と職務理解を掘り下げる実務質問。", "Pertanyaan praktis tentang pengalaman, proyek, hasil, dan pemahaman peran.");
+  if (f === "fit") return t("협업·가치관·태도와 한국 조직 적응(한국어·비자 등)을 보는 질문이 나와요.", "Questions on teamwork, values, attitude, and adapting to a Korean workplace.", "关于协作、价值观、态度与适应韩国职场的问题。", "Câu hỏi về hợp tác, giá trị, thái độ và thích nghi công sở Hàn.", "協働・価値観・態度、韓国組織への適応を見る質問。", "Pertanyaan soal kerja sama, nilai, sikap, dan adaptasi di kantor Korea.");
+  return t("답변의 근거·수치를 검증하는 꼬리질문과 압박 질문이 나와요.", "Follow-up and pressure questions that verify your reasoning and numbers.", "验证依据与数据的追问和压力问题。", "Câu hỏi đuổi và gây áp lực để kiểm chứng lập luận, số liệu.", "答えの根拠・数値を検証する追加質問と圧迫質問。", "Pertanyaan lanjutan dan tekanan untuk menguji alasan dan angka.");
+}
 
 export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const t = useLaunchT();
@@ -282,9 +290,9 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
             </div>
             {locked ? (
               <div className="desc">{t("이전 주차를 마치면 열려요.", "Unlocks when you finish the previous week.", "完成上一周后解锁。", "Mở khi bạn hoàn thành tuần trước.", "前の週を終えると開きます。", "Terbuka setelah menyelesaikan minggu sebelumnya.")}</div>
-            ) : !done ? (
-              step.desc ? <div className="desc">{step.desc}</div> : null
-            ) : null}
+            ) : (
+              <p className="mt-1 flex items-start gap-1.5 break-keep text-[12.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}><span aria-hidden>💬</span><span>{interviewQType(step.id, t)}</span></p>
+            )}
             {res && (res.strengths.length > 0 || res.improvements.length > 0) ? (
               <div className="mt-3 flex flex-col gap-2">
                 {res.strengths.length ? (
