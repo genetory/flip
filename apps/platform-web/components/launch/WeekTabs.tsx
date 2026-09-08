@@ -260,7 +260,26 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           <div className="mt-3"><WeekAutoFeedback week={1} showNext={false} /></div>
         </div>
       ) : null}
-      {selWeek === 2 ? <div className="mt-3 flex flex-col gap-3"><ResumeScoreCard /><CoverScoreCard /></div> : null}
+      {selWeek === 2 ? (
+        <>
+          <div className="mt-8">
+            <h2 className="cl-headline">{t("이력서 피드백", "Resume feedback", "简历反馈", "Phản hồi hồ sơ", "履歴書フィードバック", "Umpan balik resume")}</h2>
+            <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 이력서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the resume you built and gives feedback.", "教练审阅你完成的简历并给出反馈。", "Huấn luyện viên xem hồ sơ bạn tạo và đưa phản hồi.", "対話で作った履歴書をコーチが確認してフィードバックします。", "Pelatih meninjau resume yang kamu buat dan memberi umpan balik.")}</p>
+            <div className="mt-3 flex flex-col gap-3">
+              <ResumeScoreCard />
+              <WeekAutoFeedback week={2} showNext={false} />
+            </div>
+          </div>
+          <div className="mt-8">
+            <h2 className="cl-headline">{t("자기소개서 피드백", "Cover letter feedback", "自我介绍反馈", "Phản hồi thư giới thiệu", "自己紹介書フィードバック", "Umpan balik surat lamaran")}</h2>
+            <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 자기소개서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the cover letter you built and gives feedback.", "教练审阅你完成的自我介绍并给出反馈。", "Huấn luyện viên xem thư giới thiệu bạn tạo và đưa phản hồi.", "対話で作った自己紹介書をコーチが確認してフィードバックします。", "Pelatih meninjau surat lamaran yang kamu buat dan memberi umpan balik.")}</p>
+            <div className="mt-3 flex flex-col gap-3">
+              <CoverScoreCard />
+              <WeekAutoFeedback week={3} showNext={false} />
+            </div>
+          </div>
+        </>
+      ) : null}
       {selWeek === 4 ? (
         <div className="mt-3 flex flex-col gap-3">
           <PostingInterviewCard />
