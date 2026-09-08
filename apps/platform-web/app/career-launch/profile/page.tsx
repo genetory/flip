@@ -4,7 +4,7 @@
 // 4주 내내 쌓인 데이터(방향·경험은행·서류·스토리·면접)를 홈 톤 흰 카드로. 읽기 전용 집계.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CaretLeft } from "@phosphor-icons/react";
+import { CaretLeft, ShareNetwork, Check } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
@@ -32,6 +32,21 @@ export default function CareerProfilePage() {
   const [prog, setProg] = useState<CareerProgress | null>(null);
   const [resume, setResume] = useState<ResumeData>({});
   const [cover, setCover] = useState<CoverData>({});
+  const [copied, setCopied] = useState(false);
+  const onShare = async () => {
+    if (typeof window === "undefined") return;
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ url });
+      else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1600);
+      }
+    } catch {
+      /* 사용자가 취소 */
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +92,7 @@ export default function CareerProfilePage() {
   const eduLine = educations.map((ed) => [ed.school, ed.major].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(" · ");
   const langLine = languages.map((l) => [l.language, l.level].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(", ");
   const cardEmpty = !pitch && targetJobs.length === 0 && skills.length === 0 && highlights.length === 0 && !eduLine && !langLine;
+  const mrz = `APLY<CAREER<LAUNCH<PASSPORT<<<<<<<<ISSUED<${new Date().getFullYear()}`;
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -89,25 +105,33 @@ export default function CareerProfilePage() {
           </Link>
 
           <div className="mt-4 flex flex-col gap-6">
-            {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 한 장 ── */}
-            <div className="overflow-hidden rounded-3xl bg-white shadow-[0_16px_44px_-20px_rgba(20,24,31,0.34)]">
-              <div className="flex items-center gap-2 bg-[#0E1526] px-6 py-2.5">
-                <span className="text-[10.5px] font-black uppercase tracking-[0.22em] text-white/85">Career Passport</span>
-                <span className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/45">Aply · Career Launch</span>
-              </div>
-              <div className="p-6">
-                <div className="flex items-center gap-4">
-                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#0B46E8] text-[26px] font-black text-white">{initial}</span>
+            {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 여권 ── */}
+            <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.55)] ring-1 ring-black/5">
+              {/* 히어로 밴드 */}
+              <div className="relative overflow-hidden px-6 pb-6 pt-5 text-white" style={{ background: "linear-gradient(135deg,#0A1020 0%,#123A86 52%,#0B46E8 100%)" }}>
+                <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.10) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
+                <div className="pointer-events-none absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: "radial-gradient(circle, rgba(120,170,255,0.45), transparent 65%)" }} aria-hidden />
+                <div className="relative flex items-center gap-2">
+                  <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
+                  <button type="button" onClick={onShare} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
+                    {copied ? <Check className="h-3.5 w-3.5" weight="bold" /> : <ShareNetwork className="h-3.5 w-3.5" weight="bold" />}
+                    {copied ? t("복사됨", "Copied", "已复制", "Đã sao chép", "コピー済み", "Tersalin") : t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+                  </button>
+                </div>
+                <div className="relative mt-5 flex items-center gap-4">
+                  <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[24px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{initial}</span>
                   <div className="min-w-0 flex-1">
-                    <h1 className="break-keep text-[22px] font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-[26px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
-                    <p className="mt-1 break-keep text-[13px] font-semibold text-[#0B46E8]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
+                    <h1 className="break-keep text-[23px] font-black leading-[1.12] tracking-[-0.03em] text-white md:text-[27px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
+                    <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
                   </div>
                 </div>
+                {pitch ? <p className="relative mt-4 break-keep text-[14px] font-medium leading-relaxed text-white/85 line-clamp-3">{pitch}</p> : null}
+              </div>
 
-                {pitch ? <p className="mt-4 break-keep text-[15px] font-semibold leading-relaxed text-[#333D4B]">{pitch}</p> : null}
-
+              {/* 바디 */}
+              <div className="p-6">
                 {targetJobs.length > 0 ? (
-                  <div className="mt-5">
+                  <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("보고 있는 직무", "Roles I'm exploring", "关注的职务", "Nghề đang tìm", "見ている職種", "Peran yang dilirik")}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {targetJobs.map((j, i) => <span key={i} className="rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white">{j}</span>)}
@@ -149,6 +173,10 @@ export default function CareerProfilePage() {
                 ) : null}
 
                 {cardEmpty ? <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
+              </div>
+              {/* MRZ 풋터 — 여권 느낌 데코 */}
+              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-6 py-2.5">
+                <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">{mrz}</p>
               </div>
             </div>
 
