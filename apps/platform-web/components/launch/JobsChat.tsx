@@ -484,7 +484,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                     <button
                       type="button"
                       onClick={save}
-                      className="w-full rounded-xl bg-[#B7FF5A] px-4 py-3 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
+                      className="w-full rounded-xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-black text-white transition hover:bg-[#0A3ECB]"
                     >
                       {t("선정 완료", "Confirm selection", "完成选择", "Hoàn tất chọn", "選定完了", "Selesai memilih")} ({selected.length}/{MAX_PICK})
                     </button>

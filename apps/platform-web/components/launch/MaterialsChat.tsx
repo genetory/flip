@@ -304,7 +304,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                   <button
                     type="button"
                     onClick={finishNow}
-                    className="w-full rounded-xl bg-[#B7FF5A] px-4 py-3 text-[13.5px] font-black text-[#111] transition hover:brightness-105"
+                    className="w-full rounded-xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-black text-white transition hover:bg-[#0A3ECB]"
                   >
                     {t("정리 완료", "Done gathering", "整理完成", "Hoàn tất tổng hợp", "整理完了", "Selesai")}
                   </button>
