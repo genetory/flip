@@ -101,13 +101,12 @@ export default function CorrectionNotebookPage() {
   };
   useEffect(load, []);
 
-  // 공고별 + 기본 면접의 모든 문항 — 히스토리처럼 최신 면접부터 한 줄로 나열.
-  const historyRows = [...pLogs, ...bLogs]
-    .filter((l) => (l.items?.length ?? 0) > 0)
+  // 공고별 + 기본 면접 — 면접(세션) 단위로 최신순 정렬. 각 세션 카드 안에 문항을 리스트로.
+  const sessions = [...pLogs, ...bLogs]
+    .filter((l) => (l.items ?? []).some((it) => typeof it.score === "number"))
     .slice()
-    .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))
-    .flatMap((l) => (l.items ?? []).filter((it) => typeof it.score === "number").map((it, j) => ({ it, log: l, key: `${l.id}:${j}` })));
-  const postingLowCount = historyRows.length;
+    .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
+  const postingLowCount = sessions.reduce((s, l) => s + (l.items ?? []).filter((it) => typeof it.score === "number").length, 0);
   const fmtDate = (iso?: string) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -231,54 +230,65 @@ export default function CorrectionNotebookPage() {
 
               {postingLowCount > 0 ? (
                 <DashboardSection title={t(`면접 히스토리 ${postingLowCount}문항`, `Interview history · ${postingLowCount}`, `面试记录 ${postingLowCount}`, `Lịch sử phỏng vấn · ${postingLowCount}`, `面接履歴 ${postingLowCount}`, `Riwayat wawancara · ${postingLowCount}`)}>
-                  <div className="flex flex-col gap-2.5">
-                    {historyRows.map(({ it, log, key }) => {
+                  <div className="flex flex-col gap-3">
+                    {sessions.map((log) => {
+                      const items = (log.items ?? []).filter((it) => typeof it.score === "number");
                       const co = [log.company, log.title].filter(Boolean).join(" · ") || t("기본 모의면접", "Basic mock interview", "基础模拟面试", "Phỏng vấn thử cơ bản", "基本模擬面接", "Wawancara dasar");
-                      const meta = [co, fmtDate(log.at)].filter(Boolean).join(" · ");
-                      const isOpen = open.has(key);
-                      const tone = scoreTone(it.score);
+                      const date = fmtDate(log.at);
                       return (
-                        <div key={key} className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-                          <button type="button" onClick={() => toggle(key)} aria-expanded={isOpen} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-[#FAFBFC]">
-                            <span className="min-w-0 flex-1">
-                              <span className={`block break-keep text-[14px] font-bold leading-snug text-[#191F28] ${isOpen ? "" : "line-clamp-2"}`}>{it.question}</span>
-                              <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{meta}</span>
-                            </span>
-                            <CaretDown size={16} weight="bold" className={`shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          {isOpen ? (
-                            <div className="space-y-2.5 border-t border-[#EEF1F5] bg-[#FAFBFC] p-4">
-                              {/* 내 답변 + 점수 */}
-                              {it.answer ? (
-                                <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
-                                    <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span>
-                                  </div>
-                                  <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+                        <div key={log.id} className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                          {/* 세션 헤더 */}
+                          <div className="flex items-center justify-between gap-2 border-b border-[#EEF1F5] bg-[#FAFBFC] px-4 py-3">
+                            <p className="min-w-0 truncate text-[13px] font-black text-[#191F28]">{co}</p>
+                            <span className="shrink-0 text-[11.5px] font-semibold text-[#8B95A1]">{[date, t(`${items.length}문항`, `${items.length} Qs`, `${items.length}题`, `${items.length} câu`, `${items.length}問`, `${items.length} soal`)].filter(Boolean).join(" · ")}</span>
+                          </div>
+                          {/* 문항 리스트 — 디바이더 구분, 각 행 아코디언 */}
+                          <div className="divide-y divide-[#EEF1F5]">
+                            {items.map((it, j) => {
+                              const key = `${log.id}:${j}`;
+                              const isOpen = open.has(key);
+                              const tone = scoreTone(it.score);
+                              return (
+                                <div key={key}>
+                                  <button type="button" onClick={() => toggle(key)} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-[#FAFBFC]">
+                                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[10px] font-black tabular-nums text-[#0B46E8]">{j + 1}</span>
+                                    <span className={`min-w-0 flex-1 break-keep text-[13.5px] font-semibold text-[#191F28] ${isOpen ? "" : "line-clamp-1"}`}>{it.question}</span>
+                                    <CaretDown size={15} weight="bold" className={`shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                                  </button>
+                                  {isOpen ? (
+                                    <div className="space-y-2.5 bg-[#FAFBFC] px-4 pb-4 pt-1">
+                                      {it.answer ? (
+                                        <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                                            <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span>
+                                          </div>
+                                          <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+                                        </div>
+                                      ) : (
+                                        <div className="flex justify-end"><span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span></div>
+                                      )}
+                                      {it.feedback ? (
+                                        <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
+                                          <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+                                          <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
+                                        </div>
+                                      ) : null}
+                                      {it.modelAnswer ? (
+                                        <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
+                                          <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
+                                          <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
+                                        </div>
+                                      ) : null}
+                                      <div className="pt-0.5">
+                                        <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
+                                      </div>
+                                    </div>
+                                  ) : null}
                                 </div>
-                              ) : (
-                                <div className="flex justify-end"><span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span></div>
-                              )}
-                              {/* 피드백 */}
-                              {it.feedback ? (
-                                <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
-                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
-                                  <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
-                                </div>
-                              ) : null}
-                              {/* 모범답안 */}
-                              {it.modelAnswer ? (
-                                <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
-                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
-                                  <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
-                                </div>
-                              ) : null}
-                              <div className="pt-0.5">
-                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
-                              </div>
-                            </div>
-                          ) : null}
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })}
