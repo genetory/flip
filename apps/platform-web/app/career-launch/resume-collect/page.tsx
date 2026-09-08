@@ -47,6 +47,7 @@ export default function ResumeCollectPage() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [noExp, setNoExp] = useState(false);
   const [noOther, setNoOther] = useState(false);
+  const [noLang, setNoLang] = useState(false);
   const [showPreview, setShowPreview] = useState(false); // 모바일 미리보기 토글
   const [chatFocus, setChatFocus] = useState<ResumeSection | null>(null); // AI 대화 중인 섹션
   const dataRef = useRef<ResumeData>(data);
@@ -84,8 +85,9 @@ export default function ResumeCollectPage() {
     const e: ResumeSection[] = [];
     if (noExp) e.push("exp");
     if (noOther) e.push("expOther");
+    if (noLang) e.push("lang");
     return e;
-  }, [noExp, noOther]);
+  }, [noExp, noOther, noLang]);
 
   // 자동저장 대신 명시적 저장/취소. data 는 편집 중 초안, saved 는 마지막 저장본.
   const dirty = useMemo(
@@ -118,6 +120,7 @@ export default function ResumeCollectPage() {
     setData(saved.data);
     setNoExp(saved.empties.includes("exp"));
     setNoOther(saved.empties.includes("expOther"));
+    setNoLang(saved.empties.includes("lang"));
     setSaveState("idle");
     setShowRevert(false);
   };
@@ -168,6 +171,7 @@ export default function ResumeCollectPage() {
     setData(next);
     if (focus === "exp" && (next.experiences ?? []).some((e) => (e.kind ?? "work") === "work")) setNoExp(false);
     if (focus === "expOther" && (next.experiences ?? []).some((e) => e.kind === "other")) setNoOther(false);
+    if (focus === "lang" && (next.languages ?? []).length > 0) setNoLang(false);
     // AI가 채운 내용은 초안으로 반영 — 사용자가 확인 후 '저장'을 눌러야 서버에 반영된다.
     return { reply, done };
   };
@@ -301,25 +305,41 @@ export default function ResumeCollectPage() {
 
               {/* 어학 */}
               <section id="sec-lang" className={show("lang") ? undefined : "hidden"}>
-                <RowSectionTitle title={t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")} onAdd={() => commit({ ...data, languages: [...(data.languages ?? []), {}] })} addLabel={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} onAi={() => setChatFocus("lang")} aiLabel={aiLabel} />
-                {(data.languages ?? []).length === 0 ? <Empty t={t} /> : null}
-                <div className="flex flex-col gap-3">
-                  {(data.languages ?? []).map((lang, i) => (
-                    <RowCard
-                      key={i}
-                      onRemove={() => commit({ ...data, languages: (data.languages ?? []).filter((_, j) => j !== i) })}
-                      onUp={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, -1) })}
-                      onDown={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, 1) })}
-                      first={i === 0}
-                      last={i === (data.languages ?? []).length - 1}
-                    >
-                      <div className="grid gap-2.5 sm:grid-cols-2">
-                        <Field label={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")} value={lang.language ?? ""} onChange={(v) => updRow(data.languages!, i, { language: v }, (arr) => commit({ ...data, languages: arr }))} placeholder={t("예: 한국어", "e.g., Korean", "例：韩语", "VD: Tiếng Hàn", "例：韓国語", "Cth: Korea")} />
-                        <Field label={t("수준", "Level", "水平", "Trình độ", "レベル", "Level")} value={lang.level ?? ""} onChange={(v) => updRow(data.languages!, i, { level: v }, (arr) => commit({ ...data, languages: arr }))} placeholder="TOPIK 5" />
-                      </div>
-                    </RowCard>
-                  ))}
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</h2>
+                  {!noLang ? (
+                    <div className="flex items-center gap-1.5">
+                      <AiBtn onClick={() => setChatFocus("lang")} label={aiLabel} />
+                      <AddBtn onClick={() => commit({ ...data, languages: [...(data.languages ?? []), {}] })} label={t("추가", "Add", "添加", "Thêm", "追加", "Tambah")} />
+                    </div>
+                  ) : null}
                 </div>
+                <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-[#4E5968]">
+                  <input type="checkbox" checked={noLang} onChange={(e) => setNoLang(e.target.checked)} className="h-4 w-4 accent-[#0B46E8]" />
+                  {t("어학 없음", "No languages", "无语言", "Chưa có ngoại ngữ", "語学なし", "Belum ada bahasa")}
+                </label>
+                {noLang ? null : (
+                  <>
+                    {(data.languages ?? []).length === 0 ? <Empty t={t} /> : null}
+                    <div className="flex flex-col gap-3">
+                      {(data.languages ?? []).map((lang, i) => (
+                        <RowCard
+                          key={i}
+                          onRemove={() => commit({ ...data, languages: (data.languages ?? []).filter((_, j) => j !== i) })}
+                          onUp={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, -1) })}
+                          onDown={() => commit({ ...data, languages: moveIn(data.languages ?? [], i, 1) })}
+                          first={i === 0}
+                          last={i === (data.languages ?? []).length - 1}
+                        >
+                          <div className="grid gap-2.5 sm:grid-cols-2">
+                            <Field label={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")} value={lang.language ?? ""} onChange={(v) => updRow(data.languages!, i, { language: v }, (arr) => commit({ ...data, languages: arr }))} placeholder={t("예: 한국어", "e.g., Korean", "例：韩语", "VD: Tiếng Hàn", "例：韓国語", "Cth: Korea")} />
+                            <Field label={t("수준", "Level", "水平", "Trình độ", "レベル", "Level")} value={lang.level ?? ""} onChange={(v) => updRow(data.languages!, i, { level: v }, (arr) => commit({ ...data, languages: arr }))} placeholder="TOPIK 5" />
+                          </div>
+                        </RowCard>
+                      ))}
+                    </div>
+                  </>
+                )}
               </section>
 
             </div>
