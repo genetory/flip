@@ -26,7 +26,8 @@ export default function CoverCollectPage() {
   const { isReady } = useAuthSession();
   const router = useRouter();
   const backHref = "/career-launch/week/2";
-  const [showLeave, setShowLeave] = useState(false);
+  const [showLeave, setShowLeave] = useState(false); // 뒤로(이탈) 확인
+  const [showRevert, setShowRevert] = useState(false); // 취소(변경 되돌리기) 확인
 
   // 기본(추천) 문항 — 없으면 이걸로 시작. 제목은 자유롭게 바꿀 수 있다.
   const defaultItems = (): Item[] => [
@@ -93,14 +94,22 @@ export default function CoverCollectPage() {
       setSaveState("error");
     }
   };
-  // 취소 = 편집 그만두고 뒤로. 저장 안 한 변경이 있으면 확인 후 나간다.
-  const onCancel = () => {
+  // 뒤로 = 편집 그만두고 이탈. 저장 안 한 변경이 있으면 확인 후 나간다.
+  const onBack = () => {
     if (dirty) setShowLeave(true);
     else router.push(backHref);
   };
   const leaveDiscard = () => {
     setShowLeave(false);
     router.push(backHref);
+  };
+  // 취소 = 변경 되돌리기(마지막 저장 상태로). 변경 있을 때만 활성 → 항상 확인 후 원복.
+  const onCancel = () => setShowRevert(true);
+  const revertNow = () => {
+    setCompany(saved.company);
+    setItems(saved.items);
+    setSaveState("idle");
+    setShowRevert(false);
   };
   // 저장 안 한 변경이 있으면 페이지 이탈 경고.
   useEffect(() => {
@@ -157,7 +166,7 @@ export default function CoverCollectPage() {
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <div className="flex items-center justify-between gap-3">
-            <button type="button" onClick={onCancel} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <button type="button" onClick={onBack} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
             </button>
             <div className="flex items-center gap-2">
@@ -165,7 +174,7 @@ export default function CoverCollectPage() {
               <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
               </button>
-              <button type="button" onClick={onCancel} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]">
+              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
                 {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
               </button>
               <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
@@ -239,7 +248,17 @@ export default function CoverCollectPage() {
           onClose={() => setChatIdx(null)}
         />
       ) : null}
-      {showLeave ? <LeaveConfirm onStay={() => setShowLeave(false)} onLeave={leaveDiscard} t={t} /> : null}
+      {showLeave ? <LeaveConfirm onStay={() => setShowLeave(false)} onConfirm={leaveDiscard} t={t} /> : null}
+      {showRevert ? (
+        <LeaveConfirm
+          onStay={() => setShowRevert(false)}
+          onConfirm={revertNow}
+          t={t}
+          title={t("변경을 취소할까요?", "Discard changes?", "要放弃更改吗？", "Hủy thay đổi?", "変更を取り消しますか？", "Buang perubahan?")}
+          desc={t("지금까지의 변경 내용을 버리고 마지막 저장 상태로 되돌아가요.", "This discards your recent edits and restores the last saved version.", "将放弃最近的编辑并恢复到上次保存的版本。", "Bỏ các chỉnh sửa gần đây và khôi phục bản đã lưu gần nhất.", "最近の編集を破棄して最後に保存した状態に戻します。", "Membuang editan terbaru dan memulihkan versi tersimpan terakhir.")}
+          confirmLabel={t("변경 취소", "Discard", "放弃更改", "Hủy thay đổi", "変更を取り消す", "Buang")}
+        />
+      ) : null}
     </div>
   );
 }
