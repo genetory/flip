@@ -114,6 +114,16 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const selWeek = selected ?? currentWeek;
   const sel = WEEKS.find((w) => w.week === selWeek)!;
 
+  // 선택 주차를 URL(?week=N)에 반영 → 페이지 이동(예: 문화 학습) 후 뒤로가기해도 그 탭이 복원.
+  useEffect(() => {
+    if (!loaded || typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    if (u.searchParams.get("week") !== String(selWeek)) {
+      u.searchParams.set("week", String(selWeek));
+      window.history.replaceState(window.history.state, "", u.toString());
+    }
+  }, [selWeek, loaded]);
+
   const openMission = (step: Step) => { const h = step.action?.href; if (h && isChatHref(h)) setChatHref(h); };
   const missionCard = (step: Step, weekN: number, seq: boolean) => {
     const done = isStepDone(step.id, data);
