@@ -10,7 +10,7 @@ import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
 import { CoverScoreCard } from "./CoverScoreCard";
-import { InterviewScoreCard } from "./InterviewScoreCard";
+import { InterviewFeedback } from "./InterviewFeedback";
 import { PostingInterviewCard } from "./PostingInterviewCard";
 import { WeekAutoFeedback } from "./week-auto-feedback";
 import { fetchProgress } from "../../lib/launch/progress-client";
@@ -339,7 +339,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
         <div className="mt-8">
           <h2 className="cl-headline">{t("면접 피드백", "Interview feedback", "面试反馈", "Phản hồi phỏng vấn", "面接フィードバック", "Umpan balik wawancara")}</h2>
           <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("연습한 모의면접 답변을 코치가 종합해 점수와 강점·보완점을 짚어드려요.", "Your coach reviews your practice answers and highlights your score, strengths, and gaps.", "教练综合你的模拟面试回答，给出分数与优缺点。", "Huấn luyện viên tổng hợp câu trả lời và chỉ ra điểm số, điểm mạnh & điểm cần cải thiện.", "コーチが練習した回答を総合し、点数と強み・改善点を示します。", "Pelatih meninjau jawaban latihanmu dan menyoroti skor, kelebihan, dan kekurangan.")}</p>
-          <div className="mt-3"><InterviewScoreCard /></div>
+          <div className="mt-3"><InterviewFeedback logs={data.progress.basicInterviews ?? []} /></div>
         </div>
       ) : null}
       {selWeek === 4 ? (

@@ -21,8 +21,6 @@ export type ScoreFetch = (opts: { generate?: boolean; force?: boolean }) => Prom
   unavailable: boolean; // 선행 조건 미충족(예: 이력서 미작성) → 카드 숨김
 }>;
 
-const toneColor: Record<string, string> = { good: "text-[var(--cl-mint)]", warn: "text-[#C77700]", info: "text-[var(--cl-accent)]" };
-const toneDot: Record<string, string> = { good: "bg-[var(--cl-mint)]", warn: "bg-[#F5A524]", info: "bg-[var(--cl-accent)]" };
 function barColor(v: number): string {
   return v >= 75
     ? "bg-gradient-to-r from-[var(--cl-mint)] to-[#38BFAE]"
@@ -40,8 +38,7 @@ export function ScoreCard({
   ctaDesc,
   ctaLabel,
   editHref,
-  editLabel,
-  showSections = false
+  editLabel
 }: {
   fetchScore: ScoreFetch;
   scoreLabel: string;
@@ -52,7 +49,6 @@ export function ScoreCard({
   ctaLabel: string;
   editHref?: string;
   editLabel?: string;
-  showSections?: boolean; // 강점/개선 텍스트 섹션 표시(면접처럼 별도 피드백이 없을 때)
 }) {
   const t = useLaunchT();
   const [state, setState] = useState<"loading" | "ready" | "done" | "none" | "error">("loading");
@@ -174,20 +170,6 @@ export function ScoreCard({
           </div>
 
           {view.why ? <p className="break-keep text-[13px] leading-relaxed text-[var(--cl-muted)]">{view.why}</p> : null}
-
-          {showSections
-            ? view.sections.map((sec, si) => (
-                <div key={si} className="rounded-2xl bg-[var(--cl-card-2)] p-4">
-                  <p className={`flex items-center gap-1.5 text-[12.5px] font-bold ${toneColor[sec.tone] ?? toneColor.info}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${toneDot[sec.tone] ?? toneDot.info}`} aria-hidden />
-                    {sec.title}
-                  </p>
-                  <ul className="mt-2 space-y-1">
-                    {sec.items.map((it, ii) => <li key={ii} className="break-keep text-[13px] leading-relaxed text-[var(--cl-ink)]">· {it}</li>)}
-                  </ul>
-                </div>
-              ))
-            : null}
 
           {/* 하단 — 수정하고 다시 받기(상시) */}
           <div className="flex flex-col gap-2.5 rounded-2xl bg-[var(--cl-accent-soft)] p-4 sm:flex-row sm:items-center sm:justify-between">
