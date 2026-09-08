@@ -112,17 +112,17 @@ export default function CareerProfilePage() {
           </Link>
 
           <div className="mt-4 flex flex-col gap-6">
-            {/* 커리어 패스포트 히어로 */}
-            <div className="overflow-hidden rounded-3xl bg-white shadow-[0_10px_36px_-18px_rgba(20,24,31,0.3)]">
+            {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 한 장 ── */}
+            <div className="overflow-hidden rounded-3xl bg-white shadow-[0_16px_44px_-20px_rgba(20,24,31,0.34)]">
               <div className="flex items-center gap-2 bg-[#0E1526] px-6 py-2.5">
                 <span className="text-[10.5px] font-black uppercase tracking-[0.22em] text-white/85">Career Passport</span>
                 <span className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/45">Aply · Career Launch</span>
               </div>
-              <div className="flex flex-wrap items-center gap-4 p-6">
+              <div className="flex flex-wrap items-center gap-4 px-6 pt-6">
                 <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#0B46E8] text-[26px] font-black text-white">{initial}</span>
                 <div className="min-w-0 flex-1">
                   <h1 className="break-keep text-[22px] font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-[26px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
-                  <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 동안 쌓은 나의 커리어 데이터", "Your career data from 4 weeks", "4周积累的职业数据", "Dữ liệu nghề 4 tuần của bạn", "4週間のキャリアデータ", "Data karier 4 minggu")}</p>
+                  <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
                   {topComps.length > 0 ? (
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {topComps.map((c, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{c}</span>)}
@@ -136,18 +136,25 @@ export default function CareerProfilePage() {
                   </div>
                 ) : null}
               </div>
+              {/* 점수 요약 스트립 */}
+              <div className="mt-6 grid grid-cols-3 divide-x divide-[#EEF1F5] border-t border-[#EEF1F5]">
+                {gauges.map((g, i) => (
+                  <div key={i} className="flex flex-col items-center gap-0.5 px-3 py-4">
+                    {g.score != null ? (
+                      <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: scoreColor(g.score) }}>{g.score}</span>
+                    ) : (
+                      <span className="text-[22px] font-black leading-none text-[#D1D6DB]">{g.ready ? "✓" : "—"}</span>
+                    )}
+                    <span className="mt-1 text-[11.5px] font-bold text-[#8B95A1]">{g.label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* 서류·면접 점수 게이지 */}
-            <div className="grid grid-cols-3 gap-3">
-              {gauges.map((g, i) => (
-                <div key={i} className="flex flex-col items-center gap-2.5 rounded-2xl bg-white p-4 shadow-[0_2px_12px_-6px_rgba(20,24,31,0.16)]">
-                  {g.score != null ? <Ring value={g.score} size={64} stroke={6} /> : (
-                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--cl-card-2)] text-[20px] font-black text-[#C9CDD2]">{g.ready ? "✓" : "—"}</span>
-                  )}
-                  <p className="text-[12px] font-bold text-[#4E5968]">{g.label}</p>
-                </div>
-              ))}
+            {/* ── 나만 보는 커리어 데이터 ── */}
+            <div className="mt-2">
+              <h2 className="text-[15px] font-black tracking-[-0.01em] text-[#191F28]">{t("나만 보는 커리어 데이터", "My working data", "仅我可见的数据", "Dữ liệu chỉ mình xem", "自分だけの作業データ", "Data kerja pribadi")}</h2>
+              <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("4주 동안 쌓은 자료예요. 공유 카드에는 표시되지 않아요.", "The material you built over 4 weeks. Not shown on the share card.", "你4周积累的资料，不会显示在分享卡上。", "Tư liệu bạn xây trong 4 tuần. Không hiện trên thẻ chia sẻ.", "4週間で蓄積した資料です。共有カードには表示されません。", "Materi yang kamu buat selama 4 minggu. Tidak tampil di kartu bagikan.")}</p>
             </div>
 
             {/* Talent Passport — 검증된 Talent 프로필(Readiness·Verified) */}
