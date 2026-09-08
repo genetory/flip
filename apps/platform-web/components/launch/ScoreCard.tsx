@@ -22,7 +22,11 @@ export type ScoreFetch = (opts: { generate?: boolean; force?: boolean }) => Prom
 }>;
 
 function barColor(v: number): string {
-  return v >= 75 ? "bg-[var(--cl-mint)]" : v >= 50 ? "bg-[var(--cl-accent)]" : "bg-[#F5A524]";
+  return v >= 75
+    ? "bg-gradient-to-r from-[var(--cl-mint)] to-[#38BFAE]"
+    : v >= 50
+    ? "bg-gradient-to-r from-[var(--cl-accent)] to-[var(--cl-accent-2)]"
+    : "bg-gradient-to-r from-[#F5A524] to-[#FFC96B]";
 }
 
 export function ScoreCard({
