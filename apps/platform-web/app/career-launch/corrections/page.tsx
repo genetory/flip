@@ -99,11 +99,18 @@ export default function CorrectionNotebookPage() {
   };
   useEffect(load, []);
 
-  // 공고별 + 기본 면접의 모든 문항 — 로그별로 묶고, 점수 낮은 순(약한 답변 먼저)으로 정렬해 전부 표시.
-  const postingLows = [...pLogs, ...bLogs]
-    .map((l) => ({ log: l, items: (l.items ?? []).filter((it) => typeof it.score === "number").slice().sort((a, b) => a.score - b.score) }))
-    .filter((x) => x.items.length > 0);
-  const postingLowCount = postingLows.reduce((s, x) => s + x.items.length, 0);
+  // 공고별 + 기본 면접의 모든 문항 — 히스토리처럼 최신 면접부터 한 줄로 나열.
+  const historyRows = [...pLogs, ...bLogs]
+    .filter((l) => (l.items?.length ?? 0) > 0)
+    .slice()
+    .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))
+    .flatMap((l) => (l.items ?? []).filter((it) => typeof it.score === "number").map((it, j) => ({ it, log: l, key: `${l.id}:${j}` })));
+  const postingLowCount = historyRows.length;
+  const fmtDate = (iso?: string) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -221,29 +228,21 @@ export default function CorrectionNotebookPage() {
               ) : null}
 
               {postingLowCount > 0 ? (
-                <DashboardSection title={t(`모의면접 문항 전체 ${postingLowCount}개`, `All mock interview questions · ${postingLowCount}`, `全部模拟面试题 ${postingLowCount}`, `Tất cả câu phỏng vấn · ${postingLowCount}`, `模擬面接の全設問 ${postingLowCount}`, `Semua soal wawancara · ${postingLowCount}`)}>
-                  <div className="flex flex-col gap-4">
-                    {postingLows.map(({ log, items }) => {
+                <DashboardSection title={t(`면접 히스토리 ${postingLowCount}문항`, `Interview history · ${postingLowCount}`, `面试记录 ${postingLowCount}`, `Lịch sử phỏng vấn · ${postingLowCount}`, `面接履歴 ${postingLowCount}`, `Riwayat wawancara · ${postingLowCount}`)}>
+                  <div className="flex flex-col gap-2.5">
+                    {historyRows.map(({ it, log, key }) => {
+                      const tone = scoreTone(it.score);
                       const co = [log.company, log.title].filter(Boolean).join(" · ") || t("기본 모의면접", "Basic mock interview", "基础模拟面试", "Phỏng vấn thử cơ bản", "基本模擬面接", "Wawancara dasar");
+                      const meta = [co, fmtDate(log.at)].filter(Boolean).join(" · ");
                       return (
-                        <div key={log.id}>
-                          <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
-                            <p className="truncate text-[12px] font-bold text-[#4E5968]">{co}</p>
-                            <span className="shrink-0 text-[11.5px] font-semibold text-[#8B95A1]">{t(`${items.length}문항`, `${items.length} Qs`, `${items.length}题`, `${items.length} câu`, `${items.length}問`, `${items.length} soal`)}</span>
-                          </div>
-                          <div className="divide-y divide-[#EEF1F5] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-                            {items.map((it, j) => {
-                              const tone = scoreTone(it.score);
-                              return (
-                                <Link key={`${log.id}:${j}`} href={`/career-launch/corrections/${log.id}`} className="flex items-center gap-3 px-3.5 py-2.5 transition hover:bg-[#FAFBFC]">
-                                  <span className={`flex h-8 w-9 shrink-0 items-center justify-center rounded-lg text-[14px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}</span>
-                                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#191F28]">{it.question}</span>
-                                  <ArrowRight size={15} weight="bold" className="shrink-0 text-[#C4CAD2]" />
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        <Link key={key} href={`/career-launch/corrections/${log.id}`} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30">
+                          <span className={`flex h-11 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${tone.bg}`}><span className={`text-[17px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
+                            <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{meta}</span>
+                          </span>
+                          <ArrowRight size={16} weight="bold" className="shrink-0 text-[#C4CAD2]" />
+                        </Link>
                       );
                     })}
                   </div>
