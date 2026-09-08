@@ -273,7 +273,7 @@ export default function CorrectionNotebookPage() {
                                 </div>
                               ) : null}
                               <div className="pt-0.5">
-                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
+                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
                               </div>
                             </div>
                           ) : null}
