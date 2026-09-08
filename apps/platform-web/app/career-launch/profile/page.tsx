@@ -12,36 +12,12 @@ import { MyTimelineCard } from "../../../components/launch/MyTimelineCard";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { SectionTitle } from "../../../components/launch/ui";
 import { fetchProgress, type CareerProgress, type ExperienceEntry } from "../../../lib/launch/progress-client";
-import { fetchResumeData, hasResumeContent, type ResumeData } from "../../../lib/launch/resume-data";
-import { fetchCoverData, hasCoverContent, type CoverData } from "../../../lib/launch/cover-data";
+import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
+import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
 const INTERVIEW_LABEL: Record<string, string> = { self: "자기소개", job: "직무", fit: "인성·컬처핏", pressure: "압박" };
-
-function scoreColor(s: number): string {
-  return s >= 75 ? "#0A9B59" : s >= 50 ? "#0B46E8" : "#C77700";
-}
-
-// 원형 게이지.
-function Ring({ value, size = 76, stroke = 7 }: { value: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
-  const col = scoreColor(value);
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#EDF0F4" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[19px] font-black leading-none tabular-nums" style={{ color: col }}>{value}</span>
-        <span className="mt-0.5 text-[8.5px] font-bold text-[#B0B8C1]">/ 100</span>
-      </div>
-    </div>
-  );
-}
 
 function Empty({ label }: { label: string }) {
   return <p className="rounded-xl bg-[var(--cl-card-2)] px-4 py-5 text-center text-[12.5px] text-[#8B95A1]">{label}</p>;
@@ -83,23 +59,24 @@ export default function CareerProfilePage() {
   const stories = (prog?.storyBank?.data?.stories ?? []) as Array<{ category?: string; title?: string }>;
   const answers = prog?.answerBank?.data?.answers ?? [];
   const practiced = prog?.interview?.practiced ?? [];
-  const careerScore = prog?.careerReport?.data?.total ?? null;
-  const resumeScore = prog?.scores?.resume?.data?.total ?? null;
-  const coverScore = prog?.scores?.cover?.data?.total ?? null;
-  const interviewScore = prog?.scores?.interview?.data?.total ?? null;
-  const resumeReady = hasResumeContent(resume);
-  const coverReady = hasCoverContent(cover);
   const educations = resume.educations ?? [];
   const languages = resume.languages ?? [];
-  // 강점 칩 — 경험은행 역량 상위, 없으면 관심 직무.
-  const topComps = Array.from(new Set(bank.flatMap((e) => e.competencies ?? []).map((c) => c.trim()).filter(Boolean))).slice(0, 5);
   const direction = selectedJobs[0] || recoJobs[0]?.role || "";
 
-  const gauges = [
-    { label: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), score: resumeScore, ready: resumeReady },
-    { label: t("자기소개서", "Cover letter", "自我介绍", "Thư", "自己紹介書", "Surat"), score: coverScore, ready: coverReady },
-    { label: t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara"), score: interviewScore, ready: practiced.length > 0 }
-  ];
+  // ── 공유 카드용 요약(이력서·자소서 기반) — '내가 어떤 사람인지'를 매력적으로 ──
+  // 한줄 소개는 이력서 요약 → 없으면 자기소개서 첫 문항 답변에서 가져온다.
+  const coverIntro = (cover.items ?? []).map((it) => (it.answer ?? "").trim()).find(Boolean) ?? "";
+  const pitch = (resume.basic?.summary ?? "").trim() || coverIntro;
+  const skills = (resume.skills ?? []).map((s) => (s ?? "").trim()).filter(Boolean);
+  const topComps = Array.from(new Set(bank.flatMap((e) => e.competencies ?? []).map((c) => (c ?? "").trim()).filter(Boolean)));
+  const strengths = Array.from(new Set([...skills, ...topComps])).slice(0, 6);
+  const highlights = (resume.experiences ?? [])
+    .filter((e) => (e.title ?? "").trim() || (e.org ?? "").trim())
+    .slice(0, 3)
+    .map((e) => ({ head: [e.title, e.org].map((x) => (x ?? "").trim()).filter(Boolean).join(" · "), period: (e.period ?? "").trim(), bullet: (e.bullets ?? []).map((b) => (b ?? "").trim()).find(Boolean) ?? "" }));
+  const eduLine = educations.map((ed) => [ed.school, ed.major].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(" · ");
+  const langLine = languages.map((l) => [l.language, l.level].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(", ");
+  const cardEmpty = !pitch && strengths.length === 0 && highlights.length === 0 && !eduLine && !langLine;
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -118,36 +95,48 @@ export default function CareerProfilePage() {
                 <span className="text-[10.5px] font-black uppercase tracking-[0.22em] text-white/85">Career Passport</span>
                 <span className="ml-auto text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/45">Aply · Career Launch</span>
               </div>
-              <div className="flex flex-wrap items-center gap-4 px-6 pt-6">
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#0B46E8] text-[26px] font-black text-white">{initial}</span>
-                <div className="min-w-0 flex-1">
-                  <h1 className="break-keep text-[22px] font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-[26px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
-                  <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
-                  {topComps.length > 0 ? (
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      {topComps.map((c, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{c}</span>)}
-                    </div>
-                  ) : null}
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3182F6] to-[#0B46E8] text-[26px] font-black text-white">{initial}</span>
+                  <div className="min-w-0 flex-1">
+                    <h1 className="break-keep text-[22px] font-black leading-[1.15] tracking-[-0.03em] text-[#0B1227] md:text-[26px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
+                    <p className="mt-1 break-keep text-[13px] font-semibold text-[#0B46E8]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
+                  </div>
                 </div>
-                {careerScore != null ? (
-                  <div className="flex shrink-0 flex-col items-center">
-                    <Ring value={careerScore} size={88} stroke={8} />
-                    <span className="mt-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">Career Score</span>
+
+                {pitch ? <p className="mt-4 break-keep text-[15px] font-semibold leading-relaxed text-[#333D4B]">{pitch}</p> : null}
+
+                {strengths.length > 0 ? (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {strengths.map((s, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{s}</span>)}
                   </div>
                 ) : null}
-              </div>
-              {/* 점수 요약 스트립 */}
-              <div className="mt-6 grid grid-cols-3 divide-x divide-[#EEF1F5] border-t border-[#EEF1F5]">
-                {gauges.map((g, i) => (
-                  <div key={i} className="flex flex-col items-center gap-0.5 px-3 py-4">
-                    {g.score != null ? (
-                      <span className="text-[22px] font-black leading-none tabular-nums" style={{ color: scoreColor(g.score) }}>{g.score}</span>
-                    ) : (
-                      <span className="text-[22px] font-black leading-none text-[#D1D6DB]">{g.ready ? "✓" : "—"}</span>
-                    )}
-                    <span className="mt-1 text-[11.5px] font-bold text-[#8B95A1]">{g.label}</span>
+
+                {highlights.length > 0 ? (
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("핵심 경험", "Key experience", "核心经历", "Kinh nghiệm chính", "主な経験", "Pengalaman utama")}</p>
+                    <div className="mt-3 flex flex-col gap-3">
+                      {highlights.map((h, i) => (
+                        <div key={i} className="flex gap-2.5">
+                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                          <div className="min-w-0">
+                            <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}{h.period ? <span className="font-semibold text-[#8B95A1]"> · {h.period}</span> : null}</p>
+                            {h.bullet ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968] line-clamp-2">{h.bullet}</p> : null}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                ) : null}
+
+                {eduLine || langLine ? (
+                  <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8B95A1]">
+                    {eduLine ? <span>🎓 {eduLine}</span> : null}
+                    {langLine ? <span>🗣 {langLine}</span> : null}
+                  </div>
+                ) : null}
+
+                {cardEmpty ? <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
               </div>
             </div>
 
