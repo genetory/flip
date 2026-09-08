@@ -247,15 +247,36 @@ export default function CorrectionNotebookPage() {
                             <CaretDown size={16} weight="bold" className={`shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
                           </button>
                           {isOpen ? (
-                            <div className="space-y-3 border-t border-[#EEF1F5] p-4">
-                              <div className="flex items-center gap-2.5">
-                                <span className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-xl ${tone.bg}`}><span className={`text-[17px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
-                                <p className="text-[12.5px] font-bold text-[#4E5968]">{t("이 답변 점수예요", "Your score for this answer", "本次回答得分", "Điểm cho câu trả lời này", "この回答のスコア", "Skor jawaban ini")}</p>
+                            <div className="space-y-2.5 border-t border-[#EEF1F5] bg-[#FAFBFC] p-4">
+                              {/* 내 답변 + 점수 */}
+                              {it.answer ? (
+                                <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                                    <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span>
+                                  </div>
+                                  <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+                                </div>
+                              ) : (
+                                <div className="flex justify-end"><span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span></div>
+                              )}
+                              {/* 피드백 */}
+                              {it.feedback ? (
+                                <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
+                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+                                  <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
+                                </div>
+                              ) : null}
+                              {/* 모범답안 */}
+                              {it.modelAnswer ? (
+                                <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
+                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
+                                  <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
+                                </div>
+                              ) : null}
+                              <div className="pt-0.5">
+                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#191F28] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
                               </div>
-                              {it.answer ? <div className="rounded-xl border border-[#EEF1F5] p-3.5"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{it.answer}</p></div> : null}
-                              {it.feedback ? <div className="rounded-xl bg-[#FFF9EC] p-3.5"><p className="text-[11.5px] font-bold text-[#C77700]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-1 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p></div> : null}
-                              {it.modelAnswer ? <div className="rounded-xl bg-[#EDF1FD] p-3.5"><p className="text-[11.5px] font-bold text-[#0B46E8]">🧭 {t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p><p className="mt-1 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p></div> : null}
-                              <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#1B64DA] transition hover:underline">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
                             </div>
                           ) : null}
                         </div>
