@@ -103,7 +103,8 @@ export default function DeliverablesPage() {
         setRScore(rs.score?.total ?? null);
         setCScore(cs.score?.total ?? null);
         setTargetJob(typeof prog?.targetJob === "string" ? prog.targetJob : "");
-        const logs = Array.isArray(prog?.basicInterviews) ? prog!.basicInterviews! : [];
+        // 기본(내 서류) + 공고별 면접 모두 포함.
+        const logs = [...(Array.isArray(prog?.basicInterviews) ? prog!.basicInterviews! : []), ...(Array.isArray(prog?.postingInterviews) ? prog!.postingInterviews! : [])];
         const items = logs.flatMap((l) => l.items ?? []).filter((it) => typeof it.score === "number");
         setIv(items.length ? { avg: Math.round(items.reduce((s, it) => s + it.score, 0) / items.length), count: items.length } : null);
         setPhase("ready");
