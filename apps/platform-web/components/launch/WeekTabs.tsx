@@ -36,6 +36,7 @@ export function WeekTabs() {
   const t = useLaunchT();
   const weekText = useWeekText();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
   useEffect(() => {
     let alive = true;
@@ -45,7 +46,7 @@ export function WeekTabs() {
         fetchResumeData().catch(() => ({ data: {} })),
         fetchCoverData().catch(() => ({ data: {} }))
       ]);
-      if (alive) setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
+      if (alive) { setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} }); setLoaded(true); }
     })();
     return () => { alive = false; };
   }, [refreshKey]);
@@ -105,6 +106,23 @@ export function WeekTabs() {
   const selDone = isWeekComplete(selWeek, data);
   const selDc = weekDoneCount(sel.steps, data);
   const seq = selWeek !== 3 && selWeek !== 4;
+
+  // 로드 전엔 스켈레톤 — 빈 데이터로 렌더돼 현재 주차 탭이 점프하며 깜빡이던 문제 방지.
+  if (!loaded) {
+    return (
+      <>
+        <div className="cl-role-tabs">
+          {[1, 2, 3, 4].map((i) => (
+            <span key={i} className="cl-role-chip" style={{ opacity: 0.5 }}>{t(`${i}주차`, `Week ${i}`, `第${i}周`, `Tuần ${i}`, `${i}週目`, `Minggu ${i}`)}</span>
+          ))}
+        </div>
+        <div className="mt-6 h-44 rounded-2xl bg-white" style={{ boxShadow: "var(--cl-shadow-sm)" }} />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-white" style={{ boxShadow: "var(--cl-shadow-sm)" }} />)}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
