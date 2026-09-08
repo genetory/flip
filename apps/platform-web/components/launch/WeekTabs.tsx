@@ -306,7 +306,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
                 <button type="button" onClick={open} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-white transition hover:opacity-90" style={{ background: "var(--cl-accent)" }}>
                   {t("면접 보기", "Start interview", "开始面试", "Bắt đầu phỏng vấn", "面接を始める", "Mulai wawancara")} <ArrowRight className="h-3.5 w-3.5" weight="bold" />
                 </button>
-                {done ? <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--cl-faint)" }}>{t("면접은 계속 보실 수 있어요.", "You can keep practicing this interview.", "你可以继续练习这个面试。", "Bạn có thể tiếp tục luyện phỏng vấn này.", "面接は何度でも受けられます。", "Kamu bisa terus berlatih wawancara ini.")}</p> : null}
+                {done ? <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--cl-faint)" }}>{t("면접을 여러 번 보며 답변을 다듬어 보세요. 볼수록 실력이 늘어요.", "Take it again and again to refine your answers — practice makes it better.", "多面试几次打磨回答，越练越熟练。", "Phỏng vấn nhiều lần để hoàn thiện câu trả lời — càng luyện càng giỏi.", "何度も面接して回答を磨きましょう。練習するほど上達します。", "Ulangi wawancara untuk mengasah jawaban — makin berlatih makin baik.")}</p> : null}
               </div>
             ) : null}
           </div>
