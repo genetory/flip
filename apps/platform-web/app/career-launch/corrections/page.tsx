@@ -3,7 +3,7 @@
 // UX Phase 5 — 면접 오답노트. 상태 코드 대신 사용자 그룹, 점수보다 문제·다음 행동 우선. 반복 압박 최소화.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire } from "@phosphor-icons/react";
+import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
@@ -12,6 +12,13 @@ import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../..
 import { fetchProgress, type PostingInterviewLog } from "../../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
+
+function scoreTone(s: number): { text: string; bg: string } {
+  if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
+  if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
+  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-[#FFF6E5]" };
+  return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
+}
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
@@ -78,6 +85,8 @@ export default function CorrectionNotebookPage() {
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [pLogs, setPLogs] = useState<PostingInterviewLog[]>([]); // 공고별
   const [bLogs, setBLogs] = useState<PostingInterviewLog[]>([]); // 기본(내 서류)
+  const [open, setOpen] = useState<Set<string>>(new Set()); // 아코디언 펼침
+  const toggle = (k: string) => setOpen((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const load = () => {
     setPhase("loading");
     void Promise.all([fetchCorrections(), fetchProgress().catch(() => null)])
@@ -226,14 +235,30 @@ export default function CorrectionNotebookPage() {
                     {historyRows.map(({ it, log, key }) => {
                       const co = [log.company, log.title].filter(Boolean).join(" · ") || t("기본 모의면접", "Basic mock interview", "基础模拟面试", "Phỏng vấn thử cơ bản", "基本模擬面接", "Wawancara dasar");
                       const meta = [co, fmtDate(log.at)].filter(Boolean).join(" · ");
+                      const isOpen = open.has(key);
+                      const tone = scoreTone(it.score);
                       return (
-                        <Link key={key} href={`/career-launch/corrections/${log.id}`} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30">
-                          <span className="min-w-0 flex-1">
-                            <span className="block break-keep text-[14px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
-                            <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{meta}</span>
-                          </span>
-                          <ArrowRight size={16} weight="bold" className="shrink-0 text-[#C4CAD2]" />
-                        </Link>
+                        <div key={key} className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                          <button type="button" onClick={() => toggle(key)} aria-expanded={isOpen} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-[#FAFBFC]">
+                            <span className="min-w-0 flex-1">
+                              <span className={`block break-keep text-[14px] font-bold leading-snug text-[#191F28] ${isOpen ? "" : "line-clamp-2"}`}>{it.question}</span>
+                              <span className="mt-1 block truncate text-[12px] text-[#8B95A1]">{meta}</span>
+                            </span>
+                            <CaretDown size={16} weight="bold" className={`shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          {isOpen ? (
+                            <div className="space-y-3 border-t border-[#EEF1F5] p-4">
+                              <div className="flex items-center gap-2.5">
+                                <span className={`flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-xl ${tone.bg}`}><span className={`text-[17px] font-black leading-none ${tone.text}`}>{it.score}</span><span className={`text-[9px] font-bold ${tone.text}`}>/100</span></span>
+                                <p className="text-[12.5px] font-bold text-[#4E5968]">{t("이 답변 점수예요", "Your score for this answer", "本次回答得分", "Điểm cho câu trả lời này", "この回答のスコア", "Skor jawaban ini")}</p>
+                              </div>
+                              {it.answer ? <div className="rounded-xl border border-[#EEF1F5] p-3.5"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{it.answer}</p></div> : null}
+                              {it.feedback ? <div className="rounded-xl bg-[#FFF9EC] p-3.5"><p className="text-[11.5px] font-bold text-[#C77700]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-1 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p></div> : null}
+                              {it.modelAnswer ? <div className="rounded-xl bg-[#EDF1FD] p-3.5"><p className="text-[11.5px] font-bold text-[#0B46E8]">🧭 {t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p><p className="mt-1 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p></div> : null}
+                              <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#1B64DA] transition hover:underline">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
+                            </div>
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
