@@ -10,7 +10,6 @@ import { WEEKS } from "../../lib/launch/data";
 import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
 import { CoverScoreCard } from "./CoverScoreCard";
-import { InterviewFeedback } from "./InterviewFeedback";
 import { PostingInterviewCard } from "./PostingInterviewCard";
 import { WeekAutoFeedback } from "./week-auto-feedback";
 import { fetchProgress } from "../../lib/launch/progress-client";
@@ -134,18 +133,24 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
   }
 }
 
-// 면접 스텝의 결과 통계(평균 점수·문항 수) — 카드에 배지로 노출.
-function interviewStat(stepId: string, data: LaunchData): { avg: number; count: number } | null {
+// 면접 스텝의 결과(평균 점수·문항 수·강점·보완) — 카드에 배지+피드백으로 노출.
+type IvResult = { avg: number; count: number; strengths: string[]; improvements: string[] };
+function interviewResult(stepId: string, data: LaunchData): IvResult | null {
   const focus = stepId.replace("w4-", "");
-  const logs = (Array.isArray((data.progress as Record<string, unknown>).basicInterviews) ? (data.progress as Record<string, unknown>).basicInterviews : []) as { focus?: string; items?: { score?: number }[] }[];
+  const logs = (Array.isArray((data.progress as Record<string, unknown>).basicInterviews) ? (data.progress as Record<string, unknown>).basicInterviews : []) as { focus?: string; items?: { score?: number; strengths?: string[]; improvements?: string[]; feedback?: string }[] }[];
   const items = logs.find((l) => l.focus === focus)?.items ?? [];
   if (!items.length) return null;
   const avg = Math.round(items.reduce((s, it) => s + (typeof it.score === "number" ? it.score : 0), 0) / items.length);
-  return { avg, count: items.length };
+  const dedup = (arr: string[]) => Array.from(new Set(arr.map((s) => (s ?? "").trim()).filter(Boolean)));
+  const strengths = dedup(items.flatMap((it) => it.strengths ?? [])).slice(0, 3);
+  let improvements = dedup(items.flatMap((it) => it.improvements ?? [])).slice(0, 3);
+  if (!strengths.length && !improvements.length) improvements = dedup(items.map((it) => it.feedback ?? "")).slice(0, 2);
+  return { avg, count: items.length, strengths, improvements };
 }
 function scoreVar(s: number): string {
   return s >= 75 ? "var(--cl-mint)" : s >= 50 ? "var(--cl-accent)" : "#C77700";
 }
+const isInterviewHref = (href?: string) => (href ?? "").split("?")[0].endsWith("/basic-interview");
 
 export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const t = useLaunchT();
@@ -217,44 +222,17 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     const href = step.action?.href;
     const cls = `cl-jcard ${done ? "done" : current ? "current" : locked ? "locked" : ""}`;
     const summary = done ? stepSummary(step.id, data, t) : null;
-    // 면접 스텝은 완료 후에도 계속 다시 볼 수 있게 — '자세히' 대신 '다시 보기'.
-    const isInterview = (href ?? "").split("?")[0].endsWith("/basic-interview");
-    const ivStat = done && isInterview ? interviewStat(step.id, data) : null;
     const MIcon = locked ? Lock : iconFor(href);
-    const retakeCta = href ? (
-      <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: isInterview ? "var(--cl-accent)" : "var(--cl-faint)" }}>{isInterview ? t("다시 보기", "Retake", "再试", "Làm lại", "もう一度", "Ulangi") : t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span>
-    ) : null;
     const body = done ? (
-      isInterview ? (
-        <>
-          <div className="ttl">{step.title}</div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            {ivStat ? (
-              <div className="flex items-center gap-1.5">
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--cl-muted)", background: "var(--cl-card-2)" }}>
-                  {t(`${ivStat.count}문항`, `${ivStat.count} Qs`, `${ivStat.count}题`, `${ivStat.count} câu`, `${ivStat.count}問`, `${ivStat.count} soal`)}
-                </span>
-                <span className="inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[12px] font-black tabular-nums" style={{ color: scoreVar(ivStat.avg), background: "var(--cl-card-2)" }}>
-                  <span className="text-[10px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("평균 점수", "Avg", "平均分", "TB", "平均点", "Rata")}</span>{ivStat.avg}<span className="text-[9px] font-bold" style={{ color: "var(--cl-faint)" }}>점</span>
-                </span>
-              </div>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}><Check className="h-3.5 w-3.5" weight="bold" aria-hidden /> {t("연습 완료", "Practiced", "已练习", "Đã luyện", "練習済み", "Selesai")}</span>
-            )}
-            {retakeCta}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="ttl">{step.title}</div>
-          <div className="mt-1.5 flex items-center justify-between gap-2">
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
-              <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
-            </span>
-            {retakeCta}
-          </div>
-        </>
-      )
+      <>
+        <div className="ttl">{step.title}</div>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
+            <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
+          </span>
+          {href ? <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("자세히", "Details", "详情", "Chi tiết", "詳細", "Detail")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+        </div>
+      </>
     ) : (
       <>
         <div className="ttl">{step.title}</div>
@@ -277,6 +255,61 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     if (locked || !href) return <div key={step.id} className={cls} style={{ cursor: "default" }}>{inner}</div>;
     if (isChatHref(href)) return <button key={step.id} type="button" className={cls} onClick={() => openMission(step)}>{inner}</button>;
     return <Link key={step.id} href={href} className={cls}>{inner}</Link>;
+  };
+
+  // 면접 아이템 — 결과(점수·문항)와 피드백(강점·보완)을 카드 안에 함께 표시. 연습할 때마다 갱신.
+  const interviewCard = (step: Step) => {
+    const done = isStepDone(step.id, data);
+    const reachable = isWeekComplete(2, data);
+    const locked = !reachable && !done;
+    const href = step.action?.href;
+    const res = done ? interviewResult(step.id, data) : null;
+    const MIcon = locked ? Lock : iconFor(href);
+    const open = () => { if (href && isChatHref(href)) setChatHref(href); };
+    return (
+      <div key={step.id} className={`cl-jcard ${done ? "done" : locked ? "locked" : ""}`} style={{ cursor: "default" }}>
+        <div className="flex items-start gap-3">
+          <span className="cl-jicon"><MIcon className="h-5 w-5" weight={locked ? "fill" : "duotone"} aria-hidden /></span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="ttl">{step.title}</div>
+              {res ? (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--cl-muted)", background: "var(--cl-card-2)" }}>{t(`${res.count}문항`, `${res.count} Qs`, `${res.count}题`, `${res.count} câu`, `${res.count}問`, `${res.count} soal`)}</span>
+                  <span className="inline-flex items-baseline gap-1 rounded-full px-2 py-0.5 text-[12px] font-black tabular-nums" style={{ color: scoreVar(res.avg), background: "var(--cl-card-2)" }}><span className="text-[10px] font-bold" style={{ color: "var(--cl-faint)" }}>{t("평균 점수", "Avg", "平均分", "TB", "平均点", "Rata")}</span>{res.avg}<span className="text-[9px] font-bold" style={{ color: "var(--cl-faint)" }}>점</span></span>
+                </div>
+              ) : null}
+            </div>
+            {locked ? (
+              <div className="desc">{t("이전 주차를 마치면 열려요.", "Unlocks when you finish the previous week.", "完成上一周后解锁。", "Mở khi bạn hoàn thành tuần trước.", "前の週を終えると開きます。", "Terbuka setelah menyelesaikan minggu sebelumnya.")}</div>
+            ) : !done ? (
+              step.desc ? <div className="desc">{step.desc}</div> : null
+            ) : null}
+            {res && (res.strengths.length > 0 || res.improvements.length > 0) ? (
+              <div className="mt-3 flex flex-col gap-2">
+                {res.strengths.length ? (
+                  <div className="rounded-2xl bg-[var(--cl-card-2)] p-3.5">
+                    <p className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--cl-mint)" }} aria-hidden />{t("잘한 점", "Strengths", "做得好", "Điểm mạnh", "良い点", "Kelebihan")}</p>
+                    <ul className="mt-1.5 space-y-1">{res.strengths.map((it, i) => <li key={i} className="break-keep text-[12.5px] leading-relaxed" style={{ color: "var(--cl-ink)" }}>· {it}</li>)}</ul>
+                  </div>
+                ) : null}
+                {res.improvements.length ? (
+                  <div className="rounded-2xl bg-[var(--cl-card-2)] p-3.5">
+                    <p className="flex items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-accent)" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--cl-accent)" }} aria-hidden />{t("보완할 점", "Improve these", "需改进", "Cần cải thiện", "改善点", "Perbaiki")}</p>
+                    <ul className="mt-1.5 space-y-1">{res.improvements.map((it, i) => <li key={i} className="break-keep text-[12.5px] leading-relaxed" style={{ color: "var(--cl-ink)" }}>· {it}</li>)}</ul>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {!locked ? (
+              <button type="button" onClick={open} className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-white transition hover:opacity-90" style={{ background: "var(--cl-accent)" }}>
+                {done ? t("다시 면접 보기", "Retake interview", "再次面试", "Phỏng vấn lại", "もう一度面接", "Ulangi wawancara") : t("면접 보기", "Start interview", "开始面试", "Bắt đầu phỏng vấn", "面接を始める", "Mulai wawancara")} <ArrowRight className="h-3.5 w-3.5" weight="bold" />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const selDone = isWeekComplete(selWeek, data);
@@ -342,10 +375,16 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
         );
       })()}
 
-      {/* 미션 — 스텝은 2열 그리드, 넓은 컴포넌트(점수·모의면접)는 전체 폭 */}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {sel.steps.map((s) => missionCard(s, selWeek, seq))}
-      </div>
+      {/* 미션 — 스텝은 2열 그리드. 3주차 면접은 결과·피드백을 담은 전체 폭 카드. */}
+      {selWeek === 3 ? (
+        <div className="mt-4 flex flex-col gap-3">
+          {sel.steps.map((s) => (isInterviewHref(s.action?.href) ? interviewCard(s) : missionCard(s, selWeek, seq)))}
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {sel.steps.map((s) => missionCard(s, selWeek, seq))}
+        </div>
+      )}
       {selWeek === 1 ? (
         <div className="mt-8">
           <h2 className="cl-headline">{t("이번 주 피드백", "This week's feedback", "本周反馈", "Phản hồi tuần này", "今週のフィードバック", "Umpan balik minggu ini")}</h2>
@@ -372,13 +411,6 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
             </div>
           </div>
         </>
-      ) : null}
-      {selWeek === 3 ? (
-        <div className="mt-8">
-          <h2 className="cl-headline">{t("면접 피드백", "Interview feedback", "面试反馈", "Phản hồi phỏng vấn", "面接フィードバック", "Umpan balik wawancara")}</h2>
-          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("연습한 모의면접 답변을 코치가 종합해 점수와 강점·보완점을 짚어드려요.", "Your coach reviews your practice answers and highlights your score, strengths, and gaps.", "教练综合你的模拟面试回答，给出分数与优缺点。", "Huấn luyện viên tổng hợp câu trả lời và chỉ ra điểm số, điểm mạnh & điểm cần cải thiện.", "コーチが練習した回答を総合し、点数と強み・改善点を示します。", "Pelatih meninjau jawaban latihanmu dan menyoroti skor, kelebihan, dan kekurangan.")}</p>
-          <div className="mt-3"><InterviewFeedback logs={data.progress.basicInterviews ?? []} /></div>
-        </div>
       ) : null}
       {selWeek === 4 ? (
         <div className="mt-3 flex flex-col gap-3">
