@@ -141,30 +141,30 @@ export function SharedPassportView({ token }: { token: string }) {
               </div>
 
               {/* 바디 — 홈처럼 미니 카드 벤토 그리드 */}
-              <div className="grid grid-cols-6 gap-3 px-5 py-5 md:px-6 md:py-6">
+              <div className="flex flex-wrap gap-3 px-5 py-5 md:px-6 md:py-6">
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-4">
+                  <div className="grow basis-full min-w-[200px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[44%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">찾는 직무</p>
                     <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
                   </div>
                 ) : null}
 
                 {p.experienceCount ? (
-                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:col-span-2">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:basis-[22%]">
                     <p className="text-[30px] font-black leading-none tabular-nums">{p.experienceCount}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">경험</p>
                   </div>
                 ) : null}
 
                 {p.languages && p.languages.length > 0 ? (
-                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-2">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[22%]">
                     <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{p.languages.length}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">어학</p>
                   </div>
                 ) : null}
 
                 {sharedStrengths.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 md:p-5">
+                  <div className="grow basis-full rounded-2xl bg-[#F4F6F9] p-4 md:p-5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">핵심 강점</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {sharedStrengths.map((s, i) => (
@@ -178,7 +178,7 @@ export function SharedPassportView({ token }: { token: string }) {
                 ) : null}
 
                 {p.highlights && p.highlights.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-3">
+                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">대표 경험</p>
                     <div className="mt-1.5 divide-y divide-[#E4E7EC]">
                       {p.highlights.map((h, i) => (
@@ -193,7 +193,7 @@ export function SharedPassportView({ token }: { token: string }) {
 
                 {/* 문서 — 절반 카드 */}
                 {p.hasResume || p.hasCover ? (
-                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-3">
+                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">내 문서</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {p.hasResume ? (
@@ -207,7 +207,7 @@ export function SharedPassportView({ token }: { token: string }) {
                 ) : null}
 
                 {/* 신뢰 스트립 */}
-                <div className="col-span-6 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-5 text-[12.5px] text-[#8B95A1]">
+                <div className="basis-full mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-5 text-[12.5px] text-[#8B95A1]">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} />취업 준비도 <b className="tabular-nums text-[#191F28]">{p.readiness}</b>/100</span>
                   <span>경험 <b className="text-[#191F28]">{p.experienceCount}</b>건</span>
                   {p.languages.length ? <span>언어 <b className="text-[#191F28]">{p.languages.map((l) => l.language).filter(Boolean).join(", ")}</b></span> : null}

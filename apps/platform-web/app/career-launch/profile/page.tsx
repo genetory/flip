@@ -249,10 +249,10 @@ export default function CareerProfilePage() {
               </div>
 
               {/* 바디 — 홈처럼 미니 카드 벤토 그리드(비율 다양) */}
-              <div className="grid grid-cols-6 gap-3 px-5 py-5 md:px-6 md:py-6">
+              <div className="flex flex-wrap gap-3 px-5 py-5 md:px-6 md:py-6">
                 {/* 찾는 직무 — 넓은 카드 */}
                 {targetJobs.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-4">
+                  <div className="grow basis-full min-w-[200px] rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[44%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("찾는 직무", "Looking for", "关注职务", "Đang tìm", "希望職種", "Mencari")}</p>
                     <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{targetJobs.join(" · ")}</p>
                   </div>
@@ -260,7 +260,7 @@ export default function CareerProfilePage() {
 
                 {/* 경험 수 — 딥네이비 하이라이트 카드 */}
                 {expCount > 0 ? (
-                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:col-span-2">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:basis-[22%]">
                     <p className="text-[30px] font-black leading-none tabular-nums">{expCount}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">{t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
                   </div>
@@ -268,7 +268,7 @@ export default function CareerProfilePage() {
 
                 {/* 어학/직무 수 — 작은 스탯 카드(칸 채우기) */}
                 {langCount > 0 ? (
-                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-2">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[22%]">
                     <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{langCount}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</p>
                   </div>
@@ -276,7 +276,7 @@ export default function CareerProfilePage() {
 
                 {/* 핵심 강점 — 전체 폭 카드 */}
                 {strengths.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 md:p-5">
+                  <div className="grow basis-full rounded-2xl bg-[var(--cl-card-2)] p-4 md:p-5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("핵심 강점", "Strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {strengths.map((s, i) => (
@@ -291,7 +291,7 @@ export default function CareerProfilePage() {
 
                 {/* 대표 경험 — 절반 카드 */}
                 {highlights.length > 0 ? (
-                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-3">
+                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
                     <div className="mt-1.5 divide-y divide-[#E4E7EC]">
                       {highlights.map((h, i) => (
@@ -306,7 +306,7 @@ export default function CareerProfilePage() {
 
                 {/* 문서 — 절반 카드(링크·QR) */}
                 {shareToken && (hasResume || hasCover) ? (
-                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-3">
+                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("내 문서 · 링크·QR", "Documents · link/QR", "我的文档", "Tài liệu", "書類", "Dokumen")}</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {hasResume ? (
@@ -337,7 +337,7 @@ export default function CareerProfilePage() {
                   </div>
                 ) : null}
 
-                {cardEmpty ? <p className="col-span-6 break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
+                {cardEmpty ? <p className="basis-full break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
               </div>
               {/* MRZ 풋터 — 여권 느낌 데코 */}
               <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-7 py-3 md:px-9">
