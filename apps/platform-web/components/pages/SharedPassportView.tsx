@@ -49,18 +49,28 @@ export function SharedPassportView({ token }: { token: string }) {
 
   // 핵심 강점 — 대표 경험의 성과 문장에서 추린다.
   const strengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
-  // 준비도 세부 — 항목별 상대 막대(절대 척도 미표기, 최댓값 기준 정규화).
+  // 준비 상태 — 약점을 노출하지 않고, 얼마나 준비됐는지(느낌)를 긍정적으로 전한다.
   const bd = p?.breakdown;
-  const bars = bd
+  const dims = bd
     ? [
-        { label: "방향성", v: bd.direction || 0 },
-        { label: "서류", v: bd.resume || 0 },
-        { label: "자소서", v: bd.cover || 0 },
-        { label: "면접", v: bd.interview || 0 },
-        { label: "경험", v: bd.experience || 0 }
+        { label: "뚜렷한 목표 방향", v: bd.direction || 0 },
+        { label: "탄탄한 이력서", v: bd.resume || 0 },
+        { label: "설득력 있는 자소서", v: bd.cover || 0 },
+        { label: "면접 실전 준비", v: bd.interview || 0 },
+        { label: "풍부한 경험", v: bd.experience || 0 }
       ]
     : [];
-  const barsMax = Math.max(1, ...bars.map((b) => b.v));
+  // 강한 영역만 위에서부터 최대 3개(약한 영역은 감춰서 인상을 좋게).
+  const topAreas = dims.filter((d) => d.v > 0).sort((a, b) => b.v - a.v).slice(0, 3).map((d) => d.label);
+  const r = p?.readiness ?? 0;
+  const readyPhrase =
+    r >= 80
+      ? { h: "채용에 바로 투입될 만큼 준비됐어요", s: "서류부터 면접까지 실전 수준으로 마쳤어요" }
+      : r >= 60
+        ? { h: "실전 지원 단계까지 준비를 마쳤어요", s: "핵심 서류와 면접 준비가 탄탄해요" }
+        : r >= 40
+          ? { h: "핵심 준비를 갖춘 성장형 지원자예요", s: "방향을 잡고 꾸준히 채워가고 있어요" }
+          : { h: "커리어 방향을 잡아가는 단계예요", s: "기초부터 차근차근 준비하고 있어요" };
   const verifiedLabel = p?.verifiedAt ? new Date(p.verifiedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long" }) : null;
 
   async function openQr() {
@@ -199,22 +209,18 @@ export function SharedPassportView({ token }: { token: string }) {
                   </p>
                 ) : null}
 
-                {/* 준비도 세부 */}
-                {bars.length > 0 ? (
-                  <div className="mt-5 rounded-2xl bg-[#F6F7F9] p-4">
-                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">준비도 세부</p>
-                    <div className="mt-3 flex flex-col gap-2.5">
-                      {bars.map((b) => (
-                        <div key={b.label} className="flex items-center gap-3">
-                          <span className="w-11 shrink-0 text-[12px] font-bold text-[#4E5968]">{b.label}</span>
-                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E7E9ED]">
-                            <span className="block h-full rounded-full bg-[#0B46E8]" style={{ width: `${Math.round((b.v / barsMax) * 100)}%` }} />
-                          </span>
-                        </div>
+                {/* 준비 상태 — 얼마나 준비됐고 어떤 느낌인지 */}
+                <div className="mt-5 rounded-2xl bg-[#EEF3FF] p-4">
+                  <p className="text-[14px] font-black leading-[1.4] tracking-[-0.01em] text-[#0B2A66]">{readyPhrase.h}</p>
+                  <p className="mt-1 break-keep text-[12.5px] leading-[1.5] text-[#4E5968]">{readyPhrase.s}</p>
+                  {topAreas.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {topAreas.map((a, i) => (
+                        <span key={i} className="rounded-full bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8] ring-1 ring-[#0B46E8]/15">{a}</span>
                       ))}
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
 
                 {/* 핵심 강점 */}
                 {strengths.length > 0 ? (
