@@ -106,7 +106,7 @@ export function SharedPassportView({ token }: { token: string }) {
             </div>
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.5)] ring-1 ring-black/5">
               {/* 모션 오로라 히어로 */}
-              <div className="cl-pp-hero overflow-hidden px-6 pb-6 pt-5 text-white md:px-8">
+              <div className="cl-pp-hero overflow-hidden px-7 pb-7 pt-6 text-white md:px-9">
                 {p.background ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -123,94 +123,100 @@ export function SharedPassportView({ token }: { token: string }) {
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
                   <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-black text-white ring-1 ring-white/25 backdrop-blur-sm">{p.verified ? "✓ " : ""}{TIER[p.tier].label}</span>
                 </div>
-                <div className="relative mt-5 flex items-center gap-4">
+                <div className="relative mt-6 flex items-center gap-4">
                   {p.photo ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={p.photo} alt={p.name || ""} className="h-[62px] w-[62px] shrink-0 rounded-2xl object-cover ring-1 ring-white/35" />
+                    <img src={p.photo} alt={p.name || ""} className="h-[66px] w-[66px] shrink-0 rounded-2xl object-cover ring-1 ring-white/35" />
                   ) : (
-                    <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[24px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
+                    <span className="flex h-[66px] w-[66px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[26px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h1 className="break-keep text-[23px] font-black leading-[1.12] tracking-[-0.03em] text-white md:text-[27px]">{p.name || "익명 인재"}</h1>
-                    {p.target.role ? <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{p.target.role}</p> : null}
+                    <h1 className="break-keep text-[25px] font-black leading-[1.08] tracking-[-0.035em] text-white md:text-[30px]">{p.name || "익명 인재"}</h1>
+                    {p.target.role ? <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">{p.target.role}</p> : null}
                   </div>
                 </div>
                 {p.headline ? (
-                  <div className="relative mt-4">
-                    <p className="break-keep text-[16px] font-black leading-snug text-white md:text-[17px]">“{p.headline}”</p>
-                    {p.subline ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-white/75">{p.subline}</p> : null}
+                  <div className="relative mt-6">
+                    <p className="break-keep font-[Georgia,'Times_New_Roman',serif] text-[19px] italic leading-[1.45] text-white md:text-[22px]"><span className="mr-0.5 align-[-0.2em] text-[30px] not-italic text-white/60">“</span>{p.headline}<span className="not-italic text-white/60">”</span></p>
+                    {p.subline ? <p className="mt-2.5 break-keep text-[12.5px] leading-[1.7] text-white/70">{p.subline}</p> : null}
                   </div>
                 ) : p.pitch ? (
-                  <p className="relative mt-4 break-keep text-[14px] font-medium leading-relaxed text-white/85">{p.pitch}</p>
+                  <p className="relative mt-6 break-keep text-[14px] font-medium leading-[1.7] text-white/85">{p.pitch}</p>
                 ) : null}
               </div>
 
-              {/* 바디 — 내가 어떤 사람인지 */}
-              <div className="p-6 md:p-8">
+              {/* 바디 — 매거진 에디토리얼 */}
+              <div className="px-7 py-7 md:px-9 md:py-8">
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]"><span className="text-[#0B46E8]">{p.targetJobs.join(" · ")}</span> 직무를 찾고 있어요.</p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">찾는 직무</p>
+                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
+                  </div>
                 ) : null}
 
                 {sharedStats.length > 0 ? (
-                  <div className="mt-4 flex divide-x divide-[#EEF1F5] overflow-hidden rounded-2xl bg-[#F4F6F9]">
+                  <div className="mt-6 flex divide-x divide-[#ECEEF1] border-y border-[#ECEEF1]">
                     {sharedStats.map((s, i) => (
-                      <div key={i} className="flex-1 px-2 py-3 text-center">
-                        <p className="text-[20px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
-                        <p className="mt-1 text-[11px] font-bold text-[#8B95A1]">{s.label}</p>
+                      <div key={i} className="flex-1 py-4 text-center">
+                        <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
+                        <p className="mt-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{s.label}</p>
                       </div>
                     ))}
                   </div>
                 ) : null}
 
                 {sharedStrengths.length > 0 ? (
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">핵심 강점</p>
-                    <div className="mt-3 flex flex-col gap-2.5">
+                  <section className="mt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">핵심 강점</p>
+                    <div className="mt-3.5 flex flex-col gap-3">
                       {sharedStrengths.map((s, i) => (
-                        <div key={i} className="flex gap-2">
-                          <span className="mt-[3px] text-[13px] text-[#0A9B59]" aria-hidden>✓</span>
-                          <p className="break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{s}</p>
+                        <div key={i} className="flex gap-3">
+                          <span className="mt-[11px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
+                          <p className="break-keep text-[14px] leading-[1.65] text-[#333D4B]">{s}</p>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ) : null}
 
                 {p.highlights && p.highlights.length > 0 ? (
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">대표 경험</p>
-                    <div className="mt-3 flex flex-col gap-2">
+                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">대표 경험</p>
+                    <div className="mt-2 divide-y divide-[#ECEEF1]">
                       {p.highlights.map((h, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 rounded-xl bg-[#F4F6F9] px-3.5 py-2.5">
-                          <span className="min-w-0 truncate text-[13.5px] font-bold text-[#191F28]">{h.head}</span>
-                          {h.period ? <span className="shrink-0 text-[12px] font-semibold text-[#8B95A1]">{h.period}</span> : null}
+                        <div key={i} className="flex items-baseline justify-between gap-4 py-3">
+                          <span className="min-w-0 break-keep text-[14px] font-bold text-[#191F28]">{h.head}</span>
+                          {h.period ? <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</span> : null}
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ) : null}
 
 
                 {/* 원본 문서 열람 — 이력서·자소서 바로 보기 */}
                 {p.hasResume || p.hasCover ? (
-                  <div className="mt-5 grid gap-2 border-t border-[#EEF1F5] pt-5 sm:grid-cols-2">
-                    {p.hasResume ? (
-                      <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                        <span className="inline-flex items-center gap-1.5">📄 이력서 보기</span>
-                        <span aria-hidden>→</span>
-                      </Link>
-                    ) : null}
-                    {p.hasCover ? (
-                      <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#EDF1FD] px-4 py-3 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
-                        <span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span>
-                        <span aria-hidden>→</span>
-                      </Link>
-                    ) : null}
-                  </div>
+                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">내 문서</p>
+                    <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                      {p.hasResume ? (
+                        <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                          <span className="inline-flex items-center gap-1.5">📄 이력서 보기</span>
+                          <span aria-hidden>→</span>
+                        </Link>
+                      ) : null}
+                      {p.hasCover ? (
+                        <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-2xl border border-[#ECEEF1] px-4 py-3.5 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#F4F6F9]">
+                          <span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span>
+                          <span aria-hidden>→</span>
+                        </Link>
+                      ) : null}
+                    </div>
+                  </section>
                 ) : null}
 
                 {/* 신뢰 스트립 — 준비도·검증·경험·언어 */}
-                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#EEF1F5] pt-5 text-[12.5px] text-[#8B95A1]">
+                <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-6 text-[12.5px] text-[#8B95A1]">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} />취업 준비도 <b className="tabular-nums text-[#191F28]">{p.readiness}</b>/100</span>
                   <span>경험 <b className="text-[#191F28]">{p.experienceCount}</b>건</span>
                   {p.languages.length ? <span>언어 <b className="text-[#191F28]">{p.languages.map((l) => l.language).filter(Boolean).join(", ")}</b></span> : null}
@@ -218,7 +224,7 @@ export function SharedPassportView({ token }: { token: string }) {
               </div>
 
               {/* MRZ 데코 */}
-              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-6 py-2.5 md:px-8">
+              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-7 py-3 md:px-9">
                 <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">APLY&lt;CAREER&lt;LAUNCH&lt;PASSPORT&lt;&lt;&lt;&lt;&lt;&lt;VERIFIED&lt;{p.verified ? "Y" : "N"}</p>
               </div>
             </div>
