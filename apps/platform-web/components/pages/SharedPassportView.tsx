@@ -13,7 +13,7 @@ const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink:
   gold: { label: "Verified Gold", ring: "#E0A500", bg: "#FBF2D6", ink: "#A97B00" }
 };
 
-const GAUGE_R = 48;
+const GAUGE_R = 47;
 const GAUGE_C = 2 * Math.PI * GAUGE_R;
 
 function Stat({ value, label }: { value: number; label: string }) {
@@ -170,10 +170,10 @@ export function SharedPassportView({ token }: { token: string }) {
                         <stop offset="100%" stopColor="#0B46E8" />
                       </linearGradient>
                     </defs>
-                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="7" />
-                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="url(#pp-gauge)" strokeWidth="7" strokeLinecap="round" strokeDasharray={GAUGE_C} strokeDashoffset={GAUGE_C * (1 - Math.max(0, Math.min(100, p.readiness || 0)) / 100)} />
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="9" />
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="url(#pp-gauge)" strokeWidth="9" strokeLinecap="round" strokeDasharray={GAUGE_C} strokeDashoffset={GAUGE_C * (1 - Math.max(0, Math.min(100, p.readiness || 0)) / 100)} />
                   </svg>
-                  <div className="absolute inset-[8px] overflow-hidden rounded-full bg-[#EEF1F5] ring-[5px] ring-white">
+                  <div className="absolute inset-[11px] overflow-hidden rounded-full bg-[#EEF1F5] ring-4 ring-white">
                     {p.photo ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={p.photo} alt={p.name || ""} className="h-full w-full object-cover" />
