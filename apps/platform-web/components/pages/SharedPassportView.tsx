@@ -13,7 +13,7 @@ const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink:
   gold: { label: "Verified Gold", ring: "#E0A500", bg: "#FBF2D6", ink: "#A97B00" }
 };
 
-const GAUGE_R = 49;
+const GAUGE_R = 48;
 const GAUGE_C = 2 * Math.PI * GAUGE_R;
 
 function Stat({ value, label }: { value: number; label: string }) {
@@ -165,13 +165,13 @@ export function SharedPassportView({ token }: { token: string }) {
                   <svg viewBox="0 0 104 104" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
                     <defs>
                       <linearGradient id="pp-gauge" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#3182F6" />
-                        <stop offset="55%" stopColor="#0D9488" />
-                        <stop offset="100%" stopColor="#22C55E" />
+                        <stop offset="0%" stopColor="#7BB0FF" />
+                        <stop offset="50%" stopColor="#3182F6" />
+                        <stop offset="100%" stopColor="#0B46E8" />
                       </linearGradient>
                     </defs>
-                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="4" />
-                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="url(#pp-gauge)" strokeWidth="4" strokeLinecap="round" strokeDasharray={GAUGE_C} strokeDashoffset={GAUGE_C * (1 - Math.max(0, Math.min(100, p.readiness || 0)) / 100)} />
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="7" />
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="url(#pp-gauge)" strokeWidth="7" strokeLinecap="round" strokeDasharray={GAUGE_C} strokeDashoffset={GAUGE_C * (1 - Math.max(0, Math.min(100, p.readiness || 0)) / 100)} />
                   </svg>
                   <div className="absolute inset-[8px] overflow-hidden rounded-full bg-[#EEF1F5] ring-[5px] ring-white">
                     {p.photo ? (
