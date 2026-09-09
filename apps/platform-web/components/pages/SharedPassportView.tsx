@@ -12,6 +12,27 @@ const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink:
   gold: { label: "Verified Gold", ring: "#E0A500", bg: "#FBF2D6", ink: "#A97B00" }
 };
 
+function ringColor(v: number): string {
+  return v >= 75 ? "#0A9B59" : v >= 50 ? "#0B46E8" : "#C77700";
+}
+function Ring({ value, size = 76, stroke = 7 }: { value: number; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
+  const col = ringColor(value);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E4E7EC" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[19px] font-black leading-none tabular-nums" style={{ color: col }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
 export function SharedPassportView({ token }: { token: string }) {
   const [p, setP] = useState<SharedPassport | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
@@ -146,6 +167,13 @@ export function SharedPassportView({ token }: { token: string }) {
                   <div className="grow basis-full min-w-[200px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[44%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">찾는 직무</p>
                     <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
+                  </div>
+                ) : null}
+
+                {typeof p.readiness === "number" ? (
+                  <div className="grow basis-[46%] min-w-[130px] flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[26%]">
+                    <Ring value={p.readiness} />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">취업 준비도</p>
                   </div>
                 ) : null}
 

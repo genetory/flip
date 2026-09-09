@@ -11,12 +11,33 @@ import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeade
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { AplyFooter } from "../../../components/AplyFooter";
-import { fetchProgress, sharePassport, savePassportMedia, type CareerProgress } from "../../../lib/launch/progress-client";
+import { fetchProgress, sharePassport, savePassportMedia, fetchTalentPassport, type CareerProgress } from "../../../lib/launch/progress-client";
 import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
 import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
+
+function ringColor(v: number): string {
+  return v >= 75 ? "#0A9B59" : v >= 50 ? "#0B46E8" : "#C77700";
+}
+function Ring({ value, size = 76, stroke = 7 }: { value: number; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
+  const col = ringColor(value);
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E4E7EC" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[19px] font-black leading-none tabular-nums" style={{ color: col }}>{value}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function CareerProfilePage() {
   const t = useLaunchT();
@@ -31,6 +52,7 @@ export default function CareerProfilePage() {
   const [background, setBackground] = useState<string | null>(null);
   const [mediaBusy, setMediaBusy] = useState<"" | "photo" | "bg">("");
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<number | null>(null);
   const onPickPhoto = async (file?: File | null) => {
     if (!file) return;
     setMediaBusy("photo");
@@ -129,6 +151,8 @@ export default function CareerProfilePage() {
       void fetchProfileHeadline(false).then((h) => { if (!alive) return; setHeadline(h.headline); setSubline(h.subline); }).catch(() => {});
       // 공유 토큰(문서 링크·QR용) — 멱등.
       void sharePassport().then((tk) => { if (alive) setShareToken(tk); }).catch(() => {});
+      // 취업 준비도(Talent Passport) — 링 카드용.
+      void fetchTalentPassport().then((tp) => { if (alive && tp) setReadiness(tp.readiness); }).catch(() => {});
     })();
     return () => {
       alive = false;
@@ -255,6 +279,14 @@ export default function CareerProfilePage() {
                   <div className="grow basis-full min-w-[200px] rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[44%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("찾는 직무", "Looking for", "关注职务", "Đang tìm", "希望職種", "Mencari")}</p>
                     <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{targetJobs.join(" · ")}</p>
+                  </div>
+                ) : null}
+
+                {/* 취업 준비도 — 링 카드 */}
+                {readiness != null ? (
+                  <div className="grow basis-[46%] min-w-[130px] flex flex-col items-center justify-center gap-2 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[26%]">
+                    <Ring value={readiness} />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{t("취업 준비도", "Readiness", "求职准备度", "Sẵn sàng", "準備度", "Kesiapan")}</p>
                   </div>
                 ) : null}
 
