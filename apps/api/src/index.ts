@@ -21991,10 +21991,25 @@ app.post("/career-launch/passport/share", authenticate, requireCareerEnrollment,
 });
 
 // POST /career-launch/passport/media — 커리어 패스포트 프로필/배경 사진 저장(Blob 업로드 → URL). state.passportMedia.
+const PASSPORT_LINK_TYPES = ["portfolio", "github", "notion", "linkedin", "blog", "website"] as const;
 const passportMediaSchema = z.object({
   photo: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional(),
-  background: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
+  background: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional(),
+  links: z.array(z.object({ type: z.enum(PASSPORT_LINK_TYPES), url: z.string().trim().max(500) })).max(8).optional()
 });
+// http(s) URL 만 허용(스킴 강제) — 공개 카드에 노출되므로 안전하게.
+function normalizePassportUrl(raw: string): string {
+  const u = raw.trim();
+  if (!u) return "";
+  const withScheme = /^https?:\/\//i.test(u) ? u : `https://${u}`;
+  try {
+    const parsed = new URL(withScheme);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
 app.post("/career-launch/passport/media", authenticate, requireCareerEnrollment, async (req, res) => {
   const parsed = passportMediaSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
@@ -22006,9 +22021,14 @@ app.post("/career-launch/passport/media", authenticate, requireCareerEnrollment,
     const out: { photo: string | null; background: string | null } = { photo: cur.photo ?? null, background: cur.background ?? null };
     if (parsed.data.photo !== undefined) out.photo = parsed.data.photo ? await uploadDataUrlImageIfNeeded(parsed.data.photo, "passport/photos") : null;
     if (parsed.data.background !== undefined) out.background = parsed.data.background ? await uploadDataUrlImageIfNeeded(parsed.data.background, "passport/backgrounds") : null;
-    const next = { ...state, passportMedia: out };
-    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: uid }, create: { studentUserId: uid, state: next }, update: { state: next } });
-    return res.json({ ok: true, media: out });
+    const next: Record<string, unknown> = { ...state, passportMedia: out };
+    let links = (Array.isArray(state.passportLinks) ? state.passportLinks : []) as { type: string; url: string }[];
+    if (parsed.data.links !== undefined) {
+      links = parsed.data.links.map((l) => ({ type: l.type, url: normalizePassportUrl(l.url) })).filter((l) => l.url);
+      next.passportLinks = links;
+    }
+    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: uid }, create: { studentUserId: uid, state: next as object }, update: { state: next as object } });
+    return res.json({ ok: true, media: out, links });
   } catch (error) {
     console.error("[career-launch/passport/media] failed", error);
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -22098,6 +22118,7 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       highlights,
       photo: media.photo ?? null,
       background: media.background ?? null,
+      links: (Array.isArray(st.passportLinks) ? st.passportLinks : []) as { type: string; url: string }[],
       hasResume,
       hasCover
     };

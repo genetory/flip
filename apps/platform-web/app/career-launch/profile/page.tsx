@@ -5,8 +5,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple, Copy, Camera, Image as ImageIcon, FileText, PencilSimpleLine } from "@phosphor-icons/react";
+import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple, Copy, Camera, Image as ImageIcon, FileText, PencilSimpleLine, GithubLogo, LinkedinLogo, Globe, LinkSimple, Plus } from "@phosphor-icons/react";
 import { fileToResizedDataUrl } from "../../../lib/launch/image-util";
+import type { PassportLink } from "../../../lib/launch/progress-client";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
@@ -17,6 +18,14 @@ import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
+
+const LINK_TYPES = [
+  { type: "portfolio", label: "Portfolio", Icon: Globe, color: "#6D28D9" },
+  { type: "github", label: "GitHub", Icon: GithubLogo, color: "#111827" },
+  { type: "linkedin", label: "LinkedIn", Icon: LinkedinLogo, color: "#0A66C2" },
+  { type: "website", label: "Website", Icon: LinkSimple, color: "#0D9488" }
+] as const;
+const linkMeta = (type: string) => LINK_TYPES.find((l) => l.type === type) ?? { type, label: type, Icon: LinkSimple, color: "#4E5968" };
 
 function ringColor(v: number): string {
   return v >= 75 ? "#0A9B59" : v >= 50 ? "#0B46E8" : "#C77700";
@@ -77,6 +86,30 @@ export default function CareerProfilePage() {
       /* 무시 */
     } finally {
       setMediaBusy("");
+    }
+  };
+  // 외부 링크(포폴·GitHub 등)
+  const [links, setLinks] = useState<PassportLink[]>([]);
+  const [linksOpen, setLinksOpen] = useState(false);
+  const [linkDraft, setLinkDraft] = useState<Record<string, string>>({});
+  const [linksBusy, setLinksBusy] = useState(false);
+  const openLinks = () => {
+    const d: Record<string, string> = {};
+    for (const l of links) d[l.type] = l.url;
+    setLinkDraft(d);
+    setLinksOpen(true);
+  };
+  const saveLinks = async () => {
+    setLinksBusy(true);
+    try {
+      const next = LINK_TYPES.map((lt) => ({ type: lt.type, url: (linkDraft[lt.type] ?? "").trim() })).filter((l) => l.url);
+      const m = await savePassportMedia({ links: next });
+      if (m) setLinks(m.links);
+      setLinksOpen(false);
+    } catch {
+      /* 무시 */
+    } finally {
+      setLinksBusy(false);
     }
   };
   const [hlBusy, setHlBusy] = useState(false);
@@ -147,6 +180,7 @@ export default function CareerProfilePage() {
       setCover(c.data ?? {});
       setPhoto(p?.passportMedia?.photo ?? null);
       setBackground(p?.passportMedia?.background ?? null);
+      setLinks(Array.isArray(p?.passportLinks) ? p!.passportLinks! : []);
       // AI 헤드라인 캐시 조회(생성은 버튼).
       void fetchProfileHeadline(false).then((h) => { if (!alive) return; setHeadline(h.headline); setSubline(h.subline); }).catch(() => {});
       // 공유 토큰(문서 링크·QR용) — 멱등.
@@ -165,7 +199,6 @@ export default function CareerProfilePage() {
   const recoJobs = prog?.jobRecommendation?.data?.jobs ?? [];
   const educations = resume.educations ?? [];
   const languages = resume.languages ?? [];
-  const direction = selectedJobs[0] || recoJobs[0]?.role || "";
 
   // ── 공유 카드용 요약(이력서·자소서 기반) — '내가 어떤 사람인지'를 매력적으로 ──
   // 한줄 소개는 이력서 요약 → 없으면 자기소개서 첫 문항 답변에서 가져온다.
@@ -259,12 +292,12 @@ export default function CareerProfilePage() {
                   </label>
                   <div className="min-w-0 flex-1">
                     <h1 className="break-keep text-[25px] font-black leading-[1.08] tracking-[-0.035em] text-white md:text-[30px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
-                    <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
+                    <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">{t("취업 준비 중", "Job seeking", "求职中", "Đang tìm việc", "就活中", "Sedang mencari kerja")}</p>
                   </div>
                 </div>
                 {headline ? (
                   <div className="relative mt-6">
-                    <p className="break-keep font-[Georgia,'Times_New_Roman',serif] text-[19px] italic leading-[1.45] text-white md:text-[22px]"><span className="mr-0.5 align-[-0.2em] text-[30px] not-italic text-white/60">“</span>{headline}<span className="not-italic text-white/60">”</span></p>
+                    <p className="break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-white md:text-[18px]">“{headline}”</p>
                     {subline ? <p className="mt-2.5 break-keep text-[12.5px] leading-[1.7] text-white/70">{subline}</p> : null}
                   </div>
                 ) : pitch ? (
@@ -273,7 +306,7 @@ export default function CareerProfilePage() {
               </div>
 
               {/* 바디 — 홈처럼 미니 카드 벤토 그리드(비율 다양) */}
-              <div className="flex flex-wrap gap-3 px-5 py-5 md:px-6 md:py-6">
+              <div className="flex flex-wrap gap-2.5 px-4 py-4 md:px-5 md:py-5">
                 {/* 찾는 직무 — 넓은 카드 */}
                 {targetJobs.length > 0 ? (
                   <div className="grow basis-full min-w-[200px] rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[44%]">
@@ -303,6 +336,14 @@ export default function CareerProfilePage() {
                   <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[var(--cl-card-2)] p-4 sm:basis-[22%]">
                     <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{langCount}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</p>
+                  </div>
+                ) : null}
+
+                {/* 소개(About) — 문단 타일 */}
+                {pitch ? (
+                  <div className="grow basis-full rounded-2xl bg-[var(--cl-card-2)] p-3.5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("소개", "About", "简介", "Giới thiệu", "紹介", "Tentang")}</p>
+                    <p className="mt-2 break-keep text-[13.5px] leading-[1.7] text-[#333D4B]">{pitch}</p>
                   </div>
                 ) : null}
 
@@ -369,6 +410,25 @@ export default function CareerProfilePage() {
                   </div>
                 ) : null}
 
+                {/* 외부 링크 — 컬러 타일 */}
+                <div className="grow basis-full min-w-[220px] rounded-2xl bg-[var(--cl-card-2)] p-3.5 sm:basis-[47%]">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("링크", "Links", "链接", "Liên kết", "リンク", "Tautan")}</p>
+                    <button type="button" onClick={openLinks} className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0B46E8]"><PencilSimpleLine className="h-3.5 w-3.5" weight="bold" /> {t("편집", "Edit", "编辑", "Sửa", "編集", "Edit")}</button>
+                  </div>
+                  {links.length > 0 ? (
+                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                      {links.map((l, i) => { const m = linkMeta(l.type); return (
+                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12.5px] font-bold text-white transition hover:brightness-110" style={{ background: m.color }}>
+                          <m.Icon className="h-4 w-4 shrink-0" weight="fill" /> <span className="truncate">{m.label}</span>
+                        </a>
+                      ); })}
+                    </div>
+                  ) : (
+                    <button type="button" onClick={openLinks} className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#C9D3E8] py-3 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-white"><Plus className="h-4 w-4" weight="bold" /> {t("포트폴리오·GitHub 링크 추가", "Add portfolio / GitHub", "添加作品集/GitHub", "Thêm portfolio/GitHub", "ポートフォリオ・GitHub追加", "Tambah portfolio/GitHub")}</button>
+                  )}
+                </div>
+
                 {cardEmpty ? <p className="basis-full break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
               </div>
               {/* MRZ 풋터 — 여권 느낌 데코 */}
@@ -399,6 +459,30 @@ export default function CareerProfilePage() {
       <AplyFooter />
 
       {/* 공유 시트 — 공개 링크 + QR */}
+      {linksOpen ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/50 p-4" onClick={() => setLinksOpen(false)}>
+          <div className="w-full max-w-[400px] rounded-3xl bg-white p-6 shadow-[0_30px_70px_-24px_rgba(11,18,39,0.6)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="text-[15px] font-black tracking-[-0.01em] text-[#191F28]">{t("외부 링크", "External links", "外部链接", "Liên kết ngoài", "外部リンク", "Tautan luar")}</p>
+              <button type="button" onClick={() => setLinksOpen(false)} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-8 w-8 items-center justify-center rounded-full text-[#8B95A1] transition hover:bg-[#F4F6F9]"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("포트폴리오·GitHub 등 URL을 넣으면 카드에 컬러 버튼으로 나타나요.", "Add portfolio, GitHub, etc. URLs to show as color buttons.", "填入作品集、GitHub等URL，会显示为彩色按钮。", "Thêm URL portfolio, GitHub… hiển thị dạng nút màu.", "ポートフォリオ・GitHub等のURLを入れるとカラーボタンで表示。", "Tambahkan URL portfolio, GitHub, dll.")}</p>
+            <div className="mt-4 flex flex-col gap-3">
+              {LINK_TYPES.map((lt) => (
+                <label key={lt.type} className="block">
+                  <span className="mb-1 flex items-center gap-1.5 text-[12px] font-bold text-[#4E5968]"><lt.Icon className="h-4 w-4" weight="fill" style={{ color: lt.color }} /> {lt.label}</span>
+                  <input value={linkDraft[lt.type] ?? ""} onChange={(e) => setLinkDraft((d) => ({ ...d, [lt.type]: e.target.value }))} placeholder="https://…" className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+                </label>
+              ))}
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button type="button" onClick={() => setLinksOpen(false)} className="flex-1 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]">{t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}</button>
+              <button type="button" onClick={() => void saveLinks()} disabled={linksBusy} className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">{linksBusy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Check className="h-4 w-4" weight="bold" />}{t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {shareOpen ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/50 p-4" onClick={() => setShareOpen(false)}>
           <div className="w-full max-w-[360px] rounded-3xl bg-white p-6 shadow-[0_30px_70px_-24px_rgba(11,18,39,0.6)]" onClick={(e) => e.stopPropagation()}>

@@ -148,12 +148,12 @@ export function SharedPassportView({ token }: { token: string }) {
                   )}
                   <div className="min-w-0 flex-1">
                     <h1 className="break-keep text-[25px] font-black leading-[1.08] tracking-[-0.035em] text-white md:text-[30px]">{p.name || "익명 인재"}</h1>
-                    {p.target.role ? <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">{p.target.role}</p> : null}
+                    <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">취업 준비 중</p>
                   </div>
                 </div>
                 {p.headline ? (
                   <div className="relative mt-6">
-                    <p className="break-keep font-[Georgia,'Times_New_Roman',serif] text-[19px] italic leading-[1.45] text-white md:text-[22px]"><span className="mr-0.5 align-[-0.2em] text-[30px] not-italic text-white/60">“</span>{p.headline}<span className="not-italic text-white/60">”</span></p>
+                    <p className="break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-white md:text-[18px]">“{p.headline}”</p>
                     {p.subline ? <p className="mt-2.5 break-keep text-[12.5px] leading-[1.7] text-white/70">{p.subline}</p> : null}
                   </div>
                 ) : p.pitch ? (

@@ -94,13 +94,15 @@ export type CareerProgress = {
   answerBank?: { data?: { answers?: { question: string; answer: string }[] } } | null;
   jdMatch?: { data?: { matchPercent?: number } } | null;
   passportMedia?: { photo?: string | null; background?: string | null } | null;
+  passportLinks?: { type: string; url: string }[] | null;
 };
 
-// 커리어 패스포트 프로필/배경 사진 저장(Blob URL 반환). null 로 비우기.
-export async function savePassportMedia(patch: { photo?: string | null; background?: string | null }): Promise<{ photo: string | null; background: string | null } | null> {
+export type PassportLink = { type: string; url: string };
+// 커리어 패스포트 프로필/배경 사진·외부 링크 저장. null 로 비우기.
+export async function savePassportMedia(patch: { photo?: string | null; background?: string | null; links?: PassportLink[] }): Promise<{ photo: string | null; background: string | null; links: PassportLink[] } | null> {
   try {
     const d = await req("/career-launch/passport/media", { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(patch) });
-    return (d.media as { photo: string | null; background: string | null }) ?? null;
+    return { photo: (d.media as { photo: string | null })?.photo ?? null, background: (d.media as { background: string | null })?.background ?? null, links: (d.links as PassportLink[]) ?? [] };
   } catch {
     return null;
   }
@@ -215,6 +217,7 @@ export type SharedPassport = {
   highlights?: { head: string; period: string; bullets: string[] }[];
   photo?: string | null;
   background?: string | null;
+  links?: { type: string; url: string }[];
   hasResume?: boolean;
   hasCover?: boolean;
 };
