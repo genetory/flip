@@ -261,14 +261,14 @@ export function SharedPassportView({ token }: { token: string }) {
                 {/* 문서 · QR — 자세한 내용은 링크/QR로 */}
                 <div className="mt-5 flex items-stretch overflow-hidden rounded-2xl border border-[#EEF0F3]">
                   {p.hasResume ? (
-                    <Link href={`/p/${token}/resume`} className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
+                    <Link href={`/p/${token}/resume`} target="_blank" rel="noopener noreferrer" className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
                       <FileText className="h-5 w-5 text-[#4E5968] transition group-hover:text-[#0B46E8]" aria-hidden />
                       <span className="text-[11.5px] font-bold text-[#4E5968] transition group-hover:text-[#0B46E8]">이력서</span>
                     </Link>
                   ) : null}
                   {p.hasResume && p.hasCover ? <span className="w-px bg-[#EEF0F3]" aria-hidden /> : null}
                   {p.hasCover ? (
-                    <Link href={`/p/${token}/cover`} className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
+                    <Link href={`/p/${token}/cover`} target="_blank" rel="noopener noreferrer" className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
                       <NotePencil className="h-5 w-5 text-[#4E5968] transition group-hover:text-[#0B46E8]" aria-hidden />
                       <span className="text-[11.5px] font-bold text-[#4E5968] transition group-hover:text-[#0B46E8]">자기소개서</span>
                     </Link>
