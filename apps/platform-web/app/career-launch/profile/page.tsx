@@ -200,7 +200,7 @@ export default function CareerProfilePage() {
             {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 여권 ── */}
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.55)] ring-1 ring-black/5">
               {/* 히어로 밴드 — 모션 오로라 / 배경 사진 */}
-              <div className="cl-pp-hero overflow-hidden px-6 pb-6 pt-5 text-white">
+              <div className="cl-pp-hero overflow-hidden px-7 pb-7 pt-6 text-white md:px-9">
                 {background ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -225,13 +225,13 @@ export default function CareerProfilePage() {
                     {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
                   </button>
                 </div>
-                <div className="relative mt-5 flex items-center gap-4">
-                  <label className="group relative flex h-[62px] w-[62px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-white/12 ring-1 ring-white/35 backdrop-blur-sm">
+                <div className="relative mt-6 flex items-center gap-4">
+                  <label className="group relative flex h-[66px] w-[66px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-white/12 ring-1 ring-white/35 backdrop-blur-sm">
                     {photo ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img src={photo} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <span className="text-[24px] font-black text-white">{initial}</span>
+                      <span className="text-[26px] font-black text-white">{initial}</span>
                     )}
                     <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
                       {mediaBusy === "photo" ? <CircleNotch className="h-5 w-5 animate-spin text-white" weight="bold" /> : <Camera className="h-5 w-5 text-white" weight="fill" />}
@@ -239,108 +239,109 @@ export default function CareerProfilePage() {
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
                   </label>
                   <div className="min-w-0 flex-1">
-                    <h1 className="break-keep text-[23px] font-black leading-[1.12] tracking-[-0.03em] text-white md:text-[27px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
-                    <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
+                    <h1 className="break-keep text-[25px] font-black leading-[1.08] tracking-[-0.035em] text-white md:text-[30px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
+                    <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
                   </div>
                 </div>
                 {headline ? (
-                  <div className="relative mt-4">
-                    <p className="break-keep text-[16px] font-black leading-snug text-white md:text-[17px]">“{headline}”</p>
-                    {subline ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-white/75">{subline}</p> : null}
+                  <div className="relative mt-6">
+                    <p className="break-keep font-[Georgia,'Times_New_Roman',serif] text-[19px] italic leading-[1.45] text-white md:text-[22px]"><span className="mr-0.5 align-[-0.2em] text-[30px] not-italic text-white/60">“</span>{headline}<span className="not-italic text-white/60">”</span></p>
+                    {subline ? <p className="mt-2.5 break-keep text-[12.5px] leading-[1.7] text-white/70">{subline}</p> : null}
                   </div>
                 ) : pitch ? (
-                  <p className="relative mt-4 break-keep text-[14px] font-medium leading-relaxed text-white/85 line-clamp-3">{pitch}</p>
+                  <p className="relative mt-6 break-keep text-[14px] font-medium leading-[1.7] text-white/85 line-clamp-3">{pitch}</p>
                 ) : null}
               </div>
 
-              {/* 바디 */}
-              <div className="p-6">
-                {/* 찾는 직무 — 문장형 */}
+              {/* 바디 — 매거진 에디토리얼 */}
+              <div className="px-7 py-7 md:px-9 md:py-8">
+                {/* 찾는 직무 */}
                 {targetJobs.length > 0 ? (
-                  <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]">
-                    <span className="text-[#0B46E8]">{targetJobs.join(" · ")}</span> {t("직무를 찾고 있어요.", "roles I'm looking for.", "职务方向。", "vị trí đang tìm.", "職種を探しています。", "yang saya cari.")}
-                  </p>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("찾는 직무", "Looking for", "关注职务", "Đang tìm", "希望職種", "Mencari")}</p>
+                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-[#0B1227]">{targetJobs.join(" · ")}</p>
+                  </div>
                 ) : null}
 
-                {/* 숫자로 보는 나 */}
+                {/* 숫자로 보는 나 — 피규어 스트립 */}
                 {stats.length > 0 ? (
-                  <div className="mt-4 flex divide-x divide-[#EEF1F5] overflow-hidden rounded-2xl bg-[var(--cl-card-2)]">
+                  <div className="mt-6 flex divide-x divide-[#ECEEF1] border-y border-[#ECEEF1]">
                     {stats.map((s, i) => (
-                      <div key={i} className="flex-1 px-2 py-3 text-center">
-                        <p className="text-[20px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
-                        <p className="mt-1 text-[11px] font-bold text-[#8B95A1]">{s.label}</p>
+                      <div key={i} className="flex-1 py-4 text-center">
+                        <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
+                        <p className="mt-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{s.label}</p>
                       </div>
                     ))}
                   </div>
                 ) : null}
 
-                {/* 핵심 강점 — 근거 문장 */}
+                {/* 핵심 강점 */}
                 {strengths.length > 0 ? (
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("핵심 강점", "Key strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
-                    <div className="mt-3 flex flex-col gap-2.5">
+                  <section className="mt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("핵심 강점", "Strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                    <div className="mt-3.5 flex flex-col gap-3">
                       {strengths.map((s, i) => (
-                        <div key={i} className="flex gap-2">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0A9B59]" weight="bold" aria-hidden />
-                          <p className="break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{s}</p>
+                        <div key={i} className="flex gap-3">
+                          <span className="mt-[11px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
+                          <p className="break-keep text-[14px] leading-[1.65] text-[#333D4B]">{s}</p>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ) : null}
 
                 {/* 대표 경험 */}
                 {highlights.length > 0 ? (
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
-                    <div className="mt-3 flex flex-col gap-2">
+                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
+                    <div className="mt-2 divide-y divide-[#ECEEF1]">
                       {highlights.map((h, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--cl-card-2)] px-3.5 py-2.5">
-                          <span className="min-w-0 truncate text-[13.5px] font-bold text-[#191F28]">{h.head}</span>
-                          {h.period ? <span className="shrink-0 text-[12px] font-semibold text-[#8B95A1]">{h.period}</span> : null}
+                        <div key={i} className="flex items-baseline justify-between gap-4 py-3">
+                          <span className="min-w-0 break-keep text-[14px] font-bold text-[#191F28]">{h.head}</span>
+                          {h.period ? <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</span> : null}
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </section>
                 ) : null}
 
-                {/* 문서 — 2컬럼, 링크 + QR */}
+                {/* 문서 — 링크·QR, 2컬럼 */}
                 {shareToken && (hasResume || hasCover) ? (
-                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("내 문서 · 링크·QR로 바로 보기", "Documents · open by link or QR", "我的文档 · 链接或二维码", "Tài liệu · link hoặc QR", "書類 · リンク/QRで", "Dokumen · link/QR")}</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("내 문서 · 링크·QR로 바로 보기", "Documents · link or QR", "我的文档 · 链接或二维码", "Tài liệu · link/QR", "書類 · リンク/QR", "Dokumen · link/QR")}</p>
+                    <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
                       {hasResume ? (
-                        <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-[#ECEEF1] p-4">
                           <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[14px] font-black text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.resume ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
                           ) : null}
                         </div>
                       ) : null}
                       {hasCover ? (
-                        <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
+                        <div className="flex items-center gap-3.5 rounded-2xl border border-[#ECEEF1] p-4">
                           <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[14px] font-black text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.cover ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
                           ) : null}
                         </div>
                       ) : null}
                     </div>
-                  </div>
+                  </section>
                 ) : null}
 
-                {cardEmpty ? <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
+                {cardEmpty ? <p className="break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
               </div>
               {/* MRZ 풋터 — 여권 느낌 데코 */}
-              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-6 py-2.5">
+              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-7 py-3 md:px-9">
                 <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">{mrz}</p>
               </div>
             </div>
