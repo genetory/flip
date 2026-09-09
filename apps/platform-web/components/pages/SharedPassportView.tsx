@@ -170,44 +170,44 @@ export function SharedPassportView({ token }: { token: string }) {
               </div>
 
               {/* 바디 — 홈처럼 미니 카드 벤토 그리드 */}
-              <div className="flex flex-wrap gap-3 px-5 py-5 md:px-6 md:py-6">
+              <div className="flex flex-wrap gap-3 bg-[#F1F1F4] px-4 py-5 md:px-5 md:py-6">
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <div className="grow basis-full min-w-[200px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[44%]">
+                  <div className="grow basis-full min-w-[200px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[44%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">찾는 직무</p>
                     <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
                   </div>
                 ) : null}
 
                 {typeof p.readiness === "number" ? (
-                  <div className="grow basis-[46%] min-w-[130px] flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[26%]">
+                  <div className="grow basis-[46%] min-w-[130px] flex flex-col items-center justify-center gap-2 rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[26%]">
                     <Ring value={p.readiness} />
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">취업 준비도</p>
                   </div>
                 ) : null}
 
                 {p.experienceCount ? (
-                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:basis-[22%]">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-3xl bg-[#0E1526] p-4 text-white sm:basis-[22%]">
                     <p className="text-[30px] font-black leading-none tabular-nums">{p.experienceCount}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">경험</p>
                   </div>
                 ) : null}
 
                 {p.languages && p.languages.length > 0 ? (
-                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[22%]">
+                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[22%]">
                     <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{p.languages.length}</p>
                     <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">어학</p>
                   </div>
                 ) : null}
 
                 {p.pitch ? (
-                  <div className="grow basis-full rounded-2xl bg-[#F4F6F9] p-4">
+                  <div className="grow basis-full rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">소개</p>
                     <p className="mt-2 break-keep text-[13.5px] leading-[1.7] text-[#333D4B]">{p.pitch}</p>
                   </div>
                 ) : null}
 
                 {sharedStrengths.length > 0 ? (
-                  <div className="grow basis-full rounded-2xl bg-[#F4F6F9] p-4 md:p-5">
+                  <div className="grow basis-full rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 md:p-5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">핵심 강점</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {sharedStrengths.map((s, i) => (
@@ -221,7 +221,7 @@ export function SharedPassportView({ token }: { token: string }) {
                 ) : null}
 
                 {p.highlights && p.highlights.length > 0 ? (
-                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[47%]">
+                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">대표 경험</p>
                     <div className="mt-1.5 divide-y divide-[#E4E7EC]">
                       {p.highlights.map((h, i) => (
@@ -236,7 +236,7 @@ export function SharedPassportView({ token }: { token: string }) {
 
                 {/* 문서 — 절반 카드 */}
                 {p.hasResume || p.hasCover ? (
-                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[47%]">
+                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">내 문서</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {p.hasResume ? (
@@ -251,7 +251,7 @@ export function SharedPassportView({ token }: { token: string }) {
 
                 {/* 외부 링크 — 컬러 타일 */}
                 {p.links && p.links.length > 0 ? (
-                  <div className="grow basis-full min-w-[220px] rounded-2xl bg-[#F4F6F9] p-4 sm:basis-[47%]">
+                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">링크</p>
                     <div className="mt-2.5 grid grid-cols-2 gap-2">
                       {p.links.map((l, i) => { const m = LINK_META[l.type] ?? { label: l.type, Icon: LinkSimple, color: "#4E5968" }; return (
@@ -272,7 +272,7 @@ export function SharedPassportView({ token }: { token: string }) {
               </div>
 
               {/* MRZ 데코 */}
-              <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-7 py-3 md:px-9">
+              <div className="overflow-hidden border-t border-dashed border-[#D8DCE2] bg-[#F1F1F4] px-7 py-3 md:px-9">
                 <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">APLY&lt;CAREER&lt;LAUNCH&lt;PASSPORT&lt;&lt;&lt;&lt;&lt;&lt;VERIFIED&lt;{p.verified ? "Y" : "N"}</p>
               </div>
             </div>
