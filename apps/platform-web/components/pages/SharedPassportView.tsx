@@ -3,15 +3,7 @@
 // 공개 Talent Passport — 기업 제출/공유용(무인증). 검증·역량 요약 + 공유 유도.
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { GithubLogo, LinkedinLogo, Globe, LinkSimple } from "@phosphor-icons/react";
 import { fetchSharedPassport, type SharedPassport, type PassportTier } from "../../lib/launch/progress-client";
-
-const LINK_META: Record<string, { label: string; Icon: typeof Globe; color: string }> = {
-  portfolio: { label: "Portfolio", Icon: Globe, color: "#6D28D9" },
-  github: { label: "GitHub", Icon: GithubLogo, color: "#111827" },
-  linkedin: { label: "LinkedIn", Icon: LinkedinLogo, color: "#0A66C2" },
-  website: { label: "Website", Icon: LinkSimple, color: "#0D9488" }
-};
 
 const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink: string }> = {
   preparing: { label: "준비 중", ring: "#C9CDD2", bg: "#F2F4F6", ink: "#8B95A1" },
@@ -245,20 +237,6 @@ export function SharedPassportView({ token }: { token: string }) {
                       {p.hasCover ? (
                         <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"><span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span><span aria-hidden>→</span></Link>
                       ) : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* 외부 링크 — 컬러 타일 */}
-                {p.links && p.links.length > 0 ? (
-                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">링크</p>
-                    <div className="mt-2.5 grid grid-cols-2 gap-2">
-                      {p.links.map((l, i) => { const m = LINK_META[l.type] ?? { label: l.type, Icon: LinkSimple, color: "#4E5968" }; return (
-                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-[12.5px] font-bold text-white transition hover:brightness-110" style={{ background: m.color }}>
-                          <m.Icon className="h-4 w-4 shrink-0" weight="fill" /> <span className="truncate">{m.label}</span>
-                        </a>
-                      ); })}
                     </div>
                   </div>
                 ) : null}

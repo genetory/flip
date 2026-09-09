@@ -22145,11 +22145,21 @@ app.get("/career-launch/my-timeline", authenticate, requireCareerEnrollment, asy
 
 // ── 커리어 패스포트 AI 헤드라인 — '이 사람을 만나보고 싶게' 만드는 한 줄 + 서브라인(공유 카드용) ──
 const PROFILE_HEADLINE_SCHEMA = { type: "object", additionalProperties: false, required: ["headline", "subline"], properties: { headline: { type: "string" }, subline: { type: "string" } } } as const;
-const profileHeadlineSchema = z.object({ generate: z.boolean().optional() });
+const profileHeadlineSchema = z.object({ generate: z.boolean().optional(), headline: z.string().max(120).optional(), subline: z.string().max(300).optional() });
 app.post("/career-launch/profile-headline", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-headline", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = profileHeadlineSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   const uid = req.auth!.userId;
+  // 직접 입력(수동) — headline 이 오면 AI 없이 그대로 저장.
+  if (typeof parsed.data.headline === "string") {
+    const headline = parsed.data.headline.trim();
+    const subline = (parsed.data.subline ?? "").trim();
+    const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid }, select: { state: true } });
+    const st = (row?.state && typeof row.state === "object" ? row.state : {}) as Record<string, unknown>;
+    const merged = { ...st, profileHeadline: { sig: "manual", headline, subline } };
+    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: uid }, create: { studentUserId: uid, state: merged as object }, update: { state: merged as object } });
+    return res.json({ ok: true, headline: headline || null, subline: subline || null });
+  }
   try {
     const [progRow, resumeRow, coverRow] = await Promise.all([
       prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } }),

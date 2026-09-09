@@ -37,6 +37,12 @@ export async function fetchProfileHeadline(generate = false): Promise<{ headline
   };
 }
 
+// 한 줄 소개 직접 입력 저장(AI 없이).
+export async function saveProfileHeadline(headline: string, subline = ""): Promise<{ headline: string | null; subline: string | null }> {
+  const d = await req("/career-launch/profile-headline", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ headline, subline }) });
+  return { headline: typeof d.headline === "string" ? d.headline : null, subline: typeof d.subline === "string" ? d.subline : null };
+}
+
 // 학생: 주차(1~3) 코치 피드백. generate=false 면 캐시만 조회(생성·과금 없음, 없으면 needsGenerate).
 // generate=true 면 실제 생성(AI 포인트 차감). 결과물 없으면 text=null.
 export async function fetchWeekFeedback(week: number, generate = false): Promise<{ text: string | null; needsGenerate: boolean; stale: boolean }> {
