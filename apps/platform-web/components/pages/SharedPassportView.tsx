@@ -3,6 +3,7 @@
 // 공개 Talent Passport — 기업 제출/공유용(무인증). 검증·역량 요약 + 공유 유도.
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { FileText, NotePencil, QrCode, ShareNetwork, ShieldCheck, X } from "@phosphor-icons/react";
 import { fetchSharedPassport, type SharedPassport, type PassportTier } from "../../lib/launch/progress-client";
 
 const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink: string }> = {
@@ -12,23 +13,14 @@ const TIER: Record<PassportTier, { label: string; ring: string; bg: string; ink:
   gold: { label: "Verified Gold", ring: "#E0A500", bg: "#FBF2D6", ink: "#A97B00" }
 };
 
-function ringColor(v: number): string {
-  return v >= 75 ? "#0A9B59" : v >= 50 ? "#0B46E8" : "#C77700";
-}
-function Ring({ value, size = 76, stroke = 7 }: { value: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
-  const col = ringColor(value);
+const GAUGE_R = 49;
+const GAUGE_C = 2 * Math.PI * GAUGE_R;
+
+function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E4E7EC" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[19px] font-black leading-none tabular-nums" style={{ color: col }}>{value}</span>
-      </div>
+    <div className="flex flex-1 flex-col items-center justify-center gap-1">
+      <span className="text-[19px] font-black leading-none tabular-nums text-[#111826]">{value}</span>
+      <span className="text-[11px] font-semibold text-[#8B95A1]">{label}</span>
     </div>
   );
 }
@@ -37,6 +29,8 @@ export function SharedPassportView({ token }: { token: string }) {
   const [p, setP] = useState<SharedPassport | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
   const [copied, setCopied] = useState(false);
+  const [qr, setQr] = useState<string | null>(null);
+  const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -52,7 +46,34 @@ export function SharedPassportView({ token }: { token: string }) {
   }, [token]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `/p/${token}`;
-  const sharedStrengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
+
+  // 핵심 강점 — 대표 경험의 성과 문장에서 추린다.
+  const strengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
+  // 준비도 세부 — 항목별 상대 막대(절대 척도 미표기, 최댓값 기준 정규화).
+  const bd = p?.breakdown;
+  const bars = bd
+    ? [
+        { label: "방향성", v: bd.direction || 0 },
+        { label: "서류", v: bd.resume || 0 },
+        { label: "자소서", v: bd.cover || 0 },
+        { label: "면접", v: bd.interview || 0 },
+        { label: "경험", v: bd.experience || 0 }
+      ]
+    : [];
+  const barsMax = Math.max(1, ...bars.map((b) => b.v));
+  const verifiedLabel = p?.verifiedAt ? new Date(p.verifiedAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long" }) : null;
+
+  async function openQr() {
+    setQrOpen(true);
+    if (qr) return;
+    try {
+      const QR = (await import("qrcode")).default;
+      const url = await QR.toDataURL(shareUrl, { margin: 1, width: 320, color: { dark: "#0B1227", light: "#FFFFFF" } });
+      setQr(url);
+    } catch {
+      /* ignore */
+    }
+  }
 
   async function nativeShare() {
     const title = p?.name ? `${p.name} · ${TIER[p.tier].label}` : "APLY Talent Passport";
@@ -81,7 +102,7 @@ export function SharedPassportView({ token }: { token: string }) {
   return (
     <main className="min-h-screen bg-[#F6F8FB] px-4 py-10">
       <style>{`@media print { body { background: #ffffff !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } @page { margin: 12mm; } .print\\:hidden { display: none !important; } }`}</style>
-      <div className="mx-auto w-full max-w-xl">
+      <div className="mx-auto w-full max-w-[400px]">
         {status === "loading" ? (
           <p className="py-20 text-center text-[13px] text-[#8B95A1]">불러오는 중…</p>
         ) : status === "notfound" || !p ? (
@@ -94,174 +115,204 @@ export function SharedPassportView({ token }: { token: string }) {
           </div>
         ) : (
           <>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">APLY Talent Passport</p>
-              <div className="flex items-center gap-1.5 print:hidden">
-                <button
-                  type="button"
-                  onClick={nativeShare}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB]"
-                >
-                  ↗ 공유하기
-                </button>
-                <button
-                  type="button"
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
-                >
-                  {copied ? "복사됨!" : "링크 복사"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#DCE3F0] bg-white px-3 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
-                >
-                  🖨 PDF
-                </button>
-              </div>
+            {/* 상단 액션 — 최소 */}
+            <div className="mb-3 flex items-center justify-end gap-1.5 print:hidden">
+              <button
+                type="button"
+                onClick={nativeShare}
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#0B1227] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-black"
+              >
+                <ShareNetwork className="h-4 w-4" weight="bold" aria-hidden /> 공유하기
+              </button>
+              <button
+                type="button"
+                onClick={copyLink}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E8EC] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+              >
+                {copied ? "복사됨!" : "링크 복사"}
+              </button>
             </div>
-            <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.5)] ring-1 ring-black/5">
-              {/* 히어로 — 차분한 딥네이비 */}
-              <div className="relative overflow-hidden px-7 pb-7 pt-6 text-white md:px-9" style={p.background ? undefined : { background: "#101828" }}>
+
+            {/* 메인 카드 — 심플 프로필 */}
+            <div className="overflow-hidden rounded-[26px] bg-white p-2.5 shadow-[0_20px_50px_-24px_rgba(15,23,42,0.4)] ring-1 ring-black/[0.06]">
+              {/* 커버 */}
+              <div className="relative h-[150px] overflow-hidden rounded-[19px]" style={p.background ? undefined : { background: "linear-gradient(150deg,#EAF0F8 0%,#E3EAF4 52%,#DBE6F1 100%)" }}>
                 {p.background ? (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p.background} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden />
-                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(16,24,40,0.4), rgba(16,24,40,0.78))" }} aria-hidden />
-                  </>
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={p.background} alt="" className="absolute inset-0 h-full w-full object-cover" aria-hidden />
                 ) : (
-                  <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 100% at 100% 0%, rgba(59,90,150,0.35), transparent 55%)" }} aria-hidden />
+                  <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 12% 8%, rgba(255,255,255,0.75), transparent 55%)" }} aria-hidden />
                 )}
-                <div className="relative flex items-center gap-2">
-                  <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
-                  <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-black text-white ring-1 ring-white/25 backdrop-blur-sm">{p.verified ? "✓ " : ""}{TIER[p.tier].label}</span>
-                </div>
-                <div className="relative mt-6 flex items-center gap-4">
-                  {p.photo ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={p.photo} alt={p.name || ""} className="h-[66px] w-[66px] shrink-0 rounded-2xl object-cover ring-1 ring-white/35" />
-                  ) : (
-                    <span className="flex h-[66px] w-[66px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[26px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h1 className="break-keep text-[25px] font-black leading-[1.08] tracking-[-0.035em] text-white md:text-[30px]">{p.name || "익명 인재"}</h1>
-                    <p className="mt-1.5 break-keep text-[12px] font-bold uppercase tracking-[0.06em] text-[#AFC6FF]">취업 준비 중</p>
-                  </div>
-                </div>
-                {p.headline ? (
-                  <div className="relative mt-6">
-                    <p className="break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-white md:text-[18px]">“{p.headline}”</p>
-                    {p.subline ? <p className="mt-2.5 break-keep text-[12.5px] leading-[1.7] text-white/70">{p.subline}</p> : null}
-                  </div>
-                ) : p.pitch ? (
-                  <p className="relative mt-6 break-keep text-[14px] font-medium leading-[1.7] text-white/85">{p.pitch}</p>
-                ) : null}
+                <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11.5px] font-bold text-[#191F28] shadow-sm backdrop-blur-sm">
+                  <span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} aria-hidden />
+                  {p.verified ? "✓ " : ""}{TIER[p.tier].label}
+                </span>
               </div>
 
-              {/* 바디 — 홈처럼 미니 카드 벤토 그리드 */}
-              <div className="flex flex-wrap gap-3 bg-[#F1F1F4] px-4 py-5 md:px-5 md:py-6">
+              <div className="px-5 pb-6">
+                {/* 아바타 + 준비도 게이지 */}
+                <div className="relative mx-auto -mt-[52px] h-[104px] w-[104px]">
+                  <svg viewBox="0 0 104 104" className="absolute inset-0 h-full w-full -rotate-90" aria-hidden>
+                    <defs>
+                      <linearGradient id="pp-gauge" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#3182F6" />
+                        <stop offset="55%" stopColor="#0D9488" />
+                        <stop offset="100%" stopColor="#22C55E" />
+                      </linearGradient>
+                    </defs>
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="4" />
+                    <circle cx="52" cy="52" r={GAUGE_R} fill="none" stroke="url(#pp-gauge)" strokeWidth="4" strokeLinecap="round" strokeDasharray={GAUGE_C} strokeDashoffset={GAUGE_C * (1 - Math.max(0, Math.min(100, p.readiness || 0)) / 100)} />
+                  </svg>
+                  <div className="absolute inset-[8px] overflow-hidden rounded-full bg-[#EEF1F5] ring-[5px] ring-white">
+                    {p.photo ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={p.photo} alt={p.name || ""} className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-[34px] font-black text-[#0B46E8]">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 이름 · 소개 */}
+                <h1 className="mt-4 break-keep text-center text-[26px] font-black leading-[1.1] tracking-[-0.035em] text-[#111826]">{p.name || "익명 인재"}</h1>
+                {p.headline || p.pitch ? (
+                  <p className="mx-auto mt-2 max-w-[21rem] break-keep text-center text-[14.5px] leading-[1.6] text-[#4E5968]">{p.headline || p.pitch}</p>
+                ) : null}
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <div className="grow basis-full min-w-[200px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[44%]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">찾는 직무</p>
-                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
-                  </div>
+                  <p className="mt-3 break-keep text-center text-[12.5px] font-bold tracking-[-0.01em] text-[#0B46E8]">{p.targetJobs.join(" · ")}</p>
                 ) : null}
 
-                {typeof p.readiness === "number" ? (
-                  <div className="grow basis-[46%] min-w-[130px] flex flex-col items-center justify-center gap-2 rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[26%]">
-                    <Ring value={p.readiness} />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">취업 준비도</p>
-                  </div>
-                ) : null}
-
-                {p.experienceCount ? (
-                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-3xl bg-[#0E1526] p-4 text-white sm:basis-[22%]">
-                    <p className="text-[30px] font-black leading-none tabular-nums">{p.experienceCount}</p>
-                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">경험</p>
-                  </div>
-                ) : null}
-
-                {p.languages && p.languages.length > 0 ? (
-                  <div className="grow basis-[46%] min-w-[110px] flex flex-col justify-center rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[22%]">
-                    <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{p.languages.length}</p>
-                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">어학</p>
-                  </div>
-                ) : null}
-
-                {p.pitch ? (
-                  <div className="grow basis-full rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">소개</p>
-                    <p className="mt-2 break-keep text-[13.5px] leading-[1.7] text-[#333D4B]">{p.pitch}</p>
-                  </div>
-                ) : null}
-
-                {sharedStrengths.length > 0 ? (
-                  <div className="grow basis-full rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 md:p-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">핵심 강점</p>
-                    <div className="mt-3 flex flex-col gap-2.5">
-                      {sharedStrengths.map((s, i) => (
-                        <div key={i} className="flex gap-3">
-                          <span className="mt-[10px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
-                          <p className="break-keep text-[13.5px] leading-[1.6] text-[#333D4B]">{s}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {p.highlights && p.highlights.length > 0 ? (
-                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">대표 경험</p>
-                    <div className="mt-1.5 divide-y divide-[#E4E7EC]">
-                      {p.highlights.map((h, i) => (
-                        <div key={i} className="py-2.5">
-                          <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}</p>
-                          {h.period ? <p className="mt-0.5 text-[11.5px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</p> : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* 문서 — 절반 카드 */}
-                {p.hasResume || p.hasCover ? (
-                  <div className="grow basis-full min-w-[220px] rounded-3xl bg-white shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] p-4 sm:basis-[47%]">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">내 문서</p>
-                    <div className="mt-3 flex flex-col gap-2.5">
-                      {p.hasResume ? (
-                        <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-xl bg-[#0B46E8] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"><span className="inline-flex items-center gap-1.5">📄 이력서 보기</span><span aria-hidden>→</span></Link>
-                      ) : null}
-                      {p.hasCover ? (
-                        <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"><span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span><span aria-hidden>→</span></Link>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* 신뢰 스트립 */}
-                <div className="basis-full mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-5 text-[12.5px] text-[#8B95A1]">
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} />취업 준비도 <b className="tabular-nums text-[#191F28]">{p.readiness}</b>/100</span>
-                  <span>경험 <b className="text-[#191F28]">{p.experienceCount}</b>건</span>
-                  {p.languages.length ? <span>언어 <b className="text-[#191F28]">{p.languages.map((l) => l.language).filter(Boolean).join(", ")}</b></span> : null}
+                {/* 스탯 */}
+                <div className="mt-5 flex items-stretch rounded-2xl bg-[#F6F7F9] py-3.5">
+                  <Stat value={p.readiness} label="준비도" />
+                  <span className="my-1 w-px bg-[#E7E9ED]" aria-hidden />
+                  <Stat value={p.experienceCount} label="경험" />
+                  <span className="my-1 w-px bg-[#E7E9ED]" aria-hidden />
+                  <Stat value={p.languages?.length ?? 0} label="어학" />
                 </div>
-              </div>
 
-              {/* MRZ 데코 */}
-              <div className="overflow-hidden border-t border-dashed border-[#D8DCE2] bg-[#F1F1F4] px-7 py-3 md:px-9">
-                <p className="truncate font-mono text-[10px] uppercase tracking-[0.26em] text-[#C4CAD2]">APLY&lt;CAREER&lt;LAUNCH&lt;PASSPORT&lt;&lt;&lt;&lt;&lt;&lt;VERIFIED&lt;{p.verified ? "Y" : "N"}</p>
+                {/* 검증 라인 */}
+                {p.verified && verifiedLabel ? (
+                  <p className="mt-3.5 flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
+                    <ShieldCheck className="h-4 w-4 text-[#0A9B59]" weight="fill" aria-hidden />
+                    APLY 검증 · {verifiedLabel}
+                  </p>
+                ) : null}
+
+                {/* 준비도 세부 */}
+                {bars.length > 0 ? (
+                  <div className="mt-5 rounded-2xl bg-[#F6F7F9] p-4">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">준비도 세부</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
+                      {bars.map((b) => (
+                        <div key={b.label} className="flex items-center gap-3">
+                          <span className="w-11 shrink-0 text-[12px] font-bold text-[#4E5968]">{b.label}</span>
+                          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#E7E9ED]">
+                            <span className="block h-full rounded-full bg-[#0B46E8]" style={{ width: `${Math.round((b.v / barsMax) * 100)}%` }} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 핵심 강점 */}
+                {strengths.length > 0 ? (
+                  <div className="mt-5 border-t border-[#F0F1F4] pt-5">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">핵심 강점</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
+                      {strengths.map((s, i) => (
+                        <div key={i} className="flex gap-3">
+                          <span className="mt-[9px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
+                          <p className="break-keep text-[13.5px] leading-[1.55] text-[#333D4B]">{s}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 대표 경험 */}
+                {p.highlights && p.highlights.length > 0 ? (
+                  <div className="mt-5 border-t border-[#F0F1F4] pt-5">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">대표 경험</p>
+                    <div className="mt-1.5 divide-y divide-[#F0F1F4]">
+                      {p.highlights.slice(0, 3).map((h, i) => (
+                        <div key={i} className="flex items-baseline justify-between gap-3 py-2.5">
+                          <p className="min-w-0 break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}</p>
+                          {h.period ? <p className="shrink-0 text-[11.5px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 보유 스킬 */}
+                {p.skills && p.skills.length > 0 ? (
+                  <div className="mt-5 border-t border-[#F0F1F4] pt-5">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">보유 스킬</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {p.skills.slice(0, 12).map((s, i) => (
+                        <span key={i} className="rounded-lg bg-[#F1F3F5] px-2.5 py-1 text-[12px] font-semibold text-[#4E5968]">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 문서 · QR — 자세한 내용은 링크/QR로 */}
+                <div className="mt-5 flex items-stretch overflow-hidden rounded-2xl border border-[#EEF0F3]">
+                  {p.hasResume ? (
+                    <Link href={`/p/${token}/resume`} className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
+                      <FileText className="h-5 w-5 text-[#4E5968] transition group-hover:text-[#0B46E8]" aria-hidden />
+                      <span className="text-[11.5px] font-bold text-[#4E5968] transition group-hover:text-[#0B46E8]">이력서</span>
+                    </Link>
+                  ) : null}
+                  {p.hasResume && p.hasCover ? <span className="w-px bg-[#EEF0F3]" aria-hidden /> : null}
+                  {p.hasCover ? (
+                    <Link href={`/p/${token}/cover`} className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF]">
+                      <NotePencil className="h-5 w-5 text-[#4E5968] transition group-hover:text-[#0B46E8]" aria-hidden />
+                      <span className="text-[11.5px] font-bold text-[#4E5968] transition group-hover:text-[#0B46E8]">자기소개서</span>
+                    </Link>
+                  ) : null}
+                  {p.hasResume || p.hasCover ? <span className="w-px bg-[#EEF0F3]" aria-hidden /> : null}
+                  <button type="button" onClick={openQr} className="group flex flex-1 flex-col items-center gap-1.5 py-3.5 transition hover:bg-[#F6F8FF] print:hidden">
+                    <QrCode className="h-5 w-5 text-[#4E5968] transition group-hover:text-[#0B46E8]" aria-hidden />
+                    <span className="text-[11.5px] font-bold text-[#4E5968] transition group-hover:text-[#0B46E8]">QR 코드</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* 바이럴 CTA — 본 사람이 자기 패스포트를 만들게 */}
             <div className="mt-4 overflow-hidden rounded-3xl bg-[#0B1227] p-6 text-center text-white print:hidden">
-              <p className="text-[15px] font-black tracking-[-0.02em]">나도 이런 커리어 패스포트 만들 수 있어요</p>
+              <p className="text-[15px] font-black tracking-[-0.02em]">나도 이런 커리어 카드 만들 수 있어요</p>
               <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-white/70">APLY Career Launch로 이력서·자소서·면접까지 준비하고, 검증된 인재 프로필을 무료로 받아보세요.</p>
               <Link href="/career-launch" className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-white px-6 text-[14px] font-bold text-[#0B1227] transition hover:bg-[#F5F8FF]">
-                내 패스포트 만들기 →
+                내 커리어 카드 만들기 →
               </Link>
             </div>
 
             <p className="mt-4 text-center text-[11.5px] text-[#B0B8C1] print:mt-2">APLY Career Launch로 검증된 인재 프로필이에요.</p>
+
+            {/* QR 오버레이 */}
+            {qrOpen ? (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 print:hidden" onClick={() => setQrOpen(false)}>
+                <div className="w-full max-w-[288px] rounded-3xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => setQrOpen(false)} aria-label="닫기" className="text-[#8B95A1] transition hover:text-[#191F28]">
+                      <X className="h-5 w-5" weight="bold" aria-hidden />
+                    </button>
+                  </div>
+                  {qr ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={qr} alt="프로필 QR 코드" className="mx-auto h-52 w-52" />
+                  ) : (
+                    <div className="mx-auto flex h-52 w-52 items-center justify-center text-[13px] text-[#8B95A1]">생성 중…</div>
+                  )}
+                  <p className="mt-3 text-[13.5px] font-bold text-[#191F28]">스캔해서 이 프로필 열기</p>
+                  <p className="mt-1 text-[12px] text-[#8B95A1]">이력서·자소서도 여기서 확인할 수 있어요</p>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
       </div>
