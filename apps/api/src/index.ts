@@ -384,6 +384,8 @@ const discordHanpassSurveyWebhookUrl =
 const discordSignupWebhookUrl = process.env.SIGNUP_DISCORD_WEBHOOK_URL?.trim() ?? "";
 const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOOK_URL?.trim() ?? "";
 const errorDiscordWebhookUrl = process.env.ERROR_DISCORD_WEBHOOK_URL?.trim() ?? "";
+// 사용자 버그·피드백 신고 전용 채널. 미설정 시 에러 채널로 폴백해 바로 동작한다.
+const feedbackDiscordWebhookUrl = process.env.FEEDBACK_DISCORD_WEBHOOK_URL?.trim() || errorDiscordWebhookUrl;
 
 // In-memory dedup for error notifications. Last-N seconds per fingerprint so
 // a burst of the same error doesn't flood Discord.
@@ -468,6 +470,69 @@ async function postErrorToDiscord(input: {
     });
   }
 }
+// 사용자가 직접 보낸 버그·개선 피드백을 Discord로 전달.
+async function postFeedbackToDiscord(input: {
+  message: string;
+  category?: string;
+  url?: string;
+  path?: string;
+  userAgent?: string;
+  viewport?: string;
+  locale?: string;
+  reporterEmail?: string;
+  reporterName?: string;
+  reporterRole?: string;
+}) {
+  if (!feedbackDiscordWebhookUrl) return;
+  const env = process.env.NODE_ENV === "production" ? "production" : "staging";
+  const truncate = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: "분류", value: input.category?.trim() || "기타", inline: true },
+    { name: "Env", value: env, inline: true }
+  ];
+  const reporter = [input.reporterName, input.reporterEmail, input.reporterRole].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  fields.push({ name: "신고자", value: truncate(reporter || "익명(비로그인)", 256), inline: false });
+  if (input.url) fields.push({ name: "화면", value: truncate(input.url, 512), inline: false });
+  const meta = [input.viewport ? `viewport ${input.viewport}` : "", input.locale ? `locale ${input.locale}` : ""].filter(Boolean).join(" · ");
+  if (meta) fields.push({ name: "환경", value: truncate(meta, 256), inline: false });
+  if (input.userAgent) fields.push({ name: "User Agent", value: truncate(input.userAgent, 256), inline: false });
+
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0b46e8,
+        title: "🐞 사용자 버그·피드백",
+        description: truncate(input.message, 1800),
+        fields,
+        footer: { text: "Aply • Feedback" },
+        timestamp: new Date().toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(feedbackDiscordWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("feedback_discord_webhook_failed", {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseBody.slice(0, 500)
+      });
+    }
+  } catch (error) {
+    console.error("feedback_discord_webhook_error", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
 const discordPositionApplyWebhookUrl =
   getTrimmedEnvOrFallback(
     process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL,
@@ -6575,6 +6640,29 @@ app.post("/errors/client", async (req, res) => {
     userAgent: parsed.data.userAgent,
     stack: parsed.data.stack
   });
+  return res.status(204).end();
+});
+
+// 사용자가 우측 하단 위젯으로 직접 보낸 버그·개선 피드백.
+const bugReportSchema = z.object({
+  message: z.string().min(1).max(2000),
+  category: z.string().max(40).optional(),
+  url: z.string().max(600).optional(),
+  path: z.string().max(300).optional(),
+  userAgent: z.string().max(400).optional(),
+  viewport: z.string().max(40).optional(),
+  locale: z.string().max(12).optional(),
+  reporterEmail: z.string().max(200).optional(),
+  reporterName: z.string().max(120).optional(),
+  reporterRole: z.string().max(40).optional()
+});
+
+app.post("/feedback/report", async (req, res) => {
+  const parsed = bugReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid payload" });
+  }
+  void postFeedbackToDiscord(parsed.data);
   return res.status(204).end();
 });
 

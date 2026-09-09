@@ -10,6 +10,7 @@ import { ConsentInit } from "../components/consent/ConsentInit";
 import { CookieConsentBanner } from "../components/consent/CookieConsentBanner";
 import { AiBlockedHandler } from "../components/AiBlockedHandler";
 import { ErrorReporter } from "../components/errors/ErrorReporter";
+import { FeedbackWidget } from "../components/feedback/FeedbackWidget";
 import { ToastProvider } from "../components/toast/ToastProvider";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
 import { ADS_ENABLED } from "../lib/ads-config";
@@ -188,6 +189,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <AuthSessionProvider>
               {children}
               <AiBlockedHandler />
+              <FeedbackWidget />
             </AuthSessionProvider>
             <CookieConsentBanner />
           </ToastProvider>
