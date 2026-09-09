@@ -121,19 +121,16 @@ export function SharedPassportView({ token }: { token: string }) {
               </div>
             </div>
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.5)] ring-1 ring-black/5">
-              {/* 모션 오로라 히어로 */}
-              <div className="cl-pp-hero overflow-hidden px-7 pb-7 pt-6 text-white md:px-9">
+              {/* 히어로 — 차분한 딥네이비 */}
+              <div className="relative overflow-hidden px-7 pb-7 pt-6 text-white md:px-9" style={p.background ? undefined : { background: "#101828" }}>
                 {p.background ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.background} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden />
-                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(10,16,32,0.35), rgba(10,16,32,0.72))" }} aria-hidden />
+                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(16,24,40,0.4), rgba(16,24,40,0.78))" }} aria-hidden />
                   </>
                 ) : (
-                  <>
-                    <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
-                    <div className="cl-pp-shine" aria-hidden />
-                  </>
+                  <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 100% at 100% 0%, rgba(59,90,150,0.35), transparent 55%)" }} aria-hidden />
                 )}
                 <div className="relative flex items-center gap-2">
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
