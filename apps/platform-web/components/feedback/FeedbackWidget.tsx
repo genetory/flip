@@ -90,7 +90,7 @@ export function FeedbackWidget() {
   }
 
   return (
-    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-[70] print:hidden">
+    <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-[70] print:hidden">
       {/* 팝업 패널 */}
       {open ? (
         <div
@@ -178,7 +178,7 @@ export function FeedbackWidget() {
         onClick={() => setOpen((v) => !v)}
         aria-label={t("버그·피드백 보내기", "Send feedback", "发送反馈", "Gửi phản hồi", "フィードバック送信", "Kirim masukan")}
         aria-expanded={open}
-        className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-[0_0_22px_2px_rgba(11,70,232,0.45)] ring-1 ring-black/5 transition hover:scale-105 hover:bg-[#0A3ECB] active:scale-95"
+        className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-[0_4px_12px_rgba(11,70,232,0.32)] ring-1 ring-black/5 transition hover:scale-105 hover:bg-[#0A3ECB] active:scale-95"
       >
         {open ? <X className="h-5 w-5" weight="bold" aria-hidden /> : <Bug className="h-[22px] w-[22px]" weight="fill" aria-hidden />}
       </button>
