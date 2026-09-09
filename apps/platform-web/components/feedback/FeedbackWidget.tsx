@@ -99,9 +99,9 @@ export function FeedbackWidget() {
           aria-label={t("버그·피드백 보내기", "Send feedback", "发送反馈", "Gửi phản hồi", "フィードバック送信", "Kirim masukan")}
           className="mb-3 w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden rounded-2xl bg-white shadow-[0_16px_48px_-12px_rgba(15,23,42,0.4)] ring-1 ring-black/10"
         >
-          <div className="flex items-center justify-between gap-2 bg-[#0B46E8] px-4 py-3 text-white">
-            <p className="text-[14px] font-bold">{t("무엇이든 알려주세요", "Tell us anything", "告诉我们", "Cho chúng tôi biết", "何でも教えてください", "Beri tahu kami")}</p>
-            <button type="button" onClick={() => setOpen(false)} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="text-white/80 transition hover:text-white">
+          <div className="flex items-center justify-between gap-2 border-b border-[#EEF0F3] px-4 py-3">
+            <p className="text-[14px] font-bold text-[#191F28]">{t("무엇이든 알려주세요", "Tell us anything", "告诉我们", "Cho chúng tôi biết", "何でも教えてください", "Beri tahu kami")}</p>
+            <button type="button" onClick={() => setOpen(false)} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="text-[#8B95A1] transition hover:text-[#191F28]">
               <X className="h-5 w-5" weight="bold" aria-hidden />
             </button>
           </div>
@@ -123,7 +123,7 @@ export function FeedbackWidget() {
                     type="button"
                     onClick={() => setCategory(c.key)}
                     className={`flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-bold transition ${
-                      category === c.key ? "bg-[#0B46E8] text-white" : "bg-[#F1F3F5] text-[#4E5968] hover:bg-[#E7EAEE]"
+                      category === c.key ? "bg-[#191F28] text-white" : "bg-[#F1F3F5] text-[#4E5968] hover:bg-[#E7EAEE]"
                     }`}
                   >
                     {c.label}
@@ -145,7 +145,7 @@ export function FeedbackWidget() {
                   "例: このボタンを押すと画面が固まります",
                   "Contoh: Layar macet saat tombol ini ditekan"
                 )}
-                className="w-full resize-none rounded-xl border border-[#E5E8EC] bg-[#FAFBFC] px-3 py-2.5 text-[13.5px] leading-[1.5] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8]"
+                className="w-full resize-none rounded-xl border border-[#E5E8EC] bg-[#FAFBFC] px-3 py-2.5 text-[13.5px] leading-[1.5] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#191F28]"
               />
               {/* 이메일(선택) */}
               <input
@@ -153,7 +153,7 @@ export function FeedbackWidget() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("답장 받을 이메일(선택)", "Email for reply (optional)", "回复邮箱（可选）", "Email nhận phản hồi (tùy chọn)", "返信用メール(任意)", "Email balasan (opsional)")}
-                className="mt-2 w-full rounded-xl border border-[#E5E8EC] bg-[#FAFBFC] px-3 py-2 text-[12.5px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8]"
+                className="mt-2 w-full rounded-xl border border-[#E5E8EC] bg-[#FAFBFC] px-3 py-2 text-[12.5px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#191F28]"
               />
               {status === "error" ? (
                 <p className="mt-2 text-[12px] font-semibold text-[#E11D48]">{t("전송에 실패했어요. 잠시 후 다시 시도해 주세요.", "Failed to send. Please try again.", "发送失败，请稍后重试。", "Gửi thất bại. Thử lại sau.", "送信に失敗しました。もう一度お試しください。", "Gagal mengirim. Coba lagi.")}</p>
@@ -178,7 +178,7 @@ export function FeedbackWidget() {
         onClick={() => setOpen((v) => !v)}
         aria-label={t("버그·피드백 보내기", "Send feedback", "发送反馈", "Gửi phản hồi", "フィードバック送信", "Kirim masukan")}
         aria-expanded={open}
-        className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-[0_8px_24px_-6px_rgba(11,70,232,0.6)] ring-1 ring-black/5 transition hover:scale-105 hover:bg-[#0A3ECB] active:scale-95"
+        className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#0B46E8] text-white shadow-[0_0_22px_2px_rgba(11,70,232,0.45)] ring-1 ring-black/5 transition hover:scale-105 hover:bg-[#0A3ECB] active:scale-95"
       >
         {open ? <X className="h-5 w-5" weight="bold" aria-hidden /> : <Bug className="h-[22px] w-[22px]" weight="fill" aria-hidden />}
       </button>
