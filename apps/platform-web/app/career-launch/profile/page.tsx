@@ -159,7 +159,34 @@ export default function CareerProfilePage() {
   const cardEmpty = !pitch && targetJobs.length === 0 && skills.length === 0 && highlights.length === 0 && !eduLine && !langLine;
   const hasResume = highlights.length > 0 || skills.length > 0 || Boolean(resume.basic && (resume.basic.name || resume.basic.summary));
   const hasCover = (cover.items ?? []).some((it) => (it.answer ?? "").trim().length > 0);
+  // 핵심 강점 — 경험의 성과 불렛에서 근거 있는 한 줄 3개(칩 대신 문장).
+  const strengths = Array.from(new Set((resume.experiences ?? []).flatMap((e) => (e.bullets ?? []).map((b) => (b ?? "").trim())).filter((b) => b.length > 6))).slice(0, 3);
+  const skillsInline = skills.join(" · ");
+  const expCount = (resume.experiences ?? []).filter((e) => (e.title ?? "").trim() || (e.org ?? "").trim()).length;
+  const langCount = languages.filter((l) => (l.language ?? "").trim()).length;
+  const stats = [
+    expCount > 0 ? { n: expCount, label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman") } : null,
+    skills.length > 0 ? { n: skills.length, label: t("기술", "Skills", "技能", "Kỹ năng", "スキル", "Skill") } : null,
+    langCount > 0 ? { n: langCount, label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa") } : null,
+    educations.length > 0 ? { n: educations.length, label: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan") } : null
+  ].filter(Boolean) as { n: number; label: string }[];
   const mrz = `APLY<CAREER<LAUNCH<PASSPORT<<<<<<<<ISSUED<${new Date().getFullYear()}`;
+
+  // 이력서·자소서 문서 QR — 공유 토큰 있을 때 생성.
+  const [docQr, setDocQr] = useState<{ resume?: string; cover?: string }>({});
+  useEffect(() => {
+    if (!shareToken || typeof window === "undefined") return;
+    let alive = true;
+    void (async () => {
+      const origin = window.location.origin;
+      const opt = { margin: 1, width: 240, color: { dark: "#0B1227", light: "#ffffff" } } as const;
+      const out: { resume?: string; cover?: string } = {};
+      if (hasResume) out.resume = await QRCode.toDataURL(`${origin}/p/${shareToken}/resume`, opt);
+      if (hasCover) out.cover = await QRCode.toDataURL(`${origin}/p/${shareToken}/cover`, opt);
+      if (alive) setDocQr(out);
+    })();
+    return () => { alive = false; };
+  }, [shareToken, hasResume, hasCover]);
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -230,62 +257,100 @@ export default function CareerProfilePage() {
 
               {/* 바디 */}
               <div className="p-6">
+                {/* 찾는 직무 — 문장형 */}
                 {targetJobs.length > 0 ? (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("보고 있는 직무", "Roles I'm exploring", "关注的职务", "Nghề đang tìm", "見ている職種", "Peran yang dilirik")}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {targetJobs.map((j, i) => <span key={i} className="rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white">{j}</span>)}
-                    </div>
+                  <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]">
+                    <span className="text-[#0B46E8]">{targetJobs.join(" · ")}</span> {t("직무를 찾고 있어요.", "roles I'm looking for.", "职务方向。", "vị trí đang tìm.", "職種を探しています。", "yang saya cari.")}
+                  </p>
+                ) : null}
+
+                {/* 숫자로 보는 나 */}
+                {stats.length > 0 ? (
+                  <div className="mt-4 flex divide-x divide-[#EEF1F5] overflow-hidden rounded-2xl bg-[var(--cl-card-2)]">
+                    {stats.map((s, i) => (
+                      <div key={i} className="flex-1 px-2 py-3 text-center">
+                        <p className="text-[20px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
+                        <p className="mt-1 text-[11px] font-bold text-[#8B95A1]">{s.label}</p>
+                      </div>
+                    ))}
                   </div>
                 ) : null}
 
-                {skills.length > 0 ? (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("보유 스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {skills.map((s, i) => <span key={i} className="rounded-full bg-[var(--cl-accent-soft)] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{s}</span>)}
-                    </div>
-                  </div>
-                ) : null}
-
-                {highlights.length > 0 ? (
+                {/* 핵심 강점 — 근거 문장 */}
+                {strengths.length > 0 ? (
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("핵심 경험", "Key experience", "核心经历", "Kinh nghiệm chính", "主な経験", "Pengalaman utama")}</p>
-                    <div className="mt-3 flex flex-col gap-3.5">
-                      {highlights.map((h, i) => (
-                        <div key={i} className="flex gap-2.5">
-                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
-                          <div className="min-w-0">
-                            <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}{h.period ? <span className="font-semibold text-[#8B95A1]"> · {h.period}</span> : null}</p>
-                            {h.bullets.map((b, bi) => <p key={bi} className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">· {b}</p>)}
-                          </div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("핵심 강점", "Key strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
+                      {strengths.map((s, i) => (
+                        <div key={i} className="flex gap-2">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0A9B59]" weight="bold" aria-hidden />
+                          <p className="break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{s}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : null}
 
+                {/* 대표 경험 */}
+                {highlights.length > 0 ? (
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      {highlights.map((h, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--cl-card-2)] px-3.5 py-2.5">
+                          <span className="min-w-0 truncate text-[13.5px] font-bold text-[#191F28]">{h.head}</span>
+                          {h.period ? <span className="shrink-0 text-[12px] font-semibold text-[#8B95A1]">{h.period}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* 기술 스택 — 인라인 */}
+                {skillsInline ? (
+                  <p className="mt-4 break-keep text-[12.5px] leading-relaxed text-[#4E5968]"><span className="font-bold text-[#8B95A1]">{t("기술 스택 ", "Stack ", "技术栈 ", "Kỹ năng ", "スタック ", "Stack ")}</span>{skillsInline}</p>
+                ) : null}
+
+                {/* 학력·어학 */}
                 {eduLine || langLine ? (
-                  <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8B95A1]">
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8B95A1]">
                     {eduLine ? <span>🎓 {eduLine}</span> : null}
                     {langLine ? <span>🗣 {langLine}</span> : null}
                   </div>
                 ) : null}
 
+                {/* 문서 — 링크 + QR */}
                 {shareToken && (hasResume || hasCover) ? (
-                  <div className="mt-5 grid gap-2 border-t border-[#EEF1F5] pt-5 sm:grid-cols-2">
-                    {hasResume ? (
-                      <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                        <span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" weight="duotone" /> {t("이력서 보기", "View resume", "查看简历", "Xem CV", "履歴書を見る", "Lihat resume")}</span>
-                        <span aria-hidden>→</span>
-                      </Link>
-                    ) : null}
-                    {hasCover ? (
-                      <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--cl-accent-soft)] px-4 py-3 text-[13.5px] font-bold text-[#0B46E8] transition hover:brightness-95">
-                        <span className="inline-flex items-center gap-1.5"><PencilSimpleLine className="h-4 w-4" weight="duotone" /> {t("자기소개서 보기", "View cover letter", "查看自我介绍", "Xem thư", "自己紹介書を見る", "Lihat surat")}</span>
-                        <span aria-hidden>→</span>
-                      </Link>
-                    ) : null}
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("내 문서 · 링크·QR로 바로 보기", "Documents · open by link or QR", "我的文档 · 链接或二维码", "Tài liệu · link hoặc QR", "書類 · リンク/QRで", "Dokumen · link/QR")}</p>
+                    <div className="mt-3 flex flex-col gap-2">
+                      {hasResume ? (
+                        <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8]"><FileText className="h-5 w-5" weight="duotone" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13.5px] font-bold text-[#191F28]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                          </div>
+                          {docQr.resume ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                          ) : null}
+                        </div>
+                      ) : null}
+                      {hasCover ? (
+                        <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8]"><PencilSimpleLine className="h-5 w-5" weight="duotone" /></span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13.5px] font-bold text-[#191F28]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                          </div>
+                          {docQr.cover ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
 
