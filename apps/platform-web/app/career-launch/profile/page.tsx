@@ -163,11 +163,6 @@ export default function CareerProfilePage() {
   const strengths = Array.from(new Set((resume.experiences ?? []).flatMap((e) => (e.bullets ?? []).map((b) => (b ?? "").trim())).filter((b) => b.length > 6))).slice(0, 3);
   const expCount = (resume.experiences ?? []).filter((e) => (e.title ?? "").trim() || (e.org ?? "").trim()).length;
   const langCount = languages.filter((l) => (l.language ?? "").trim()).length;
-  const stats = [
-    expCount > 0 ? { n: expCount, label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman") } : null,
-    targetJobs.length > 0 ? { n: targetJobs.length, label: t("관심 직무", "Target roles", "关注职务", "Nghề", "関心職種", "Peran") } : null,
-    langCount > 0 ? { n: langCount, label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa") } : null
-  ].filter(Boolean) as { n: number; label: string }[];
   const mrz = `APLY<CAREER<LAUNCH<PASSPORT<<<<<<<<ISSUED<${new Date().getFullYear()}`;
 
   // 이력서·자소서 문서 QR — 공유 토큰 있을 때 생성.
@@ -253,92 +248,96 @@ export default function CareerProfilePage() {
                 ) : null}
               </div>
 
-              {/* 바디 — 매거진 에디토리얼 */}
-              <div className="px-7 py-7 md:px-9 md:py-8">
-                {/* 찾는 직무 */}
+              {/* 바디 — 홈처럼 미니 카드 벤토 그리드(비율 다양) */}
+              <div className="grid grid-cols-6 gap-3 px-5 py-5 md:px-6 md:py-6">
+                {/* 찾는 직무 — 넓은 카드 */}
                 {targetJobs.length > 0 ? (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("찾는 직무", "Looking for", "关注职务", "Đang tìm", "希望職種", "Mencari")}</p>
-                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-[#0B1227]">{targetJobs.join(" · ")}</p>
+                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("찾는 직무", "Looking for", "关注职务", "Đang tìm", "希望職種", "Mencari")}</p>
+                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{targetJobs.join(" · ")}</p>
                   </div>
                 ) : null}
 
-                {/* 숫자로 보는 나 — 피규어 스트립 */}
-                {stats.length > 0 ? (
-                  <div className="mt-6 flex divide-x divide-[#ECEEF1] border-y border-[#ECEEF1]">
-                    {stats.map((s, i) => (
-                      <div key={i} className="flex-1 py-4 text-center">
-                        <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
-                        <p className="mt-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{s.label}</p>
-                      </div>
-                    ))}
+                {/* 경험 수 — 딥네이비 하이라이트 카드 */}
+                {expCount > 0 ? (
+                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:col-span-2">
+                    <p className="text-[30px] font-black leading-none tabular-nums">{expCount}</p>
+                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">{t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
                   </div>
                 ) : null}
 
-                {/* 핵심 강점 */}
+                {/* 어학/직무 수 — 작은 스탯 카드(칸 채우기) */}
+                {langCount > 0 ? (
+                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-2">
+                    <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{langCount}</p>
+                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</p>
+                  </div>
+                ) : null}
+
+                {/* 핵심 강점 — 전체 폭 카드 */}
                 {strengths.length > 0 ? (
-                  <section className="mt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("핵심 강점", "Strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
-                    <div className="mt-3.5 flex flex-col gap-3">
+                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 md:p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("핵심 강점", "Strengths", "核心优势", "Điểm mạnh", "強み", "Kelebihan")}</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
                       {strengths.map((s, i) => (
                         <div key={i} className="flex gap-3">
-                          <span className="mt-[11px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
-                          <p className="break-keep text-[14px] leading-[1.65] text-[#333D4B]">{s}</p>
+                          <span className="mt-[10px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
+                          <p className="break-keep text-[13.5px] leading-[1.6] text-[#333D4B]">{s}</p>
                         </div>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
-                {/* 대표 경험 */}
+                {/* 대표 경험 — 절반 카드 */}
                 {highlights.length > 0 ? (
-                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
-                    <div className="mt-2 divide-y divide-[#ECEEF1]">
+                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("대표 경험", "Experience", "代表经历", "Kinh nghiệm", "経験", "Pengalaman")}</p>
+                    <div className="mt-1.5 divide-y divide-[#E4E7EC]">
                       {highlights.map((h, i) => (
-                        <div key={i} className="flex items-baseline justify-between gap-4 py-3">
-                          <span className="min-w-0 break-keep text-[14px] font-bold text-[#191F28]">{h.head}</span>
-                          {h.period ? <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</span> : null}
+                        <div key={i} className="py-2.5">
+                          <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}</p>
+                          {h.period ? <p className="mt-0.5 text-[11.5px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</p> : null}
                         </div>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
-                {/* 문서 — 링크·QR, 2컬럼 */}
+                {/* 문서 — 절반 카드(링크·QR) */}
                 {shareToken && (hasResume || hasCover) ? (
-                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">{t("내 문서 · 링크·QR로 바로 보기", "Documents · link or QR", "我的文档 · 链接或二维码", "Tài liệu · link/QR", "書類 · リンク/QR", "Dokumen · link/QR")}</p>
-                    <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                  <div className="col-span-6 rounded-2xl bg-[var(--cl-card-2)] p-4 sm:col-span-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("내 문서 · 링크·QR", "Documents · link/QR", "我的文档", "Tài liệu", "書類", "Dokumen")}</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
                       {hasResume ? (
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-[#ECEEF1] p-4">
+                        <div className="flex items-center gap-3 rounded-xl bg-white p-3">
                           <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[14px] font-black text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.resume ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
+                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
                           ) : null}
                         </div>
                       ) : null}
                       {hasCover ? (
-                        <div className="flex items-center gap-3.5 rounded-2xl border border-[#ECEEF1] p-4">
+                        <div className="flex items-center gap-3 rounded-xl bg-white p-3">
                           <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[14px] font-black text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.cover ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
+                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
                           ) : null}
                         </div>
                       ) : null}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
-                {cardEmpty ? <p className="break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
+                {cardEmpty ? <p className="col-span-6 break-keep text-[13.5px] leading-[1.7] text-[#8B95A1]">{t("이력서·자기소개서를 작성하면 나를 소개하는 프로필이 자동으로 채워져요.", "Fill your resume and cover letter to auto-build a profile that introduces you.", "填写简历与自我介绍后，会自动生成介绍你的档案。", "Điền CV và thư giới thiệu để tự tạo hồ sơ giới thiệu bạn.", "履歴書・自己紹介書を作成すると自己紹介プロフィールが自動で埋まります。", "Isi resume dan surat lamaran untuk membangun profil yang memperkenalkanmu.")}</p> : null}
               </div>
               {/* MRZ 풋터 — 여권 느낌 데코 */}
               <div className="overflow-hidden border-t border-dashed border-[#E5E8EB] px-7 py-3 md:px-9">
