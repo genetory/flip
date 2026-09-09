@@ -31,6 +31,12 @@ export function SharedPassportView({ token }: { token: string }) {
   }, [token]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `/p/${token}`;
+  const sharedStrengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
+  const sharedStats = ([
+    p?.experienceCount ? { n: p.experienceCount, label: "경험" } : null,
+    p?.skills?.length ? { n: p.skills.length, label: "기술" } : null,
+    p?.languages?.length ? { n: p.languages.length, label: "어학" } : null
+  ].filter(Boolean)) as { n: number; label: string }[];
 
   async function nativeShare() {
     const title = p?.name ? `${p.name} · ${TIER[p.tier].label}` : "APLY Talent Passport";
@@ -142,34 +148,50 @@ export function SharedPassportView({ token }: { token: string }) {
               {/* 바디 — 내가 어떤 사람인지 */}
               <div className="p-6 md:p-8">
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">보고 있는 직무</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">{p.targetJobs.map((j, i) => <span key={i} className="rounded-full bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white">{j}</span>)}</div>
+                  <p className="break-keep text-[14px] font-semibold leading-relaxed text-[#191F28]"><span className="text-[#0B46E8]">{p.targetJobs.join(" · ")}</span> 직무를 찾고 있어요.</p>
+                ) : null}
+
+                {sharedStats.length > 0 ? (
+                  <div className="mt-4 flex divide-x divide-[#EEF1F5] overflow-hidden rounded-2xl bg-[#F4F6F9]">
+                    {sharedStats.map((s, i) => (
+                      <div key={i} className="flex-1 px-2 py-3 text-center">
+                        <p className="text-[20px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
+                        <p className="mt-1 text-[11px] font-bold text-[#8B95A1]">{s.label}</p>
+                      </div>
+                    ))}
                   </div>
                 ) : null}
 
-                {p.skills && p.skills.length > 0 ? (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">보유 스킬</p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">{p.skills.map((s, i) => <span key={i} className="rounded-full bg-[#EAEFFE] px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8]">{s}</span>)}</div>
+                {sharedStrengths.length > 0 ? (
+                  <div className="mt-5 border-t border-[#EEF1F5] pt-5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">핵심 강점</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
+                      {sharedStrengths.map((s, i) => (
+                        <div key={i} className="flex gap-2">
+                          <span className="mt-[3px] text-[13px] text-[#0A9B59]" aria-hidden>✓</span>
+                          <p className="break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{s}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 
                 {p.highlights && p.highlights.length > 0 ? (
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">핵심 경험</p>
-                    <div className="mt-3 flex flex-col gap-3.5">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">대표 경험</p>
+                    <div className="mt-3 flex flex-col gap-2">
                       {p.highlights.map((h, i) => (
-                        <div key={i} className="flex gap-2.5">
-                          <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
-                          <div className="min-w-0">
-                            <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}{h.period ? <span className="font-semibold text-[#8B95A1]"> · {h.period}</span> : null}</p>
-                            {h.bullets.map((b, bi) => <p key={bi} className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">· {b}</p>)}
-                          </div>
+                        <div key={i} className="flex items-center justify-between gap-3 rounded-xl bg-[#F4F6F9] px-3.5 py-2.5">
+                          <span className="min-w-0 truncate text-[13.5px] font-bold text-[#191F28]">{h.head}</span>
+                          {h.period ? <span className="shrink-0 text-[12px] font-semibold text-[#8B95A1]">{h.period}</span> : null}
                         </div>
                       ))}
                     </div>
                   </div>
+                ) : null}
+
+                {p.skills && p.skills.length > 0 ? (
+                  <p className="mt-4 break-keep text-[12.5px] leading-relaxed text-[#4E5968]"><span className="font-bold text-[#8B95A1]">기술 스택 </span>{p.skills.join(" · ")}</p>
                 ) : null}
 
                 {/* 원본 문서 열람 — 이력서·자소서 바로 보기 */}
