@@ -32,11 +32,6 @@ export function SharedPassportView({ token }: { token: string }) {
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : `/p/${token}`;
   const sharedStrengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
-  const sharedStats = ([
-    p?.experienceCount ? { n: p.experienceCount, label: "경험" } : null,
-    p?.targetJobs?.length ? { n: p.targetJobs.length, label: "관심 직무" } : null,
-    p?.languages?.length ? { n: p.languages.length, label: "어학" } : null
-  ].filter(Boolean)) as { n: number; label: string }[];
 
   async function nativeShare() {
     const title = p?.name ? `${p.name} · ${TIER[p.tier].label}` : "APLY Talent Passport";
@@ -145,78 +140,74 @@ export function SharedPassportView({ token }: { token: string }) {
                 ) : null}
               </div>
 
-              {/* 바디 — 매거진 에디토리얼 */}
-              <div className="px-7 py-7 md:px-9 md:py-8">
+              {/* 바디 — 홈처럼 미니 카드 벤토 그리드 */}
+              <div className="grid grid-cols-6 gap-3 px-5 py-5 md:px-6 md:py-6">
                 {p.targetJobs && p.targetJobs.length > 0 ? (
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">찾는 직무</p>
-                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.4] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
+                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">찾는 직무</p>
+                    <p className="mt-2 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">{p.targetJobs.join(" · ")}</p>
                   </div>
                 ) : null}
 
-                {sharedStats.length > 0 ? (
-                  <div className="mt-6 flex divide-x divide-[#ECEEF1] border-y border-[#ECEEF1]">
-                    {sharedStats.map((s, i) => (
-                      <div key={i} className="flex-1 py-4 text-center">
-                        <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{s.n}</p>
-                        <p className="mt-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{s.label}</p>
-                      </div>
-                    ))}
+                {p.experienceCount ? (
+                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#0E1526] p-4 text-white sm:col-span-2">
+                    <p className="text-[30px] font-black leading-none tabular-nums">{p.experienceCount}</p>
+                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/55">경험</p>
+                  </div>
+                ) : null}
+
+                {p.languages && p.languages.length > 0 ? (
+                  <div className="col-span-3 flex flex-col justify-center rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-2">
+                    <p className="text-[26px] font-black leading-none tabular-nums text-[#0B1227]">{p.languages.length}</p>
+                    <p className="mt-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">어학</p>
                   </div>
                 ) : null}
 
                 {sharedStrengths.length > 0 ? (
-                  <section className="mt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">핵심 강점</p>
-                    <div className="mt-3.5 flex flex-col gap-3">
+                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 md:p-5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">핵심 강점</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
                       {sharedStrengths.map((s, i) => (
                         <div key={i} className="flex gap-3">
-                          <span className="mt-[11px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
-                          <p className="break-keep text-[14px] leading-[1.65] text-[#333D4B]">{s}</p>
+                          <span className="mt-[10px] h-px w-4 shrink-0 bg-[#0B46E8]" aria-hidden />
+                          <p className="break-keep text-[13.5px] leading-[1.6] text-[#333D4B]">{s}</p>
                         </div>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
                 {p.highlights && p.highlights.length > 0 ? (
-                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">대표 경험</p>
-                    <div className="mt-2 divide-y divide-[#ECEEF1]">
+                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">대표 경험</p>
+                    <div className="mt-1.5 divide-y divide-[#E4E7EC]">
                       {p.highlights.map((h, i) => (
-                        <div key={i} className="flex items-baseline justify-between gap-4 py-3">
-                          <span className="min-w-0 break-keep text-[14px] font-bold text-[#191F28]">{h.head}</span>
-                          {h.period ? <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</span> : null}
+                        <div key={i} className="py-2.5">
+                          <p className="break-keep text-[13.5px] font-bold text-[#191F28]">{h.head}</p>
+                          {h.period ? <p className="mt-0.5 text-[11.5px] font-semibold tabular-nums text-[#A8ADB8]">{h.period}</p> : null}
                         </div>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
-
-                {/* 원본 문서 열람 — 이력서·자소서 바로 보기 */}
+                {/* 문서 — 절반 카드 */}
                 {p.hasResume || p.hasCover ? (
-                  <section className="mt-7 border-t border-[#ECEEF1] pt-7">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A8ADB8]">내 문서</p>
-                    <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                  <div className="col-span-6 rounded-2xl bg-[#F4F6F9] p-4 sm:col-span-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">내 문서</p>
+                    <div className="mt-3 flex flex-col gap-2.5">
                       {p.hasResume ? (
-                        <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
-                          <span className="inline-flex items-center gap-1.5">📄 이력서 보기</span>
-                          <span aria-hidden>→</span>
-                        </Link>
+                        <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-xl bg-[#0B46E8] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"><span className="inline-flex items-center gap-1.5">📄 이력서 보기</span><span aria-hidden>→</span></Link>
                       ) : null}
                       {p.hasCover ? (
-                        <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-2xl border border-[#ECEEF1] px-4 py-3.5 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#F4F6F9]">
-                          <span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span>
-                          <span aria-hidden>→</span>
-                        </Link>
+                        <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-xl bg-white px-4 py-3 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]"><span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span><span aria-hidden>→</span></Link>
                       ) : null}
                     </div>
-                  </section>
+                  </div>
                 ) : null}
 
-                {/* 신뢰 스트립 — 준비도·검증·경험·언어 */}
-                <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-6 text-[12.5px] text-[#8B95A1]">
+                {/* 신뢰 스트립 */}
+                <div className="col-span-6 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#ECEEF1] pt-5 text-[12.5px] text-[#8B95A1]">
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} />취업 준비도 <b className="tabular-nums text-[#191F28]">{p.readiness}</b>/100</span>
                   <span>경험 <b className="text-[#191F28]">{p.experienceCount}</b>건</span>
                   {p.languages.length ? <span>언어 <b className="text-[#191F28]">{p.languages.map((l) => l.language).filter(Boolean).join(", ")}</b></span> : null}

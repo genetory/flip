@@ -310,27 +310,27 @@ export default function CareerProfilePage() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#A8ADB8]">{t("내 문서 · 링크·QR", "Documents · link/QR", "我的文档", "Tài liệu", "書類", "Dokumen")}</p>
                     <div className="mt-3 flex flex-col gap-2.5">
                       {hasResume ? (
-                        <div className="flex items-center gap-3 rounded-xl bg-white p-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                        <div className="rounded-xl bg-white p-3">
+                          <div className="flex items-center gap-3">
+                            <p className="inline-flex flex-1 items-center gap-1.5 text-[13px] font-black text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+                            {docQr.resume ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-11 w-11 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
+                            ) : null}
                           </div>
-                          {docQr.resume ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
-                          ) : null}
+                          <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-2.5 flex items-center justify-center gap-1 rounded-lg bg-[var(--cl-accent-soft)] py-2 text-[12px] font-bold text-[#0B46E8] transition hover:brightness-95">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                         </div>
                       ) : null}
                       {hasCover ? (
-                        <div className="flex items-center gap-3 rounded-xl bg-white p-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[11.5px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                        <div className="rounded-xl bg-white p-3">
+                          <div className="flex items-center gap-3">
+                            <p className="inline-flex flex-1 items-center gap-1.5 text-[13px] font-black text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+                            {docQr.cover ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-11 w-11 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
+                            ) : null}
                           </div>
-                          {docQr.cover ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#ECEEF1]" /></a>
-                          ) : null}
+                          <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-2.5 flex items-center justify-center gap-1 rounded-lg bg-[var(--cl-accent-soft)] py-2 text-[12px] font-bold text-[#0B46E8] transition hover:brightness-95">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                         </div>
                       ) : null}
                     </div>
