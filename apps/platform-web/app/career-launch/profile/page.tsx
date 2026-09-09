@@ -5,12 +5,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple, Copy } from "@phosphor-icons/react";
+import { CaretLeft, ShareNetwork, Check, Sparkle, CircleNotch, X, DownloadSimple, Copy, Camera, Image as ImageIcon, FileText, PencilSimpleLine } from "@phosphor-icons/react";
+import { fileToResizedDataUrl } from "../../../lib/launch/image-util";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { AplyFooter } from "../../../components/AplyFooter";
-import { fetchProgress, sharePassport, type CareerProgress } from "../../../lib/launch/progress-client";
+import { fetchProgress, sharePassport, savePassportMedia, type CareerProgress } from "../../../lib/launch/progress-client";
 import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
 import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline } from "../../../lib/launch/feedback-client";
@@ -26,6 +27,36 @@ export default function CareerProfilePage() {
   const [copied, setCopied] = useState(false);
   const [headline, setHeadline] = useState<string | null>(null);
   const [subline, setSubline] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [background, setBackground] = useState<string | null>(null);
+  const [mediaBusy, setMediaBusy] = useState<"" | "photo" | "bg">("");
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const onPickPhoto = async (file?: File | null) => {
+    if (!file) return;
+    setMediaBusy("photo");
+    try {
+      const dataUrl = await fileToResizedDataUrl(file, 480, 0.85);
+      const m = await savePassportMedia({ photo: dataUrl });
+      if (m) setPhoto(m.photo);
+    } catch {
+      /* 무시 */
+    } finally {
+      setMediaBusy("");
+    }
+  };
+  const onPickBg = async (file?: File | null) => {
+    if (!file) return;
+    setMediaBusy("bg");
+    try {
+      const dataUrl = await fileToResizedDataUrl(file, 1600, 0.8);
+      const m = await savePassportMedia({ background: dataUrl });
+      if (m) setBackground(m.background);
+    } catch {
+      /* 무시 */
+    } finally {
+      setMediaBusy("");
+    }
+  };
   const [hlBusy, setHlBusy] = useState(false);
   const onGenHeadline = async () => {
     if (hlBusy) return;
@@ -92,8 +123,12 @@ export default function CareerProfilePage() {
       setProg(p);
       setResume(r.data ?? {});
       setCover(c.data ?? {});
+      setPhoto(p?.passportMedia?.photo ?? null);
+      setBackground(p?.passportMedia?.background ?? null);
       // AI 헤드라인 캐시 조회(생성은 버튼).
       void fetchProfileHeadline(false).then((h) => { if (!alive) return; setHeadline(h.headline); setSubline(h.subline); }).catch(() => {});
+      // 공유 토큰(문서 링크·QR용) — 멱등.
+      void sharePassport().then((tk) => { if (alive) setShareToken(tk); }).catch(() => {});
     })();
     return () => {
       alive = false;
@@ -122,6 +157,8 @@ export default function CareerProfilePage() {
   const eduLine = educations.map((ed) => [ed.school, ed.major].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(" · ");
   const langLine = languages.map((l) => [l.language, l.level].map((x) => (x ?? "").trim()).filter(Boolean).join(" ")).filter(Boolean).join(", ");
   const cardEmpty = !pitch && targetJobs.length === 0 && skills.length === 0 && highlights.length === 0 && !eduLine && !langLine;
+  const hasResume = highlights.length > 0 || skills.length > 0 || Boolean(resume.basic && (resume.basic.name || resume.basic.summary));
+  const hasCover = (cover.items ?? []).some((it) => (it.answer ?? "").trim().length > 0);
   const mrz = `APLY<CAREER<LAUNCH<PASSPORT<<<<<<<<ISSUED<${new Date().getFullYear()}`;
 
   return (
@@ -137,19 +174,45 @@ export default function CareerProfilePage() {
           <div className="mt-4 flex flex-col gap-6">
             {/* ── 공유 카드 — 남들에게 보여줄 나의 커리어 여권 ── */}
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.55)] ring-1 ring-black/5">
-              {/* 히어로 밴드 — 모션 오로라 */}
+              {/* 히어로 밴드 — 모션 오로라 / 배경 사진 */}
               <div className="cl-pp-hero overflow-hidden px-6 pb-6 pt-5 text-white">
-                <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
-                <div className="cl-pp-shine" aria-hidden />
+                {background ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={background} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden />
+                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(10,16,32,0.35), rgba(10,16,32,0.72))" }} aria-hidden />
+                  </>
+                ) : (
+                  <>
+                    <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
+                    <div className="cl-pp-shine" aria-hidden />
+                  </>
+                )}
                 <div className="relative flex items-center gap-2">
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
-                  <button type="button" onClick={openShare} className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
+                  <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
+                    {mediaBusy === "bg" ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <ImageIcon className="h-3.5 w-3.5" weight="bold" />}
+                    {t("배경", "Cover", "背景", "Nền", "背景", "Latar")}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickBg(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+                  </label>
+                  <button type="button" onClick={openShare} className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-[11.5px] font-bold text-white backdrop-blur-sm transition hover:bg-white/25">
                     <ShareNetwork className="h-3.5 w-3.5" weight="bold" />
                     {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
                   </button>
                 </div>
                 <div className="relative mt-5 flex items-center gap-4">
-                  <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[24px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{initial}</span>
+                  <label className="group relative flex h-[62px] w-[62px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-white/12 ring-1 ring-white/35 backdrop-blur-sm">
+                    {photo ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={photo} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-[24px] font-black text-white">{initial}</span>
+                    )}
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                      {mediaBusy === "photo" ? <CircleNotch className="h-5 w-5 animate-spin text-white" weight="bold" /> : <Camera className="h-5 w-5 text-white" weight="fill" />}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+                  </label>
                   <div className="min-w-0 flex-1">
                     <h1 className="break-keep text-[23px] font-black leading-[1.12] tracking-[-0.03em] text-white md:text-[27px]">{name || t("내 커리어 프로필", "My career profile", "我的职业档案", "Hồ sơ nghề của tôi", "私のキャリアプロフィール", "Profil karierku")}</h1>
                     <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{direction ? t(`${direction} 준비생`, `Aiming for ${direction}`, `${direction} 求职中`, `Hướng ${direction}`, `${direction} 志望`, `Menuju ${direction}`) : t("4주 커리어 런치 수료", "Career Launch graduate", "职业启程结业", "Hoàn thành Career Launch", "キャリアランチ修了", "Lulusan Career Launch")}</p>
@@ -206,6 +269,23 @@ export default function CareerProfilePage() {
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8B95A1]">
                     {eduLine ? <span>🎓 {eduLine}</span> : null}
                     {langLine ? <span>🗣 {langLine}</span> : null}
+                  </div>
+                ) : null}
+
+                {shareToken && (hasResume || hasCover) ? (
+                  <div className="mt-5 grid gap-2 border-t border-[#EEF1F5] pt-5 sm:grid-cols-2">
+                    {hasResume ? (
+                      <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                        <span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" weight="duotone" /> {t("이력서 보기", "View resume", "查看简历", "Xem CV", "履歴書を見る", "Lihat resume")}</span>
+                        <span aria-hidden>→</span>
+                      </Link>
+                    ) : null}
+                    {hasCover ? (
+                      <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-2xl bg-[var(--cl-accent-soft)] px-4 py-3 text-[13.5px] font-bold text-[#0B46E8] transition hover:brightness-95">
+                        <span className="inline-flex items-center gap-1.5"><PencilSimpleLine className="h-4 w-4" weight="duotone" /> {t("자기소개서 보기", "View cover letter", "查看自我介绍", "Xem thư", "自己紹介書を見る", "Lihat surat")}</span>
+                        <span aria-hidden>→</span>
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 

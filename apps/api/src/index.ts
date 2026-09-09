@@ -21990,6 +21990,52 @@ app.post("/career-launch/passport/share", authenticate, requireCareerEnrollment,
   }
 });
 
+// POST /career-launch/passport/media — 커리어 패스포트 프로필/배경 사진 저장(Blob 업로드 → URL). state.passportMedia.
+const passportMediaSchema = z.object({
+  photo: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional(),
+  background: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
+});
+app.post("/career-launch/passport/media", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = passportMediaSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const uid = req.auth!.userId;
+  try {
+    const prog = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid }, select: { state: true } });
+    const state = (prog?.state && typeof prog.state === "object" ? prog.state : {}) as Record<string, unknown>;
+    const cur = (state.passportMedia && typeof state.passportMedia === "object" ? state.passportMedia : {}) as { photo?: string | null; background?: string | null };
+    const out: { photo: string | null; background: string | null } = { photo: cur.photo ?? null, background: cur.background ?? null };
+    if (parsed.data.photo !== undefined) out.photo = parsed.data.photo ? await uploadDataUrlImageIfNeeded(parsed.data.photo, "passport/photos") : null;
+    if (parsed.data.background !== undefined) out.background = parsed.data.background ? await uploadDataUrlImageIfNeeded(parsed.data.background, "passport/backgrounds") : null;
+    const next = { ...state, passportMedia: out };
+    await prisma.careerLaunchProgress.upsert({ where: { studentUserId: uid }, create: { studentUserId: uid, state: next }, update: { state: next } });
+    return res.json({ ok: true, media: out });
+  } catch (error) {
+    console.error("[career-launch/passport/media] failed", error);
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /career-launch/passport/shared/:token/document?type=resume|cover — 공개(무인증) 원본 문서 열람.
+app.get("/career-launch/passport/shared/:token/document", async (req, res) => {
+  const token = typeof req.params.token === "string" ? req.params.token : "";
+  const type = req.query.type === "cover" ? "cover" : "resume";
+  if (!token || token.length < 8) return res.status(400).json({ ok: false, message: "invalid token" });
+  try {
+    const prog = await prisma.careerLaunchProgress.findFirst({ where: { state: { path: ["passportShare", "token"], equals: token } }, select: { studentUserId: true } });
+    if (!prog) return res.status(404).json({ ok: false, message: "not found" });
+    const uid = prog.studentUserId;
+    const [user, row] = await Promise.all([
+      prisma.user.findUnique({ where: { id: uid }, select: { name: true, realName: true } }),
+      type === "cover"
+        ? prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid }, select: { content: true } })
+        : prisma.careerResumeData.findUnique({ where: { studentUserId: uid }, select: { content: true } })
+    ]);
+    return res.json({ ok: true, name: user?.realName || user?.name || null, type, content: row?.content ?? {} });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // GET /career-launch/passport/shared/:token — 공개(무인증) 공유 뷰. 연락처 없이 검증·역량 요약만.
 app.get("/career-launch/passport/shared/:token", async (req, res) => {
   const token = typeof req.params.token === "string" ? req.params.token : "";
@@ -22029,6 +22075,9 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       .filter((e) => String(e?.title ?? "").trim() || String(e?.org ?? "").trim())
       .slice(0, 4)
       .map((e) => ({ head: [e.title, e.org].map((x) => String(x ?? "").trim()).filter(Boolean).join(" · "), period: String(e.period ?? "").trim(), bullets: (Array.isArray(e.bullets) ? e.bullets : []).map((b) => String(b ?? "").trim()).filter(Boolean).slice(0, 2) }));
+    const media = (st.passportMedia && typeof st.passportMedia === "object" ? st.passportMedia : {}) as { photo?: string | null; background?: string | null };
+    const hasResume = Boolean(resume.basic || (resume.experiences ?? []).length > 0 || (Array.isArray(resume.skills) && resume.skills.length > 0));
+    const hasCover = (cover.items ?? []).some((it) => String(it?.answer ?? "").trim().length > 0);
     const shared = {
       name: user?.realName || user?.name || null,
       readiness: passport.readiness,
@@ -22046,7 +22095,11 @@ app.get("/career-launch/passport/shared/:token", async (req, res) => {
       pitch: pitch || null,
       targetJobs: selectedJobs,
       skills,
-      highlights
+      highlights,
+      photo: media.photo ?? null,
+      background: media.background ?? null,
+      hasResume,
+      hasCover
     };
     return res.json({ ok: true, passport: shared });
   } catch (error) {

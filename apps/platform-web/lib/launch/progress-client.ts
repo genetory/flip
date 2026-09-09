@@ -93,7 +93,18 @@ export type CareerProgress = {
   storyBank?: { data?: { stories?: unknown[] } } | null;
   answerBank?: { data?: { answers?: { question: string; answer: string }[] } } | null;
   jdMatch?: { data?: { matchPercent?: number } } | null;
+  passportMedia?: { photo?: string | null; background?: string | null } | null;
 };
+
+// 커리어 패스포트 프로필/배경 사진 저장(Blob URL 반환). null 로 비우기.
+export async function savePassportMedia(patch: { photo?: string | null; background?: string | null }): Promise<{ photo: string | null; background: string | null } | null> {
+  try {
+    const d = await req("/career-launch/passport/media", { method: "POST", headers: { ...authHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    return (d.media as { photo: string | null; background: string | null }) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function req(path: string, init: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`${apiBase()}${path}`, init);
@@ -202,7 +213,23 @@ export type SharedPassport = {
   targetJobs?: string[];
   skills?: string[];
   highlights?: { head: string; period: string; bullets: string[] }[];
+  photo?: string | null;
+  background?: string | null;
+  hasResume?: boolean;
+  hasCover?: boolean;
 };
+
+// 공개(무인증) 원본 문서(이력서/자소서) 조회.
+export async function fetchSharedDocument(token: string, type: "resume" | "cover"): Promise<{ name: string | null; content: Record<string, unknown> } | null> {
+  try {
+    const res = await fetch(`${apiBase()}/career-launch/passport/shared/${encodeURIComponent(token)}/document?type=${type}`);
+    const d = (await res.json().catch(() => null)) as { ok?: boolean; name?: string | null; content?: Record<string, unknown> } | null;
+    if (!res.ok || d?.ok !== true) return null;
+    return { name: d.name ?? null, content: d.content ?? {} };
+  } catch {
+    return null;
+  }
+}
 
 // 내 활동 타임라인(TalentEvent) — 학생 본인의 여정.
 export type TimelineEvent = { type: string; at: string; metadata?: Record<string, unknown> | null };

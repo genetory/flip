@@ -101,14 +101,29 @@ export function SharedPassportView({ token }: { token: string }) {
             <div className="overflow-hidden rounded-[26px] bg-white shadow-[0_28px_64px_-26px_rgba(11,18,39,0.5)] ring-1 ring-black/5">
               {/* 모션 오로라 히어로 */}
               <div className="cl-pp-hero overflow-hidden px-6 pb-6 pt-5 text-white md:px-8">
-                <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
-                <div className="cl-pp-shine" aria-hidden />
+                {p.background ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.background} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-cover" aria-hidden />
+                    <div className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(10,16,32,0.35), rgba(10,16,32,0.72))" }} aria-hidden />
+                  </>
+                ) : (
+                  <>
+                    <div className="pointer-events-none absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1.2px)", backgroundSize: "15px 15px" }} aria-hidden />
+                    <div className="cl-pp-shine" aria-hidden />
+                  </>
+                )}
                 <div className="relative flex items-center gap-2">
                   <span className="text-[10.5px] font-black uppercase tracking-[0.24em] text-white/90">✈ Career Passport</span>
                   <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-black text-white ring-1 ring-white/25 backdrop-blur-sm">{p.verified ? "✓ " : ""}{TIER[p.tier].label}</span>
                 </div>
                 <div className="relative mt-5 flex items-center gap-4">
-                  <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[24px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
+                  {p.photo ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={p.photo} alt={p.name || ""} className="h-[62px] w-[62px] shrink-0 rounded-2xl object-cover ring-1 ring-white/35" />
+                  ) : (
+                    <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-2xl bg-white/12 text-[24px] font-black text-white ring-1 ring-white/35 backdrop-blur-sm">{(p.name?.trim()?.charAt(0) || "A").toUpperCase()}</span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <h1 className="break-keep text-[23px] font-black leading-[1.12] tracking-[-0.03em] text-white md:text-[27px]">{p.name || "익명 인재"}</h1>
                     {p.target.role ? <p className="mt-1 break-keep text-[13px] font-bold text-[#AFC6FF]">{p.target.role}</p> : null}
@@ -154,6 +169,24 @@ export function SharedPassportView({ token }: { token: string }) {
                         </div>
                       ))}
                     </div>
+                  </div>
+                ) : null}
+
+                {/* 원본 문서 열람 — 이력서·자소서 바로 보기 */}
+                {p.hasResume || p.hasCover ? (
+                  <div className="mt-5 grid gap-2 border-t border-[#EEF1F5] pt-5 sm:grid-cols-2">
+                    {p.hasResume ? (
+                      <Link href={`/p/${token}/resume`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                        <span className="inline-flex items-center gap-1.5">📄 이력서 보기</span>
+                        <span aria-hidden>→</span>
+                      </Link>
+                    ) : null}
+                    {p.hasCover ? (
+                      <Link href={`/p/${token}/cover`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#EDF1FD] px-4 py-3 text-[13.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+                        <span className="inline-flex items-center gap-1.5">✍ 자기소개서 보기</span>
+                        <span aria-hidden>→</span>
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 
