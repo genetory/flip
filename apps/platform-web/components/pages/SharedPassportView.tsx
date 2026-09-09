@@ -34,7 +34,7 @@ export function SharedPassportView({ token }: { token: string }) {
   const sharedStrengths = Array.from(new Set((p?.highlights ?? []).flatMap((h) => h.bullets ?? []).map((b) => (b ?? "").trim()).filter((b) => b.length > 6))).slice(0, 3);
   const sharedStats = ([
     p?.experienceCount ? { n: p.experienceCount, label: "경험" } : null,
-    p?.skills?.length ? { n: p.skills.length, label: "기술" } : null,
+    p?.targetJobs?.length ? { n: p.targetJobs.length, label: "관심 직무" } : null,
     p?.languages?.length ? { n: p.languages.length, label: "어학" } : null
   ].filter(Boolean)) as { n: number; label: string }[];
 
@@ -190,9 +190,6 @@ export function SharedPassportView({ token }: { token: string }) {
                   </div>
                 ) : null}
 
-                {p.skills && p.skills.length > 0 ? (
-                  <p className="mt-4 break-keep text-[12.5px] leading-relaxed text-[#4E5968]"><span className="font-bold text-[#8B95A1]">기술 스택 </span>{p.skills.join(" · ")}</p>
-                ) : null}
 
                 {/* 원본 문서 열람 — 이력서·자소서 바로 보기 */}
                 {p.hasResume || p.hasCover ? (

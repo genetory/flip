@@ -161,14 +161,12 @@ export default function CareerProfilePage() {
   const hasCover = (cover.items ?? []).some((it) => (it.answer ?? "").trim().length > 0);
   // 핵심 강점 — 경험의 성과 불렛에서 근거 있는 한 줄 3개(칩 대신 문장).
   const strengths = Array.from(new Set((resume.experiences ?? []).flatMap((e) => (e.bullets ?? []).map((b) => (b ?? "").trim())).filter((b) => b.length > 6))).slice(0, 3);
-  const skillsInline = skills.join(" · ");
   const expCount = (resume.experiences ?? []).filter((e) => (e.title ?? "").trim() || (e.org ?? "").trim()).length;
   const langCount = languages.filter((l) => (l.language ?? "").trim()).length;
   const stats = [
     expCount > 0 ? { n: expCount, label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman") } : null,
-    skills.length > 0 ? { n: skills.length, label: t("기술", "Skills", "技能", "Kỹ năng", "スキル", "Skill") } : null,
-    langCount > 0 ? { n: langCount, label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa") } : null,
-    educations.length > 0 ? { n: educations.length, label: t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan") } : null
+    targetJobs.length > 0 ? { n: targetJobs.length, label: t("관심 직무", "Target roles", "关注职务", "Nghề", "関心職種", "Peran") } : null,
+    langCount > 0 ? { n: langCount, label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa") } : null
   ].filter(Boolean) as { n: number; label: string }[];
   const mrz = `APLY<CAREER<LAUNCH<PASSPORT<<<<<<<<ISSUED<${new Date().getFullYear()}`;
 
@@ -306,47 +304,32 @@ export default function CareerProfilePage() {
                   </div>
                 ) : null}
 
-                {/* 기술 스택 — 인라인 */}
-                {skillsInline ? (
-                  <p className="mt-4 break-keep text-[12.5px] leading-relaxed text-[#4E5968]"><span className="font-bold text-[#8B95A1]">{t("기술 스택 ", "Stack ", "技术栈 ", "Kỹ năng ", "スタック ", "Stack ")}</span>{skillsInline}</p>
-                ) : null}
-
-                {/* 학력·어학 */}
-                {eduLine || langLine ? (
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-[#8B95A1]">
-                    {eduLine ? <span>🎓 {eduLine}</span> : null}
-                    {langLine ? <span>🗣 {langLine}</span> : null}
-                  </div>
-                ) : null}
-
-                {/* 문서 — 링크 + QR */}
+                {/* 문서 — 2컬럼, 링크 + QR */}
                 {shareToken && (hasResume || hasCover) ? (
                   <div className="mt-5 border-t border-[#EEF1F5] pt-5">
                     <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("내 문서 · 링크·QR로 바로 보기", "Documents · open by link or QR", "我的文档 · 链接或二维码", "Tài liệu · link hoặc QR", "書類 · リンク/QRで", "Dokumen · link/QR")}</p>
-                    <div className="mt-3 flex flex-col gap-2">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       {hasResume ? (
                         <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8]"><FileText className="h-5 w-5" weight="duotone" /></span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[13.5px] font-bold text-[#191F28]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#191F28]"><FileText className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+                            <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.resume ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                            <a href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.resume} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
                           ) : null}
                         </div>
                       ) : null}
                       {hasCover ? (
                         <div className="flex items-center gap-3 rounded-2xl bg-[var(--cl-card-2)] p-3">
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8]"><PencilSimpleLine className="h-5 w-5" weight="duotone" /></span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[13.5px] font-bold text-[#191F28]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
+                            <p className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#191F28]"><PencilSimpleLine className="h-4 w-4 text-[#0B46E8]" weight="duotone" /> {t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+                            <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[12px] font-bold text-[#0B46E8]">{t("바로 보기", "Open", "查看", "Xem", "開く", "Buka")} <span aria-hidden>→</span></Link>
                           </div>
                           {docQr.cover ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
-                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-14 w-14 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
+                            <a href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={docQr.cover} alt="QR" className="h-12 w-12 rounded-lg ring-1 ring-[#E5E8EB]" /></a>
                           ) : null}
                         </div>
                       ) : null}
