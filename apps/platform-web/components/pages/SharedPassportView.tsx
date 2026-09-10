@@ -86,7 +86,7 @@ export function SharedPassportView({ token }: { token: string }) {
   }
 
   async function nativeShare() {
-    const title = p?.name ? `${p.name} · ${TIER[p.tier].label}` : "APLY Talent Passport";
+    const title = p?.name ? `${p.name} · ${(TIER[p.tier] ?? TIER.preparing).label}` : "APLY Talent Passport";
     const text = `${title} · 취업 준비도 ${p?.readiness ?? ""} — APLY로 검증된 인재 프로필`;
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
@@ -154,8 +154,8 @@ export function SharedPassportView({ token }: { token: string }) {
                   <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(120% 90% at 12% 8%, rgba(255,255,255,0.75), transparent 55%)" }} aria-hidden />
                 )}
                 <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/85 px-3 py-1.5 text-[11.5px] font-bold text-[#191F28] shadow-sm backdrop-blur-sm">
-                  <span className="h-2 w-2 rounded-full" style={{ background: TIER[p.tier].ring }} aria-hidden />
-                  {p.verified ? "✓ " : ""}{TIER[p.tier].label}
+                  <span className="h-2 w-2 rounded-full" style={{ background: (TIER[p.tier] ?? TIER.preparing).ring }} aria-hidden />
+                  {p.verified ? "✓ " : ""}{(TIER[p.tier] ?? TIER.preparing).label}
                 </span>
               </div>
 
