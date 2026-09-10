@@ -9,7 +9,7 @@ import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbien
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
 import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../../../lib/launch/hub-client";
-import { fetchProgress, type PostingInterviewLog } from "../../../lib/launch/progress-client";
+import { fetchProgress, type PostingInterviewLog, type PostingInterviewItem } from "../../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -35,47 +35,72 @@ function groupLabel(t: LaunchT, g: string): string {
     default: return g;
   }
 }
-function groupCta(t: LaunchT, g: string): string {
-  switch (g) {
-    case "practice_first": return t("먼저 개선할 부분 확인하기", "See what to improve first", "查看首先要改进的地方", "Xem cần cải thiện gì trước", "まず改善する点を見る", "Lihat yang perlu diperbaiki dulu");
-    case "retrying": return t("같은 질문에 다시 답하기", "Answer the same question again", "再次回答同一问题", "Trả lời lại câu hỏi đó", "同じ質問にもう一度答える", "Jawab lagi pertanyaan sama");
-    case "transfer": return t("다른 표현의 질문에 도전하기", "Try a reworded question", "挑战不同表述的问题", "Thử câu hỏi diễn đạt khác", "言い回しの違う質問に挑戦", "Coba pertanyaan versi lain");
-    case "passed": return t("해결 내용 보기", "See what you fixed", "查看解决内容", "Xem nội dung đã giải quyết", "解決した内容を見る", "Lihat yang sudah diperbaiki");
-    case "paused": return t("다시 이어가기", "Pick up again", "继续", "Tiếp tục lại", "再開する", "Lanjutkan lagi");
-    default: return t("이어가기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan");
-  }
-}
 
-function Card({ c }: { c: CorrectionCard }) {
+// 질문 텍스트 정규화 — 오답노트 카드를 면접 이력 문항과 매칭하기 위한 키.
+const normQ = (s: string | null | undefined) => (s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+
+// 오답노트 카드 — 페이지 이동 대신 아래로 펼쳐 내 답변·피드백·다시 답변하기를 보여준다.
+// 답변/피드백 원문은 카드 데이터에 없어 면접 이력 문항(qa)에서 질문 매칭으로 가져온다.
+function Card({ c, qa, isOpen, onToggle }: { c: CorrectionCard; qa?: { it: PostingInterviewItem; log: PostingInterviewLog }; isOpen: boolean; onToggle: () => void }) {
   const t = useLaunchT();
+  const it = qa?.it;
+  const tone = typeof it?.score === "number" ? scoreTone(it.score) : null;
   return (
-    <Link
-      href="/career-launch/week/4"
-      onClick={() => trackCareerFunnel("career_correction_opened", { missionKey: c.id, missionStatus: c.status })}
-      className="block rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#3182F6]/30"
-    >
-      <p className="text-[14px] font-bold leading-snug text-[#191F28]">{c.question || t("면접 질문", "Interview question", "面试问题", "Câu hỏi phỏng vấn", "面接の質問", "Pertanyaan wawancara")}</p>
-      {c.coachOneLine ? (
-        <div className="mt-2 rounded-xl bg-[#F4F8FF] px-3 py-2">
-          <p className="text-[11.5px] font-bold text-[#1B64DA]">{t("먼저 개선할 부분", "Fix this first", "先改进这一点", "Cần cải thiện trước", "まず改善する点", "Perbaiki dulu ini")}</p>
-          <p className="mt-0.5 text-[13px] text-[#191F28]">{c.coachOneLine}</p>
+    <div className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+      <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-start gap-2.5 p-4 text-left transition hover:bg-[#FAFBFC]">
+        <span className="min-w-0 flex-1">
+          <span className={`block break-keep text-[14px] font-bold leading-snug text-[#191F28] ${isOpen ? "" : "line-clamp-2"}`}>{c.question || t("면접 질문", "Interview question", "面试问题", "Câu hỏi phỏng vấn", "面接の質問", "Pertanyaan wawancara")}</span>
+          <span className="mt-1.5 block truncate text-[12px] text-[#8B95A1]">
+            {c.weakness ? `${c.weakness} · ` : ""}
+            {c.attemptCount > 0
+              ? t(`재도전 ${c.attemptCount}회`, `${c.attemptCount} retries`, `重试 ${c.attemptCount} 次`, `${c.attemptCount} lần thử lại`, `再挑戦 ${c.attemptCount}回`, `${c.attemptCount} kali coba lagi`)
+              : t("재도전 전", "Not retried yet", "尚未重试", "Chưa thử lại", "再挑戦前", "Belum dicoba lagi")}
+            {c.transferPassed ? ` · ${t("유사 질문 통과", "Passed similar question", "通过相似问题", "Đạt câu hỏi tương tự", "類似質問クリア", "Lolos pertanyaan serupa")}` : ""}
+          </span>
+        </span>
+        <CaretDown size={15} weight="bold" className={`mt-1 shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen ? (
+        <div className="space-y-2.5 bg-[#FAFBFC] px-4 pb-4 pt-1">
+          {c.coachOneLine ? (
+            <div className="rounded-2xl bg-[#F4F8FF] px-4 py-3">
+              <p className="text-[11.5px] font-bold text-[#1B64DA]">{t("먼저 개선할 부분", "Fix this first", "先改进这一点", "Cần cải thiện trước", "まず改善する点", "Perbaiki dulu ini")}</p>
+              <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#191F28]">{c.coachOneLine}</p>
+            </div>
+          ) : null}
+          {it?.answer ? (
+            <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                {tone ? <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span> : null}
+              </div>
+              <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+            </div>
+          ) : null}
+          {it?.feedback ? (
+            <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+              <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
+            </div>
+          ) : null}
+          {it?.modelAnswer ? (
+            <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
+              <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
+            </div>
+          ) : null}
+          <div className="pt-0.5">
+            <Link
+              href={qa ? `/career-launch/corrections/${qa.log.id}` : "/career-launch/week/4"}
+              onClick={() => trackCareerFunnel("career_correction_opened", { missionKey: c.id, missionStatus: c.status })}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+            >
+              {t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" />
+            </Link>
+          </div>
         </div>
       ) : null}
-      <p className="mt-2 text-[12.5px] text-[#8B95A1]">
-        {c.weakness ? `${c.weakness} · ` : ""}
-        {c.attemptCount > 0
-          ? t(`재도전 ${c.attemptCount}회`, `${c.attemptCount} retries`, `重试 ${c.attemptCount} 次`, `${c.attemptCount} lần thử lại`, `再挑戦 ${c.attemptCount}回`, `${c.attemptCount} kali coba lagi`)
-          : t("재도전 전", "Not retried yet", "尚未重试", "Chưa thử lại", "再挑戦前", "Belum dicoba lagi")}
-        {c.transferPassed
-          ? ` · ${t("유사 질문 통과", "Passed similar question", "通过相似问题", "Đạt câu hỏi tương tự", "類似質問クリア", "Lolos pertanyaan serupa")}`
-          : c.transferAttempts > 0
-            ? ` · ${t("유사 질문 확인 중", "Checking similar questions", "确认相似问题中", "Đang kiểm tra câu tương tự", "類似質問を確認中", "Memeriksa pertanyaan serupa")}`
-            : ""}
-      </p>
-      <span className="mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#1B64DA]">
-        {groupCta(t, c.group)} <ArrowRight size={13} weight="bold" />
-      </span>
-    </Link>
+    </div>
   );
 }
 
@@ -108,6 +133,12 @@ export default function CorrectionNotebookPage() {
     .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))
     .flatMap((l) => (l.items ?? []).filter((it) => typeof it.score === "number").map((it, j) => ({ it, log: l, key: `${l.id}:${j}` })));
   const postingLowCount = historyRows.length;
+  // 오답노트 카드 ↔ 면접 이력 문항 매칭(질문 텍스트 기준, 최신 우선).
+  const qaByQuestion = new Map<string, { it: PostingInterviewItem; log: PostingInterviewLog }>();
+  for (const row of historyRows) {
+    const k = normQ(row.it.question);
+    if (k && !qaByQuestion.has(k)) qaByQuestion.set(k, { it: row.it, log: row.log });
+  }
   const fmtDate = (iso?: string) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -229,7 +260,7 @@ export default function CorrectionNotebookPage() {
                   <DashboardSection key={g} title={groupLabel(t, g)}>
                     <div className="flex flex-col gap-2.5">
                       {cards.map((c) => (
-                        <Card key={c.id} c={c} />
+                        <Card key={c.id} c={c} qa={qaByQuestion.get(normQ(c.question))} isOpen={open.has(`card:${c.id}`)} onToggle={() => toggle(`card:${c.id}`)} />
                       ))}
                     </div>
                   </DashboardSection>
