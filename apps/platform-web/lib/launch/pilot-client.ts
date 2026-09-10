@@ -109,19 +109,6 @@ export async function resolvePilotFeedback(id: string): Promise<void> {
   await req(`/career-launch/ops/pilot/feedback/${encodeURIComponent(id)}/resolve`, { method: "PATCH", headers: authHeaders() });
 }
 
-// ── 학생 설문/피드백 API ──
-export type PendingSurvey = { surveyKey: string; label: string; questions: { key: string; text: string; scale5: boolean }[] };
-export async function fetchPendingSurveys(): Promise<PendingSurvey[]> {
-  const d = await req(`/career-launch/survey/pending`, { headers: authHeaders() });
-  return (d.pending as PendingSurvey[]) ?? [];
-}
-export async function submitSurvey(surveyKey: string, answers: Record<string, number>, comment?: string): Promise<void> {
-  await req(`/career-launch/survey`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ surveyKey, answers, comment }) });
-}
-export async function submitQualitativeFeedback(category: string, ctx?: { currentWeek?: number; currentStep?: string; sessionId?: string }): Promise<void> {
-  await req(`/career-launch/feedback`, { method: "POST", headers: authHeaders(true), body: JSON.stringify({ category, ...ctx }) });
-}
-
 // ── 학생 행동 이벤트(계기) — 다음 파일럿 분석용. 실패해도 조용히 무시(진행 방해 금지). ──
 export type ActivityKind =
   | "week_enter"
