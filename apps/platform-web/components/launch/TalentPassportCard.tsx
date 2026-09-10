@@ -1,12 +1,11 @@
 "use client";
 
 // My Career Passport — Career Launch 데이터를 조립한 "검증된 Talent" 프로필.
-// Readiness(원형 게이지) + Verified 등급 배지 + 영역별 준비도 + 활동 + 다음 액션.
-// 각 점수는 반드시 행동(다음 액션)과 연결한다 — 점수 놀이가 되지 않게.
+// Readiness(원형 게이지) + Verified 등급 배지 + 영역별 준비도 + 요약 스탯 +
+// 성장 스토리(시작→현재) + 기업 피드백 + 잘 맞는 직무(추천 적합도).
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowRight, SealCheck, CheckCircle } from "@phosphor-icons/react";
-import { fetchTalentPassport, type TalentPassport, type PassportTier } from "../../lib/launch/progress-client";
+import { ArrowRight, SealCheck, TrendUp } from "@phosphor-icons/react";
+import { fetchTalentPassport, fetchProgress, type TalentPassport, type PassportTier, type CareerProgress } from "../../lib/launch/progress-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 
 const TIER_META: Record<PassportTier, { label: string; ring: string; chipBg: string; chipInk: string }> = {
@@ -50,12 +49,14 @@ function Bar({ label, value }: { label: string; value: number }) {
 export function TalentPassportCard() {
   const t = useLaunchT();
   const [p, setP] = useState<TalentPassport | null>(null);
+  const [prog, setProg] = useState<CareerProgress | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let alive = true;
-    void fetchTalentPassport().then((x) => {
+    void Promise.all([fetchTalentPassport(), fetchProgress().catch(() => ({} as CareerProgress))]).then(([x, pr]) => {
       if (alive) {
         setP(x);
+        setProg(pr);
         setLoading(false);
       }
     });
@@ -68,24 +69,18 @@ export function TalentPassportCard() {
 
   const tier = TIER_META[p.tier];
 
-  const activityMeta = (status: string): { label: string; bg: string; ink: string } => {
-    switch (status) {
-      case "PENDING":
-        return { label: t("인터뷰 제안 받음", "Interview invite", "收到面试邀约", "Nhận lời mời PV", "面接オファー", "Undangan wawancara"), bg: "#EDF1FD", ink: "#0B46E8" };
-      case "ACCEPTED":
-        return { label: t("수락함", "Accepted", "已接受", "Đã chấp nhận", "承認済み", "Diterima"), bg: "#EDF1FD", ink: "#0B46E8" };
-      case "SCHEDULED":
-        return { label: t("인터뷰 일정", "Scheduled", "已排期", "Đã hẹn", "面接予定", "Terjadwal"), bg: "#EDF1FD", ink: "#0B46E8" };
-      case "COMPLETED":
-        return { label: t("인터뷰 완료", "Interviewed", "已面试", "Đã PV", "面接完了", "Selesai"), bg: "#F2F4F6", ink: "#4E5968" };
-      case "PASSED":
-        return { label: t("합격 🎉", "Passed 🎉", "通过 🎉", "Đạt 🎉", "合格 🎉", "Lulus 🎉"), bg: "#E7F8EF", ink: "#0A9B59" };
-      case "REJECTED":
-        return { label: t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak"), bg: "#FDECEE", ink: "#F04452" };
-      default:
-        return { label: t("거절함", "Declined", "已拒绝", "Đã từ chối", "辞退", "Ditolak"), bg: "#F2F4F6", ink: "#8B95A1" };
-    }
-  };
+  // 성장 스토리 — 사전→현재 점수(같은 척도 쌍). 진단 우선, 없으면 커리어 점수.
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  const growth = (() => {
+    const dStart = prog?.diagnosisInitial?.percent;
+    const dNow = prog?.diagnosisFinal?.percent ?? prog?.diagnosis?.percent;
+    if (typeof dStart === "number" && typeof dNow === "number") return { start: clamp(dStart), now: clamp(dNow) };
+    const cStart = prog?.careerScoreBefore;
+    const cNow = prog?.careerReport?.data?.total;
+    if (typeof cStart === "number" && typeof cNow === "number") return { start: clamp(cStart), now: clamp(cNow) };
+    return null;
+  })();
+  const recommended = (p.target.recommended ?? []).filter((r) => (r.role ?? "").trim()).slice(0, 3);
 
   return (
     <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-white via-[#F6F9FF] to-[#EAF1FF] p-6 shadow-[0_16px_50px_-18px_rgba(11,70,232,0.24)] ring-1 ring-[#0B46E8]/10 md:p-8">
@@ -137,23 +132,30 @@ export function TalentPassportCard() {
           ))}
         </div>
 
-        {/* 기업 반응 — 나에게 온 인터뷰 제안·진행(Outcome 역류) */}
-        {p.companyActivity?.length ? (
-          <div className="space-y-2">
-            <p className="text-[12px] font-bold text-[#4E5968]">{t("기업 반응", "Company activity", "企业反应", "Phản ứng doanh nghiệp", "企業の反応", "Aktivitas perusahaan")}</p>
-            <div className="flex flex-col gap-1.5">
-              {p.companyActivity.slice(0, 5).map((a, i) => {
-                const m = activityMeta(a.status);
-                return (
-                  <div key={i} className="flex items-center justify-between gap-2 rounded-xl border border-[#EDF1F7] bg-white/70 px-3.5 py-2.5">
-                    <span className="truncate text-[13px] font-semibold text-[#191F28]">{a.org ?? t("어느 기업", "A company", "某企业", "Một công ty", "ある企業", "Sebuah perusahaan")}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-md px-2 py-0.5 text-[11px] font-bold" style={{ background: m.bg, color: m.ink }}>{m.label}</span>
-                      <span className="text-[11px] text-[#B0B8C1]">{a.at.slice(5, 10)}</span>
-                    </span>
-                  </div>
-                );
-              })}
+        {/* 성장 스토리 — 시작 → 현재 점수(노력의 결과) */}
+        {growth ? (
+          <div className="rounded-2xl border border-[#EDF1F7] bg-white/70 p-4 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5">
+              <TrendUp className="h-4 w-4 text-[#0A9B59]" weight="bold" aria-hidden />
+              <p className="text-[12px] font-bold text-[#4E5968]">{t("성장 스토리", "Growth story", "成长故事", "Hành trình phát triển", "成長ストーリー", "Cerita perkembangan")}</p>
+            </div>
+            <div className="mt-3 flex items-end gap-3">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-semibold text-[#8B95A1]">{t("시작", "Start", "起点", "Bắt đầu", "開始", "Awal")}</span>
+                <span className="text-[18px] font-black tabular-nums text-[#8B95A1]">{growth.start}</span>
+              </div>
+              <ArrowRight className="mb-1 h-4 w-4 shrink-0 text-[#C4CAD2]" weight="bold" aria-hidden />
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[12px] font-semibold text-[#0B1227]">{t("현재", "Now", "现在", "Hiện tại", "現在", "Sekarang")}</span>
+                <span className="text-[24px] font-black tabular-nums text-[#0B1227]">{growth.now}</span>
+              </div>
+              {growth.now > growth.start ? (
+                <span className="mb-1 ml-auto rounded-full bg-[#E7F8EF] px-2.5 py-1 text-[12px] font-black tabular-nums text-[#0A9B59]">+{growth.now - growth.start}</span>
+              ) : null}
+            </div>
+            <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-[#F2F4F6]">
+              <div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#9DBCFF] to-[#0B46E8]" style={{ width: `${growth.now}%` }} />
+              {growth.start < growth.now ? <span className="absolute inset-y-0 w-0.5 bg-white/80" style={{ left: `${growth.start}%` }} aria-hidden /> : null}
             </div>
           </div>
         ) : null}
@@ -173,32 +175,23 @@ export function TalentPassportCard() {
           </div>
         ) : null}
 
-        {/* 다음 액션 — 각 점수를 행동으로 연결 */}
-        {p.nextActions.length > 0 ? (
+        {/* 잘 맞는 직무 — 추천 직무 적합도 */}
+        {recommended.length > 0 ? (
           <div className="space-y-2">
-            <p className="text-[12px] font-bold text-[#4E5968]">{t("점수를 올리는 다음 액션", "Next actions to level up", "提升分数的下一步", "Hành động tiếp theo", "スコアを上げる次の行動", "Langkah berikutnya")}</p>
+            <p className="text-[12px] font-bold text-[#4E5968]">{t("잘 맞는 직무", "Best-fit roles", "匹配职务", "Vị trí phù hợp", "向いている職務", "Peran cocok")}</p>
             <div className="flex flex-col gap-2">
-              {p.nextActions.map((a) => (
-                <Link
-                  key={a.key}
-                  href={a.href}
-                  className="group flex items-center justify-between gap-3 rounded-2xl border border-[#EDF1F7] bg-white px-4 py-3 transition hover:border-[#0B46E8]/40 hover:shadow-[0_6px_20px_-10px_rgba(11,70,232,0.3)]"
-                >
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-bold text-[#0B1227]">{a.label}</p>
-                    <p className="truncate text-[12px] text-[#8B95A1]">{a.reason}</p>
+              {recommended.map((r, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-2xl border border-[#EDF1F7] bg-white/70 px-4 py-3 backdrop-blur-sm">
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[#0B1227]">{r.role}</span>
+                  <div className="h-2 w-20 shrink-0 overflow-hidden rounded-full bg-[#F2F4F6] sm:w-24">
+                    <div className="h-full rounded-full bg-gradient-to-r from-[#0B46E8] to-[#3A6BFF]" style={{ width: `${clamp(r.fit)}%` }} />
                   </div>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:text-[#0B46E8]" weight="bold" aria-hidden />
-                </Link>
+                  <span className="w-9 shrink-0 text-right text-[13px] font-black tabular-nums text-[#0B46E8]">{clamp(r.fit)}%</span>
+                </div>
               ))}
             </div>
           </div>
-        ) : (
-          <div className="flex items-center gap-2 rounded-2xl bg-[#EAF6EF] px-4 py-3 text-[13px] font-bold text-[#0F8A52]">
-            <CheckCircle size={17} weight="fill" aria-hidden />
-            {t("검증 기준을 모두 충족했어요. 기업에 추천될 준비 완료!", "You meet all verification criteria — ready to be shown to companies!", "已满足所有验证标准，可推荐给企业！", "Đã đạt mọi tiêu chí xác minh!", "検証基準をすべて満たしました！", "Semua kriteria verifikasi terpenuhi!")}
-          </div>
-        )}
+        ) : null}
       </div>
     </section>
   );
