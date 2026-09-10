@@ -2741,6 +2741,54 @@ const authRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: 
 const searchRateLimit = rateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "search" });
 const writeRateLimit = rateLimit({ windowMs: 60 * 1000, max: 120, keyPrefix: "write" });
 
+// ── 인메모리 응답 캐시(짧은 TTL) — 읽기 많은 GET 엔드포인트의 DB 부하를 줄여 전체 응답을 빠르게.
+// 단일 인스턴스 기준(현재 numWorkers=1). 사용자별 키 + 짧은 TTL 로 staleness 최소화하고,
+// 변경(PATCH progress 등) 시 해당 사용자 캐시를 무효화해 방금 한 행동이 즉시 반영되게 한다.
+type ResponseCacheEntry = { value: unknown; expires: number };
+const responseCache = new Map<string, ResponseCacheEntry>();
+function respCacheGet(key: string): unknown | undefined {
+  const e = responseCache.get(key);
+  if (!e) return undefined;
+  if (Date.now() > e.expires) {
+    responseCache.delete(key);
+    return undefined;
+  }
+  return e.value;
+}
+function respCacheSet(key: string, value: unknown, ttlMs: number): void {
+  responseCache.set(key, { value, expires: Date.now() + ttlMs });
+  if (responseCache.size > 5000) {
+    const now = Date.now();
+    for (const [k, v] of responseCache) if (v.expires < now) responseCache.delete(k);
+  }
+}
+// 특정 사용자의 모든 캐시 무효화(키 = `${uid}::${url}`).
+function respCacheInvalidateUser(uid: string): void {
+  const prefix = `${uid}::`;
+  for (const k of responseCache.keys()) if (k.startsWith(prefix)) responseCache.delete(k);
+}
+// GET 응답 캐시 미들웨어 — authenticate 뒤에 붙여 req.auth 를 사용. 200 + ok!==false 만 캐시.
+function cacheResponse(ttlMs: number) {
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (req.method !== "GET") return next();
+    const uid = req.auth?.userId ?? "anon";
+    const key = `${uid}::${req.originalUrl}`;
+    const hit = respCacheGet(key);
+    if (hit !== undefined) return res.json(hit);
+    const originalJson = res.json.bind(res);
+    res.json = (body: unknown) => {
+      try {
+        const ok = !(body && typeof body === "object" && (body as { ok?: unknown }).ok === false);
+        if (res.statusCode === 200 && ok) respCacheSet(key, body, ttlMs);
+      } catch {
+        /* 캐시 실패는 무시 */
+      }
+      return originalJson(body);
+    };
+    return next();
+  };
+}
+
 type ApiDocEndpoint = {
   method: "get" | "post" | "patch" | "delete";
   path: string;
@@ -18103,7 +18151,7 @@ app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, a
 
 // ── Career Launch 진행 상태(진단·직무·정리정보·완료스텝) — 계정 기준 저장, 기기 간 동기화 ──
 // GET /career-launch/progress — 저장된 진행 상태 조회.
-app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async (req, res) => {
+app.get("/career-launch/progress", authenticate, requireCareerEnrollment, cacheResponse(10_000), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const row = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId } });
@@ -18122,7 +18170,7 @@ app.get("/career-launch/progress", authenticate, requireCareerEnrollment, async 
 
 // GET /career-launch/cohort-stats — 내 기수 익명 진행률 요약(함께 달리는 동기부여용).
 // 개인 식별정보 없이 인원수·평균 완료 주차·내 위치만 반환. weeksCompleted = w{n}s4 완료 수.
-app.get("/career-launch/cohort-stats", authenticate, requireCareerEnrollment, async (req, res) => {
+app.get("/career-launch/cohort-stats", authenticate, requireCareerEnrollment, cacheResponse(60_000), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const myEnroll = await prisma.careerEnrollment.findFirst({ where: { studentUserId: userId }, orderBy: { createdAt: "desc" }, select: { cohortId: true } });
@@ -18161,7 +18209,7 @@ app.get("/career-launch/completed", authenticate, async (req, res) => {
 
 // 학생 주차 게이팅용 — 본인 기수의 주차 오픈 일정 + 서버 현재시각.
 // forceOpen 이거나 opensAt<=now 면 그 주차는 날짜상 열림(미설정이면 프론트가 진행 기반으로 폴백).
-app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, async (req, res) => {
+app.get("/career-launch/week-schedule", authenticate, requireCareerEnrollment, cacheResponse(120_000), async (req, res) => {
   try {
     const enrollment = await prisma.careerEnrollment.findFirst({
       where: { studentUserId: req.auth!.userId },
@@ -18289,6 +18337,8 @@ async function updateCareerProgressState(
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
+      // 상태가 바뀌었으니 이 사용자의 응답 캐시(대시보드·패스포트·progress 등) 무효화 → 즉시 반영.
+      respCacheInvalidateUser(userId);
       // 커밋 후 마일스톤 이벤트 적재(fire-and-forget). 전이 시점에만 실행되어 중복 없음.
       if (newlyDone.length) void recordProgressMilestones(userId, newlyDone);
       return result;
@@ -18321,6 +18371,7 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
       delete m.finalDiagnosis; // 플래그는 상태에 남기지 않는다
       return m;
     });
+    // (캐시 무효화는 updateCareerProgressState 내부에서 처리됨)
     // 완주 조건 충족 시 수료증 자동 발급(중복은 내부에서 방지). 트랜잭션 밖 fire-and-forget.
     void maybeAutoIssueCareerCertificate(uid, merged);
     return res.json({ ok: true, state: merged });
@@ -19819,7 +19870,7 @@ function nextActionStrings(lang: string | undefined, key: string, input: { weeks
   }
 }
 
-app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async (req, res) => {
+app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, cacheResponse(15_000), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const lang = typeof req.query.lang === "string" ? req.query.lang : "ko"; // 클라 locale — 코치/다음행동 현지화(KI-10)
@@ -22022,7 +22073,7 @@ app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnro
 
 // GET /career-launch/passport — 본인 Talent Passport(Readiness·Verified 등급·다음 액션).
 // 기존 데이터를 조립하는 파생 뷰라 스키마 변경 없음.
-app.get("/career-launch/passport", authenticate, requireCareerEnrollment, async (req, res) => {
+app.get("/career-launch/passport", authenticate, requireCareerEnrollment, cacheResponse(20_000), async (req, res) => {
   const uid = req.auth!.userId;
   try {
     const passport = await buildTalentPassport(uid);
@@ -29082,7 +29133,7 @@ const partnerCandidatesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).max(200).optional()
 });
 
-app.get("/partner/candidates", authenticateOptional, async (req, res) => {
+app.get("/partner/candidates", authenticateOptional, cacheResponse(30_000), async (req, res) => {
   const parsed = partnerCandidatesQuerySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
   try {
