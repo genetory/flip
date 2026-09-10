@@ -2,16 +2,13 @@
 
 // 커리어 프로필 — '검증된 나의 커리어' 카드(TalentPassportCard) 하나 + 공개 프로필 꾸미기(사진·한 줄 소개·문서).
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Camera, Image as ImageIcon, CircleNotch, Sparkle, FileText, PencilSimpleLine, Check, ShareNetwork } from "@phosphor-icons/react";
+import { Camera, Image as ImageIcon, CircleNotch, Sparkle, Check, ShareNetwork } from "@phosphor-icons/react";
 import { fileToResizedDataUrl } from "../../../lib/launch/image-util";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { TalentPassportCard } from "../../../components/launch/TalentPassportCard";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { fetchProgress, sharePassport, savePassportMedia, type CareerProgress } from "../../../lib/launch/progress-client";
-import { fetchResumeData, type ResumeData } from "../../../lib/launch/resume-data";
-import { fetchCoverData, type CoverData } from "../../../lib/launch/cover-data";
 import { fetchProfileHeadline, saveProfileHeadline } from "../../../lib/launch/feedback-client";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -19,8 +16,6 @@ import { useLaunchT } from "../../../lib/launch/i18n";
 export default function CareerProfilePage() {
   const t = useLaunchT();
   const { user } = useAuthSession();
-  const [resume, setResume] = useState<ResumeData>({});
-  const [cover, setCover] = useState<CoverData>({});
   const [photo, setPhoto] = useState<string | null>(null);
   const [background, setBackground] = useState<string | null>(null);
   const [mediaBusy, setMediaBusy] = useState<"" | "photo" | "bg">("");
@@ -112,14 +107,8 @@ export default function CareerProfilePage() {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [p, r, c] = await Promise.all([
-        fetchProgress().catch(() => ({}) as CareerProgress),
-        fetchResumeData().catch(() => ({ data: {} })),
-        fetchCoverData().catch(() => ({ data: {} }))
-      ]);
+      const p = await fetchProgress().catch(() => ({}) as CareerProgress);
       if (!alive) return;
-      setResume(r.data ?? {});
-      setCover(c.data ?? {});
       setPhoto(p?.passportMedia?.photo ?? null);
       setBackground(p?.passportMedia?.background ?? null);
       void fetchProfileHeadline(false).then((h) => { if (alive && h.headline) setHeadline(h.headline); }).catch(() => {});
@@ -132,8 +121,6 @@ export default function CareerProfilePage() {
 
   const name = (user?.name?.trim() || user?.email || "").trim();
   const initial = (name.charAt(0) || "A").toUpperCase();
-  const hasResume = (resume.experiences ?? []).some((e) => (e.title ?? "").trim() || (e.org ?? "").trim()) || (resume.skills ?? []).length > 0 || Boolean(resume.basic && (resume.basic.name || resume.basic.summary));
-  const hasCover = (cover.items ?? []).some((it) => (it.answer ?? "").trim().length > 0);
 
   return (
     <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
@@ -209,14 +196,6 @@ export default function CareerProfilePage() {
                   <button type="button" onClick={onSaveHeadline} disabled={hlSaving} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">{hlSaving ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : hlSaved ? <Check className="h-3.5 w-3.5" weight="bold" /> : null}{hlSaved ? t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</button>
                 </div>
               </div>
-
-              {/* 이력서 · 자기소개서 보기 */}
-              {shareToken && (hasResume || hasCover) ? (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {hasResume ? <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]"><span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" weight="duotone" /> {t("이력서 보기", "Resume", "查看简历", "Xem CV", "履歴書", "Resume")}</span><span aria-hidden>→</span></Link> : null}
-                  {hasCover ? <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-xl bg-[var(--cl-accent-soft)] px-3.5 py-2.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:brightness-95"><span className="inline-flex items-center gap-1.5"><PencilSimpleLine className="h-4 w-4" weight="duotone" /> {t("자기소개서 보기", "Cover letter", "查看自我介绍", "Xem thư", "自己紹介書", "Surat")}</span><span aria-hidden>→</span></Link> : null}
-                </div>
-              ) : null}
             </div>
           </div>
         </div>

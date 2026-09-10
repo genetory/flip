@@ -4,8 +4,9 @@
 // Readiness(원형 게이지) + Verified 등급 배지 + 영역별 준비도 + 요약 스탯 +
 // 성장 스토리(시작→현재) + 기업 피드백 + 잘 맞는 직무(추천 적합도).
 import { useEffect, useState } from "react";
-import { ArrowRight, SealCheck, TrendUp } from "@phosphor-icons/react";
-import { fetchTalentPassport, fetchProgress, type TalentPassport, type PassportTier, type CareerProgress } from "../../lib/launch/progress-client";
+import Link from "next/link";
+import { ArrowRight, SealCheck, TrendUp, FileText, PencilSimpleLine } from "@phosphor-icons/react";
+import { fetchTalentPassport, fetchProgress, sharePassport, type TalentPassport, type PassportTier, type CareerProgress } from "../../lib/launch/progress-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useJobName } from "../../lib/launch/data-i18n";
 
@@ -52,6 +53,7 @@ export function TalentPassportCard() {
   const jobName = useJobName();
   const [p, setP] = useState<TalentPassport | null>(null);
   const [prog, setProg] = useState<CareerProgress | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     let alive = true;
@@ -62,6 +64,7 @@ export function TalentPassportCard() {
         setLoading(false);
       }
     });
+    void sharePassport().then((tk) => { if (alive) setShareToken(tk); }).catch(() => {});
     return () => {
       alive = false;
     };
@@ -151,6 +154,25 @@ export function TalentPassportCard() {
             </div>
           ))}
         </div>
+
+        {/* 내 문서 — 이력서 · 자기소개서 보기(공개 링크 새 창) */}
+        {shareToken && (p.documents.resumeReady || p.documents.coverReady) ? (
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-[#4E5968]">{t("내 문서", "My documents", "我的文档", "Tài liệu của tôi", "私の書類", "Dokumen saya")}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {p.documents.resumeReady ? (
+                <Link href={`/p/${shareToken}/resume`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                  <span className="inline-flex items-center gap-1.5"><FileText className="h-4 w-4" weight="duotone" /> {t("이력서 보기", "Resume", "查看简历", "Xem CV", "履歴書", "Resume")}</span><span aria-hidden>→</span>
+                </Link>
+              ) : null}
+              {p.documents.coverReady ? (
+                <Link href={`/p/${shareToken}/cover`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between gap-2 rounded-xl bg-[#EAEFFE] px-3.5 py-2.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:brightness-95">
+                  <span className="inline-flex items-center gap-1.5"><PencilSimpleLine className="h-4 w-4" weight="duotone" /> {t("자기소개서 보기", "Cover letter", "查看自我介绍", "Xem thư", "自己紹介書", "Surat")}</span><span aria-hidden>→</span>
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {/* 성장 스토리 — 시작 → 현재 점수(노력의 결과) */}
         {growth ? (
