@@ -12,6 +12,9 @@ import { useLaunchT } from "../../lib/launch/i18n";
 import { trackCareerFunnel } from "../../lib/analytics";
 import { logActivity } from "../../lib/launch/pilot-client";
 
+// 주차별 일러스트(WeekTabs와 동일 매핑). 우측 하단 데코로 노출.
+const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
+
 function Ring({ value, color, label, href }: { value: number | null; color: string; label: string; href: string }) {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -88,33 +91,22 @@ export function CheckInPanel({ vm }: { vm: DashboardVM }) {
   return (
     <div className="cl-checkin">
       <div className="cl-focus">
-        <div className="cl-focus-body">
-          <span className="tag"><Airplane size={13} weight="fill" aria-hidden /> {t("오늘의 탑승 수속", "Today's check-in", "今日登机手续", "Thủ tục hôm nay", "本日の搭乗手続き", "Check-in hari ini")}</span>
-          <h2>{c.todayFocus}</h2>
-          {c.purpose ? <p>{c.purpose}</p> : <p>{t("오늘 한 걸음이면 다음 관문이 열려요.", "One step today opens the next gate.", "今天迈出一步，就能开启下一关。", "Một bước hôm nay mở cửa tiếp theo.", "今日の一歩で次のゲートが開きます。", "Satu langkah hari ini membuka gerbang berikutnya.")}</p>}
-          <Link
-            href={vm.nextAction.destination}
-            onClick={() => {
-              void logActivity("next_action_click", { week: vm.currentWeek });
-              trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
-            }}
-            className="cl-cta"
-          >
-            {c.cta} <ArrowRight size={16} weight="bold" aria-hidden />
-          </Link>
-        </div>
-        {/* 탑승권 스타일 주차 스텁 — 지금 몇 주차인지 한눈에 */}
-        <aside className="cl-week-stub" aria-label={t(`${vm.currentWeek}주차`, `Week ${vm.currentWeek}`, `第${vm.currentWeek}周`, `Tuần ${vm.currentWeek}`, `${vm.currentWeek}週目`, `Minggu ${vm.currentWeek}`)}>
-          <Airplane size={16} weight="fill" aria-hidden />
-          <span className="wk-label">WEEK</span>
-          <span className="wk-num">{vm.currentWeek}</span>
-          <span className="wk-total">/ 4</span>
-          <span className="wk-dots" aria-hidden>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <span key={i} className={(vm.weekComplete?.[i] || i + 1 === vm.currentWeek) ? "on" : undefined} />
-            ))}
-          </span>
-        </aside>
+        <span className="tag"><Airplane size={13} weight="fill" aria-hidden /> {t("오늘의 탑승 수속", "Today's check-in", "今日登机手续", "Thủ tục hôm nay", "本日の搭乗手続き", "Check-in hari ini")}</span>
+        <h2>{c.todayFocus}</h2>
+        {c.purpose ? <p>{c.purpose}</p> : <p>{t("오늘 한 걸음이면 다음 관문이 열려요.", "One step today opens the next gate.", "今天迈出一步，就能开启下一关。", "Một bước hôm nay mở cửa tiếp theo.", "今日の一歩で次のゲートが開きます。", "Satu langkah hari ini membuka gerbang berikutnya.")}</p>}
+        <Link
+          href={vm.nextAction.destination}
+          onClick={() => {
+            void logActivity("next_action_click", { week: vm.currentWeek });
+            trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
+          }}
+          className="cl-cta"
+        >
+          {c.cta} <ArrowRight size={16} weight="bold" aria-hidden />
+        </Link>
+        {/* 현재 주차 일러스트 — 우측 하단 데코 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="cl-week-illust" src={WEEK_IMAGE[vm.currentWeek] ?? WEEK_IMAGE[1]} alt="" aria-hidden />
       </div>
 
       <div className="cl-side">
