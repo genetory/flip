@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, SealCheck, TrendUp } from "@phosphor-icons/react";
 import { fetchTalentPassport, fetchProgress, type TalentPassport, type PassportTier, type CareerProgress } from "../../lib/launch/progress-client";
 import { useLaunchT } from "../../lib/launch/i18n";
+import { useJobName } from "../../lib/launch/data-i18n";
 
 const TIER_META: Record<PassportTier, { label: string; ring: string; chipBg: string; chipInk: string }> = {
   preparing: { label: "준비 중", ring: "#C9CDD2", chipBg: "#F2F4F6", chipInk: "#8B95A1" },
@@ -48,6 +49,7 @@ function Bar({ label, value }: { label: string; value: number }) {
 
 export function TalentPassportCard() {
   const t = useLaunchT();
+  const jobName = useJobName();
   const [p, setP] = useState<TalentPassport | null>(null);
   const [prog, setProg] = useState<CareerProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,13 @@ export function TalentPassportCard() {
     return null;
   })();
   const recommended = (p.target.recommended ?? []).filter((r) => (r.role ?? "").trim()).slice(0, 3);
+  // 목표 직무 — 여러 개(1주차에 고른 관심 직무). 없으면 확정 1순위 하나.
+  const targetJobs = (() => {
+    const sel = (prog?.selectedJobs ?? []).filter((j) => (j ?? "").trim());
+    if (sel.length) return sel.slice(0, 6);
+    const one = prog?.targetJob?.trim();
+    return one ? [one] : [];
+  })();
 
   return (
     <section className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-white via-[#F6F9FF] to-[#EAF1FF] p-6 shadow-[0_16px_50px_-18px_rgba(11,70,232,0.24)] ring-1 ring-[#0B46E8]/10 md:p-8">
@@ -117,10 +126,21 @@ export function TalentPassportCard() {
           </div>
         </div>
 
+        {/* 목표 직무 — 여러 개 칩 */}
+        {targetJobs.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-[#4E5968]">{t("목표 직무", "Target roles", "目标职务", "Vị trí mục tiêu", "目標職務", "Peran target")}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {targetJobs.map((j, i) => (
+                <span key={i} className="rounded-lg bg-[#EAEFFE] px-2.5 py-1 text-[12.5px] font-bold text-[#0B46E8]">{jobName(j)}</span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {/* 요약 스탯 */}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2.5">
           {[
-            { k: "target", label: t("목표 직무", "Target", "目标职务", "Vị trí", "目標職務", "Target"), value: p.target.role ?? "—" },
             { k: "exp", label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman"), value: `${p.experienceCount}${t("건", "", "个", "", "件", "")}` },
             { k: "lang", label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa"), value: String((p.languages ?? []).length) },
             { k: "mock", label: t("모의면접", "Mock", "模拟面试", "PV thử", "模擬面接", "Simulasi"), value: `${p.activity.mockInterviews}/3` }
