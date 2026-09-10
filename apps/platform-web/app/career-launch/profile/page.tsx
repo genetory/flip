@@ -3,7 +3,7 @@
 // 커리어 프로필 — '검증된 나의 커리어' 카드(TalentPassportCard) 하나 + 공개 프로필 꾸미기(사진·한 줄 소개·문서).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Camera, Image as ImageIcon, CircleNotch, Sparkle, FileText, PencilSimpleLine, Check } from "@phosphor-icons/react";
+import { Camera, Image as ImageIcon, CircleNotch, Sparkle, FileText, PencilSimpleLine, Check, ShareNetwork } from "@phosphor-icons/react";
 import { fileToResizedDataUrl } from "../../../lib/launch/image-util";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
@@ -29,6 +29,34 @@ export default function CareerProfilePage() {
   const [hlBusy, setHlBusy] = useState(false);
   const [hlSaving, setHlSaving] = useState(false);
   const [hlSaved, setHlSaved] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  // 공유하기 — 토큰 확보 후 Web Share, 미지원 시 링크 복사.
+  const onShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const token = shareToken || (await sharePassport());
+      if (!token) return;
+      if (!shareToken) setShareToken(token);
+      const url = `${window.location.origin}/p/${token}`;
+      const title = t("내 커리어 카드", "My career card", "我的职业卡片", "Thẻ nghề nghiệp của tôi", "私のキャリアカード", "Kartu karier saya");
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        try {
+          await navigator.share({ title, url });
+          return;
+        } catch {
+          /* 취소 → 복사 폴백 */
+        }
+      }
+      await navigator.clipboard?.writeText(url).catch(() => {});
+      setShareCopied(true);
+      window.setTimeout(() => setShareCopied(false), 2200);
+    } finally {
+      setSharing(false);
+    }
+  };
 
   const onPickPhoto = async (file?: File | null) => {
     if (!file) return;
@@ -114,8 +142,28 @@ export default function CareerProfilePage() {
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-8">
           <div className="flex flex-col gap-5">
-            {/* 검증된 나의 커리어 — 메인 카드(공유 링크 포함) */}
+            {/* 검증된 나의 커리어 — 메인 카드 */}
             <TalentPassportCard />
+
+            {/* 공유하기 — 눈에 띄는 별도 CTA */}
+            <button
+              type="button"
+              onClick={() => void onShare()}
+              disabled={sharing}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0B46E8] px-5 py-4 text-[15px] font-black tracking-[-0.01em] text-white shadow-[0_12px_28px_-12px_rgba(11,70,232,0.65)] transition hover:bg-[#0A3ECB] active:scale-[0.99] disabled:opacity-60"
+            >
+              {shareCopied ? (
+                <>
+                  <Check className="h-5 w-5" weight="bold" aria-hidden />
+                  {t("링크가 복사됐어요", "Link copied", "链接已复制", "Đã sao chép link", "リンクをコピーしました", "Link tersalin")}
+                </>
+              ) : (
+                <>
+                  <ShareNetwork className="h-5 w-5" weight="bold" aria-hidden />
+                  {t("내 커리어 카드 공유하기", "Share my career card", "分享我的职业卡片", "Chia sẻ thẻ nghề nghiệp", "私のキャリアカードを共有", "Bagikan kartu karier")}
+                </>
+              )}
+            </button>
 
             {/* 공개 프로필 꾸미기 — 사진·한 줄 소개·문서 */}
             <div className="rounded-3xl bg-white p-5 shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] md:p-6">
