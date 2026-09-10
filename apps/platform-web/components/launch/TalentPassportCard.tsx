@@ -121,8 +121,8 @@ export function TalentPassportCard() {
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             { k: "target", label: t("목표 직무", "Target", "目标职务", "Vị trí", "目標職務", "Target"), value: p.target.role ?? "—" },
-            { k: "apply", label: t("지원", "Applied", "申请", "Ứng tuyển", "応募", "Lamaran"), value: String(p.activity.applications) },
-            { k: "interview", label: t("면접 제안", "Interviews", "面试邀约", "Lời mời PV", "面接オファー", "Wawancara"), value: String(p.activity.interviewsInvited) },
+            { k: "exp", label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman"), value: `${p.experienceCount}${t("건", "", "个", "", "件", "")}` },
+            { k: "lang", label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa"), value: String((p.languages ?? []).length) },
             { k: "mock", label: t("모의면접", "Mock", "模拟面试", "PV thử", "模擬面接", "Simulasi"), value: `${p.activity.mockInterviews}/3` }
           ].map((s) => (
             <div key={s.k} className="rounded-2xl border border-[#EDF1F7] bg-white/70 px-3.5 py-3 backdrop-blur-sm">
