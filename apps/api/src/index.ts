@@ -547,22 +547,11 @@ async function postFeedbackToDiscord(input: {
   }
 }
 
-const discordPositionApplyWebhookUrl =
-  getTrimmedEnvOrFallback(
-    process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL,
-    "https://discord.com/api/webhooks/1501413270341554287/p2IEy5KPZqOy6nnMNHWO-wxAhpe5OixHBeJCDMzLfokse-kSwxIAONxTBVh6hQKO-XeY"
-  );
-const discordPositionCreateWebhookUrl =
-  getTrimmedEnvOrFallback(
-    process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL,
-    "https://discord.com/api/webhooks/1501417599416799337/Viilar1RgIH0ID5Ok1HdxzGX8wR06mQMWuMn-extrtvgRC22rnAKQJVHZ9mrGss7bWJg"
-  );
+// 웹훅 URL은 시크릿이라 소스에 하드코딩하지 않는다(PUBLIC 레포). env 로만 주입.
+const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL?.trim() ?? "";
+const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
-const discordSgcApplicationWebhookUrl =
-  getTrimmedEnvOrFallback(
-    process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL,
-    "https://discord.com/api/webhooks/1514818503381745734/8gAKKgdUICn_fmF4WivvUMQdN23w2pW01jZq0hnsUJOypJl6nz5jgC3gUCdfo3m9tCCh"
-  );
+const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
@@ -631,9 +620,7 @@ const crawlSchedulerSource = ((): "all" | "buddies" | "wanted" => {
   const raw = String(process.env.CRAWL_SCHEDULER_SOURCE ?? "wanted").toLowerCase();
   return raw === "all" || raw === "buddies" || raw === "wanted" ? raw : "wanted";
 })();
-const crawlerSummaryDiscordWebhookUrl =
-  process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim()
-  || "https://discord.com/api/webhooks/1501899705385488455/27NCPq0khx4Cj8irz5s1VB0AWC7SKe5TzaI-C3oz78bWbic4zBplOx-vcul0UV_wyioR";
+const crawlerSummaryDiscordWebhookUrl = process.env.CRAWLER_SUMMARY_DISCORD_WEBHOOK_URL?.trim() || "";
 
 function resolveRuntimeEnvironment(): "Local" | "Staging" | "Production" {
   const appEnv = (process.env.APP_ENV ?? process.env.ENV ?? "").trim().toLowerCase();
