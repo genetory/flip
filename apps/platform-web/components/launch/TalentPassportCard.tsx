@@ -17,15 +17,22 @@ const TIER_META: Record<PassportTier, { label: string; ring: string; chipBg: str
   gold: { label: "Verified Gold", ring: "#E0A500", chipBg: "#FBF2D6", chipInk: "#A97B00" }
 };
 
-function ReadinessRing({ value, color }: { value: number; color: string }) {
+function ReadinessRing({ value }: { value: number }) {
   const r = 46;
   const c = 2 * Math.PI * r;
   const off = c * (1 - Math.max(0, Math.min(100, value)) / 100);
   return (
     <div className="relative h-[116px] w-[116px] shrink-0">
       <svg viewBox="0 0 116 116" className="h-full w-full -rotate-90">
+        <defs>
+          <linearGradient id="tp-readiness" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#7BB0FF" />
+            <stop offset="50%" stopColor="#3182F6" />
+            <stop offset="100%" stopColor="#0B46E8" />
+          </linearGradient>
+        </defs>
         <circle cx="58" cy="58" r={r} fill="none" stroke="#EEF1F5" strokeWidth="10" />
-        <circle cx="58" cy="58" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
+        <circle cx="58" cy="58" r={r} fill="none" stroke="url(#tp-readiness)" strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-[30px] font-black leading-none tracking-[-0.02em] text-[#0B1227]">{value}</span>
@@ -41,7 +48,7 @@ function Bar({ label, value }: { label: string; value: number }) {
     <div className="flex items-center gap-2.5 text-[12.5px]">
       <span className="w-14 shrink-0 text-[#8B95A1]">{label}</span>
       <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#F2F4F6]">
-        <div className="h-full rounded-full" style={{ width: `${v}%`, background: "linear-gradient(90deg,#0B46E8,#3A6BFF)" }} />
+        <div className="h-full rounded-full" style={{ width: `${v}%`, background: "linear-gradient(90deg,#7BB0FF,#3182F6,#0B46E8)" }} />
       </div>
       <span className="w-7 shrink-0 text-right font-bold tabular-nums text-[#0B1227]">{v}</span>
     </div>
@@ -119,7 +126,7 @@ export function TalentPassportCard() {
 
         {/* 상단 — Readiness 링 + 영역 바 */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <ReadinessRing value={p.readiness} color={tier.ring} />
+          <ReadinessRing value={p.readiness} />
           <div className="flex-1 space-y-1.5">
             <Bar label={t("방향", "Direction", "方向", "Định hướng", "方向", "Arah")} value={p.breakdown.direction} />
             <Bar label={t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} value={p.breakdown.resume} />
