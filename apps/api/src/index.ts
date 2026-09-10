@@ -19861,17 +19861,20 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
     else if ((daysSinceActivity ?? 0) >= 3) enrollmentStatus = "stalled";
 
     // 다음 행동(결정적). 신규는 첫 상담 고정, 그 외 computeNextActions 최상위. 문자열은 lang 으로 현지화.
+    // 완료 기준은 대시보드 전체(주차 표시·"Week N까지")와 동일한 wDone(=weeksDoneCount)으로 통일한다.
+    // 엄격한 input.weeksCompleted를 쓰면 CTA만 '2주차 필수 미션'처럼 어긋나므로 교정.
+    const naInput = { ...input, weeksCompleted: weeksDoneCount };
     let nextAction;
     if (!hadActivity) {
-      nextAction = { key: "first_consult", ...nextActionStrings(lang, "first_consult", input, 0), ...NEXT_ACTION_ROUTE.first_consult, projectedDelta: 0 };
+      nextAction = { key: "first_consult", ...nextActionStrings(lang, "first_consult", naInput, 0), ...NEXT_ACTION_ROUTE.first_consult, projectedDelta: 0 };
     } else {
-      const actions = computeNextActions(input, 1);
+      const actions = computeNextActions(naInput, 1);
       const top = actions[0];
       if (top && NEXT_ACTION_ROUTE[top.key]) {
-        nextAction = { key: top.key, ...nextActionStrings(lang, top.key, input, top.projectedDelta), ...NEXT_ACTION_ROUTE[top.key], projectedDelta: top.projectedDelta };
+        nextAction = { key: top.key, ...nextActionStrings(lang, top.key, naInput, top.projectedDelta), ...NEXT_ACTION_ROUTE[top.key], projectedDelta: top.projectedDelta };
       } else {
         // 전부 완료 → 최종 성장 확인.
-        nextAction = { key: "review_growth", ...nextActionStrings(lang, "review_growth", input, 0), ...NEXT_ACTION_ROUTE.review_growth, projectedDelta: 0 };
+        nextAction = { key: "review_growth", ...nextActionStrings(lang, "review_growth", naInput, 0), ...NEXT_ACTION_ROUTE.review_growth, projectedDelta: 0 };
       }
     }
 
@@ -19933,7 +19936,7 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
         const active = enrolledIds.length ? await prisma.careerLaunchProgress.count({ where: { studentUserId: { in: enrolledIds }, updatedAt: { gte: weekAgo } } }) : 0;
         cohortActivity = { activeThisWeek: active };
       }
-      const na = computeNextActions(input, 1)[0];
+      const na = computeNextActions(naInput, 1)[0];
       leagueSummary = { bucket: null, nextActionPreview: na ? na.label : null };
     } catch {
       /* 보조 실패 무시 */
@@ -22154,7 +22157,18 @@ app.get("/career-launch/passport/shared/:token/document", rateLimit({ windowMs: 
         ? prisma.careerCoverLetterData.findUnique({ where: { studentUserId: uid }, select: { content: true } })
         : prisma.careerResumeData.findUnique({ where: { studentUserId: uid }, select: { content: true } })
     ]);
-    return res.json({ ok: true, name: user?.realName || user?.name || null, type, content: row?.content ?? {} });
+    // 공개 링크로 열리는 원본이라 연락처(이메일·전화)는 마스킹해 노출을 막는다(이름은 유지).
+    const rawContent = (row?.content ?? {}) as Record<string, unknown>;
+    let content: unknown = rawContent;
+    const basic = rawContent.basic;
+    if (basic && typeof basic === "object") {
+      const b: Record<string, unknown> = { ...(basic as Record<string, unknown>) };
+      delete b.email;
+      delete b.phone;
+      delete b.contact;
+      content = { ...rawContent, basic: b };
+    }
+    return res.json({ ok: true, name: user?.realName || user?.name || null, type, content });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
