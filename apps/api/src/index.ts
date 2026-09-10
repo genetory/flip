@@ -6642,7 +6642,7 @@ const clientErrorReportSchema = z.object({
   stack: z.string().max(4000).optional()
 });
 
-app.post("/errors/client", async (req, res) => {
+app.post("/errors/client", rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "client-error" }), async (req, res) => {
   const parsed = clientErrorReportSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid payload" });
@@ -6673,7 +6673,7 @@ const bugReportSchema = z.object({
   screenshot: z.string().max(9_000_000).optional()
 });
 
-app.post("/feedback/report", async (req, res) => {
+app.post("/feedback/report", rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "feedback", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = bugReportSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid payload" });
@@ -22140,7 +22140,7 @@ app.post("/career-launch/passport/media", authenticate, requireCareerEnrollment,
 });
 
 // GET /career-launch/passport/shared/:token/document?type=resume|cover — 공개(무인증) 원본 문서 열람.
-app.get("/career-launch/passport/shared/:token/document", async (req, res) => {
+app.get("/career-launch/passport/shared/:token/document", rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "passport-doc" }), async (req, res) => {
   const token = typeof req.params.token === "string" ? req.params.token : "";
   const type = req.query.type === "cover" ? "cover" : "resume";
   if (!token || token.length < 8) return res.status(400).json({ ok: false, message: "invalid token" });
@@ -22161,7 +22161,7 @@ app.get("/career-launch/passport/shared/:token/document", async (req, res) => {
 });
 
 // GET /career-launch/passport/shared/:token — 공개(무인증) 공유 뷰. 연락처 없이 검증·역량 요약만.
-app.get("/career-launch/passport/shared/:token", async (req, res) => {
+app.get("/career-launch/passport/shared/:token", rateLimit({ windowMs: 60_000, max: 60, keyPrefix: "passport-view" }), async (req, res) => {
   const token = typeof req.params.token === "string" ? req.params.token : "";
   if (!token || token.length < 8) return res.status(400).json({ ok: false, message: "invalid token" });
   try {
