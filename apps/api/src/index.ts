@@ -36801,6 +36801,16 @@ app.patch("/ops/partners/:id", authenticate, requireRoles([MemberRole.OPERATOR])
 // forwards them to Discord via ERROR_DISCORD_WEBHOOK_URL.
 app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   const error = err instanceof Error ? err : new Error(typeof err === "string" ? err : "unknown error");
+  // 클라이언트가 요청 도중 연결을 끊은 경우(raw-body 'request.aborted', ECONNRESET/ABORTED,
+  // 업로드 취소·페이지 이탈·네트워크 끊김) — 서버 버그가 아니라 정상적인 클라이언트 이탈이다.
+  // 로그·Discord 리포팅·응답 시도를 모두 생략(소켓이 이미 닫혀 응답이 또 에러를 낸다).
+  const errCode = (err as { type?: string; code?: string } | null);
+  const isClientAbort =
+    errCode?.type === "request.aborted" ||
+    errCode?.code === "ECONNRESET" ||
+    errCode?.code === "ECONNABORTED" ||
+    /request aborted/i.test(error.message ?? "");
+  if (isClientAbort) return;
   console.error("[express-error]", error);
   // Skip noise patterns from Discord. CORS rejections are already logged
   // server-side with the offending origin in [cors] warn lines.
