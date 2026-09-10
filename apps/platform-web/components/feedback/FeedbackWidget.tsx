@@ -4,7 +4,8 @@
 // 현재 화면 정보(URL·뷰포트·UA·로그인 사용자)와 함께 메시지를 API로 보내고,
 // API가 Discord 팀 채널로 전달한다. 서버 저장/마이그레이션 없음.
 import { useEffect, useRef, useState } from "react";
-import { Bug, X, PaperPlaneRight, CheckCircle } from "@phosphor-icons/react";
+import { createPortal } from "react-dom";
+import { Bug, X, PaperPlaneRight, CheckCircle, ImageSquare } from "@phosphor-icons/react";
 import { usePlatformT } from "../../lib/i18n";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 
@@ -22,8 +23,14 @@ export function FeedbackWidget() {
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [attachShot, setAttachShot] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // body 포털 마운트(SSR 안전).
+  useEffect(() => setMounted(true), []);
 
   // 로그인 사용자면 이메일 프리필.
   useEffect(() => {
@@ -56,11 +63,36 @@ export function FeedbackWidget() {
   ];
   const catServerLabel: Record<Category, string> = { bug: "버그", idea: "개선 제안", etc: "기타" };
 
+  // 현재 화면(뷰포트)을 캡처해 JPEG data URL 로. 위젯 자신은 제외.
+  async function captureScreenshot(): Promise<string | undefined> {
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const scale = Math.min(1, 1280 / Math.max(window.innerWidth, 1));
+      const canvas = await html2canvas(document.body, {
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+        scale,
+        x: window.scrollX,
+        y: window.scrollY,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: document.documentElement.clientWidth,
+        windowHeight: document.documentElement.clientHeight,
+        ignoreElements: (el) => el === wrapperRef.current
+      });
+      return canvas.toDataURL("image/jpeg", 0.7);
+    } catch {
+      return undefined;
+    }
+  }
+
   async function submit() {
     const text = message.trim();
     if (!text || status === "sending") return;
     setStatus("sending");
     try {
+      const screenshot = attachShot ? await captureScreenshot() : undefined;
       const res = await fetch(`${apiBase()}/feedback/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,7 +106,8 @@ export function FeedbackWidget() {
           locale: typeof document !== "undefined" ? document.documentElement.lang : undefined,
           reporterEmail: email.trim() || undefined,
           reporterName: user?.name || undefined,
-          reporterRole: user?.role || undefined
+          reporterRole: user?.role || undefined,
+          screenshot
         })
       });
       if (!res.ok && res.status !== 204) throw new Error(String(res.status));
@@ -89,8 +122,11 @@ export function FeedbackWidget() {
     }
   }
 
-  return (
-    <div className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-[70] print:hidden">
+  // body 직계 div 에 걸린 `overflow-x: clip`(가로 드리프트 방지)이 fixed 위젯의
+  // 그림자를 좌우로 잘라내므로, body 로 포털 렌더 + inline overflow:visible 로 벗어난다.
+  if (!mounted) return null;
+  return createPortal(
+    <div ref={wrapperRef} style={{ overflow: "visible" }} className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-[70] print:hidden">
       {/* 팝업 패널 */}
       {open ? (
         <div
@@ -155,6 +191,17 @@ export function FeedbackWidget() {
                 placeholder={t("답장 받을 이메일(선택)", "Email for reply (optional)", "回复邮箱（可选）", "Email nhận phản hồi (tùy chọn)", "返信用メール(任意)", "Email balasan (opsional)")}
                 className="mt-2 w-full rounded-xl border border-[#E5E8EC] bg-[#FAFBFC] px-3 py-2 text-[12.5px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#191F28]"
               />
+              {/* 화면 캡처 첨부 토글 */}
+              <label className="mt-2.5 flex cursor-pointer items-center gap-2 text-[12.5px] font-semibold text-[#4E5968]">
+                <input
+                  type="checkbox"
+                  checked={attachShot}
+                  onChange={(e) => setAttachShot(e.target.checked)}
+                  className="h-4 w-4 accent-[#0B46E8]"
+                />
+                <ImageSquare className="h-4 w-4 text-[#8B95A1]" aria-hidden />
+                {t("현재 화면 캡처 첨부", "Attach a screenshot", "附加当前截图", "Đính kèm ảnh màn hình", "現在の画面を添付", "Lampirkan tangkapan layar")}
+              </label>
               {status === "error" ? (
                 <p className="mt-2 text-[12px] font-semibold text-[#E11D48]">{t("전송에 실패했어요. 잠시 후 다시 시도해 주세요.", "Failed to send. Please try again.", "发送失败，请稍后重试。", "Gửi thất bại. Thử lại sau.", "送信に失敗しました。もう一度お試しください。", "Gagal mengirim. Coba lagi.")}</p>
               ) : null}
@@ -182,6 +229,7 @@ export function FeedbackWidget() {
       >
         {open ? <X className="h-5 w-5" weight="bold" aria-hidden /> : <Bug className="h-[22px] w-[22px]" weight="fill" aria-hidden />}
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

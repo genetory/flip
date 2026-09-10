@@ -482,6 +482,7 @@ async function postFeedbackToDiscord(input: {
   reporterEmail?: string;
   reporterName?: string;
   reporterRole?: string;
+  screenshot?: string;
 }) {
   if (!feedbackDiscordWebhookUrl) return;
   const env = process.env.NODE_ENV === "production" ? "production" : "staging";
@@ -499,25 +500,38 @@ async function postFeedbackToDiscord(input: {
   if (meta) fields.push({ name: "환경", value: truncate(meta, 256), inline: false });
   if (input.userAgent) fields.push({ name: "User Agent", value: truncate(input.userAgent, 256), inline: false });
 
-  const payload = {
-    content: "",
-    embeds: [
-      {
-        color: 0x0b46e8,
-        title: "🐞 사용자 버그·피드백",
-        description: truncate(input.message, 1800),
-        fields,
-        footer: { text: "Aply • Feedback" },
-        timestamp: new Date().toISOString()
-      }
-    ]
+  const embed: Record<string, unknown> = {
+    color: 0x0b46e8,
+    title: "🐞 사용자 버그·피드백",
+    description: truncate(input.message, 1800),
+    fields,
+    footer: { text: "Aply • Feedback" },
+    timestamp: new Date().toISOString()
   };
+
+  // 화면 캡처(data URL)가 있으면 Discord 멀티파트 첨부로 인라인 표시.
+  const shot = input.screenshot?.trim();
+  const shotMatch = shot ? shot.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i) : null;
+  const shotBuffer = shotMatch ? Buffer.from(shotMatch[2]!, "base64") : null;
+  const shotOk = shotBuffer && shotBuffer.length > 0 && shotBuffer.length <= 8_000_000;
+
   try {
-    const response = await fetch(feedbackDiscordWebhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    let response: Response;
+    if (shotOk && shotMatch) {
+      const mime = shotMatch[1]!;
+      const filename = mime.includes("png") ? "screenshot.png" : "screenshot.jpg";
+      embed.image = { url: `attachment://${filename}` };
+      const form = new FormData();
+      form.append("payload_json", JSON.stringify({ content: "", embeds: [embed] }));
+      form.append("files[0]", new Blob([new Uint8Array(shotBuffer)], { type: mime }), filename);
+      response = await fetch(feedbackDiscordWebhookUrl, { method: "POST", body: form });
+    } else {
+      response = await fetch(feedbackDiscordWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "", embeds: [embed] })
+      });
+    }
     if (!response.ok) {
       const responseBody = await response.text().catch(() => "");
       console.error("feedback_discord_webhook_failed", {
@@ -6654,7 +6668,9 @@ const bugReportSchema = z.object({
   locale: z.string().max(12).optional(),
   reporterEmail: z.string().max(200).optional(),
   reporterName: z.string().max(120).optional(),
-  reporterRole: z.string().max(40).optional()
+  reporterRole: z.string().max(40).optional(),
+  // 현재 화면 캡처(data URL, JPEG/PNG). 클라이언트에서 축소해 전송.
+  screenshot: z.string().max(9_000_000).optional()
 });
 
 app.post("/feedback/report", async (req, res) => {
