@@ -19848,9 +19848,11 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, async
     else if ((daysSinceActivity ?? 0) >= 3) enrollmentStatus = "stalled";
 
     // 다음 행동(결정적). 신규는 첫 상담 고정, 그 외 computeNextActions 최상위. 문자열은 lang 으로 현지화.
-    // 완료 기준은 대시보드 전체(주차 표시·"Week N까지")와 동일한 wDone(=weeksDoneCount)으로 통일한다.
-    // 엄격한 input.weeksCompleted를 쓰면 CTA만 '2주차 필수 미션'처럼 어긋나므로 교정.
-    const naInput = { ...input, weeksCompleted: weeksDoneCount };
+    // 완료 기준은 사용자가 실제로 본 진행(주차 스텝퍼 doneSteps의 w{n}s4)과 산출물(wDone) 중
+    // 더 완료된 쪽으로 잡는다. 엄격한 input.weeksCompleted만 쓰면 '4주 완료했는데 2주차 미션'처럼 어긋난다.
+    const stepWeeksCompleted = [1, 2, 3, 4].filter((w) => doneSteps.includes(`w${w}s4`)).length;
+    const effectiveWeeksCompleted = Math.max(weeksDoneCount, stepWeeksCompleted);
+    const naInput = { ...input, weeksCompleted: effectiveWeeksCompleted };
     let nextAction;
     if (!hadActivity) {
       nextAction = { key: "first_consult", ...nextActionStrings(lang, "first_consult", naInput, 0), ...NEXT_ACTION_ROUTE.first_consult, projectedDelta: 0 };
