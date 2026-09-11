@@ -42,33 +42,46 @@ const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H; // 페이지당 콘텐츠 �
 // 이력서 순서 — 경험·프로젝트·자격증·어학·스킬·대외활동·수상, 학력은 맨 아래.
 const SECTION_ORDER: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
 
-// 블록(헤더·섹션, 필요 시 [data-break] 문단) 단위로 페이지를 나눈다 — 한 블록이 현재 페이지에
-// 안 들어가면 통째로 다음 장으로 내린다(섹션 중간 안 잘림). 한 블록이 한 장보다 크면(예외)
-// 그때만 페이지 경계에서 이어 자른다.
+// 페이지 하단에 이 정도 이하로만 빈 공간이 남으면 블록을 통째로 다음 장으로 넘겨 깔끔히 유지하고,
+// 그보다 크게 남으면 항목([data-break]) 경계에서 잘라 페이지를 채운다(헤더만 남고 큰 빈칸이 생기는 문제 방지).
+const KEEP_TOGETHER_MAX = 140;
+
+// 블록(헤더·섹션) + 섹션 내부 항목([data-break]) 경계에서 페이지를 나눈다. 각 페이지에서
+// '들어가는 가장 먼 지점'까지 채우되, 남는 빈 공간이 크면 항목 단위로 잘라 페이지를 채운다.
 export function packBlocks(root: HTMLElement, contentH: number): { starts: number[]; total: number } {
   const total = root.scrollHeight;
   const rootTop = root.getBoundingClientRect().top;
-  const tops = Array.from(root.querySelectorAll<HTMLElement>("header, section, [data-break]"))
+  const candidates = Array.from(root.querySelectorAll<HTMLElement>("header, section, [data-break]"))
     .map((el) => el.getBoundingClientRect().top - rootTop)
-    .filter((t) => t >= 0)
-    .sort((a, b) => a - b);
+    .filter((t) => t > 0);
+  const tops = Array.from(new Set(candidates)).sort((a, b) => a - b);
+
   const starts = [0];
   let pageTop = 0;
-  for (let i = 0; i < tops.length; i++) {
-    const top = tops[i];
-    if (top <= pageTop + 1) continue; // 이미 이 페이지 시작 근처
-    const bottom = i < tops.length - 1 ? tops[i + 1] : total;
-    if (bottom - pageTop > contentH) {
-      if (top - pageTop > 1) {
-        starts.push(top);
-        pageTop = top;
-      }
-      // 한 블록이 한 장보다 큰 예외 — 잘림 방지용으로만 경계 분할.
-      while (bottom - pageTop > contentH) {
-        pageTop += contentH;
-        starts.push(pageTop);
-      }
+  for (let guard = 0; guard < 400 && pageTop + contentH < total - 1; guard++) {
+    const pageBottom = pageTop + contentH;
+    // pageTop 이후, 현재 페이지 안에 들어가는 가장 먼 분할 지점.
+    let next = -1;
+    for (const t of tops) {
+      if (t > pageTop + 1 && t <= pageBottom) next = t;
+      else if (t > pageBottom) break;
     }
+    if (next >= 0) {
+      let after = total;
+      for (const t of tops) {
+        if (t > next) { after = t; break; }
+      }
+      const gap = pageBottom - next;
+      // 다음 블록이 한 장보다 크거나, 여기서 끊으면 빈 공간이 크게 남으면 경계에서 잘라 채운다.
+      if ((after - next > contentH || gap > KEEP_TOGETHER_MAX) && next < total - 1) {
+        next = pageBottom;
+      }
+    } else {
+      // 이 페이지 안에 안전한 분할 지점이 없다(한 블록이 한 페이지보다 큼) — 경계에서 그대로 자른다.
+      next = pageBottom;
+    }
+    starts.push(next);
+    pageTop = next;
   }
   return { starts, total };
 }
@@ -182,7 +195,7 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
                 {items.map((it) => {
                   const range = [it.startDate, it.endDate].map((d) => displayMonth(d ?? "")).filter(Boolean).join(" – ");
                   return (
-                    <li key={it.id} className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
+                    <li key={it.id} data-break className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
                       <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
                       <span className="min-w-0 flex-1">
                         {it.company ? <span className="block font-bold text-[#191F28]">{it.company}</span> : null}
@@ -204,7 +217,7 @@ function ResumeA4Body({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
               {doc.links
                 .filter((l) => l.url?.trim())
                 .map((l, i) => (
-                  <li key={i} className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
+                  <li key={i} data-break className="flex items-start gap-3 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
                     <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
                     <span className="min-w-0 flex-1">
                       {l.label?.trim() ? <span className="block font-bold text-[#191F28]">{l.label.trim()}</span> : null}
