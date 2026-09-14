@@ -312,3 +312,13 @@ export type CareerFunnelEvent =
 export function trackCareerFunnel(event: CareerFunnelEvent, params: Record<string, unknown> = {}) {
   safeSendEvent(event, params);
 }
+
+// ---- 대학별 랜딩(talent/university/[slug]) — 유입·전환 귀속 계측 ----
+
+export function trackUniversityLandingViewed(slug: string) {
+  safeSendEvent("university_landing_viewed", { slug });
+}
+
+export function trackUniversityCtaClicked(slug: string, cta: "primary" | "jobs" | "secondary") {
+  safeSendEvent("university_cta_clicked", { slug, cta });
+}
