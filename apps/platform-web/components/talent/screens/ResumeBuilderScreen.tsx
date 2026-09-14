@@ -479,9 +479,13 @@ function ChatPanel({ onAdd }: { onAdd: (text: string, section?: CareerSection, r
     const id = onAdd(trimmed, res.section, res.refined, res.startDate, res.endDate, res.title);
     // 커리어 기록(피드)에도 요약 리스팅.
     ensureFeedEntry(`resume:${id}`, res.refined, res.section, { label: `${t("이력서","Resume","简历","CV","履歴書","CV")} · ${secLabel}`, href: talentAppRoutes.resume });
+    // 항목은 매번 바로 정리되므로, 초반 몇 개까지만 "한 문장 더" 유도를 붙이고 그 뒤엔 캐묻지
+    // 않는다(계속 추가를 재촉하면 지루해짐). priorUserTurns 는 이번 입력 직전까지의 사용자 발화 수.
+    const priorUserTurns = messages.filter((m) => m.role === "user").length;
+    const nudge = priorUserTurns < 3 && res.followUp ? ` ${res.followUp}` : "";
     setMessages((m) => [
       ...m,
-      { id: ++seq.current, role: "ai", text: `${meta.emoji} ${t(`${secLabel}에 정리했어요.`, `Organized under ${secLabel}.`, `已整理到「${secLabel}」。`, `Đã sắp xếp vào ${secLabel}.`, `${secLabel}に整理しました。`, `Disusun di ${secLabel}.`)} ${res.followUp}`.trim() }
+      { id: ++seq.current, role: "ai", text: `${meta.emoji} ${t(`${secLabel}에 정리했어요.`, `Organized under ${secLabel}.`, `已整理到「${secLabel}」。`, `Đã sắp xếp vào ${secLabel}.`, `${secLabel}に整理しました。`, `Disusun di ${secLabel}.`)}${nudge}`.trim() }
     ]);
     setPending(false);
   }

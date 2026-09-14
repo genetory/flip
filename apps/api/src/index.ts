@@ -17713,8 +17713,15 @@ app.post(
         focus && RESUME_FOCUS_LABEL[focus]
           ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${RESUME_FOCUS_LABEL[focus]}' 항목만 다룬다. 이 항목에 대해서만 질문하고 답을 받는다. 다른 섹션(그 외 이력서 항목)은 절대 묻지도, 채우지도, 언급하지도 마라. 이 항목을 충분히 채웠으면 done:true 로 마무리하고 다른 섹션으로 넘어가지 마라. data 에는 이 섹션에 해당하는 필드만 채우고 나머지 필드는 비워 둔다.`
           : "";
+      // 대화가 너무 길어지면 사용자가 지친다 — 사용자 답변 횟수를 세어, 몇 번 받으면 더 캐묻지
+      // 말고 마무리하도록 강하게 유도한다(아래 프롬프트 지시 + 하드 캡으로 done 강제).
+      const userTurns = messages.filter((m) => m.role === "user").length;
+      const wrapUpDirective =
+        userTurns >= 2
+          ? `\n\n[대화 길이 규칙 — 매우 중요] 학생이 이미 ${userTurns}번 답했어. 질문을 너무 많이 하면 지쳐서 이탈해. 이번 답변부터는 새 질문을 하지 말고, 지금까지 받은 내용만으로 이 섹션 항목을 최대한 완성해서 data 에 채운 뒤 done:true 로 따뜻하게 마무리해. (딱 하나, 이 섹션의 필수 값이 아직 비어 있으면 그것만 마지막으로 한 번 물어보고, 그 외에는 절대 더 캐묻지 마.)`
+          : `\n\n[대화 길이 규칙] 질문은 짧고 핵심만. 학생이 2~3번 정도 답하면 더 캐묻지 말고 받은 내용으로 항목을 완성해 done:true 로 마무리해.`;
       const systemPrompt =
-        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + "\n\n" +
+        (await getCareerPrompt("resume")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + wrapUpDirective + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": {basic,educations,experiences,skills,languages}, "done": boolean }' +
         aiLangDirective(locale);
       // 저장된 데이터가 이미 있는지 — kickoff 시 재질문 방지용.
@@ -17737,7 +17744,8 @@ app.post(
         done?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
-      const done = pj.done === true;
+      // 하드 캡 — 4번 이상 답을 받았으면 LLM 이 done 을 안 줘도 강제로 마무리(무한 질문 방지).
+      const done = pj.done === true || userTurns >= 4;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
       // 저장분과 병합해 누적 — LLM 이 이전 항목을 빠뜨려도 사라지지 않게 한다.
       const existing = await prisma.careerResumeData.findUnique({ where: { studentUserId: req.auth!.userId } });
@@ -18039,8 +18047,14 @@ app.post(
       const focusHardScope = focusLabel
         ? `\n\n[가장 중요한 규칙] 지금 이 대화는 오직 '${focusLabel}' 문항만 다룬다. 이 문항에 대해서만 질문하고 답을 받아 완성한다. 다른 문항(지원 동기·성장 과정·성격의 장단점·입사 후 포부 중 이 문항 외)은 절대 묻지도, 작성하지도, 언급하지도 마라. 이 문항을 충분히 채웠으면 done:true 로 마무리한다. data.items 에는 question 이 '${focusLabel}' 인 항목만 채운다.`
         : "";
+      // 대화가 너무 길어지면 지쳐 이탈한다 — 사용자 답변 횟수를 세어 몇 번 받으면 마무리하도록 유도.
+      const userTurns = messages.filter((m) => m.role === "user").length;
+      const wrapUpDirective =
+        userTurns >= 2
+          ? `\n\n[대화 길이 규칙 — 매우 중요] 학생이 이미 ${userTurns}번 답했어. 질문을 계속 늘리지 말고, 이번 답변에서는 지금까지 받은 재료로 이 문항의 자기소개서 답변(answer)을 실제로 완성해서 data.items 에 담고 done:true 로 따뜻하게 마무리해. 더 캐묻지 마.`
+          : `\n\n[대화 길이 규칙] 질문은 짧고 핵심만. 학생이 2~3번 답하면 더 묻지 말고 받은 재료로 답변을 완성해 done:true 로 마무리해.`;
       const systemPrompt =
-        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + "\n\n" +
+        (await getCareerPrompt("cover")) + "\n\n" + CAREER_SCOPE + "\n\n" + CAREER_EASY_ASK + "\n\n" + focusDirective + focusHardScope + wrapUpDirective + "\n\n" +
         'JSON 한 개 객체로만 응답: { "reply": string, "data": { "company": string|null, "items": [{ "question": string, "answer": string }] }, "done": boolean }' +
         aiLangDirective(locale);
       const convo = messages.length
@@ -18060,7 +18074,8 @@ app.post(
         done?: unknown;
       };
       const reply = typeof pj.reply === "string" ? pj.reply.trim() : "";
-      const done = pj.done === true;
+      // 하드 캡 — 4번 이상 답을 받았으면 LLM 이 done 을 안 줘도 강제로 마무리(무한 질문 방지).
+      const done = pj.done === true || userTurns >= 4;
       if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
       const existing = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: req.auth!.userId } });
       const savedContent = (existing?.content && typeof existing.content === "object" ? existing.content : {}) as Record<string, unknown>;
