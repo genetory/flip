@@ -69,7 +69,7 @@ export function UniversityDiagnosisTeaser({ accent, ctaHref, onCta }: { accent: 
         : t("실제 공고에 지원하기", "Apply to real jobs", "投递真实公告", "Ứng tuyển việc thật", "実際の求人に応募", "Lamar pekerjaan nyata");
 
   return (
-    <section className="mx-auto max-w-5xl px-5 -mt-8 md:-mt-10">
+    <section className="relative z-10 mx-auto max-w-5xl px-5 -mt-8 md:-mt-10">
       <div className="overflow-hidden rounded-3xl border border-[#EEF1F5] bg-white p-6 shadow-[0_16px_40px_-24px_rgba(11,18,39,0.3)] md:p-7">
         <p className="text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: accent }}>⚡ {t("1분 커리어 진단", "1-minute career check", "1分钟职业诊断", "Chẩn đoán 1 phút", "1分キャリア診断", "Cek karier 1 menit")}</p>
 
