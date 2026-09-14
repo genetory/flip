@@ -307,7 +307,7 @@ export default function LaunchDashboardPage() {
 
           {/* 완주자 — 완성한 서류로 '실제 공고 지원'까지 직접 연결(핵심 전환). 데이터상 완주→지원이 0% 라
               일반 홈으로 보내는 대신 개인화 추천 공고 + '지원하기'를 바로 노출한다. */}
-          {vm && (vm.enrollmentStatus === "completed" || overall === 100) ? (
+          {vm && (vm.enrollmentStatus === "completed" || overall === 100 || (resumeReady && coverReady)) ? (
             <div className="mt-8">
               <CareerApplyCTA />
             </div>
