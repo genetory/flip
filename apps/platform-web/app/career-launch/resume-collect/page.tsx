@@ -203,8 +203,9 @@ export default function ResumeCollectPage() {
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          {/* 상단 바 */}
-          <div className="flex items-center justify-between gap-3">
+          {/* 상단 바 — 폼을 아래로 스크롤하며 타이핑해도 저장/취소가 항상 손에 닿도록
+              헤더(top-14) 바로 아래에 고정. 스크롤 시 backdrop-blur 로 본문과 분리한다. */}
+          <div className="sticky top-14 z-30 -mx-5 flex items-center justify-between gap-3 bg-white/85 px-5 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
             <button type="button" onClick={onBack} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
             </button>
