@@ -119,6 +119,25 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
 
   const view = item ? toPositionView(item, t) : null;
 
+  // 모바일에서 하단 고정 '지원하기' 바가 떠 있는 동안, 우하단 전역 피드백 버튼이 그
+  // 버튼을 덮지 않도록 바 높이만큼 위로 비켜서게 한다(:root CSS 변수로 FeedbackWidget 에 전달).
+  const ctaVisible = status === "ready" && Boolean(item) && Boolean(view);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const root = document.documentElement;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const apply = () => {
+      if (ctaVisible && mq.matches) root.style.setProperty("--fab-bottom-offset", "72px");
+      else root.style.removeProperty("--fab-bottom-offset");
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => {
+      mq.removeEventListener("change", apply);
+      root.style.removeProperty("--fab-bottom-offset");
+    };
+  }, [ctaVisible]);
+
   return (
     <TalentAppShell maxWidth="4xl" allowGuest>
       <TalentBackButton className="mb-4" />

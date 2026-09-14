@@ -173,7 +173,13 @@ export function FeedbackWidget() {
   // 그림자를 좌우로 잘라내므로, body 로 포털 렌더 + inline overflow:visible 로 벗어난다.
   if (!mounted) return null;
   return createPortal(
-    <div ref={wrapperRef} style={{ overflow: "visible" }} className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-5 z-[70] print:hidden">
+    <div
+      ref={wrapperRef}
+      // --fab-bottom-offset: 하단 고정 액션 바(예: 채용 상세 '지원하기')가 있는 화면에서
+      // 그 바가 이 버튼을 덮지 않도록 위로 비켜서는 값. 해당 화면이 :root 에 설정한다.
+      style={{ overflow: "visible", bottom: "calc(max(1.25rem, env(safe-area-inset-bottom)) + var(--fab-bottom-offset, 0px))" }}
+      className="fixed right-5 z-[70] print:hidden"
+    >
       {/* 팝업 패널 */}
       {open ? (
         <div
