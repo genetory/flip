@@ -148,10 +148,21 @@ All colors MUST be HSL.
     overflow-x: clip;
   }
 
+  html {
+    /* iOS Safari 가로회전 시 본문 텍스트가 제멋대로 확대되는 것 방지. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
+    /* 모바일 웹 폴리시 — 탭할 때마다 뜨는 회색 하이라이트 박스 제거(앱처럼 자연스럽게),
+       레티나 디스플레이에서 텍스트 렌더링 선명화. */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     /* 모바일 최소 폭 보장 — 360px(안드로이드 갤럭시 S 류 최소 폭)이하(폴더블·
        iOS 디스플레이 줌 등)에선 레이아웃을 쥐어짜서 뱃지·타이틀이 2줄로 깨지는
        대신 360px 레이아웃을 유지하고 가로 스크롤되게 한다. 360px 이상(대부분의

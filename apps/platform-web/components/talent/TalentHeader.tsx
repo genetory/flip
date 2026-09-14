@@ -1,7 +1,8 @@
 "use client";
 
 // Talent 통합 헤더.
-// 로그인 Talent: GNB 4탭(홈/내 커리어/채용공고/지원) + 프로필 메뉴. (모바일은 하단 내비로 탭 제공)
+// 로그인 Talent: GNB 4탭(홈/내 커리어/채용공고/지원) + 프로필 메뉴.
+// 모바일은 하단 탭바를 쓰지 않고 상단 햄버거 메뉴로 동일 탭을 제공한다.
 // 비로그인(랜딩): 로그인 + 무료로 시작하기. Admin 링크는 노출하지 않는다.
 import Link from "next/link";
 import Image from "next/image";

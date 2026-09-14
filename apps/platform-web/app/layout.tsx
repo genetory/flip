@@ -126,6 +126,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={initialLocale} suppressHydrationWarning>
       <head>
+        {/* Pretendard 웹폰트는 globals.css 의 @import 로 cdn.jsdelivr.net 에서 불러온다.
+            @import 는 CSS 파싱 후에야 발견돼 직렬로 받게 되므로, 모바일 네트워크에서
+            첫 페인트가 늦어진다. head 에서 미리 연결(preconnect)해 DNS·TLS 핸드셰이크를
+            앞당겨 폰트 CSS·woff2 를 더 빨리 받도록 한다. */}
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         {/* 모바일 브라우저 자동 번역(구글 번역 등)이 DOM 텍스트 노드를 바꿔치기하면
             React 가 그 노드를 제거/삽입하려다 "removeChild: not a child" 로 크래시한다.
             노드가 실제 자식이 아니면 안전하게 무시하도록 가드(잘 알려진 표준 패치).
