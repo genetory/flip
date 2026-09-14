@@ -315,10 +315,10 @@ export function trackCareerFunnel(event: CareerFunnelEvent, params: Record<strin
 
 // ---- 대학별 랜딩(talent/university/[slug]) — 유입·전환 귀속 계측 ----
 
-export function trackUniversityLandingViewed(slug: string) {
-  safeSendEvent("university_landing_viewed", { slug });
+export function trackUniversityLandingViewed(slug: string, campaign?: string) {
+  safeSendEvent("university_landing_viewed", { slug, ...(campaign ? { campaign } : {}) });
 }
 
-export function trackUniversityCtaClicked(slug: string, cta: "primary" | "jobs" | "secondary") {
-  safeSendEvent("university_cta_clicked", { slug, cta });
+export function trackUniversityCtaClicked(slug: string, cta: "primary" | "jobs" | "secondary", campaign?: string) {
+  safeSendEvent("university_cta_clicked", { slug, cta, ...(campaign ? { campaign } : {}) });
 }

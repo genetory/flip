@@ -22,6 +22,8 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const [jobs, setJobs] = useState<PublicPositionListItem[]>([]);
+  // 캠페인 채널(설명회 부스·포스터·온라인 등) — ?c=<채널> 로 구분해 유입 귀속.
+  const [campaign, setCampaign] = useState<string | undefined>(undefined);
 
   const src = `uni:${data.slug}`;
   // 한국어 히어로/CTA 톤 — 대학 정체성 표현(예: '한양인')이 있으면 그걸 쓴다.
@@ -36,14 +38,23 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
     : t("무료로 시작하기", "Get started free", "免费开始", "Bắt đầu miễn phí", "無料で始める", "Mulai gratis");
   const jobsHref = `${talentRoutes.jobs ?? "/talent/jobs"}?src=${encodeURIComponent(src)}`;
 
-  // 유입 귀속 — 가입/기수등록까지 이어지도록 출처를 저장하고, 조회 이벤트 계측.
+  // 유입 귀속 — 가입/기수등록까지 이어지도록 출처·캠페인을 저장하고, 조회 이벤트 계측.
   useEffect(() => {
+    let c: string | undefined;
+    try {
+      const raw = new URLSearchParams(window.location.search).get("c");
+      c = raw ? raw.trim().slice(0, 40) : undefined;
+    } catch {
+      c = undefined;
+    }
+    setCampaign(c);
     try {
       window.localStorage.setItem("aply_acq_src", src);
+      if (c) window.localStorage.setItem("aply_acq_campaign", c);
     } catch {
       /* 저장 실패 무시 */
     }
-    trackUniversityLandingViewed(data.slug);
+    trackUniversityLandingViewed(data.slug, c);
   }, [data.slug, src]);
 
   // 실시간 공개 공고 큐레이션(게스트 접근 가능한 /positions).
@@ -132,14 +143,14 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
               href={primaryHref}
-              onClick={() => trackUniversityCtaClicked(data.slug, "primary")}
+              onClick={() => trackUniversityCtaClicked(data.slug, "primary", campaign)}
               className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-6 py-3.5 text-[15px] font-black text-[#191F28] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)] transition hover:bg-[#F2F4F6]"
             >
               {primaryLabel} <ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden />
             </Link>
             <Link
               href={jobsHref}
-              onClick={() => trackUniversityCtaClicked(data.slug, "secondary")}
+              onClick={() => trackUniversityCtaClicked(data.slug, "secondary", campaign)}
               className="inline-flex items-center gap-1.5 rounded-2xl border border-white/40 px-6 py-3.5 text-[15px] font-bold text-white transition hover:bg-white/10"
             >
               {t("공고 둘러보기", "Browse jobs", "浏览公告", "Xem việc làm", "求人を見る", "Lihat lowongan")}
@@ -177,7 +188,7 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
             </h2>
             <Link
               href={jobsHref}
-              onClick={() => trackUniversityCtaClicked(data.slug, "jobs")}
+              onClick={() => trackUniversityCtaClicked(data.slug, "jobs", campaign)}
               className="inline-flex shrink-0 items-center gap-1 text-[13px] font-bold"
               style={{ color: data.accent }}
             >
@@ -231,7 +242,7 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
           </h2>
           <Link
             href={primaryHref}
-            onClick={() => trackUniversityCtaClicked(data.slug, "primary")}
+            onClick={() => trackUniversityCtaClicked(data.slug, "primary", campaign)}
             className="inline-flex items-center gap-1.5 rounded-2xl px-7 py-3.5 text-[15px] font-black text-white shadow-[0_12px_32px_-14px_rgba(0,0,0,0.6)] transition"
             style={{ backgroundColor: data.accent }}
           >
