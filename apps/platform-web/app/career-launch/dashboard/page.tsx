@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, CaretRight, ArrowRight, Monitor, MapPin, CircleNotch, ChatCircleText, GraduationCap, PenNib } from "@phosphor-icons/react";
+import { Lock, CaretRight, Monitor, MapPin, CircleNotch, ChatCircleText, GraduationCap, PenNib } from "@phosphor-icons/react";
 import { STUDENT, WEEKS } from "../../../lib/launch/data";
 import { Card, SectionTitle } from "../../../components/launch/ui";
 import { EnrollmentGate } from "../../../components/launch/enrollment-gate";
 import { CareerSnapshot } from "../../../components/launch/CareerSnapshot";
 import { HeroOpenings } from "../../../components/launch/HeroOpenings";
+import { CareerApplyCTA } from "../../../components/launch/CareerApplyCTA";
 import { BoardingPassHero } from "../../../components/launch/BoardingPassHero";
 import { CheckInPanel } from "../../../components/launch/CheckInPanel";
 import { FlightPath } from "../../../components/launch/FlightPath";
@@ -304,16 +305,11 @@ export default function LaunchDashboardPage() {
             </div>
           )}
 
-          {/* 완주자 — 최종 성장 리포트·피드백은 '나의 성장'으로, 실제 취업은 APLY로 이어가요. (홈 정리: 하단 레거시 블록 제거) */}
+          {/* 완주자 — 완성한 서류로 '실제 공고 지원'까지 직접 연결(핵심 전환). 데이터상 완주→지원이 0% 라
+              일반 홈으로 보내는 대신 개인화 추천 공고 + '지원하기'를 바로 노출한다. */}
           {vm && (vm.enrollmentStatus === "completed" || overall === 100) ? (
-            <div className="mt-8 flex flex-col gap-3">
-              <Link href="/talent/home" onClick={() => trackCareerFunnel("next_action_clicked", { action: "go_talent" })} className="group flex items-center justify-between gap-4 rounded-2xl bg-[#0B1227] px-5 py-5 text-left transition hover:bg-[#1A2440]">
-                <div className="min-w-0">
-                  <p className="text-[15px] font-black text-white">{t("APLY에서 취업 이어가기", "Continue your job search on APLY", "在 APLY 继续求职", "Tiếp tục tìm việc trên APLY", "APLYで就職活動を続ける", "Lanjutkan pencarian kerja di APLY")}</p>
-                  <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-white/70">{t("완성한 이력서·자기소개서로 실제 공고에 지원하고 취업을 이어가요.", "Apply to real jobs with your finished resume and cover letter.", "用完成的简历与求职信投递真实职位。", "Ứng tuyển việc thật với hồ sơ và thư đã hoàn thành.", "完成した履歴書・自己紹介書で実際の求人に応募しましょう。", "Lamar pekerjaan nyata dengan resume dan surat lamaranmu.")}</p>
-                </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition"><ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden /></span>
-              </Link>
+            <div className="mt-8">
+              <CareerApplyCTA />
             </div>
           ) : null}
         </div>

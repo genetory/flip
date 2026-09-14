@@ -171,6 +171,8 @@ export type CareerFunnelEvent =
   | "mock_interview_completed"
   | "career_report_viewed"
   | "next_action_clicked"
+  | "career_apply_cta_clicked"
+  | "career_apply_cta_seeall"
   | "survey_mid_prompted"
   | "survey_mid_clicked"
   | "survey_final_prompted"
