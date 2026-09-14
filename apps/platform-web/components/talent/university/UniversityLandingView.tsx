@@ -24,6 +24,8 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
   const [jobs, setJobs] = useState<PublicPositionListItem[]>([]);
 
   const src = `uni:${data.slug}`;
+  // 한국어 히어로/CTA 톤 — 대학 정체성 표현(예: '한양인')이 있으면 그걸 쓴다.
+  const koWho = data.demonym ?? `${data.shortName} 학생`;
   const hasCohort = Boolean(data.careerLaunchInvite);
   // 적응형 주 CTA — 진행 중인 기수가 있으면 무료 프로그램 시작(초대링크), 없으면 가입.
   const primaryHref = hasCohort
@@ -121,7 +123,7 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
             <p className="mt-4 text-[15px] font-black tracking-[0.02em] text-white/90">{data.wordmark}</p>
           )}
           <h1 className="mt-3 max-w-[18ch] break-keep text-[30px] font-black leading-[1.18] tracking-[-0.03em] text-white md:text-[44px]">
-            {t(`${data.shortName} 학생의 첫 커리어, 여기서 시작하세요`, `${data.shortName} students, start your first career here`, `${data.shortName}学生的第一份职业，从这里开始`, `Sinh viên ${data.shortName}, bắt đầu sự nghiệp tại đây`, `${data.shortName}生の初めてのキャリア、ここから`, `Mahasiswa ${data.shortName}, mulai karier pertamamu di sini`)}
+            {t(`${koWho}의 첫 커리어, 여기서 시작하세요`, `${data.shortName} students, start your first career here`, `${data.shortName}学生的第一份职业，从这里开始`, `Sinh viên ${data.shortName}, bắt đầu sự nghiệp tại đây`, `${data.shortName}生の初めてのキャリア、ここから`, `Mahasiswa ${data.shortName}, mulai karier pertamamu di sini`)}
           </h1>
           <p className="mt-4 max-w-[46ch] break-keep text-[14.5px] leading-relaxed text-white/85 md:text-[16px]">
             {t("AI로 이력서·자기소개서를 완성하고, 모의면접으로 준비한 뒤, 실제 공고에 바로 지원하세요. 전부 무료예요.", "Finish your resume and cover letter with AI, practice interviews, then apply to real jobs — all free.", "用AI完成简历与自我介绍，进行模拟面试，再直接投递真实公告。全部免费。", "Hoàn thành CV & thư bằng AI, luyện phỏng vấn, rồi ứng tuyển việc thật — tất cả miễn phí.", "AIで履歴書・自己紹介書を完成し、模擬面接で準備して、実際の求人に応募。すべて無料。", "Selesaikan resume & surat dengan AI, latih wawancara, lalu lamar kerja nyata — semua gratis.")}
@@ -210,8 +212,22 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
       {/* 하단 CTA */}
       <section className="mx-auto max-w-5xl px-5 pb-20">
         <div className="flex flex-col items-center gap-5 rounded-3xl bg-[#0B1227] px-6 py-12 text-center">
+          {/* Aply × 한양대 co-brand 락업 — 다크 배경이라 로고는 흰색 칩 위에 */}
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 items-center justify-center rounded-2xl bg-white px-3.5">
+              <Image src="/img_logo.webp" alt="Aply" width={60} height={20} className="h-[18px] w-auto" />
+            </span>
+            <span className="text-[15px] font-black text-white/40" aria-hidden>×</span>
+            {data.symbolUrl ? (
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-1.5">
+                <Image src={data.symbolUrl} alt={data.displayName} width={80} height={80} className="h-full w-full object-contain" />
+              </span>
+            ) : (
+              <span className="rounded-2xl bg-white px-3.5 py-2 text-[13px] font-black text-[#0B1227]">{data.shortName}</span>
+            )}
+          </div>
           <h2 className="max-w-[22ch] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em] text-white md:text-[26px]">
-            {t(`${data.shortName}에서, 오늘 커리어를 시작하세요`, `Start your career today, ${data.shortName}`, `在${data.shortName}，今天开启职业`, `Bắt đầu sự nghiệp hôm nay, ${data.shortName}`, `${data.shortName}で、今日キャリアを始めよう`, `Mulai kariermu hari ini, ${data.shortName}`)}
+            {t(`${koWho}, 오늘 커리어를 시작하세요`, `Start your career today, ${data.shortName}`, `在${data.shortName}，今天开启职业`, `Bắt đầu sự nghiệp hôm nay, ${data.shortName}`, `${data.shortName}で、今日キャリアを始めよう`, `Mulai kariermu hari ini, ${data.shortName}`)}
           </h2>
           <Link
             href={primaryHref}

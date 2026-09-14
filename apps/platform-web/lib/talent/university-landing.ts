@@ -12,6 +12,7 @@ export type UniversityLanding = {
   slug: string;
   displayName: string; // 한양대학교
   shortName: string; // 한양대
+  demonym?: string; // 대학 정체성 표현(한국어 히어로 카피용). 예: "한양인". 없으면 "<shortName> 학생".
   wordmark: string; // 로고 미승인 시 표기용 워드마크
   logoUrl?: string; // 승인된 공식 로고(가로 로고타입, 히어로 네이비 배경용 흰색 권장)
   logoWidth?: number; // 로고 원본 픽셀 폭·높이(비율 유지 렌더용)
@@ -33,6 +34,7 @@ const REGISTRY: Record<string, UniversityLanding> = {
     slug: "hanyang",
     displayName: "한양대학교",
     shortName: "한양대",
+    demonym: "한양인",
     wordmark: "HANYANG UNIVERSITY",
     // 공식 자산(한양대와 제휴 확정) — 네이비 히어로용 흰색 영문 로고타입 + 컬러 심볼 크레스트.
     logoUrl: "/uni/hanyang-logotype-white-en.png",
