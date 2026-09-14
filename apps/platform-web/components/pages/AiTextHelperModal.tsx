@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkle, X } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import {
   postDraftResumeText,
@@ -57,6 +58,7 @@ export function AiTextHelperModal({
   onApply: (text: string) => void;
 }) {
   const tr = useTr();
+  useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
 
   const [mode, setMode] = useState<DraftResumeTextMode>("improve");
   const [hints, setHints] = useState("");

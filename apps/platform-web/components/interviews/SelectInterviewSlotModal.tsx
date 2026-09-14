@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getInterviewSlotsForApplication, selectInterviewSlot, type InterviewSlot } from "../../lib/member-profile-client";
 import { usePlatformT } from "../../lib/i18n";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 
 type Props = {
   open: boolean;
@@ -19,6 +20,7 @@ function formatDateTime(iso: string) {
 
 export function SelectInterviewSlotModal({ open, applicationId, positionTitle, onClose, onSelected }: Props) {
   const t = usePlatformT();
+  useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
   const [slots, setSlots] = useState<InterviewSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

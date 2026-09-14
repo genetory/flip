@@ -6,6 +6,7 @@ import { FileText, NotePencil, Star, X } from "@phosphor-icons/react";
 import { getMyResumes, type Resume } from "../../lib/member-profile-client";
 import { getMyCoverLetters, type CoverLetter } from "../../lib/cover-letter-client";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 import type { PlatformLocale } from "../../lib/auth-messages";
 
 // 지원 확정 모달 — 지원하려면 이력서와 자기소개서가 모두 있어야 한다.
@@ -24,6 +25,7 @@ export function ApplyResumeModal({
   submitting?: boolean;
 }) {
   const { locale } = useLanguage();
+  useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
   const tr = (ko: string, en: string, zh: string, vi: string, ja: string, id: string) =>
     (({ ko, en, "zh-CN": zh, vi, ja, id }) as Record<PlatformLocale, string>)[locale] ?? en;
 

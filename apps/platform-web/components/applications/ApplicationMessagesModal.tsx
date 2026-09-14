@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PaperPlaneRight, X } from "@phosphor-icons/react";
 import { getApplicationMessages, sendApplicationMessage, type ApplicationMessage } from "../../lib/member-profile-client";
 import { usePlatformT } from "../../lib/i18n";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 
 type Props = {
   open: boolean;
@@ -20,6 +21,7 @@ function formatTime(iso: string) {
 // 지원자 ↔ 회사 메시지(쪽지) 스레드 — 질문·일정 조율 등. 지원 건별로 열린다.
 export function ApplicationMessagesModal({ open, applicationId, positionTitle, companyName, onClose }: Props) {
   const t = usePlatformT();
+  useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
   const [messages, setMessages] = useState<ApplicationMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

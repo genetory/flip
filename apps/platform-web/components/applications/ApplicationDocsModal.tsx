@@ -10,6 +10,7 @@ import { resumeContentToRenewalDoc } from "../../lib/talent/resume-content-to-do
 import { EMPTY_RESUME_DOC, type ResumeDoc } from "../../lib/talent/resume-doc";
 import { EMPTY_BASIC_INFO, type BasicInfo } from "../../lib/talent/basic-info";
 import { usePlatformT } from "../../lib/i18n";
+import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
 
 const A4_W = 794;
 
@@ -32,6 +33,7 @@ export function ApplicationDocsModal({
   onClose: () => void;
 }) {
   const t = usePlatformT();
+  useLockBodyScroll(true); // 조건부 마운트 모달 — 열려 있는 동안 배경 스크롤 잠금(iOS 블리드 방지).
   const hasResume = Boolean(resumeContent);
   const rawResume = (resumeContent ?? null) as Record<string, unknown> | null;
   const isRenewalResume = Boolean(rawResume && isRenewalContent(rawResume));
