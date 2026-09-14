@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { readConsent, writeConsent } from "../../lib/cookie-consent";
+import { setFabInset, clearFabInset } from "../../lib/talent/fab-inset";
 
 type Copy = {
   heading: string;
@@ -133,6 +134,7 @@ export function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [draft, setDraft] = useState<ConsentDraft>({ analytics: true, advertising: true });
+  const bannerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -142,6 +144,27 @@ export function CookieConsentBanner() {
     }
   }, []);
 
+  // 모바일에서만: 배너가 떠 있는 동안 그 높이만큼 우하단 피드백 FAB 을 밀어올려 '전체 허용'
+  // 버튼을 가리지 않게 한다(데스크톱은 배너가 가운데 정렬이라 FAB 과 겹치지 않음).
+  useEffect(() => {
+    if (typeof window === "undefined" || !visible) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const el = bannerRef.current;
+    const apply = () => {
+      if (mq.matches && el) setFabInset("cookie-banner", el.offsetHeight + 8);
+      else clearFabInset("cookie-banner");
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    const ro = el ? new ResizeObserver(apply) : null; // 상세 펼침 등으로 높이가 바뀔 때 반영.
+    if (el && ro) ro.observe(el);
+    return () => {
+      mq.removeEventListener("change", apply);
+      ro?.disconnect();
+      clearFabInset("cookie-banner");
+    };
+  }, [visible, showDetails]);
+
   if (!visible) return null;
 
   const decide = (consent: ConsentDraft) => {
@@ -150,7 +173,7 @@ export function CookieConsentBanner() {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 sm:px-6 sm:pb-6">
+    <div ref={bannerRef} className="fixed inset-x-0 bottom-0 z-[60] px-3 pb-3 sm:px-6 sm:pb-6">
       <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-4 shadow-elevated md:p-5">
         <header className="mb-2">
           <h2 className="text-sm font-semibold text-foreground">{copy.heading}</h2>

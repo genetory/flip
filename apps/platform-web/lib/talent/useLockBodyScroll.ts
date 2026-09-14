@@ -28,7 +28,14 @@ function lock(): void {
   const body = document.body;
   const scrollY = window.scrollY || window.pageYOffset || 0;
   // 스크롤바 폭 — 이 너비만큼 padding 으로 채워 콘텐츠가 가로로 튀지 않게.
-  const scrollBarW = window.innerWidth - document.documentElement.clientWidth;
+  // 이 앱은 상시 스크롤바가 body 에 있어(globals: body overflow-y:scroll) body.clientWidth
+  // 로 재야 정확하다. html 기준(documentElement)으로만 재면 0 이 나와 보정이 안 된다.
+  // 두 방식 중 큰 값을 취해 어느 구성이든 안전하게.
+  const scrollBarW = Math.max(
+    window.innerWidth - document.body.clientWidth,
+    window.innerWidth - document.documentElement.clientWidth,
+    0
+  );
   saved = {
     overflow: body.style.overflow,
     position: body.style.position,

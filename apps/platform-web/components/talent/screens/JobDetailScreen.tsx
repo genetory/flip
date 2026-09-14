@@ -12,6 +12,7 @@ import { notifyApplied, notifySavedPosition } from "../../../lib/talent/activity
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { useLoginGate } from "../app/LoginRequiredModal";
 import { TCard, TChip, TError, TLoading } from "../ui/primitives";
@@ -120,21 +121,20 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const view = item ? toPositionView(item, t) : null;
 
   // 모바일에서 하단 고정 '지원하기' 바가 떠 있는 동안, 우하단 전역 피드백 버튼이 그
-  // 버튼을 덮지 않도록 바 높이만큼 위로 비켜서게 한다(:root CSS 변수로 FeedbackWidget 에 전달).
+  // 버튼을 덮지 않도록 바 높이만큼 위로 비켜서게 한다(fab-inset 레지스트리 → FeedbackWidget).
   const ctaVisible = status === "ready" && Boolean(item) && Boolean(view);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const root = document.documentElement;
     const mq = window.matchMedia("(max-width: 767px)");
     const apply = () => {
-      if (ctaVisible && mq.matches) root.style.setProperty("--fab-bottom-offset", "72px");
-      else root.style.removeProperty("--fab-bottom-offset");
+      if (ctaVisible && mq.matches) setFabInset("job-detail-cta", 72);
+      else clearFabInset("job-detail-cta");
     };
     apply();
     mq.addEventListener("change", apply);
     return () => {
       mq.removeEventListener("change", apply);
-      root.style.removeProperty("--fab-bottom-offset");
+      clearFabInset("job-detail-cta");
     };
   }, [ctaVisible]);
 
