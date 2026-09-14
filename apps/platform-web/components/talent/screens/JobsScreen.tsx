@@ -58,6 +58,14 @@ export function JobsScreen() {
   const [sort, setSort] = useState<Sort>("latest");
   // 외국인 지원 가능(FOREIGNER_FRIENDLY)만 — 한국인/외국인 공고 공용 목록에서 서버 필터로 좁힌다.
   const [foreignerOnly, setForeignerOnly] = useState(false);
+  // 대학 랜딩 등에서 ?foreigner=1 로 들어오면 외국인 지원 가능 필터를 자동 적용(유학생 동선).
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("foreigner") === "1") setForeignerOnly(true);
+    } catch {
+      /* 무시 */
+    }
+  }, []);
   // 추가 필터 — 고용형태 / 지역(시·도). 드롭다운 다중 선택. (직무 필터는 보류)
   const [empTypes, setEmpTypes] = useState<EmploymentType[]>([]);
   const [locs, setLocs] = useState<string[]>([]);

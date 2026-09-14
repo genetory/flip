@@ -8,6 +8,7 @@ import Image from "next/image";
 import { ArrowRight, Buildings, MapPin, Sparkle, Microphone, PaperPlaneTilt } from "@phosphor-icons/react";
 import type { UniversityLanding } from "../../../lib/talent/university-landing";
 import { usePlatformT } from "../../../lib/i18n";
+import { UniversityDiagnosisTeaser } from "./UniversityDiagnosisTeaser";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 import { talentRoutes } from "../../../lib/talent/landing-content";
@@ -161,6 +162,9 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
         </div>
       </section>
 
+      {/* 1분 커리어 진단 맛보기 — 가입 전 즉시 가치 */}
+      <UniversityDiagnosisTeaser accent={data.accent} ctaHref={primaryHref} onCta={() => trackUniversityCtaClicked(data.slug, "primary", campaign)} />
+
       {/* 가치 3가지 */}
       <section className="mx-auto max-w-5xl px-5 py-12 md:py-16">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -216,6 +220,53 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
                 </Link>
               );
             })}
+          </div>
+        </section>
+      ) : null}
+
+      {/* 유학생이라면 — 비자 가이드 + 외국인 지원 가능 공고 */}
+      {data.showVisaSection ? (
+        <section className="mx-auto max-w-5xl px-5 pb-14">
+          <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 md:p-7">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: data.accent }}>🌏 {t("유학생이라면", "For international students", "留学生请看", "Dành cho du học sinh", "留学生の方へ", "Untuk mahasiswa asing")}</p>
+            <h2 className="mt-2 break-keep text-[20px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">
+              {t("비자부터 외국인 채용까지, 한 곳에서", "Visas to foreigner-friendly jobs, all in one place", "从签证到外国人招聘，一站搞定", "Từ visa đến việc cho người nước ngoài, một nơi", "ビザから外国人採用まで一箇所で", "Dari visa sampai kerja untuk WNA, satu tempat")}
+            </h2>
+            <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">
+              {t("한국 취업에 필요한 비자와 외국인 지원 가능 공고를 유학생 맞춤으로 안내해요.", "Visa guides and foreigner-eligible jobs, tailored for international students.", "为留学生量身介绍所需签证与可申请的外国人公告。", "Hướng dẫn visa và việc cho người nước ngoài, dành cho du học sinh.", "留学生向けにビザと外国人応募可の求人を案内します。", "Panduan visa dan lowongan untuk WNA, khusus mahasiswa asing.")}
+            </p>
+
+            {data.visaCodes?.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {data.visaCodes.map((code) => (
+                  <Link
+                    key={code}
+                    href={`/resources/visa/${encodeURIComponent(code)}`}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#EEF1F5] bg-[#FAFBFC] px-3.5 py-2 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+                  >
+                    <span className="font-black" style={{ color: data.accent }}>{code}</span>
+                    {code === "D-2" ? t("유학", "Study", "留学", "Du học", "留学", "Studi") : code === "D-10" ? t("구직", "Job-seeking", "求职", "Tìm việc", "求職", "Cari kerja") : code === "E-7" ? t("취업", "Work", "就业", "Việc làm", "就業", "Kerja") : ""}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href={`/talent/jobs?foreigner=1&src=${encodeURIComponent(src)}`}
+                onClick={() => trackUniversityCtaClicked(data.slug, "jobs", campaign)}
+                className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-[13px] font-bold text-white transition"
+                style={{ backgroundColor: data.accent }}
+              >
+                {t("외국인 지원 가능 공고 보기", "See foreigner-eligible jobs", "查看外国人可投递公告", "Xem việc cho người nước ngoài", "外国人応募可の求人を見る", "Lihat lowongan untuk WNA")} <ArrowRight className="h-4 w-4" weight="bold" aria-hidden />
+              </Link>
+              <Link
+                href="/resources/visa"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:text-[#191F28]"
+              >
+                {t("전체 비자 가이드", "All visa guides", "全部签证指南", "Tất cả hướng dẫn visa", "全ビザガイド", "Semua panduan visa")}
+              </Link>
+            </div>
           </div>
         </section>
       ) : null}

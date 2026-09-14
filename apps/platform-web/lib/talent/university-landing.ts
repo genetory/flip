@@ -26,6 +26,9 @@ export type UniversityLanding = {
   careerLaunchInvite?: string;
   // 랜딩에 노출할 공개 공고 큐레이션 조건(공개 /positions API 로 조회).
   jobQuery?: { foreignerEligible?: boolean; jobRoles?: string[]; locations?: string[]; limit?: number };
+  // 유학생 비중이 큰 대학이면 '유학생이라면' 섹션(비자 가이드 + 외국인 지원 가능 공고) 노출.
+  showVisaSection?: boolean;
+  visaCodes?: string[]; // 노출할 비자 코드(예: ["D-2","D-10","E-7"]). /resources/visa/<code> 로 연결.
   noindex?: boolean; // 메뉴 미노출 단계에선 검색 색인 제외(기본 true 권장)
 };
 
@@ -46,6 +49,8 @@ const REGISTRY: Record<string, UniversityLanding> = {
     motto: "사랑의 실천 · The Engine of Korea",
     // careerLaunchInvite 미지정 → 적응형 CTA 가 '무료로 시작하기'(가입)로 동작.
     jobQuery: { limit: 4 },
+    showVisaSection: true, // 한양대 유학생 비중 높음
+    visaCodes: ["D-2", "D-10", "E-7"],
     noindex: true
   }
 };
