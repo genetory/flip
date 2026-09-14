@@ -13,7 +13,10 @@ export type UniversityLanding = {
   displayName: string; // 한양대학교
   shortName: string; // 한양대
   wordmark: string; // 로고 미승인 시 표기용 워드마크
-  logoUrl?: string; // 승인된 공식 로고가 있으면 지정(public/ 경로 또는 절대 URL)
+  logoUrl?: string; // 승인된 공식 로고(가로 로고타입, 히어로 네이비 배경용 흰색 권장)
+  logoWidth?: number; // 로고 원본 픽셀 폭·높이(비율 유지 렌더용)
+  logoHeight?: number;
+  symbolUrl?: string; // 공식 심볼/크레스트(밝은 배경용 컬러)
   accent: string; // 강조색(대학 브랜드 컬러)
   accentDeep: string; // 그라데이션/딥 톤
   motto?: string; // 건학정신·슬로건 등 공개 문구
@@ -31,6 +34,11 @@ const REGISTRY: Record<string, UniversityLanding> = {
     displayName: "한양대학교",
     shortName: "한양대",
     wordmark: "HANYANG UNIVERSITY",
+    // 공식 자산(한양대와 제휴 확정) — 네이비 히어로용 흰색 영문 로고타입 + 컬러 심볼 크레스트.
+    logoUrl: "/uni/hanyang-logotype-white-en.png",
+    logoWidth: 3002,
+    logoHeight: 254,
+    symbolUrl: "/uni/hanyang-symbol.png",
     accent: "#0E4A84", // Hanyang Blue(딥 로열블루) — 공식 정확값은 대학 디자인경영센터 확인 필요
     accentDeep: "#0A335C",
     motto: "사랑의 실천 · The Engine of Korea",

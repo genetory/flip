@@ -108,7 +108,18 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
       >
         <div className="mx-auto max-w-5xl px-5 py-14 md:py-20">
           <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/70">APLY × {data.shortName}</p>
-          <p className="mt-4 text-[15px] font-black tracking-[0.02em] text-white/90">{data.wordmark}</p>
+          {data.logoUrl ? (
+            <Image
+              src={data.logoUrl}
+              alt={data.displayName}
+              width={data.logoWidth ?? 600}
+              height={data.logoHeight ?? 60}
+              priority
+              className="mt-4 h-7 w-auto md:h-8"
+            />
+          ) : (
+            <p className="mt-4 text-[15px] font-black tracking-[0.02em] text-white/90">{data.wordmark}</p>
+          )}
           <h1 className="mt-3 max-w-[18ch] break-keep text-[30px] font-black leading-[1.18] tracking-[-0.03em] text-white md:text-[44px]">
             {t(`${data.shortName} 학생의 첫 커리어, 여기서 시작하세요`, `${data.shortName} students, start your first career here`, `${data.shortName}学生的第一份职业，从这里开始`, `Sinh viên ${data.shortName}, bắt đầu sự nghiệp tại đây`, `${data.shortName}生の初めてのキャリア、ここから`, `Mahasiswa ${data.shortName}, mulai karier pertamamu di sini`)}
           </h1>
