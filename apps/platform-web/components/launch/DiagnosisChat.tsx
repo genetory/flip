@@ -261,7 +261,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
                         <button
                           key={q.send}
                           type="button"
-                          onClick={() => send(q.send)}
+                          onClick={() => send(q.label)}
                           className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
                         >
                           {q.label}
@@ -269,7 +269,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
                       ))}
                       <button
                         type="button"
-                        onClick={() => send("이 질문은 건너뛰고 다음으로 넘어갈게요.")}
+                        onClick={() => send(t("이 질문은 건너뛰고 다음으로 넘어갈게요.", "Let me skip this question and move on.", "我跳过这个问题，继续下一个。", "Tôi bỏ qua câu hỏi này và tiếp tục.", "この質問はスキップして次に進みます。", "Saya lewati pertanyaan ini dan lanjut."))}
                         disabled={loading}
                         className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#8B95A1] transition hover:bg-[#E5E8EB] disabled:opacity-40"
                       >

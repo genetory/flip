@@ -145,7 +145,8 @@ export function InterviewChatShell({
               {quickReplies.length > 0 && !loading ? (
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {quickReplies.map((q) => (
-                    <button key={q.value} type="button" onClick={() => { if (!loading && !inputDisabled) onSend(q.value); }} className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">{q.label}</button>
+                    // 학생 화면·AI 입력 모두 로케일 언어가 되도록 label(번역본)을 전송한다(value 는 key 용).
+                    <button key={q.value} type="button" onClick={() => { if (!loading && !inputDisabled) onSend(q.label); }} className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">{q.label}</button>
                   ))}
                 </div>
               ) : null}

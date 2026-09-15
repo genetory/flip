@@ -327,7 +327,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => send("추천해준 것 말고 다른 직무도 보고 싶어요")}
+                          onClick={() => send(t("추천해준 것 말고 다른 직무도 보고 싶어요", "I'd like to see roles other than the recommendations.", "我想看看推荐以外的其他职务。", "Tôi muốn xem các công việc khác ngoài gợi ý.", "おすすめ以外の職種も見てみたいです。", "Saya ingin lihat peran selain rekomendasi."))}
                           disabled={loading}
                           className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
                         >
@@ -443,7 +443,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                     <button
                       key={q.send}
                       type="button"
-                      onClick={() => send(q.send)}
+                      onClick={() => send(q.label)}
                       className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
                     >
                       {q.label}

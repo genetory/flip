@@ -260,7 +260,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                     <button
                       key={q.send}
                       type="button"
-                      onClick={() => send(q.send)}
+                      onClick={() => send(q.label)}
                       className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
                     >
                       {q.label}
