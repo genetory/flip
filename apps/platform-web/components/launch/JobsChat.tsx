@@ -51,8 +51,10 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
 
   const endRef = useRef<HTMLDivElement>(null);
 
+  // 추천 목록에 없는 '직접 입력' 직무도 카드로 보여준다(예전엔 filter 로 사라져 슬롯만 먹고
+  // 화면에 안 보이고 제거도 불가했음). 커스텀은 role 원본으로 합성.
   const rolesToJobs = (roles: string[]): RecommendedJob[] =>
-    roles.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r)).filter((j): j is RecommendedJob => Boolean(j));
+    roles.map((r) => RECOMMENDED_JOBS.find((j) => j.role === r) ?? { id: `custom:${r}`, role: r, match: 0, reason: "", skills: [], tags: [], query: r });
 
   const appendFromAi = (reply: string, recommend: string[], choicesArg: string[] = []) => {
     setMessages((m) => {
@@ -311,7 +313,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                             </span>
                             <p className="text-[14.5px] font-bold text-[#191F28]">{jobName(job.role)}</p>
                           </div>
-                          <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p>
+                          {jobReason(job.id) ? <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
                             {jobSkills(job.skills).map((s) => (
                               <span key={s} className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#4E5968]">

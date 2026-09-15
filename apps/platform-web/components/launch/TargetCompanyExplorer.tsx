@@ -34,6 +34,8 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PublicPositionListItem[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false); // 한 번이라도 검색했는지(빈 결과 안내용)
+  const [searchErr, setSearchErr] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const alive = useRef(true);
 
@@ -92,6 +94,8 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
     const kw = q.trim();
     if (!kw) return;
     setSearching(true);
+    setSearched(true);
+    setSearchErr(false);
     try {
       const page = await getPublicPositionsPage({ search: kw, limit: 12 });
       // 기업 중복 제거.
@@ -106,6 +110,7 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
       setResults(uniq);
     } catch {
       setResults([]);
+      setSearchErr(true);
     } finally {
       setSearching(false);
     }
@@ -228,7 +233,13 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
                 {searching ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}{t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
               </button>
             </div>
-            {results.length > 0 ? <div className="mt-2 flex flex-col gap-2">{results.map((p) => <CompanyRow key={p.id} p={p} />)}</div> : null}
+            {results.length > 0 ? (
+              <div className="mt-2 flex flex-col gap-2">{results.map((p) => <CompanyRow key={p.id} p={p} />)}</div>
+            ) : searchErr ? (
+              <p className="mt-3 rounded-xl bg-[#FDECEC] px-4 py-3 text-center text-[12.5px] font-semibold text-[#F04452]">{t("검색 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.", "Something went wrong. Please try again.", "搜索出错，请稍后重试。", "Có lỗi xảy ra. Vui lòng thử lại.", "検索中に問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi.")}</p>
+            ) : searched && !searching ? (
+              <p className="mt-3 rounded-xl bg-[#F6F8FB] px-4 py-3 text-center text-[12.5px] text-[#8B95A1]">{t("검색 결과가 없어요. 다른 키워드로 찾아보세요.", "No results. Try another keyword.", "没有结果，试试其他关键词。", "Không có kết quả. Thử từ khóa khác.", "検索結果がありません。別のキーワードでお試しください。", "Tidak ada hasil. Coba kata kunci lain.")}</p>
+            ) : null}
           </div>
 
           {/* 마치기 */}

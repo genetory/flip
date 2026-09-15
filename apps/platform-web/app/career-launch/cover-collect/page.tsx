@@ -72,8 +72,9 @@ export default function CoverCollectPage() {
 
   const buildData = (c: string, list: Item[]): CoverData => ({
     company: c.trim() || null,
-    // 제목이 있는 문항만 저장(빈 제목은 유령 문항 방지). answer 만 있고 제목 없으면 제외.
-    items: list.filter((x) => x.title.trim()).map((x) => ({ question: x.title.trim(), answer: x.answer }))
+    // 제목 또는 답변이 있으면 저장(완전 빈 항목만 유령 방지로 제외). 예전엔 제목 없는 항목을
+    // 버려, 답변만 쓰고 제목을 비운 문항의 답변이 저장 시 사라지던 데이터 손실이 있었다.
+    items: list.filter((x) => x.title.trim() || x.answer.trim()).map((x) => ({ question: x.title.trim(), answer: x.answer }))
   });
 
   const preview: CoverData = buildData(company, items);
