@@ -5,24 +5,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Buildings, MapPin, Sparkle, Microphone, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ArrowRight, Sparkle, Microphone, PaperPlaneTilt } from "@phosphor-icons/react";
 import type { UniversityLanding } from "../../../lib/talent/university-landing";
 import { usePlatformT } from "../../../lib/i18n";
 import { UniversityDiagnosisTeaser } from "./UniversityDiagnosisTeaser";
-import { useLanguage } from "../../i18n/LanguageProvider";
+import { UniversityMajorJobs } from "./UniversityMajorJobs";
 import { LanguageSwitcher } from "../../i18n/LanguageSwitcher";
 import { talentRoutes } from "../../../lib/talent/landing-content";
-import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { trackUniversityLandingViewed, trackUniversityCtaClicked } from "../../../lib/analytics";
-
-function companyOf(p: PublicPositionListItem): string {
-  return (p.partnerOrganization?.name ?? p.sourceCompanyName ?? "").trim();
-}
 
 export function UniversityLandingView({ data }: { data: UniversityLanding }) {
   const t = usePlatformT();
-  const { locale } = useLanguage();
-  const [jobs, setJobs] = useState<PublicPositionListItem[]>([]);
   // 캠페인 채널(설명회 부스·포스터·온라인 등) — ?c=<채널> 로 구분해 유입 귀속.
   const [campaign, setCampaign] = useState<string | undefined>(undefined);
 
@@ -57,28 +50,6 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
     }
     trackUniversityLandingViewed(data.slug, c);
   }, [data.slug, src]);
-
-  // 실시간 공개 공고 큐레이션(게스트 접근 가능한 /positions).
-  useEffect(() => {
-    let alive = true;
-    void getPublicPositionsPage({
-      limit: data.jobQuery?.limit ?? 4,
-      sort: "latest",
-      foreignerEligible: data.jobQuery?.foreignerEligible,
-      jobRoles: data.jobQuery?.jobRoles,
-      locations: data.jobQuery?.locations,
-      locale
-    })
-      .then((r) => {
-        if (alive) setJobs((r.items ?? []).slice(0, data.jobQuery?.limit ?? 4));
-      })
-      .catch(() => {
-        /* 공고 로드 실패는 조용히 무시 — 랜딩은 CTA 로도 충분 */
-      });
-    return () => {
-      alive = false;
-    };
-  }, [data.slug, locale]);
 
   const values = [
     {
@@ -183,46 +154,8 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
         </div>
       </section>
 
-      {/* 실시간 공개 공고 */}
-      {jobs.length > 0 ? (
-        <section className="mx-auto max-w-5xl px-5 pb-14">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <h2 className="break-keep text-[20px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[24px]">
-              {t("지금 열린 공고", "Open positions now", "现在开放的公告", "Vị trí đang tuyển", "今開いている求人", "Lowongan terbuka")}
-            </h2>
-            <Link
-              href={jobsHref}
-              onClick={() => trackUniversityCtaClicked(data.slug, "jobs", campaign)}
-              className="inline-flex shrink-0 items-center gap-1 text-[13px] font-bold"
-              style={{ color: data.accent }}
-            >
-              {t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")} <ArrowRight className="h-3.5 w-3.5" weight="bold" aria-hidden />
-            </Link>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {jobs.map((p) => {
-              const co = companyOf(p);
-              const loc = (p.workLocation ?? "").trim() || (p.workType ?? "");
-              return (
-                <Link
-                  key={p.id}
-                  href={`/talent/jobs/${p.id}?src=${encodeURIComponent(src)}`}
-                  className="group flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-4 py-4 transition hover:shadow-[0_8px_24px_-14px_rgba(11,18,39,0.35)]"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block break-keep text-[14.5px] font-bold text-[#191F28]">{p.title}</span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-[#8B95A1]">
-                      {co ? <span className="inline-flex items-center gap-1"><Buildings className="h-3.5 w-3.5" weight="duotone" aria-hidden />{co}</span> : null}
-                      {loc ? <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" weight="duotone" aria-hidden />{loc}</span> : null}
-                    </span>
-                  </span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-[#C9CDD2] transition group-hover:translate-x-0.5" style={{ color: data.accent }} weight="bold" aria-hidden />
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+      {/* 전공 계열별 맞춤 공고 */}
+      <UniversityMajorJobs accent={data.accent} src={src} jobsHref={jobsHref} />
 
       {/* 유학생이라면 — 비자 가이드 + 외국인 지원 가능 공고 */}
       {data.showVisaSection ? (
