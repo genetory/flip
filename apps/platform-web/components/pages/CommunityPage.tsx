@@ -11,7 +11,6 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { getStoredProfilePhoto } from "../../lib/profile-media";
 import { readAccessToken } from "../../lib/auth-client";
-import { paperlogy } from "../../lib/fonts";
 
 type CategoryKey = "all" | "free" | "career" | "help";
 
@@ -361,7 +360,7 @@ const FeedModal = ({
                   type="button"
                   onClick={onSubmit}
                   disabled={isSubmitting || !body.trim()}
-                  className="h-10 rounded-md bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] hover:bg-[#a8ee4d]"
+                  className="h-10 rounded-md bg-[#0B46E8] px-4 text-sm font-semibold text-white hover:bg-[#0A3ECB]"
                 >
                   {isSubmitting ? submittingLabel : submitLabel}
                 </Button>
@@ -391,7 +390,9 @@ const FeedModal = ({
   );
 };
 
-export const CommunityPage = () => {
+// embedded: talent 앱 셸(/talent/community) 안에서 렌더할 때 레거시 Header/Footer·풀페이지
+// 래퍼를 생략한다(기본은 기존 독립 페이지 동작 유지).
+export const CommunityPage = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { user } = useAuthSession();
   const { locale } = useLanguage();
   const isKo = locale === "ko";
@@ -1012,7 +1013,7 @@ export const CommunityPage = () => {
   }, [translations]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background font-sans text-foreground antialiased">
+    <div className={embedded ? "" : "min-h-screen flex flex-col bg-background font-sans text-foreground antialiased"}>
       <svg width="0" height="0" aria-hidden className="absolute">
         <defs>
           <clipPath id={PROFILE_SQUIRCLE_CLIP_ID} clipPathUnits="objectBoundingBox">
@@ -1020,19 +1021,19 @@ export const CommunityPage = () => {
           </clipPath>
         </defs>
       </svg>
-      <Header />
+      {embedded ? null : <Header />}
       <main className="pb-20">
         <section className="bg-background">
-          <div className="container py-12 md:py-16">
+          <div className={embedded ? "" : "container py-12 md:py-16"}>
             <div className="mx-auto max-w-4xl">
               <section>
                 <div className="flex items-center justify-between gap-3">
-                  <h1 className={`${paperlogy.className} text-3xl font-black tracking-[-0.03em] text-[#0B1227] md:text-5xl`}>{t("커뮤니티", "Community", "社区", "Cộng đồng", "コミュニティ", "Komunitas")}</h1>
+                  <h1 className="text-[26px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[32px]">{t("커뮤니티", "Community", "社区", "Cộng đồng", "コミュニティ", "Komunitas")}</h1>
                   <Button
                     ref={topComposeButtonRef}
                     type="button"
                     onClick={() => setIsComposeOpen(true)}
-                    className="h-10 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] hover:bg-[#a8ee4d]"
+                    className="h-10 rounded-xl bg-[#0B46E8] px-4 text-sm font-semibold text-white hover:bg-[#0A3ECB]"
                   >
                     {t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
                   </Button>
@@ -1070,7 +1071,7 @@ export const CommunityPage = () => {
                     <Button
                       variant="dark"
                       size="lg"
-                      className="h-11 shrink-0 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] transition-colors hover:bg-[#a8ee4d]"
+                      className="h-11 shrink-0 rounded-xl bg-[#0B46E8] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0A3ECB]"
                       type="button"
                       onClick={handleApplySearch}
                     >
@@ -1090,8 +1091,8 @@ export const CommunityPage = () => {
                         className="text-left"
                       >
                         <p
-                          className={`${paperlogy.className} text-xl md:text-2xl ${
-                            isActive ? "font-extrabold text-[#0B46E8]" : "font-extrabold text-slate-300"
+                          className={`text-[17px] md:text-[19px] ${
+                            isActive ? "font-black text-[#0B46E8]" : "font-bold text-[#B0B8C1]"
                           }`}
                         >
                           {category.label}
@@ -1425,7 +1426,7 @@ export const CommunityPage = () => {
                             type="button"
                             onClick={() => void handleSubmitComment(post.id)}
                             disabled={commentLoadingByPost[post.id] || !(commentDraftByPost[post.id] ?? "").trim()}
-                            className="h-10 rounded-md bg-[#b7ff5a] px-3 text-xs font-semibold text-[#111111] hover:bg-[#a8ee4d] disabled:pointer-events-none disabled:opacity-50"
+                            className="h-10 rounded-md bg-[#0B46E8] px-3 text-xs font-semibold text-white hover:bg-[#0A3ECB] disabled:pointer-events-none disabled:opacity-50"
                           >
                             {t("댓글 달기", "Comment", "发表评论", "Bình luận", "コメントする", "Komentar")}
                           </Button>
@@ -1475,7 +1476,7 @@ export const CommunityPage = () => {
               <Button
                 type="button"
                 onClick={() => setIsComposeOpen(true)}
-                className="pointer-events-auto h-11 rounded-xl bg-[#b7ff5a] px-4 text-sm font-semibold text-[#111111] shadow-[0_8px_20px_-12px_rgba(15,23,42,0.35)] hover:bg-[#a8ee4d]"
+                className="pointer-events-auto h-11 rounded-xl bg-[#0B46E8] px-4 text-sm font-semibold text-white shadow-[0_8px_20px_-12px_rgba(15,23,42,0.35)] hover:bg-[#0A3ECB]"
               >
                 {t("피드 올리기", "Create Post", "发布动态", "Đăng bài", "投稿する", "Buat postingan")}
               </Button>
@@ -1618,7 +1619,7 @@ export const CommunityPage = () => {
         </div>
       ) : null}
 
-      <Footer />
+      {embedded ? null : <Footer />}
     </div>
   );
 };
