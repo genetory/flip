@@ -28,7 +28,7 @@ import { MaterialsChat } from "./MaterialsChat";
 import { InterviewChat } from "./InterviewChat";
 import { BasicInterviewSession } from "./BasicInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { useWeekText } from "../../lib/launch/data-i18n";
+import { useWeekText, useStepText, useStepActionLabel } from "../../lib/launch/data-i18n";
 
 const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
@@ -163,6 +163,8 @@ function interviewQType(stepId: string, t: LaunchT): string {
 export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const t = useLaunchT();
   const weekText = useWeekText();
+  const stepText = useStepText();
+  const stepAction = useStepActionLabel();
   const [refreshKey, setRefreshKey] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
@@ -233,7 +235,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     const MIcon = locked ? Lock : iconFor(href);
     const body = done ? (
       <>
-        <div className="ttl">{step.title}</div>
+        <div className="ttl">{stepText(step.id, "title")}</div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <span className="inline-flex min-w-0 items-center gap-1.5 text-[12px] font-bold" style={{ color: "var(--cl-mint)" }}>
             <Check className="h-3.5 w-3.5 shrink-0" weight="bold" aria-hidden /> <span className="truncate">{summary ?? t("완료", "Done", "完成", "Xong", "完了", "Selesai")}</span>
@@ -243,12 +245,12 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       </>
     ) : (
       <>
-        <div className="ttl">{step.title}</div>
-        {step.desc ? <div className="desc">{step.desc}</div> : null}
+        <div className="ttl">{stepText(step.id, "title")}</div>
+        {step.desc ? <div className="desc">{stepText(step.id, "desc")}</div> : null}
         {step.minutes || current ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {step.minutes ? <span className="cl-jmin"><Clock className="h-3 w-3" weight="bold" aria-hidden /> ~{step.minutes}{t("분", "m", "分", "p", "分", "m")}</span> : null}
-            {current ? <span className="go">{step.action?.label ?? t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
+            {current ? <span className="go">{step.action?.label ? stepAction(step.action.label) : t("지금 하기", "Do it now", "现在开始", "Làm ngay", "今すぐ", "Lakukan")} <ArrowRight className="h-3.5 w-3.5" weight="bold" /></span> : null}
           </div>
         ) : null}
       </>
@@ -280,7 +282,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           <span className="cl-jicon"><MIcon className="h-5 w-5" weight={locked ? "fill" : "duotone"} aria-hidden /></span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <div className="ttl">{step.title}</div>
+              <div className="ttl">{stepText(step.id, "title")}</div>
               {res ? (
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ color: "var(--cl-muted)", background: "var(--cl-card-2)" }}>{t(`${res.count}문항`, `${res.count} Qs`, `${res.count}题`, `${res.count} câu`, `${res.count}問`, `${res.count} soal`)}</span>

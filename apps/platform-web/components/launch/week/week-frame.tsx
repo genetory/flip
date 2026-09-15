@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle, Circle, Lock, ArrowDown } from "@phosphor-icon
 import type { Step } from "../../../lib/launch/data";
 import { isStepDone, type LaunchData } from "../../../lib/launch/step-status";
 import { useLaunchT } from "../../../lib/launch/i18n";
+import { useStepText } from "../../../lib/launch/data-i18n";
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
@@ -106,6 +107,7 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
 // ── 완료 조건 — 각 미션 완료 상태(step-status 재사용). 미완료는 행동으로 연결. ──
 export function WeekCompletionCriteria({ steps, data, onView }: { steps: Step[]; data: LaunchData; onView?: () => void }) {
   const t = useLaunchT();
+  const stepText = useStepText();
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5" onMouseEnter={onView}>
       <p className="text-[13px] font-bold text-[#191F28]">{t("이번 주 완료 조건", "This week's completion criteria", "本周完成条件", "Điều kiện hoàn thành tuần này", "今週の完了条件", "Kriteria penyelesaian minggu ini")}</p>
@@ -115,7 +117,7 @@ export function WeekCompletionCriteria({ steps, data, onView }: { steps: Step[];
           return (
             <li key={s.id} className="flex items-center gap-2 text-[13.5px]">
               {done ? <CheckCircle size={18} weight="fill" className="flex-none text-[#0A9B59]" /> : <Circle size={18} className="flex-none text-[#C9CDD2]" />}
-              <span className={done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}>{s.title}</span>
+              <span className={done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}>{stepText(s.id, "title")}</span>
               {!done && s.action?.href ? (
                 <Link href={s.action.href} className="ml-auto flex-none text-[12px] font-semibold text-[#1B64DA]">
                   {t("하러 가기", "Go do it", "去完成", "Đi làm", "やりに行く", "Kerjakan")}
