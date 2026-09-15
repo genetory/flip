@@ -18860,7 +18860,7 @@ app.post("/career-launch/week2/application-target/:id/analyze", authenticate, re
 
 // ── 이력서 버전 생성(대표/공고맞춤, 문장별 근거) ──
 const w2ResumeVerSchema = z.object({ variant: z.enum(["master", "targeted"]).optional().default("master"), applicationTargetId: z.string().max(80).optional() });
-app.post("/career-launch/week2/resume-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-resume-ver" }), async (req, res) => {
+app.post("/career-launch/week2/resume-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-resume-ver" }), aiCharge("career_w2_resume_version"), async (req, res) => {
   const parsed = w2ResumeVerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
@@ -18945,7 +18945,7 @@ app.post("/career-launch/week2/cover-prompts", authenticate, requireCareerEnroll
 
 // ── 자소서 초안 생성(문항별 근거) ──
 const w2CoverDraftSchema = z.object({ applicationTargetId: z.string().max(80).optional(), prompts: z.array(z.string().max(500)).min(1).max(12) });
-app.post("/career-launch/week2/cover-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-cover-ver" }), async (req, res) => {
+app.post("/career-launch/week2/cover-version", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-cover-ver" }), aiCharge("career_w2_cover_version"), async (req, res) => {
   const parsed = w2CoverDraftSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
@@ -19067,7 +19067,7 @@ app.post("/career-launch/week2/consistency/resolve", authenticate, requireCareer
 });
 
 // ── 점수(이력서·자소서·JD매치 + Readiness 종합) ──
-app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-scores" }), async (req, res) => {
+app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "w2-scores" }), aiCharge("career_w2_scores"), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const applicationTargetId = (req.body as { applicationTargetId?: string })?.applicationTargetId;
@@ -19368,7 +19368,7 @@ app.post("/career-launch/interview/session/:id/answer", authenticate, requireCar
 });
 
 // ── 세션 종료 → (최초면접이면) 약점 분석 + Week3 리포트 + 오답노트 + 훈련계획 ──
-app.post("/career-launch/interview/session/:id/complete", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "iv-complete" }), async (req, res) => {
+app.post("/career-launch/interview/session/:id/complete", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "iv-complete" }), aiCharge("career_interview_complete"), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const cohortId = await week1CohortId(userId);
@@ -19615,7 +19615,7 @@ app.post("/career-launch/week4/correction/:id/status", authenticate, requireCare
 });
 
 // ── Week 4: 성장 리포트(최초 vs 최종) ──
-app.post("/career-launch/week4/growth", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "w4-growth" }), async (req, res) => {
+app.post("/career-launch/week4/growth", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "w4-growth" }), aiCharge("career_w4_growth"), async (req, res) => {
   try {
     const userId = req.auth!.userId;
     const cohortId = await week1CohortId(userId);
@@ -22613,6 +22613,7 @@ app.post(
   authenticate,
   requireCareerEnrollment,
   rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "career-report", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("career_report"),
   async (req, res) => {
     const uid = req.auth!.userId;
     try {
