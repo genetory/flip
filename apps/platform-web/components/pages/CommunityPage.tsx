@@ -938,14 +938,15 @@ export const CommunityPage = ({ embedded = false }: { embedded?: boolean } = {})
 
   const handleTranslate = useCallback(async (post: Post, targetLanguage: "ko" | "en") => {
     const current = translations[post.id];
-    if (targetLanguage === "ko" && current?.koTitle && current?.koBody) {
+    // 제목 없는(본문만) 글이 많으므로 캐시 판단은 본문 번역 유무로 한다.
+    if (targetLanguage === "ko" && current?.koBody) {
       setTranslations((prev) => ({
         ...prev,
         [post.id]: { ...prev[post.id], activeLanguage: "ko", error: undefined }
       }));
       return;
     }
-    if (targetLanguage === "en" && current?.enTitle && current?.enBody) {
+    if (targetLanguage === "en" && current?.enBody) {
       setTranslations((prev) => ({
         ...prev,
         [post.id]: { ...prev[post.id], activeLanguage: "en", error: undefined }
@@ -962,42 +963,43 @@ export const CommunityPage = ({ embedded = false }: { embedded?: boolean } = {})
       }
     }));
     try {
-      const [titleResponse, bodyResponse] = await Promise.all([
+      // 제목이 비어 있으면(본문만 있는 글) 번역 API 가 400(최소 1자)을 내므로 제목 번역은 건너뛴다.
+      const hasTitle = (post.title ?? "").trim().length > 0;
+      const translateOne = (text: string) =>
         fetch(`${getApiBaseUrl()}/community/translate`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: post.title, targetLanguage })
-        }),
-        fetch(`${getApiBaseUrl()}/community/translate`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: post.body, targetLanguage })
-        })
+          body: JSON.stringify({ text, targetLanguage })
+        }).then(async (r) => ({ ok: r.ok, payload: (await r.json()) as { ok?: boolean; message?: string; translatedText?: string } }));
+
+      const [titleResult, bodyResult] = await Promise.all([
+        hasTitle
+          ? translateOne(post.title)
+          : Promise.resolve({ ok: true, payload: { ok: true, translatedText: post.title } as { ok?: boolean; message?: string; translatedText?: string } }),
+        translateOne(post.body)
       ]);
-      const titlePayload = (await titleResponse.json()) as { ok?: boolean; message?: string; translatedText?: string };
-      const bodyPayload = (await bodyResponse.json()) as { ok?: boolean; message?: string; translatedText?: string };
+
+      // 본문은 반드시 성공해야 하고, 제목은 있을 때만 성공을 요구한다.
       if (
-        !titleResponse.ok ||
-        !bodyResponse.ok ||
-        titlePayload.ok !== true ||
-        bodyPayload.ok !== true ||
-        !titlePayload.translatedText ||
-        !bodyPayload.translatedText
+        !bodyResult.ok ||
+        bodyResult.payload.ok !== true ||
+        !bodyResult.payload.translatedText ||
+        (hasTitle && (!titleResult.ok || titleResult.payload.ok !== true || !titleResult.payload.translatedText))
       ) {
-        throw new Error(titlePayload.message ?? bodyPayload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal."));
+        throw new Error(bodyResult.payload.message ?? titleResult.payload.message ?? t("번역에 실패했습니다.", "Translation failed.", "翻译失败。", "Dịch thất bại.", "翻訳に失敗しました。", "Terjemahan gagal."));
       }
+      const translatedTitle = hasTitle ? titleResult.payload.translatedText : post.title;
       setTranslations((prev) => ({
         ...prev,
         [post.id]: {
           ...prev[post.id],
           activeLanguage: targetLanguage,
           loadingTarget: undefined,
-          koTitle: targetLanguage === "ko" ? titlePayload.translatedText : prev[post.id]?.koTitle,
-          koBody: targetLanguage === "ko" ? bodyPayload.translatedText : prev[post.id]?.koBody,
-          enTitle: targetLanguage === "en" ? titlePayload.translatedText : prev[post.id]?.enTitle,
-          enBody: targetLanguage === "en" ? bodyPayload.translatedText : prev[post.id]?.enBody
+          koTitle: targetLanguage === "ko" ? translatedTitle : prev[post.id]?.koTitle,
+          koBody: targetLanguage === "ko" ? bodyResult.payload.translatedText : prev[post.id]?.koBody,
+          enTitle: targetLanguage === "en" ? translatedTitle : prev[post.id]?.enTitle,
+          enBody: targetLanguage === "en" ? bodyResult.payload.translatedText : prev[post.id]?.enBody
         }
       }));
     } catch (error) {
