@@ -20,6 +20,14 @@ export default function LaunchEntryRoute() {
   // Phase 9 — Career Launch 유입(페이지 조회) 1회 계측. 실제 시작(started)과 구분.
   useEffect(() => {
     trackCareerFunnel("career_launch_viewed");
+    // 초대 링크(?invite=CODE)로 진입 시 코드를 저장 — 미로그인 방문자가 로그인/가입을 거쳐
+    // 돌아와도 EnrollmentGate 가 자동 등록할 수 있게 한다(대학 랜딩·운영자 초대링크 공용).
+    try {
+      const inv = new URLSearchParams(window.location.search).get("invite");
+      if (inv && inv.trim()) window.localStorage.setItem("cl_invite", inv.trim().toUpperCase());
+    } catch {
+      /* 무시 */
+    }
   }, []);
 
   if (!isReady) return <FullscreenSpinner label={t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")} />;

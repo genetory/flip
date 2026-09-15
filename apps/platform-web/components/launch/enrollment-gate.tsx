@@ -18,17 +18,50 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const check = async () => {
+  const check = async (): Promise<boolean> => {
     try {
-      const e = await fetchMyEnrollment();
-      setState(e.enrolled ? "ok" : "gate");
+      return (await fetchMyEnrollment()).enrolled;
     } catch {
-      setState("gate");
+      return false;
     }
   };
 
   useEffect(() => {
-    void check();
+    void (async () => {
+      if (await check()) {
+        setState("ok");
+        return;
+      }
+      // 초대 링크(?invite=CODE)로 들어오면 코드를 채우고 자동 등록 — 링크/QR 클릭 학생이
+      // 코드를 직접 입력하지 않아도 바로 시작할 수 있게 한다(대학 랜딩·운영자 초대링크 공용).
+      let invite = "";
+      try {
+        // URL 파라미터 우선, 없으면 로그인 전에 저장해둔 값(미로그인 초대링크→로그인 후 유지).
+        invite = (new URLSearchParams(window.location.search).get("invite") ?? "").trim().toUpperCase();
+        if (!invite) invite = (window.localStorage.getItem("cl_invite") ?? "").trim().toUpperCase();
+      } catch {
+        invite = "";
+      }
+      if (invite) {
+        setCode(invite);
+        setBusy(true);
+        try {
+          await enrollByCode(invite);
+          trackCareerEnroll("code");
+          try { window.localStorage.removeItem("cl_invite"); } catch { /* 무시 */ }
+          if (await check()) {
+            setState("ok");
+            setBusy(false);
+            return;
+          }
+        } catch (e) {
+          setErr(e instanceof Error ? e.message : t("등록에 실패했어요.", "Enrollment failed.", "注册失败。", "Đăng ký thất bại.", "登録に失敗しました。", "Pendaftaran gagal."));
+        }
+        setBusy(false);
+      }
+      setState("gate");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const submit = async (ev: React.FormEvent) => {
@@ -40,7 +73,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
     try {
       await enrollByCode(c);
       trackCareerEnroll("code");
-      await check(); // 성공 → 재확인 후 통과
+      if (await check()) setState("ok"); // 성공 → 재확인 후 통과
     } catch (e) {
       setErr(e instanceof Error ? e.message : t("등록에 실패했어요.", "Enrollment failed.", "注册失败。", "Đăng ký thất bại.", "登録に失敗しました。", "Pendaftaran gagal."));
     } finally {
