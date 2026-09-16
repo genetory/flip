@@ -11,6 +11,7 @@ import type { Step } from "../../lib/launch/data";
 import { ResumeScoreCard } from "./ResumeScoreCard";
 import { CoverScoreCard } from "./CoverScoreCard";
 import { PostingInterviewCard } from "./PostingInterviewCard";
+import { GrowthReportCard } from "./GrowthReportCard";
 import { WeekAutoFeedback } from "./week-auto-feedback";
 import { fetchProgress } from "../../lib/launch/progress-client";
 import { fetchResumeData } from "../../lib/launch/resume-data";
@@ -74,7 +75,8 @@ function stepSummary(stepId: string, data: LaunchData, t: LaunchT): string | nul
       return j.length ? `${j.slice(0, 2).join(", ")}${j.length > 2 ? t(` 외 ${j.length - 2}`, ` +${j.length - 2}`, ` 等${j.length - 2}`, ` +${j.length - 2}`, ` 他${j.length - 2}`, ` +${j.length - 2}`) : ""}` : null;
     }
     case "w1story": {
-      const n = ((p.storyBank as { data?: { stories?: unknown[] } } | null | undefined)?.data?.stories ?? []).length;
+      // 완료 판정(step-status)과 동일하게 strengthStories 를 센다(storyBank 는 서버 저장 필드가 아님).
+      const n = (Array.isArray(p.strengthStories) ? p.strengthStories : []).length;
       return n ? t(`강점 스토리 ${n}개`, `${n} stories`, `优势故事 ${n} 个`, `${n} câu chuyện`, `強みストーリー ${n}件`, `${n} cerita`) : null;
     }
     case "w1company": {
@@ -429,6 +431,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       {selWeek === 4 ? (
         <div className="mt-3 flex flex-col gap-3">
           <PostingInterviewCard />
+          <GrowthReportCard />
           <Link href="/career-launch/corrections" className="cl-jcard">
             <div className="ttl">{t("면접 오답노트 복습", "Review interview notes", "复习面试错题本", "Ôn sổ lỗi phỏng vấn", "面接復習ノート", "Tinjau catatan")}</div>
             <div className="desc">{t("점수가 낮았던 문항을 다시 풀어봐요.", "Retry the questions you scored low on.", "重做低分题。", "Làm lại câu điểm thấp.", "点数の低かった問題を解き直します。", "Ulangi soal berskor rendah.")}</div>
