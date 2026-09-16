@@ -53,6 +53,7 @@ export type OpsCohort = {
   status: string;
   startsAt: string | null;
   endsAt: string | null;
+  participantLimit?: number | null;
   enrolledCount: number;
   createdAt?: string;
 };
@@ -88,12 +89,12 @@ export async function fetchCohorts(): Promise<OpsCohort[]> {
   return (d.items as OpsCohort[]) ?? [];
 }
 
-export async function createCohort(input: { university: string; name: string; startsAt?: string; endsAt?: string }): Promise<OpsCohort> {
+export async function createCohort(input: { university: string; name: string; startsAt?: string; endsAt?: string; participantLimit?: number | null }): Promise<OpsCohort> {
   const d = await req("/career-launch/ops/cohorts", { method: "POST", headers: authHeaders(true), body: JSON.stringify(input) });
   return d.item as OpsCohort;
 }
 
-export async function updateCohort(id: string, input: Partial<{ university: string; name: string; status: "active" | "ended"; startsAt: string | null; endsAt: string | null }>): Promise<void> {
+export async function updateCohort(id: string, input: Partial<{ university: string; name: string; status: "active" | "ended"; startsAt: string | null; endsAt: string | null; participantLimit: number | null }>): Promise<void> {
   await req(`/career-launch/ops/cohorts/${encodeURIComponent(id)}`, { method: "PATCH", headers: authHeaders(true), body: JSON.stringify(input) });
 }
 

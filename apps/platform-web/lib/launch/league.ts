@@ -53,7 +53,7 @@ export async function recalculateScore(): Promise<number> {
 }
 
 // ── 운영자 ──
-export type Intervention = { id: string; studentUserId: string; priority: string; status: string; reasonCodes: string[]; assignedAdminId?: string | null; nextReviewAt?: string | null; aiSummary?: { facts?: string[]; ai?: { interpretation?: string; recommendedAction?: string; dataToCheck?: string[]; nextCheck?: string } } | null; student?: { id: string; name?: string | null; email?: string | null } };
+export type Intervention = { id: string; studentUserId: string; priority: string; status: string; reasonCodes: string[]; assignedAdminId?: string | null; nextReviewAt?: string | null; aiSummary?: { facts?: string[]; ai?: { interpretation?: string; recommendedAction?: string; dataToCheck?: string[]; nextCheck?: string } } | null; student?: { id: string; name?: string | null; email?: string | null }; logs?: Array<{ action: string; note: string | null; createdAt: string }> };
 export type CohortSummary = { totalEnrolled: number; packagesFinalized: number; initialMocksCompleted: number; correctionResolveRate: number; avgGrowthRate: number; interventionsOpen: number };
 
 export async function fetchCohortSummary(cohortId: string): Promise<CohortSummary> {

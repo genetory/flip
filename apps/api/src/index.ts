@@ -21717,7 +21717,23 @@ app.get("/career-launch/ops/interventions", authenticate, requireRoles([MemberRo
       take: 200,
       include: { student: { select: { id: true, name: true, email: true } } }
     });
-    return res.json({ ok: true, interventions });
+    // 메모/기각사유 이력 첨부 — CareerInterventionLog 는 관계필드가 없어 배치로 조회(노트 있는 것만).
+    const ivIds = interventions.map((i) => i.id);
+    const logs = ivIds.length
+      ? await prisma.careerInterventionLog.findMany({
+          where: { interventionId: { in: ivIds }, note: { not: null } },
+          orderBy: { createdAt: "desc" },
+          select: { interventionId: true, action: true, note: true, createdAt: true }
+        })
+      : [];
+    const logsByIv = new Map<string, Array<{ action: string; note: string | null; createdAt: Date }>>();
+    for (const l of logs) {
+      const arr = logsByIv.get(l.interventionId) ?? [];
+      if (arr.length < 5) arr.push({ action: l.action, note: l.note, createdAt: l.createdAt }); // 최근 5개까지
+      logsByIv.set(l.interventionId, arr);
+    }
+    const withLogs = interventions.map((iv) => ({ ...iv, logs: logsByIv.get(iv.id) ?? [] }));
+    return res.json({ ok: true, interventions: withLogs });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
@@ -24101,7 +24117,7 @@ async function genUniqueInviteCode(): Promise<string> {
 app.get("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   try {
     const rows = await prisma.careerCohort.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { enrollments: true } } } });
-    const items = rows.map((c) => ({ id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, enrolledCount: c._count.enrollments, createdAt: c.createdAt }));
+    const items = rows.map((c) => ({ id: c.id, university: c.university, name: c.name, inviteCode: c.inviteCode, status: c.status, startsAt: c.startsAt, endsAt: c.endsAt, participantLimit: c.participantLimit, enrolledCount: c._count.enrollments, createdAt: c.createdAt }));
     return res.json({ ok: true, items });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -24113,7 +24129,8 @@ const cohortCreateSchema = z.object({
   university: z.string().trim().min(1).max(120),
   name: z.string().trim().min(1).max(80),
   startsAt: z.string().datetime().optional(),
-  endsAt: z.string().datetime().optional()
+  endsAt: z.string().datetime().optional(),
+  participantLimit: z.number().int().min(1).max(1000).nullable().optional() // 정원(선택) — 초과 등록 차단
 });
 app.post("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = cohortCreateSchema.safeParse(req.body);
@@ -24126,7 +24143,8 @@ app.post("/career-launch/ops/cohorts", authenticate, requireRoles([MemberRole.OP
         name: parsed.data.name,
         inviteCode,
         startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : null,
-        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null
+        endsAt: parsed.data.endsAt ? new Date(parsed.data.endsAt) : null,
+        participantLimit: parsed.data.participantLimit ?? null
       }
     });
     return res.status(201).json({ ok: true, item: c });
@@ -24406,9 +24424,17 @@ app.post("/career-launch/enroll-by-code", authenticate, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ ok: false, message: "초대코드를 입력해 주세요." });
   try {
     const code = parsed.data.code.trim().toUpperCase();
-    const cohort = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true, status: true, university: true, name: true } });
+    const cohort = await prisma.careerCohort.findUnique({ where: { inviteCode: code }, select: { id: true, status: true, university: true, name: true, participantLimit: true } });
     if (!cohort) return res.status(404).json({ ok: false, message: "유효하지 않은 초대코드예요." });
     if (cohort.status !== "active") return res.status(400).json({ ok: false, message: "이미 종료된 기수예요. 운영자에게 문의해 주세요." });
+    // 정원 초과 차단 — 이미 등록된 학생은 재확인이므로 통과, 신규 등록만 좌석을 검사한다.
+    if (cohort.participantLimit != null) {
+      const already = await prisma.careerEnrollment.findUnique({ where: { cohortId_studentUserId: { cohortId: cohort.id, studentUserId: req.auth!.userId } }, select: { studentUserId: true } });
+      if (!already) {
+        const count = await prisma.careerEnrollment.count({ where: { cohortId: cohort.id } });
+        if (count >= cohort.participantLimit) return res.status(400).json({ ok: false, message: "이 기수는 정원이 모두 찼어요. 운영자에게 문의해 주세요." });
+      }
+    }
     await prisma.careerEnrollment.upsert({
       where: { cohortId_studentUserId: { cohortId: cohort.id, studentUserId: req.auth!.userId } },
       create: { cohortId: cohort.id, studentUserId: req.auth!.userId },

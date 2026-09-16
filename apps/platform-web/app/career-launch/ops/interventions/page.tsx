@@ -121,9 +121,24 @@ export default function OpsInterventionsPage() {
                       {iv.aiSummary.ai.recommendedAction ? <p className="mt-1"><b className="text-[#3A6B00]">추천 조치</b> {iv.aiSummary.ai.recommendedAction}</p> : null}
                     </div>
                   ) : null}
+                  {/* 메모/기각사유 이력 — 이제 표시(예전엔 저장만 하고 안 보여줬음) */}
+                  {iv.logs && iv.logs.length > 0 ? (
+                    <div className="mt-2 rounded-xl bg-white/60 p-2.5 text-[11.5px] leading-relaxed">
+                      <p className="font-black text-[#191F28]">메모 이력</p>
+                      <ul className="mt-1 flex flex-col gap-1">
+                        {iv.logs.map((l, i) => (
+                          <li key={i} className="flex gap-1.5 text-[#4E5968]">
+                            <span className="shrink-0 text-[#8B95A1]">{(() => { try { return new Date(l.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }); } catch { return ""; } })()}</span>
+                            <span className="min-w-0">{l.note}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   {/* 액션 */}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <button type="button" onClick={() => void summarize(iv.id)} disabled={busy === `ai-${iv.id}`} className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#0B46E8] disabled:opacity-60">{busy === `ai-${iv.id}` ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}AI 요약</button>
+                    <button type="button" onClick={() => { const note = prompt("메모 추가"); if (note && note.trim()) void patch(iv.id, { note: note.trim() }, "career_intervention_status_changed"); }} disabled={busy === iv.id} className="rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#4E5968]">메모</button>
                     {iv.status !== "in_review" ? <button type="button" onClick={() => void patch(iv.id, { status: "in_review" }, "career_intervention_status_changed")} disabled={busy === iv.id} className="rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#4E5968]">검토 시작</button> : null}
                     {iv.status !== "resolved" ? <button type="button" onClick={() => void patch(iv.id, { status: "resolved", note: "해결" }, "career_intervention_resolved")} disabled={busy === iv.id} className="rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#0A9B59]">해결</button> : null}
                     <button type="button" onClick={() => { const reason = prompt("기각 사유"); if (reason) void patch(iv.id, { status: "dismissed", dismissReason: reason }, "career_intervention_status_changed"); }} disabled={busy === iv.id} className="rounded-lg bg-white px-2.5 py-1 text-[11.5px] font-bold text-[#8B95A1]">기각</button>

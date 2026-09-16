@@ -18,6 +18,7 @@ export default function LaunchOpsCohortsPage() {
   const [name, setName] = useState("");
   const [starts, setStarts] = useState("");
   const [ends, setEnds] = useState("");
+  const [capacity, setCapacity] = useState(""); // 정원(선택)
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -44,12 +45,14 @@ export default function LaunchOpsCohortsPage() {
         university: university.trim(),
         name: name.trim(),
         startsAt: starts ? new Date(starts).toISOString() : undefined,
-        endsAt: ends ? new Date(ends).toISOString() : undefined
+        endsAt: ends ? new Date(ends).toISOString() : undefined,
+        participantLimit: capacity.trim() && Number(capacity) > 0 ? Math.floor(Number(capacity)) : null
       });
       setUniversity("");
       setName("");
       setStarts("");
       setEnds("");
+      setCapacity("");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : t("생성에 실패했어요.", "Failed to create.", "创建失败。", "Tạo không thành công.", "作成に失敗しました。", "Gagal membuat."));
@@ -122,6 +125,10 @@ export default function LaunchOpsCohortsPage() {
                 <input type="date" value={ends} onChange={(e) => setEnds(e.target.value)} />
               </div>
             </div>
+            <div className="ops-partner-form-field">
+              <span className="ops-form-label">{t("정원(선택)", "Capacity (optional)", "名额(可选)", "Sức chứa (tùy chọn)", "定員(任意)", "Kapasitas (opsional)")}</span>
+              <input type="number" min={1} value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder={t("예: 30 — 초과 등록 차단", "e.g. 30 — blocks over-enrollment", "如：30 — 超额阻止", "vd: 30 — chặn vượt", "例: 30 — 超過登録を防止", "cth: 30 — cegah kelebihan")} />
+            </div>
             {error ? <p className="ops-form-error">{error}</p> : null}
             <div>
               <button type="submit" className="ops-btn ops-btn-primary" disabled={!university.trim() || !name.trim() || creating}>
@@ -175,7 +182,7 @@ export default function LaunchOpsCohortsPage() {
                           {copied === c.inviteCode ? t("복사됨", "Copied", "已复制", "Đã sao chép", "コピー済み", "Tersalin") : c.inviteCode}
                         </button>
                       </td>
-                      <td>{c.enrolledCount}</td>
+                      <td>{c.enrolledCount}{c.participantLimit ? ` / ${c.participantLimit}` : ""}</td>
                       <td>{fmt(c.startsAt)} — {fmt(c.endsAt)}</td>
                       <td>
                         {c.status === "active" ? (
