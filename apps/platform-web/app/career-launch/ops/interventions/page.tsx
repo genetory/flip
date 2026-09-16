@@ -7,6 +7,7 @@ import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHe
 import { AplyFooter } from "../../../../components/AplyFooter";
 import { trackCareerFunnel } from "../../../../lib/analytics";
 import { fetchInterventions, scanInterventions, updateIntervention, generateInterventionSummary, type Intervention } from "../../../../lib/launch/league";
+import { fetchCohorts, type OpsCohort } from "../../../../lib/launch/enrollment-client";
 
 const PRIORITY_TONE: Record<string, string> = { critical: "bg-[#FEF2F2] text-[#F04452] border-[#F04452]/30", high: "bg-[#FFFBEB] text-[#C77700] border-[#C77700]/30", medium: "bg-[#F5F8FF] text-[#0B46E8] border-[#0B46E8]/20", low: "bg-[#FAFBFC] text-[#8B95A1] border-[#EEF1F5]", resolved: "bg-[#E7F7EF] text-[#0A9B59] border-[#0A9B59]/20" };
 const REASON_LABEL: Record<string, string> = { human_review_requested: "사람 검토 요청", fatigue_or_quit: "피로/중단 의사", document_critical: "지원서 critical", deadline_low_progress: "마감·저진행", stalled_7d: "7일 정체", stalled_4d: "4일 정체", mission_incomplete: "필수 미션 미완", repeated_weakness: "반복 취약점", unsupported_claims: "근거 부족 주장", low_ai_confidence: "AI 낮은 확신" };
@@ -15,6 +16,7 @@ export default function OpsInterventionsPage() {
   const [items, setItems] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
   const [cohortId, setCohortId] = useState("");
+  const [cohorts, setCohorts] = useState<OpsCohort[]>([]);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -31,6 +33,8 @@ export default function OpsInterventionsPage() {
   useEffect(() => {
     trackCareerFunnel("career_admin_cohort_dashboard_viewed");
     void reload();
+    // 신호 스캔 대상 기수를 드롭다운으로 고를 수 있게 목록을 불러온다(UUID 수기입력 제거).
+    void fetchCohorts().then(setCohorts).catch(() => {});
   }, []);
 
   const scan = async () => {
@@ -81,7 +85,12 @@ export default function OpsInterventionsPage() {
 
           {/* 스캔 */}
           <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-3">
-            <input value={cohortId} onChange={(e) => setCohortId(e.target.value)} placeholder="cohortId 입력 후 신호 스캔" className="min-w-0 flex-1 rounded-lg border border-[#E5E8EB] px-3 py-2 text-[13px] outline-none focus:border-[#0B46E8]" />
+            <select value={cohortId} onChange={(e) => setCohortId(e.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#E5E8EB] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#0B46E8]">
+              <option value="">기수 선택 후 신호 스캔</option>
+              {cohorts.map((c) => (
+                <option key={c.id} value={c.id}>{[c.university, c.name].filter(Boolean).join(" · ") || c.inviteCode} ({c.enrolledCount}명)</option>
+              ))}
+            </select>
             <button type="button" onClick={() => void scan()} disabled={busy === "scan" || !cohortId.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#191F28] px-4 py-2 text-[13px] font-bold text-white disabled:opacity-60">{busy === "scan" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}신호 스캔</button>
           </div>
           {msg ? <p className="mt-2 text-[12px] text-[#4E5968]">{msg}</p> : null}
