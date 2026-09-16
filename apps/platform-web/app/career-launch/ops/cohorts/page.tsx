@@ -64,7 +64,8 @@ export default function LaunchOpsCohortsPage() {
     try {
       await updateCohort(c.id, { status: next });
     } catch {
-      void load();
+      void load(); // 낙관적 변경 되돌리기
+      setError(t("기수 상태를 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't change cohort status. Please try again.", "无法更改期次状态，请稍后重试。", "Không đổi được trạng thái khóa. Thử lại sau.", "期の状態を変更できませんでした。もう一度お試しください。", "Gagal mengubah status angkatan. Coba lagi."));
     }
   };
 

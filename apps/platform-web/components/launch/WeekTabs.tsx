@@ -249,7 +249,11 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
     ) : (
       <>
         <div className="ttl">{stepText(step.id, "title")}</div>
-        {step.desc ? <div className="desc">{stepText(step.id, "desc")}</div> : null}
+        {locked ? (
+          <div className="desc">{t("이전 단계를 먼저 완료하면 열려요.", "Unlocks after you finish the previous step.", "完成上一步后解锁。", "Mở khi bạn hoàn thành bước trước.", "前のステップを終えると開きます。", "Terbuka setelah menyelesaikan langkah sebelumnya.")}</div>
+        ) : step.desc ? (
+          <div className="desc">{stepText(step.id, "desc")}</div>
+        ) : null}
         {step.minutes || current ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {step.minutes ? <span className="cl-jmin"><Clock className="h-3 w-3" weight="bold" aria-hidden /> ~{step.minutes}{t("분", "m", "分", "p", "分", "m")}</span> : null}
