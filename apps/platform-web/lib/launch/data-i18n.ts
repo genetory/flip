@@ -1044,6 +1044,48 @@ export function useCompletionCriteria() {
   return (): string[] => COMPLETION_CRITERIA.map((orig, i) => pick(COMPLETION_TEXT[i], locale, orig));
 }
 
+// 주차 config(핵심 질문·결과 칩) 다국어 — week-config.ts 의 한국어를 로케일별로 변환.
+const WEEK_QUESTION_TEXT: Record<number, LT> = {
+  1: { ko: "나는 어떤 일을 잘할 수 있고, 어떤 직무에서 그 강점을 활용할 수 있을까요?", en: "What am I good at, and which roles let me use those strengths?", "zh-CN": "我擅长什么？哪些职务能发挥我的优势？", vi: "Tôi giỏi việc gì và vai trò nào phát huy được thế mạnh đó?", ja: "私は何が得意で、どの職務でその強みを活かせるでしょうか？", id: "Apa keahlianku, dan peran mana yang cocok dengan kelebihanku?" },
+  2: { ko: "내 경험을 목표 직무와 실제 공고에 맞춰 어떻게 지원서로 만들까요?", en: "How do I turn my experience into an application tailored to my target role and real postings?", "zh-CN": "如何把我的经验做成贴合目标职务与真实公告的申请材料？", vi: "Làm sao biến kinh nghiệm thành hồ sơ phù hợp vị trí mục tiêu và tin tuyển dụng thật?", ja: "経験を目標職種と実際の求人に合わせて応募書類にするには？", id: "Bagaimana mengubah pengalaman jadi lamaran sesuai peran target & lowongan nyata?" },
+  3: { ko: "실제 면접에서 내 답변은 어디에서 약해질까요?", en: "Where do my answers get weak in a real interview?", "zh-CN": "在真实面试中，我的回答会在哪里变弱？", vi: "Câu trả lời của tôi yếu ở đâu trong phỏng vấn thật?", ja: "実際の面接で私の回答はどこで弱くなるでしょうか？", id: "Di mana jawabanku melemah saat wawancara nyata?" },
+  4: { ko: "피드백을 적용해 다른 질문에서도 더 좋은 답변을 할 수 있을까요?", en: "Can I apply the feedback to answer even better on new questions?", "zh-CN": "运用反馈后，我能在其他问题上答得更好吗？", vi: "Áp dụng phản hồi, tôi có trả lời tốt hơn ở câu hỏi khác không?", ja: "フィードバックを活かして別の質問でもより良く答えられる？", id: "Bisakah aku terapkan masukan untuk menjawab lebih baik di pertanyaan lain?" }
+};
+const WEEK_RESULT_TEXT: Record<string, LT> = {
+  "대표 경험": { ko: "대표 경험", en: "Key experiences", "zh-CN": "代表经验", vi: "Kinh nghiệm tiêu biểu", ja: "代表的な経験", id: "Pengalaman utama" },
+  "발견한 강점": { ko: "발견한 강점", en: "Strengths found", "zh-CN": "发现的优势", vi: "Điểm mạnh đã tìm", ja: "見つけた強み", id: "Kelebihan ditemukan" },
+  "추천 직무 3개": { ko: "추천 직무 3개", en: "3 recommended roles", "zh-CN": "3个推荐职务", vi: "3 nghề gợi ý", ja: "おすすめ職種3件", id: "3 peran rekomendasi" },
+  "직무 체험 2개": { ko: "직무 체험 2개", en: "2 role trials", "zh-CN": "2次职务体验", vi: "2 lần thử nghề", ja: "職種体験2件", id: "2 uji peran" },
+  "목표 직무": { ko: "목표 직무", en: "Target role", "zh-CN": "目标职务", vi: "Nghề mục tiêu", ja: "目標職種", id: "Peran target" },
+  "직무 결정 리포트": { ko: "직무 결정 리포트", en: "Role decision report", "zh-CN": "职务决定报告", vi: "Báo cáo chọn nghề", ja: "職種決定レポート", id: "Laporan keputusan peran" },
+  "대표 이력서": { ko: "대표 이력서", en: "Master resume", "zh-CN": "代表简历", vi: "CV chính", ja: "代表履歴書", id: "Resume utama" },
+  "기준 공고": { ko: "기준 공고", en: "Reference posting", "zh-CN": "基准公告", vi: "Tin tham chiếu", ja: "基準求人", id: "Lowongan acuan" },
+  "공고 분석": { ko: "공고 분석", en: "Posting analysis", "zh-CN": "公告分析", vi: "Phân tích tin", ja: "求人分析", id: "Analisis lowongan" },
+  "공고 맞춤 이력서": { ko: "공고 맞춤 이력서", en: "Tailored resume", "zh-CN": "定制简历", vi: "CV theo tin", ja: "求人特化履歴書", id: "Resume khusus" },
+  "자기소개서": { ko: "자기소개서", en: "Cover letter", "zh-CN": "自我介绍书", vi: "Thư giới thiệu", ja: "自己紹介書", id: "Surat lamaran" },
+  "지원 준비도": { ko: "지원 준비도", en: "Application readiness", "zh-CN": "申请准备度", vi: "Độ sẵn sàng", ja: "応募準備度", id: "Kesiapan lamaran" },
+  "예상 면접 질문": { ko: "예상 면접 질문", en: "Expected interview Qs", "zh-CN": "预期面试题", vi: "Câu hỏi dự kiến", ja: "想定面接質問", id: "Prediksi pertanyaan" },
+  "면접 전략": { ko: "면접 전략", en: "Interview strategy", "zh-CN": "面试策略", vi: "Chiến lược PV", ja: "面接戦略", id: "Strategi wawancara" },
+  "최초 모의면접": { ko: "최초 모의면접", en: "First mock interview", "zh-CN": "首次模拟面试", vi: "Phỏng vấn thử đầu", ja: "初回模擬面接", id: "Wawancara simulasi pertama" },
+  "질문별 피드백": { ko: "질문별 피드백", en: "Per-question feedback", "zh-CN": "逐题反馈", vi: "Phản hồi từng câu", ja: "質問別フィードバック", id: "Masukan per pertanyaan" },
+  "반복 취약 패턴": { ko: "반복 취약 패턴", en: "Recurring weak patterns", "zh-CN": "反复薄弱点", vi: "Mẫu yếu lặp lại", ja: "繰り返す弱点", id: "Pola lemah berulang" },
+  "핵심 오답": { ko: "핵심 오답", en: "Key wrong answers", "zh-CN": "核心错题", vi: "Lỗi chính", ja: "核心の誤答", id: "Kesalahan utama" },
+  "Week 4 훈련계획": { ko: "Week 4 훈련계획", en: "Week 4 training plan", "zh-CN": "第4周训练计划", vi: "Kế hoạch Tuần 4", ja: "Week 4トレーニング計画", id: "Rencana latihan Minggu 4" },
+  "해결한 오답": { ko: "해결한 오답", en: "Fixed answers", "zh-CN": "已解决错题", vi: "Lỗi đã sửa", ja: "解決した誤答", id: "Jawaban diperbaiki" },
+  "유사 질문 통과": { ko: "유사 질문 통과", en: "Similar Qs passed", "zh-CN": "通过相似问题", vi: "Vượt câu tương tự", ja: "類似質問クリア", id: "Lolos pertanyaan serupa" },
+  "최종 모의면접": { ko: "최종 모의면접", en: "Final mock interview", "zh-CN": "最终模拟面试", vi: "Phỏng vấn thử cuối", ja: "最終模擬面接", id: "Wawancara simulasi akhir" },
+  "최초·최종 비교": { ko: "최초·최종 비교", en: "First vs final", "zh-CN": "首次与最终对比", vi: "So đầu–cuối", ja: "初回・最終比較", id: "Awal vs akhir" },
+  "성장 리포트": { ko: "성장 리포트", en: "Growth report", "zh-CN": "成长报告", vi: "Báo cáo tiến bộ", ja: "成長レポート", id: "Laporan pertumbuhan" },
+  "30일 행동계획": { ko: "30일 행동계획", en: "30-day action plan", "zh-CN": "30天行动计划", vi: "Kế hoạch 30 ngày", ja: "30日行動計画", id: "Rencana aksi 30 hari" }
+};
+export function useWeekConfigText() {
+  const locale = useLocale();
+  return {
+    question: (week: number, fallback: string): string => pick(WEEK_QUESTION_TEXT[week], locale, fallback),
+    resultLabel: (label: string): string => pick(WEEK_RESULT_TEXT[label], locale, label)
+  };
+}
+
 // 추천 직무 이유(직무 id 기준) — 없으면 data.ts 원본으로 폴백.
 export function useJobReason() {
   const locale = useLocale();

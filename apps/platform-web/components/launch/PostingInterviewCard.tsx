@@ -145,7 +145,7 @@ export function PostingInterviewCard() {
       setResults(page.items);
       if (page.items.length === 0) setErr(t("검색 결과가 없어요.", "No results.", "无结果。", "Không có kết quả.", "結果なし。", "Tidak ada hasil."));
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "실패");
+      setErr(t("잠시 문제가 생겼어요. 다시 시도해 주세요.", "Something went wrong. Please try again.", "出了点问题，请重试。", "Có lỗi. Vui lòng thử lại.", "問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi."));
     } finally {
       setBusy("");
     }
@@ -163,7 +163,7 @@ export function PostingInterviewCard() {
       }
       startWith({ description: text });
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "실패");
+      setErr(t("잠시 문제가 생겼어요. 다시 시도해 주세요.", "Something went wrong. Please try again.", "出了点问题，请重试。", "Có lỗi. Vui lòng thử lại.", "問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi."));
     } finally {
       setBusy("");
     }

@@ -28,7 +28,7 @@ import { MaterialsChat } from "./MaterialsChat";
 import { InterviewChat } from "./InterviewChat";
 import { BasicInterviewSession } from "./BasicInterviewSession";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { useWeekText, useStepText, useStepActionLabel } from "../../lib/launch/data-i18n";
+import { useWeekText, useStepText, useStepActionLabel, useWeekConfigText } from "../../lib/launch/data-i18n";
 
 const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 const CHAT_ENDS = ["/diagnosis", "/experience", "/story", "/company", "/jobs", "/materials", "/basic-interview", "/interview"];
@@ -165,6 +165,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   const weekText = useWeekText();
   const stepText = useStepText();
   const stepAction = useStepActionLabel();
+  const weekCfgText = useWeekConfigText();
   const [refreshKey, setRefreshKey] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
@@ -376,11 +377,11 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
               week={selWeek}
               title={weekText(selWeek, "title")}
               subtitle={weekText(selWeek, "subtitle")}
-              question={cfg?.question ?? weekText(selWeek, "goal")}
+              question={weekCfgText.question(selWeek, cfg?.question ?? weekText(selWeek, "goal"))}
               status={status}
               doneCount={selDc}
               totalCount={sel.steps.length}
-              resultLabels={cfg?.resultLabels ?? []}
+              resultLabels={(cfg?.resultLabels ?? []).map(weekCfgText.resultLabel)}
               ctaLabel=""
               image={WEEK_IMAGE[selWeek]}
             />
