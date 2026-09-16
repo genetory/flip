@@ -17683,6 +17683,8 @@ async function syncCareerResumeToResume(userId: string): Promise<void> {
     }
   } catch (err) {
     console.error("[career-launch] syncCareerResumeToResume failed", err);
+    // 미러 실패는 실제 Resume 가 career 데이터와 조용히 어긋나는 문제라 운영자에게 알린다.
+    void postErrorToDiscord({ title: "career resume mirror failed", source: "api", path: "syncCareerResumeToResume", stack: getErrorMessage(err) });
   }
 }
 
@@ -18023,6 +18025,7 @@ async function syncCareerCoverToCoverLetter(userId: string): Promise<void> {
     }
   } catch (err) {
     console.error("[career-launch] syncCareerCoverToCoverLetter failed", err);
+    void postErrorToDiscord({ title: "career cover mirror failed", source: "api", path: "syncCareerCoverToCoverLetter", stack: getErrorMessage(err) });
   }
 }
 
@@ -18372,8 +18375,13 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
   try {
     const uid = req.auth!.userId;
     // 동시 저장(자동저장·AI저장·멀티탭) lost-update 방지 — 직렬화 병합 헬퍼 사용.
+    // 서버 통제 필드는 클라이언트 PATCH 로 못 바꾸게 제거한다. doneSteps 는 미션 완료 엔드포인트가
+    // 서버에서만 추가하고(자가위조 방지 — 이걸 직접 PATCH 하면 수료증·리그를 가짜로 달성), 진단
+    // 이력(diagnosisInitial/Final)은 아래 로직이 서버에서 스탬프한다.
+    const clientPatch = { ...(parsed.data as Record<string, unknown>) };
+    for (const k of ["doneSteps", "diagnosisInitial", "diagnosisFinal"]) delete clientPatch[k];
     const merged = await updateCareerProgressState(uid, (prev) => {
-      const m = { ...prev, ...parsed.data } as Record<string, unknown>;
+      const m = { ...prev, ...clientPatch } as Record<string, unknown>;
       // 진단 이력 — 성과 리포트의 '사전 → 사후 향상도'는 여기서만 만들어진다.
       //   diagnosisInitial : 최초 1회만 기록(이후 덮어쓰지 않음)
       //   diagnosisFinal   : 수료 재진단(body.finalDiagnosis === true)일 때만 기록
