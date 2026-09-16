@@ -167,7 +167,7 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
           ) : phase === "error" ? (
             <div className="mt-8 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-6 text-center">
               <p className="text-[13px] text-[#8B95A1]">{t("질문을 준비하지 못했어요. 이력서·자기소개서를 먼저 작성하면 더 잘 맞춰줘요.", "Couldn't prepare questions. Fill your resume/cover letter first for a better fit.", "无法准备问题。先完成简历/自我介绍书会更贴合。", "Không chuẩn bị được câu hỏi. Hãy điền CV/thư trước.", "質問を準備できませんでした。履歴書・自己紹介書を先に作成すると合わせやすいです。", "Gagal menyiapkan. Isi resume/surat dulu.")}</p>
-              <button type="button" onClick={onClose} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}</button>
+              <button type="button" onClick={() => (onClose ? onClose() : (window.location.href = "/career-launch/program"))} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}</button>
             </div>
           ) : phase === "answering" ? (
             <div className="mt-5">

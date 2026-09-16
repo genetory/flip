@@ -8,17 +8,24 @@ import { EnrollmentGate } from "./enrollment-gate";
 // 랜딩을 게이트로 감싸면 미로그인 방문자가 로그인 대신 초대코드 화면을 보게 되기 때문.
 // 운영자는 API에서 항상 enrolled=true 로 처리되어 그대로 통과한다.
 const GATED_PREFIXES = [
+  "/career-launch/program",
   "/career-launch/week",
   "/career-launch/diagnosis",
   "/career-launch/experience",
   "/career-launch/profile",
   "/career-launch/jobs",
   "/career-launch/materials",
+  "/career-launch/story",
+  "/career-launch/company",
   "/career-launch/resume-collect",
   "/career-launch/resume-preview",
   "/career-launch/cover-collect",
   "/career-launch/cover-preview",
   "/career-launch/interview",
+  "/career-launch/basic-interview",
+  "/career-launch/corrections",
+  "/career-launch/deliverables",
+  "/career-launch/survey",
   "/career-launch/culture"
 ];
 

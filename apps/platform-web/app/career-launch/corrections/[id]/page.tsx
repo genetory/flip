@@ -2,7 +2,7 @@
 
 // 면접 오답노트 상세 — 저장된 모의면접 한 건. 모달이 아니라 정식 페이지(GNB·앰비언트·푸터)로
 // 다른 커리어런치 페이지와 동일한 셸. 카드형(items)은 결과 리스트로 오답노트 재도전까지.
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CaretLeft } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
@@ -18,21 +18,26 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
   const t = useLaunchT();
   const { id } = use(params);
   const [log, setLog] = useState<PostingInterviewLog | null>(null);
-  const [phase, setPhase] = useState<"loading" | "ready" | "notfound">("loading");
+  // 네트워크 실패("error")와 기록 없음("notfound")을 구분해, 일시 오류를 "기록 없음"으로 오인하지 않게.
+  const [phase, setPhase] = useState<"loading" | "ready" | "notfound" | "error">("loading");
+
+  const load = useCallback(async () => {
+    setPhase("loading");
+    let prog;
+    try {
+      prog = await fetchProgress();
+    } catch {
+      setPhase("error");
+      return;
+    }
+    const found = (prog?.postingInterviews ?? []).find((l) => l.id === id) ?? (prog?.basicInterviews ?? []).find((l) => l.id === id) ?? null;
+    setLog(found);
+    setPhase(found ? "ready" : "notfound");
+  }, [id]);
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      const prog = await fetchProgress().catch(() => null);
-      if (!alive) return;
-      const found = (prog?.postingInterviews ?? []).find((l) => l.id === id) ?? (prog?.basicInterviews ?? []).find((l) => l.id === id) ?? null;
-      setLog(found);
-      setPhase(found ? "ready" : "notfound");
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [id]);
+    void load();
+  }, [load]);
 
   const updateItems = (items: PostingInterviewItem[]) => {
     if (!log) return;
@@ -79,6 +84,11 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
 
           {phase === "loading" ? (
             <p className="mt-8 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+          ) : phase === "error" ? (
+            <div className="mt-8">
+              <p className="text-[13px] text-[#8B95A1]">{t("불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load. Please try again shortly.", "加载失败，请稍后重试。", "Không tải được. Thử lại sau.", "読み込めませんでした。少し後にお試しください。", "Gagal memuat. Coba lagi.")}</p>
+              <button type="button" onClick={() => void load()} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("다시 시도", "Retry", "重试", "Thử lại", "再試行", "Coba lagi")}</button>
+            </div>
           ) : phase === "notfound" || !log ? (
             <p className="mt-8 text-[13px] text-[#8B95A1]">{t("면접 기록을 찾을 수 없어요.", "Interview record not found.", "找不到面试记录。", "Không tìm thấy bản ghi.", "面接記録が見つかりません。", "Rekaman tidak ditemukan.")}</p>
           ) : (

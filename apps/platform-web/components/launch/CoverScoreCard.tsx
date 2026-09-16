@@ -35,9 +35,9 @@ export function CoverScoreCard() {
   return (
     <ScoreCard
       fetchScore={fetchScore}
-      scoreLabel="Cover Letter Score"
+      scoreLabel={t("자기소개서 점수", "Cover Letter Score", "自我介绍分数", "Điểm thư giới thiệu", "自己紹介書スコア", "Skor Surat")}
       badgeEmoji="✍️"
-      badgeLabel="COVER LETTER READY"
+      badgeLabel={t("자기소개서 준비 완료", "COVER LETTER READY", "自我介绍就绪", "Thư sẵn sàng", "自己紹介書 準備完了", "Surat Siap")}
       ctaTitle={t("내 자기소개서 점수를 받아보세요", "Get your Cover Letter Score", "领取你的自我介绍分数", "Nhận điểm thư giới thiệu", "自己紹介書スコアを受け取りましょう", "Dapatkan skor surat lamaranmu")}
       ctaDesc={t("논리성·구체성·직무연관성·기업이해도·진정성을 평가하고, AI 티나는 표현도 짚어드려요.", "We assess logic, specificity, relevance, company insight, and authenticity — and flag AI-sounding phrasing.", "评估逻辑、具体性、职务相关、企业理解与真诚度，并指出有AI感的表达。", "Đánh giá logic, cụ thể, liên quan, hiểu công ty, chân thành — và chỉ ra câu giống AI.", "論理性・具体性・職務関連性・企業理解・誠実さを評価し、AIっぽい表現も指摘します。", "Menilai logika, spesifisitas, relevansi, wawasan perusahaan, ketulusan — dan menandai frasa yang terkesan AI.")}
       ctaLabel={t("자기소개서 평가 받기", "Score my cover letter", "评估我的自我介绍", "Chấm điểm thư", "自己紹介書を評価する", "Nilai surat lamaran")}

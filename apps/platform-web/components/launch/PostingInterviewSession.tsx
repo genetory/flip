@@ -142,7 +142,7 @@ export function PostingInterviewSession({ posting, embedded = false, onClose }: 
           ) : phase === "error" ? (
             <div className="mt-8 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-6 text-center">
               <p className="text-[13px] text-[#8B95A1]">{t("질문을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't prepare questions. Please try again shortly.", "无法准备问题，请稍后再试。", "Không chuẩn bị được câu hỏi. Thử lại sau.", "質問を準備できませんでした。少し後にお試しください。", "Gagal menyiapkan pertanyaan. Coba lagi.")}</p>
-              <button type="button" onClick={onClose} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}</button>
+              <button type="button" onClick={() => (onClose ? onClose() : (window.location.href = "/career-launch/program"))} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}</button>
             </div>
           ) : phase === "answering" ? (
             <div className="mt-5">

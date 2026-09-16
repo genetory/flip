@@ -33,9 +33,9 @@ export function ResumeScoreCard() {
   return (
     <ScoreCard
       fetchScore={fetchScore}
-      scoreLabel="Resume Score"
+      scoreLabel={t("이력서 점수", "Resume Score", "简历分数", "Điểm hồ sơ", "履歴書スコア", "Skor Resume")}
       badgeEmoji="📄"
-      badgeLabel="RESUME READY"
+      badgeLabel={t("이력서 준비 완료", "RESUME READY", "简历就绪", "Hồ sơ sẵn sàng", "履歴書 準備完了", "Resume Siap")}
       ctaTitle={t("내 이력서 점수를 받아보세요", "Get your Resume Score", "领取你的简历分数", "Nhận điểm hồ sơ của bạn", "履歴書スコアを受け取りましょう", "Dapatkan skor resume-mu")}
       ctaDesc={t("채용 담당자 관점에서 구체성·성과표현·직무연관성·가독성을 평가해드려요.", "We evaluate specificity, achievements, relevance, and readability like a recruiter.", "从招聘者角度评估具体性、成果表达、职务相关性与可读性。", "Đánh giá tính cụ thể, thành tích, liên quan nghề và dễ đọc như nhà tuyển dụng.", "採用担当者の視点で具体性・成果表現・職務関連性・可読性を評価します。", "Kami menilai spesifisitas, pencapaian, relevansi, dan keterbacaan seperti perekrut.")}
       ctaLabel={t("이력서 평가 받기", "Score my resume", "评估我的简历", "Chấm điểm hồ sơ", "履歴書を評価する", "Nilai resume saya")}
