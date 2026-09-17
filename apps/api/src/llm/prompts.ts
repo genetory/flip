@@ -32,6 +32,20 @@ export const POLISH_STYLE_GUIDE: Record<string, string> = {
 
 export type PolishStyle = "natural" | "concise" | "professional" | "impact" | "expand" | "achievement";
 
+// 생성 결과에서 상투적 과장 수식어를 결정적으로 제거(프롬프트로도 지양시키지만 모델이 종종 흘림).
+// 전(前)-명사/부사 수식어만 제거해 문법을 해치지 않게 한다. API 핸들러와 eval 이 공용으로 사용.
+export function stripCliches(text: string): string {
+  return text
+    .replace(/혁신적(?:인|으로)?\s*/g, "")
+    .replace(/탁월(?:한|하게)\s*/g, "")
+    .replace(/압도적(?:인|으로)?\s*/g, "")
+    .replace(/독보적(?:인|으로)?\s*/g, "")
+    .replace(/누구보다(?:도)?\s*/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.])/g, "$1")
+    .trim();
+}
+
 // ── 자소서(자기소개서) 문항 답변 생성/다듬기 ─────────────────────────────
 export type CoverLetterExperience = {
   title?: string;
@@ -54,6 +68,7 @@ export type CoverLetterInput = {
   desiredJobRole?: string;
   jobCategories?: string[];
   companyName?: string;
+  jobText?: string; // 목표 공고(JD) 본문 — 있으면 요구역량에 경험을 연결(그라운딩)
   experiences?: CoverLetterExperience[];
   education?: CoverLetterEducation[];
   skills?: string[];
@@ -68,8 +83,9 @@ export type LlmMessages = { system: string; user: string };
 export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
   const {
     mode, style, prompt, current, keywords, targetChars, desiredJobRole, jobCategories,
-    companyName, experiences, education, skills, languages, summary, selfIntroduction, locale
+    companyName, jobText, experiences, education, skills, languages, summary, selfIntroduction, locale
   } = input;
+  const jd = (jobText ?? "").trim().slice(0, 4000);
   const isPolish = mode === "polish";
   const target = targetChars ?? 800;
   const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
@@ -96,6 +112,9 @@ export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
         ? "사용자가 쓴 자소서 답변을 다듬되, 아래 '반드시 반영할 소재'를 새 문장으로 추가해 지원 동기·계기 이야기로 자연스럽게 녹여 넣으세요. 소재를 충분히 풀어내기 위해 분량을 늘려도 됩니다(제공되지 않은 수상·수치·성과는 지어내지 말 것).\n"
         : `사용자가 쓴 자소서 답변을 다듬으세요(없는 사실 추가 금지).\n이번 다듬기 방향: ${styleGuide}\n`
       : "사용자의 이력서 정보를 바탕으로 해당 자소서 문항에 대한 답변을 처음부터 작성하세요.\n") +
+    (jd
+      ? "[목표 공고 반영 — 중요] 이 답변은 아래 '지원자 정보' 끝의 [목표 공고]에 지원하기 위한 것입니다. 공고가 요구하는 역량·업무·인재상을 파악해, 지원자의 실제 경험·스킬을 그 요구에 자연스럽게 연결하고 '왜 이 회사·직무에 적합한지'가 구체적으로 드러나게 쓰세요. 단, 공고 문구를 그대로 베끼지 말고, 지원자가 갖추지 않은 역량을 갖춘 척하거나 없는 경험을 지어내지 마세요(가진 것 안에서 공고와의 접점을 부각).\n"
+      : "") +
     "규칙:\n" +
     "1. 제공된 이력서 정보와 아래 '지원자 제공 소재'에 없는 사실(회사·수치·성과·기간·일화)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
     "2. 한국 자소서 문체 — 1인칭(저는), 정중한 '~습니다'체, 두괄식. 경험은 STAR(상황-과제-행동-결과) 흐름으로 구체적으로.\n" +
@@ -124,6 +143,7 @@ export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
     keywordList.length
       ? `\n[반드시 본문에 녹일 소재 — 아래 항목 모두 포함]\n${keywordList.map((k) => `- ${k}`).join("\n")}`
       : "",
+    jd ? `\n[목표 공고]\n${jd}` : "",
     `\n[자소서 문항]\n${prompt}`,
     isPolish && current ? `\n[다듬을 기존 답변]\n${current}` : current ? `\n[참고 메모]\n${current}` : ""
   ]

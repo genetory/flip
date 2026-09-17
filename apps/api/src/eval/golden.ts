@@ -56,6 +56,30 @@ export const GOLDEN: GoldenCase[] = [
     }
   },
   {
+    id: "cover_jd_grounded",
+    feature: "cover_letter",
+    note: "JD 그라운딩 — 공고 요구역량에 지원자 경험을 연결",
+    input: {
+      mode: "draft",
+      prompt: "지원 동기와 직무 역량을 알려주세요.",
+      companyName: "데이터윙",
+      desiredJobRole: "데이터 분석",
+      targetChars: 700,
+      jobText:
+        "[데이터 분석가 채용] 주요 업무: SQL로 사내 데이터를 추출·분석하고 대시보드를 제작하며 A/B 테스트를 설계합니다. 자격요건: SQL 능숙, 통계 기초 지식, 원활한 커뮤니케이션. 우대사항: Python 활용, Tableau, 마케팅 데이터 분석 경험.",
+      skills: ["SQL", "Python", "Excel"],
+      education: [{ school: "가상대학교", major: "통계학", status: "졸업예정" }],
+      experiences: [
+        {
+          title: "교내 설문 데이터 분석 프로젝트",
+          type: "팀 프로젝트",
+          summary: "설문 응답을 SQL과 Python으로 분석해 리포트를 작성",
+          bullets: ["SQL로 데이터 추출·집계", "Python으로 시각화 및 리포트화"]
+        }
+      ]
+    }
+  },
+  {
     id: "polish_exp_messy",
     feature: "polish_experience",
     note: "여러 일을 줄바꿈으로 나열한 거친 입력 → 한 단락 정리",

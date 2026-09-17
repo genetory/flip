@@ -79,7 +79,8 @@ import {
   aiLangDirective,
   POLISH_STYLE_GUIDE,
   buildCoverLetterMessages,
-  buildPolishExperienceMessages
+  buildPolishExperienceMessages,
+  stripCliches
 } from "./llm/prompts";
 import {
   getPositionTranslation,
@@ -26003,6 +26004,7 @@ const coverLetterSchema = z.object({
   desiredJobRole: z.string().trim().max(120).optional(),
   jobCategories: z.array(z.string().trim().max(40)).max(5).optional(),
   companyName: z.string().trim().max(120).optional(),
+  jobText: z.string().trim().max(4000).optional(), // 목표 공고(JD) 본문 — 있으면 요구역량에 맞춤
   experiences: z
     .array(
       z.object({
@@ -26054,7 +26056,7 @@ app.post(
       const raw = completion.choices?.[0]?.message?.content ?? "";
       let parsedJson: { text?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const text = typeof parsedJson.text === "string" ? parsedJson.text.trim().slice(0, 6000) : "";
+      const text = typeof parsedJson.text === "string" ? stripCliches(parsedJson.text.trim()).slice(0, 6000) : "";
       if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, text });
     } catch (err) {
@@ -26097,7 +26099,7 @@ app.post(
       const raw = completion.choices?.[0]?.message?.content ?? "";
       let parsedJson: { polished?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const polished = typeof parsedJson.polished === "string" ? parsedJson.polished.trim().slice(0, 2000) : "";
+      const polished = typeof parsedJson.polished === "string" ? stripCliches(parsedJson.polished.trim()).slice(0, 2000) : "";
       if (!polished) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, polished });
     } catch (err) {

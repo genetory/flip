@@ -92,6 +92,29 @@ export function runChecks(c: GoldenCase, output: string): CheckResult[] {
       });
     }
 
+    // JD 그라운딩 — 목표 공고의 핵심 용어가 답변에 반영됐는가(공고와의 접점).
+    const jobText = typeof input.jobText === "string" ? (input.jobText as string) : "";
+    if (jobText.trim()) {
+      // 공고에서 의미 토큰 추출(2자 이상 한글/영문, 흔한 불용어 제외).
+      const stop = new Set(["주요", "업무", "자격", "요건", "우대", "사항", "채용", "회사", "지원", "경험", "능숙", "활용", "지식", "기초"]);
+      const toks = Array.from(
+        new Set(
+          (jobText.match(/[A-Za-z]{2,}|[가-힣]{2,}/g) ?? [])
+            .map((t) => t.trim())
+            .filter((t) => t.length >= 2 && !stop.has(t))
+        )
+      );
+      const hit = toks.filter((t) => output.includes(t));
+      // 공고 핵심어가 최소 3개(또는 25%) 이상 답변에 반영되면 통과.
+      const pass = hit.length >= Math.min(3, Math.ceil(toks.length * 0.25));
+      checks.push({
+        name: "jd_alignment",
+        pass,
+        weight: 2,
+        detail: `공고어 반영 ${hit.length}/${toks.length} (${hit.slice(0, 6).join(", ")})`
+      });
+    }
+
     // 반드시 반영할 소재(keywords) 전부 반영.
     // 모델이 자연스럽게 바꿔 쓰므로(예: "교내 홍보 동아리 2년 활동" → "교내 홍보 동아리에서 2년간 활동"),
     // 정확한 문자열이 아니라 소재의 핵심 토큰이 충분히(≥60%) 등장했는지로 판정한다.

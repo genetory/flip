@@ -18,6 +18,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import OpenAI from "openai";
 import { FEATURES } from "./features";
+import { stripCliches } from "../llm/prompts";
 import { runChecks, checkScore } from "./checks";
 import { judgeCase } from "./judge";
 import { GOLDEN } from "./golden";
@@ -112,7 +113,8 @@ async function live(): Promise<void> {
       } catch {
         error = "invalid_json";
       }
-      output = spec.extract(json).trim();
+      // 프로덕션 파이프라인과 동일하게 상투어 정리를 적용해 '실제 출력'을 평가한다.
+      output = stripCliches(spec.extract(json).trim());
       if (!output && !error) error = "empty_output";
     } catch (e) {
       error = (e as Error).message?.slice(0, 200) ?? "call_failed";
