@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Sparkle, Microphone, PaperPlaneTilt } from "@phosphor-icons/react";
 import type { UniversityLanding } from "../../../lib/talent/university-landing";
 import { usePlatformT } from "../../../lib/i18n";
@@ -16,21 +17,30 @@ import { trackUniversityLandingViewed, trackUniversityCtaClicked } from "../../.
 
 export function UniversityLandingView({ data }: { data: UniversityLanding }) {
   const t = usePlatformT();
+  const router = useRouter();
   // 캠페인 채널(설명회 부스·포스터·온라인 등) — ?c=<채널> 로 구분해 유입 귀속.
   const [campaign, setCampaign] = useState<string | undefined>(undefined);
+  // 커리어런치 기수 코드 입력 — 입력값으로 커리어런치 초대 링크로 연결.
+  // 레지스트리에 기수 코드 프리셋이 있으면 미리 채운다.
+  const [launchCode, setLaunchCode] = useState(data.careerLaunchInvite ?? "");
 
   const src = `uni:${data.slug}`;
   // 한국어 히어로/CTA 톤 — 대학 정체성 표현(예: '한양인')이 있으면 그걸 쓴다.
   const koWho = data.demonym ?? `${data.shortName} 학생`;
-  const hasCohort = Boolean(data.careerLaunchInvite);
-  // 적응형 주 CTA — 진행 중인 기수가 있으면 무료 프로그램 시작(초대링크), 없으면 가입.
-  const primaryHref = hasCohort
-    ? `/career-launch?invite=${encodeURIComponent(data.careerLaunchInvite!)}&src=${encodeURIComponent(src)}`
-    : `${talentRoutes.signup}?src=${encodeURIComponent(src)}`;
-  const primaryLabel = hasCohort
-    ? t("무료 4주 프로그램 시작", "Start the free 4-week program", "开始免费4周项目", "Bắt đầu chương trình 4 tuần miễn phí", "無料4週間プログラムを開始", "Mulai program 4 minggu gratis")
-    : t("무료로 시작하기", "Get started free", "免费开始", "Bắt đầu miễn phí", "無料で始める", "Mulai gratis");
+  // 커리어런치 연결 링크(기수 코드 프리셋이 있으면 초대 링크, 없으면 커리어런치 홈).
+  const careerLaunchHref = data.careerLaunchInvite
+    ? `/career-launch?invite=${encodeURIComponent(data.careerLaunchInvite)}&src=${encodeURIComponent(src)}`
+    : `/career-launch?src=${encodeURIComponent(src)}`;
   const jobsHref = `${talentRoutes.jobs ?? "/talent/jobs"}?src=${encodeURIComponent(src)}`;
+
+  // 커리어런치 접속 — 코드가 있으면 초대(기수 등록) 링크로, 없으면 커리어런치 홈으로.
+  const goCareerLaunch = () => {
+    const code = launchCode.trim();
+    const params = new URLSearchParams({ src });
+    if (code) params.set("invite", code);
+    trackUniversityCtaClicked(data.slug, "primary", campaign);
+    router.push(`/career-launch?${params.toString()}`);
+  };
 
   // 유입 귀속 — 가입/기수등록까지 이어지도록 출처·캠페인을 저장하고, 조회 이벤트 계측.
   useEffect(() => {
@@ -112,20 +122,39 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
             {t("AI로 이력서·자기소개서를 완성하고, 모의면접으로 준비한 뒤, 실제 공고에 바로 지원하세요. 전부 무료예요.", "Finish your resume and cover letter with AI, practice interviews, then apply to real jobs — all free.", "用AI完成简历与自我介绍，进行模拟面试，再直接投递真实公告。全部免费。", "Hoàn thành CV & thư bằng AI, luyện phỏng vấn, rồi ứng tuyển việc thật — tất cả miễn phí.", "AIで履歴書・自己紹介書を完成し、模擬面接で準備して、実際の求人に応募。すべて無料。", "Selesaikan resume & surat dengan AI, latih wawancara, lalu lamar kerja nyata — semua gratis.")}
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link
-              href={primaryHref}
-              onClick={() => trackUniversityCtaClicked(data.slug, "primary", campaign)}
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-white px-6 py-3.5 text-[15px] font-black text-[#191F28] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)] transition hover:bg-[#F2F4F6]"
+          {/* 커리어런치 코드 입력 + 접속 버튼 */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              goCareerLaunch();
+            }}
+            className="mt-7 flex w-full max-w-[520px] flex-col gap-2.5 sm:flex-row sm:items-stretch"
+          >
+            <input
+              value={launchCode}
+              onChange={(e) => setLaunchCode(e.target.value)}
+              inputMode="text"
+              autoComplete="off"
+              maxLength={64}
+              placeholder={t("커리어런치 코드 입력 (선택)", "Enter Career Launch code (optional)", "输入 Career Launch 代码（可选）", "Nhập mã Career Launch (tùy chọn)", "Career Launchコードを入力（任意）", "Masukkan kode Career Launch (opsional)")}
+              className="h-[52px] flex-1 rounded-2xl border border-white/30 bg-white/95 px-4 text-[15px] font-semibold text-[#191F28] placeholder:font-medium placeholder:text-[#8B95A1] outline-none transition focus:border-white focus:bg-white"
+            />
+            <button
+              type="submit"
+              className="inline-flex h-[52px] shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-white px-6 text-[15px] font-black text-[#191F28] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.5)] transition hover:bg-[#F2F4F6]"
             >
-              {primaryLabel} <ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden />
-            </Link>
+              {t("커리어런치 접속하기", "Go to Career Launch", "进入 Career Launch", "Vào Career Launch", "Career Launchへ", "Ke Career Launch")}
+              <ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden />
+            </button>
+          </form>
+          <div className="mt-3">
             <Link
               href={jobsHref}
               onClick={() => trackUniversityCtaClicked(data.slug, "secondary", campaign)}
-              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/40 px-6 py-3.5 text-[15px] font-bold text-white transition hover:bg-white/10"
+              className="inline-flex items-center gap-1 text-[14px] font-bold text-white/85 underline-offset-4 transition hover:text-white hover:underline"
             >
               {t("공고 둘러보기", "Browse jobs", "浏览公告", "Xem việc làm", "求人を見る", "Lihat lowongan")}
+              <ArrowRight className="h-[15px] w-[15px]" weight="bold" aria-hidden />
             </Link>
           </div>
 
@@ -134,7 +163,7 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
       </section>
 
       {/* 1분 커리어 진단 맛보기 — 가입 전 즉시 가치 */}
-      <UniversityDiagnosisTeaser accent={data.accent} ctaHref={primaryHref} onCta={() => trackUniversityCtaClicked(data.slug, "primary", campaign)} />
+      <UniversityDiagnosisTeaser accent={data.accent} ctaHref={careerLaunchHref} onCta={() => trackUniversityCtaClicked(data.slug, "primary", campaign)} />
 
       {/* 가치 3가지 */}
       <section className="mx-auto max-w-5xl px-5 py-12 md:py-16">
@@ -224,15 +253,16 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
           <h2 className="max-w-[22ch] break-keep text-[22px] font-black leading-[1.3] tracking-[-0.02em] text-white md:text-[26px]">
             {t(`${koWho}, 오늘 커리어를 시작하세요`, `Start your career today, ${data.shortName}`, `在${data.shortName}，今天开启职业`, `Bắt đầu sự nghiệp hôm nay, ${data.shortName}`, `${data.shortName}で、今日キャリアを始めよう`, `Mulai kariermu hari ini, ${data.shortName}`)}
           </h2>
-          <Link
-            href={primaryHref}
-            onClick={() => trackUniversityCtaClicked(data.slug, "primary", campaign)}
+          <button
+            type="button"
+            onClick={goCareerLaunch}
             className="inline-flex items-center gap-1.5 rounded-2xl px-7 py-3.5 text-[15px] font-black text-white shadow-[0_12px_32px_-14px_rgba(0,0,0,0.6)] transition"
             style={{ backgroundColor: data.accent }}
           >
-            {primaryLabel} <ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden />
-          </Link>
-          <p className="text-[12px] text-white/50">{t("가입 30초 · 신용카드 불필요", "30-second sign-up · no credit card", "30秒注册 · 无需信用卡", "Đăng ký 30 giây · không cần thẻ", "登録30秒・カード不要", "Daftar 30 detik · tanpa kartu")}</p>
+            {t("커리어런치 접속하기", "Go to Career Launch", "进入 Career Launch", "Vào Career Launch", "Career Launchへ", "Ke Career Launch")}
+            <ArrowRight className="h-[18px] w-[18px]" weight="bold" aria-hidden />
+          </button>
+          <p className="text-[12px] text-white/50">{t("기수 코드가 있으면 위에서 입력하세요 · 없어도 시작할 수 있어요", "Have a cohort code? Enter it above · you can start without one", "有期数代码请在上方输入 · 没有也能开始", "Có mã kỳ? Nhập ở trên · không có vẫn bắt đầu được", "コードがあれば上で入力 · なくても開始できます", "Punya kode? Masukkan di atas · tetap bisa mulai tanpanya")}</p>
         </div>
       </section>
     </main>
