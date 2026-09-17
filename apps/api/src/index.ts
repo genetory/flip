@@ -16701,11 +16701,33 @@ async function resolvePilotCohortId(userId?: string): Promise<string | null> {
 // LLM 비용 일별 집계 기록(fire-and-forget — 실패해도 핵심 흐름 방해 금지). 원문 미저장.
 // cohortId 미상은 "" 로 저장(널 다중행 방지). feature 는 ctx.feature 우선, 없으면 schemaName.
 // promptVersion 은 프롬프트 개선 전후 오류/비용 비교용(없으면 "").
+// 커리어런치 프롬프트 버전 — 프롬프트를 튜닝하면 해당 feature 버전을 올려, 비용·오류·품질을
+// 버전별로 비교한다(careerAiCostDaily 의 promptVersion 차원). 대화형 ctx 는 promptVersion 을
+// 개별로 넘기지 않으므로, 여기 중앙 맵에서 feature 기준으로 채워 집계가 ""로 뭉개지지 않게 한다.
+const CAREER_PROMPT_VERSIONS: Record<string, string> = {
+  diagnosis_chat: "v1",
+  job_chat: "v1",
+  material_chat: "v1",
+  experience_mining: "v1",
+  strength_story: "v1",
+  resume_chat: "v1",
+  cover_chat: "v1",
+  interview_self: "v1",
+  interview_job: "v1",
+  interview_fit: "v1",
+  interview_pressure: "v1",
+  week_feedback: "v2",
+  final_feedback: "v1",
+  career_report: "v2",
+  profile_headline: "v1"
+};
+
 async function recordCareerAiCost(p: { userId?: string; feature: string; model: string; promptVersion?: string; inputTokens: number; outputTokens: number; retried: number; failed: boolean }): Promise<void> {
   try {
     const cohortId = (await resolvePilotCohortId(p.userId)) ?? "";
     const dateKey = dateKeyKst();
-    const promptVersion = p.promptVersion ?? "";
+    // 명시 버전 우선, 없으면 feature 중앙 버전, 그것도 없으면 "".
+    const promptVersion = p.promptVersion ?? CAREER_PROMPT_VERSIONS[p.feature] ?? "";
     const est = estimateLlmCost(p.model, p.inputTokens, p.outputTokens);
     await prisma.careerAiCostDaily.upsert({
       where: { cohortId_feature_dateKey_model_promptVersion: { cohortId, feature: p.feature, dateKey, model: p.model, promptVersion } },
@@ -19080,11 +19102,16 @@ app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, r
     const jd = target.analysisData ?? target.structuredData;
     const rCtx = `[이력서]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1200)}`;
     const cCtx = `[자소서]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1000)}`;
+    // 채점 공용 루브릭 — 척도·근거·일관성을 명시해 점수 편차와 근거 없는 고득점을 줄인다.
+    const scoreRubric =
+      "너는 채용 서류를 냉정하고 일관되게 평가하는 심사관이다. 각 항목 0~100 정수로 채점한다.\n" +
+      "점수 척도: 0~40=미흡(핵심 근거 없음/공고와 무관), 50~69=보통(있으나 구체성·근거 부족), 70~84=양호(구체 근거 있음), 85~100=우수(공고 요구에 강하게 부합하고 근거가 뚜렷). 고득점은 문서에 실제 근거가 있을 때만 준다.\n" +
+      "원칙: 오직 주어진 [문서]와 [공고]만 근거로 평가하고, 없는 사실·시장 수요를 지어내지 마. 분량이 길다고 가산하지 말고, 근거 없는 미사여구·상투어는 감점 요인이다. 같은 입력에는 항상 같은 점수를 준다. 개선점은 실제 문서에서 고칠 지점을 구체적으로 짚어라.\n";
     // 3종 채점 병렬(각 실패는 null 허용).
     const [rRaw, cRaw, jRaw] = await Promise.all([
-      careerChatComplete("이력서를 6항목(baseCompleteness·experienceSpecificity·jobRelevance·evidenceReliability·readability·jdAlignment) 0~100으로 채점하고 강점·개선점을 줘. 점수만 올리려 문장 추가를 유도하지 마.", rCtx, "w2_resume_score", W2_RESUME_SCORE_SCHEMA).catch(() => null),
-      careerChatComplete("자기소개서를 6항목(promptFulfillment·experienceSpecificity·motivationConnection·jobRelevance·evidenceReliability·clarity) 0~100으로 채점하고 강점·개선점을 줘.", cCtx, "w2_cover_score", W2_COVER_SCORE_SCHEMA).catch(() => null),
-      careerChatComplete("공고 대비 매치를 4항목(requiredCoverage·preferredCoverage·relatedExperience·skillsCerts) 0~100으로 채점하고 충족/미충족 항목을 줘. 시장 수요를 사실처럼 지어내지 마.", rCtx, "w2_jd_match", W2_JD_MATCH_SCHEMA).catch(() => null)
+      careerChatComplete(scoreRubric + "[대상] 이력서. 6항목(baseCompleteness·experienceSpecificity·jobRelevance·evidenceReliability·readability·jdAlignment)을 채점하고 강점·개선점을 줘. 점수만 올리려 문장 추가를 유도하지 마.", rCtx, "w2_resume_score", W2_RESUME_SCORE_SCHEMA).catch(() => null),
+      careerChatComplete(scoreRubric + "[대상] 자기소개서. 6항목(promptFulfillment·experienceSpecificity·motivationConnection·jobRelevance·evidenceReliability·clarity)을 채점하고 강점·개선점을 줘.", cCtx, "w2_cover_score", W2_COVER_SCORE_SCHEMA).catch(() => null),
+      careerChatComplete(scoreRubric + "[대상] 공고 대비 매치. 4항목(requiredCoverage·preferredCoverage·relatedExperience·skillsCerts)을 채점하고 충족/미충족 항목을 줘.", rCtx, "w2_jd_match", W2_JD_MATCH_SCHEMA).catch(() => null)
     ]);
     const rParsed = rRaw ? ResumeScoreSchema.safeParse(rRaw) : null;
     const cParsed = cRaw ? CoverScoreSchema.safeParse(cRaw) : null;
