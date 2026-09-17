@@ -1,6 +1,6 @@
 // LLM 품질 평가 하니스 — 공통 타입.
 
-export type FeatureId = "cover_letter" | "polish_experience";
+export type FeatureId = "cover_letter" | "polish_experience" | "polish_intro";
 
 // 골든 케이스 — 합성(가상) 입력. 공개 레포 규칙상 실제 사용자 PII 는 넣지 않는다.
 export type GoldenCase = {

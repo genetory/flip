@@ -3,10 +3,12 @@
 import {
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
+  buildPolishIntroMessages,
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
   type CoverLetterInput,
-  type PolishExperienceInput
+  type PolishExperienceInput,
+  type PolishIntroInput
 } from "../llm/prompts";
 import type { FeatureId } from "./types";
 
@@ -45,6 +47,16 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
     buildMessages: (input) => buildPolishExperienceMessages(input as PolishExperienceInput),
     schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "polish_experience",
+    extract: (json) => (typeof json.polished === "string" ? json.polished : "")
+  },
+  polish_intro: {
+    id: "polish_intro",
+    label: "이력서 자기소개 다듬기",
+    model: genModel,
+    temperature: 0.5,
+    buildMessages: (input) => buildPolishIntroMessages(input as PolishIntroInput),
+    schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: "polish_intro",
     extract: (json) => (typeof json.polished === "string" ? json.polished : "")
   }
 };

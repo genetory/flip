@@ -80,6 +80,7 @@ import {
   POLISH_STYLE_GUIDE,
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
+  buildPolishIntroMessages,
   stripCliches,
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA
@@ -16107,38 +16108,18 @@ app.post(
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
-      const { text, desiredJobRole, jobCategories, style, keywords, locale } = parsed.data;
-      const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
-      const keywordList = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
-      const systemPrompt =
-        "당신은 한국 채용 이력서의 자기소개를 다듬는 첨삭 코치입니다.\n" +
-        (keywordList.length
-          ? "사용자가 쓴 자기소개를 다듬되, 아래 '반드시 반영할 소재'를 새 문장으로 추가해 자연스럽게 녹여 주세요. 소재를 충분히 풀어내기 위해 분량을 늘려도 됩니다.\n"
-          : `사용자가 쓴 자기소개를 더 설득력 있게 다듬어 주세요.\n이번 다듬기 방향: ${styleGuide}\n`) +
-        "규칙:\n" +
-        "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용과 아래 '제공 소재'만 사용합니다.\n" +
-        "2. 군더더기·중복을 없애고 문장을 매끄럽게, 맞춤법·띄어쓰기를 교정하세요.\n" +
-        "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n" +
-        (keywordList.length ? `4. [최우선] 반드시 반영할 소재: ${keywordList.map((k) => `「${k}」`).join(", ")} — 단순 나열이 아니라 이야기로 자연스럽게 녹입니다(제공되지 않은 수치·성과는 금지).\n` : "") +
-        "\n" +
-        'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
-      const ctx = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
-        .filter(Boolean)
-        .join("\n");
-      const userPrompt = `${ctx ? `${ctx}\n\n` : ""}자기소개 원문:\n${text}`;
-      const completion = await openai.chat.completions.create({
+      // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
+      const { system: systemPrompt, user: userPrompt } = buildPolishIntroMessages(parsed.data);
+      const { data } = await generateJson<{ polished?: unknown }>({
+        openai,
         model: openaiTranslationModel,
         temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
+        system: systemPrompt,
+        user: userPrompt,
+        schema: POLISH_TEXT_SCHEMA,
+        schemaName: "polish_intro"
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let parsedJson: { polished?: unknown } = {};
-      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const polished = typeof parsedJson.polished === "string" ? parsedJson.polished.trim().slice(0, 4000) : "";
+      const polished = typeof data?.polished === "string" ? stripCliches(data.polished.trim()).slice(0, 4000) : "";
       if (!polished) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, polished });
     } catch (err) {

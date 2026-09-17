@@ -80,6 +80,27 @@ export const GOLDEN: GoldenCase[] = [
     }
   },
   {
+    id: "intro_polish_basic",
+    feature: "polish_intro",
+    note: "자기소개 다듬기 — 설득력 있게, 없는 사실 금지",
+    input: {
+      style: "professional",
+      desiredJobRole: "백엔드 개발",
+      text: "저는 컴퓨터공학을 전공했고 팀 프로젝트를 여러 번 해봤습니다. 백엔드 개발에 관심이 많고 꾸준히 공부하고 있습니다."
+    }
+  },
+  {
+    id: "intro_polish_keywords",
+    feature: "polish_intro",
+    note: "자기소개 + 반드시 반영할 소재",
+    input: {
+      style: "expand",
+      desiredJobRole: "데이터 분석",
+      text: "데이터로 문제를 푸는 일을 좋아합니다.",
+      keywords: ["학과 데이터 분석 스터디 1년 운영", "SQL·Python 자격증 취득"]
+    }
+  },
+  {
     id: "polish_exp_messy",
     feature: "polish_experience",
     note: "여러 일을 줄바꿈으로 나열한 거친 입력 → 한 단락 정리",

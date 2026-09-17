@@ -174,6 +174,41 @@ export type PolishExperienceInput = {
   locale?: string;
 };
 
+// ── 이력서 자기소개 다듬기 ─────────────────────────────────────────────
+export type PolishIntroInput = {
+  text: string;
+  style?: PolishStyle;
+  keywords?: string[];
+  desiredJobRole?: string;
+  jobCategories?: string[];
+  locale?: string;
+};
+
+export function buildPolishIntroMessages(input: PolishIntroInput): LlmMessages {
+  const { text, desiredJobRole, jobCategories, style, keywords, locale } = input;
+  const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
+  const keywordList = (keywords ?? []).map((k) => k.trim()).filter(Boolean);
+  const system =
+    "당신은 한국 채용 이력서의 자기소개를 다듬는 첨삭 코치입니다.\n" +
+    (keywordList.length
+      ? "사용자가 쓴 자기소개를 다듬되, 아래 '반드시 반영할 소재'를 새 문장으로 추가해 자연스럽게 녹여 주세요. 소재를 충분히 풀어내기 위해 분량을 늘려도 됩니다.\n"
+      : `사용자가 쓴 자기소개를 더 설득력 있게 다듬어 주세요.\n이번 다듬기 방향: ${styleGuide}\n`) +
+    "규칙:\n" +
+    "1. 사용자가 적지 않은 경력·수치·회사명·성과를 지어내지 마세요. 있는 내용과 아래 '제공 소재'만 사용합니다. 특히 퍼센트·인원·금액 같은 구체 수치는 원문에 있는 값만 쓰고, 그럴듯한 추정치를 만들지 마세요.\n" +
+    "2. 군더더기·중복을 없애고 문장을 매끄럽게, 맞춤법·띄어쓰기를 교정하세요. 과장 상투어('혁신적/탁월한/압도적/독보적')는 쓰지 말고 구체적 사실로 보여주세요.\n" +
+    "3. 1인칭 진술체를 유지하고, 한국어로만 작성하세요.\n" +
+    (keywordList.length
+      ? `4. [최우선 — 반드시 지킴] 아래 소재가 하나도 빠짐없이 모두 본문에 등장해야 합니다(빠지면 실패). 단순 나열이 아니라 이야기로 자연스럽게 녹입니다(제공되지 않은 수치·성과는 금지).\n   반드시 반영할 소재(모두 포함): ${keywordList.map((k) => `「${k}」`).join(", ")}\n`
+      : "") +
+    "\n" +
+    'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
+  const ctxParts = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
+    .filter(Boolean)
+    .join("\n");
+  const user = `${ctxParts ? `${ctxParts}\n\n` : ""}${keywordList.length ? `[반드시 본문에 녹일 소재 — 모두 포함]\n${keywordList.map((k) => `- ${k}`).join("\n")}\n\n` : ""}자기소개 원문:\n${text}`;
+  return { system, user };
+}
+
 export function buildPolishExperienceMessages(input: PolishExperienceInput): LlmMessages {
   const { text, type, style, locale } = input;
   const styleGuide = POLISH_STYLE_GUIDE[style ?? "natural"] ?? POLISH_STYLE_GUIDE.natural;
