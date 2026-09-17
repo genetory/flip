@@ -634,10 +634,11 @@ button.cl-role-chip:active { transform: translateY(1px); }
 }
 
 /* 접근성 — 키보드 탐색 시 포커스 가시화(마우스 클릭에는 표시되지 않음). */
+/* outline 은 요소의 border-radius 를 자동으로 따라 둥글어지므로 여기서 radius 를
+   강제하지 않는다. (강제하면 입력창 등 자체 radius 가 덮어써져 모양이 바뀜) */
 :focus-visible {
   outline: 2px solid #0B46E8;
   outline-offset: 2px;
-  border-radius: 6px;
 }
 /* 자체 focus 링(ring)을 이미 쓰는 입력 요소는 이중 표시 방지. */
 input:focus-visible,
