@@ -386,10 +386,8 @@ function ItemRow({
                         <span className="text-[13px] font-bold text-[#0B1227]">{c.label}</span>
                         <span className="text-[11px] text-[#8B95A1]">{c.hint}</span>
                       </span>
-                      <span className="mt-0.5 shrink-0 rounded-md bg-[#EDF1FD] px-1.5 py-0.5 text-[10px] font-bold text-[#0B46E8]">1P</span>
                     </button>
                   ))}
-                  <p className="border-t border-[#F2F4F6] px-3 pb-1 pt-1.5 text-[10.5px] text-[#B0B8C1]">{t("다듬기당 AI 1P 소모","1 AI point per polish","每次润色消耗 1P","1P AI mỗi lần","1回につきAI 1P","1P AI per poles")}</p>
                 </div>
               </>
             ) : null}
