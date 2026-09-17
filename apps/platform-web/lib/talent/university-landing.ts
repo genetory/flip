@@ -58,10 +58,14 @@ const REGISTRY: Record<string, UniversityLanding> = {
     displayName: "건국대학교",
     shortName: "건국대",
     demonym: "건국인",
-    // 공식 로고 자산 미승인 단계 — 워드마크(영문명)로 온브랜드 렌더. 승인 자산 확보 시 logoUrl/symbolUrl 지정.
     wordmark: "KONKUK UNIVERSITY",
-    accent: "#036B3F", // 건국그린(딥 그린) — 공식 정확값은 대학 홍보실 브랜드 가이드 확인 필요
-    accentDeep: "#02311D",
+    // 공식 로고타입(흰색, 초록 배경 투명 처리) + 씰 엠블럼. 출처: Wikimedia(Konkuk University logo).
+    logoUrl: "/uni/konkuk-logotype-white.png",
+    logoWidth: 853,
+    logoHeight: 248,
+    symbolUrl: "/uni/konkuk-symbol.png",
+    accent: "#00703E", // 건국그린 — 공식 로고 배경색(0,112,62)에서 추출
+    accentDeep: "#004A29",
     motto: "성(誠) · 신(信) · 의(義)", // 건학이념(Sincerity · Fidelity · Righteousness)
     // careerLaunchInvite 미지정 → 적응형 CTA 가 '무료로 시작하기'(가입)로 동작.
     jobQuery: { limit: 4 },
