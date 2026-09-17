@@ -101,6 +101,28 @@ export const GOLDEN: GoldenCase[] = [
     }
   },
   {
+    id: "draft_intro_improve",
+    feature: "draft_resume_text",
+    note: "자기소개 개선(improve) — 없는 사실 금지",
+    input: {
+      fieldType: "selfIntroduction",
+      mode: "improve",
+      currentText: "안녕하세요 저는 성실하고 책임감 있는 사람입니다 팀에서 잘 협력합니다"
+    }
+  },
+  {
+    id: "draft_career_generate",
+    feature: "draft_resume_text",
+    note: "경력 설명 생성(generate) — hints·맥락만으로, 수치 날조 금지",
+    input: {
+      fieldType: "career",
+      mode: "generate",
+      currentText: "",
+      context: { companyName: "가상카페", position: "바리스타" },
+      hints: "주문 응대, 음료 제조, 재고 관리, 신입 교육 보조"
+    }
+  },
+  {
     id: "polish_exp_messy",
     feature: "polish_experience",
     note: "여러 일을 줄바꿈으로 나열한 거친 입력 → 한 단락 정리",

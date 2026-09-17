@@ -4,11 +4,14 @@ import {
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
   buildPolishIntroMessages,
+  buildDraftResumeTextMessages,
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
+  DRAFT_TEXT_SCHEMA,
   type CoverLetterInput,
   type PolishExperienceInput,
-  type PolishIntroInput
+  type PolishIntroInput,
+  type DraftResumeTextInput
 } from "../llm/prompts";
 import type { FeatureId } from "./types";
 
@@ -58,5 +61,15 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
     schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
     schemaName: "polish_intro",
     extract: (json) => (typeof json.polished === "string" ? json.polished : "")
+  },
+  draft_resume_text: {
+    id: "draft_resume_text",
+    label: "이력서 텍스트 생성/개선(자기소개·경험·활동)",
+    model: genModel,
+    temperature: 0.5,
+    buildMessages: (input) => buildDraftResumeTextMessages(input as DraftResumeTextInput),
+    schema: DRAFT_TEXT_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: "draft_resume_text",
+    extract: (json) => (typeof json.text === "string" ? json.text : "")
   }
 };

@@ -93,6 +93,12 @@ export const POLISH_TEXT_SCHEMA = {
   properties: { polished: { type: "string" } },
   required: ["polished"]
 } as const;
+export const DRAFT_TEXT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: { text: { type: "string" }, why: { type: "string" } },
+  required: ["text", "why"]
+} as const;
 
 export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
   const {
@@ -207,6 +213,58 @@ export function buildPolishIntroMessages(input: PolishIntroInput): LlmMessages {
     .join("\n");
   const user = `${ctxParts ? `${ctxParts}\n\n` : ""}${keywordList.length ? `[반드시 본문에 녹일 소재 — 모두 포함]\n${keywordList.map((k) => `- ${k}`).join("\n")}\n\n` : ""}자기소개 원문:\n${text}`;
   return { system, user };
+}
+
+// ── 이력서 텍스트 생성/개선(AiTextHelperModal 백엔드) ─────────────────────
+export type DraftFieldType = "selfIntroduction" | "summary" | "career" | "activity";
+export type DraftMode = "improve" | "expand" | "generate";
+export type DraftResumeTextInput = {
+  currentText: string;
+  fieldType: DraftFieldType;
+  mode?: DraftMode;
+  context?: { companyName?: string; position?: string; title?: string };
+  hints?: string;
+  locale?: string;
+};
+
+export function buildDraftResumeTextMessages(input: DraftResumeTextInput): LlmMessages {
+  const { currentText, fieldType, mode = "improve", context, hints, locale } = input;
+  const fieldName = {
+    selfIntroduction: "자기소개",
+    summary: "요약",
+    career: "경력 설명",
+    activity: "활동·프로젝트 설명"
+  }[fieldType];
+  const modeNote =
+    mode === "improve"
+      ? "기존 표현을 더 명확하고 임팩트 있게 다듬으세요. 의미를 부풀리지 마세요."
+      : mode === "expand"
+        ? "기존 내용에 구체적 사례·수치(있다면)·맥락을 자연스럽게 더 적어주세요."
+        : "사용자가 제공한 키워드·맥락만으로 적절한 길이의 초안을 작성하세요. 추측이 필요하면 추상적으로 두세요.";
+  const system =
+    `당신은 한국 기업 채용을 돕는 이력서 코치입니다. 외국인 지원자의 ${fieldName}을(를) 작성/개선해 주세요.\n\n` +
+    "엄격한 규칙:\n" +
+    "1. 사용자가 명시적으로 제공하지 않은 새로운 사실(회사명·학교명·직책·날짜·수치·기술·자격증·프로젝트)을 절대 만들어내지 마세요.\n" +
+    "2. 원문 또는 hints 에 적힌 숫자만 사용하고, 새 숫자를 추가/추정하지 마세요.\n" +
+    "3. 의미를 부풀리거나 추측하지 마세요. 과장 상투어('혁신적/탁월한/압도적/독보적')는 쓰지 말고 구체적 사실로 보여주세요. 빈약한 입력은 빈약한 결과로 두는 게 정직합니다.\n" +
+    "4. 한국어로 자연스럽고 정중하게 작성하세요.\n" +
+    `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n\n` +
+    'JSON 한 개의 객체만 응답: { "text": string, "why": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명.' +
+    aiLangDirective(locale);
+  const parts: string[] = [`요청 모드: ${modeNote}`];
+  if (context) {
+    const ctxText = [
+      context.companyName ? `회사명: ${context.companyName}` : null,
+      context.position ? `직책: ${context.position}` : null,
+      context.title ? `활동명: ${context.title}` : null
+    ]
+      .filter(Boolean)
+      .join(", ");
+    if (ctxText) parts.push(`맥락: ${ctxText}`);
+  }
+  if (hints?.trim()) parts.push(`사용자 키워드/요청: ${hints.trim()}`);
+  parts.push(`현재 ${fieldName}:\n${currentText || "(비어있음)"}`);
+  return { system, user: parts.join("\n\n") };
 }
 
 export function buildPolishExperienceMessages(input: PolishExperienceInput): LlmMessages {

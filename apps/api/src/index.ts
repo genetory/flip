@@ -81,9 +81,11 @@ import {
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
   buildPolishIntroMessages,
+  buildDraftResumeTextMessages,
   stripCliches,
   COVER_TEXT_SCHEMA,
-  POLISH_TEXT_SCHEMA
+  POLISH_TEXT_SCHEMA,
+  DRAFT_TEXT_SCHEMA
 } from "./llm/prompts";
 import { generateJson } from "./llm/generate";
 import {
@@ -15259,7 +15261,7 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
-  const { currentText, fieldType, mode, context, hints, locale } = parsed.data;
+  const { currentText, fieldType, mode, hints } = parsed.data;
   // generate 모드는 빈 입력 OK, 그 외에는 currentText 또는 hints 중 하나는 있어야 함.
   if (mode !== "generate" && !currentText.trim()) {
     return res.status(400).json({ ok: false, message: "currentText empty — write at least one sentence or use mode=generate" });
@@ -15268,59 +15270,20 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
     return res.status(400).json({ ok: false, message: "hints required when generating from empty" });
   }
 
-  const fieldName = {
-    selfIntroduction: "자기소개",
-    summary: "요약",
-    career: "경력 설명",
-    activity: "활동·프로젝트 설명"
-  }[fieldType];
-  const modeNote =
-    mode === "improve"
-      ? "기존 표현을 더 명확하고 임팩트 있게 다듬으세요. 의미를 부풀리지 마세요."
-      : mode === "expand"
-      ? "기존 내용에 구체적 사례·수치(있다면)·맥락을 자연스럽게 더 적어주세요."
-      : "사용자가 제공한 키워드·맥락만으로 적절한 길이의 초안을 작성하세요. 추측이 필요하면 추상적으로 두세요.";
-
   try {
-    const systemPrompt =
-      `당신은 한국 기업 채용을 돕는 이력서 코치입니다. 외국인 지원자의 ${fieldName}을(를) 작성/개선해 주세요.\n\n` +
-      "엄격한 규칙:\n" +
-      "1. 사용자가 명시적으로 제공하지 않은 새로운 사실(회사명·학교명·직책·날짜·수치·기술·자격증·프로젝트)을 절대 만들어내지 마세요.\n" +
-      "2. 원문 또는 hints 에 적힌 숫자만 사용하고, 새 숫자를 추가/추정하지 마세요.\n" +
-      "3. 의미를 부풀리거나 추측하지 마세요. 빈약한 입력은 빈약한 결과로 두는 게 정직합니다.\n" +
-      "4. 한국어로 자연스럽고 정중하게 작성하세요.\n" +
-      `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n\n` +
-      "JSON 한 개의 객체만 응답: { \"text\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명." + aiLangDirective(locale);
-
-    const userPromptParts: string[] = [`요청 모드: ${modeNote}`];
-    if (context) {
-      const ctxText = [
-        context.companyName ? `회사명: ${context.companyName}` : null,
-        context.position ? `직책: ${context.position}` : null,
-        context.title ? `활동명: ${context.title}` : null
-      ]
-        .filter(Boolean)
-        .join(", ");
-      if (ctxText) userPromptParts.push(`맥락: ${ctxText}`);
-    }
-    if (hints?.trim()) userPromptParts.push(`사용자 키워드/요청: ${hints.trim()}`);
-    userPromptParts.push(`현재 ${fieldName}:\n${currentText || "(비어있음)"}`);
-    const userPrompt = userPromptParts.join("\n\n");
-
-    const completion = await openai.chat.completions.create({
+    // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
+    const { system: systemPrompt, user: userPrompt } = buildDraftResumeTextMessages(parsed.data);
+    const { data } = await generateJson<{ text?: unknown; why?: unknown }>({
+      openai,
       model: openaiTranslationModel,
       temperature: 0.5,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
+      system: systemPrompt,
+      user: userPrompt,
+      schema: DRAFT_TEXT_SCHEMA,
+      schemaName: "draft_resume_text"
     });
-    const raw = completion.choices?.[0]?.message?.content ?? "";
-    let parsedJson: { text?: unknown; why?: unknown } = {};
-    try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-    const text = typeof parsedJson.text === "string" ? parsedJson.text.trim() : "";
-    const why = typeof parsedJson.why === "string" ? parsedJson.why.trim() : "";
+    const text = typeof data?.text === "string" ? stripCliches(data.text.trim()) : "";
+    const why = typeof data?.why === "string" ? data.why.trim() : "";
     if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
 
     return res.json({ ok: true, draft: { text, why, mode, fieldType } });
