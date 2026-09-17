@@ -227,6 +227,7 @@ export async function generateCoverLetter(input: {
   keywords?: string[];
   targetChars?: number;
   companyName?: string;
+  jobText?: string; // 목표 공고(JD) 본문
   desiredJobRole?: string;
   jobCategories?: string[];
   experiences?: { type?: string; title?: string; org?: string; period?: string; summary?: string; bullets?: string[] }[];

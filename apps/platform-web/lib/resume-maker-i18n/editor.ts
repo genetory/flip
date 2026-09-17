@@ -44,6 +44,8 @@ type Copy = {
   clIntro: string;
   clCompanyLabel: string;
   clCompanyPlaceholder: string;
+  clJobLabel: string;
+  clJobPlaceholder: string;
   clAddStandard: string;
   clAddCustom: string;
   clStandardPrompts: { label: string; prompt: string; example: string }[];
@@ -284,6 +286,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "지원 동기·성장 과정처럼 한국 기업이 자주 묻는 문항에 답하는 형식이에요. 표준 문항을 고르거나 직접 문항을 넣어 보세요.",
     clCompanyLabel: "지원 회사 (선택)",
     clCompanyPlaceholder: "예: (주)아플라이",
+    clJobLabel: "지원 공고 붙여넣기 (선택)",
+    clJobPlaceholder: "공고의 주요 업무·자격요건을 붙여넣으면 공고 맞춤으로 작성돼요",
     clAddStandard: "표준 문항",
     clAddCustom: "직접 문항 추가",
     clStandardPrompts: [
@@ -515,6 +519,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "Korean companies often ask set questions like motivation and background. Pick a standard prompt or add your own.",
     clCompanyLabel: "Company (optional)",
     clCompanyPlaceholder: "e.g. Aply Inc.",
+    clJobLabel: "Paste job posting (optional)",
+    clJobPlaceholder: "Paste the role's duties & requirements to tailor the answer",
     clAddStandard: "Standard prompts",
     clAddCustom: "Add custom prompt",
     clStandardPrompts: [
@@ -746,6 +752,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "这是回答韩国企业常问题目（如应聘动机、成长经历）的形式。可选择标准题目或自行输入。",
     clCompanyLabel: "应聘公司（可选）",
     clCompanyPlaceholder: "例：Aply 公司",
+    clJobLabel: "粘贴招聘公告（可选）",
+    clJobPlaceholder: "粘贴岗位职责与要求，按公告定制",
     clAddStandard: "标准题目",
     clAddCustom: "添加自定义题目",
     clStandardPrompts: [
@@ -977,6 +985,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "Đây là dạng trả lời các câu hỏi mà công ty Hàn thường hỏi (động lực, quá trình trưởng thành...). Chọn câu hỏi mẫu hoặc tự nhập.",
     clCompanyLabel: "Công ty ứng tuyển (tùy chọn)",
     clCompanyPlaceholder: "VD: Aply Inc.",
+    clJobLabel: "Dán tin tuyển dụng (tùy chọn)",
+    clJobPlaceholder: "Dán mô tả & yêu cầu để viết bám sát tin",
     clAddStandard: "Câu hỏi mẫu",
     clAddCustom: "Thêm câu hỏi riêng",
     clStandardPrompts: [
@@ -1208,6 +1218,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "志望動機・成長過程など韓国企業がよく聞く設問に答える形式です。標準設問を選ぶか自分で入力してください。",
     clCompanyLabel: "応募先企業（任意）",
     clCompanyPlaceholder: "例：Aply 株式会社",
+    clJobLabel: "求人内容を貼り付け（任意）",
+    clJobPlaceholder: "職務・応募要件を貼ると求人に合わせて作成",
     clAddStandard: "標準設問",
     clAddCustom: "設問を自分で追加",
     clStandardPrompts: [
@@ -1439,6 +1451,8 @@ const dict: Record<PlatformLocale, Copy> = {
     clIntro: "Ini format menjawab pertanyaan yang sering diajukan perusahaan Korea (motivasi, latar belakang). Pilih pertanyaan standar atau tulis sendiri.",
     clCompanyLabel: "Perusahaan (opsional)",
     clCompanyPlaceholder: "mis. Aply Inc.",
+    clJobLabel: "Tempel lowongan (opsional)",
+    clJobPlaceholder: "Tempel tugas & syarat agar sesuai lowongan",
     clAddStandard: "Pertanyaan standar",
     clAddCustom: "Tambah pertanyaan sendiri",
     clStandardPrompts: [

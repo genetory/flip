@@ -15,6 +15,7 @@ import type { ResumeCoverLetterItem } from "../../lib/member-profile-client";
 export type CoverLetterContext = {
   desiredJobRole?: string;
   jobCategories?: string[];
+  jobText?: string; // 목표 공고(JD) 본문 — 있으면 공고 요구에 맞춰 작성
   summary?: string;
   selfIntroduction?: string;
   experiences?: { type?: string; title?: string; org?: string; period?: string; summary?: string; bullets?: string[] }[];

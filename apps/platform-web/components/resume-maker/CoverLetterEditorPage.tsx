@@ -91,6 +91,7 @@ export function CoverLetterEditorPage({ coverLetterId }: { coverLetterId: string
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [company, setCompany] = useState("");
+  const [jobText, setJobText] = useState(""); // 목표 공고(JD) — 세션 상태(생성 시 그라운딩에 사용)
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [items, setItems] = useState<ResumeCoverLetterItem[]>([]);
   const [resumes, setResumes] = useState<{ id: string; title: string }[]>([]);
@@ -247,6 +248,17 @@ export function CoverLetterEditorPage({ coverLetterId }: { coverLetterId: string
                     <label className="block text-[12px] font-medium text-foreground/80">{t.clCompanyLabel}</label>
                     <input className={`${inputCls} mt-1`} placeholder={t.clCompanyPlaceholder} value={company} onChange={(e) => commitCompany(e.target.value)} />
                   </div>
+                  {/* 지원 공고(JD) 붙여넣기 — 있으면 자소서를 공고 요구에 맞춰 작성 */}
+                  <div>
+                    <label className="block text-[12px] font-medium text-foreground/80">{t.clJobLabel}</label>
+                    <textarea
+                      className={`${inputCls} mt-1 min-h-[84px] resize-y leading-relaxed`}
+                      placeholder={t.clJobPlaceholder}
+                      value={jobText}
+                      maxLength={4000}
+                      onChange={(e) => setJobText(e.target.value)}
+                    />
+                  </div>
                   {/* 연결 이력서 */}
                   <div>
                     <label className="block text-[12px] font-medium text-foreground/80">{c.linkResumeLabel}</label>
@@ -279,7 +291,7 @@ export function CoverLetterEditorPage({ coverLetterId }: { coverLetterId: string
                   onChange={(patch) => updateItem(activeItem.id, patch)}
                   onRemove={() => removeItem(activeItem.id)}
                   company={company}
-                  resumeContext={resumeContext}
+                  resumeContext={{ ...resumeContext, jobText: jobText.trim() || undefined }}
                   promptEditable={!activeIsStandard}
                   removable={!activeIsStandard}
                 />
