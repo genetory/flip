@@ -3,6 +3,8 @@
 import {
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
+  COVER_TEXT_SCHEMA,
+  POLISH_TEXT_SCHEMA,
   type CoverLetterInput,
   type PolishExperienceInput
 } from "../llm/prompts";
@@ -15,6 +17,9 @@ export type FeatureSpec = {
   model: () => string;
   temperature: number;
   buildMessages: (input: Record<string, unknown>) => { system: string; user: string };
+  // 프로덕션과 동일한 구조화 출력 스키마.
+  schema: Record<string, unknown>;
+  schemaName: string;
   // 모델 JSON 응답에서 최종 텍스트 추출.
   extract: (json: Record<string, unknown>) => string;
 };
@@ -28,6 +33,8 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
     model: genModel,
     temperature: 0.6,
     buildMessages: (input) => buildCoverLetterMessages(input as CoverLetterInput),
+    schema: COVER_TEXT_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: "cover_letter",
     extract: (json) => (typeof json.text === "string" ? json.text : "")
   },
   polish_experience: {
@@ -36,6 +43,8 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
     model: genModel,
     temperature: 0.5,
     buildMessages: (input) => buildPolishExperienceMessages(input as PolishExperienceInput),
+    schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
+    schemaName: "polish_experience",
     extract: (json) => (typeof json.polished === "string" ? json.polished : "")
   }
 };

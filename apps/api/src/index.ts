@@ -80,8 +80,11 @@ import {
   POLISH_STYLE_GUIDE,
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
-  stripCliches
+  stripCliches,
+  COVER_TEXT_SCHEMA,
+  POLISH_TEXT_SCHEMA
 } from "./llm/prompts";
+import { generateJson } from "./llm/generate";
 import {
   getPositionTranslation,
   getPositionTranslationsCachedOnly,
@@ -26043,20 +26046,18 @@ app.post(
     if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
+      // 구조화 출력(json_schema) 우선 + json_object 폴백 → 파싱 실패 무음 502 제거.
       const { system: systemPrompt, user: ctx } = buildCoverLetterMessages(parsed.data);
-      const completion = await openai.chat.completions.create({
+      const { data } = await generateJson<{ text?: unknown }>({
+        openai,
         model: openaiTranslationModel,
         temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: ctx }
-        ]
+        system: systemPrompt,
+        user: ctx,
+        schema: COVER_TEXT_SCHEMA,
+        schemaName: "cover_letter"
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let parsedJson: { text?: unknown } = {};
-      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const text = typeof parsedJson.text === "string" ? stripCliches(parsedJson.text.trim()).slice(0, 6000) : "";
+      const text = typeof data?.text === "string" ? stripCliches(data.text.trim()).slice(0, 6000) : "";
       if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, text });
     } catch (err) {
@@ -26087,19 +26088,16 @@ app.post(
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       const { system: systemPrompt, user: userPrompt } = buildPolishExperienceMessages(parsed.data);
-      const completion = await openai.chat.completions.create({
+      const { data } = await generateJson<{ polished?: unknown }>({
+        openai,
         model: openaiTranslationModel,
         temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
+        system: systemPrompt,
+        user: userPrompt,
+        schema: POLISH_TEXT_SCHEMA,
+        schemaName: "polish_experience"
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let parsedJson: { polished?: unknown } = {};
-      try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
-      const polished = typeof parsedJson.polished === "string" ? stripCliches(parsedJson.polished.trim()).slice(0, 2000) : "";
+      const polished = typeof data?.polished === "string" ? stripCliches(data.polished.trim()).slice(0, 2000) : "";
       if (!polished) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, polished });
     } catch (err) {

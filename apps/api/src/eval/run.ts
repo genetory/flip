@@ -19,6 +19,7 @@ import path from "path";
 import OpenAI from "openai";
 import { FEATURES } from "./features";
 import { stripCliches } from "../llm/prompts";
+import { generateJson } from "../llm/generate";
 import { runChecks, checkScore } from "./checks";
 import { judgeCase } from "./judge";
 import { GOLDEN } from "./golden";
@@ -97,24 +98,20 @@ async function live(): Promise<void> {
     let output = "";
     let error: string | undefined;
     try {
-      const completion = await openai.chat.completions.create({
+      // 프로덕션과 동일한 구조화 생성 경로(json_schema + 폴백).
+      const { data, via, error: genErr } = await generateJson<Record<string, unknown>>({
+        openai,
         model: spec.model(),
         temperature: spec.temperature,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user }
-        ]
+        system,
+        user,
+        schema: spec.schema,
+        schemaName: spec.schemaName
       });
-      const rawText = completion.choices?.[0]?.message?.content ?? "{}";
-      let json: Record<string, unknown> = {};
-      try {
-        json = JSON.parse(rawText);
-      } catch {
-        error = "invalid_json";
-      }
+      if (genErr) error = genErr;
+      if (via === "chat") console.log(`      · ${c.id}: 구조화(responses) 실패 → chat 폴백`);
       // 프로덕션 파이프라인과 동일하게 상투어 정리를 적용해 '실제 출력'을 평가한다.
-      output = stripCliches(spec.extract(json).trim());
+      output = stripCliches(spec.extract(data ?? {}).trim());
       if (!output && !error) error = "empty_output";
     } catch (e) {
       error = (e as Error).message?.slice(0, 200) ?? "call_failed";

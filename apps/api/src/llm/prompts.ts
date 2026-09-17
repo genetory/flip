@@ -80,6 +80,20 @@ export type CoverLetterInput = {
 
 export type LlmMessages = { system: string; user: string };
 
+// 구조화 출력 스키마(Responses API json_schema 용).
+export const COVER_TEXT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: { text: { type: "string" } },
+  required: ["text"]
+} as const;
+export const POLISH_TEXT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: { polished: { type: "string" } },
+  required: ["polished"]
+} as const;
+
 export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
   const {
     mode, style, prompt, current, keywords, targetChars, desiredJobRole, jobCategories,
@@ -116,7 +130,7 @@ export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
       ? "[목표 공고 반영 — 중요] 이 답변은 아래 '지원자 정보' 끝의 [목표 공고]에 지원하기 위한 것입니다. 공고가 요구하는 역량·업무·인재상을 파악해, 지원자의 실제 경험·스킬을 그 요구에 자연스럽게 연결하고 '왜 이 회사·직무에 적합한지'가 구체적으로 드러나게 쓰세요. 단, 공고 문구를 그대로 베끼지 말고, 지원자가 갖추지 않은 역량을 갖춘 척하거나 없는 경험을 지어내지 마세요(가진 것 안에서 공고와의 접점을 부각).\n"
       : "") +
     "규칙:\n" +
-    "1. 제공된 이력서 정보와 아래 '지원자 제공 소재'에 없는 사실(회사·수치·성과·기간·일화)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다.\n" +
+    "1. 제공된 이력서 정보와 아래 '지원자 제공 소재'에 없는 사실(회사·수치·성과·기간·일화)을 지어내지 마세요. 주어진 내용 안에서만 작성합니다. 특히 퍼센트·인원·금액·횟수 같은 구체 수치는 입력에 명시된 값만 쓰고, 그럴듯해 보이는 추정치·예시 수치(예: '30% 향상')도 절대 만들어내지 마세요. 수치가 없으면 수치 없이 서술합니다.\n" +
     "2. 한국 자소서 문체 — 1인칭(저는), 정중한 '~습니다'체, 두괄식. 경험은 STAR(상황-과제-행동-결과) 흐름으로 구체적으로.\n" +
     (isPolish
       ? "3. 위 다듬기 방향에 맞게 분량을 조절하세요. 불릿/번호/머리말 없이 줄글로 작성합니다.\n"
