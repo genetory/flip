@@ -38,6 +38,17 @@ type RecentSignup = {
   authProvider: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
 };
 
+type CommunityPost = {
+  id: string;
+  category?: string;
+  author?: string;
+  title?: string;
+  body?: string;
+  createdAt: string;
+  likes?: number;
+  comments?: number;
+};
+
 const OPS_ACTIVITY_COLOR: Record<string, string> = {
   USER_SIGNUP: "var(--accent-ink)",
   POSITION_NEW: "var(--accent-ink)",
@@ -196,6 +207,7 @@ export default function OpsDashboardHome() {
   const [matching, setMatching] = useState<MatchingStats | null>(null);
   const [recent, setRecent] = useState<RecentSignup[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [staleUnverified, setStaleUnverified] = useState<StaleUnverified | null>(null);
   const [wiping, setWiping] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -207,7 +219,7 @@ export default function OpsDashboardHome() {
       try {
         const token = readAccessToken();
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-        const [dashResp, matchResp, activityResp, staleResp] = await Promise.all([
+        const [dashResp, matchResp, activityResp, staleResp, communityResp] = await Promise.all([
           fetch(`${apiBaseUrl}/ops/dashboard`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             cache: "no-store"
@@ -221,6 +233,10 @@ export default function OpsDashboardHome() {
             cache: "no-store"
           }),
           fetch(`${apiBaseUrl}/ops/stale-unverified`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            cache: "no-store"
+          }),
+          fetch(`${apiBaseUrl}/community/posts?sortBy=latest&limit=8`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             cache: "no-store"
           })
@@ -238,6 +254,10 @@ export default function OpsDashboardHome() {
         if (activityResp.ok) {
           const actPayload = (await activityResp.json()) as { items?: ActivityItem[] };
           if (!ignore) setActivity(actPayload.items ?? []);
+        }
+        if (communityResp.ok) {
+          const cPayload = (await communityResp.json()) as { ok?: boolean; items?: CommunityPost[] };
+          if (!ignore && Array.isArray(cPayload.items)) setPosts(cPayload.items);
         }
         if (staleResp.ok) {
           const stalePayload = (await staleResp.json()) as { ok?: boolean } & StaleUnverified;
@@ -492,6 +512,35 @@ export default function OpsDashboardHome() {
                     <span className="ops-activity-time">{formatRelativeTime(it.occurredAt)}</span>
                   </Link>
                 ))}
+              </div>
+            )}
+          </article>
+
+          {/* 커뮤니티 최근 글 */}
+          <article className="ops-partner-list-card">
+            <div className="ops-partner-list-top">
+              <h2>커뮤니티 최근 글</h2>
+              <Link href="/talent/community" className="ops-detail-button">
+                전체 보기
+              </Link>
+            </div>
+            {posts.length === 0 ? (
+              <p className="ops-card-subtle" style={{ marginTop: 12 }}>아직 커뮤니티 글이 없습니다.</p>
+            ) : (
+              <div className="ops-activity-feed" style={{ marginTop: 12 }}>
+                {posts.map((p) => {
+                  const text = (p.title?.trim() || p.body?.trim() || "").replace(/\s+/g, " ").slice(0, 60);
+                  return (
+                    <Link key={p.id} href="/talent/community" className="ops-activity-item">
+                      <span className="ops-activity-dot" style={{ background: "var(--accent)" }} aria-hidden />
+                      <div className="ops-activity-text">
+                        <p className="ops-activity-title">{text || "(내용 없음)"}</p>
+                        <p className="ops-activity-sub">{p.author || "익명"} · ♥ {p.likes ?? 0} · 💬 {p.comments ?? 0}</p>
+                      </div>
+                      <span className="ops-activity-time">{formatRelativeTime(p.createdAt)}</span>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </article>
