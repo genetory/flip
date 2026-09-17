@@ -92,15 +92,23 @@ export function runChecks(c: GoldenCase, output: string): CheckResult[] {
       });
     }
 
-    // 반드시 반영할 소재(keywords) 전부 포함.
+    // 반드시 반영할 소재(keywords) 전부 반영.
+    // 모델이 자연스럽게 바꿔 쓰므로(예: "교내 홍보 동아리 2년 활동" → "교내 홍보 동아리에서 2년간 활동"),
+    // 정확한 문자열이 아니라 소재의 핵심 토큰이 충분히(≥60%) 등장했는지로 판정한다.
     const kws = Array.isArray(input.keywords) ? (input.keywords as string[]) : [];
     if (kws.length) {
-      const missing = kws.filter((k) => k.trim() && !output.includes(k.trim()));
+      const wovenRatio = (k: string): number => {
+        const toks = k.split(/[\s·,]+/).map((t) => t.trim()).filter((t) => t.length >= 1);
+        if (!toks.length) return 1;
+        const hit = toks.filter((t) => output.includes(t)).length;
+        return hit / toks.length;
+      };
+      const missing = kws.filter((k) => k.trim() && wovenRatio(k) < 0.6);
       checks.push({
         name: "keywords_woven",
         pass: missing.length === 0,
         weight: 3,
-        detail: missing.length ? `누락 소재: ${missing.join(", ")}` : undefined
+        detail: missing.length ? `미반영 소재: ${missing.join(", ")}` : undefined
       });
     }
   }
