@@ -78,9 +78,19 @@ export function UniversityMajorJobs({ accent, src, jobsHref }: { accent: string;
 
       {/* 결과 */}
       {loading ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[0, 1].map((i) => (
-            <div key={i} className="h-[76px] animate-pulse rounded-2xl border border-[#EEF1F5] bg-white" />
+        // 로딩 스켈레톤 — 실제 공고 카드(4개) 레이아웃과 동일한 그리드.
+        <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-hidden>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white px-4 py-4">
+              <span className="min-w-0 flex-1">
+                <span className="block h-[15px] w-[72%] animate-pulse rounded-md bg-[#EAEDF1]" />
+                <span className="mt-2 flex items-center gap-2">
+                  <span className="h-[11px] w-[84px] animate-pulse rounded bg-[#F1F3F6]" />
+                  <span className="h-[11px] w-[60px] animate-pulse rounded bg-[#F1F3F6]" />
+                </span>
+              </span>
+              <span className="h-4 w-4 shrink-0 animate-pulse rounded bg-[#EAEDF1]" />
+            </div>
           ))}
         </div>
       ) : jobs.length > 0 ? (
