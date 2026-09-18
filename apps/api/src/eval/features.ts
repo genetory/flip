@@ -29,13 +29,18 @@ export type FeatureSpec = {
   extract: (json: Record<string, unknown>) => string;
 };
 
-const genModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+// 기능별 생성 모델(비용/품질 티어링). 우선순위:
+//   EVAL_GENERATOR_MODEL(전역 강제, A/B용) > 기능별 env > 기본값(gpt-4o-mini = 프로덕션 현행)
+// 예) 바이오프: COVER_LETTER_MODEL=claude-sonnet-* RESUME_TEXT_MODEL=claude-haiku-*
+const DEFAULT_GEN = () => process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+const coverModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.COVER_LETTER_MODEL ?? DEFAULT_GEN();
+const resumeTextModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.RESUME_TEXT_MODEL ?? DEFAULT_GEN();
 
 export const FEATURES: Record<FeatureId, FeatureSpec> = {
   cover_letter: {
     id: "cover_letter",
     label: "자기소개서 문항 답변 생성",
-    model: genModel,
+    model: coverModel,
     temperature: 0.6,
     buildMessages: (input) => buildCoverLetterMessages(input as CoverLetterInput),
     schema: COVER_TEXT_SCHEMA as unknown as Record<string, unknown>,
@@ -45,7 +50,7 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
   polish_experience: {
     id: "polish_experience",
     label: "이력서 경험 설명 다듬기",
-    model: genModel,
+    model: resumeTextModel,
     temperature: 0.5,
     buildMessages: (input) => buildPolishExperienceMessages(input as PolishExperienceInput),
     schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
@@ -55,7 +60,7 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
   polish_intro: {
     id: "polish_intro",
     label: "이력서 자기소개 다듬기",
-    model: genModel,
+    model: resumeTextModel,
     temperature: 0.5,
     buildMessages: (input) => buildPolishIntroMessages(input as PolishIntroInput),
     schema: POLISH_TEXT_SCHEMA as unknown as Record<string, unknown>,
@@ -65,7 +70,7 @@ export const FEATURES: Record<FeatureId, FeatureSpec> = {
   draft_resume_text: {
     id: "draft_resume_text",
     label: "이력서 텍스트 생성/개선(자기소개·경험·활동)",
-    model: genModel,
+    model: resumeTextModel,
     temperature: 0.5,
     buildMessages: (input) => buildDraftResumeTextMessages(input as DraftResumeTextInput),
     schema: DRAFT_TEXT_SCHEMA as unknown as Record<string, unknown>,
