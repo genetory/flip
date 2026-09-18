@@ -13,7 +13,7 @@ import { usePlatformT } from "../../../lib/i18n";
 
 // allowWithoutDocs: 공고 기반 모의면접처럼 이력서·자기소개서가 없어도 진행 가능한 경우.
 // true면 강제하지 않고 '유무 차이'만 안내하며 시작 버튼을 항상 열어둔다.
-export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false }: { onClose: () => void; onConfirm: () => void; allowWithoutDocs?: boolean }) {
+export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false, dailyLimitReached = false, dailyLimit = 3 }: { onClose: () => void; onConfirm: () => void; allowWithoutDocs?: boolean; dailyLimitReached?: boolean; dailyLimit?: number }) {
   const t = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
@@ -29,6 +29,8 @@ export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false }: 
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
   const ready = rp >= 100 && cp >= 100;
+  // 일일 회사 제한에 도달하면 서류와 무관하게 시작을 막는다(오늘 새 회사).
+  const blockedByLimit = dailyLimitReached;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
@@ -48,7 +50,18 @@ export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false }: 
           <DocStatus label={t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Surat lamaran")} pct={cp} href={talentAppRoutes.cover} />
         </div>
 
-        {allowWithoutDocs ? (
+        {blockedByLimit ? (
+          <p className="mx-7 mt-4 rounded-xl bg-[#FDECEE] px-3.5 py-2.5 text-[12.5px] font-semibold leading-relaxed text-[#F04452]">
+            {t(
+              `오늘은 회사 모의 면접을 ${dailyLimit}개 회사까지 이용했어요. 내일 다시 이어가 주세요! (커리어런치 모의 면접은 제한 없이 이용할 수 있어요)`,
+              `You've used mock interviews for ${dailyLimit} companies today. Please continue tomorrow! (Career Launch mock interviews have no limit.)`,
+              `今天已使用${dailyLimit}家公司的模拟面试，请明天继续！（Career Launch 模拟面试不限次数）`,
+              `Hôm nay bạn đã dùng phỏng vấn thử cho ${dailyLimit} công ty. Hãy tiếp tục vào ngày mai! (Phỏng vấn thử Career Launch không giới hạn)`,
+              `本日は${dailyLimit}社まで模擬面接を利用しました。明日また続けてください！（Career Launchの模擬面接は制限なし）`,
+              `Kamu sudah memakai wawancara simulasi untuk ${dailyLimit} perusahaan hari ini. Lanjutkan besok ya! (Wawancara Career Launch tanpa batas)`
+            )}
+          </p>
+        ) : allowWithoutDocs ? (
           <p className="mx-7 mt-4 rounded-xl bg-[#F5F8FF] px-3.5 py-2.5 text-[12.5px] leading-relaxed text-[#4E5968]">
             {ready
               ? t("이력서·자기소개서를 바탕으로 내 경험에 맞춘 질문이 나와요.", "Questions are tailored to your experience from your resume and cover letter.", "将根据你的简历与自我介绍，生成贴合你经历的问题。", "Câu hỏi được cá nhân hóa theo CV và thư xin việc của bạn.", "履歴書・自己PRを基に、あなたの経験に合わせた質問が出ます。", "Pertanyaan disesuaikan dengan pengalamanmu dari resume dan surat lamaran.")
@@ -64,7 +77,7 @@ export function MockGateModal({ onClose, onConfirm, allowWithoutDocs = false }: 
           <button
             type="button"
             onClick={onConfirm}
-            disabled={!allowWithoutDocs && !ready}
+            disabled={blockedByLimit || (!allowWithoutDocs && !ready)}
             className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t("모의 면접 시작하기", "Start mock interview", "开始模拟面试", "Bắt đầu phỏng vấn thử", "模擬面接を始める", "Mulai wawancara simulasi")}

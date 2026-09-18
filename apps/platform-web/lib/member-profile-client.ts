@@ -1744,6 +1744,23 @@ export async function getMyMockInterviews(): Promise<MockInterviewRecord[]> {
   return (result.items ?? []) as MockInterviewRecord[];
 }
 
+// 탤런트 모의 면접 일일 회사 사용량 — 게이트에서 '오늘 새 회사 시작 가능한지' 판단용.
+// 회사에 답하면 그 회사 1개 사용(하루 최대 dailyCompanyLimit). 커리어런치 모의 면접은 제한 없음.
+export type MockInterviewUsage = { companiesUsedToday: number; dailyCompanyLimit: number; practicedTodayPositionIds: string[] };
+export async function getMyMockInterviewUsage(): Promise<MockInterviewUsage> {
+  const result = await authedJsonFetch<MockInterviewRecord>("/members/me/mock-interviews", { method: "GET" });
+  const r = result as unknown as { items?: MockInterviewRecord[]; companiesUsedToday?: number; dailyCompanyLimit?: number };
+  const items = r.items ?? [];
+  const KST = 9 * 3600 * 1000;
+  const dayKey = (iso: string) => Math.floor((new Date(iso).getTime() + KST) / 864e5);
+  const todayKey = Math.floor((Date.now() + KST) / 864e5);
+  return {
+    companiesUsedToday: r.companiesUsedToday ?? 0,
+    dailyCompanyLimit: r.dailyCompanyLimit ?? 3,
+    practicedTodayPositionIds: items.filter((i) => dayKey(i.lastPracticedAt) === todayKey).map((i) => i.positionId)
+  };
+}
+
 export async function getMyPartnerApplicants() {
   const result = await authedJsonFetch<PartnerApplicantListItem>("/partner/applicants", {
     method: "GET"

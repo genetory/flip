@@ -34,6 +34,7 @@ import {
   addMyFavoritePosition,
   removeMyFavoritePosition,
   applyMyPosition,
+  getMyMockInterviewUsage,
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
@@ -70,6 +71,25 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
   const [cipOpen, setCipOpen] = useState(false);
   const [mockOpen, setMockOpen] = useState(false);
   const [mockGateOpen, setMockGateOpen] = useState(false);
+  // 일일 회사 모의 면접 제한 — 게이트 열 때 오늘 사용량을 확인해 '새 회사 시작 가능' 여부를 계산.
+  const [mockLimit, setMockLimit] = useState<{ reached: boolean; limit: number }>({ reached: false, limit: 3 });
+
+  useEffect(() => {
+    if (!mockGateOpen || !item) return;
+    let alive = true;
+    getMyMockInterviewUsage()
+      .then((u) => {
+        if (!alive) return;
+        const alreadyToday = u.practicedTodayPositionIds.includes(item.id);
+        setMockLimit({ reached: u.companiesUsedToday >= u.dailyCompanyLimit && !alreadyToday, limit: u.dailyCompanyLimit });
+      })
+      .catch(() => {
+        if (alive) setMockLimit({ reached: false, limit: 3 });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [mockGateOpen, item]);
 
   function load() {
     setStatus("loading");
@@ -227,6 +247,8 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
       {mockGateOpen ? (
         <MockGateModal
           allowWithoutDocs
+          dailyLimitReached={mockLimit.reached}
+          dailyLimit={mockLimit.limit}
           onClose={() => setMockGateOpen(false)}
           onConfirm={() => {
             setMockGateOpen(false);

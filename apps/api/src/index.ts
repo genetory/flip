@@ -25652,6 +25652,20 @@ const mockPracticeSchema = z.object({
   answer: z.string().trim().max(4000).optional(),
   score: z.number().int().min(0).max(100).optional()
 });
+
+// 탤런트 모의 면접 일일 회사 제한 — 한 회사(공고)의 질문에 '한 번이라도 답하면' 그 회사 1개 사용으로 카운트.
+// 하루(KST) 최대 3개 회사까지. 이미 오늘 답한 회사는 재카운트하지 않음(계속 이어갈 수 있음).
+// 커리어런치 모의 면접은 별도 엔드포인트(/career-launch/interview/...)라 이 제한과 무관(무제한).
+const MOCK_INTERVIEW_DAILY_COMPANY_LIMIT = Number(process.env.MOCK_INTERVIEW_DAILY_LIMIT ?? 3) || 3;
+// 오늘(KST) 자정에 해당하는 UTC 시각.
+const mockDayStartKst = (): Date => {
+  const KST = 9 * 3600 * 1000;
+  return new Date(Math.floor((Date.now() + KST) / 864e5) * 864e5 - KST);
+};
+// 오늘 이 유저가 '답한' 서로 다른 회사 수(= 오늘 lastPracticedAt 인 세션 수).
+async function countMockCompaniesUsedToday(userId: string): Promise<number> {
+  return prisma.mockInterviewSession.count({ where: { userId, lastPracticedAt: { gte: mockDayStartKst() } } });
+}
 app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
   if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
@@ -25660,6 +25674,22 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
   const { question, answer, score } = parsed.data;
   try {
     const existing = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
+    // 일일 회사 제한 — 실제로 답할 때(question+answer)만, 그리고 '오늘 아직 안 답한 새 회사'일 때만 카운트 검사.
+    if (question && answer) {
+      const alreadyCountedToday = existing ? existing.lastPracticedAt >= mockDayStartKst() : false;
+      if (!alreadyCountedToday) {
+        const usedToday = await countMockCompaniesUsedToday(req.auth!.userId);
+        if (usedToday >= MOCK_INTERVIEW_DAILY_COMPANY_LIMIT) {
+          return res.status(429).json({
+            ok: false,
+            code: "daily_company_limit",
+            limit: MOCK_INTERVIEW_DAILY_COMPANY_LIMIT,
+            usedToday,
+            message: `하루에 최대 ${MOCK_INTERVIEW_DAILY_COMPANY_LIMIT}개 회사까지 모의 면접을 볼 수 있어요. 내일 다시 이어가 주세요! (커리어런치 모의 면접은 제한 없이 이용 가능해요)`
+          });
+        }
+      }
+    }
     const prevAnswers: MockAnswer[] = Array.isArray(existing?.answers) ? (existing!.answers as unknown as MockAnswer[]) : [];
     const answers = [...prevAnswers];
     if (question && answer) {
@@ -25714,8 +25744,13 @@ app.get("/members/me/mock-interviews", authenticate, requireRoles([MemberRole.ST
         ? (await prisma.position.findMany({ where: { id: { in: sessions.map((s) => s.positionId) } }, select: { id: true, title: true, partnerOrganization: { select: { name: true } } } })).map((p) => [p.id, p])
         : []
     );
+    const dayStart = mockDayStartKst();
+    const companiesUsedToday = sessions.filter((s) => s.lastPracticedAt >= dayStart).length;
     return res.json({
       ok: true,
+      // 일일 회사 제한(오늘 답한 회사 수 / 최대). 커리어런치 모의 면접은 제한 없음.
+      dailyCompanyLimit: MOCK_INTERVIEW_DAILY_COMPANY_LIMIT,
+      companiesUsedToday,
       items: sessions.map((s) => {
         const p = posMap.get(s.positionId);
         return {
