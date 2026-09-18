@@ -25191,7 +25191,7 @@ app.post(
         "당신은 한국 기업 채용을 돕는 이력서 컨설턴트입니다. 주어진 채용 공고(JD)와 지원자의 이력서를 비교해, 그 공고에 맞게 이력서를 다듬도록 돕습니다.\n" +
         "자기소개서가 함께 주어지면 지원자의 동기·강점·맥락을 파악하는 참고 자료로만 쓰세요(없으면 무시).\n\n" +
         "규칙:\n" +
-        "1. score: 이 이력서가 이 공고에 얼마나 적합한지 0~100 정수로 평가(요구 역량·경험·키워드 충족도 기준).\n" +
+        "1. score: 이 이력서가 이 공고에 얼마나 적합한지 0~100 정수로 평가(요구 역량·경험·키워드 충족도 기준). 척도: 0~40=핵심 요구를 거의 못 갖춤, 50~69=일부 갖췄으나 근거 부족, 70~84=주요 요구를 근거와 함께 충족, 85~100=요구에 강하게 부합. 이력서에 실제 근거가 있을 때만 고득점을 주고, 같은 입력에는 항상 같은 점수를 주세요.\n" +
         "2. matched: 공고가 요구하는데 이력서에도 드러나는 핵심 역량/키워드(최대 8개, 짧게).\n" +
         "3. missing: 공고가 요구하지만 이력서에 약하거나 빠진 핵심 항목(최대 8개, 짧게).\n" +
         "4. summary: 이 공고에 맞춰 강조한 1~2문장 요약. 이력서에 있는 사실만 사용하고 없는 경력·수치를 지어내지 마세요.\n" +
@@ -25205,18 +25205,37 @@ app.post(
         `${desiredJobRole ? `지원자 희망 직무: ${desiredJobRole}\n\n` : ""}` +
         `[채용 공고]\n${jobText}\n\n[이력서]\n${resumeText}` +
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}`;
-      const completion = await openai.chat.completions.create({
+      // 구조화 출력(json_schema) + 폴백 → 파싱 실패 무음 502 제거.
+      const TAILOR_SCHEMA = {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          score: { type: "integer", minimum: 0, maximum: 100 },
+          matched: { type: "array", items: { type: "string" } },
+          missing: { type: "array", items: { type: "string" } },
+          summary: { type: "string" },
+          suggestions: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: { title: { type: "string" }, text: { type: "string" } },
+              required: ["title", "text"]
+            }
+          }
+        },
+        required: ["score", "matched", "missing", "summary", "suggestions"]
+      };
+      const { data } = await generateJson<{ score?: unknown; matched?: unknown; missing?: unknown; summary?: unknown; suggestions?: unknown }>({
+        openai,
         model: openaiTranslationModel,
         temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
+        system: systemPrompt,
+        user: userPrompt,
+        schema: TAILOR_SCHEMA,
+        schemaName: "tailor_resume"
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { score?: unknown; matched?: unknown; missing?: unknown; summary?: unknown; suggestions?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = data ?? {};
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 80)).slice(0, n) : [];
       // AI가 가끔 붙이는 머리말("…문장을 추가하겠습니다", "예시:", 감싼 따옴표)을 제거한다.
