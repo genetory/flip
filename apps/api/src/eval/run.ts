@@ -37,6 +37,9 @@ const SELFTEST = has("--selftest");
 const NO_JUDGE = has("--no-judge");
 const FEATURE = opt("--feature") as FeatureId | undefined;
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "gpt-4o";
+// 생성 온도(0.6)로 인해 단일 런 점수는 흔들린다. --repeat N 으로 케이스당 N번 생성·평가해
+// 평균을 내면 프롬프트 변경의 신호가 노이즈 위로 올라온다(judge 는 temp 0 이라 출력이 고정되면 재현적).
+const REPEAT = Math.max(1, Number(opt("--repeat") ?? "1") || 1);
 
 function selectCases(): GoldenCase[] {
   return FEATURE ? GOLDEN.filter((c) => c.feature === FEATURE) : GOLDEN;
@@ -94,44 +97,63 @@ async function live(): Promise<void> {
   for (const c of cases) {
     const spec = FEATURES[c.feature];
     const { system, user } = spec.buildMessages(c.input);
-    const started = Date.now();
-    let output = "";
-    let error: string | undefined;
-    try {
-      // 프로덕션과 동일한 구조화 생성 경로(json_schema + 폴백).
-      const { data, via, error: genErr } = await generateJson<Record<string, unknown>>({
-        openai,
-        model: spec.model(),
-        temperature: spec.temperature,
-        system,
-        user,
-        schema: spec.schema,
-        schemaName: spec.schemaName
-      });
-      if (genErr) error = genErr;
-      if (via === "chat") console.log(`      · ${c.id}: 구조화(responses) 실패 → chat 폴백`);
-      // 프로덕션 파이프라인과 동일하게 상투어 정리를 적용해 '실제 출력'을 평가한다.
-      output = stripCliches(spec.extract(data ?? {}).trim());
-      if (!output && !error) error = "empty_output";
-    } catch (e) {
-      error = (e as Error).message?.slice(0, 200) ?? "call_failed";
-    }
-
-    const checks = output ? runChecks(c, output) : [];
-    const cScore = output ? checkScore(checks) : 0;
-    let judge;
-    if (output && !NO_JUDGE) {
+    // --repeat 시 케이스당 N회 생성·평가하고, 대표값으로 '마지막 표본'을 저장하되
+    // 콘솔엔 평균을 함께 찍는다(노이즈 위 신호용).
+    const overalls: number[] = [];
+    const cScores: number[] = [];
+    let last!: CaseResult;
+    for (let rep = 0; rep < REPEAT; rep++) {
+      const started = Date.now();
+      let output = "";
+      let error: string | undefined;
       try {
-        judge = await judgeCase(openai, c, output, JUDGE_MODEL);
+        // 프로덕션과 동일한 구조화 생성 경로(json_schema + 폴백).
+        const { data, via, error: genErr } = await generateJson<Record<string, unknown>>({
+          openai,
+          model: spec.model(),
+          temperature: spec.temperature,
+          system,
+          user,
+          schema: spec.schema,
+          schemaName: spec.schemaName
+        });
+        if (genErr) error = genErr;
+        if (via === "chat") console.log(`      · ${c.id}: 구조화(responses) 실패 → chat 폴백`);
+        // 프로덕션 파이프라인과 동일하게 상투어 정리를 적용해 '실제 출력'을 평가한다.
+        output = stripCliches(spec.extract(data ?? {}).trim());
+        if (!output && !error) error = "empty_output";
       } catch (e) {
-        error = (error ? error + "; " : "") + "judge_failed:" + ((e as Error).message?.slice(0, 80) ?? "");
+        error = (e as Error).message?.slice(0, 200) ?? "call_failed";
+      }
+
+      const checks = output ? runChecks(c, output) : [];
+      const cScore = output ? checkScore(checks) : 0;
+      let judge;
+      if (output && !NO_JUDGE) {
+        try {
+          judge = await judgeCase(openai, c, output, JUDGE_MODEL);
+        } catch (e) {
+          error = (error ? error + "; " : "") + "judge_failed:" + ((e as Error).message?.slice(0, 80) ?? "");
+        }
+      }
+      last = { id: c.id, feature: c.feature, output, error, checks, checkScore: cScore, judge, ms: Date.now() - started };
+      cScores.push(cScore);
+      if (judge) overalls.push(judge.overall);
+      if (REPEAT > 1) {
+        const j = judge ? ` judge=${judge.overall}/5` : "";
+        console.log(`  [${c.id}] #${rep + 1} check=${(cScore * 100).toFixed(0)}%${j}${error ? ` ⚠ ${error}` : ""}`);
       }
     }
-    const r: CaseResult = { id: c.id, feature: c.feature, output, error, checks, checkScore: cScore, judge, ms: Date.now() - started };
-    results.push(r);
-    const j = judge ? ` judge=${judge.overall}/5` : "";
-    console.log(`  [${c.id}] check=${(cScore * 100).toFixed(0)}%${j}${error ? ` ⚠ ${error}` : ""} (${r.ms}ms)`);
-    for (const ch of checks) if (!ch.pass) console.log(`      ✗ ${ch.name} ${ch.detail ?? ""}`);
+    results.push(last);
+    const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
+    if (REPEAT > 1) {
+      const jAvg = overalls.length ? ` judge평균=${avg(overalls).toFixed(2)}/5 (${overalls.join(",")})` : "";
+      console.log(`  ▸ [${c.id}] check평균=${(avg(cScores) * 100).toFixed(0)}%${jAvg}`);
+    } else {
+      const j = last.judge ? ` judge=${last.judge.overall}/5` : "";
+      console.log(`  [${c.id}] check=${(last.checkScore * 100).toFixed(0)}%${j}${last.error ? ` ⚠ ${last.error}` : ""} (${last.ms}ms)`);
+      for (const ch of last.checks) if (!ch.pass) console.log(`      ✗ ${ch.name} ${ch.detail ?? ""}`);
+    }
   }
 
   const report = summarize(results, generatorModel);
