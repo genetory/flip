@@ -20,6 +20,7 @@ export type AnthropicJsonResult<T> = {
   raw: string;
   via: "anthropic" | "none";
   error?: string;
+  usage?: { inputTokens: number; outputTokens: number };
 };
 
 let cached: Anthropic | null = null;
@@ -61,21 +62,25 @@ export async function generateJsonAnthropic<T = Record<string, unknown>>(
       ],
       tool_choice: { type: "tool", name: schemaName }
     });
+    const usage = {
+      inputTokens: resp.usage?.input_tokens ?? 0,
+      outputTokens: resp.usage?.output_tokens ?? 0
+    };
     const block = resp.content.find((b) => b.type === "tool_use");
     if (block && block.type === "tool_use") {
       const data = (block.input ?? null) as T | null;
-      return { data, raw: JSON.stringify(block.input ?? {}), via: "anthropic" };
+      return { data, raw: JSON.stringify(block.input ?? {}), via: "anthropic", usage };
     }
     // 도구를 안 쓰고 텍스트로 답한 경우(드묾) — 텍스트에서 JSON 파싱 시도.
     const textBlock = resp.content.find((b) => b.type === "text");
     const raw = textBlock && textBlock.type === "text" ? textBlock.text : "";
     try {
       const parsed = JSON.parse(raw) as T;
-      if (parsed && typeof parsed === "object") return { data: parsed, raw, via: "anthropic" };
+      if (parsed && typeof parsed === "object") return { data: parsed, raw, via: "anthropic", usage };
     } catch {
       /* fallthrough */
     }
-    return { data: null, raw, via: "anthropic", error: "no_tool_use" };
+    return { data: null, raw, via: "anthropic", error: "no_tool_use", usage };
   } catch (e) {
     return { data: null, raw: "", via: "none", error: (e as Error).message?.slice(0, 200) ?? "call_failed" };
   }
