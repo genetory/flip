@@ -32,6 +32,15 @@ export const POLISH_STYLE_GUIDE: Record<string, string> = {
 
 export type PolishStyle = "natural" | "concise" | "professional" | "impact" | "expand" | "achievement";
 
+// 이력서 텍스트(자기소개·경험·활동 등) 공통 품질 가이드 — 자소서에서 검증한 원칙을 재사용.
+// polish-intro / polish-experience / draft-resume-text 가 공유해 상투어·추상성·영어 혼입을 줄인다.
+export const RESUME_QUALITY_GUIDE =
+  "\n[품질 — 반드시 지킬 것]\n" +
+  "· show, don't tell: '성실합니다/책임감 있습니다/최선을 다합니다/열정을 가지고/원활하게 협력' 같은 추상적 선언으로 채우지 말고, 그 성격이 드러난 구체적 행동·사실로 보여주세요(형용사가 아니라 '무엇을 어떻게 했는지').\n" +
+  "· 공허한 상투어 금지: '~에 기여했습니다/기여하고 싶습니다', '서비스 품질을 높이는 데 기여', '고객 만족도를 높였습니다', '성공적으로/성공적인', '다양한', '귀사에서 기여' 처럼 누구에게나 붙는 표현으로 문장을 마무리하지 마세요. 그 자리에 입력에 있는 구체적 사실(무엇을, 어떻게)을 넣습니다.\n" +
+  "· 근거가 없으면 담백하게: 입력에 구체적 사실이 부족하면 억지로 미사여구로 부풀리지 말고 있는 사실만 짧고 정확하게 적으세요. 빈약한 입력을 상투어로 채우는 것이 가장 나쁜 답입니다(없는 수치·성과·경험은 지어내지 않음).\n" +
+  "· 한국어만: 영어 단어를 섞지 마세요(예: 'problem-solving' → '문제 해결'). 단, 고유명사·기술/스킬 용어(Python, Excel 등)는 그대로 둡니다.\n";
+
 // 생성 결과에서 상투적 과장 수식어를 결정적으로 제거(프롬프트로도 지양시키지만 모델이 종종 흘림).
 // 전(前)-명사/부사 수식어만 제거해 문법을 해치지 않게 한다. API 핸들러와 eval 이 공용으로 사용.
 export function stripCliches(text: string): string {
@@ -219,6 +228,7 @@ export function buildPolishIntroMessages(input: PolishIntroInput): LlmMessages {
     (keywordList.length
       ? `4. [최우선 — 반드시 지킴] 아래 소재가 하나도 빠짐없이 모두 본문에 등장해야 합니다(빠지면 실패). 단순 나열이 아니라 이야기로 자연스럽게 녹입니다(제공되지 않은 수치·성과는 금지).\n   반드시 반영할 소재(모두 포함): ${keywordList.map((k) => `「${k}」`).join(", ")}\n`
       : "") +
+    RESUME_QUALITY_GUIDE +
     "\n" +
     'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
   const ctxParts = [desiredJobRole ? `희망 직무: ${desiredJobRole}` : "", jobCategories?.length ? `관심 직군: ${jobCategories.join(", ")}` : ""]
@@ -261,7 +271,9 @@ export function buildDraftResumeTextMessages(input: DraftResumeTextInput): LlmMe
     "2. 원문 또는 hints 에 적힌 숫자만 사용하고, 새 숫자를 추가/추정하지 마세요.\n" +
     "3. 의미를 부풀리거나 추측하지 마세요. 과장 상투어('혁신적/탁월한/압도적/독보적')는 쓰지 말고 구체적 사실로 보여주세요. 빈약한 입력은 빈약한 결과로 두는 게 정직합니다.\n" +
     "4. 한국어로 자연스럽고 정중하게 작성하세요.\n" +
-    `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n\n` +
+    `5. ${fieldName} 으로서 적절한 길이로 작성하세요 (자기소개·요약은 200–500자, 경력·활동 설명은 60–200자 권장).\n` +
+    RESUME_QUALITY_GUIDE +
+    "\n" +
     'JSON 한 개의 객체만 응답: { "text": string, "why": string }. why 는 1-2 문장으로 어떤 점을 다듬었는지/생성했는지 한국어로 설명.' +
     aiLangDirective(locale);
   const parts: string[] = [`요청 모드: ${modeNote}`];
@@ -292,7 +304,9 @@ export function buildPolishExperienceMessages(input: PolishExperienceInput): Llm
     "2. 한 일과 역할이 잘 드러나도록 구체적인 문장으로 정리하세요.\n" +
     "3. 군더더기·중복을 없애고 맞춤법·띄어쓰기를 교정하세요.\n" +
     "4. 한국어, 담백한 진술체로 작성하세요.\n" +
-    "5. 한 일이 여러 가지여도 줄바꿈으로 끊어 나열하지 말고, 자연스러운 연결어로 이어 하나의 매끄럽게 흐르는 단락으로 묶으세요. 주어·시제·맥락을 일관되게 맞추고 같은 내용을 반복하지 마세요.\n\n" +
+    "5. 한 일이 여러 가지여도 줄바꿈으로 끊어 나열하지 말고, 자연스러운 연결어로 이어 하나의 매끄럽게 흐르는 단락으로 묶으세요. 주어·시제·맥락을 일관되게 맞추고 같은 내용을 반복하지 마세요.\n" +
+    RESUME_QUALITY_GUIDE +
+    "\n" +
     'JSON 한 개 객체로만 응답: { "polished": string }' + aiLangDirective(locale);
   const user = `${type ? `경험 유형: ${type}\n` : ""}경험 설명:\n${text}`;
   return { system, user };
