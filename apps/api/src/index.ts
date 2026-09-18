@@ -371,6 +371,11 @@ const openai = process.env.OPENAI_API_KEY
   : null;
 const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
 const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+// 자소서(플래그십)는 한국어 산문 자연스러움이 가장 좋은 Claude Sonnet 을 쓴다.
+// eval(strict judge, 3x): 자소서 평균 3.17→3.75, 근거성 유지. 짧은 이력서 필드는 이득이 없어 mini 유지.
+// ANTHROPIC_API_KEY 가 없는 환경에서는 안전하게 gpt-4o-mini 로 폴백. env 로 모델 교체 가능.
+const coverLetterModel =
+  process.env.COVER_LETTER_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiTranslationModel);
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
 const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
@@ -26040,7 +26045,7 @@ app.post(
       const { system: systemPrompt, user: ctx } = buildCoverLetterMessages(parsed.data);
       const { data } = await generateJson<{ text?: unknown }>({
         openai,
-        model: openaiTranslationModel,
+        model: coverLetterModel,
         temperature: 0.6,
         system: systemPrompt,
         user: ctx,

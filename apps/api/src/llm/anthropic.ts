@@ -43,10 +43,11 @@ export async function generateJsonAnthropic<T = Record<string, unknown>>(
   if (!anthropic) return { data: null, raw: "", via: "none", error: "missing_anthropic_key" };
 
   try {
+    // 최신 Claude 모델은 temperature 를 받지 않으므로(“deprecated”) 전달하지 않는다(기본값 사용).
+    void temperature;
     const resp = await anthropic.messages.create({
       model,
       max_tokens: maxTokens ?? 4096,
-      temperature: temperature ?? 0.6,
       // 시스템 프롬프트를 캐시 가능 블록으로 표시 — 반복 호출에서 입력 토큰 재사용분을 대폭 할인.
       // (지시·품질 가이드가 길고 요청 간 대체로 동일. 캐시 미스여도 비용/동작 변화 없음.)
       system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
