@@ -2,6 +2,12 @@
 // 실패하면 chat.completions json_object 로 폴백해 '항상 파싱된 객체'를 돌려준다.
 // 기존 자소서·이력서 생성기의 "JSON.parse 실패 → 조용히 {} → 502" 실패 클래스를 제거한다.
 import type OpenAI from "openai";
+import { generateJsonAnthropic } from "./anthropic";
+
+// model 이 Claude 계열이면 Anthropic 경로를 쓴다(생성기만 벤더 교체, judge 등 나머지는 그대로).
+export function isClaudeModel(model: string): boolean {
+  return /^claude/i.test(model);
+}
 
 export type GenerateJsonArgs = {
   openai: OpenAI;
@@ -18,7 +24,7 @@ export type GenerateJsonArgs = {
 export type GenerateJsonResult<T> = {
   data: T | null;
   raw: string;
-  via: "responses" | "chat" | "none";
+  via: "responses" | "chat" | "anthropic" | "none";
   error?: string;
 };
 
@@ -35,6 +41,12 @@ export async function generateJson<T = Record<string, unknown>>(
   a: GenerateJsonArgs
 ): Promise<GenerateJsonResult<T>> {
   const { openai, model, system, user, schema, schemaName, temperature, strict = true } = a;
+
+  // 0) Claude 계열이면 Anthropic(tool use) 경로로 라우팅.
+  if (isClaudeModel(model)) {
+    const r = await generateJsonAnthropic<T>({ model, system, user, schema, schemaName, temperature });
+    return { data: r.data, raw: r.raw, via: r.via, error: r.error };
+  }
 
   // 1) Responses API + json_schema (스키마 강제).
   try {

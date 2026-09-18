@@ -17,6 +17,7 @@
     "eval": "tsx src/eval/run.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@azure/storage-blob": "^12.29.1",
     "@prisma/client": "^6.6.0",
     "@types/multer": "^2.1.0",
