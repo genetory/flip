@@ -87,7 +87,8 @@ import {
   POLISH_TEXT_SCHEMA,
   DRAFT_TEXT_SCHEMA
 } from "./llm/prompts";
-import { generateJson } from "./llm/generate";
+import { generateJson, isClaudeModel } from "./llm/generate";
+import { generateJsonAnthropic } from "./llm/anthropic";
 import {
   getPositionTranslation,
   getPositionTranslationsCachedOnly,
@@ -376,6 +377,13 @@ const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-m
 // ANTHROPIC_API_KEY 가 없는 환경에서는 안전하게 gpt-4o-mini 로 폴백. env 로 모델 교체 가능.
 const coverLetterModel =
   process.env.COVER_LETTER_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiTranslationModel);
+// 커리어런치 '대화형 코칭'(학생 대면) 모델. eval 상 Claude 가 코칭 스타일(공감·주제유지·쉬운 선택형)을
+// 더 일관되게 지킴(수치는 gpt-4o 와 근소). 라이브 학생 대상이라 명시 플래그로만 전환 —
+// 프로덕션에 ANTHROPIC 키가 이미 있어도 CAREER_COACH_USE_CLAUDE=1 이 없으면 gpt-4o 유지.
+// w2 채점·문서생성 등 비대화형은 이 모델을 쓰지 않는다(gpt-4o 그대로).
+const careerCoachModel =
+  process.env.CAREER_COACH_MODEL ??
+  (process.env.CAREER_COACH_USE_CLAUDE === "1" && process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiMatchingModel);
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
 const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
@@ -16734,6 +16742,16 @@ async function careerChatComplete(
   const run = async (): Promise<Record<string, unknown>> => {
     let retried = 0;
     try {
+      // 대화형 코칭이고 코치 모델이 Claude면 Anthropic 경로. 실패하면 아래 gpt-4o 경로로 그레이스풀 폴백.
+      if (isConversational && isClaudeModel(careerCoachModel)) {
+        const a = await generateJsonAnthropic<Record<string, unknown>>({ model: careerCoachModel, system: sys, user, schema, schemaName, temperature: 0.6 });
+        if (a.data) {
+          void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: careerCoachModel, promptVersion: ctx?.promptVersion, inputTokens: a.usage?.inputTokens ?? 0, outputTokens: a.usage?.outputTokens ?? 0, retried: 0, failed: false });
+          return await afterComplete(a.data);
+        }
+        console.warn("[career-chat] claude 경로 실패, gpt-4o 로 폴백:", a.error);
+        retried = 1;
+      }
       try {
         const response = await openai!.responses.create({
           model: openaiMatchingModel,
