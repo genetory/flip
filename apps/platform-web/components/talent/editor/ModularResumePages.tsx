@@ -192,7 +192,7 @@ function EndZone({ col, index, ix }: { col: number; index: number; ix: EditorInt
           ix.onDrop();
         }}
         className={`absolute inset-x-0 top-3 flex h-9 items-center justify-center rounded-[6px] text-[11px] font-semibold ${
-          ix.dragId ? "border border-dashed border-[#C9CDD2] bg-white text-[#8B95A1]" : "pointer-events-none text-transparent"
+          ix.dragId ? "bg-[#EDF1FD] text-[#0B46E8]" : "pointer-events-none text-transparent"
         }`}
       >
         {t("여기에 놓기", "Drop here", "放在这里", "Thả vào đây", "ここにドロップ", "Letakkan di sini")}

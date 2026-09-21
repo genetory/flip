@@ -69,9 +69,9 @@ export function AiPolish({
   const label = (s: PolishStyle) => choices.find((c) => c.style === s)?.label ?? "";
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-[#E5E8EB] p-3" data-ai-polish>
-      <div className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#0B46E8]">
-        <Sparkle size={14} weight="fill" />
+    <div className="flex flex-col gap-2.5 rounded-2xl bg-[#F5F8FF] p-3" data-ai-polish>
+      <div className="flex items-center gap-1.5 text-[12.5px] font-bold leading-none text-[#0B46E8]">
+        <Sparkle size={14} weight="fill" className="shrink-0" />
         {result ? t("다른 스타일로 다시 다듬기", "Try another style", "换一种风格", "Thử phong cách khác", "別のスタイルで整える", "Coba gaya lain") : title ?? t("AI로 다듬기", "Polish with AI", "用 AI 润色", "Chỉnh bằng AI", "AIで整える", "Poles dengan AI")}
       </div>
       <div className="grid grid-cols-3 gap-1.5">
@@ -83,8 +83,8 @@ export function AiPolish({
             onClick={() => void run(c.style)}
             disabled={!!busy || !source}
             aria-pressed={result?.style === c.style}
-            className={`h-9 rounded-lg border text-[12px] font-semibold disabled:cursor-default disabled:opacity-50 ${
-              result?.style === c.style ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#333D4B] hover:bg-[#F7F8FA]"
+            className={`flex h-9 items-center justify-center rounded-[10px] text-[12.5px] font-semibold leading-none transition disabled:cursor-default disabled:opacity-50 ${
+              result?.style === c.style ? "bg-[#0B46E8] text-white" : "bg-white text-[#333D4B] hover:bg-[#E1E9FC] hover:text-[#0B46E8]"
             }`}
           >
             {busy === c.style ? t("다듬는 중…", "Polishing…", "润色中…", "Đang chỉnh…", "整えています…", "Memoles…") : c.label}
@@ -98,7 +98,7 @@ export function AiPolish({
           <Compare title={t("원래 글", "Original", "原文", "Bản gốc", "元の文", "Asli")} text={result.original} t={t} />
           <Compare title={`${t("다듬은 글", "Polished", "润色后", "Đã chỉnh", "整えた文", "Hasil poles")} · ${label(result.style)}`} text={result.polished} t={t} highlight />
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setResult(null)} className="h-10 rounded-lg border border-[#E5E8EB] bg-white text-[13px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA]">
+            <button type="button" onClick={() => setResult(null)} className="flex h-10 items-center justify-center rounded-[10px] leading-none bg-white text-[13px] font-semibold text-[#4E5968] transition hover:bg-[#E8EBEE]">
               {t("원래 글 유지", "Keep original", "保留原文", "Giữ bản gốc", "元の文のまま", "Pakai asli")}
             </button>
             <button
@@ -108,7 +108,7 @@ export function AiPolish({
                 setResult(null);
                 toast.success(t("다듬은 글로 바꿨어요", "Replaced with polished text", "已替换为润色后的文字", "Đã thay bằng bản đã chỉnh", "整えた文に置き換えました", "Diganti dengan hasil poles"));
               }}
-              className="h-10 rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB]"
+              className="flex h-10 items-center justify-center rounded-[10px] bg-[#0B46E8] leading-none text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
             >
               {t("다듬은 글 쓰기", "Use polished", "使用润色后", "Dùng bản đã chỉnh", "整えた文を使う", "Pakai hasil poles")}
             </button>
@@ -121,7 +121,7 @@ export function AiPolish({
 
 function Compare({ t, title, text, highlight }: { t: PlatformT; title: string; text: string; highlight?: boolean }) {
   return (
-    <section className={`rounded-lg px-3 py-2.5 ${highlight ? "bg-[#EDF1FD]" : "bg-[#F7F8FA]"}`}>
+    <section className={`rounded-xl px-3 py-2.5 ${highlight ? "bg-white" : "bg-white/60"}`}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className={`text-[11.5px] font-bold ${highlight ? "text-[#0B46E8]" : "text-[#6B7684]"}`}>{title}</span>
         <span className="text-[11px] tabular-nums text-[#8B95A1]">{t(`${charCount(text).toLocaleString()}자`, `${charCount(text).toLocaleString()} chars`)}</span>

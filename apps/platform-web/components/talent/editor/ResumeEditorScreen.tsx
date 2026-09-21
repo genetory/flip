@@ -8,7 +8,7 @@
 // '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowsLeftRight, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, ArrowsLeftRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -41,7 +41,7 @@ import {
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
 import { polishExperienceText, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -175,7 +175,6 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   };
 
   const placed = new Set(layout.cols.flat());
-  const hiddenSet = new Set(layout.hidden);
 
   return (
     <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
@@ -191,7 +190,6 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           t={t}
           doc={doc}
           placed={placed}
-          hidden={hiddenSet}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onToggle={(id) => commitLayout(placed.has(id) ? hideModule(layout, id) : placeModule(layout, doc, id))}
@@ -237,15 +235,14 @@ function PrintCopy({ doc, info, layout }: { doc: ResumeDoc; info: BasicInfo; lay
 
 function TemplateSwitch({ t, template, onTemplate }: { t: PlatformT; template: ResumeLayout["template"]; onTemplate: (tpl: ResumeLayout["template"]) => void }) {
   return (
-
-    <div role="group" aria-label={t("템플릿", "Template", "模板", "Mẫu", "テンプレート", "Templat")} className="flex rounded-lg bg-[#F2F4F6] p-[3px]">
+    <div role="group" aria-label={t("템플릿", "Template", "模板", "Mẫu", "テンプレート", "Templat")} className="flex items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
       {(["two", "one"] as const).map((tpl) => (
         <button
           key={tpl}
           type="button"
           onClick={() => onTemplate(tpl)}
           aria-pressed={template === tpl}
-          className={`rounded-md px-3 py-1 text-[12px] font-semibold ${template === tpl ? "bg-white text-[#191F28] shadow-sm" : "text-[#6B7684]"}`}
+          className={`flex h-[30px] items-center rounded-[8px] px-3 text-[13px] font-semibold leading-none transition ${template === tpl ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "text-[#6B7684] hover:text-[#191F28]"}`}
         >
           {tpl === "two" ? t("2단", "2 columns", "双栏", "2 cột", "2段", "2 kolom") : t("1단", "1 column", "单栏", "1 cột", "1段", "1 kolom")}
         </button>
@@ -260,7 +257,6 @@ function ModuleList({
   t,
   doc,
   placed,
-  hidden,
   selectedId,
   onSelect,
   onToggle,
@@ -269,7 +265,6 @@ function ModuleList({
   t: PlatformT;
   doc: ResumeDoc;
   placed: Set<string>;
-  hidden: Set<string>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
@@ -283,13 +278,13 @@ function ModuleList({
   const row = (id: string, label: string) => {
     const on = placed.has(id);
     return (
-      <li key={id} className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 ${selectedId === id ? "bg-[#EDF1FD]" : ""}`}>
+      <li key={id} className={`flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] transition ${selectedId === id ? "bg-[#EDF1FD]" : "hover:bg-[#F7F8FA]"}`}>
         <button
           type="button"
           onClick={() => onToggle(id)}
           aria-pressed={on}
           aria-label={on ? t(`이력서에서 빼기: ${label}`, `Remove from resume: ${label}`) : t(`이력서에 넣기: ${label}`, `Add to resume: ${label}`)}
-          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] ${on ? "bg-[#0B46E8]" : "border-[1.5px] border-[#C4CAD2] bg-white"}`}
+          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] transition ${on ? "bg-[#0B46E8]" : "bg-[#E5E8EB] hover:bg-[#D1D6DB]"}`}
         >
           {on ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -300,7 +295,7 @@ function ModuleList({
         <button
           type="button"
           onClick={() => onSelect(id)}
-          className={`min-w-0 flex-1 truncate text-left text-[13px] ${on ? "font-medium text-[#191F28]" : hidden.has(id) ? "text-[#8B95A1] line-through" : "text-[#8B95A1]"}`}
+          className={`min-w-0 flex-1 truncate text-left text-[13px] ${selectedId === id ? "font-semibold text-[#0B46E8]" : on ? "font-medium text-[#191F28]" : "text-[#B0B8C1]"}`}
         >
           {label}
         </button>
@@ -308,17 +303,17 @@ function ModuleList({
     );
   };
   return (
-    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-5" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
-      <div className="px-2">
-        <p className="text-[15px] font-bold">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-[#6B7684]">
+    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
+      <div className="px-2.5">
+        <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
           {t(
-            "항목 하나하나가 모듈이에요. 체크를 끄면 이력서에서 빠지고(내용은 남아요), 페이지에서 끌어 옮길 수 있어요.",
-            "Each item is a module. Uncheck to leave it out of the resume (the content stays); drag it on the page to move.",
-            "每个条目都是一个模块。取消勾选会从简历中移除（内容保留），可在页面上拖动。",
-            "Mỗi mục là một mô-đun. Bỏ chọn để loại khỏi hồ sơ (nội dung vẫn giữ); kéo trên trang để di chuyển.",
-            "各項目がモジュールです。チェックを外すと履歴書から外れ（内容は残ります）、ページ上でドラッグして移動できます。",
-            "Setiap item adalah modul. Hapus centang untuk mengeluarkan dari resume (isi tetap ada); seret di halaman untuk memindah."
+            "체크한 항목만 이력서에 들어가요. 페이지에서 끌어 순서를 바꿀 수 있어요.",
+            "Only checked items go into the resume. Drag on the page to reorder.",
+            "只有勾选的条目会放入简历。可在页面上拖动调整顺序。",
+            "Chỉ các mục được chọn mới vào hồ sơ. Kéo trên trang để đổi thứ tự.",
+            "チェックした項目だけが履歴書に入ります。ページ上でドラッグして並べ替えできます。",
+            "Hanya item yang dicentang masuk ke resume. Seret di halaman untuk mengurutkan."
           )}
         </p>
       </div>
@@ -327,10 +322,13 @@ function ModuleList({
         const items = doc.items.filter((i) => i.section === section);
         return (
           <div key={section}>
-            <div className="flex items-center justify-between px-2 pb-1">
-              <span className="text-[12px] font-semibold text-[#6B7684]">{sectionLabelOf(t, section)}</span>
-              <button type="button" onClick={() => onAdd(section)} aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)} className="flex h-6 w-6 items-center justify-center rounded-md text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#0B46E8]">
-                <Plus size={13} weight="bold" />
+            <div className="flex items-center justify-between px-2.5 pb-1.5">
+              <span className="text-[12px] font-semibold text-[#8B95A1]">
+                {sectionLabelOf(t, section)}
+                {items.length ? <span className="ml-1.5 font-medium text-[#B0B8C1]">{items.filter((i) => placed.has(i.id)).length}/{items.length}</span> : null}
+              </span>
+              <button type="button" onClick={() => onAdd(section)} aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#EDF1FD] hover:text-[#0B46E8]">
+                <Plus size={14} weight="bold" />
               </button>
             </div>
             {items.length ? (
@@ -364,12 +362,12 @@ function Inspector(props: {
   const colLen = at ? layout.cols[at.col].length : 0;
 
   return (
-    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
       {id ? (
         <>
           <div>
-            <p className="text-[12px] font-semibold text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</p>
-            <p className="mt-1 text-[17px] font-bold">{moduleTitle(t, id, doc, info)}</p>
+            <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</span>
+            <p className="mt-2 text-[18px] font-bold leading-snug tracking-[-0.01em]">{moduleTitle(t, id, doc, info)}</p>
           </div>
 
           <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")}>
@@ -386,11 +384,11 @@ function Inspector(props: {
                 <ToolButton icon={<EyeSlash size={14} weight="bold" />} label={t("이력서에서 빼기", "Remove", "从简历移除", "Bỏ khỏi hồ sơ", "履歴書から外す", "Keluarkan")} onClick={() => id && props.onLayout(hideModule(layout, id))} />
               </div>
             ) : (
-              <button type="button" onClick={() => id && props.onLayout(placeModule(layout, doc, id))} className="h-10 w-full rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB]">
+              <button type="button" onClick={() => id && props.onLayout(placeModule(layout, doc, id))} className="flex h-10 w-full items-center justify-center rounded-[10px] bg-[#0B46E8] text-[13px] font-bold leading-none text-white transition hover:bg-[#0A3ECB]">
                 {t("이력서에 넣기", "Add to resume", "加入简历", "Thêm vào hồ sơ", "履歴書に入れる", "Tambahkan ke resume")}
               </button>
             )}
-            <p className="text-[12px] leading-relaxed text-[#6B7684]">
+            <p className="text-[12px] leading-relaxed text-[#8B95A1]">
               {t("페이지에서 끌어 옮겨도 돼요.", "You can also drag it on the page.", "也可以在页面上拖动。", "Bạn cũng có thể kéo trên trang.", "ページ上でドラッグしても移動できます。", "Bisa juga diseret di halaman.")}
             </p>
           </Section>
@@ -398,14 +396,17 @@ function Inspector(props: {
           <ContentEditor {...props} id={id} item={item} />
 
           {item ? (
-            <button type="button" onClick={() => props.onDelete(item.id)} className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#F04452] hover:underline">
-              <Trash size={14} weight="bold" />
-              {t("항목 삭제", "Delete item", "删除条目", "Xóa mục", "項目を削除", "Hapus item")}
+            <button type="button" onClick={() => props.onDelete(item.id)} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1]">
+              <Trash size={15} weight="bold" className="shrink-0" />
+              <span>{t("항목 삭제", "Delete item", "删除条目", "Xóa mục", "項目を削除", "Hapus item")}</span>
             </button>
           ) : null}
         </>
       ) : (
-        <p className="text-[13px] text-[#6B7684]">{t("페이지나 왼쪽 목록에서 모듈을 골라 주세요.", "Pick a module on the page or in the list.", "请在页面或列表中选择模块。", "Chọn một mô-đun trên trang hoặc danh sách.", "ページかリストからモジュールを選んでください。", "Pilih modul di halaman atau daftar.")}</p>
+        <div className="flex flex-col items-center gap-2 rounded-2xl bg-[#F7F8FA] px-5 py-10 text-center">
+          <CursorClick size={26} weight="duotone" className="text-[#B0B8C1]" />
+          <p className="text-[13px] leading-relaxed text-[#8B95A1]">{t("페이지나 왼쪽 목록에서 모듈을 골라 주세요.", "Pick a module on the page or in the list.", "请在页面或列表中选择模块。", "Chọn một mô-đun trên trang hoặc danh sách.", "ページかリストからモジュールを選んでください。", "Pilih modul di halaman atau daftar.")}</p>
+        </div>
       )}
 
     </aside>
@@ -455,7 +456,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
             <select
               value={item.section}
               onChange={(e) => props.onItem(item.id, { section: e.target.value as CareerSection })}
-              className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+              className={`h-10 ${INPUT_CLS}`}
             >
               {SECTIONS.map((s) => (
                 <option key={s} value={s}>

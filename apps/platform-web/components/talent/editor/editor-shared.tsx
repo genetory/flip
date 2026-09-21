@@ -3,7 +3,7 @@
 // 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, FloppyDisk, LockSimple, Trash } from "@phosphor-icons/react";
+import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
 import {
@@ -19,6 +19,15 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
 type Patch<L> = { name?: string; layout?: L };
 
 const SAVE_DELAY = 600;
+
+// 에디터 공통 모양 — 버튼·칩·입력칸은 테두리 없이 채움 색으로 구분한다.
+/** 입력칸: 옅은 회색 채움, 포커스 땐 흰 바탕 + 파란 링. */
+export const INPUT_CLS =
+  "rounded-[10px] bg-[#F2F4F6] px-3 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:bg-white focus:shadow-[0_0_0_2px_#0B46E8]";
+/** 보조 버튼: 회색 채움. */
+export const SOFT_BTN = "bg-[#F2F4F6] text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
+/** 강조 보조 버튼: 옅은 파랑 채움. */
+export const TINT_BTN = "bg-[#EDF1FD] text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
 
 /**
  * 편집 중 구성(working)과 저장본(saved). 편집 중 구성·저장본 이름 변경은 화면에 바로 반영하고
@@ -167,17 +176,18 @@ export function EditorTopBar<L, S>({
     saveState === "saving"
       ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")
       : saveState === "error"
-        ? t("저장 실패 — 다시 시도해 주세요", "Save failed — try again", "保存失败，请重试", "Lưu thất bại — thử lại", "保存に失敗しました", "Gagal menyimpan")
+        ? t("저장 실패 · 다시 시도해 주세요", "Save failed · try again", "保存失败，请重试", "Lưu thất bại · thử lại", "保存に失敗しました", "Gagal menyimpan")
         : saveState === "saved"
-          ? t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")
+          ? t("자동 저장됨", "Auto-saved", "已自动保存", "Đã tự lưu", "自動保存済み", "Tersimpan otomatis")
           : "";
+  // 문서 전환 — 1단/2단 전환과 같은 세그먼트 모양.
   const tab = (key: "resume" | "cover", label: string) =>
     key === active ? (
-      <span aria-current="page" className="rounded-lg bg-[#191F28] px-3 py-1.5 text-[14px] font-bold text-white">
+      <span aria-current="page" className="flex h-[30px] items-center rounded-[8px] bg-white px-3.5 text-[13.5px] font-bold leading-none text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
         {label}
       </span>
     ) : (
-      <Link href={EDITOR_ROUTES[key]} className="rounded-lg px-3 py-1.5 text-[14px] font-semibold text-[#4E5968] hover:bg-[#F2F4F6]">
+      <Link href={EDITOR_ROUTES[key]} className="flex h-[30px] items-center rounded-[8px] px-3.5 text-[13.5px] font-semibold leading-none text-[#6B7684] transition hover:text-[#191F28]">
         {label}
       </Link>
     );
@@ -187,8 +197,8 @@ export function EditorTopBar<L, S>({
       type="button"
       onClick={() => onPick(v.id)}
       aria-pressed={v.id === current.id}
-      className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold ${
-        v.id === current.id ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:bg-[#F7F8FA]"
+      className={`flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold leading-none transition ${
+        v.id === current.id ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E8EBEE]"
       }`}
     >
       {label}
@@ -196,32 +206,38 @@ export function EditorTopBar<L, S>({
   );
   return (
     <header className="no-print flex h-16 shrink-0 items-center gap-4 border-b border-[#E5E8EB] bg-white px-5">
-      <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-9 w-9 items-center justify-center rounded-lg text-[#4E5968] hover:bg-[#F2F4F6]">
+      <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4E5968] transition hover:bg-[#F2F4F6]">
         <ArrowLeft size={18} weight="bold" />
       </Link>
-      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex items-center gap-1">
+      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
         {tab("resume", t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"))}
         {tab("cover", t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"))}
       </nav>
-      <div className="mx-2 h-6 w-px bg-[#E5E8EB]" />
+      <div className="mx-1 h-5 w-px bg-[#E5E8EB]" />
       <nav aria-label={t("버전", "Versions", "版本", "Phiên bản", "バージョン", "Versi")} className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
         {chip(working, t("편집 중", "Editing", "编辑中", "Đang sửa", "編集中", "Sedang diedit"))}
         {saved.map((v) =>
           chip(
             v,
             <>
-              <LockSimple size={12} weight="bold" aria-hidden />
+              <LockSimple size={12} weight="bold" aria-hidden className="shrink-0" />
               {v.name}
             </>
           )
         )}
       </nav>
       <SaveNewButton t={t} onSave={onSaveNew} disabled={current.snapshot !== null} />
+      {/* 자동 저장 상태 — 자리를 미리 잡아 두어 글자가 바뀌어도 옆 버튼이 흔들리지 않게 */}
+      <span className={`flex w-[150px] shrink-0 items-center gap-1 text-[12px] ${saveState === "error" ? "text-[#F04452]" : "text-[#8B95A1]"}`} aria-live="polite">
+        {current.snapshot === null && saveLabel ? (
+          <>
+            {saveState === "saved" ? <CheckCircle size={14} weight="fill" className="text-[#00C471]" /> : saveState === "error" ? <WarningCircle size={14} weight="fill" /> : <CircleNotch size={13} weight="bold" className="animate-spin" />}
+            {saveLabel}
+          </>
+        ) : null}
+      </span>
       <div className="flex-1" />
       {right}
-      <span className="w-[120px] text-right text-[12px] text-[#8B95A1]" aria-live="polite">
-        {current.snapshot === null ? saveLabel : ""}
-      </span>
     </header>
   );
 }
@@ -257,10 +273,10 @@ function SaveNewButton({ t, onSave, disabled }: { t: PlatformT; onSave: (name: s
           setOpen((v) => !v);
         }}
         title={disabled ? t("편집 중인 문서에서 저장할 수 있어요", "Switch to the editing document to save", "请在编辑中的文档保存", "Hãy lưu từ tài liệu đang sửa", "編集中の文書から保存できます", "Simpan dari dokumen yang sedang diedit") : undefined}
-        className="flex items-center gap-1 rounded-lg border border-dashed border-[#C4CAD2] px-3 py-1.5 text-[13px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+        className={`flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold leading-none ${TINT_BTN}`}
       >
-        <FloppyDisk size={14} weight="bold" />
-        {t("새 버전으로 저장", "Save as new version", "另存为新版本", "Lưu thành phiên bản mới", "新しいバージョンとして保存", "Simpan sebagai versi baru")}
+        <FloppyDisk size={14} weight="bold" className="shrink-0" />
+        <span>{t("새 버전으로 저장", "Save as new version", "另存为新版本", "Lưu thành phiên bản mới", "新しいバージョンとして保存", "Simpan sebagai versi baru")}</span>
       </button>
       {open ? (
         <>
@@ -270,7 +286,7 @@ function SaveNewButton({ t, onSave, disabled }: { t: PlatformT; onSave: (name: s
               e.preventDefault();
               void submit();
             }}
-            className="absolute left-0 top-[calc(100%+6px)] z-20 flex w-[300px] flex-col gap-2.5 rounded-xl border border-[#E5E8EB] bg-white p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.10)]"
+            className="absolute left-0 top-[calc(100%+8px)] z-20 flex w-[320px] flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_12px_32px_rgba(11,18,39,0.16)]"
           >
             <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
               {t("저장본 이름", "Name", "名称", "Tên", "名前", "Nama")}
@@ -280,13 +296,13 @@ function SaveNewButton({ t, onSave, disabled }: { t: PlatformT; onSave: (name: s
                 maxLength={60}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("예: OO전자 지원용", "e.g. For Company A", "例：投递 A 公司", "VD: Nộp công ty A", "例：A社応募用", "mis. Untuk Perusahaan A")}
-                className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+                className={`h-11 ${INPUT_CLS}`}
               />
             </label>
             <p className="text-[11.5px] leading-relaxed text-[#6B7684]">
               {t("지금 모습 그대로 저장돼요. 저장본은 고칠 수 없고, 지원할 때 골라 쓸 수 있어요.", "Saved exactly as it looks now. Saved versions can't be edited and can be picked when applying.", "按当前样子保存。保存版本不可修改，投递时可选用。", "Lưu đúng như hiện tại. Bản đã lưu không sửa được và có thể chọn khi ứng tuyển.", "今の状態のまま保存されます。保存版は編集できず、応募時に選べます。", "Disimpan persis seperti sekarang. Tidak bisa diubah dan bisa dipilih saat melamar.")}
             </p>
-            <button type="submit" disabled={!name.trim() || busy} className="h-10 rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB] disabled:opacity-50">
+            <button type="submit" disabled={!name.trim() || busy} className="h-11 rounded-[10px] bg-[#0B46E8] text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
               {busy ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
             </button>
           </form>
@@ -321,7 +337,7 @@ export function SavedPanel<L, S>({
             defaultValue={version.name}
             maxLength={60}
             onChange={(e) => e.target.value.trim() && onRename(e.target.value.trim())}
-            className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+            className={`h-10 ${INPUT_CLS}`}
           />
         </label>
         <p className="text-[12px] text-[#6B7684]">
@@ -339,9 +355,9 @@ export function SavedPanel<L, S>({
           )}
         </p>
         {children}
-        <button type="button" onClick={onDelete} className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#F04452] hover:underline">
-          <Trash size={14} weight="bold" />
-          {t("저장본 삭제", "Delete saved version", "删除保存版本", "Xóa bản đã lưu", "保存版を削除", "Hapus versi tersimpan")}
+        <button type="button" onClick={onDelete} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1]">
+          <Trash size={15} weight="bold" className="shrink-0" />
+          <span>{t("저장본 삭제", "Delete saved version", "删除保存版本", "Xóa bản đã lưu", "保存版を削除", "Hapus versi tersimpan")}</span>
         </button>
       </Section>
     </aside>
@@ -363,10 +379,10 @@ export function ToolButton({ icon, label, onClick, disabled }: { icon: ReactNode
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-2 text-[12.5px] font-semibold text-[#191F28] hover:bg-[#F7F8FA] disabled:cursor-default disabled:text-[#C4CAD2] disabled:hover:bg-white"
+      className={`flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-semibold ${SOFT_BTN}`}
     >
-      {icon}
-      <span className="truncate">{label}</span>
+      <span className="flex shrink-0 items-center">{icon}</span>
+      <span className="truncate leading-[1.2]">{label}</span>
     </button>
   );
 }
@@ -404,7 +420,7 @@ export function Field({
       onChange?.(e.target.value);
     },
     onBlur: () => onBlurValue?.(draft),
-    className: "rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+    className: INPUT_CLS
   };
   return (
     <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
