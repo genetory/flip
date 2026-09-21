@@ -53,7 +53,8 @@ type Props = {
  * 가장 먼 지점에서 끊는다. 한 블록이 한 장보다 크면 어쩔 수 없이 경계에서 자른다.
  */
 function packColumns(root: HTMLElement, contentH: number): { starts: number[]; total: number; blocks: MeasuredBlock[] } {
-  const total = root.scrollHeight;
+  // 편집 표시(선택 테두리·놓기 영역)는 절대 배치라 scrollHeight 를 늘릴 수 있다 — 실제 흐름 높이로 잰다.
+  const total = root.getBoundingClientRect().height;
   const rootTop = root.getBoundingClientRect().top;
   const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block]")).map((el) => {
     const r = el.getBoundingClientRect();
@@ -164,8 +165,7 @@ function ResumeBody({
 }: Props & { measure?: boolean }) {
   const t = usePlatformT();
   const two = layout.cols.length === 2;
-  // 측정용 사본도 편집 여백(모듈 패딩·놓기 영역)을 똑같이 그려야 페이지 높이가 맞는다 —
-  // 빼고 재면 실제 화면보다 짧게 재서 페이지 아래가 잘린다. 사본은 화면 밖·pointer-events 없음.
+  // 편집 표시(선택 테두리·놓기 자리)는 자리를 차지하지 않게 그린다 — 편집 화면과 PDF 가 같은 곳에서 페이지를 나눈다.
   const ix = interaction;
   const empty = layout.cols.every((c) => c.length === 0);
   return (
@@ -253,7 +253,7 @@ function ModuleBlock({
   const spacing = gapTop ? "mt-7" : "mt-2.5";
   if (!ix) {
     return (
-      <div data-block className={index === 0 ? "" : spacing}>
+      <div data-block data-module={id} className={index === 0 ? "" : spacing}>
         {children}
       </div>
     );
@@ -285,11 +285,16 @@ function ModuleBlock({
         ix.onDrop();
       }}
       onClick={() => ix.onSelect(id)}
-      className={`relative -mx-2 cursor-grab rounded-[6px] px-2 py-1 transition-colors print:m-0 print:bg-transparent print:p-0 print:outline-0 ${index === 0 ? "" : spacing} ${
-        selected ? "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]" : "hover:bg-[#F7F9FC] hover:outline hover:outline-1 hover:outline-[#D7DCE3]"
-      } ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
+      // 편집 표시는 자리를 차지하지 않는다(여백·테두리를 바깥 층으로) — 미리보기와 PDF 의 페이지 나눔이 같도록.
+      className={`group relative cursor-grab ${index === 0 ? "" : spacing} ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
-      {children}
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-[6px] transition-colors print:hidden ${
+          selected ? "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]" : "group-hover:bg-[#F7F9FC] group-hover:outline group-hover:outline-1 group-hover:outline-[#D7DCE3]"
+        }`}
+      />
+      <div className="relative">{children}</div>
     </div>
   );
 }
@@ -297,21 +302,24 @@ function ModuleBlock({
 function EndZone({ col, index, ix }: { col: number; index: number; ix: EditorInteraction }) {
   const t = usePlatformT();
   return (
-    <div
-      onDragOver={(e) => {
-        if (!ix.dragId) return;
-        e.preventDefault();
-        ix.onHover({ col, index });
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        ix.onDrop();
-      }}
-      className={`mt-3 flex min-h-[36px] items-center justify-center rounded-[6px] text-[11px] font-semibold print:hidden ${
-        ix.dragId ? "border border-dashed border-[#C9CDD2] text-[#8B95A1]" : "text-transparent"
-      }`}
-    >
-      {t("여기에 놓기", "Drop here", "放在这里", "Thả vào đây", "ここにドロップ", "Letakkan di sini")}
+    // 칸 끝에 놓는 자리 — 높이 0 으로 두고 겹쳐 그려 페이지 나눔에 영향을 주지 않는다.
+    <div className="relative h-0 print:hidden">
+      <div
+        onDragOver={(e) => {
+          if (!ix.dragId) return;
+          e.preventDefault();
+          ix.onHover({ col, index });
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          ix.onDrop();
+        }}
+        className={`absolute inset-x-0 top-3 flex h-9 items-center justify-center rounded-[6px] text-[11px] font-semibold ${
+          ix.dragId ? "border border-dashed border-[#C9CDD2] bg-white text-[#8B95A1]" : "pointer-events-none text-transparent"
+        }`}
+      >
+        {t("여기에 놓기", "Drop here", "放在这里", "Thả vào đây", "ここにドロップ", "Letakkan di sini")}
+      </div>
     </div>
   );
 }
