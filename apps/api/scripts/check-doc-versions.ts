@@ -25,6 +25,8 @@ assert.deepEqual(c.questions[0].blocks, ["p1"]);
 assert.equal(c.questions[5].prompt, "내가 만든 문항");
 assert.deepEqual(c.questions[5].blocks, ["p2"]);
 assert.ok(coverLayoutSchema.safeParse(c).success);
+assert.deepEqual(c.hidden, []);
+assert.ok(coverLayoutSchema.safeParse({ questions: [] }).success, "hidden 없는 예전 저장본도 통과");
 
 // 레거시 coverLetterItems 에서도 읽음
 const legacy = defaultCoverLayout({ renewalFollows: [], coverLetterItems: [{ id: "L1", prompt: "성장 과정", answer: "c" }] });

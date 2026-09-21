@@ -50,7 +50,9 @@ export const coverLayoutSchema = z
           })
           .strict()
       )
-      .max(30)
+      .max(30),
+    // 이 버전에서 뺀 에피소드(대표 버전이 새 단락을 자동으로 넣을 때 다시 넣지 않게). 예전 저장본엔 없다.
+    hidden: z.array(moduleId).max(600).optional()
   })
   .strict();
 export type CoverLayout = z.infer<typeof coverLayoutSchema>;
@@ -113,7 +115,8 @@ export function defaultCoverLayout(content: unknown): CoverLayout {
       prompt,
       limit: null,
       blocks: valid.filter((it) => it.question === prompt).map((it) => it.id)
-    }))
+    })),
+    hidden: []
   };
 }
 

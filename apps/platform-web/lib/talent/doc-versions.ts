@@ -20,6 +20,8 @@ export type ResumeLayout = {
 
 export type CoverLayout = {
   questions: { id: string; prompt: string; limit: number | null; blocks: string[] }[];
+  /** 이 버전에서 뺀 에피소드. 예전 저장본엔 없다. */
+  hidden?: string[];
 };
 
 /** { [moduleId]: { [field]: 문구 } } — 이 버전에서만 따로 고친 문구. */
