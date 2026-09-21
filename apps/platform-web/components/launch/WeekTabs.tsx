@@ -298,7 +298,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
               ) : null}
             </div>
             {locked ? (
-              <div className="desc">{t("이전 주차를 마치면 열려요.", "Unlocks when you finish the previous week.", "完成上一周后解锁。", "Mở khi bạn hoàn thành tuần trước.", "前の週を終えると開きます。", "Terbuka setelah menyelesaikan minggu sebelumnya.")}</div>
+              <div className="desc">{t("이전 단계를 마치면 열려요.", "Unlocks when you finish the previous step.", "完成上一步骤后解锁。", "Mở khi bạn hoàn thành bước trước.", "前のステップを終えると開きます。", "Terbuka setelah menyelesaikan langkah sebelumnya.")}</div>
             ) : (
               <p className="mt-1 flex items-start gap-1.5 break-keep text-[12.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}><span aria-hidden>💬</span><span>{interviewQType(step.id, t)}</span></p>
             )}
@@ -342,7 +342,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       <>
         <div className="cl-role-tabs">
           {[1, 2, 3, 4].map((i) => (
-            <span key={i} className="cl-role-chip" style={{ opacity: 0.5 }}>{t(`${i}주차`, `Week ${i}`, `第${i}周`, `Tuần ${i}`, `${i}週目`, `Minggu ${i}`)}</span>
+            <span key={i} className="cl-role-chip" style={{ opacity: 0.5 }}>{t(`Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`)}</span>
           ))}
         </div>
         <div className="mt-6 h-44 rounded-2xl bg-white" style={{ boxShadow: "var(--cl-shadow-sm)" }} />
@@ -366,7 +366,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           return (
             <button key={w.week} type="button" onClick={() => setSelected(w.week)} className={`cl-role-chip ${active ? "on" : ""}`}>
               {done ? <Check className="h-3.5 w-3.5" weight="bold" /> : locked ? <Lock className="h-3 w-3" weight="fill" /> : isCur ? <WarningCircle className="h-4 w-4" weight="fill" /> : null}
-              {t(`${w.week}주차`, `Week ${w.week}`, `第${w.week}周`, `Tuần ${w.week}`, `${w.week}週目`, `Minggu ${w.week}`)}
+              {t(`Step ${w.week}`, `Step ${w.week}`, `Step ${w.week}`, `Step ${w.week}`, `Step ${w.week}`, `Step ${w.week}`)}
             </button>
           );
         })}
@@ -407,8 +407,8 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       )}
       {selWeek === 1 ? (
         <div className="mt-8">
-          <h2 className="cl-headline">{t("이번 주 피드백", "This week's feedback", "本周反馈", "Phản hồi tuần này", "今週のフィードバック", "Umpan balik minggu ini")}</h2>
-          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives feedback.", "教练审阅本周成果并给出反馈。", "Huấn luyện viên xem kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
+          <h2 className="cl-headline">{t("이번 단계 피드백", "This step's feedback", "本步骤反馈", "Phản hồi bước này", "このステップのフィードバック", "Umpan balik langkah ini")}</h2>
+          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives feedback.", "教练审阅本步骤成果并给出反馈。", "Huấn luyện viên xem kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
           <div className="mt-3"><WeekAutoFeedback week={1} showNext={false} /></div>
         </div>
       ) : null}

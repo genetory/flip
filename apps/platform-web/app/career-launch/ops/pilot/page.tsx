@@ -171,11 +171,11 @@ export default function PilotOpsPage() {
               ))}
             </div>
             <div className="bg-white rounded-xl border border-[#EEF1F5] p-3">
-              <div className="text-[13px] font-semibold mb-2">주차별 완료</div>
+              <div className="text-[13px] font-semibold mb-2">단계별 완료</div>
               <div className="flex gap-4 text-[13px]">
                 {monitor.overview.weekCompletion.map((w) => (
                   <span key={w.week} className="tabular-nums">
-                    W{w.week}: <b>{w.count}</b>
+                    Step {w.week}: <b>{w.count}</b>
                   </span>
                 ))}
               </div>
@@ -219,7 +219,7 @@ export default function PilotOpsPage() {
                     <tr className="text-[#8B95A1] text-left">
                       <th className="px-3 py-2 font-medium">학생</th>
                       <th className="px-3 py-2 font-medium">상태</th>
-                      <th className="px-3 py-2 font-medium">주차</th>
+                      <th className="px-3 py-2 font-medium">단계</th>
                       <th className="px-3 py-2 font-medium">최근활동</th>
                       <th className="px-3 py-2 font-medium">산출물</th>
                       <th className="px-3 py-2 font-medium">운영자 상태</th>
@@ -315,7 +315,7 @@ export default function PilotOpsPage() {
                 <div className="text-[13px] font-semibold mb-2">참여(engagement) {funnel.engagementNote && <span className="text-[12px] font-normal text-[#8B95A1]">— {funnel.engagementNote}</span>}</div>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-[#4E5968]">
                   {funnel.engagement.byWeek.map((w) => (
-                    <span key={w.week} className="tabular-nums">W{w.week}: {w.activeMinutes}분·재진입 {w.reEntries}</span>
+                    <span key={w.week} className="tabular-nums">Step {w.week}: {w.activeMinutes}분·재진입 {w.reEntries}</span>
                   ))}
                   <span className="tabular-nums">제안 수락률: {funnel.engagement.suggestion.acceptRatePct == null ? "—" : `${funnel.engagement.suggestion.acceptRatePct}%`}</span>
                   <span className="tabular-nums">건너뛰기 {funnel.engagement.signals.skip}·잘모름 {funnel.engagement.signals.unsure}·리그조회 {funnel.engagement.signals.leagueViews}</span>
@@ -391,7 +391,7 @@ export default function PilotOpsPage() {
                     <th className="px-3 py-2 font-medium">학생</th>
                     <th className="px-3 py-2 font-medium">분류</th>
                     <th className="px-3 py-2 font-medium">심각도</th>
-                    <th className="px-3 py-2 font-medium">주차/단계</th>
+                    <th className="px-3 py-2 font-medium">단계/세부 단계</th>
                     <th className="px-3 py-2 font-medium">처리</th>
                   </tr>
                 </thead>
@@ -403,7 +403,7 @@ export default function PilotOpsPage() {
                         <td className="px-3 py-2">{f.name ?? "—"}</td>
                         <td className="px-3 py-2">{label}</td>
                         <td className={`px-3 py-2 ${SEV_TONE[f.severity]}`}>{f.severity}</td>
-                        <td className="px-3 py-2 text-[12px] text-[#8B95A1]">{f.currentWeek ? `W${f.currentWeek}` : ""} {f.currentStep ?? ""}</td>
+                        <td className="px-3 py-2 text-[12px] text-[#8B95A1]">{f.currentWeek ? `Step ${f.currentWeek}` : ""} {f.currentStep ?? ""}</td>
                         <td className="px-3 py-2">
                           {f.resolvedAt ? <span className="text-[12px] text-[#0A9B59]">해결됨</span> : <button onClick={() => markResolved(f.id)} className="text-[12px] text-[#0B46E8]">해결 표시</button>}
                         </td>

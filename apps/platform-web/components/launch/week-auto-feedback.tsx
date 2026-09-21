@@ -102,7 +102,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
             >
               <span className="min-w-0">
                 <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 액션", "Next action", "下一步", "Việc tiếp theo", "次のアクション", "Aksi berikutnya")}</span>
-                <span className="mt-0.5 block truncate text-[14px] font-bold text-white">{t(`${nextW}주차로 이어가기`, `Continue to Week ${nextW}`, `继续第${nextW}周`, `Tiếp tục Tuần ${nextW}`, `${nextW}週目へ進む`, `Lanjut ke Minggu ${nextW}`)}</span>
+                <span className="mt-0.5 block truncate text-[14px] font-bold text-white">{t(`Step ${nextW} 이어가기`, `Continue to Step ${nextW}`, `继续Step ${nextW}`, `Tiếp tục Step ${nextW}`, `Step ${nextW}へ進む`, `Lanjut ke Step ${nextW}`)}</span>
               </span>
               <ArrowRight className="h-5 w-5 shrink-0 text-white transition" weight="bold" />
             </Link>
@@ -110,7 +110,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
         </div>
       ) : state === "ready" ? (
         <div className="mt-3">
-          <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this week's work and gives you feedback.", "教练会审阅本周成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả tuần này và đưa phản hồi.", "コーチが今週の成果を確認してフィードバックします。", "Pelatih meninjau hasil minggu ini dan memberi umpan balik.")}</p>
+          <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives you feedback.", "教练会审阅本步骤成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
           <button
             type="button"
             onClick={generate}
@@ -123,7 +123,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
           {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.")}</p> : null}
         </div>
       ) : state === "none" ? (
-        <p className="mt-3 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 주 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this week's activities first to get feedback.", "先完成本周的活动即可获得反馈。", "Hãy thực hiện hoạt động tuần này trước để nhận phản hồi.", "今週のアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas minggu ini dulu untuk mendapat umpan balik.")}</p>
+        <p className="mt-3 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 단계 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this step's activities first to get feedback.", "先完成本步骤的活动即可获得反馈。", "Hãy thực hiện hoạt động bước này trước để nhận phản hồi.", "このステップのアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas langkah ini dulu untuk mendapat umpan balik.")}</p>
       ) : (
         <p className="mt-3 text-[13px] text-[#8B95A1]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
       )}

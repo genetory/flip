@@ -146,7 +146,7 @@ export default function LaunchDashboardPage() {
       addLaunchNotification({
         dedupeKey: `week-open-${w.week}`,
         emoji: "🔓",
-        title: t(`${w.week}주차 미션이 열렸어요`, `Week ${w.week} is now open`, `第${w.week}周任务已开放`, `Tuần ${w.week} đã mở`, `Week ${w.week}のミッションが開きました`, `Minggu ${w.week} telah dibuka`),
+        title: t(`Step ${w.week} 미션이 열렸어요`, `Step ${w.week} is now open`, `Step ${w.week}任务已开放`, `Step ${w.week} đã mở`, `Step ${w.week}のミッションが開きました`, `Step ${w.week} telah dibuka`),
         body: `${weekText(w.week, "title")} · ${WEEK_DELIVERABLE[w.week]}`,
         href: `/career-launch/week/${w.week}`
       });
@@ -156,7 +156,7 @@ export default function LaunchDashboardPage() {
       const dt = new Date(s.startsAt);
       if (Number.isNaN(dt.getTime()) || dt.getTime() < Date.now()) return;
       const when = dt.toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" });
-      const title = s.title || t(`Week ${s.week} 세미나`, `Week ${s.week} seminar`, `第${s.week}周研讨会`, `Hội thảo Tuần ${s.week}`, `Week ${s.week} セミナー`, `Seminar Minggu ${s.week}`);
+      const title = s.title || t(`Step ${s.week} 세미나`, `Step ${s.week} seminar`, `Step ${s.week}研讨会`, `Hội thảo Step ${s.week}`, `Step ${s.week} セミナー`, `Seminar Step ${s.week}`);
       addLaunchNotification({
         dedupeKey: `seminar-${s.week}-${s.startsAt}`,
         emoji: "🎓",
@@ -189,7 +189,7 @@ export default function LaunchDashboardPage() {
       addLaunchNotification({
         dedupeKey: "completed",
         emoji: "🎉",
-        title: t("4주 프로그램을 완주했어요!", "You finished the 4-week program!", "你完成了4周项目！", "Bạn đã hoàn thành chương trình 4 tuần!", "4週間プログラムを完走しました！", "Kamu menyelesaikan program 4 minggu!"),
+        title: t("4단계 프로그램을 완주했어요!", "You finished the 4-step program!", "你完成了4个步骤的项目！", "Bạn đã hoàn thành chương trình 4 bước!", "4ステッププログラムを完走しました！", "Kamu menyelesaikan program 4 langkah!"),
         body: t("이제 실제 공고에 지원해볼까요? APLY에서 이어가요.", "Ready to apply to real jobs? Continue on APLY.", "现在去投递真实职位吧，在 APLY 继续。", "Sẵn sàng ứng tuyển việc thật? Tiếp tục trên APLY.", "実際の求人に応募してみましょう。APLYで続けます。", "Siap melamar pekerjaan nyata? Lanjutkan di APLY."),
         href: "/talent/jobs"
       });
@@ -230,27 +230,27 @@ export default function LaunchDashboardPage() {
               <div className="order-2 flex-1 p-6 md:order-1 md:py-8 md:pl-8 md:pr-2">
                 <p className="cl-eyebrow text-[#3182F6]">CAREER LAUNCH</p>
                 <h2 className="cl-headline mt-2 text-[#0B1227]">
-                  {t("전담 코치와 함께하는 4주, 취업 준비 완성", "Four weeks with your coach — job-ready", "与专属教练同行的4周，完成求职准备", "4 tuần cùng coach — sẵn sàng xin việc", "専属コーチと4週間で就活準備を完成", "Empat minggu bersama coach — siap melamar")}
+                  {t("전담 코치와 함께하는 4단계, 취업 준비 완성", "Four steps with your coach — job-ready", "与专属教练同行的4个步骤，完成求职准备", "4 bước cùng coach — sẵn sàng xin việc", "専属コーチと4ステップで就活準備を完成", "Empat langkah bersama coach — siap melamar")}
                 </h2>
                 <p className="cl-lead mt-2.5 max-w-xl break-keep text-[#4E5968]">
                   {t(
-                    "직무 탐색부터 이력서·자기소개서, 실전 모의면접까지 — 4주 동안 실제 지원에 쓰는 결과물을 완성해요.",
-                    "From finding your role to resume, cover letter, and mock interviews — build the real deliverables you'll apply with over four weeks.",
-                    "从职业探索到简历、求职信与模拟面试——用四周完成可直接投递的成果。",
-                    "Từ khám phá công việc đến hồ sơ, thư xin việc và phỏng vấn thử — hoàn thành kết quả thật để ứng tuyển trong 4 tuần.",
-                    "職務探索から履歴書・自己紹介書、模擬面接まで — 4週間で実際に応募に使う成果物を完成させます。",
-                    "Dari eksplorasi peran hingga resume, cover letter, dan wawancara simulasi — selesaikan hasil nyata untuk melamar dalam empat minggu."
+                    "직무 탐색부터 이력서·자기소개서, 실전 모의면접까지 — 4단계에 걸쳐 실제 지원에 쓰는 결과물을 완성해요.",
+                    "From finding your role to resume, cover letter, and mock interviews — build the real deliverables you'll apply with across four steps.",
+                    "从职业探索到简历、求职信与模拟面试——通过4个步骤完成可直接投递的成果。",
+                    "Từ khám phá công việc đến hồ sơ, thư xin việc và phỏng vấn thử — hoàn thành kết quả thật để ứng tuyển qua 4 bước.",
+                    "職務探索から履歴書・自己紹介書、模擬面接まで — 4ステップで実際に応募に使う成果物を完成させます。",
+                    "Dari eksplorasi peran hingga resume, cover letter, dan wawancara simulasi — selesaikan hasil nyata untuk melamar dalam empat langkah."
                   )}
                 </p>
                 <span className="mt-4 inline-flex items-center rounded-full bg-[#0B46E8] px-3 py-1 text-[11.5px] font-bold text-white">
-                  {t("4주 프로그램", "4-week program", "4周项目", "Chương trình 4 tuần", "4週間プログラム", "Program 4 minggu")}
+                  {t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah")}
                 </span>
               </div>
               <div className="order-1 md:order-2 md:w-[42%] md:flex-none md:self-stretch">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/img_global_career_launch.webp"
-                  alt={t("노트북 앞에서 커리어를 준비하는 참가자와 4주 여정·목표·성장 지표 일러스트", "Illustration of a learner preparing their career with the 4-week journey, goal, and growth metrics", "在笔记本电脑前准备求职的参加者与4周旅程、目标与成长指标插图", "Minh họa người học chuẩn bị nghề nghiệp với hành trình 4 tuần, mục tiêu và chỉ số phát triển", "ノートパソコンの前でキャリアを準備する参加者と4週間の道のり・目標・成長指標のイラスト", "Ilustrasi peserta menyiapkan karier dengan perjalanan 4 minggu, tujuan, dan metrik pertumbuhan")}
+                  alt={t("노트북 앞에서 커리어를 준비하는 참가자와 4단계 여정·목표·성장 지표 일러스트", "Illustration of a learner preparing their career with the 4-step journey, goal, and growth metrics", "在笔记本电脑前准备求职的参加者与4个步骤的旅程、目标与成长指标插图", "Minh họa người học chuẩn bị nghề nghiệp với hành trình 4 bước, mục tiêu và chỉ số phát triển", "ノートパソコンの前でキャリアを準備する参加者と4ステップの道のり・目標・成長指標のイラスト", "Ilustrasi peserta menyiapkan karier dengan perjalanan 4 langkah, tujuan, dan metrik pertumbuhan")}
                   className="block h-auto w-full object-contain md:h-full md:object-cover md:object-center"
                   loading="eager"
                 />
@@ -278,7 +278,7 @@ export default function LaunchDashboardPage() {
               <CheckInPanel vm={vm} />
 
               {/* 4주 여정 — 어울리는 공고 위로 이동 */}
-              <DashboardSection title={t("4주 여정", "4-week journey", "4周旅程", "Hành trình 4 tuần", "4週間のジャーニー", "Perjalanan 4 minggu")} sub={t("하나로 연결된 과정이에요", "One connected journey", "一个连贯的过程", "Một hành trình liền mạch", "ひとつながりの過程です", "Satu perjalanan yang terhubung")}>
+              <DashboardSection title={t("4단계 여정", "4-step journey", "4个步骤的旅程", "Hành trình 4 bước", "4ステップのジャーニー", "Perjalanan 4 langkah")} sub={t("하나로 연결된 과정이에요", "One connected journey", "一个连贯的过程", "Một hành trình liền mạch", "ひとつながりの過程です", "Satu perjalanan yang terhubung")}>
                 <FlightPath vm={vm} />
               </DashboardSection>
 

@@ -863,7 +863,7 @@ export default function LaunchOpsStudentDetailPage() {
                       rows={4}
                       maxLength={4000}
                       className="w-full rounded-lg border border-[var(--line)] p-3 text-[13px] leading-relaxed"
-                      placeholder={t("예) 3주차 이후 연락 두절, 담당 교수와 확인 필요", "e.g. Unreachable after week 3, need to check with the professor", "例）第3周后失联，需与教授确认", "VD) Mất liên lạc sau tuần 3, cần kiểm tra với giáo sư", "例）3週目以降 連絡が取れない、担当教授に確認が必要", "Contoh) Tidak bisa dihubungi setelah minggu 3, perlu cek ke dosen")}
+                      placeholder={t("예) Step 3 이후 연락 두절, 담당 교수와 확인 필요", "e.g. Unreachable after Step 3, need to check with the professor", "例）Step 3后失联，需与教授确认", "VD) Mất liên lạc sau Step 3, cần kiểm tra với giáo sư", "例）Step 3以降 連絡が取れない、担当教授に確認が必要", "Contoh) Tidak bisa dihubungi setelah Step 3, perlu cek ke dosen")}
                     />
                     <div className="ops-detail-actions">
                       {memoSaved ? <span className="ops-status-badge ops-status-approved">{t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}</span> : null}

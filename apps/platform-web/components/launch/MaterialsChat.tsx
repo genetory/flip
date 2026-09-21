@@ -139,7 +139,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
     saveMaterials(materials);
     trackCareerStepComplete("materials");
     setDone(true);
-    setMessages((m) => [...m, { role: "bot", text: t(`좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요 🙌`, `Great! We've saved the ${materials.length} job insights you've gathered so far. Next week let's build your resume in this direction 🙌`, `太好了！已保存你目前整理的 ${materials.length} 条职务信息。下周就朝这个方向来做简历吧 🙌`, `Tuyệt! Đã lưu ${materials.length} thông tin công việc bạn tổng hợp đến giờ. Tuần sau hãy làm CV theo hướng này nhé 🙌`, `いいですね！これまで整理した職務情報${materials.length}件を保存しました。来週はこの方向で履歴書を作ってみましょう 🙌`, `Bagus! Kami sudah menyimpan ${materials.length} info pekerjaan yang kamu kumpulkan. Minggu depan mari buat resume ke arah ini 🙌`) }]);
+    setMessages((m) => [...m, { role: "bot", text: t(`좋아요! 지금까지 정리한 직무 정보 ${materials.length}개를 저장했어요. 다음 단계에선 이 방향으로 이력서를 만들어봐요 🙌`, `Great! We've saved the ${materials.length} job insights you've gathered so far. In the next step, let's build your resume in this direction 🙌`, `太好了！已保存你目前整理的 ${materials.length} 条职务信息。下一步就朝这个方向来做简历吧 🙌`, `Tuyệt! Đã lưu ${materials.length} thông tin công việc bạn tổng hợp đến giờ. Ở bước tiếp theo hãy làm CV theo hướng này nhé 🙌`, `いいですね！これまで整理した職務情報${materials.length}件を保存しました。次のステップではこの方向で履歴書を作ってみましょう 🙌`, `Bagus! Kami sudah menyimpan ${materials.length} info pekerjaan yang kamu kumpulkan. Di langkah berikutnya mari buat resume ke arah ini 🙌`) }]);
   };
 
   return (
@@ -160,13 +160,13 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
               <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
               <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 자료", "Week 1 · Research", "第1周 · 资料", "Tuần 1 · Tư liệu", "Week 1 · 資料", "Minggu 1 · Riset")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 자료", "Step 1 · Research", "Step 1 · 资料", "Step 1 · Tư liệu", "Step 1 · 資料", "Step 1 · Riset")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>

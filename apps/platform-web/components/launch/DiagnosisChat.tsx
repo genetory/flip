@@ -157,7 +157,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
           {embedded ? null : (
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
             </Link>
             <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
@@ -165,7 +165,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
 
           {/* 마스트헤드 */}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 진단", "Week 1 · Diagnosis", "第1周 · 诊断", "Tuần 1 · Chẩn đoán", "Week 1 · 診断", "Minggu 1 · Diagnosis")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 진단", "Step 1 · Diagnosis", "Step 1 · 诊断", "Step 1 · Chẩn đoán", "Step 1 · 診断", "Step 1 · Diagnosis")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("첫 커리어 상담", "First career coaching", "首次职业咨询", "Tư vấn nghề nghiệp đầu tiên", "初めてのキャリア相談", "Konsultasi karier pertama")}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI 코치와 대화하면 준비도를 알려드려요", "Chat with the AI coach and we'll tell you your readiness", "与 AI 教练对话，我们会告诉你准备程度", "Trò chuyện với huấn luyện viên AI và chúng tôi sẽ cho bạn biết mức độ sẵn sàng", "AIコーチと話すと準備度をお伝えします", "Mengobrol dengan pelatih AI dan kami akan memberi tahu tingkat kesiapanmu")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
@@ -352,7 +352,7 @@ export function DiagnosisChat({ embedded = false, onClose }: { embedded?: boolea
                     ) : null}
                     {result.improvements.length > 0 ? (
                       <div className="mt-5 border-t border-[#F2F4F6] pt-5">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("이번 4주에 집중하면 좋은 점", "Worth focusing on over these 4 weeks", "接下来 4 周值得重点关注的地方", "Điều nên tập trung trong 4 tuần này", "この4週間で集中すると良い点", "Hal yang baik difokuskan selama 4 minggu ini")}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("이번 4단계에서 집중하면 좋은 점", "Worth focusing on across these 4 steps", "接下来 4 个步骤值得重点关注的地方", "Điều nên tập trung trong 4 bước này", "この4ステップで集中すると良い点", "Hal yang baik difokuskan selama 4 langkah ini")}</p>
                         <ul className="mt-1.5 space-y-1">
                           {result.improvements.map((s, i) => (
                             <li key={i} className="flex gap-1.5 break-keep text-[13px] leading-relaxed text-[#333D4B]">

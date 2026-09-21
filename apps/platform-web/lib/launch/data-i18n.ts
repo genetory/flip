@@ -33,12 +33,12 @@ const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
       id: "Temukan kelebihanmu dan jelajahi peran yang cocok"
     },
     goal: {
-      ko: "지금 내 준비 상태를 점검하고, 경험 속 강점을 발굴해 나에게 맞는 목표 직무를 3개 이내로 정해요. 다음 주 지원 패키지의 방향을 잡는 단계예요.",
-      en: "Check how ready you are, mine your strengths from experience, and pick up to 3 target jobs that fit you. This sets the direction for next week's application package.",
-      "zh-CN": "检查你现在的准备情况，从经验中发掘优势，选出最多3个适合你的目标职务。这是为下周申请材料确定方向的阶段。",
-      vi: "Kiểm tra mức độ sẵn sàng, khai thác điểm mạnh từ kinh nghiệm và chọn tối đa 3 công việc mục tiêu phù hợp. Đây là bước định hướng cho bộ hồ sơ tuần sau.",
-      ja: "今の準備状態を確認し、経験から強みを掘り起こして、自分に合う目標職種を3つ以内で決めます。来週の応募パッケージの方向を定める段階です。",
-      id: "Cek kesiapanmu, gali kelebihan dari pengalaman, dan pilih maksimal 3 pekerjaan target yang cocok. Ini menentukan arah paket lamaran minggu depan."
+      ko: "지금 내 준비 상태를 점검하고, 경험 속 강점을 발굴해 나에게 맞는 목표 직무를 3개 이내로 정해요. 다음 단계 지원 패키지의 방향을 잡는 단계예요.",
+      en: "Check how ready you are, mine your strengths from experience, and pick up to 3 target jobs that fit you. This sets the direction for the next step's application package.",
+      "zh-CN": "检查你现在的准备情况，从经验中发掘优势，选出最多3个适合你的目标职务。这是为下一步骤的申请材料确定方向的阶段。",
+      vi: "Kiểm tra mức độ sẵn sàng, khai thác điểm mạnh từ kinh nghiệm và chọn tối đa 3 công việc mục tiêu phù hợp. Đây là bước định hướng cho bộ hồ sơ ở bước tiếp theo.",
+      ja: "今の準備状態を確認し、経験から強みを掘り起こして、自分に合う目標職種を3つ以内で決めます。次のステップの応募パッケージの方向を定める段階です。",
+      id: "Cek kesiapanmu, gali kelebihan dari pengalaman, dan pilih maksimal 3 pekerjaan target yang cocok. Ini menentukan arah paket lamaran di langkah berikutnya."
     }
   },
   2: {
@@ -59,12 +59,12 @@ const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
       id: "Selesaikan resume dan surat lamaran sekaligus dan siap melamar"
     },
     goal: {
-      ko: "Week 1에서 정한 방향으로 대표 이력서와 자기소개서를 함께 완성해요. 서류 한 세트로 바로 지원할 수 있게 만드는 단계예요.",
-      en: "Complete both your main resume and cover letter along the direction you set in Week 1. This gets one document set ready to apply right away.",
-      "zh-CN": "沿着第1周确定的方向，一起完成代表简历和自我介绍书。让一套材料可以立即用于投递。",
-      vi: "Hoàn thành cả CV chính và thư giới thiệu theo hướng đã chọn ở Tuần 1. Bước này giúp một bộ hồ sơ sẵn sàng ứng tuyển ngay.",
-      ja: "Week 1で決めた方向に沿って、代表履歴書と自己紹介書を一緒に仕上げます。一式の書類ですぐ応募できるようにする段階です。",
-      id: "Selesaikan resume utama dan surat lamaran sesuai arah yang kamu tetapkan di Minggu 1. Ini menyiapkan satu set dokumen agar bisa langsung melamar."
+      ko: "Step 1에서 정한 방향으로 대표 이력서와 자기소개서를 함께 완성해요. 서류 한 세트로 바로 지원할 수 있게 만드는 단계예요.",
+      en: "Complete both your main resume and cover letter along the direction you set in Step 1. This gets one document set ready to apply right away.",
+      "zh-CN": "沿着Step 1确定的方向，一起完成代表简历和自我介绍书。让一套材料可以立即用于投递。",
+      vi: "Hoàn thành cả CV chính và thư giới thiệu theo hướng đã chọn ở Step 1. Bước này giúp một bộ hồ sơ sẵn sàng ứng tuyển ngay.",
+      ja: "Step 1で決めた方向に沿って、代表履歴書と自己紹介書を一緒に仕上げます。一式の書類ですぐ応募できるようにする段階です。",
+      id: "Selesaikan resume utama dan surat lamaran sesuai arah yang kamu tetapkan di Step 1. Ini menyiapkan satu set dokumen agar bisa langsung melamar."
     }
   },
   3: {
@@ -85,12 +85,12 @@ const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
       id: "Latih wawancara per jenis dengan resume & suratmu, dan temukan kelemahan"
     },
     goal: {
-      ko: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 주 집중 훈련할 지점을 잡는 단계예요.",
-      en: "Take realistic mock interviews with your finished resume and cover letter, and use AI scoring to spot recurring weaknesses. This pinpoints what to train next week.",
-      "zh-CN": "用完成的简历和自我介绍书进行实战般的模拟面试，通过AI评分发现反复出现的弱点。这是确定下周集中训练重点的阶段。",
-      vi: "Thực hiện phỏng vấn thử như thật với CV và thư giới thiệu đã hoàn thành, dùng chấm điểm AI để phát hiện điểm yếu lặp lại. Bước này xác định điểm cần luyện tuần sau.",
-      ja: "仕上げた履歴書・自己紹介書で実戦のように模擬面接を受け、AI採点で繰り返す弱点を見つけます。来週集中的に鍛える点を定める段階です。",
-      id: "Lakukan wawancara simulasi realistis dengan resume dan surat lamaran yang sudah jadi, dan gunakan penilaian AI untuk menemukan kelemahan yang berulang. Ini menandai apa yang harus dilatih minggu depan."
+      ko: "완성한 이력서·자기소개서로 실전처럼 모의면접을 보고, AI 채점으로 반복되는 약점을 발견해요. 다음 단계에서 집중 훈련할 지점을 잡는 단계예요.",
+      en: "Take realistic mock interviews with your finished resume and cover letter, and use AI scoring to spot recurring weaknesses. This pinpoints what to train in the next step.",
+      "zh-CN": "用完成的简历和自我介绍书进行实战般的模拟面试，通过AI评分发现反复出现的弱点。这是确定下一步骤集中训练重点的阶段。",
+      vi: "Thực hiện phỏng vấn thử như thật với CV và thư giới thiệu đã hoàn thành, dùng chấm điểm AI để phát hiện điểm yếu lặp lại. Bước này xác định điểm cần luyện ở bước tiếp theo.",
+      ja: "仕上げた履歴書・自己紹介書で実戦のように模擬面接を受け、AI採点で繰り返す弱点を見つけます。次のステップで集中的に鍛える点を定める段階です。",
+      id: "Lakukan wawancara simulasi realistis dengan resume dan surat lamaran yang sudah jadi, dan gunakan penilaian AI untuk menemukan kelemahan yang berulang. Ini menandai apa yang harus dilatih di langkah berikutnya."
     }
   },
   4: {
@@ -111,12 +111,12 @@ const WEEK_TEXT: Record<number, Record<WeekField, LT>> = {
       id: "Latih berulang pertanyaan yang lemah dan bangun kekuatan untuk melamar sendiri"
     },
     goal: {
-      ko: "3주차에서 찾은 약점 질문을 오답노트로 반복 훈련하고, 처음보다 얼마나 나아졌는지 확인해요. 스스로 지원할 수 있게 마무리하는 단계예요!",
-      en: "Drill the weak questions found in Week 3 as review notes and check how much you've improved from the start. This is the wrap-up that gets you ready to apply on your own!",
-      "zh-CN": "把第3周找出的弱点问题作为错题本反复训练，确认比最初进步了多少。这是让你能够独立投递的收尾阶段！",
-      vi: "Luyện lại các câu hỏi yếu tìm được ở Tuần 3 như sổ sửa lỗi và kiểm tra bạn đã tiến bộ bao nhiêu so với ban đầu. Đây là bước hoàn tất để bạn tự ứng tuyển!",
-      ja: "3週目で見つけた弱点の質問を復習ノートとして繰り返し訓練し、最初よりどれだけ良くなったかを確認します。自分で応募できるよう仕上げる段階です！",
-      id: "Latih ulang pertanyaan lemah dari Minggu 3 sebagai catatan koreksi dan cek seberapa besar kemajuanmu dari awal. Ini penutup yang menyiapkanmu melamar sendiri!"
+      ko: "Step 3에서 찾은 약점 질문을 오답노트로 반복 훈련하고, 처음보다 얼마나 나아졌는지 확인해요. 스스로 지원할 수 있게 마무리하는 단계예요!",
+      en: "Drill the weak questions found in Step 3 as review notes and check how much you've improved from the start. This is the wrap-up that gets you ready to apply on your own!",
+      "zh-CN": "把Step 3找出的弱点问题作为错题本反复训练，确认比最初进步了多少。这是让你能够独立投递的收尾阶段！",
+      vi: "Luyện lại các câu hỏi yếu tìm được ở Step 3 như sổ sửa lỗi và kiểm tra bạn đã tiến bộ bao nhiêu so với ban đầu. Đây là bước hoàn tất để bạn tự ứng tuyển!",
+      ja: "Step 3で見つけた弱点の質問を復習ノートとして繰り返し訓練し、最初よりどれだけ良くなったかを確認します。自分で応募できるよう仕上げる段階です！",
+      id: "Latih ulang pertanyaan lemah dari Step 3 sebagai catatan koreksi dan cek seberapa besar kemajuanmu dari awal. Ini penutup yang menyiapkanmu melamar sendiri!"
     }
   }
 };
@@ -152,12 +152,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Temukan pengalamanku"
     },
     desc: {
-      ko: "사소해 보이는 경험에서도 AI가 강점을 찾아 구조화해요. 여기서 쌓은 경험은 4주 내내 이력서·자소서·면접에 계속 쓰여요.",
-      en: "AI mines strengths even from small experiences and structures them. What you build here is reused across your resume, cover letter, and interviews for all 4 weeks.",
-      "zh-CN": "AI 会从看似微小的经验中发掘优势并结构化。这里积累的经验将贯穿4周用于简历、自我介绍与面试。",
-      vi: "AI tìm điểm mạnh từ cả những kinh nghiệm nhỏ và cấu trúc hóa chúng. Những gì bạn xây ở đây được dùng suốt 4 tuần cho CV, thư giới thiệu và phỏng vấn.",
-      ja: "小さく見える経験からもAIが強みを見つけて構造化します。ここで蓄積した経験は4週間ずっと履歴書・自己紹介書・面接で活用されます。",
-      id: "AI menggali kelebihan bahkan dari pengalaman kecil dan menyusunnya. Yang kamu kumpulkan di sini dipakai selama 4 minggu di resume, surat lamaran, dan wawancara."
+      ko: "사소해 보이는 경험에서도 AI가 강점을 찾아 구조화해요. 여기서 쌓은 경험은 4단계 내내 이력서·자소서·면접에 계속 쓰여요.",
+      en: "AI mines strengths even from small experiences and structures them. What you build here is reused across your resume, cover letter, and interviews across all 4 steps.",
+      "zh-CN": "AI 会从看似微小的经验中发掘优势并结构化。这里积累的经验将贯穿全部4个步骤，用于简历、自我介绍与面试。",
+      vi: "AI tìm điểm mạnh từ cả những kinh nghiệm nhỏ và cấu trúc hóa chúng. Những gì bạn xây ở đây được dùng suốt 4 bước cho CV, thư giới thiệu và phỏng vấn.",
+      ja: "小さく見える経験からもAIが強みを見つけて構造化します。ここで蓄積した経験は4ステップを通して履歴書・自己紹介書・面接で活用されます。",
+      id: "AI menggali kelebihan bahkan dari pengalaman kecil dan menyusunnya. Yang kamu kumpulkan di sini dipakai di seluruh 4 langkah untuk resume, surat lamaran, dan wawancara."
     }
   },
   w1s2: {
@@ -206,12 +206,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Memahami budaya perusahaan Korea"
     },
     desc: {
-      ko: "한국의 채용 방식과 직장 문화를 이해해두면 이력서·면접 준비의 방향이 잡혀요. 다음 주 지원 준비로 넘어가기 전 1주차 마무리 단계예요.",
-      en: "Understanding Korean hiring and workplace culture guides how you prepare your resume and interviews — the wrap-up of Week 1 before you move on to applying next week.",
-      "zh-CN": "了解韩国的招聘方式和职场文化，能把握简历和面试准备的方向。这是进入下周申请准备前的第1周收尾。",
-      vi: "Hiểu cách tuyển dụng và văn hóa công sở Hàn Quốc sẽ định hướng chuẩn bị CV và phỏng vấn — bước kết của Tuần 1 trước khi sang tuần ứng tuyển.",
-      ja: "韓国の採用方式と職場文化を理解しておくと、履歴書・面接準備の方向が定まります。来週の応募準備へ進む前の、1週目の締めくくりです。",
-      id: "Memahami cara rekrutmen dan budaya kerja Korea mengarahkan persiapan resume dan wawancara — penutup Minggu 1 sebelum lanjut melamar minggu depan."
+      ko: "한국의 채용 방식과 직장 문화를 이해해두면 이력서·면접 준비의 방향이 잡혀요. 다음 단계 지원 준비로 넘어가기 전 Step 1 마무리 단계예요.",
+      en: "Understanding Korean hiring and workplace culture guides how you prepare your resume and interviews — the wrap-up of Step 1 before you move on to applying in the next step.",
+      "zh-CN": "了解韩国的招聘方式和职场文化，能把握简历和面试准备的方向。这是进入下一步骤申请准备前的Step 1收尾。",
+      vi: "Hiểu cách tuyển dụng và văn hóa công sở Hàn Quốc sẽ định hướng chuẩn bị CV và phỏng vấn — bước kết của Step 1 trước khi sang bước ứng tuyển.",
+      ja: "韓国の採用方式と職場文化を理解しておくと、履歴書・面接準備の方向が定まります。次のステップの応募準備へ進む前の、Step 1の締めくくりです。",
+      id: "Memahami cara rekrutmen dan budaya kerja Korea mengarahkan persiapan resume dan wawancara — penutup Step 1 sebelum lanjut melamar di langkah berikutnya."
     }
   },
   w1story: {
@@ -224,12 +224,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Buat cerita kelebihan"
     },
     desc: {
-      ko: "정리한 경험 하나를 상황·행동·결과가 담긴 짧은 이야기로 만들어요. 2주차 자기소개서와 면접에서 그대로 써먹는 강력한 무기가 돼요.",
-      en: "Turn one experience into a short situation–action–result story. It becomes a powerful asset you'll reuse in your Week 2 cover letter and interviews.",
-      "zh-CN": "把一段经验做成含情境·行动·结果的小故事。它会成为第2周自我介绍和面试中直接可用的有力武器。",
-      vi: "Biến một kinh nghiệm thành câu chuyện ngắn tình huống–hành động–kết quả. Đây sẽ là vũ khí mạnh dùng lại ở thư giới thiệu Tuần 2 và phỏng vấn.",
-      ja: "整理した経験の一つを、状況・行動・結果が入った短い話にします。2週目の自己紹介書や面接でそのまま使える強力な武器になります。",
-      id: "Ubah satu pengalaman jadi cerita singkat situasi–aksi–hasil. Ini jadi senjata ampuh yang kamu pakai lagi di surat lamaran Minggu 2 dan wawancara."
+      ko: "정리한 경험 하나를 상황·행동·결과가 담긴 짧은 이야기로 만들어요. Step 2 자기소개서와 면접에서 그대로 써먹는 강력한 무기가 돼요.",
+      en: "Turn one experience into a short situation–action–result story. It becomes a powerful asset you'll reuse in your Step 2 cover letter and interviews.",
+      "zh-CN": "把一段经验做成含情境·行动·结果的小故事。它会成为Step 2自我介绍和面试中直接可用的有力武器。",
+      vi: "Biến một kinh nghiệm thành câu chuyện ngắn tình huống–hành động–kết quả. Đây sẽ là vũ khí mạnh dùng lại ở thư giới thiệu Step 2 và phỏng vấn.",
+      ja: "整理した経験の一つを、状況・行動・結果が入った短い話にします。Step 2の自己紹介書や面接でそのまま使える強力な武器になります。",
+      id: "Ubah satu pengalaman jadi cerita singkat situasi–aksi–hasil. Ini jadi senjata ampuh yang kamu pakai lagi di surat lamaran Step 2 dan wawancara."
     }
   },
   w1company: {
@@ -242,12 +242,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Jelajahi perusahaan target"
     },
     desc: {
-      ko: "정한 직무로 지금 채용 중인 기업을 살펴보고, 가고 싶은 목표 기업을 3곳 정도 담아둬요. 2주차 지원 서류를 이 기업들에 맞춰 준비해요.",
-      en: "Browse companies hiring now for your chosen role and save about 3 target companies. You'll tailor your Week 2 documents to them.",
-      "zh-CN": "浏览正在招聘你所选职务的企业，收藏约3家目标企业。第2周的申请材料将据此准备。",
-      vi: "Xem các công ty đang tuyển cho nghề bạn chọn và lưu khoảng 3 công ty mục tiêu. Hồ sơ Tuần 2 sẽ điều chỉnh theo họ.",
-      ja: "選んだ職種で今採用中の企業を見て、行きたい目標企業を3社ほど保存します。2週目の応募書類をこの企業に合わせて準備します。",
-      id: "Telusuri perusahaan yang sedang merekrut untuk peranmu dan simpan sekitar 3 perusahaan target. Dokumen Minggu 2 akan disesuaikan dengan mereka."
+      ko: "정한 직무로 지금 채용 중인 기업을 살펴보고, 가고 싶은 목표 기업을 3곳 정도 담아둬요. Step 2 지원 서류를 이 기업들에 맞춰 준비해요.",
+      en: "Browse companies hiring now for your chosen role and save about 3 target companies. You'll tailor your Step 2 documents to them.",
+      "zh-CN": "浏览正在招聘你所选职务的企业，收藏约3家目标企业。Step 2的申请材料将据此准备。",
+      vi: "Xem các công ty đang tuyển cho nghề bạn chọn và lưu khoảng 3 công ty mục tiêu. Hồ sơ Step 2 sẽ điều chỉnh theo họ.",
+      ja: "選んだ職種で今採用中の企業を見て、行きたい目標企業を3社ほど保存します。Step 2の応募書類をこの企業に合わせて準備します。",
+      id: "Telusuri perusahaan yang sedang merekrut untuk peranmu dan simpan sekitar 3 perusahaan target. Dokumen Step 2 akan disesuaikan dengan mereka."
     }
   },
   // Week 2
@@ -479,12 +479,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Pemeriksaan akhir resume & surat lamaran"
     },
     desc: {
-      ko: "완성한 이력서와 자기소개서를 확인하고, 고치고 싶은 곳은 각각 수정하기로 해당 주차에서 다듬어요.",
-      en: "Review your finished resume and cover letter, and polish anything you want to change in each relevant week.",
-      "zh-CN": "检查已完成的简历和自我介绍书，想修改的地方可到相应周次分别润色。",
-      vi: "Xem lại CV và thư giới thiệu đã hoàn thành, chỗ nào muốn sửa thì chỉnh lại ở tuần tương ứng.",
-      ja: "仕上げた履歴書と自己紹介書を確認し、直したい箇所はそれぞれ該当の週で整えます。",
-      id: "Tinjau resume dan surat lamaran yang sudah selesai, dan poles bagian yang ingin diubah di minggu terkait masing-masing."
+      ko: "완성한 이력서와 자기소개서를 확인하고, 고치고 싶은 곳은 각각 수정하기로 해당 단계에서 다듬어요.",
+      en: "Review your finished resume and cover letter, and polish anything you want to change in each relevant step.",
+      "zh-CN": "检查已完成的简历和自我介绍书，想修改的地方可到相应步骤分别润色。",
+      vi: "Xem lại CV và thư giới thiệu đã hoàn thành, chỗ nào muốn sửa thì chỉnh lại ở bước tương ứng.",
+      ja: "仕上げた履歴書と自己紹介書を確認し、直したい箇所はそれぞれ該当のステップで整えます。",
+      id: "Tinjau resume dan surat lamaran yang sudah selesai, dan poles bagian yang ingin diubah di langkah terkait masing-masing."
     }
   },
   "w4-self": {
@@ -587,12 +587,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
       id: "Diagnosis kelulusan"
     },
     desc: {
-      ko: "처음 측정한 취업 준비도를 다시 측정해, 4주 동안 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
-      en: "Retake the initial job-readiness self-diagnosis to see how much you've grown over 4 weeks. It becomes the basis of the outcome report submitted to your school.",
-      "zh-CN": "重新进行最初的求职准备自我诊断，确认这4周成长了多少。这将成为提交给学校的成果报告的依据。",
-      vi: "Làm lại bài tự chẩn đoán mức độ sẵn sàng tìm việc ban đầu để xem bạn đã tiến bộ bao nhiêu sau 4 tuần. Đây là cơ sở cho báo cáo kết quả gửi về trường.",
-      ja: "最初に受けた就職準備セルフ診断をもう一度受け、4週間でどれだけ成長したか確認します。学校に提出する成果レポートの根拠になります。",
-      id: "Ulangi diagnosis mandiri kesiapan kerja awal untuk melihat seberapa besar perkembanganmu selama 4 minggu. Ini menjadi dasar laporan hasil yang diserahkan ke kampusmu."
+      ko: "처음 측정한 취업 준비도를 다시 측정해, 4단계에 걸쳐 얼마나 성장했는지 확인해요. 학교에 제출하는 성과 리포트의 근거가 돼요.",
+      en: "Retake the initial job-readiness self-diagnosis to see how much you've grown across 4 steps. It becomes the basis of the outcome report submitted to your school.",
+      "zh-CN": "重新进行最初的求职准备自我诊断，确认这4个步骤中成长了多少。这将成为提交给学校的成果报告的依据。",
+      vi: "Làm lại bài tự chẩn đoán mức độ sẵn sàng tìm việc ban đầu để xem bạn đã tiến bộ bao nhiêu sau 4 bước. Đây là cơ sở cho báo cáo kết quả gửi về trường.",
+      ja: "最初に受けた就職準備セルフ診断をもう一度受け、4ステップでどれだけ成長したか確認します。学校に提出する成果レポートの根拠になります。",
+      id: "Ulangi diagnosis mandiri kesiapan kerja awal untuk melihat seberapa besar perkembanganmu selama 4 langkah. Ini menjadi dasar laporan hasil yang diserahkan ke kampusmu."
     }
   }
 };
@@ -600,12 +600,12 @@ const STEP_TEXT: Record<string, Record<StepField, LT>> = {
 // ── 수료 조건(순서 = data.ts 배열 순서) ──
 const COMPLETION_TEXT: LT[] = [
   {
-    ko: "4주 미션 모두 완료하기",
-    en: "Complete all 4 weeks of missions",
-    "zh-CN": "完成全部4周的任务",
-    vi: "Hoàn thành toàn bộ nhiệm vụ 4 tuần",
-    ja: "4週間のミッションをすべて完了する",
-    id: "Selesaikan semua misi 4 minggu"
+    ko: "4단계 미션 모두 완료하기",
+    en: "Complete all 4 steps of missions",
+    "zh-CN": "完成全部4个步骤的任务",
+    vi: "Hoàn thành toàn bộ nhiệm vụ 4 bước",
+    ja: "4ステップのミッションをすべて完了する",
+    id: "Selesaikan semua misi 4 langkah"
   },
   {
     ko: "세미나 3회 이상 참석하기",
@@ -1070,7 +1070,7 @@ const WEEK_RESULT_TEXT: Record<string, LT> = {
   "질문별 피드백": { ko: "질문별 피드백", en: "Per-question feedback", "zh-CN": "逐题反馈", vi: "Phản hồi từng câu", ja: "質問別フィードバック", id: "Masukan per pertanyaan" },
   "반복 취약 패턴": { ko: "반복 취약 패턴", en: "Recurring weak patterns", "zh-CN": "反复薄弱点", vi: "Mẫu yếu lặp lại", ja: "繰り返す弱点", id: "Pola lemah berulang" },
   "핵심 오답": { ko: "핵심 오답", en: "Key wrong answers", "zh-CN": "核心错题", vi: "Lỗi chính", ja: "核心の誤答", id: "Kesalahan utama" },
-  "Week 4 훈련계획": { ko: "Week 4 훈련계획", en: "Week 4 training plan", "zh-CN": "第4周训练计划", vi: "Kế hoạch Tuần 4", ja: "Week 4トレーニング計画", id: "Rencana latihan Minggu 4" },
+  "Step 4 훈련계획": { ko: "Step 4 훈련계획", en: "Step 4 training plan", "zh-CN": "Step 4训练计划", vi: "Kế hoạch Step 4", ja: "Step 4トレーニング計画", id: "Rencana latihan Step 4" },
   "해결한 오답": { ko: "해결한 오답", en: "Fixed answers", "zh-CN": "已解决错题", vi: "Lỗi đã sửa", ja: "解決した誤答", id: "Jawaban diperbaiki" },
   "유사 질문 통과": { ko: "유사 질문 통과", en: "Similar Qs passed", "zh-CN": "通过相似问题", vi: "Vượt câu tương tự", ja: "類似質問クリア", id: "Lolos pertanyaan serupa" },
   "최종 모의면접": { ko: "최종 모의면접", en: "Final mock interview", "zh-CN": "最终模拟面试", vi: "Phỏng vấn thử cuối", ja: "最終模擬面接", id: "Wawancara simulasi akhir" },

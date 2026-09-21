@@ -280,7 +280,7 @@ export default function OrgOpsPage() {
               ))}
             </div>
             {license.usage.overCommitted && <div className="px-3 py-2 rounded-lg bg-[#FFFBEB] text-[#C77700] text-[13px]">계약 좌석을 초과했어요. 기존 학생은 유지되고 신규 활성화만 제한됩니다.</div>}
-            <p className="text-[12px] text-[#8B95A1]">좌석 정의: 배정=등록, 활성=첫 상담 시작, 완주=Week 4 완료. 중복 등록은 1좌석으로 계산해요. 라이선스 설정은 APLY 운영자만 변경할 수 있어요.</p>
+            <p className="text-[12px] text-[#8B95A1]">좌석 정의: 배정=등록, 활성=첫 상담 시작, 완주=Step 4 완료. 중복 등록은 1좌석으로 계산해요. 라이선스 설정은 APLY 운영자만 변경할 수 있어요.</p>
           </div>
         )}
 

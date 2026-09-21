@@ -58,8 +58,8 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
   const label = log ? [log.company, log.title].filter(Boolean).join(" · ") || t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi") : "";
   const eyebrow =
     log?.source === "basic"
-      ? t("3주차 · 기본 면접", "Week 3 · Basic interview", "第3周 · 基础面试", "Tuần 3 · Phỏng vấn cơ bản", "Week 3 · 基本面接", "Minggu 3 · Wawancara dasar")
-      : t("4주차 · 공고별 모의면접", "Week 4 · Posting mock interview", "第4周 · 公告模拟面试", "Tuần 4 · Phỏng vấn theo tin", "Week 4 · 求人別模擬面接", "Minggu 4 · Wawancara per lowongan");
+      ? t("Step 3 · 기본 면접", "Step 3 · Basic interview", "Step 3 · 基础面试", "Step 3 · Phỏng vấn cơ bản", "Step 3 · 基本面接", "Step 3 · Wawancara dasar")
+      : t("Step 4 · 공고별 모의면접", "Step 4 · Posting mock interview", "Step 4 · 公告模拟面试", "Step 4 · Phỏng vấn theo tin", "Step 4 · 求人別模擬面接", "Step 4 · Wawancara per lowongan");
   const date = log
     ? (() => {
         try {

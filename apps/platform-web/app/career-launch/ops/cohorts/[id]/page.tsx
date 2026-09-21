@@ -259,7 +259,7 @@ export default function LaunchOpsCohortDetailPage() {
                             ) : (
                               <span className="ops-status-badge">
                                 {t("진행 중", "In progress", "进行中", "Đang tiến hành", "進行中", "Berlangsung")}
-                                {pr ? ` · ${pr.weeksCompleted}/4${t("주", "w", "周", "t", "週", "mg")}` : ""}
+                                {pr ? ` · ${pr.weeksCompleted}/4${t("단계", " steps", "个步骤", " bước", "ステップ", " langkah")}` : ""}
                               </span>
                             )}
                           </td>
@@ -337,12 +337,12 @@ function WeekScheduleCard({ cohortId, weekSchedule }: { cohortId: string; weekSc
 
   return (
     <article className="ops-partner-form-card">
-      <h2>{t("주차 오픈 일정", "Week open schedule", "周次开放日程", "Lịch mở tuần", "週次オープン日程", "Jadwal buka minggu")}</h2>
-      <p>{t("주차별 오픈일을 정하면 그 날짜에 자동으로 열려요. '지금 열기'로 즉시 열 수도 있어요.", "Set an open date per week to auto-unlock; use 'Open now' to unlock immediately.", "设置每周开放日期后将自动开放；也可用“立即开放”。", "Đặt ngày mở cho từng tuần để tự mở; hoặc 'Mở ngay'.", "週ごとにオープン日を設定すると自動で開きます。「今すぐ開く」で即時オープンも可能。", "Atur tanggal buka per minggu; atau 'Buka sekarang'.")}</p>
+      <h2>{t("단계 오픈 일정", "Step open schedule", "步骤开放日程", "Lịch mở bước", "ステップ別オープン日程", "Jadwal buka langkah")}</h2>
+      <p>{t("단계별 오픈일을 정하면 그 날짜에 자동으로 열려요. '지금 열기'로 즉시 열 수도 있어요.", "Set an open date per step to auto-unlock; use 'Open now' to unlock immediately.", "设置每个步骤的开放日期后将自动开放；也可用“立即开放”。", "Đặt ngày mở cho từng bước để tự mở; hoặc 'Mở ngay'.", "ステップごとにオープン日を設定すると自動で開きます。「今すぐ開く」で即時オープンも可能。", "Atur tanggal buka per langkah; atau 'Buka sekarang'.")}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
         {[1, 2, 3, 4].map((w) => (
           <div key={w} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ minWidth: 52, fontWeight: 700, fontSize: 13 }}>{t(`${w}주차`, `Week ${w}`, `第${w}周`, `Tuần ${w}`, `${w}週`, `Minggu ${w}`)}</span>
+            <span style={{ minWidth: 52, fontWeight: 700, fontSize: 13 }}>{t(`Step ${w}`, `Step ${w}`, `Step ${w}`, `Step ${w}`, `Step ${w}`, `Step ${w}`)}</span>
             <input
               type="datetime-local"
               value={rows[w].opensAt}
