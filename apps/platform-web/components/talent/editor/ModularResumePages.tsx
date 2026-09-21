@@ -3,7 +3,7 @@
 // 모듈형 이력서 A4 — 버전 구성(칸·순서)대로 모듈을 배치해 A4 페이지로 보여준다.
 // 치수·글꼴·섹션 모양은 기존 ResumeA4 와 같다(같은 이력서가 다른 화면에서 달라 보이지 않게).
 // 편집 모드(interaction)에서는 모듈 선택·드래그·놓을 위치 표시를 함께 그린다.
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { FIXED_MODULES, type Overrides } from "../../../lib/talent/doc-versions";
@@ -18,6 +18,14 @@ const PAGE_H = 1123;
 const PAGE_PAD = 52;
 const FOOTER_H = 44;
 const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H;
+// 편집 모드에서 페이지 창을 위아래로 이만큼 더 보여 준다 — 페이지 맨 위·아래 모듈의 선택 테두리와
+// '이 버전용' 표시가 창 경계에서 잘리지 않게. 여백에 비치는 이웃 페이지 모듈은 PageModules 로 가린다.
+const EDIT_BLEED = 12;
+
+/** 이 페이지에 속한 모듈 id. 없으면(측정용·편집 아님) 전부 보인다. */
+const PageModules = createContext<Set<string> | null>(null);
+
+type MeasuredBlock = { id: string | null; top: number; bottom: number };
 
 /** 놓을 자리 — col 칸의 index 번째 앞. */
 export type DropSlot = { col: number; index: number };
@@ -45,12 +53,12 @@ type Props = {
  * 여러 칸이어도 항목이 잘리지 않게 페이지를 나눈다 — 어느 칸의 블록도 가로지르지 않는
  * 가장 먼 지점에서 끊는다. 한 블록이 한 장보다 크면 어쩔 수 없이 경계에서 자른다.
  */
-function packColumns(root: HTMLElement, contentH: number): { starts: number[]; total: number } {
+function packColumns(root: HTMLElement, contentH: number): { starts: number[]; total: number; blocks: MeasuredBlock[] } {
   const total = root.scrollHeight;
   const rootTop = root.getBoundingClientRect().top;
   const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block]")).map((el) => {
     const r = el.getBoundingClientRect();
-    return { top: r.top - rootTop, bottom: r.bottom - rootTop };
+    return { id: el.getAttribute("data-module"), top: r.top - rootTop, bottom: r.bottom - rootTop };
   });
   const straddles = (y: number) => blocks.some((b) => b.top < y - 0.5 && b.bottom > y + 0.5);
   const candidates = Array.from(new Set(blocks.flatMap((b) => [b.top, b.bottom])))
@@ -71,7 +79,7 @@ function packColumns(root: HTMLElement, contentH: number): { starts: number[]; t
     starts.push(next);
     pageTop = next;
   }
-  return { starts, total };
+  return { starts, total, blocks };
 }
 
 export function ModularResumePages({ doc, info, layout, overrides, interaction, maxScale = 1 }: Props & { maxScale?: number }) {
@@ -80,6 +88,7 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
   const [w, setW] = useState(0);
   const [starts, setStarts] = useState<number[]>([0]);
   const [total, setTotal] = useState(CONTENT_H);
+  const [blocks, setBlocks] = useState<MeasuredBlock[]>([]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -92,12 +101,16 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
   useLayoutEffect(() => {
     const el = sheetRef.current;
     if (!el) return;
-    const { starts: s, total: tt } = packColumns(el, CONTENT_H);
+    const { starts: s, total: tt, blocks: b } = packColumns(el, CONTENT_H);
     setStarts((prev) => (prev.length === s.length && prev.every((v, i) => Math.abs(v - s[i]) < 0.5) ? prev : s));
     setTotal(tt);
+    setBlocks((prev) =>
+      prev.length === b.length && prev.every((v, i) => v.id === b[i].id && Math.abs(v.top - b[i].top) < 0.5 && Math.abs(v.bottom - b[i].bottom) < 0.5) ? prev : b
+    );
   });
 
   const scale = w > 0 ? Math.min(w / PAGE_W, maxScale) : 0;
+  const bleed = interaction ? EDIT_BLEED : 0;
 
   return (
     <div ref={wrapRef} className="w-full">
@@ -113,15 +126,19 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
           {starts.map((startPx, i) => {
             const endPx = i < starts.length - 1 ? starts[i + 1] : total;
             const windowH = Math.min(endPx - startPx, CONTENT_H);
+            // 이 페이지 창과 겹치는 모듈만 — 앞 페이지 끝·다음 페이지 첫 모듈이 여백(bleed)에 비치지 않게.
+            const onPage = bleed ? new Set(blocks.filter((b) => b.id && b.bottom > startPx + 0.5 && b.top < startPx + windowH - 0.5).map((b) => b.id as string)) : null;
             return (
               <div
                 key={i}
                 className="relative overflow-hidden rounded-[6px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)] print:rounded-none print:border-0 print:shadow-none"
                 style={{ width: PAGE_W * scale, height: PAGE_H * scale }}
               >
-                <div className="absolute left-0 overflow-hidden" style={{ top: PAGE_PAD * scale, width: PAGE_W * scale, height: windowH * scale }}>
-                  <div style={{ position: "absolute", top: -(startPx * scale), width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-                    <ResumeBody doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} />
+                <div className="absolute left-0 overflow-hidden" style={{ top: (PAGE_PAD - bleed) * scale, width: PAGE_W * scale, height: (windowH + bleed * 2) * scale }}>
+                  <div style={{ position: "absolute", top: -((startPx - bleed) * scale), width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+                    <PageModules.Provider value={onPage}>
+                      <ResumeBody doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} />
+                    </PageModules.Provider>
                   </div>
                 </div>
                 <div className="absolute inset-x-0" style={{ bottom: PAGE_PAD * scale }}>
@@ -242,6 +259,7 @@ function ModuleBlock({
   children: ReactNode;
 }) {
   const t = usePlatformT();
+  const pageModules = useContext(PageModules);
   const spacing = gapTop ? "mt-7" : "mt-2.5";
   if (!ix) {
     return (
@@ -252,6 +270,7 @@ function ModuleBlock({
   }
   const selected = ix.selectedId === id;
   const dragging = ix.dragId === id;
+  const offPage = pageModules ? !pageModules.has(id) : false;
   const over = (e: DragEvent<HTMLDivElement>) => {
     if (!ix.dragId) return;
     e.preventDefault();
@@ -278,7 +297,7 @@ function ModuleBlock({
       onClick={() => ix.onSelect(id)}
       className={`relative -mx-2 cursor-grab rounded-[6px] px-2 py-1 transition-colors print:m-0 print:bg-transparent print:p-0 print:outline-0 ${index === 0 ? "" : spacing} ${
         selected ? "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]" : "hover:bg-[#F7F9FC] hover:outline hover:outline-1 hover:outline-[#D7DCE3]"
-      } ${dragging ? "opacity-40" : ""}`}
+      } ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
       {forked ? (
         <span className="absolute -top-2 right-2 rounded-[4px] bg-[#FFF6E5] px-1.5 py-[1px] text-[10px] font-bold text-[#B25E09] print:hidden">
