@@ -46,6 +46,8 @@ import {
   type ResolvedLayout
 } from "../../../lib/talent/resume-layout";
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
+import { polishExperienceText, polishSelfIntro } from "../../../lib/resume-maker-client";
+import { AiPolish } from "./AiPolish";
 import { EditorTopBar, Field, ForkBanner, FullMessage, Section, ToolButton, VersionPanel, useDocVersionStore } from "./editor-shared";
 
 type Version = DocVersion<ResumeLayout>;
@@ -485,6 +487,13 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
         </>
       ) : null}
       <Field label={isSummary ? t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") : t("내용", "Details", "内容", "Nội dung", "内容", "Isi")} value={text} onChange={setText} multiline />
+      <AiPolish
+        key={`${id}-${forked ? "o" : "s"}`}
+        t={t}
+        text={text}
+        polish={(src, style) => (isSummary ? polishSelfIntro({ text: src, style, desiredJobRole: doc.targetRole || undefined }) : polishExperienceText({ text: src, style, type: item?.section }))}
+        onApply={setText}
+      />
       {item ? (
         <div className="grid grid-cols-2 gap-2">
           <Field label={t("시작", "Start", "开始", "Bắt đầu", "開始", "Mulai")} value={displayMonth(item.startDate ?? "")} placeholder="2023.03" onBlurValue={(v) => props.onItem(item.id, { startDate: normalizeMonth(v) })} />

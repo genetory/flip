@@ -31,6 +31,8 @@ import {
   updateQuestion,
   type ResolvedCover
 } from "../../../lib/talent/cover-layout";
+import { polishSelfIntro } from "../../../lib/resume-maker-client";
+import { AiPolish } from "./AiPolish";
 import { EditorTopBar, Field, ForkBanner, FullMessage, Section, ToolButton, VersionPanel, useDocVersionStore } from "./editor-shared";
 
 type Version = DocVersion<CoverLayout>;
@@ -524,6 +526,7 @@ function Inspector(props: {
           ) : null}
           <ForkBanner t={t} forked={!!overrides[id]} onFork={() => props.onFork(id)} onUnfork={() => props.onUnfork(id)} />
           <Field key={`t-${id}-${overrides[id] ? "o" : "s"}`} label={t("본문", "Text", "正文", "Nội dung", "本文", "Isi")} value={props.textOf(id)} multiline rows={9} onChange={(v) => props.onText(id, v)} />
+          <AiPolish key={`ai-${id}-${overrides[id] ? "o" : "s"}`} t={t} text={props.textOf(id)} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
           <p className="text-right text-[12px] text-[#8B95A1]">
             {t(`이 단락 ${charCount(props.textOf(id).trim()).toLocaleString()}자`, `${charCount(props.textOf(id).trim()).toLocaleString()} chars`)}
           </p>

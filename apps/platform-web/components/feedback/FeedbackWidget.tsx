@@ -5,11 +5,15 @@
 // API가 Discord 팀 채널로 전달한다. 서버 저장/마이그레이션 없음.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 import { ChatCircleDots, X, PaperPlaneRight, CheckCircle, ImageSquare } from "@phosphor-icons/react";
 import { usePlatformT } from "../../lib/i18n";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 
 type Category = "bug" | "idea" | "etc";
+
+// 전체 화면 편집기처럼 오른쪽 아래가 작업 공간인 화면에선 띄우지 않는다.
+const HIDDEN_PATHS = ["/talent/career/resume/editor", "/talent/career/cover/editor"];
 
 function apiBase(): string {
   return process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") || "http://localhost:4000";
@@ -25,6 +29,7 @@ export function FeedbackWidget() {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [attachShot, setAttachShot] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -171,7 +176,7 @@ export function FeedbackWidget() {
 
   // body 직계 div 에 걸린 `overflow-x: clip`(가로 드리프트 방지)이 fixed 위젯의
   // 그림자를 좌우로 잘라내므로, body 로 포털 렌더 + inline overflow:visible 로 벗어난다.
-  if (!mounted) return null;
+  if (!mounted || HIDDEN_PATHS.includes(pathname ?? "")) return null;
   return createPortal(
     <div
       ref={wrapperRef}
