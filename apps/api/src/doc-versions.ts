@@ -61,7 +61,8 @@ export type CoverLayout = z.infer<typeof coverLayoutSchema>;
 /** 저장본 내용 — 저장 순간의 talent 문서 조각. 모양은 웹 talent 형식 그대로(ResumeDoc·BasicInfo·CoverDoc). */
 const docObject = z.record(z.string(), z.unknown());
 export const resumeSnapshotSchema = z.object({ resume: docObject, basicInfo: docObject }).strict();
-export const coverSnapshotSchema = z.object({ cover: docObject }).strict();
+// basicInfo 는 A4 머리(이름·연락처)용.
+export const coverSnapshotSchema = z.object({ cover: docObject, basicInfo: docObject.optional() }).strict();
 /** 저장본 하나의 최대 크기(JSON 문자열 길이). 긴 이력서도 넉넉히 들어간다. */
 export const MAX_SNAPSHOT_CHARS = 400_000;
 

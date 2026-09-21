@@ -23,11 +23,14 @@ function styles(t: PlatformT): { style: PolishStyle; label: string; hint: string
 /** 부르는 쪽에서 모듈이 바뀌면 key 로 새로 그려 비교 결과가 다른 모듈에 남지 않게 한다. */
 export function AiPolish({
   t,
+  title,
   text,
   polish,
   onApply
 }: {
   t: PlatformT;
+  /** 기본 'AI로 다듬기'. */
+  title?: string;
   text: string;
   polish: (text: string, style: PolishStyle) => Promise<string>;
   onApply: (text: string) => void;
@@ -69,7 +72,7 @@ export function AiPolish({
     <div className="flex flex-col gap-2.5 rounded-xl border border-[#E5E8EB] p-3" data-ai-polish>
       <div className="flex items-center gap-1.5 text-[12.5px] font-bold text-[#0B46E8]">
         <Sparkle size={14} weight="fill" />
-        {result ? t("다른 스타일로 다시 다듬기", "Try another style", "换一种风格", "Thử phong cách khác", "別のスタイルで整える", "Coba gaya lain") : t("AI로 다듬기", "Polish with AI", "用 AI 润色", "Chỉnh bằng AI", "AIで整える", "Poles dengan AI")}
+        {result ? t("다른 스타일로 다시 다듬기", "Try another style", "换一种风格", "Thử phong cách khác", "別のスタイルで整える", "Coba gaya lain") : title ?? t("AI로 다듬기", "Polish with AI", "用 AI 润色", "Chỉnh bằng AI", "AIで整える", "Poles dengan AI")}
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {choices.map((c) => (

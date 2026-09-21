@@ -28,7 +28,8 @@ export type CoverLayout = {
 };
 
 export type ResumeSnapshot = { resume: ResumeDoc; basicInfo: BasicInfo };
-export type CoverSnapshot = { cover: CoverDoc };
+/** basicInfo 는 A4 머리(이름·연락처)용 — 초기 저장본엔 없을 수 있다. */
+export type CoverSnapshot = { cover: CoverDoc; basicInfo?: BasicInfo };
 
 export type DocVersion<L = ResumeLayout | CoverLayout, S = ResumeSnapshot | CoverSnapshot> = {
   id: string;

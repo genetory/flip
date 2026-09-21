@@ -14,6 +14,7 @@ import { useToast } from "../../toast/ToastProvider";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
+import { useBasicInfo, type BasicInfo } from "../../../lib/talent/basic-info";
 import { addCoverItem, generateCoverDoc, saveCoverDoc, useCoverDoc, type CoverDoc, type CoverItem } from "../../../lib/talent/cover-doc";
 import type { CoverLayout, CoverSnapshot } from "../../../lib/talent/doc-versions";
 import {
@@ -28,14 +29,15 @@ import {
   removeBlock,
   removeQuestion,
   resolveCoverLayout,
+  setBlocks,
   toStoredCover,
   updateQuestion,
   type ResolvedCover
 } from "../../../lib/talent/cover-layout";
-import { polishSelfIntro } from "../../../lib/resume-maker-client";
+import { generateCoverLetter, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
+import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
-
 
 export function CoverEditorScreen() {
   return (
@@ -61,6 +63,7 @@ function EditorGate() {
 function Editor({ doc }: { doc: CoverDoc }) {
   const t = usePlatformT();
   const toast = useToast();
+  const info = useBasicInfo();
   const store = useDocVersionStore<CoverLayout, CoverSnapshot>("cover", t);
   const { working, current } = store;
   // 지금 보고 있는 문항과 고른 에피소드. 한 문항 안엔 같은 에피소드가 한 번만 있어 (문항, 에피소드)로 블록이 정해진다.
@@ -77,9 +80,9 @@ function Editor({ doc }: { doc: CoverDoc }) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
   }
 
-  const copyAnswer = async (question: ResolvedCover["questions"][number], textOf: (id: string) => string) => {
+  const copyAnswer = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(answerText(question.blocks.map(textOf)));
+      await navigator.clipboard.writeText(text);
       toast.success(t("답변을 복사했어요", "Answer copied", "已复制答案", "Đã sao chép câu trả lời", "回答をコピーしました", "Jawaban disalin"));
     } catch {
       toast.error(t("복사하지 못했어요", "Couldn't copy", "无法复制", "Không sao chép được", "コピーできませんでした", "Gagal menyalin"));
@@ -99,7 +102,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
         setActiveQ(0);
         setSelectedId(null);
       }}
-      onSaveNew={(name) => store.saveAsNew(name, toStoredCover(layout), { cover: doc })}
+      onSaveNew={(name) => store.saveAsNew(name, toStoredCover(layout), { cover: doc, basicInfo: info })}
       saveState={store.saveState}
       right={<PdfDownloadButton />}
     />
@@ -108,6 +111,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // ── 저장본 보기(읽기 전용) — 문항별 답변 복사는 된다 ──
   if (current.snapshot) {
     const snapDoc = current.snapshot.cover;
+    const snapInfo = current.snapshot.basicInfo ?? info;
     const snapLayout = resolveCoverLayout(current.layout, snapDoc);
     const snapText = (id: string) => snapDoc.items.find((i) => i.id === id)?.text ?? "";
     return (
@@ -115,15 +119,16 @@ function Editor({ doc }: { doc: CoverDoc }) {
         <PrintStyles />
         {topBar}
         <div className="flex min-h-0 flex-1 print:block">
-          <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:overflow-visible print:p-0" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
-            <div className={`mx-auto flex max-w-[794px] flex-col gap-4 ${PDF_PRINT_AREA}`}>
-              {snapLayout.questions.map((question, i) => (
-                <QuestionCard key={question.id} t={t} no={i + 1} question={question} textOf={snapText} onCopy={() => void copyAnswer(question, snapText)} />
-              ))}
+          <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+            <div className="mx-auto max-w-[794px]">
+              <ModularCoverPages doc={snapDoc} info={snapInfo} layout={snapLayout} />
             </div>
           </main>
-          <SavedPanel t={t} version={current} onRename={(name) => store.renameSaved(current.id, name)} onDelete={() => void store.removeSaved(current.id)} />
+          <SavedPanel t={t} version={current} onRename={(name) => store.renameSaved(current.id, name)} onDelete={() => void store.removeSaved(current.id)}>
+            <AnswerList t={t} layout={snapLayout} textOf={snapText} onCopy={(text) => void copyAnswer(text)} />
+          </SavedPanel>
         </div>
+        <PrintCopy doc={snapDoc} info={snapInfo} layout={snapLayout} />
       </div>
     );
   }
@@ -146,6 +151,14 @@ function Editor({ doc }: { doc: CoverDoc }) {
     saveCoverDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
     setSelectedId(null);
   };
+  // 문항 AI 다듬기 결과 — 다듬은 답변을 새 에피소드로 만들어 이 문항의 답으로 바꾼다(원래 에피소드는 모음에 남는다).
+  const applyPolishedAnswer = (qi: number, text: string) => {
+    const prompt = layout.questions[qi]?.prompt ?? "";
+    const { doc: next, id } = addCoverItem(doc, prompt, text);
+    saveCoverDoc(next);
+    commitLayout(setBlocks(resolveCoverLayout(toStoredCover(layout), next), next, qi, [id]));
+    setSelectedId(null);
+  };
 
   return (
     <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
@@ -166,44 +179,39 @@ function Editor({ doc }: { doc: CoverDoc }) {
           }}
           onNew={newEpisode}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:overflow-visible print:p-0" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
-          <div className={`mx-auto flex max-w-[794px] flex-col gap-4 ${PDF_PRINT_AREA}`}>
-            {layout.questions.map((question, i) => (
-              <QuestionCard
-                key={question.id}
-                t={t}
-                no={i + 1}
-                question={question}
-                textOf={textOf}
-                edit={{
-                  active: i === q,
-                  selectedId: i === q ? selectedId : null,
-                  onActivate: () => setActiveQ(i),
-                  onSelectBlock: (id) => {
-                    setActiveQ(i);
-                    setSelectedId(id);
-                  }
+        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+          <div className="mx-auto flex max-w-[794px] flex-col gap-3">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  commitLayout(addQuestion(layout, doc, t("새 문항", "New question", "新题目", "Câu hỏi mới", "新しい設問", "Pertanyaan baru")));
+                  setActiveQ(layout.questions.length);
+                  setSelectedId(null);
                 }}
-                onCopy={() => void copyAnswer(question, textOf)}
-              />
-            ))}
-            {layout.questions.length === 0 ? (
-              <p className="rounded-2xl bg-white px-6 py-10 text-center text-[14px] text-[#6B7684]">
-                {t("문항이 없어요. 지원하는 회사의 문항을 추가해 보세요.", "No questions yet. Add the company's questions.", "还没有题目，请添加公司的题目。", "Chưa có câu hỏi. Hãy thêm câu hỏi của công ty.", "設問がありません。企業の設問を追加してください。", "Belum ada pertanyaan. Tambahkan pertanyaan perusahaan.")}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                commitLayout(addQuestion(layout, doc, t("새 문항", "New question", "新题目", "Câu hỏi mới", "新しい設問", "Pertanyaan baru")));
-                setActiveQ(layout.questions.length);
-                setSelectedId(null);
+                className="flex items-center gap-1 rounded-lg border border-dashed border-[#C4CAD2] bg-white px-3 py-1.5 text-[13px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA]"
+              >
+                <Plus size={14} weight="bold" />
+                {t("문항 추가", "Add question", "添加题目", "Thêm câu hỏi", "設問を追加", "Tambah pertanyaan")}
+              </button>
+            </div>
+            <ModularCoverPages
+              doc={doc}
+              info={info}
+              layout={layout}
+              interaction={{
+                activeQ: q,
+                selectedId,
+                onActivate: (qi) => {
+                  setActiveQ(qi);
+                  setSelectedId(null);
+                },
+                onSelect: (qi, id) => {
+                  setActiveQ(qi);
+                  setSelectedId(id);
+                }
               }}
-              className="no-print flex h-12 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#C4CAD2] text-[14px] font-semibold text-[#4E5968] hover:bg-white"
-            >
-              <Plus size={15} weight="bold" />
-              {t("문항 추가", "Add question", "添加题目", "Thêm câu hỏi", "設問を追加", "Tambah pertanyaan")}
-            </button>
+            />
           </div>
         </main>
         <Inspector
@@ -218,8 +226,49 @@ function Editor({ doc }: { doc: CoverDoc }) {
           onSelect={setSelectedId}
           onText={setText}
           onDeleteEpisode={deleteEpisode}
+          onCopy={(text) => void copyAnswer(text)}
+          onPolishedAnswer={applyPolishedAnswer}
         />
       </div>
+      <PrintCopy doc={doc} info={info} layout={layout} />
+    </div>
+  );
+}
+
+/** PDF 다운받기용 사본 — 편집 표시 없이 같은 A4 로. 화면 밖에 두되 폭은 유지해 페이지 나눔을 미리 잰다. */
+function PrintCopy({ doc, info, layout }: { doc: CoverDoc; info: BasicInfo; layout: Pick<ResolvedCover, "questions"> }) {
+  return (
+    <div aria-hidden className={`pointer-events-none fixed -left-[99999px] top-0 w-[794px] print:left-0 ${PDF_PRINT_AREA}`}>
+      <ModularCoverPages doc={doc} info={info} layout={layout} />
+    </div>
+  );
+}
+
+/** 저장본 — 문항별 글자 수와 답변 복사(회사 지원서에 붙여 넣기). */
+function AnswerList({ t, layout, textOf, onCopy }: { t: PlatformT; layout: Pick<ResolvedCover, "questions">; textOf: (id: string) => string; onCopy: (text: string) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {layout.questions.map((question, i) => {
+        const text = answerText(question.blocks.map(textOf));
+        return (
+          <div key={question.id} className="flex flex-col gap-1.5 rounded-lg border border-[#E5E8EB] px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <span className="min-w-0 flex-1 text-[12.5px] font-semibold leading-snug">
+                {i + 1}. {question.prompt}
+              </span>
+              <button
+                type="button"
+                onClick={() => onCopy(text)}
+                aria-label={t(`문항 ${i + 1} 답변 복사`, `Copy answer ${i + 1}`)}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#191F28]"
+              >
+                <Copy size={14} weight="bold" />
+              </button>
+            </div>
+            <CharGauge t={t} count={charCount(text)} limit={question.limit} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -313,91 +362,14 @@ function EpisodeLibrary({
   );
 }
 
-// ── 가운데: 문항 카드 ────────────────────────────────────────
-
-/** 문항 카드. edit 가 없으면(저장본) 읽기 전용 — 고르기·강조 없이 보여 주고 답변 복사만 된다. */
-function QuestionCard({
-  t,
-  no,
-  question,
-  textOf,
-  edit,
-  onCopy
-}: {
-  t: PlatformT;
-  no: number;
-  question: ResolvedCover["questions"][number];
-  textOf: (id: string) => string;
-  edit?: { active: boolean; selectedId: string | null; onActivate: () => void; onSelectBlock: (id: string) => void };
-  onCopy: () => void;
-}) {
-  const count = charCount(answerText(question.blocks.map(textOf)));
-  const active = !!edit?.active;
-  const selectedId = edit?.selectedId ?? null;
-  return (
-    <section
-      onClick={edit?.onActivate}
-      aria-label={t(`문항 ${no}`, `Question ${no}`, `题目 ${no}`, `Câu ${no}`, `設問 ${no}`, `Pertanyaan ${no}`)}
-      className={`break-inside-avoid rounded-2xl bg-white px-7 py-6 print:rounded-none print:px-0 ${active ? "ring-2 ring-[#0B46E8] print:ring-0" : "ring-1 ring-[#E5E8EB] print:ring-0"}`}
-    >
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#191F28] text-[12px] font-bold text-white">{no}</span>
-        <h2 className="min-w-0 flex-1 text-[15.5px] font-bold leading-snug">{question.prompt || t("(문항 없음)", "(no prompt)")}</h2>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy();
-          }}
-          aria-label={t(`문항 ${no} 답변 복사`, `Copy answer ${no}`)}
-          title={t("답변 복사 — 지원서에 붙여 넣기", "Copy answer to paste into an application", "复制答案", "Sao chép câu trả lời", "回答をコピー", "Salin jawaban")}
-          className="no-print flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#191F28]"
-        >
-          <Copy size={16} weight="bold" />
-        </button>
-      </div>
-      <CharGauge t={t} count={count} limit={question.limit} />
-      <div className="mt-4 flex flex-col gap-2">
-        {question.blocks.map((id) => {
-          const body = textOf(id).trim() || <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>;
-          return edit ? (
-            <button
-              key={id}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                edit.onSelectBlock(id);
-              }}
-              className={`whitespace-pre-wrap rounded-lg px-3 py-2 text-left text-[14px] leading-[1.75] text-[#333D4B] print:px-0 ${
-                selectedId === id ? "bg-[#EDF1FD] outline outline-2 outline-[#0B46E8] print:bg-transparent print:outline-0" : "hover:bg-[#F7F8FA]"
-              }`}
-            >
-              {body}
-            </button>
-          ) : (
-            <p key={id} className="whitespace-pre-wrap px-3 py-2 text-[14px] leading-[1.75] text-[#333D4B] print:px-0">
-              {body}
-            </p>
-          );
-        })}
-        {edit && question.blocks.length === 0 ? (
-          <p className="no-print rounded-lg border border-dashed border-[#D1D6DB] px-3 py-5 text-center text-[13px] text-[#8B95A1]">
-            {t("왼쪽에서 에피소드를 골라 이 문항에 넣어 보세요", "Pick an episode on the left to add it here", "从左侧选择经历放入此题目", "Chọn một đoạn kể bên trái để thêm vào đây", "左からエピソードを選んでこの設問に入れてください", "Pilih episode di kiri untuk ditambahkan")}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 function CharGauge({ t, count, limit }: { t: PlatformT; count: number; limit: number | null }) {
   if (!limit) {
-    return <p className="no-print mt-3 pl-9 text-[12px] text-[#8B95A1]">{t(`${count.toLocaleString()}자`, `${count.toLocaleString()} chars`, `${count.toLocaleString()} 字`, `${count.toLocaleString()} ký tự`, `${count.toLocaleString()} 字`, `${count.toLocaleString()} karakter`)}</p>;
+    return <p className="text-[12px] text-[#8B95A1]">{t(`${count.toLocaleString()}자`, `${count.toLocaleString()} chars`, `${count.toLocaleString()} 字`, `${count.toLocaleString()} ký tự`, `${count.toLocaleString()} 字`, `${count.toLocaleString()} karakter`)}</p>;
   }
   const ratio = count / limit;
   const color = ratio > 1 ? "#F04452" : ratio >= 0.9 ? "#F59F00" : "#0B46E8";
   return (
-    <div className="no-print mt-3 flex items-center gap-3 pl-9">
+    <div className="flex items-center gap-3">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F2F4F6]" role="meter" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={count}>
         <div className="h-full rounded-full transition-[width]" style={{ width: `${Math.min(ratio, 1) * 100}%`, background: color }} />
       </div>
@@ -424,12 +396,15 @@ function Inspector(props: {
   onSelect: (id: string | null) => void;
   onText: (id: string, v: string) => void;
   onDeleteEpisode: (id: string) => void;
+  onCopy: (text: string) => void;
+  onPolishedAnswer: (q: number, text: string) => void;
 }) {
   const { t, doc, layout, q, selectedId: id } = props;
   const question = layout.questions[q];
   const item: CoverItem | undefined = id ? doc.items.find((i) => i.id === id) : undefined;
   const index = question && id ? question.blocks.indexOf(id) : -1;
   const n = layout.questions.length;
+  const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
 
   return (
     <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
@@ -447,6 +422,29 @@ function Inspector(props: {
               const limit = v.trim() && Number.isFinite(num) && num > 0 ? Math.min(num, 20000) : null;
               if (limit !== question.limit) props.onLayout(updateQuestion(layout, q, { limit }));
             }}
+          />
+          <div className="flex flex-col gap-2 rounded-xl bg-[#F7F8FA] px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-semibold text-[#6B7684]">{t("이 문항 답변", "This answer", "此题答案", "Câu trả lời này", "この設問の回答", "Jawaban ini")}</span>
+              <button
+                type="button"
+                onClick={() => props.onCopy(answer)}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold text-[#4E5968] hover:bg-white"
+              >
+                <Copy size={13} weight="bold" />
+                {t("답변 복사", "Copy answer", "复制答案", "Sao chép", "回答をコピー", "Salin jawaban")}
+              </button>
+            </div>
+            <CharGauge t={t} count={charCount(answer)} limit={question.limit} />
+          </div>
+          {/* 문항 단위 다듬기 — 문항·글자 수 제한에 맞춰 답변 전체를 다듬는다. 고르면 새 에피소드가 이 문항의 답이 된다. */}
+          <AiPolish
+            key={`qa-${question.id}`}
+            t={t}
+            title={t("문항 답변 AI로 다듬기", "Polish this answer with AI", "用 AI 润色此题答案", "Chỉnh câu trả lời bằng AI", "この回答をAIで整える", "Poles jawaban dengan AI")}
+            text={answer}
+            polish={(src, style) => generateCoverLetter({ mode: "polish", style, prompt: question.prompt, current: src, targetChars: question.limit ?? undefined })}
+            onApply={(v) => props.onPolishedAnswer(q, v)}
           />
           <div className="grid grid-cols-3 gap-2">
             <ToolButton

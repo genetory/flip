@@ -75,6 +75,15 @@ export function removeBlock(layout: ResolvedCover, doc: CoverDoc, q: number, i: 
   return settle(l.questions, l.hidden, doc, dropped);
 }
 
+/** 문항의 에피소드를 통째로 바꾼다(문항 AI 다듬기 결과 적용). 빠진 에피소드는 다른 문항에 없으면 뺀 것으로. */
+export function setBlocks(layout: ResolvedCover, doc: CoverDoc, q: number, ids: string[]): ResolvedCover {
+  const l = clone(layout);
+  if (!l.questions[q]) return layout;
+  const dropped = l.questions[q].blocks.filter((id) => !ids.includes(id));
+  l.questions[q].blocks = ids.filter((id, i) => ids.indexOf(id) === i);
+  return settle(l.questions, l.hidden, doc, dropped);
+}
+
 /** 같은 문항 안에서 위/아래로. 옮긴 뒤 위치를 함께 돌려준다. */
 export function nudgeBlock(layout: ResolvedCover, q: number, i: number, delta: -1 | 1): { layout: ResolvedCover; index: number } {
   const blocks = layout.questions[q]?.blocks ?? [];

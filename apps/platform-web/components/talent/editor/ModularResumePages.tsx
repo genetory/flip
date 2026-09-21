@@ -2,8 +2,8 @@
 
 // 모듈형 이력서 A4 — 버전 구성(칸·순서)대로 모듈을 배치해 A4 페이지로 보여준다.
 // 치수·글꼴·섹션 모양은 기존 ResumeA4 와 같다(같은 이력서가 다른 화면에서 달라 보이지 않게).
-// 편집 모드(interaction)에서는 모듈 선택·드래그·놓을 위치 표시를 함께 그린다.
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+// 편집 모드(interaction)에서는 모듈 선택·드래그·놓을 위치 표시를 함께 그린다. 페이지 틀은 A4Pages.
+import { type DragEvent, type ReactNode } from "react";
 import type { CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { FIXED_MODULES } from "../../../lib/talent/doc-versions";
@@ -11,21 +11,7 @@ import { displayMonth, normalizeUrl, type ResumeDoc, type ResumeItem } from "../
 import type { ResolvedLayout } from "../../../lib/talent/resume-layout";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { usePlatformT } from "../../../lib/i18n";
-import { PdfBrandFooter } from "../career/pdf-print";
-
-export const PAGE_W = 794;
-const PAGE_H = 1123;
-const PAGE_PAD = 52;
-const FOOTER_H = 44;
-const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H;
-// 편집 모드에서 페이지 창을 위아래로 이만큼 더 보여 준다 — 페이지 맨 위·아래 모듈의 선택 테두리와
-// 표시가 창 경계에서 잘리지 않게. 여백에 비치는 이웃 페이지 모듈은 PageModules 로 가린다.
-const EDIT_BLEED = 12;
-
-/** 이 페이지에 속한 모듈 id. 없으면(측정용·편집 아님) 전부 보인다. */
-const PageModules = createContext<Set<string> | null>(null);
-
-type MeasuredBlock = { id: string | null; top: number; bottom: number };
+import { A4Pages, EditOverlay, useOffPage } from "./A4Pages";
 
 /** 놓을 자리 — col 칸의 index 번째 앞. */
 export type DropSlot = { col: number; index: number };
@@ -48,111 +34,8 @@ type Props = {
   interaction?: EditorInteraction;
 };
 
-/**
- * 여러 칸이어도 항목이 잘리지 않게 페이지를 나눈다 — 어느 칸의 블록도 가로지르지 않는
- * 가장 먼 지점에서 끊는다. 한 블록이 한 장보다 크면 어쩔 수 없이 경계에서 자른다.
- */
-function packColumns(root: HTMLElement, contentH: number): { starts: number[]; total: number; blocks: MeasuredBlock[] } {
-  // 편집 표시(선택 테두리·놓기 영역)는 절대 배치라 scrollHeight 를 늘릴 수 있다 — 실제 흐름 높이로 잰다.
-  const total = root.getBoundingClientRect().height;
-  const rootTop = root.getBoundingClientRect().top;
-  const blocks = Array.from(root.querySelectorAll<HTMLElement>("[data-block]")).map((el) => {
-    const r = el.getBoundingClientRect();
-    return { id: el.getAttribute("data-module"), top: r.top - rootTop, bottom: r.bottom - rootTop };
-  });
-  const straddles = (y: number) => blocks.some((b) => b.top < y - 0.5 && b.bottom > y + 0.5);
-  const candidates = Array.from(new Set(blocks.flatMap((b) => [b.top, b.bottom])))
-    .filter((y) => y > 0)
-    .sort((a, b) => a - b);
-
-  const starts = [0];
-  let pageTop = 0;
-  for (let guard = 0; guard < 200 && pageTop + contentH < total - 1; guard++) {
-    const limit = pageTop + contentH;
-    let next = -1;
-    for (const y of candidates) {
-      if (y <= pageTop + 1) continue;
-      if (y > limit) break;
-      if (!straddles(y)) next = y;
-    }
-    if (next < 0) next = limit;
-    starts.push(next);
-    pageTop = next;
-  }
-  return { starts, total, blocks };
-}
-
 export function ModularResumePages({ doc, info, layout, interaction, maxScale = 1 }: Props & { maxScale?: number }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(0);
-  const [starts, setStarts] = useState<number[]>([0]);
-  const [total, setTotal] = useState(CONTENT_H);
-  const [blocks, setBlocks] = useState<MeasuredBlock[]>([]);
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => setW(entries[0].contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useLayoutEffect(() => {
-    const el = sheetRef.current;
-    if (!el) return;
-    const { starts: s, total: tt, blocks: b } = packColumns(el, CONTENT_H);
-    setStarts((prev) => (prev.length === s.length && prev.every((v, i) => Math.abs(v - s[i]) < 0.5) ? prev : s));
-    setTotal(tt);
-    setBlocks((prev) =>
-      prev.length === b.length && prev.every((v, i) => v.id === b[i].id && Math.abs(v.top - b[i].top) < 0.5 && Math.abs(v.bottom - b[i].bottom) < 0.5) ? prev : b
-    );
-  });
-
-  const scale = w > 0 ? Math.min(w / PAGE_W, maxScale) : 0;
-  const bleed = interaction ? EDIT_BLEED : 0;
-
-  return (
-    <div ref={wrapRef} className="w-full">
-      {/* 높이 측정용 숨김 시트 — 편집 표시는 빼고 잰다 */}
-      <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: PAGE_W, visibility: "hidden" }}>
-        <div ref={sheetRef}>
-          <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} measure />
-        </div>
-      </div>
-
-      {scale ? (
-        <div className="flex flex-col gap-3">
-          {starts.map((startPx, i) => {
-            const endPx = i < starts.length - 1 ? starts[i + 1] : total;
-            const windowH = Math.min(endPx - startPx, CONTENT_H);
-            // 이 페이지 창과 겹치는 모듈만 — 앞 페이지 끝·다음 페이지 첫 모듈이 여백(bleed)에 비치지 않게.
-            const onPage = bleed ? new Set(blocks.filter((b) => b.id && b.bottom > startPx + 0.5 && b.top < startPx + windowH - 0.5).map((b) => b.id as string)) : null;
-            return (
-              <div
-                key={i}
-                className="relative mx-auto overflow-hidden rounded-[8px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)]"
-                style={{ width: PAGE_W * scale, height: PAGE_H * scale }}
-              >
-                <div className="absolute left-0 overflow-hidden" style={{ top: (PAGE_PAD - bleed) * scale, width: PAGE_W * scale, height: (windowH + bleed * 2) * scale }}>
-                  <div style={{ position: "absolute", top: -((startPx - bleed) * scale), width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-                    <PageModules.Provider value={onPage}>
-                      <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} />
-                    </PageModules.Provider>
-                  </div>
-                </div>
-                <div className="absolute inset-x-0" style={{ bottom: PAGE_PAD * scale }}>
-                  <div className="px-[56px]" style={{ width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "bottom left" }}>
-                    <PdfBrandFooter />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
+  return <A4Pages editing={!!interaction} maxScale={maxScale} render={() => <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} />} />;
 }
 
 // ── A4 본문 ──────────────────────────────────────────────────
@@ -162,7 +45,7 @@ function ResumeBody({
   info,
   layout,
   interaction
-}: Props & { measure?: boolean }) {
+}: Props) {
   const t = usePlatformT();
   const two = layout.cols.length === 2;
   // 편집 표시(선택 테두리·놓기 자리)는 자리를 차지하지 않게 그린다 — 편집 화면과 PDF 가 같은 곳에서 페이지를 나눈다.
@@ -249,7 +132,7 @@ function ModuleBlock({
   gapTop: boolean;
   children: ReactNode;
 }) {
-  const pageModules = useContext(PageModules);
+  const offPage = useOffPage(id);
   const spacing = gapTop ? "mt-7" : "mt-2.5";
   if (!ix) {
     return (
@@ -260,7 +143,6 @@ function ModuleBlock({
   }
   const selected = ix.selectedId === id;
   const dragging = ix.dragId === id;
-  const offPage = pageModules ? !pageModules.has(id) : false;
   const over = (e: DragEvent<HTMLDivElement>) => {
     if (!ix.dragId) return;
     e.preventDefault();
@@ -288,12 +170,7 @@ function ModuleBlock({
       // 편집 표시는 자리를 차지하지 않는다(여백·테두리를 바깥 층으로) — 미리보기와 PDF 의 페이지 나눔이 같도록.
       className={`group relative cursor-grab ${index === 0 ? "" : spacing} ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
-      <span
-        aria-hidden
-        className={`pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-[6px] transition-colors print:hidden ${
-          selected ? "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]" : "group-hover:bg-[#F7F9FC] group-hover:outline group-hover:outline-1 group-hover:outline-[#D7DCE3]"
-        }`}
-      />
+      <EditOverlay selected={selected} />
       <div className="relative">{children}</div>
     </div>
   );

@@ -46,6 +46,7 @@ assert.ok(resumeSnapshotSchema.safeParse({ resume: { items: [] }, basicInfo: { r
 assert.equal(resumeSnapshotSchema.safeParse({ resume: { items: [] } }).success, false, "기본 정보 빠지면 거절");
 assert.equal(resumeSnapshotSchema.safeParse({ resume: {}, basicInfo: {}, extra: 1 }).success, false, "모르는 키 거절");
 assert.ok(coverSnapshotSchema.safeParse({ cover: { items: [] } }).success);
+assert.ok(coverSnapshotSchema.safeParse({ cover: { items: [] }, basicInfo: { realName: "a" } }).success, "자소서 저장본에 기본 정보");
 assert.equal(snapshotSchemaFor("cover").safeParse({ resume: {}, basicInfo: {} }).success, false, "종류가 다르면 거절");
 
 console.log("모든 검사 통과");
