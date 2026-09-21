@@ -1,33 +1,32 @@
 "use client";
 
-// 모듈형 에디터(이력서·자기소개서) 공통 — 버전 저장 훅과 상단 바·버전 패널·입력 조각.
+// 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowLeft, Plus, Star, Trash } from "@phosphor-icons/react";
+import { ArrowLeft, FloppyDisk, LockSimple, Trash } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
 import {
-  createDocVersion,
+  createSavedVersion,
   deleteDocVersion,
   listDocVersions,
-  setPrimaryDocVersion,
   updateDocVersion,
   type DocVersion,
   type DocVersionKind
 } from "../../../lib/talent/doc-versions";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
-type Patch<L> = Partial<Pick<DocVersion<L>, "name" | "layout" | "overrides">>;
+type Patch<L> = { name?: string; layout?: L };
 
 const SAVE_DELAY = 600;
 
 /**
- * 버전 목록과 저장. 변경은 화면에 바로 반영하고 SAVE_DELAY 뒤 서버에 보낸다(버전별로 묶어서).
- * 화면을 떠날 때 남은 저장을 보낸다.
+ * 편집 중 구성(working)과 저장본(saved). 편집 중 구성·저장본 이름 변경은 화면에 바로 반영하고
+ * SAVE_DELAY 뒤 서버에 보낸다(행별로 묶어서). 화면을 떠날 때 남은 저장을 보낸다.
  */
-export function useDocVersionStore<L>(kind: DocVersionKind, t: PlatformT) {
+export function useDocVersionStore<L, S>(kind: DocVersionKind, t: PlatformT) {
   const toast = useToast();
-  const [versions, setVersions] = useState<DocVersion<L>[] | null>(null);
+  const [versions, setVersions] = useState<DocVersion<L, S>[] | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -35,11 +34,11 @@ export function useDocVersionStore<L>(kind: DocVersionKind, t: PlatformT) {
 
   useEffect(() => {
     let alive = true;
-    listDocVersions<L>(kind)
+    listDocVersions<L, S>(kind)
       .then(({ items }) => {
         if (!alive) return;
         setVersions(items);
-        setCurrentId((items.find((v) => v.isPrimary) ?? items[0])?.id ?? null);
+        setCurrentId(items.find((v) => v.snapshot === null)?.id ?? null);
       })
       .catch(() => alive && toast.error(t("버전을 불러오지 못했어요.", "Couldn't load versions.", "无法加载版本。", "Không tải được phiên bản.", "バージョンを読み込めませんでした。", "Gagal memuat versi.")));
     return () => {
@@ -55,7 +54,7 @@ export function useDocVersionStore<L>(kind: DocVersionKind, t: PlatformT) {
     clearTimeout(timers.current[id]);
     setSaveState("saving");
     try {
-      await updateDocVersion<L>(id, patch);
+      await updateDocVersion<L, S>(id, patch);
       setSaveState(Object.keys(pending.current).length ? "saving" : "saved");
     } catch {
       setSaveState("error");
@@ -82,52 +81,43 @@ export function useDocVersionStore<L>(kind: DocVersionKind, t: PlatformT) {
     [flush]
   );
 
-  const current = versions?.find((v) => v.id === currentId) ?? null;
+  const working = versions?.find((v) => v.snapshot === null) ?? null;
+  const saved = versions?.filter((v) => v.snapshot !== null) ?? [];
+  const current = versions?.find((v) => v.id === currentId) ?? working;
 
-  const createVersion = async () => {
-    if (!versions || !current) return;
+  /** 편집 중 구성 바꾸기. */
+  const setWorkingLayout = (layout: L) => working && patchVersion(working.id, { layout });
+
+  /** 새 버전으로 저장 — 지금 화면 그대로(내용 + 구성)를 읽기 전용 저장본으로. 편집 화면에 그대로 머문다. */
+  const saveAsNew = async (name: string, layout: L, snapshot: S) => {
     try {
-      await flush(current.id);
-      const n = versions.length + 1;
-      const created = await createDocVersion<L>({
-        kind,
-        name: t(`새 버전 ${n}`, `New version ${n}`, `新版本 ${n}`, `Phiên bản mới ${n}`, `新しいバージョン ${n}`, `Versi baru ${n}`),
-        copyFrom: current.id
-      });
-      setVersions([...versions, created]);
-      setCurrentId(created.id);
+      if (working) await flush(working.id);
+      const created = await createSavedVersion<L, S>({ kind, name, layout, snapshot });
+      setVersions((vs) => (vs ? [...vs.filter((v) => v.snapshot === null), created, ...vs.filter((v) => v.snapshot !== null)] : vs));
+      toast.success(t(`'${name}'(으)로 저장했어요`, `Saved as '${name}'`, `已保存为「${name}」`, `Đã lưu thành '${name}'`, `「${name}」として保存しました`, `Disimpan sebagai '${name}'`));
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  };
+
+  const renameSaved = (id: string, name: string) => patchVersion(id, { name });
+
+  const removeSaved = async (id: string) => {
+    if (!window.confirm(t("이 저장본을 삭제할까요? 되돌릴 수 없어요.", "Delete this saved version? This can't be undone.", "删除此保存版本？无法恢复。", "Xóa bản đã lưu này? Không thể hoàn tác.", "この保存版を削除しますか？元に戻せません。", "Hapus versi tersimpan ini? Tidak bisa dibatalkan."))) return;
+    try {
+      delete pending.current[id];
+      clearTimeout(timers.current[id]);
+      await deleteDocVersion(id);
+      setVersions((vs) => vs?.filter((v) => v.id !== id) ?? vs);
+      setCurrentId(working?.id ?? null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const makePrimary = async () => {
-    if (!versions || !current) return;
-    try {
-      await flush(current.id);
-      await setPrimaryDocVersion(current.id);
-      setVersions(versions.map((v) => ({ ...v, isPrimary: v.id === current.id })));
-      toast.success(t("대표 버전으로 정했어요", "Set as primary", "已设为代表版本", "Đã đặt làm bản chính", "代表バージョンにしました", "Dijadikan versi utama"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  const removeVersion = async () => {
-    if (!versions || !current || current.isPrimary) return;
-    if (!window.confirm(t("이 버전을 삭제할까요? 모듈 내용은 지워지지 않아요.", "Delete this version? Module content stays.", "删除此版本？模块内容不会被删除。", "Xóa phiên bản này? Nội dung mô-đun vẫn giữ.", "このバージョンを削除しますか？モジュールの内容は残ります。", "Hapus versi ini? Isi modul tetap ada."))) return;
-    try {
-      delete pending.current[current.id];
-      await deleteDocVersion(current.id);
-      const rest = versions.filter((v) => v.id !== current.id);
-      setVersions(rest);
-      setCurrentId((rest.find((v) => v.isPrimary) ?? rest[0])?.id ?? null);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
-
-  return { versions, current, setCurrentId, saveState, patchVersion, createVersion, makePrimary, removeVersion };
+  return { versions, working, saved, current, setCurrentId, saveState, setWorkingLayout, saveAsNew, renameSaved, removeSaved };
 }
 
 // ── 화면 조각 ────────────────────────────────────────────────
@@ -150,24 +140,26 @@ export const EDITOR_ROUTES = {
   cover: "/talent/career/cover/editor"
 } as const;
 
-export function EditorTopBar<L>({
+export function EditorTopBar<L, S>({
   t,
   active,
   exitHref,
-  versions,
+  working,
+  saved,
   current,
   onPick,
-  onCreate,
+  onSaveNew,
   saveState,
   right
 }: {
   t: PlatformT;
   active: "resume" | "cover";
   exitHref: string;
-  versions: DocVersion<L>[];
-  current: DocVersion<L>;
+  working: DocVersion<L, S>;
+  saved: DocVersion<L, S>[];
+  current: DocVersion<L, S>;
   onPick: (id: string) => void;
-  onCreate: () => void;
+  onSaveNew: (name: string) => Promise<boolean>;
   saveState: SaveState;
   right?: ReactNode;
 }) {
@@ -189,6 +181,19 @@ export function EditorTopBar<L>({
         {label}
       </Link>
     );
+  const chip = (v: DocVersion<L, S>, label: ReactNode) => (
+    <button
+      key={v.id}
+      type="button"
+      onClick={() => onPick(v.id)}
+      aria-pressed={v.id === current.id}
+      className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold ${
+        v.id === current.id ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:bg-[#F7F8FA]"
+      }`}
+    >
+      {label}
+    </button>
+  );
   return (
     <header className="no-print flex h-16 shrink-0 items-center gap-4 border-b border-[#E5E8EB] bg-white px-5">
       <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-9 w-9 items-center justify-center rounded-lg text-[#4E5968] hover:bg-[#F2F4F6]">
@@ -200,75 +205,146 @@ export function EditorTopBar<L>({
       </nav>
       <div className="mx-2 h-6 w-px bg-[#E5E8EB]" />
       <nav aria-label={t("버전", "Versions", "版本", "Phiên bản", "バージョン", "Versi")} className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-        {versions.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            onClick={() => onPick(v.id)}
-            aria-pressed={v.id === current.id}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold ${
-              v.id === current.id ? "border-[#0B46E8] bg-[#EDF1FD] text-[#0B46E8]" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:bg-[#F7F8FA]"
-            }`}
-          >
-            {v.name}
-            {v.isPrimary ? <span className="rounded bg-[#DDE7FC] px-1.5 text-[11px] font-bold text-[#0B46E8]">{t("대표", "Primary", "代表", "Chính", "代表", "Utama")}</span> : null}
-          </button>
-        ))}
-        <button type="button" onClick={onCreate} className="flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-[#C4CAD2] px-3 py-1.5 text-[13px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA]">
-          <Plus size={14} weight="bold" />
-          {t("새 버전으로 저장", "Save as new version", "另存为新版本", "Lưu thành phiên bản mới", "新しいバージョンとして保存", "Simpan sebagai versi baru")}
-        </button>
+        {chip(working, t("편집 중", "Editing", "编辑中", "Đang sửa", "編集中", "Sedang diedit"))}
+        {saved.map((v) =>
+          chip(
+            v,
+            <>
+              <LockSimple size={12} weight="bold" aria-hidden />
+              {v.name}
+            </>
+          )
+        )}
       </nav>
+      <SaveNewButton t={t} onSave={onSaveNew} disabled={current.snapshot !== null} />
       <div className="flex-1" />
       {right}
       <span className="w-[120px] text-right text-[12px] text-[#8B95A1]" aria-live="polite">
-        {saveLabel}
+        {current.snapshot === null ? saveLabel : ""}
       </span>
     </header>
   );
 }
 
-export function VersionPanel<L>({
+/** [새 버전으로 저장] — 누르면 이름을 받는 작은 칸이 열린다. */
+function SaveNewButton({ t, onSave, disabled }: { t: PlatformT; onSave: (name: string) => Promise<boolean>; disabled: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const defaultName = () => {
+    const d = new Date();
+    return t(`${d.getMonth() + 1}월 ${d.getDate()}일 저장본`, `Saved ${d.getMonth() + 1}/${d.getDate()}`, `${d.getMonth() + 1}月${d.getDate()}日保存`, `Bản lưu ${d.getDate()}/${d.getMonth() + 1}`, `${d.getMonth() + 1}月${d.getDate()}日の保存版`, `Simpanan ${d.getDate()}/${d.getMonth() + 1}`);
+  };
+  useEffect(() => {
+    if (open) inputRef.current?.select();
+  }, [open]);
+  const submit = async () => {
+    const n = name.trim();
+    if (!n || busy) return;
+    setBusy(true);
+    const ok = await onSave(n);
+    setBusy(false);
+    if (ok) setOpen(false);
+  };
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          setName(defaultName());
+          setOpen((v) => !v);
+        }}
+        title={disabled ? t("편집 중인 문서에서 저장할 수 있어요", "Switch to the editing document to save", "请在编辑中的文档保存", "Hãy lưu từ tài liệu đang sửa", "編集中の文書から保存できます", "Simpan dari dokumen yang sedang diedit") : undefined}
+        className="flex items-center gap-1 rounded-lg border border-dashed border-[#C4CAD2] px-3 py-1.5 text-[13px] font-semibold text-[#4E5968] hover:bg-[#F7F8FA] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+      >
+        <FloppyDisk size={14} weight="bold" />
+        {t("새 버전으로 저장", "Save as new version", "另存为新版本", "Lưu thành phiên bản mới", "新しいバージョンとして保存", "Simpan sebagai versi baru")}
+      </button>
+      {open ? (
+        <>
+          <button type="button" aria-hidden tabIndex={-1} onClick={() => setOpen(false)} className="fixed inset-0 z-10 cursor-default" />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+            className="absolute left-0 top-[calc(100%+6px)] z-20 flex w-[300px] flex-col gap-2.5 rounded-xl border border-[#E5E8EB] bg-white p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.10)]"
+          >
+            <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
+              {t("저장본 이름", "Name", "名称", "Tên", "名前", "Nama")}
+              <input
+                ref={inputRef}
+                value={name}
+                maxLength={60}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("예: OO전자 지원용", "e.g. For Company A", "例：投递 A 公司", "VD: Nộp công ty A", "例：A社応募用", "mis. Untuk Perusahaan A")}
+                className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+              />
+            </label>
+            <p className="text-[11.5px] leading-relaxed text-[#6B7684]">
+              {t("지금 모습 그대로 저장돼요. 저장본은 고칠 수 없고, 지원할 때 골라 쓸 수 있어요.", "Saved exactly as it looks now. Saved versions can't be edited and can be picked when applying.", "按当前样子保存。保存版本不可修改，投递时可选用。", "Lưu đúng như hiện tại. Bản đã lưu không sửa được và có thể chọn khi ứng tuyển.", "今の状態のまま保存されます。保存版は編集できず、応募時に選べます。", "Disimpan persis seperti sekarang. Tidak bisa diubah dan bisa dipilih saat melamar.")}
+            </p>
+            <button type="submit" disabled={!name.trim() || busy} className="h-10 rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB] disabled:opacity-50">
+              {busy ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
+            </button>
+          </form>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** 저장본 보기일 때 오른쪽 패널 — 이름·저장 시각·삭제. 내용은 고칠 수 없다. */
+export function SavedPanel<L, S>({
   t,
   version,
-  primaryNote,
+  children,
   onRename,
-  onPrimary,
   onDelete
 }: {
   t: PlatformT;
-  version: DocVersion<L>;
-  primaryNote: string;
+  version: DocVersion<L, S>;
+  children?: ReactNode;
   onRename: (name: string) => void;
-  onPrimary: () => void;
   onDelete: () => void;
 }) {
+  const saved = new Date(version.createdAt);
   return (
-    <Section title={t("이 버전", "This version", "此版本", "Phiên bản này", "このバージョン", "Versi ini")} divider>
-      <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
-        {t("이름", "Name", "名称", "Tên", "名前", "Nama")}
-        <input
-          key={version.id}
-          defaultValue={version.name}
-          maxLength={60}
-          onChange={(e) => e.target.value.trim() && onRename(e.target.value.trim())}
-          className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
-        />
-      </label>
-      {version.isPrimary ? (
-        <p className="rounded-lg bg-[#EDF1FD] px-3 py-2.5 text-[12px] leading-relaxed text-[#0B46E8]">{primaryNote}</p>
-      ) : (
-        <div className="flex gap-2">
-          <button type="button" onClick={onPrimary} className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB]">
-            <Star size={14} weight="fill" />
-            {t("대표로 지정", "Make primary", "设为代表", "Đặt làm chính", "代表に指定", "Jadikan utama")}
-          </button>
-          <button type="button" onClick={onDelete} aria-label={t("버전 삭제", "Delete version", "删除版本", "Xóa phiên bản", "バージョン削除", "Hapus versi")} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E5E8EB] text-[#8B95A1] hover:text-[#F04452]">
-            <Trash size={15} weight="bold" />
-          </button>
-        </div>
-      )}
-    </Section>
+    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+      <Section title={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+        <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
+          {t("이름", "Name", "名称", "Tên", "名前", "Nama")}
+          <input
+            key={version.id}
+            defaultValue={version.name}
+            maxLength={60}
+            onChange={(e) => e.target.value.trim() && onRename(e.target.value.trim())}
+            className="h-10 rounded-lg border border-[#E5E8EB] bg-[#F7F8FA] px-3 text-[14px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+          />
+        </label>
+        <p className="text-[12px] text-[#6B7684]">
+          {t("저장한 때", "Saved", "保存时间", "Đã lưu lúc", "保存日時", "Disimpan")} · {saved.toLocaleString()}
+        </p>
+        <p className="flex items-start gap-1.5 rounded-lg bg-[#F7F8FA] px-3 py-2.5 text-[12px] leading-relaxed text-[#6B7684]">
+          <LockSimple size={13} weight="bold" className="mt-[2px] shrink-0" />
+          {t(
+            "저장한 순간 그대로 보관돼요. 고칠 수 없고, 지원할 때 이 저장본을 골라 쓸 수 있어요. 고치려면 '편집 중'에서 수정한 뒤 새 버전으로 저장해 주세요.",
+            "Kept exactly as saved. It can't be edited, and you can pick it when applying. To change it, edit under 'Editing' and save a new version.",
+            "按保存时原样保留，不可修改，投递时可选用。如需修改，请在「编辑中」修改后另存为新版本。",
+            "Giữ nguyên như lúc lưu, không sửa được và có thể chọn khi ứng tuyển. Muốn đổi, hãy sửa ở 'Đang sửa' rồi lưu phiên bản mới.",
+            "保存時のまま保管され、編集できません。応募時に選べます。変更するには「編集中」で修正して新しいバージョンとして保存してください。",
+            "Disimpan persis seperti saat disimpan, tidak bisa diubah, dan bisa dipilih saat melamar. Untuk mengubah, edit di 'Sedang diedit' lalu simpan versi baru."
+          )}
+        </p>
+        {children}
+        <button type="button" onClick={onDelete} className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#F04452] hover:underline">
+          <Trash size={14} weight="bold" />
+          {t("저장본 삭제", "Delete saved version", "删除保存版本", "Xóa bản đã lưu", "保存版を削除", "Hapus versi tersimpan")}
+        </button>
+      </Section>
+    </aside>
   );
 }
 
@@ -339,24 +415,5 @@ export function Field({
         <input {...common} type={type ?? "text"} className={`${common.className} h-10`} />
       )}
     </label>
-  );
-}
-
-/** 공유 문구 ↔ 이 버전용 문구 안내와 전환 버튼. */
-export function ForkBanner({ t, forked, onFork, onUnfork }: { t: PlatformT; forked: boolean; onFork: () => void; onUnfork: () => void }) {
-  return forked ? (
-    <div className="flex items-start justify-between gap-2 rounded-lg bg-[#FFF6E5] px-3 py-2.5 text-[12px] leading-relaxed text-[#B25E09]">
-      <span>{t("이 버전에서만 쓰는 문구예요. 원본과 다른 버전에는 영향이 없어요.", "Wording for this version only; the original and other versions are unaffected.", "此文字仅用于此版本，不影响原文和其他版本。", "Văn bản chỉ cho bản này; bản gốc và bản khác không đổi.", "このバージョン専用の文言です。原本や他のバージョンには影響しません。", "Teks khusus versi ini; asli dan versi lain tidak berubah.")}</span>
-      <button type="button" onClick={onUnfork} className="shrink-0 font-bold underline">
-        {t("원래대로", "Revert", "恢复原文", "Khôi phục", "元に戻す", "Kembalikan")}
-      </button>
-    </div>
-  ) : (
-    <div className="flex items-start justify-between gap-2 rounded-lg bg-[#F7F8FA] px-3 py-2.5 text-[12px] leading-relaxed text-[#6B7684]">
-      <span>{t("모든 버전에 함께 반영돼요.", "Changes apply to every version.", "修改会同步到所有版本。", "Thay đổi áp dụng cho mọi phiên bản.", "すべてのバージョンに反映されます。", "Berlaku di semua versi.")}</span>
-      <button type="button" onClick={onFork} className="shrink-0 font-bold text-[#0B46E8] underline">
-        {t("이 버전에서만 따로 고치기", "Edit for this version only", "仅在此版本修改", "Chỉ sửa ở bản này", "このバージョンだけ編集", "Ubah khusus versi ini")}
-      </button>
-    </div>
   );
 }

@@ -3,8 +3,9 @@
 // 모듈 = talent 문서(Resume.content)의 항목 하나.
 //   이력서: renewalResume.items[] (경력 한 건, 자격증 한 건 …)
 //   자소서: renewalCover.items[]  (에피소드 한 단락)
-// 버전은 그 모듈들을 어떤 순서·배치로 넣을지(layout)와 이 버전에서만 고친 문구(overrides)다.
-// 모듈 내용 자체는 여기에 복사하지 않는다 — 앱·매칭·기업 화면이 읽는 원본은 하나로 둔다.
+// 편집하는 문서는 하나(talent 문서 + 편집 중 구성 행, snapshot = null)이고, 인재 검색은 이걸 쓴다.
+// '새 버전으로 저장'은 그 순간의 내용·구성을 통째로 복사한 읽기 전용 저장본(snapshot)이다 —
+// 지원할 때 고르며, 원본을 나중에 고쳐도 저장본은 바뀌지 않는다.
 import { z } from "zod";
 
 export const DOC_VERSION_KINDS = ["resume", "cover"] as const;
@@ -12,7 +13,7 @@ export type DocVersionKind = (typeof DOC_VERSION_KINDS)[number];
 export const docVersionKindSchema = z.enum(DOC_VERSION_KINDS);
 
 /** 종류별 버전 수 상한 — 회사별로 만들어도 충분하고, 목록이 끝없이 늘지 않게. */
-export const MAX_VERSIONS_PER_KIND = 30;
+export const MAX_VERSIONS_PER_KIND = 30; // 저장본 수(편집 중 문서 제외)
 
 /** 섹션 항목이 아닌 고정 모듈(이력서 머리·자기소개·링크). 항목 id 와 겹치지 않게 '@' 로 시작. */
 export const FIXED_RESUME_MODULES = { basic: "@basic", summary: "@summary", links: "@links" } as const;
@@ -57,10 +58,16 @@ export const coverLayoutSchema = z
   .strict();
 export type CoverLayout = z.infer<typeof coverLayoutSchema>;
 
-/** { [moduleId]: { [field]: 문구 } } — 이 버전에서만 따로 고친 문구. */
-export const overridesSchema = z
-  .record(moduleId, z.record(z.string().max(40), z.string().max(6000)))
-  .refine((o) => Object.keys(o).length <= 300, { message: "too many overrides" });
+/** 저장본 내용 — 저장 순간의 talent 문서 조각. 모양은 웹 talent 형식 그대로(ResumeDoc·BasicInfo·CoverDoc). */
+const docObject = z.record(z.string(), z.unknown());
+export const resumeSnapshotSchema = z.object({ resume: docObject, basicInfo: docObject }).strict();
+export const coverSnapshotSchema = z.object({ cover: docObject }).strict();
+/** 저장본 하나의 최대 크기(JSON 문자열 길이). 긴 이력서도 넉넉히 들어간다. */
+export const MAX_SNAPSHOT_CHARS = 400_000;
+
+export function snapshotSchemaFor(kind: DocVersionKind) {
+  return kind === "resume" ? resumeSnapshotSchema : coverSnapshotSchema;
+}
 
 export function layoutSchemaFor(kind: DocVersionKind) {
   return kind === "resume" ? resumeLayoutSchema : coverLayoutSchema;

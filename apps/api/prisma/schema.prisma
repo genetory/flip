@@ -2230,12 +2230,12 @@ model DocVersion {
   resumeId  String // 모듈이 담긴 talent 이력서 행
   kind      String
   name      String
-  isPrimary Boolean  @default(false)
   // resume: { template: "two"|"one", cols: [[moduleId]], hidden: [moduleId] }
-  // cover:  { questions: [{ id, prompt, limit, blocks: [moduleId] }] }
+  // cover:  { questions: [{ id, prompt, limit, blocks: [moduleId] }], hidden?: [moduleId] }
   layout    Json     @default("{}")
-  // { [moduleId]: { [field]: string } } — 이 버전에서만 따로 고친 문구
-  overrides Json     @default("{}")
+  // null = 편집 중인 문서의 구성(종류별 1건). 값이 있으면 읽기 전용 저장본 —
+  // resume: { resume: ResumeDoc, basicInfo: BasicInfo } / cover: { cover: CoverDoc }
+  snapshot  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

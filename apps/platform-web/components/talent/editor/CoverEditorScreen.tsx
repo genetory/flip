@@ -1,11 +1,12 @@
 "use client";
 
-// 모듈형 자기소개서 에디터(전체 화면) — 경험 이야기 한 단락(에피소드)을 모듈로 두고, 버전(회사)마다
-// 문항·글자 수 제한과 문항별 에피소드 조합을 따로 구성한다.
+// 모듈형 자기소개서 에디터(전체 화면) — 경험 이야기 한 단락(에피소드)을 모듈로 두고,
+// 문항·글자 수 제한과 문항별 에피소드 조합을 구성한다.
 //
-// 저장은 이력서 에디터와 같은 두 갈래다.
-//   에피소드 내용 → talent 문서(saveCoverDoc) — 앱·기존 화면이 읽는 원본, 모든 버전 공유
-//   문항·조합·수정본 → 버전(/members/me/doc-versions)
+// 이력서 에디터와 같이, 편집하는 자기소개서는 하나다.
+//   에피소드 내용 → talent 문서(saveCoverDoc) — 앱·기존 화면이 읽는 원본
+//   문항·조합     → 편집 중 행(/members/me/doc-versions, snapshot = null)
+// '새 버전으로 저장'은 그 순간의 문항·답변을 읽기 전용 저장본으로 남긴다(회사별 제출본).
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
@@ -14,7 +15,7 @@ import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-pr
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { addCoverItem, generateCoverDoc, saveCoverDoc, useCoverDoc, type CoverDoc, type CoverItem } from "../../../lib/talent/cover-doc";
-import type { CoverLayout, DocVersion, Overrides } from "../../../lib/talent/doc-versions";
+import type { CoverLayout, CoverSnapshot } from "../../../lib/talent/doc-versions";
 import {
   addBlock,
   addQuestion,
@@ -33,9 +34,8 @@ import {
 } from "../../../lib/talent/cover-layout";
 import { polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, ForkBanner, FullMessage, Section, ToolButton, VersionPanel, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
 
-type Version = DocVersion<CoverLayout>;
 
 export function CoverEditorScreen() {
   return (
@@ -61,32 +61,79 @@ function EditorGate() {
 function Editor({ doc }: { doc: CoverDoc }) {
   const t = usePlatformT();
   const toast = useToast();
-  const store = useDocVersionStore<CoverLayout>("cover", t);
-  const { versions, current: version, patchVersion } = store;
+  const store = useDocVersionStore<CoverLayout, CoverSnapshot>("cover", t);
+  const { working, current } = store;
   // 지금 보고 있는 문항과 고른 에피소드. 한 문항 안엔 같은 에피소드가 한 번만 있어 (문항, 에피소드)로 블록이 정해진다.
   const [activeQ, setActiveQ] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // 대표 버전은 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
+  // 편집 중 구성 — 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
   const layout: ResolvedCover | null = useMemo(() => {
-    if (!version) return null;
-    const resolved = resolveCoverLayout(version.layout, doc);
-    return version.isPrimary ? autoPlaceCover(resolved, doc) : resolved;
-  }, [version, doc]);
+    if (!working) return null;
+    return autoPlaceCover(resolveCoverLayout(working.layout, doc), doc);
+  }, [working, doc]);
 
-  if (!versions || !version || !layout) {
+  if (!working || !current || !layout) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
   }
 
-  const overrides: Overrides = version.overrides ?? {};
-  const q = Math.min(activeQ, Math.max(layout.questions.length - 1, 0));
-  const commitLayout = (next: ResolvedCover) => patchVersion(version.id, { layout: toStoredCover(next) });
-  const commitOverrides = (next: Overrides) => patchVersion(version.id, { overrides: next });
-  const itemOf = (id: string) => doc.items.find((i) => i.id === id);
-  const textOf = (id: string) => (overrides[id] ? overrides[id].text ?? "" : itemOf(id)?.text ?? "");
+  const copyAnswer = async (question: ResolvedCover["questions"][number], textOf: (id: string) => string) => {
+    try {
+      await navigator.clipboard.writeText(answerText(question.blocks.map(textOf)));
+      toast.success(t("답변을 복사했어요", "Answer copied", "已复制答案", "Đã sao chép câu trả lời", "回答をコピーしました", "Jawaban disalin"));
+    } catch {
+      toast.error(t("복사하지 못했어요", "Couldn't copy", "无法复制", "Không sao chép được", "コピーできませんでした", "Gagal menyalin"));
+    }
+  };
 
-  // ── 에피소드 내용(모든 버전 공유) ──
-  const updateItem = (id: string, text: string) => saveCoverDoc({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
+  const topBar = (
+    <EditorTopBar
+      t={t}
+      active="cover"
+      exitHref="/talent/career/cover"
+      working={working}
+      saved={store.saved}
+      current={current}
+      onPick={(id) => {
+        store.setCurrentId(id);
+        setActiveQ(0);
+        setSelectedId(null);
+      }}
+      onSaveNew={(name) => store.saveAsNew(name, toStoredCover(layout), { cover: doc })}
+      saveState={store.saveState}
+      right={<PdfDownloadButton />}
+    />
+  );
+
+  // ── 저장본 보기(읽기 전용) — 문항별 답변 복사는 된다 ──
+  if (current.snapshot) {
+    const snapDoc = current.snapshot.cover;
+    const snapLayout = resolveCoverLayout(current.layout, snapDoc);
+    const snapText = (id: string) => snapDoc.items.find((i) => i.id === id)?.text ?? "";
+    return (
+      <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
+        <PrintStyles />
+        {topBar}
+        <div className="flex min-h-0 flex-1 print:block">
+          <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:overflow-visible print:p-0" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+            <div className={`mx-auto flex max-w-[794px] flex-col gap-4 ${PDF_PRINT_AREA}`}>
+              {snapLayout.questions.map((question, i) => (
+                <QuestionCard key={question.id} t={t} no={i + 1} question={question} textOf={snapText} onCopy={() => void copyAnswer(question, snapText)} />
+              ))}
+            </div>
+          </main>
+          <SavedPanel t={t} version={current} onRename={(name) => store.renameSaved(current.id, name)} onDelete={() => void store.removeSaved(current.id)} />
+        </div>
+      </div>
+    );
+  }
+
+  const q = Math.min(activeQ, Math.max(layout.questions.length - 1, 0));
+  const commitLayout = (next: ResolvedCover) => store.setWorkingLayout(toStoredCover(next));
+  const textOf = (id: string) => doc.items.find((i) => i.id === id)?.text ?? "";
+
+  // ── 에피소드 내용(talent 문서 — 앱·기존 화면이 읽는 원본) ──
+  const setText = (id: string, text: string) => saveCoverDoc({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
   const newEpisode = () => {
     const prompt = layout.questions[q]?.prompt ?? "";
     const { doc: next, id } = addCoverItem(doc, prompt, "");
@@ -95,53 +142,15 @@ function Editor({ doc }: { doc: CoverDoc }) {
     setSelectedId(id);
   };
   const deleteEpisode = (id: string) => {
-    if (!window.confirm(t("이 에피소드를 모든 버전에서 삭제할까요?", "Delete this episode from every version?", "要从所有版本中删除此经历吗？", "Xóa đoạn này khỏi mọi phiên bản?", "このエピソードをすべてのバージョンから削除しますか？", "Hapus episode ini dari semua versi?"))) return;
+    if (!window.confirm(t("이 에피소드를 삭제할까요? 이미 저장한 버전에는 그대로 남아요.", "Delete this episode? Saved versions keep it.", "要删除此经历吗？已保存的版本仍会保留。", "Xóa đoạn này? Các bản đã lưu vẫn giữ.", "このエピソードを削除しますか？保存済みのバージョンには残ります。", "Hapus episode ini? Versi tersimpan tetap menyimpannya."))) return;
     saveCoverDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
-    if (overrides[id]) {
-      const next = { ...overrides };
-      delete next[id];
-      commitOverrides(next);
-    }
     setSelectedId(null);
-  };
-
-  // ── 이 버전에서만 따로 고치기 ──
-  const fork = (id: string) => commitOverrides({ ...overrides, [id]: { text: itemOf(id)?.text ?? "" } });
-  const unfork = (id: string) => {
-    const next = { ...overrides };
-    delete next[id];
-    commitOverrides(next);
-  };
-  const setText = (id: string, v: string) => (overrides[id] ? commitOverrides({ ...overrides, [id]: { ...overrides[id], text: v } }) : updateItem(id, v));
-
-  const copyAnswer = async (i: number) => {
-    const text = answerText(layout.questions[i].blocks.map(textOf));
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(t("답변을 복사했어요", "Answer copied", "已复制答案", "Đã sao chép câu trả lời", "回答をコピーしました", "Jawaban disalin"));
-    } catch {
-      toast.error(t("복사하지 못했어요", "Couldn't copy", "无法复制", "Không sao chép được", "コピーできませんでした", "Gagal menyalin"));
-    }
   };
 
   return (
     <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
       <PrintStyles />
-      <EditorTopBar
-        t={t}
-        active="cover"
-        exitHref="/talent/career/cover"
-        versions={versions}
-        current={version}
-        onPick={(id) => {
-          store.setCurrentId(id);
-          setActiveQ(0);
-          setSelectedId(null);
-        }}
-        onCreate={store.createVersion}
-        saveState={store.saveState}
-        right={<PdfDownloadButton />}
-      />
+      {topBar}
       <div className="flex min-h-0 flex-1 print:block">
         <EpisodeLibrary
           t={t}
@@ -165,16 +174,17 @@ function Editor({ doc }: { doc: CoverDoc }) {
                 t={t}
                 no={i + 1}
                 question={question}
-                active={i === q}
-                selectedId={i === q ? selectedId : null}
                 textOf={textOf}
-                overrides={overrides}
-                onActivate={() => setActiveQ(i)}
-                onSelectBlock={(id) => {
-                  setActiveQ(i);
-                  setSelectedId(id);
+                edit={{
+                  active: i === q,
+                  selectedId: i === q ? selectedId : null,
+                  onActivate: () => setActiveQ(i),
+                  onSelectBlock: (id) => {
+                    setActiveQ(i);
+                    setSelectedId(id);
+                  }
                 }}
-                onCopy={() => void copyAnswer(i)}
+                onCopy={() => void copyAnswer(question, textOf)}
               />
             ))}
             {layout.questions.length === 0 ? (
@@ -202,19 +212,12 @@ function Editor({ doc }: { doc: CoverDoc }) {
           layout={layout}
           q={q}
           selectedId={selectedId}
-          overrides={overrides}
-          version={version}
           textOf={textOf}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
           onText={setText}
-          onFork={fork}
-          onUnfork={unfork}
           onDeleteEpisode={deleteEpisode}
-          onRename={(name) => patchVersion(version.id, { name })}
-          onPrimary={store.makePrimary}
-          onDeleteVersion={store.removeVersion}
         />
       </div>
     </div>
@@ -276,7 +279,7 @@ function EpisodeLibrary({
             ? t(`문항 ${usedIn.join("·")}에 사용`, `Used in Q${usedIn.join(", Q")}`, `用于题目 ${usedIn.join("·")}`, `Dùng ở câu ${usedIn.join(", ")}`, `設問 ${usedIn.join("·")} で使用`, `Dipakai di P${usedIn.join(", P")}`)
             : unplaced.has(it.id)
               ? t("새 에피소드", "New", "新经历", "Mới", "新規", "Baru")
-              : t("이 버전에선 안 씀", "Not used here", "此版本未使用", "Chưa dùng ở bản này", "このバージョンでは未使用", "Tidak dipakai di sini");
+              : t("안 씀", "Not used", "未使用", "Chưa dùng", "未使用", "Tidak dipakai");
           return (
             <li key={it.id}>
               <div
@@ -312,33 +315,28 @@ function EpisodeLibrary({
 
 // ── 가운데: 문항 카드 ────────────────────────────────────────
 
+/** 문항 카드. edit 가 없으면(저장본) 읽기 전용 — 고르기·강조 없이 보여 주고 답변 복사만 된다. */
 function QuestionCard({
   t,
   no,
   question,
-  active,
-  selectedId,
   textOf,
-  overrides,
-  onActivate,
-  onSelectBlock,
+  edit,
   onCopy
 }: {
   t: PlatformT;
   no: number;
   question: ResolvedCover["questions"][number];
-  active: boolean;
-  selectedId: string | null;
   textOf: (id: string) => string;
-  overrides: Overrides;
-  onActivate: () => void;
-  onSelectBlock: (id: string) => void;
+  edit?: { active: boolean; selectedId: string | null; onActivate: () => void; onSelectBlock: (id: string) => void };
   onCopy: () => void;
 }) {
   const count = charCount(answerText(question.blocks.map(textOf)));
+  const active = !!edit?.active;
+  const selectedId = edit?.selectedId ?? null;
   return (
     <section
-      onClick={onActivate}
+      onClick={edit?.onActivate}
       aria-label={t(`문항 ${no}`, `Question ${no}`, `题目 ${no}`, `Câu ${no}`, `設問 ${no}`, `Pertanyaan ${no}`)}
       className={`break-inside-avoid rounded-2xl bg-white px-7 py-6 print:rounded-none print:px-0 ${active ? "ring-2 ring-[#0B46E8] print:ring-0" : "ring-1 ring-[#E5E8EB] print:ring-0"}`}
     >
@@ -360,25 +358,29 @@ function QuestionCard({
       </div>
       <CharGauge t={t} count={count} limit={question.limit} />
       <div className="mt-4 flex flex-col gap-2">
-        {question.blocks.map((id) => (
-          <button
-            key={id}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelectBlock(id);
-            }}
-            className={`relative whitespace-pre-wrap rounded-lg px-3 py-2 text-left text-[14px] leading-[1.75] text-[#333D4B] print:px-0 ${
-              selectedId === id ? "bg-[#EDF1FD] outline outline-2 outline-[#0B46E8] print:bg-transparent print:outline-0" : "hover:bg-[#F7F8FA]"
-            }`}
-          >
-            {textOf(id).trim() || <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>}
-            {overrides[id] ? (
-              <span className="no-print absolute right-2 top-2 rounded bg-[#FFF6E5] px-1.5 text-[10px] font-bold text-[#B25E09]">{t("이 버전용", "This version", "此版本", "Bản này", "この版用", "Versi ini")}</span>
-            ) : null}
-          </button>
-        ))}
-        {question.blocks.length === 0 ? (
+        {question.blocks.map((id) => {
+          const body = textOf(id).trim() || <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>;
+          return edit ? (
+            <button
+              key={id}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                edit.onSelectBlock(id);
+              }}
+              className={`whitespace-pre-wrap rounded-lg px-3 py-2 text-left text-[14px] leading-[1.75] text-[#333D4B] print:px-0 ${
+                selectedId === id ? "bg-[#EDF1FD] outline outline-2 outline-[#0B46E8] print:bg-transparent print:outline-0" : "hover:bg-[#F7F8FA]"
+              }`}
+            >
+              {body}
+            </button>
+          ) : (
+            <p key={id} className="whitespace-pre-wrap px-3 py-2 text-[14px] leading-[1.75] text-[#333D4B] print:px-0">
+              {body}
+            </p>
+          );
+        })}
+        {edit && question.blocks.length === 0 ? (
           <p className="no-print rounded-lg border border-dashed border-[#D1D6DB] px-3 py-5 text-center text-[13px] text-[#8B95A1]">
             {t("왼쪽에서 에피소드를 골라 이 문항에 넣어 보세요", "Pick an episode on the left to add it here", "从左侧选择经历放入此题目", "Chọn một đoạn kể bên trái để thêm vào đây", "左からエピソードを選んでこの設問に入れてください", "Pilih episode di kiri untuk ditambahkan")}
           </p>
@@ -416,21 +418,14 @@ function Inspector(props: {
   layout: ResolvedCover;
   q: number;
   selectedId: string | null;
-  overrides: Overrides;
-  version: Version;
   textOf: (id: string) => string;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
   onText: (id: string, v: string) => void;
-  onFork: (id: string) => void;
-  onUnfork: (id: string) => void;
   onDeleteEpisode: (id: string) => void;
-  onRename: (name: string) => void;
-  onPrimary: () => void;
-  onDeleteVersion: () => void;
 }) {
-  const { t, doc, layout, q, selectedId: id, overrides, version } = props;
+  const { t, doc, layout, q, selectedId: id } = props;
   const question = layout.questions[q];
   const item: CoverItem | undefined = id ? doc.items.find((i) => i.id === id) : undefined;
   const index = question && id ? question.blocks.indexOf(id) : -1;
@@ -476,7 +471,7 @@ function Inspector(props: {
               icon={<Trash size={14} weight="bold" />}
               label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
               onClick={() => {
-                if (!window.confirm(t("이 문항을 이 버전에서 삭제할까요? 에피소드는 지워지지 않아요.", "Delete this question from this version? Episodes stay.", "从此版本删除此题目？经历不会被删除。", "Xóa câu hỏi khỏi bản này? Đoạn kể vẫn giữ.", "この設問をこのバージョンから削除しますか？エピソードは残ります。", "Hapus pertanyaan dari versi ini? Episode tetap ada."))) return;
+                if (!window.confirm(t("이 문항을 삭제할까요? 에피소드는 지워지지 않아요.", "Delete this question? Episodes stay.", "删除此题目？经历不会被删除。", "Xóa câu hỏi này? Đoạn kể vẫn giữ.", "この設問を削除しますか？エピソードは残ります。", "Hapus pertanyaan ini? Episode tetap ada."))) return;
                 props.onLayout(removeQuestion(layout, doc, q));
                 props.onActiveQ(Math.max(q - 1, 0));
                 props.onSelect(null);
@@ -484,7 +479,7 @@ function Inspector(props: {
             />
           </div>
           <p className="text-[12px] leading-relaxed text-[#6B7684]">
-            {t("문항과 글자 수는 버전(회사)마다 따로 저장돼요.", "Questions and limits are saved per version (company).", "题目与字数按版本（公司）分别保存。", "Câu hỏi và giới hạn được lưu theo từng phiên bản (công ty).", "設問と文字数はバージョン（企業）ごとに保存されます。", "Pertanyaan dan batas disimpan per versi (perusahaan).")}
+            {t("회사 문항에 맞춰 고친 뒤 '새 버전으로 저장'하면 그 회사용 저장본이 돼요.", "Match the company's questions, then 'Save as new version' to keep a copy for that company.", "按公司题目修改后“另存为新版本”，即成为该公司专用版本。", "Chỉnh theo câu hỏi của công ty rồi 'Lưu thành phiên bản mới' để có bản cho công ty đó.", "企業の設問に合わせて直し「新しいバージョンとして保存」すると、その企業用の保存版になります。", "Sesuaikan dengan pertanyaan perusahaan lalu 'Simpan sebagai versi baru' untuk salinan perusahaan itu.")}
           </p>
         </Section>
       ) : null}
@@ -524,29 +519,20 @@ function Inspector(props: {
               {t(`문항 ${q + 1}에 넣기`, `Add to Q${q + 1}`, `放入题目 ${q + 1}`, `Thêm vào câu ${q + 1}`, `設問 ${q + 1} に入れる`, `Masukkan ke P${q + 1}`)}
             </button>
           ) : null}
-          <ForkBanner t={t} forked={!!overrides[id]} onFork={() => props.onFork(id)} onUnfork={() => props.onUnfork(id)} />
-          <Field key={`t-${id}-${overrides[id] ? "o" : "s"}`} label={t("본문", "Text", "正文", "Nội dung", "本文", "Isi")} value={props.textOf(id)} multiline rows={9} onChange={(v) => props.onText(id, v)} />
-          <AiPolish key={`ai-${id}-${overrides[id] ? "o" : "s"}`} t={t} text={props.textOf(id)} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
+          <Field key={`t-${id}`} label={t("본문", "Text", "正文", "Nội dung", "本文", "Isi")} value={props.textOf(id)} multiline rows={9} onChange={(v) => props.onText(id, v)} />
+          <AiPolish key={`ai-${id}`} t={t} text={props.textOf(id)} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
           <p className="text-right text-[12px] text-[#8B95A1]">
             {t(`이 단락 ${charCount(props.textOf(id).trim()).toLocaleString()}자`, `${charCount(props.textOf(id).trim()).toLocaleString()} chars`)}
           </p>
           <button type="button" onClick={() => props.onDeleteEpisode(id)} className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#F04452] hover:underline">
             <Trash size={14} weight="bold" />
-            {t("에피소드 삭제(모든 버전)", "Delete episode (all versions)", "删除经历（所有版本）", "Xóa đoạn kể (mọi phiên bản)", "エピソードを削除（全バージョン）", "Hapus episode (semua versi)")}
+            {t("에피소드 삭제", "Delete episode", "删除经历", "Xóa đoạn kể", "エピソードを削除", "Hapus episode")}
           </button>
         </Section>
       ) : !question ? (
         <p className="text-[13px] text-[#6B7684]">{t("문항을 추가하거나 에피소드를 골라 주세요.", "Add a question or pick an episode.", "请添加题目或选择经历。", "Thêm câu hỏi hoặc chọn một đoạn kể.", "設問を追加するかエピソードを選んでください。", "Tambah pertanyaan atau pilih episode.")}</p>
       ) : null}
 
-      <VersionPanel
-        t={t}
-        version={version}
-        primaryNote={t("대표 버전이에요. 인재 검색과 지원에 이 구성이 쓰여요.", "This is your primary version, used for talent search and applications.", "这是代表版本，用于人才搜索与投递。", "Đây là bản chính, dùng cho tìm kiếm nhân tài và ứng tuyển.", "代表バージョンです。人材検索と応募に使われます。", "Ini versi utama, dipakai untuk pencarian talenta dan lamaran.")}
-        onRename={props.onRename}
-        onPrimary={props.onPrimary}
-        onDelete={props.onDeleteVersion}
-      />
     </aside>
   );
 }

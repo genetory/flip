@@ -113,7 +113,7 @@ export function placeModule(layout: ResolvedLayout, doc: ResumeDoc, id: string):
   return l;
 }
 
-/** 배치 안 된 모듈을 모두 자연스러운 자리에 넣는다 — 대표 버전은 새 항목이 빠지지 않게 늘 이렇게 본다. */
+/** 배치 안 된 모듈을 모두 자연스러운 자리에 넣는다 — 편집 중 구성은 새 항목이 빠지지 않게 늘 이렇게 본다. */
 export function placeAllUnplaced(layout: ResolvedLayout, doc: ResumeDoc): ResolvedLayout {
   return layout.unplaced.reduce((acc, id) => placeModule(acc, doc, id), { ...layout, unplaced: [...layout.unplaced] });
 }
@@ -152,7 +152,7 @@ export function moveToOtherColumn(layout: ResolvedLayout, id: string): ResolvedL
   return moveModuleTo(layout, id, to, layout.cols[to].length);
 }
 
-/** 이 버전에서 빼기. */
+/** 이력서에서 빼기(내용은 남는다). */
 export function hideModule(layout: ResolvedLayout, id: string): ResolvedLayout {
   const l = clone(layout);
   detach(l, id);

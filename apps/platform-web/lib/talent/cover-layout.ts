@@ -10,9 +10,9 @@ export type CoverQuestion = CoverLayout["questions"][number];
 
 export type ResolvedCover = {
   questions: CoverQuestion[];
-  /** 이 버전에서 뺀 에피소드(대표 버전 자동 배치에서도 제외). */
+  /** 문항에서 뺀 에피소드(자동 배치에서도 제외). */
   hidden: string[];
-  /** 이 버전의 어느 문항에도 없고 뺀 적도 없는 에피소드 — 새로 쓴 단락. */
+  /** 어느 문항에도 없고 뺀 적도 없는 에피소드 — 새로 쓴 단락. */
   unplaced: string[];
 };
 
@@ -42,9 +42,9 @@ export function resolveCoverLayout(layout: CoverLayout, doc: CoverDoc): Resolved
 }
 
 /**
- * 대표 버전 보기 — 새 에피소드(unplaced)는 원래 문항(item.question)과 같은 문구의 문항이 있으면
+ * 편집 중 보기 — 새 에피소드(unplaced)는 원래 문항(item.question)과 같은 문구의 문항이 있으면
  * 그 끝에 넣는다(앱·기존 화면에서 쓴 단락이 빠지지 않게). 맞는 문항이 없으면 그대로 둔다.
- * 이 버전에서 뺀 에피소드는 넣지 않는다.
+ * 뺀 에피소드는 넣지 않는다.
  */
 export function autoPlaceCover(layout: ResolvedCover, doc: CoverDoc): ResolvedCover {
   const l = clone(layout);
@@ -68,7 +68,7 @@ export function addBlock(layout: ResolvedCover, doc: CoverDoc, q: number, id: st
   return settle(l.questions, l.hidden, doc);
 }
 
-/** 문항에서 뺀다. 다른 문항에도 없으면 이 버전에서 뺀 에피소드가 된다. */
+/** 문항에서 뺀다. 다른 문항에도 없으면 뺀 에피소드가 된다. */
 export function removeBlock(layout: ResolvedCover, doc: CoverDoc, q: number, i: number): ResolvedCover {
   const l = clone(layout);
   const dropped = l.questions[q]?.blocks.splice(i, 1) ?? [];

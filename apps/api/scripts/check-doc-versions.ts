@@ -1,7 +1,7 @@
 // 이력서·자기소개서 버전(DocVersion) 순수 로직 점검 — 기본 구성 생성과 검증 규칙.
 //   npm run check:doc-versions
 import assert from "node:assert/strict";
-import { defaultResumeLayout, defaultCoverLayout, isTalentContent, resumeLayoutSchema, coverLayoutSchema, overridesSchema } from "../src/doc-versions";
+import { defaultResumeLayout, defaultCoverLayout, isTalentContent, resumeLayoutSchema, coverLayoutSchema, resumeSnapshotSchema, coverSnapshotSchema, snapshotSchemaFor } from "../src/doc-versions";
 
 // talent 판별
 assert.equal(isTalentContent({ renewalFollows: [] }), true);
@@ -41,7 +41,11 @@ assert.equal(resumeLayoutSchema.safeParse({ template: "three", cols: [[]], hidde
 assert.equal(resumeLayoutSchema.safeParse({ template: "two", cols: [[], [], []], hidden: [] }).success, false, "칸은 최대 2");
 assert.equal(coverLayoutSchema.safeParse({ questions: [{ id: "q", prompt: "p", limit: -1, blocks: [] }] }).success, false);
 assert.equal(resumeLayoutSchema.safeParse({ template: "one", cols: [[]], hidden: [], extra: 1 }).success, false, "모르는 키 거절");
-assert.ok(overridesSchema.safeParse({ e1: { text: "이 버전용 문구" } }).success);
-assert.equal(overridesSchema.safeParse({ e1: { text: 123 } }).success, false);
+// 저장본 내용
+assert.ok(resumeSnapshotSchema.safeParse({ resume: { items: [] }, basicInfo: { realName: "a" } }).success);
+assert.equal(resumeSnapshotSchema.safeParse({ resume: { items: [] } }).success, false, "기본 정보 빠지면 거절");
+assert.equal(resumeSnapshotSchema.safeParse({ resume: {}, basicInfo: {}, extra: 1 }).success, false, "모르는 키 거절");
+assert.ok(coverSnapshotSchema.safeParse({ cover: { items: [] } }).success);
+assert.equal(snapshotSchemaFor("cover").safeParse({ resume: {}, basicInfo: {} }).success, false, "종류가 다르면 거절");
 
 console.log("모든 검사 통과");

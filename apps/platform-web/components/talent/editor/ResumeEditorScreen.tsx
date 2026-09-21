@@ -1,12 +1,11 @@
 "use client";
 
-// 모듈형 이력서 에디터(전체 화면) — 경력 한 건·자격증 한 건을 모듈로 두고, 버전(용도)마다
-// 칸·순서·포함 여부를 따로 구성한다.
+// 모듈형 이력서 에디터(전체 화면) — 경력 한 건·자격증 한 건을 모듈로 두고 칸·순서·포함 여부를 구성한다.
 //
-// 저장은 두 갈래다.
-//   모듈 내용  → talent 문서(saveResumeDoc / saveBasicInfo) — 앱·매칭·기업 화면이 읽는 원본, 모든 버전 공유
-//   구성·수정본 → 버전(/members/me/doc-versions) — 이 버전에만 해당
-// '이 버전에서만 따로 고치기'를 누른 모듈은 overrides 에 문구를 두고, 원본은 건드리지 않는다.
+// 편집하는 이력서는 하나다.
+//   모듈 내용 → talent 문서(saveResumeDoc / saveBasicInfo) — 앱·매칭·인재 검색이 읽는 원본
+//   구성      → 편집 중 행(/members/me/doc-versions, snapshot = null)
+// '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowsLeftRight, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
@@ -25,13 +24,7 @@ import {
   useResumeDoc,
   type ResumeDoc
 } from "../../../lib/talent/resume-doc";
-import {
-  FIXED_MODULES,
-  isFixedModule,
-  type DocVersion,
-  type Overrides,
-  type ResumeLayout
-} from "../../../lib/talent/doc-versions";
+import { FIXED_MODULES, isFixedModule, type ResumeLayout, type ResumeSnapshot } from "../../../lib/talent/doc-versions";
 import {
   hideModule,
   locate,
@@ -48,9 +41,8 @@ import {
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
 import { polishExperienceText, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, ForkBanner, FullMessage, Section, ToolButton, VersionPanel, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
 
-type Version = DocVersion<ResumeLayout>;
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
 const SECTIONS: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
@@ -85,22 +77,19 @@ function EditorGate() {
 
 function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   const t = usePlatformT();
-  const store = useDocVersionStore<ResumeLayout>("resume", t);
-  const { versions, current: version, patchVersion } = store;
+  const store = useDocVersionStore<ResumeLayout, ResumeSnapshot>("resume", t);
+  const { working, current } = store;
   const [selectedId, setSelectedId] = useState<string | null>(FIXED_MODULES.basic);
   const [dragId, setDragId] = useState<string | null>(null);
   const [hover, setHover] = useState<DropSlot | null>(null);
 
-  // 지금 문서에 맞춘 구성. 대표 버전은 새로 생긴 모듈이 빠지지 않게 자연스러운 자리에 넣어 보여준다.
+  // 지금 문서에 맞춘 편집 중 구성 — 앱·기존 화면에서 새로 생긴 모듈도 빠지지 않게 자연스러운 자리에 넣어 보여준다.
   const layout: ResolvedLayout | null = useMemo(() => {
-    if (!version) return null;
-    const resolved = resolveLayout(version.layout, doc);
-    return version.isPrimary ? placeAllUnplaced(resolved, doc) : resolved;
-  }, [version, doc]);
-  const overrides: Overrides = version?.overrides ?? {};
+    if (!working) return null;
+    return placeAllUnplaced(resolveLayout(working.layout, doc), doc);
+  }, [working, doc]);
 
-  const commitLayout = (next: ResolvedLayout) => version && patchVersion(version.id, { layout: toStoredLayout(next) });
-  const commitOverrides = (next: Overrides) => version && patchVersion(version.id, { overrides: next });
+  const commitLayout = (next: ResolvedLayout) => store.setWorkingLayout(toStoredLayout(next));
 
   // ── 드래그 앤 드롭 ──
   const interaction: EditorInteraction | undefined = layout
@@ -126,11 +115,51 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       }
     : undefined;
 
-  if (!versions || !version || !layout) {
+  if (!working || !current || !layout) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
   }
 
-  // ── 모듈 내용(모든 버전 공유) ──
+  const topBar = (right: React.ReactNode) => (
+    <EditorTopBar
+      t={t}
+      active="resume"
+      exitHref="/talent/career/resume"
+      working={working}
+      saved={store.saved}
+      current={current}
+      onPick={(id) => {
+        store.setCurrentId(id);
+        setSelectedId(FIXED_MODULES.basic);
+      }}
+      // 지금 화면 그대로 — 편집 중 구성(자동 배치 포함)과 내용을 함께 저장본으로.
+      onSaveNew={(name) => store.saveAsNew(name, toStoredLayout(layout), { resume: doc, basicInfo: info })}
+      saveState={store.saveState}
+      right={right}
+    />
+  );
+
+  // ── 저장본 보기(읽기 전용) ──
+  if (current.snapshot) {
+    const snap = current.snapshot;
+    const savedLayout = resolveLayout(current.layout, snap.resume);
+    return (
+      <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
+        <PrintStyles />
+        {topBar(<PdfDownloadButton />)}
+        <div className="flex min-h-0 flex-1 print:block">
+          <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+            <div className="mx-auto max-w-[794px]">
+              <ModularResumePages doc={snap.resume} info={snap.basicInfo} layout={savedLayout} />
+            </div>
+          </main>
+          <SavedPanel t={t} version={current} onRename={(name) => store.renameSaved(current.id, name)} onDelete={() => void store.removeSaved(current.id)} />
+        </div>
+        <PrintCopy doc={snap.resume} info={snap.basicInfo} layout={savedLayout} />
+      </div>
+    );
+  }
+
+  // ── 모듈 내용(talent 문서 — 앱·인재 검색이 읽는 원본) ──
   const updateItem = (id: string, patch: Partial<{ text: string; company: string; startDate: string; endDate: string; section: CareerSection }>) =>
     saveResumeDoc({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, ...patch } : it)) });
   const addItem = (section: CareerSection) => {
@@ -140,27 +169,10 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
     setSelectedId(id);
   };
   const deleteItem = (id: string) => {
-    if (!window.confirm(t("이 항목을 모든 버전에서 삭제할까요?", "Delete this item from every version?", "要从所有版本中删除此条目吗？", "Xóa mục này khỏi mọi phiên bản?", "この項目をすべてのバージョンから削除しますか？", "Hapus item ini dari semua versi?"))) return;
+    if (!window.confirm(t("이 항목을 삭제할까요? 이미 저장한 버전에는 그대로 남아요.", "Delete this item? Saved versions keep it.", "要删除此条目吗？已保存的版本仍会保留。", "Xóa mục này? Các bản đã lưu vẫn giữ.", "この項目を削除しますか？保存済みのバージョンには残ります。", "Hapus item ini? Versi tersimpan tetap menyimpannya."))) return;
     saveResumeDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
-    const nextOv = { ...overrides };
-    delete nextOv[id];
-    commitOverrides(nextOv);
     setSelectedId(null);
   };
-
-  // ── 이 버전에서만 따로 고치기 ──
-  const fork = (id: string) => {
-    const item = doc.items.find((i) => i.id === id);
-    const base: Record<string, string> =
-      id === FIXED_MODULES.summary ? { text: doc.summary ?? "" } : { text: item?.text ?? "", company: item?.company ?? "" };
-    commitOverrides({ ...overrides, [id]: base });
-  };
-  const unfork = (id: string) => {
-    const next = { ...overrides };
-    delete next[id];
-    commitOverrides(next);
-  };
-  const setOverride = (id: string, field: string, value: string) => commitOverrides({ ...overrides, [id]: { ...overrides[id], [field]: value } });
 
   const placed = new Set(layout.cols.flat());
   const hiddenSet = new Set(layout.hidden);
@@ -168,32 +180,18 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   return (
     <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
       <PrintStyles />
-      <EditorTopBar
-        t={t}
-        active="resume"
-        exitHref="/talent/career/resume"
-        versions={versions}
-        current={version}
-        onPick={(id) => {
-          store.setCurrentId(id);
-          setSelectedId(FIXED_MODULES.basic);
-        }}
-        onCreate={store.createVersion}
-        saveState={store.saveState}
-        right={
-          <>
-            <TemplateSwitch t={t} template={layout.template} onTemplate={(tpl) => commitLayout(setTemplate(layout, tpl, doc))} />
-            <PdfDownloadButton />
-          </>
-        }
-      />
+      {topBar(
+        <>
+          <TemplateSwitch t={t} template={layout.template} onTemplate={(tpl) => commitLayout(setTemplate(layout, tpl, doc))} />
+          <PdfDownloadButton />
+        </>
+      )}
       <div className="flex min-h-0 flex-1 print:block">
         <ModuleList
           t={t}
           doc={doc}
           placed={placed}
           hidden={hiddenSet}
-          unplaced={new Set(layout.unplaced)}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onToggle={(id) => commitLayout(placed.has(id) ? hideModule(layout, id) : placeModule(layout, doc, id))}
@@ -201,7 +199,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         />
         <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
           <div className="mx-auto max-w-[794px]">
-            <ModularResumePages doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} />
+            <ModularResumePages doc={doc} info={info} layout={layout} interaction={interaction} />
           </div>
         </main>
         <Inspector
@@ -209,28 +207,28 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           doc={doc}
           info={info}
           layout={layout}
-          overrides={overrides}
           selectedId={selectedId}
           placed={placed.has(selectedId ?? "")}
-          version={version}
           onItem={updateItem}
           onDoc={(patch) => saveResumeDoc({ ...doc, ...patch })}
           onBasic={(patch) => saveBasicInfo({ ...info, ...patch })}
-          onOverride={setOverride}
-          onFork={fork}
-          onUnfork={unfork}
           onLayout={commitLayout}
           onDelete={deleteItem}
-          onRename={(name) => patchVersion(version.id, { name })}
-          onPrimary={store.makePrimary}
-          onDeleteVersion={store.removeVersion}
         />
       </div>
-      {/* PDF 다운받기용 사본 — 편집 여백·선택 표시 없이, 기존 미리보기 PDF 와 같은 A4 모양으로 인쇄한다.
-          화면에선 밖에 두되 폭(794)은 유지해야 인쇄 전에 페이지 나눔이 계산돼 있다. */}
-      <div aria-hidden className={`pointer-events-none fixed -left-[99999px] top-0 w-[794px] print:left-0 ${PDF_PRINT_AREA}`}>
-        <ModularResumePages doc={doc} info={info} layout={layout} overrides={overrides} />
-      </div>
+      <PrintCopy doc={doc} info={info} layout={layout} />
+    </div>
+  );
+}
+
+/**
+ * PDF 다운받기용 사본 — 편집 여백·선택 표시 없이, 기존 미리보기 PDF 와 같은 A4 모양으로 인쇄한다.
+ * 화면에선 밖에 두되 폭(794)은 유지해야 인쇄 전에 페이지 나눔이 계산돼 있다.
+ */
+function PrintCopy({ doc, info, layout }: { doc: ResumeDoc; info: BasicInfo; layout: ResolvedLayout }) {
+  return (
+    <div aria-hidden className={`pointer-events-none fixed -left-[99999px] top-0 w-[794px] print:left-0 ${PDF_PRINT_AREA}`}>
+      <ModularResumePages doc={doc} info={info} layout={layout} />
     </div>
   );
 }
@@ -263,7 +261,6 @@ function ModuleList({
   doc,
   placed,
   hidden,
-  unplaced,
   selectedId,
   onSelect,
   onToggle,
@@ -273,7 +270,6 @@ function ModuleList({
   doc: ResumeDoc;
   placed: Set<string>;
   hidden: Set<string>;
-  unplaced: Set<string>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
@@ -286,14 +282,13 @@ function ModuleList({
   ];
   const row = (id: string, label: string) => {
     const on = placed.has(id);
-    const isUnplaced = unplaced.has(id);
     return (
       <li key={id} className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 ${selectedId === id ? "bg-[#EDF1FD]" : ""}`}>
         <button
           type="button"
           onClick={() => onToggle(id)}
           aria-pressed={on}
-          aria-label={on ? t(`이 버전에서 빼기: ${label}`, `Remove from this version: ${label}`) : t(`이 버전에 넣기: ${label}`, `Add to this version: ${label}`)}
+          aria-label={on ? t(`이력서에서 빼기: ${label}`, `Remove from resume: ${label}`) : t(`이력서에 넣기: ${label}`, `Add to resume: ${label}`)}
           className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] ${on ? "bg-[#0B46E8]" : "border-[1.5px] border-[#C4CAD2] bg-white"}`}
         >
           {on ? (
@@ -309,7 +304,6 @@ function ModuleList({
         >
           {label}
         </button>
-        {isUnplaced ? <span className="shrink-0 rounded bg-[#FFF6E5] px-1.5 text-[10px] font-bold text-[#B25E09]">{t("새 항목", "New", "新", "Mới", "新規", "Baru")}</span> : null}
       </li>
     );
   };
@@ -319,12 +313,12 @@ function ModuleList({
         <p className="text-[15px] font-bold">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
         <p className="mt-1 text-[12px] leading-relaxed text-[#6B7684]">
           {t(
-            "항목 하나하나가 모듈이에요. 체크를 끄면 이 버전에서만 빠지고, 페이지에서 끌어 옮길 수 있어요.",
-            "Each item is a module. Uncheck to leave it out of this version only; drag it on the page to move.",
-            "每个条目都是一个模块。取消勾选只会在此版本中移除，可在页面上拖动。",
-            "Mỗi mục là một mô-đun. Bỏ chọn để chỉ loại khỏi phiên bản này; kéo trên trang để di chuyển.",
-            "各項目がモジュールです。チェックを外すとこのバージョンだけから外れ、ページ上でドラッグして移動できます。",
-            "Setiap item adalah modul. Hapus centang untuk mengeluarkan dari versi ini saja; seret di halaman untuk memindah."
+            "항목 하나하나가 모듈이에요. 체크를 끄면 이력서에서 빠지고(내용은 남아요), 페이지에서 끌어 옮길 수 있어요.",
+            "Each item is a module. Uncheck to leave it out of the resume (the content stays); drag it on the page to move.",
+            "每个条目都是一个模块。取消勾选会从简历中移除（内容保留），可在页面上拖动。",
+            "Mỗi mục là một mô-đun. Bỏ chọn để loại khỏi hồ sơ (nội dung vẫn giữ); kéo trên trang để di chuyển.",
+            "各項目がモジュールです。チェックを外すと履歴書から外れ（内容は残ります）、ページ上でドラッグして移動できます。",
+            "Setiap item adalah modul. Hapus centang untuk mengeluarkan dari resume (isi tetap ada); seret di halaman untuk memindah."
           )}
         </p>
       </div>
@@ -356,23 +350,15 @@ function Inspector(props: {
   doc: ResumeDoc;
   info: BasicInfo;
   layout: ResolvedLayout;
-  overrides: Overrides;
   selectedId: string | null;
   placed: boolean;
-  version: Version;
   onItem: (id: string, patch: Partial<{ text: string; company: string; startDate: string; endDate: string; section: CareerSection }>) => void;
   onDoc: (patch: Partial<ResumeDoc>) => void;
   onBasic: (patch: Partial<BasicInfo>) => void;
-  onOverride: (id: string, field: string, value: string) => void;
-  onFork: (id: string) => void;
-  onUnfork: (id: string) => void;
   onLayout: (next: ResolvedLayout) => void;
   onDelete: (id: string) => void;
-  onRename: (name: string) => void;
-  onPrimary: () => void;
-  onDeleteVersion: () => void;
 }) {
-  const { t, doc, info, layout, overrides, selectedId: id, version } = props;
+  const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
@@ -397,15 +383,15 @@ function Inspector(props: {
                   disabled={layout.cols.length < 2}
                   onClick={() => id && props.onLayout(moveToOtherColumn(layout, id))}
                 />
-                <ToolButton icon={<EyeSlash size={14} weight="bold" />} label={t("이 버전에서 빼기", "Remove here", "从此版本移除", "Bỏ khỏi bản này", "このバージョンから外す", "Keluarkan di sini")} onClick={() => id && props.onLayout(hideModule(layout, id))} />
+                <ToolButton icon={<EyeSlash size={14} weight="bold" />} label={t("이력서에서 빼기", "Remove", "从简历移除", "Bỏ khỏi hồ sơ", "履歴書から外す", "Keluarkan")} onClick={() => id && props.onLayout(hideModule(layout, id))} />
               </div>
             ) : (
               <button type="button" onClick={() => id && props.onLayout(placeModule(layout, doc, id))} className="h-10 w-full rounded-lg bg-[#0B46E8] text-[13px] font-bold text-white hover:bg-[#0A3ECB]">
-                {t("이 버전에 넣기", "Add to this version", "加入此版本", "Thêm vào bản này", "このバージョンに入れる", "Tambahkan ke versi ini")}
+                {t("이력서에 넣기", "Add to resume", "加入简历", "Thêm vào hồ sơ", "履歴書に入れる", "Tambahkan ke resume")}
               </button>
             )}
             <p className="text-[12px] leading-relaxed text-[#6B7684]">
-              {t("배치와 포함 여부는 버전마다 따로 저장돼요.", "Placement is saved per version.", "位置按版本分别保存。", "Vị trí được lưu theo từng phiên bản.", "配置はバージョンごとに保存されます。", "Penempatan disimpan per versi.")}
+              {t("페이지에서 끌어 옮겨도 돼요.", "You can also drag it on the page.", "也可以在页面上拖动。", "Bạn cũng có thể kéo trên trang.", "ページ上でドラッグしても移動できます。", "Bisa juga diseret di halaman.")}
             </p>
           </Section>
 
@@ -414,7 +400,7 @@ function Inspector(props: {
           {item ? (
             <button type="button" onClick={() => props.onDelete(item.id)} className="flex items-center justify-center gap-1.5 text-[13px] font-semibold text-[#F04452] hover:underline">
               <Trash size={14} weight="bold" />
-              {t("항목 삭제(모든 버전)", "Delete item (all versions)", "删除条目（所有版本）", "Xóa mục (mọi phiên bản)", "項目を削除（全バージョン）", "Hapus item (semua versi)")}
+              {t("항목 삭제", "Delete item", "删除条目", "Xóa mục", "項目を削除", "Hapus item")}
             </button>
           ) : null}
         </>
@@ -422,21 +408,12 @@ function Inspector(props: {
         <p className="text-[13px] text-[#6B7684]">{t("페이지나 왼쪽 목록에서 모듈을 골라 주세요.", "Pick a module on the page or in the list.", "请在页面或列表中选择模块。", "Chọn một mô-đun trên trang hoặc danh sách.", "ページかリストからモジュールを選んでください。", "Pilih modul di halaman atau daftar.")}</p>
       )}
 
-      <VersionPanel
-        t={t}
-        version={version}
-        primaryNote={t("대표 버전이에요. 인재 검색과 추천에 이 구성이 쓰여요.", "This is your primary version, used for talent search.", "这是代表版本，用于人才搜索与推荐。", "Đây là bản chính, dùng cho tìm kiếm nhân tài.", "代表バージョンです。人材検索と推薦に使われます。", "Ini versi utama, dipakai untuk pencarian talenta.")}
-        onRename={props.onRename}
-        onPrimary={props.onPrimary}
-        onDelete={props.onDeleteVersion}
-      />
     </aside>
   );
 }
 
 function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; item: ResumeDoc["items"][number] | undefined }) {
-  const { t, id, item, doc, info, overrides } = props;
-  const forked = !!overrides[id];
+  const { t, id, item, doc, info } = props;
 
   if (id === FIXED_MODULES.basic) {
     return (
@@ -464,14 +441,13 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
   }
 
   const isSummary = id === FIXED_MODULES.summary;
-  const text = forked ? overrides[id].text ?? "" : isSummary ? doc.summary ?? "" : item?.text ?? "";
-  const company = forked ? overrides[id].company ?? "" : item?.company ?? "";
-  const setText = (v: string) => (forked ? props.onOverride(id, "text", v) : isSummary ? props.onDoc({ summary: v }) : props.onItem(id, { text: v }));
-  const setCompany = (v: string) => (forked ? props.onOverride(id, "company", v) : props.onItem(id, { company: v }));
+  const text = isSummary ? doc.summary ?? "" : item?.text ?? "";
+  const company = item?.company ?? "";
+  const setText = (v: string) => (isSummary ? props.onDoc({ summary: v }) : props.onItem(id, { text: v }));
+  const setCompany = (v: string) => props.onItem(id, { company: v });
 
   return (
     <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
-      <ForkBanner t={t} forked={forked} onFork={() => props.onFork(id)} onUnfork={() => props.onUnfork(id)} />
       {item ? (
         <>
           <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
@@ -493,7 +469,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
       ) : null}
       <Field label={isSummary ? t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") : t("내용", "Details", "内容", "Nội dung", "内容", "Isi")} value={text} onChange={setText} multiline />
       <AiPolish
-        key={`${id}-${forked ? "o" : "s"}`}
+        key={id}
         t={t}
         text={text}
         polish={(src, style) => (isSummary ? polishSelfIntro({ text: src, style, desiredJobRole: doc.targetRole || undefined }) : polishExperienceText({ text: src, style, type: item?.section }))}
@@ -514,7 +490,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
 function SharedNote({ t }: { t: PlatformT }) {
   return (
     <p className="text-[12px] leading-relaxed text-[#6B7684]">
-      {t("기본 정보는 모든 버전에 함께 쓰여요.", "Basic info is shared by every version.", "基本信息在所有版本中共享。", "Thông tin cơ bản dùng chung cho mọi bản.", "基本情報はすべてのバージョンで共通です。", "Info dasar dipakai bersama semua versi.")}
+      {t("기본 정보는 자기소개서·앱과 함께 쓰여요.", "Basic info is shared with your cover letter and the app.", "基本信息与自我介绍、App 共用。", "Thông tin cơ bản dùng chung với thư giới thiệu và ứng dụng.", "基本情報は自己紹介書・アプリと共通です。", "Info dasar dipakai bersama surat lamaran dan aplikasi.")}
     </p>
   );
 }

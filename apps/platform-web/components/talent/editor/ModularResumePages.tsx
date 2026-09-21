@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
-import { FIXED_MODULES, type Overrides } from "../../../lib/talent/doc-versions";
+import { FIXED_MODULES } from "../../../lib/talent/doc-versions";
 import { displayMonth, normalizeUrl, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
 import type { ResolvedLayout } from "../../../lib/talent/resume-layout";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
@@ -19,7 +19,7 @@ const PAGE_PAD = 52;
 const FOOTER_H = 44;
 const CONTENT_H = PAGE_H - PAGE_PAD * 2 - FOOTER_H;
 // 편집 모드에서 페이지 창을 위아래로 이만큼 더 보여 준다 — 페이지 맨 위·아래 모듈의 선택 테두리와
-// '이 버전용' 표시가 창 경계에서 잘리지 않게. 여백에 비치는 이웃 페이지 모듈은 PageModules 로 가린다.
+// 표시가 창 경계에서 잘리지 않게. 여백에 비치는 이웃 페이지 모듈은 PageModules 로 가린다.
 const EDIT_BLEED = 12;
 
 /** 이 페이지에 속한 모듈 id. 없으면(측정용·편집 아님) 전부 보인다. */
@@ -45,7 +45,6 @@ type Props = {
   doc: ResumeDoc;
   info: BasicInfo;
   layout: ResolvedLayout;
-  overrides: Overrides;
   interaction?: EditorInteraction;
 };
 
@@ -82,7 +81,7 @@ function packColumns(root: HTMLElement, contentH: number): { starts: number[]; t
   return { starts, total, blocks };
 }
 
-export function ModularResumePages({ doc, info, layout, overrides, interaction, maxScale = 1 }: Props & { maxScale?: number }) {
+export function ModularResumePages({ doc, info, layout, interaction, maxScale = 1 }: Props & { maxScale?: number }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
@@ -117,7 +116,7 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
       {/* 높이 측정용 숨김 시트 — 편집 표시는 빼고 잰다 */}
       <div aria-hidden className="pointer-events-none absolute -left-[99999px] top-0" style={{ width: PAGE_W, visibility: "hidden" }}>
         <div ref={sheetRef}>
-          <ResumeBody doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} measure />
+          <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} measure />
         </div>
       </div>
 
@@ -137,7 +136,7 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
                 <div className="absolute left-0 overflow-hidden" style={{ top: (PAGE_PAD - bleed) * scale, width: PAGE_W * scale, height: (windowH + bleed * 2) * scale }}>
                   <div style={{ position: "absolute", top: -((startPx - bleed) * scale), width: PAGE_W, transform: `scale(${scale})`, transformOrigin: "top left" }}>
                     <PageModules.Provider value={onPage}>
-                      <ResumeBody doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} />
+                      <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} />
                     </PageModules.Provider>
                   </div>
                 </div>
@@ -161,9 +160,7 @@ function ResumeBody({
   doc,
   info,
   layout,
-  overrides,
-  interaction,
-  measure
+  interaction
 }: Props & { measure?: boolean }) {
   const t = usePlatformT();
   const two = layout.cols.length === 2;
@@ -175,7 +172,7 @@ function ResumeBody({
     <div className="w-full bg-white px-[56px] text-[#191F28]">
       <div className={two ? "grid grid-cols-[212px_minmax(0,1fr)] gap-x-9" : "flex flex-col"}>
         {layout.cols.map((col, c) => (
-          <Column key={c} col={c} ids={col} narrow={two && c === 0} doc={doc} info={info} overrides={overrides} ix={ix} measure={measure} />
+          <Column key={c} col={c} ids={col} narrow={two && c === 0} doc={doc} info={info} ix={ix} />
         ))}
       </div>
       {empty ? (
@@ -193,18 +190,14 @@ function Column({
   narrow,
   doc,
   info,
-  overrides,
-  ix,
-  measure
+  ix
 }: {
   col: number;
   ids: string[];
   narrow: boolean;
   doc: ResumeDoc;
   info: BasicInfo;
-  overrides: Overrides;
   ix?: EditorInteraction;
-  measure?: boolean;
 }) {
   const t = usePlatformT();
   const itemById = new Map(doc.items.map((i) => [i.id, i]));
@@ -224,12 +217,12 @@ function Column({
         const section: CareerSection | "@" = item ? item.section : "@";
         const showTitle = !!item && section !== prevSection;
         prevSection = section;
-        const content = renderModule({ id, item, doc, info, overrides, narrow, t, showTitle });
+        const content = renderModule({ id, item, doc, info, narrow, t, showTitle });
         if (!content) return null;
         return (
           <div key={id}>
             {indicator(index)}
-            <ModuleBlock id={id} col={col} index={index} ix={ix} forked={!!overrides[id] && !measure} gapTop={index > 0 && (showTitle || id === FIXED_MODULES.summary || id === FIXED_MODULES.links)}>
+            <ModuleBlock id={id} col={col} index={index} ix={ix} gapTop={index > 0 && (showTitle || id === FIXED_MODULES.summary || id === FIXED_MODULES.links)}>
               {content}
             </ModuleBlock>
           </div>
@@ -246,7 +239,6 @@ function ModuleBlock({
   col,
   index,
   ix,
-  forked,
   gapTop,
   children
 }: {
@@ -254,11 +246,9 @@ function ModuleBlock({
   col: number;
   index: number;
   ix?: EditorInteraction;
-  forked: boolean;
   gapTop: boolean;
   children: ReactNode;
 }) {
-  const t = usePlatformT();
   const pageModules = useContext(PageModules);
   const spacing = gapTop ? "mt-7" : "mt-2.5";
   if (!ix) {
@@ -299,11 +289,6 @@ function ModuleBlock({
         selected ? "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]" : "hover:bg-[#F7F9FC] hover:outline hover:outline-1 hover:outline-[#D7DCE3]"
       } ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
-      {forked ? (
-        <span className="absolute -top-2 right-2 rounded-[4px] bg-[#FFF6E5] px-1.5 py-[1px] text-[10px] font-bold text-[#B25E09] print:hidden">
-          {t("이 버전용", "This version", "本版本专用", "Riêng bản này", "このバージョン用", "Versi ini")}
-        </span>
-      ) : null}
       {children}
     </div>
   );
@@ -340,7 +325,6 @@ function renderModule({
   item,
   doc,
   info,
-  overrides,
   narrow,
   t,
   showTitle
@@ -349,12 +333,10 @@ function renderModule({
   item: ResumeItem | undefined;
   doc: ResumeDoc;
   info: BasicInfo;
-  overrides: Overrides;
   narrow: boolean;
   t: ReturnType<typeof usePlatformT>;
   showTitle: boolean;
 }): ReactNode {
-  const ov = overrides[id] ?? {};
   if (id === FIXED_MODULES.basic) {
     const contact = [info.email, info.phone, info.address].filter(Boolean);
     const photo = info.photoUrl && doc.showPhoto === true;
@@ -381,7 +363,7 @@ function renderModule({
     );
   }
   if (id === FIXED_MODULES.summary) {
-    const text = (ov.text ?? doc.summary ?? "").trim();
+    const text = (doc.summary ?? "").trim();
     if (!text) return null;
     return (
       <section>
@@ -410,8 +392,8 @@ function renderModule({
     );
   }
   if (!item) return null;
-  const company = (ov.company ?? item.company ?? "").trim();
-  const text = (ov.text ?? item.text ?? "").trim();
+  const company = (item.company ?? "").trim();
+  const text = (item.text ?? "").trim();
   if (!company && !text) return null;
   const range = [item.startDate, item.endDate].map((d) => displayMonth(d ?? "")).filter(Boolean).join(" – ");
   return (
