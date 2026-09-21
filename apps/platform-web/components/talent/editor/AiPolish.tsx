@@ -2,12 +2,12 @@
 
 // AI로 다듬기 — 바로 덮어쓰지 않고 원래 글과 다듬은 글을 나란히 보여 준 뒤 사용자가 고른다.
 // 다듬기 자체(어떤 API·스타일)는 부르는 쪽이 polish 로 넘긴다(경력=polish-experience, 자기소개·자소서=polish-intro).
+// 포인트는 쓰지 않는다(무료) — 서버는 분당·일일 이용 한도만 두고, 걸리면 그 안내 문구를 그대로 보여 준다.
 import { useEffect, useRef, useState } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
-import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import type { PlatformT } from "../../../lib/i18n";
-import { AiQuotaError, getAiUsage, type AiUsage, type PolishStyle } from "../../../lib/resume-maker-client";
+import type { PolishStyle } from "../../../lib/resume-maker-client";
 import { charCount } from "../../../lib/talent/cover-layout";
 
 type Result = { style: PolishStyle; original: string; polished: string };
@@ -35,7 +35,6 @@ export function AiPolish({
   const toast = useToast();
   const [busy, setBusy] = useState<PolishStyle | null>(null);
   const [result, setResult] = useState<Result | null>(null);
-  const [quota, setQuota] = useState<AiUsage | null>(null);
   const compareRef = useRef<HTMLDivElement | null>(null);
   const choices = styles(t);
   // 비교가 속성 패널 아래로 열려 안 보일 수 있어, 결과가 오면 그 자리로 스크롤한다.
@@ -51,17 +50,8 @@ export function AiPolish({
     try {
       const polished = await polish(source, style);
       setResult({ style, original: source, polished });
-      window.dispatchEvent(new Event("aply:ai-usage-changed"));
     } catch (err) {
-      if (err instanceof AiQuotaError) {
-        try {
-          setQuota(await getAiUsage());
-        } catch {
-          toast.error(err.message);
-        }
-      } else {
-        toast.error(err instanceof Error ? err.message : String(err));
-      }
+      toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
     }
@@ -116,8 +106,6 @@ export function AiPolish({
           </div>
         </div>
       ) : null}
-
-      {quota ? <AiTicketStatusModal remaining={quota.remaining} resetAt={quota.resetAt || null} dailyGrant={quota.dailyGrant} onClose={() => setQuota(null)} /> : null}
     </div>
   );
 }
