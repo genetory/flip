@@ -51,7 +51,13 @@ export function AiPolish({
       const polished = await polish(source, style);
       setResult({ style, original: source, polished });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : String(err));
+      // 이용 한도 안내처럼 사람이 읽을 문구면 그대로, 'ai unavailable' 같은 내부 메시지면 일반 안내로.
+      const msg = err instanceof Error ? err.message : "";
+      toast.error(
+        /[가-힣]/.test(msg)
+          ? msg
+          : t("AI로 다듬지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't polish with AI. Please try again shortly.", "AI 润色失败，请稍后再试。", "Không thể chỉnh bằng AI. Vui lòng thử lại sau.", "AIで整えられませんでした。しばらくしてから再度お試しください。", "Gagal memoles dengan AI. Coba lagi nanti.")
+      );
     } finally {
       setBusy(null);
     }
