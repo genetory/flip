@@ -394,6 +394,8 @@ const openaiMatchingLowCompletionPenalty = Math.max(0, Number(process.env.OPENAI
 const openaiMatchingTextMax = Number(process.env.OPENAI_MATCHING_TEXT_MAX ?? 280);
 const refreshTokenTtlDays = Math.max(1, Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30));
 const platformWebUrl = process.env.PLATFORM_WEB_URL ?? "http://localhost:3000";
+// 모바일 앱이 OAuth 결과를 돌려받는 커스텀 스킴(aply://auth/return#accessToken=...).
+const appUrlScheme = process.env.APP_URL_SCHEME ?? "aply";
 const partnerAdminUrl = process.env.PARTNER_ADMIN_URL ?? "http://localhost:3001";
 const opsAdminUrl = process.env.OPS_ADMIN_URL ?? "http://localhost:3002";
 const emailVerificationTtlHours = Math.max(1, Number(process.env.EMAIL_VERIFICATION_TTL_HOURS ?? 24));
@@ -2651,6 +2653,14 @@ function verifyOAuthState(value: string): Record<string, unknown> | null {
 function buildOAuthReturnUrl(provider: "naver" | "google" | "kakao", params: Record<string, string>) {
   const fragment = new URLSearchParams(params).toString();
   return `${platformWebUrl}/auth/${provider}/return#${fragment}`;
+}
+
+// 모바일 앱용 리턴 — 웹 페이지 대신 커스텀 스킴으로 토큰을 넘긴다.
+// 앱은 시스템 브라우저(ASWebAuthenticationSession)가 이 스킴으로 이동하는 순간 세션을 닫고
+// fragment 에서 토큰을 읽는다. 앱에는 쿠키가 남지 않으므로 refreshToken 도 함께 실어 보낸다.
+function buildAppReturnUrl(params: Record<string, string>) {
+  const fragment = new URLSearchParams(params).toString();
+  return `${appUrlScheme}://auth/return#${fragment}`;
 }
 
 const REAUTH_TOKEN_TTL_MS = 5 * 60 * 1000;
@@ -12256,7 +12266,9 @@ app.get("/auth/naver/start", (req, res) => {
   }
   const nonce = randomBytes(16).toString("hex");
   const next = typeof req.query.next === "string" ? req.query.next : "/";
-  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  // 모바일 앱에서 시작한 로그인이면 콜백을 웹이 아니라 앱 스킴으로 돌려준다.
+  const fromApp = req.query.platform === "app";
+  const state = signOAuthState({ nonce, next, ts: Date.now(), ...(fromApp ? { platform: "app" } : {}) });
   setOAuthStateCookie(res, state);
 
   const authorizeUrl = new URL("https://nid.naver.com/oauth2.0/authorize");
@@ -12374,7 +12386,10 @@ app.get("/auth/naver/callback", async (req, res) => {
 
       const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
       const next = nextRaw.startsWith("/") ? nextRaw : "/";
-      const returnUrl = buildOAuthReturnUrl("naver", { accessToken, next });
+      const returnUrl =
+        stateData.platform === "app"
+          ? buildAppReturnUrl({ accessToken, refreshToken, next })
+          : buildOAuthReturnUrl("naver", { accessToken, next });
       return res.redirect(returnUrl);
     }
 
@@ -12397,6 +12412,8 @@ app.get("/auth/naver/callback", async (req, res) => {
       pname: naverName ?? ""
     };
     if (nextForSignup) fragmentParams.next = nextForSignup;
+    // 앱에서 시작한 가입이면, 가입 완료 후 웹이 앱 스킴으로 토큰을 넘겨준다.
+    if (stateData.platform === "app") fragmentParams.platform = "app";
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
@@ -12411,7 +12428,9 @@ app.get("/auth/naver/callback", async (req, res) => {
 async function finishSocialSignup(
   req: express.Request,
   res: express.Response,
-  user: Parameters<typeof toSafeUser>[0] & Parameters<typeof issueAuthTokens>[0]
+  user: Parameters<typeof toSafeUser>[0] & Parameters<typeof issueAuthTokens>[0],
+  // 앱에서 넘어온 가입이면 refreshToken 을 body 로도 내려준다(앱엔 쿠키가 남지 않음).
+  fromApp = false
 ) {
   const { accessToken, refreshToken } = await issueAuthTokens(user);
   setRefreshTokenCookie(res, refreshToken);
@@ -12429,6 +12448,7 @@ async function finishSocialSignup(
     ok: true,
     token: accessToken,
     accessToken,
+    ...(fromApp ? { refreshToken } : {}),
     requiresEmailVerification: needsVerification,
     user: toSafeUser(user)
   });
@@ -12440,7 +12460,9 @@ const naverFinalizeSchema = z.object({
   // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
   // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
   realName: z.string().trim().min(1).max(120).optional(),
-  email: z.string().trim().email().max(200).optional()
+  email: z.string().trim().email().max(200).optional(),
+  // 모바일 앱에서 넘어온 가입 — 앱에는 쿠키가 남지 않으므로 refreshToken 을 body 로 내려준다.
+  platform: z.enum(["app"]).optional()
 });
 
 app.post("/auth/naver/finalize", async (req, res) => {
@@ -12477,6 +12499,7 @@ app.post("/auth/naver/finalize", async (req, res) => {
       ok: true,
       token: accessToken,
       accessToken,
+      ...(parsed.data.platform === "app" ? { refreshToken } : {}),
       user: toSafeUser(alreadyExists)
     });
   }
@@ -12525,7 +12548,7 @@ app.post("/auth/naver/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[naver-oauth] discord signup notify failed", err));
 
-  return finishSocialSignup(req, res, created);
+  return finishSocialSignup(req, res, created, parsed.data.platform === "app");
 });
 
 // ---------- Google OAuth ----------
@@ -12536,7 +12559,9 @@ app.get("/auth/google/start", (req, res) => {
   }
   const nonce = randomBytes(16).toString("hex");
   const next = typeof req.query.next === "string" ? req.query.next : "/";
-  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  // 모바일 앱에서 시작한 로그인이면 콜백을 웹이 아니라 앱 스킴으로 돌려준다.
+  const fromApp = req.query.platform === "app";
+  const state = signOAuthState({ nonce, next, ts: Date.now(), ...(fromApp ? { platform: "app" } : {}) });
   setOAuthStateCookie(res, state);
 
   const authorizeUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -12659,7 +12684,10 @@ app.get("/auth/google/callback", async (req, res) => {
 
       const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
       const next = nextRaw.startsWith("/") ? nextRaw : "/";
-      const returnUrl = buildOAuthReturnUrl("google", { accessToken, next });
+      const returnUrl =
+        stateData.platform === "app"
+          ? buildAppReturnUrl({ accessToken, refreshToken, next })
+          : buildOAuthReturnUrl("google", { accessToken, next });
       return res.redirect(returnUrl);
     }
 
@@ -12682,6 +12710,8 @@ app.get("/auth/google/callback", async (req, res) => {
       pname: googleName ?? ""
     };
     if (nextForSignup) fragmentParams.next = nextForSignup;
+    // 앱에서 시작한 가입이면, 가입 완료 후 웹이 앱 스킴으로 토큰을 넘겨준다.
+    if (stateData.platform === "app") fragmentParams.platform = "app";
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
@@ -12696,7 +12726,9 @@ const googleFinalizeSchema = z.object({
   // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
   // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
   realName: z.string().trim().min(1).max(120).optional(),
-  email: z.string().trim().email().max(200).optional()
+  email: z.string().trim().email().max(200).optional(),
+  // 모바일 앱에서 넘어온 가입 — 앱에는 쿠키가 남지 않으므로 refreshToken 을 body 로 내려준다.
+  platform: z.enum(["app"]).optional()
 });
 
 app.post("/auth/google/finalize", async (req, res) => {
@@ -12732,6 +12764,7 @@ app.post("/auth/google/finalize", async (req, res) => {
       ok: true,
       token: accessToken,
       accessToken,
+      ...(parsed.data.platform === "app" ? { refreshToken } : {}),
       user: toSafeUser(alreadyExists)
     });
   }
@@ -12778,7 +12811,7 @@ app.post("/auth/google/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[google-oauth] discord signup notify failed", err));
 
-  return finishSocialSignup(req, res, created);
+  return finishSocialSignup(req, res, created, parsed.data.platform === "app");
 });
 
 // ---------- Kakao OAuth ----------
@@ -12789,7 +12822,9 @@ app.get("/auth/kakao/start", (req, res) => {
   }
   const nonce = randomBytes(16).toString("hex");
   const next = typeof req.query.next === "string" ? req.query.next : "/";
-  const state = signOAuthState({ nonce, next, ts: Date.now() });
+  // 모바일 앱에서 시작한 로그인이면 콜백을 웹이 아니라 앱 스킴으로 돌려준다.
+  const fromApp = req.query.platform === "app";
+  const state = signOAuthState({ nonce, next, ts: Date.now(), ...(fromApp ? { platform: "app" } : {}) });
   setOAuthStateCookie(res, state);
 
   const authorizeUrl = new URL("https://kauth.kakao.com/oauth/authorize");
@@ -12938,7 +12973,10 @@ app.get("/auth/kakao/callback", async (req, res) => {
 
       const nextRaw = typeof stateData.next === "string" ? stateData.next : "/";
       const next = nextRaw.startsWith("/") ? nextRaw : "/";
-      const returnUrl = buildOAuthReturnUrl("kakao", { accessToken, next });
+      const returnUrl =
+        stateData.platform === "app"
+          ? buildAppReturnUrl({ accessToken, refreshToken, next })
+          : buildOAuthReturnUrl("kakao", { accessToken, next });
       return res.redirect(returnUrl);
     }
 
@@ -12961,6 +12999,8 @@ app.get("/auth/kakao/callback", async (req, res) => {
       pname: kakaoName ?? ""
     };
     if (nextForSignup) fragmentParams.next = nextForSignup;
+    // 앱에서 시작한 가입이면, 가입 완료 후 웹이 앱 스킴으로 토큰을 넘겨준다.
+    if (stateData.platform === "app") fragmentParams.platform = "app";
     const ctxFragment = new URLSearchParams(fragmentParams).toString();
     return res.redirect(`${platformWebUrl}/signup/social-account-type#${ctxFragment}`);
   } catch (error) {
@@ -12975,7 +13015,9 @@ const kakaoFinalizeSchema = z.object({
   // 실명·이메일 — 운영상 학생에게 연락해야 하므로 반드시 실제 값이 필요하다.
   // provider 가 주지 않는 경우 가입 완료 화면에서 입력받아 넘어온다.
   realName: z.string().trim().min(1).max(120).optional(),
-  email: z.string().trim().email().max(200).optional()
+  email: z.string().trim().email().max(200).optional(),
+  // 모바일 앱에서 넘어온 가입 — 앱에는 쿠키가 남지 않으므로 refreshToken 을 body 로 내려준다.
+  platform: z.enum(["app"]).optional()
 });
 
 app.post("/auth/kakao/finalize", async (req, res) => {
@@ -13011,6 +13053,7 @@ app.post("/auth/kakao/finalize", async (req, res) => {
       ok: true,
       token: accessToken,
       accessToken,
+      ...(parsed.data.platform === "app" ? { refreshToken } : {}),
       user: toSafeUser(alreadyExists)
     });
   }
@@ -13057,7 +13100,7 @@ app.post("/auth/kakao/finalize", async (req, res) => {
     createdAt: created.createdAt
   }).catch((err) => console.error("[kakao-oauth] discord signup notify failed", err));
 
-  return finishSocialSignup(req, res, created);
+  return finishSocialSignup(req, res, created, parsed.data.platform === "app");
 });
 
 app.post("/auth/verify-email", async (req, res) => {
