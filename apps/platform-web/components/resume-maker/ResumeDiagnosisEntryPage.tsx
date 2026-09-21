@@ -131,7 +131,11 @@ export function ResumeDiagnosisEntryPage() {
     if (!selected || !previewContent || !consent || registering) return;
     setRegistering(true);
     try {
-      await saveResumeContent(selected.id, { ...previewContent, poolOptIn: { consentedAt: new Date().toISOString() } });
+      // 커리어런치 이력서는 본문 수정이 거절되므로 건너뛴다 — 아래 대표 지정 + 인재풀 등록이
+      // 대표 이력서에 동의 표시를 직접 기록한다(커리어런치 동기화도 이 표시는 보존).
+      if (selected.source !== "career-launch") {
+        await saveResumeContent(selected.id, { ...previewContent, poolOptIn: { consentedAt: new Date().toISOString() } });
+      }
       // 파트너 인재 검색은 '대표(primary) 이력서' 의 poolOptIn 만 읽으므로, 이 이력서를 대표로 승격시킨다.
       await setMyPrimaryResume(selected.id).catch(() => {});
       // 대표 이력서 기준으로 인재풀 등록 확정 + 요약 선생성(파트너가 열기 전에 준비).

@@ -254,6 +254,11 @@ class MemberProfileApiError extends Error {
   }
 }
 
+// 커리어런치가 관리하는 문서(이력서·자소서 미러본)의 본문 수정을 서버가 거절한 경우.
+export function isCareerLaunchManagedError(error: unknown) {
+  return error instanceof MemberProfileApiError && error.code === "CAREER_LAUNCH_MANAGED";
+}
+
 export function isMemberNotFoundError(error: unknown) {
   return error instanceof MemberProfileApiError && error.status === 404;
 }
@@ -2140,6 +2145,9 @@ export type Resume = {
   title: string;
   content: ResumeContent;
   isPrimary: boolean;
+  // 'career-launch' 면 커리어런치 이력서의 미러본. 커리어런치 저장 때마다 본문이 덮어써지므로
+  // 여기서는 편집하지 않는다(서버도 본문 수정을 409 CAREER_LAUNCH_MANAGED 로 거절).
+  source?: "career-launch" | null;
   // Public share slug. Anyone with /resume/share/<shareSlug> can view a
   // read-only single-page rendering of the resume without signing in.
   shareSlug?: string;
