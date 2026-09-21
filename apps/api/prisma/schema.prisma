@@ -52,6 +52,7 @@ model User {
   candidateProfile                     CandidateProfile?
   resumes                              Resume[]
   coverLetters                         CoverLetter[]
+  docVersions                          DocVersion[]
   couponRedemptions                    CouponRedemption[]
   aiUsages                             AiUsage[]
   aiWallet                             AiWallet?
@@ -2211,8 +2212,38 @@ model Resume {
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   sgcApplications SgcApplication[] @relation("SgcApplicationResume")
   applications    Application[]    @relation("ApplicationResume")
+  docVersions     DocVersion[]
 
   @@index([userId])
+}
+
+// 이력서·자기소개서 버전(용도별 구성) — 예: '기본', 'OO전자 지원용'.
+// 모듈 내용(경력 한 건, 에피소드 한 단락)의 원본은 talent 문서(Resume.content 의
+// renewalResume.items / renewalCover.items)이고, 여기엔 그중 무엇을 어떤 순서·배치로
+// 넣을지(layout)와 이 버전에서만 고친 문구(overrides)만 둔다. Resume 행 밖에 두는 이유:
+// 웹 talent 편집기는 저장 때 content 를 새로 만들어 모르는 키를 지우고, 앱·매칭·기업 화면은
+// 모듈 원본만 읽으면 되기 때문이다.
+//   kind = "resume" | "cover". 대표(isPrimary)는 kind 별로 한 건 — 인재 검색·추천에 쓰인다.
+model DocVersion {
+  id        String   @id @default(uuid())
+  userId    String
+  resumeId  String // 모듈이 담긴 talent 이력서 행
+  kind      String
+  name      String
+  isPrimary Boolean  @default(false)
+  // resume: { template: "two"|"one", cols: [[moduleId]], hidden: [moduleId] }
+  // cover:  { questions: [{ id, prompt, limit, blocks: [moduleId] }] }
+  layout    Json     @default("{}")
+  // { [moduleId]: { [field]: string } } — 이 버전에서만 따로 고친 문구
+  overrides Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
+  @@index([resumeId])
 }
 
 // 한국형 자기소개서(자소서) — 이력서와 별개 컬렉션. 회사/공고마다 다르게 제출하므로
