@@ -246,7 +246,7 @@ export function computeWeek2Completion(inp: Week2CompletionInput): { complete: b
     { key: "unsupported", label: "근거 부족 문장 검토", done: inp.unsupportedReviewed },
     { key: "readiness", label: "Application Readiness Score 생성", done: inp.readinessScoreExists },
     { key: "finalized", label: "지원 패키지 최종 확정", done: inp.packageFinalized },
-    { key: "interview_questions", label: "Week 3 예상 면접 질문 생성", done: inp.interviewQuestionsGenerated }
+    { key: "interview_questions", label: "Step 3 예상 면접 질문 생성", done: inp.interviewQuestionsGenerated }
   ];
   const doneCount = checks.filter((c) => c.done).length;
   return { complete: checks.every((c) => c.done), checks, doneCount };

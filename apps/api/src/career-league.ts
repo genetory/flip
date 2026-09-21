@@ -114,7 +114,7 @@ export type NextAction = { key: string; label: string; projectedDelta: number; c
 export function computeNextActions(inp: ScoreInput, maxN = 3): NextAction[] {
   const base = computeLeagueScore(inp).total;
   const candidates: { key: string; label: string; category: string; apply: (s: ScoreInput) => ScoreInput }[] = [];
-  if (inp.weeksCompleted < 4) candidates.push({ key: "complete_week", label: `${inp.weeksCompleted + 1}주차 필수 미션을 완료하면`, category: "mission", apply: (s) => ({ ...s, weeksCompleted: s.weeksCompleted + 1 }) });
+  if (inp.weeksCompleted < 4) candidates.push({ key: "complete_week", label: `Step ${inp.weeksCompleted + 1} 필수 미션을 완료하면`, category: "mission", apply: (s) => ({ ...s, weeksCompleted: s.weeksCompleted + 1 }) });
   if (!inp.artifact.targetConfirmed) candidates.push({ key: "confirm_target", label: "목표 직무를 확정하면", category: "artifact", apply: (s) => ({ ...s, artifact: { ...s.artifact, targetConfirmed: true } }) });
   if (inp.artifact.criticalCount > 0) candidates.push({ key: "resolve_critical", label: `지원서 critical ${inp.artifact.criticalCount}건을 해결하면`, category: "artifact", apply: (s) => ({ ...s, artifact: { ...s.artifact, criticalCount: 0 } }) });
   if (inp.artifact.unsupportedCount > 0) candidates.push({ key: "resolve_unsupported", label: `근거 부족 문장 ${Math.min(2, inp.artifact.unsupportedCount)}건을 확인하면`, category: "artifact", apply: (s) => ({ ...s, artifact: { ...s.artifact, unsupportedCount: Math.max(0, s.artifact.unsupportedCount - 2) } }) });
@@ -152,7 +152,7 @@ export const BADGES: { key: string; title: string; description: string; test: (s
   { key: "correction_started", title: "오답 해결 시작", description: "오답 훈련을 시작했어요", test: (s) => s.correctionStarted },
   { key: "transfer_passed", title: "유사 질문 통과", description: "유사 질문까지 통과했어요", test: (s) => s.transferPassed },
   { key: "interview_growth", title: "면접 성장", description: "최초보다 면접이 좋아졌어요", test: (s) => s.interviewGrowth },
-  { key: "completed_4weeks", title: "4주 완주", description: "4주 프로그램을 완주했어요", test: (s) => s.completed4Weeks },
+  { key: "completed_4weeks", title: "4단계 완주", description: "4단계 프로그램을 완주했어요", test: (s) => s.completed4Weeks },
   { key: "consistent", title: "꾸준한 참여", description: "의미 있는 활동을 꾸준히 이어갔어요", test: (s) => s.consistentParticipation }
 ];
 export function evaluateBadges(state: BadgeState, alreadyEarned: string[]): string[] {

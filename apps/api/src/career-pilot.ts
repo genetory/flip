@@ -45,7 +45,7 @@ export function computeStudentStatus(sig: StudentStatusSignals): StudentStatusRe
     return { computed: "invited", reasons: ["아직 가입/등록 전"], needsOperatorConfirm: false };
   }
   if (sig.programCompleted) {
-    return { computed: "completed", reasons: ["4주 프로그램 완주"], needsOperatorConfirm: false };
+    return { computed: "completed", reasons: ["4단계 프로그램 완주"], needsOperatorConfirm: false };
   }
   // 개입 필요는 '제안'만 — 운영자 확정 대상.
   if (sig.openInterventionPriority === "critical" || sig.openInterventionPriority === "high") {
@@ -61,7 +61,7 @@ export function computeStudentStatus(sig: StudentStatusSignals): StudentStatusRe
     reasons.push(`최근 활동 ${d}일 전(3일 이상 정체)`);
     return { computed: "at_risk", reasons, needsOperatorConfirm: false };
   }
-  reasons.push(`최근 활동 ${d}일 전`, `${sig.weeksCompleted}주차 완료`);
+  reasons.push(`최근 활동 ${d}일 전`, `Step ${sig.weeksCompleted} 완료`);
   return { computed: "active", reasons, needsOperatorConfirm: false };
 }
 
@@ -81,17 +81,17 @@ export const FUNNEL_STEPS = [
   { key: "invited", label: "초대" },
   { key: "registered", label: "가입" },
   { key: "first_consult", label: "첫 상담 시작" },
-  { key: "week1_completed", label: "Week 1 완료" },
+  { key: "week1_completed", label: "Step 1 완료" },
   { key: "target_confirmed", label: "목표 직무 확정" },
-  { key: "week2_started", label: "Week 2 시작" },
+  { key: "week2_started", label: "Step 2 시작" },
   { key: "package_finalized", label: "지원 패키지 확정" },
-  { key: "week3_started", label: "Week 3 시작" },
+  { key: "week3_started", label: "Step 3 시작" },
   { key: "initial_mock_completed", label: "최초 면접 완료" },
   { key: "correction_opened", label: "오답노트 확인" },
-  { key: "week4_started", label: "Week 4 시작" },
+  { key: "week4_started", label: "Step 4 시작" },
   { key: "transfer_passed", label: "유사 질문 통과" },
   { key: "final_mock_completed", label: "최종 면접 완료" },
-  { key: "program_completed", label: "4주 완주" },
+  { key: "program_completed", label: "4단계 완주" },
   { key: "real_application", label: "실제 지원 행동" }
 ] as const;
 export type FunnelStepKey = (typeof FUNNEL_STEPS)[number]["key"];
@@ -251,7 +251,7 @@ export type PilotKpiTargets = typeof PILOT_KPI_TARGETS;
 export const READINESS_CHECKLIST = [
   { key: "cohort_created", label: "파일럿 기수 생성", required: true, auto: true },
   { key: "dates_set", label: "시작·종료일", required: true, auto: true },
-  { key: "weeks_scheduled", label: "Week 1~4 일정", required: true, auto: true },
+  { key: "weeks_scheduled", label: "Step 1~4 일정", required: true, auto: true },
   { key: "seminars_scheduled", label: "세미나 일정", required: false, auto: true },
   { key: "participants_enrolled", label: "참여자 등록", required: true, auto: true },
   { key: "operator_assigned", label: "운영자 권한", required: true, auto: false },
@@ -291,7 +291,7 @@ export function computeReadiness(inp: ReadinessInput): { items: ReadinessItem[];
   const autoVal: Partial<Record<ReadinessKey, { ok: boolean; note?: string }>> = {
     cohort_created: { ok: inp.cohortExists },
     dates_set: { ok: inp.startAt && inp.endAt },
-    weeks_scheduled: { ok: inp.weeksScheduledCount >= 4, note: `${inp.weeksScheduledCount}/4주 일정` },
+    weeks_scheduled: { ok: inp.weeksScheduledCount >= 4, note: `${inp.weeksScheduledCount}/4단계 일정` },
     seminars_scheduled: { ok: inp.seminarsCount > 0, note: `${inp.seminarsCount}건` },
     participants_enrolled: { ok: inp.enrolledCount >= 1 && (inp.participantLimit == null || inp.enrolledCount <= inp.participantLimit), note: `${inp.enrolledCount}명${inp.participantLimit ? `/${inp.participantLimit}` : ""}` },
     feature_flags: { ok: inp.featureFlagsSet },
@@ -324,7 +324,7 @@ export const SURVEY_DEFINITIONS = {
     ]
   },
   week1_end: {
-    label: "Week 1 종료",
+    label: "Step 1 종료",
     questions: [
       { key: "helped_target", text: "목표 직무를 정하는 데 도움이 됐나요?", scale5: true },
       { key: "trial_realistic", text: "직무 체험이 실제 업무 이해에 도움이 됐나요?", scale5: true },
@@ -333,7 +333,7 @@ export const SURVEY_DEFINITIONS = {
     ]
   },
   week2_end: {
-    label: "Week 2 종료",
+    label: "Step 2 종료",
     questions: [
       { key: "submittable", text: "현재 서류를 실제 공고에 제출할 수 있다고 느끼나요?", scale5: true },
       { key: "matches_experience", text: "AI가 만든 문장이 내 실제 경험과 일치하나요?", scale5: true },
@@ -342,7 +342,7 @@ export const SURVEY_DEFINITIONS = {
     ]
   },
   week3_end: {
-    label: "Week 3 종료",
+    label: "Step 3 종료",
     questions: [
       { key: "felt_real", text: "실제 면접처럼 느껴졌나요?", scale5: true },
       { key: "feedback_specific", text: "피드백이 구체적이었나요?", scale5: true },
@@ -351,7 +351,7 @@ export const SURVEY_DEFINITIONS = {
     ]
   },
   week4_end: {
-    label: "Week 4 종료",
+    label: "Step 4 종료",
     questions: [
       { key: "improved", text: "최초보다 답변이 좋아졌다고 느끼나요?", scale5: true },
       { key: "handle_similar", text: "유사 질문에도 대응할 수 있다고 느끼나요?", scale5: true },
