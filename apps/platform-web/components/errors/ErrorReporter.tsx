@@ -56,7 +56,10 @@ export function ErrorReporter() {
       // 브라우저 지갑 확장프로그램(MetaMask 등)이 모든 페이지에 inpage.js 를 주입해
       // 던지는 노이즈 — 우리 코드가 아니고 손쓸 수 없다.
       /Failed to connect to MetaMask/i,
-      /MetaMask/i
+      /MetaMask/i,
+      // iOS Brave·Firefox 가 읽기 모드용으로 페이지에 주입하는 스크립트(window.__firefox__.reader 등)가
+      // 준비되기 전에 실행돼 던지는 노이즈 — 스택이 '페이지 URL:1'(global code)로 찍혀 확장 URL 필터에 안 걸린다.
+      /\b(?:__)?firefox(?:__)?\.reader\b/i
     ];
 
     // 확장프로그램이 주입한 스크립트에서 발생한 에러는 우리가 조치할 수 없어 드롭한다.
