@@ -199,8 +199,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onToggle={(id) => commitLayout(placed.has(id) ? hideModule(layout, id) : placeModule(layout, doc, id))}
           onAdd={addItem}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:overflow-visible print:p-0" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
-          <div className={`mx-auto max-w-[794px] ${PDF_PRINT_AREA}`}>
+        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
+          <div className="mx-auto max-w-[794px]">
             <ModularResumePages doc={doc} info={info} layout={layout} overrides={overrides} interaction={interaction} />
           </div>
         </main>
@@ -225,6 +225,11 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onPrimary={store.makePrimary}
           onDeleteVersion={store.removeVersion}
         />
+      </div>
+      {/* PDF 다운받기용 사본 — 편집 여백·선택 표시 없이, 기존 미리보기 PDF 와 같은 A4 모양으로 인쇄한다.
+          화면에선 밖에 두되 폭(794)은 유지해야 인쇄 전에 페이지 나눔이 계산돼 있다. */}
+      <div aria-hidden className={`pointer-events-none fixed -left-[99999px] top-0 w-[794px] print:left-0 ${PDF_PRINT_AREA}`}>
+        <ModularResumePages doc={doc} info={info} layout={layout} overrides={overrides} />
       </div>
     </div>
   );

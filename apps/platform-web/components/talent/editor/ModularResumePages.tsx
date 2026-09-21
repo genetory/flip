@@ -122,7 +122,7 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
       </div>
 
       {scale ? (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col gap-3">
           {starts.map((startPx, i) => {
             const endPx = i < starts.length - 1 ? starts[i + 1] : total;
             const windowH = Math.min(endPx - startPx, CONTENT_H);
@@ -131,7 +131,7 @@ export function ModularResumePages({ doc, info, layout, overrides, interaction, 
             return (
               <div
                 key={i}
-                className="relative overflow-hidden rounded-[6px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)] print:rounded-none print:border-0 print:shadow-none"
+                className="relative mx-auto overflow-hidden rounded-[8px] border border-[#E5E8EB] bg-white shadow-[0_8px_28px_rgba(11,18,39,0.10)]"
                 style={{ width: PAGE_W * scale, height: PAGE_H * scale }}
               >
                 <div className="absolute left-0 overflow-hidden" style={{ top: (PAGE_PAD - bleed) * scale, width: PAGE_W * scale, height: (windowH + bleed * 2) * scale }}>
