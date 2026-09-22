@@ -49,9 +49,12 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "experience": kd = (prog.experienceBank?.length ?? 0) > 0; break;
     case "story": kd = (prog.strengthStories?.length ?? 0) > 0; break;
     case "companies": kd = (prog.targetCompanies?.length ?? 0) > 0; break;
-    // '관심 직무 선정'은 목표 직무를 확정해야(=targetJob) 완료 — 대시보드의 1주차 완료 판정(targetConfirmed)과 정합.
-    // (직무만 고르고 목표를 안 정하면 체크리스트는 완료인데 홈은 미완료로 남는 불일치를 막는다.)
-    case "jobs": kd = Boolean(prog.targetJob && prog.targetJob.trim()); break;
+    // '관심 직무 선정' — 관심 직무를 골라 저장했거나(JobsChat '선정 완료') 목표 직무가 확정돼 있으면 완료.
+    // (목표 확정 버튼이 있던 week-stepper 가 빠진 뒤 targetJob 만 보면 이 단계를 끝낼 방법이 없어 다음 주차가 안 열렸다.
+    //  '선정 완료'는 1순위를 목표로도 확정하지만, 확정이 실패하거나 예전에 골라 둔 학생도 막히지 않게 선택만으로 인정한다.)
+    case "jobs":
+      kd = Boolean(prog.targetJob && prog.targetJob.trim()) || (prog.selectedJobs ?? []).some((j) => typeof j === "string" && j.trim().length > 0);
+      break;
     case "materials": kd = (prog.materials?.length ?? 0) > 0; break;
     case "resume-basic": kd = Boolean(resume.basic?.name || resume.basic?.summary); break;
     case "resume-edu": kd = eduN > 0; break;
