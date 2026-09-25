@@ -4,7 +4,7 @@ import { CaretLeft } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchProgress, patchProgress } from "../../../../lib/launch/progress-client";
+import { completeCultureLesson, fetchProgress } from "../../../../lib/launch/progress-client";
 import { WEEKS } from "../../../../lib/launch/data";
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
@@ -26,6 +26,8 @@ export default function CultureLessonPage() {
   const backHref = `/career-launch/week/${backWeek}`;
   const backLabel = t(`${backWeek}주차`, `Week ${backWeek}`, `第${backWeek}周`, `Tuần ${backWeek}`, `${backWeek}週目`, `Minggu ${backWeek}`);
   const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const quiz = lesson?.quiz ?? [];
   const answeredCount = Object.keys(answers).length;
@@ -47,15 +49,19 @@ export default function CultureLessonPage() {
     };
   }, [id]);
 
+  // 저장이 끝난 뒤에 완료로 표시한다 — 바로 다음 화면으로 넘어가 저장 요청이 취소되는 걸 막는다.
   const complete = () => {
-    setDone(true);
+    if (saving) return;
+    setSaving(true);
+    setSaveError(false);
     void (async () => {
       try {
-        const { doneSteps } = await fetchProgress();
-        const list = Array.isArray(doneSteps) ? doneSteps : [];
-        if (!list.includes(id)) await patchProgress({ doneSteps: [...list, id] });
+        await completeCultureLesson(id);
+        setDone(true);
       } catch {
-        // 저장 실패해도 화면 완료 처리
+        setSaveError(true);
+      } finally {
+        setSaving(false);
       }
     })();
   };
@@ -260,13 +266,18 @@ export default function CultureLessonPage() {
                   <button
                     type="button"
                     onClick={complete}
-                    disabled={!quizDone}
+                    disabled={!quizDone || saving}
                     className={`mt-7 flex w-full items-center justify-center rounded-xl py-3.5 text-[14.5px] font-bold transition ${
-                      quizDone ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                      quizDone && !saving ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
                     }`}
                   >
-                    {t("다 읽었어요 · 학습 완료", "I've read it all · Mark complete", "已全部读完 · 完成学习", "Đã đọc hết · Hoàn thành bài học", "全部読みました · 学習完了", "Sudah dibaca semua · Tandai selesai")}
+                    {saving
+                      ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")
+                      : t("다 읽었어요 · 학습 완료", "I've read it all · Mark complete", "已全部读完 · 完成学习", "Đã đọc hết · Hoàn thành bài học", "全部読みました · 学習完了", "Sudah dibaca semua · Tandai selesai")}
                   </button>
+                  {saveError ? (
+                    <p className="mt-2 text-center text-[12.5px] font-semibold text-[#F04452]">{t("완료를 저장하지 못했어요. 잠시 후 다시 눌러주세요.", "We couldn't save your completion. Please try again in a moment.", "未能保存完成状态，请稍后再试。", "Chưa lưu được hoàn thành. Vui lòng thử lại sau.", "完了を保存できませんでした。しばらくしてからもう一度押してください。", "Gagal menyimpan penyelesaian. Coba lagi sebentar lagi.")}</p>
+                  ) : null}
                   {!quizDone ? (
                     <p className="mt-2 text-center text-[12.5px] text-[#8B95A1]">{t("퀴즈를 모두 풀면 학습을 완료할 수 있어요", "Finish all quiz questions to complete this lesson.", "答完所有测验题目即可完成本课学习。", "Hoàn thành tất cả câu hỏi để kết thúc bài học.", "すべてのクイズを解くと学習を完了できます。", "Selesaikan semua soal kuis untuk menuntaskan pelajaran ini.")}</p>
                   ) : null}

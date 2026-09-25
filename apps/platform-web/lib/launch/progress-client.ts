@@ -156,6 +156,13 @@ export async function patchProgress(partial: Partial<CareerProgress>): Promise<C
   return (d.state as CareerProgress) ?? {};
 }
 
+// 한국 기업문화 학습 완료 — 완료 표시(doneSteps)는 서버만 기록하므로(자가위조 차단) 전용 경로로 보낸다.
+// 갱신된 완료 스텝 목록을 반환한다.
+export async function completeCultureLesson(lessonId: string): Promise<string[]> {
+  const d = await req(`/career-launch/culture/${encodeURIComponent(lessonId)}/complete`, { method: "POST", headers: authHeaders(true) });
+  return Array.isArray(d.doneSteps) ? (d.doneSteps as string[]) : [];
+}
+
 // ── Talent Passport — 검증된 Talent 프로필(Readiness·Verified 등급·다음 액션) ──
 export type PassportTier = "preparing" | "bronze" | "silver" | "gold";
 export type TalentPassport = {

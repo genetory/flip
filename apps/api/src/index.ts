@@ -18381,6 +18381,25 @@ app.patch("/career-launch/progress", authenticate, requireCareerEnrollment, asyn
   }
 });
 
+// POST /career-launch/culture/:lessonId/complete — 한국 기업문화 학습(읽기 + 퀴즈) 완료 표시.
+// doneSteps 는 자가위조 차단으로 클라이언트 PATCH 에서 제거되므로(위 PATCH 참고), 학습 완료는
+// 이 전용 경로로 서버가 기록한다. 허용된 학습 id 만 받는다(임의 스텝 완료 방지).
+const CULTURE_LESSON_STEPS = new Set(["w1s4", "w2s4", "w3s4", "w4s4", "w4-apply"]);
+app.post("/career-launch/culture/:lessonId/complete", authenticate, requireCareerEnrollment, async (req, res) => {
+  const lessonId = Array.isArray(req.params.lessonId) ? req.params.lessonId[0] : req.params.lessonId;
+  if (!lessonId || !CULTURE_LESSON_STEPS.has(lessonId)) return res.status(400).json({ ok: false, message: "unknown lesson" });
+  try {
+    const state = await updateCareerProgressState(req.auth!.userId, (prev) => {
+      const set = new Set(doneStepsOf(prev));
+      set.add(lessonId);
+      return { ...prev, doneSteps: [...set] };
+    });
+    return res.json({ ok: true, doneSteps: doneStepsOf(state) });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ══════════════════════════════════════════════════════════════════════
 // 공통 Career Profile(Phase 2) — repository + API + AI 컨텍스트 빌더.
 // 순수 로직은 ./career-profile 에, DB 접근/엔드포인트는 여기에.
