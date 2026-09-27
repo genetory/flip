@@ -120,7 +120,9 @@ async function parseAuthResponse(response: Response) {
   }
 
   storeAccessToken(accessToken);
-  return { accessToken, user: payload.user };
+  // refreshToken 은 평소엔 httpOnly 쿠키로만 내려오고, 모바일 앱 가입 흐름에서만 body 에 실린다.
+  const refreshToken = "refreshToken" in payload && typeof payload.refreshToken === "string" ? payload.refreshToken : undefined;
+  return { accessToken, refreshToken, user: payload.user };
 }
 
 export async function loginWithEmail(input: { email: string; password: string }) {
@@ -144,6 +146,7 @@ export async function finalizeSocialSignup(input: {
   accountType: AccountType;
   realName?: string; // provider 가 실명을 주지 않을 때 가입 화면에서 입력받은 값
   email?: string; // provider 가 이메일을 주지 않을 때만 사용
+  platform?: "app"; // 모바일 앱에서 넘어온 가입이면 refreshToken 을 body 로 받는다
 }) {
   const response = await authFetch(`${getApiBaseUrl()}/auth/${input.provider}/finalize`, {
     method: "POST",
@@ -153,7 +156,8 @@ export async function finalizeSocialSignup(input: {
       ctx: input.ctx,
       accountType: input.accountType,
       ...(input.realName?.trim() ? { realName: input.realName.trim() } : {}),
-      ...(input.email?.trim() ? { email: input.email.trim() } : {})
+      ...(input.email?.trim() ? { email: input.email.trim() } : {}),
+      ...(input.platform ? { platform: input.platform } : {})
     })
   });
 

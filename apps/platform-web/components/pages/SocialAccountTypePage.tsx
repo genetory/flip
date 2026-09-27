@@ -10,6 +10,9 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { AuthApiError, finalizeSocialSignup, type SocialProvider } from "../../lib/auth-client";
 import { usePlatformT } from "../../lib/i18n";
 
+// 모바일 앱이 OAuth 결과를 돌려받는 커스텀 스킴(API 의 APP_URL_SCHEME 과 같아야 한다).
+const APP_URL_SCHEME = process.env.NEXT_PUBLIC_APP_URL_SCHEME ?? "aply";
+
 export function SocialAccountTypePage() {
   const router = useRouter();
   const { setAuthenticatedUser } = useAuthSession();
@@ -27,6 +30,8 @@ export function SocialAccountTypePage() {
   const [needEmail, setNeedEmail] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // 모바일 앱에서 시작한 소셜 가입 — 완료 후 앱 스킴으로 토큰을 돌려준다.
+  const [fromApp, setFromApp] = useState(false);
 
   useEffect(() => {
     const fragment = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
@@ -41,6 +46,7 @@ export function SocialAccountTypePage() {
     setCtx(ctxValue);
     setProvider(providerValue);
     setNeedEmail(params.get("hasEmail") === "0");
+    setFromApp(params.get("platform") === "app");
     // 네이버가 준 이름은 실명이므로 미리 채워준다(사용자가 고칠 수 있음).
     const providerName = params.get("pname") ?? "";
     if (providerValue === "naver" && providerName) setRealName(providerName);
@@ -77,14 +83,25 @@ export function SocialAccountTypePage() {
     setIsSubmitting(true);
 
     try {
-      const { user } = await finalizeSocialSignup({
+      const { user, accessToken, refreshToken } = await finalizeSocialSignup({
         provider,
         ctx,
         accountType,
         realName: realName.trim(),
-        ...(needEmail ? { email: email.trim() } : {})
+        ...(needEmail ? { email: email.trim() } : {}),
+        ...(fromApp ? { platform: "app" as const } : {})
       });
       setAuthenticatedUser(user);
+      // 앱에서 온 가입이면 웹을 더 보여줄 이유가 없다 — 토큰을 앱 스킴으로 넘기고 끝낸다.
+      if (fromApp && typeof window !== "undefined") {
+        const fragment = new URLSearchParams({
+          accessToken,
+          ...(refreshToken ? { refreshToken } : {}),
+          next: nextPath
+        }).toString();
+        window.location.replace(`${APP_URL_SCHEME}://auth/return#${fragment}`);
+        return;
+      }
       if (typeof window !== "undefined") {
         window.location.replace(nextPath);
         return;
