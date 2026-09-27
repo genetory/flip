@@ -26138,12 +26138,15 @@ app.post(
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       // 구조화 출력(json_schema) 우선 + json_object 폴백 → 파싱 실패 무음 502 제거.
-      const { system: systemPrompt, user: ctx } = buildCoverLetterMessages(parsed.data);
+      // systemCacheable/systemVariable 을 그대로 넘겨 Claude 경로에서 고정부만 프롬프트 캐시에 태운다.
+      const { system: systemPrompt, user: ctx, systemCacheable, systemVariable } = buildCoverLetterMessages(parsed.data);
       const { data } = await generateJson<{ text?: unknown }>({
         openai,
         model: coverLetterModel,
         temperature: 0.6,
         system: systemPrompt,
+        systemCacheable,
+        systemVariable,
         user: ctx,
         schema: COVER_TEXT_SCHEMA,
         schemaName: "cover_letter"

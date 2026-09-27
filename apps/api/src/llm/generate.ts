@@ -14,6 +14,9 @@ export type GenerateJsonArgs = {
   model: string;
   system: string;
   user: string;
+  // 프롬프트 캐싱용 분리 입력(선택). Claude 경로에서만 의미가 있고, OpenAI 경로는 합본 system 을 쓴다.
+  systemCacheable?: string;
+  systemVariable?: string;
   // 강제할 JSON 스키마(Responses API 용). object + additionalProperties:false 권장.
   schema: Record<string, unknown>;
   schemaName: string;
@@ -40,11 +43,11 @@ function tryParse<T>(raw: string): T | null {
 export async function generateJson<T = Record<string, unknown>>(
   a: GenerateJsonArgs
 ): Promise<GenerateJsonResult<T>> {
-  const { openai, model, system, user, schema, schemaName, temperature, strict = true } = a;
+  const { openai, model, system, user, schema, schemaName, temperature, strict = true, systemCacheable, systemVariable } = a;
 
   // 0) Claude 계열이면 Anthropic(tool use) 경로로 라우팅.
   if (isClaudeModel(model)) {
-    const r = await generateJsonAnthropic<T>({ model, system, user, schema, schemaName, temperature });
+    const r = await generateJsonAnthropic<T>({ model, system, user, schema, schemaName, temperature, systemCacheable, systemVariable });
     return { data: r.data, raw: r.raw, via: r.via, error: r.error };
   }
 

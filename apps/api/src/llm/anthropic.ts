@@ -9,6 +9,10 @@ export type AnthropicJsonArgs = {
   model: string;
   system: string;
   user: string;
+  // 프롬프트 캐싱용 분리 입력. 둘 다 주면 system 대신 이걸 쓰고, 고정부에만 cache_control 을 건다.
+  // systemCacheable 은 요청마다 바이트가 완전히 같아야 한다(캐시는 prefix 완전 일치).
+  systemCacheable?: string;
+  systemVariable?: string;
   schema: Record<string, unknown>;
   schemaName: string;
   temperature?: number;
@@ -20,7 +24,13 @@ export type AnthropicJsonResult<T> = {
   raw: string;
   via: "anthropic" | "none";
   error?: string;
-  usage?: { inputTokens: number; outputTokens: number };
+  // cacheReadInputTokens 가 반복 호출에서 계속 0 이면 캐시가 안 맞는 것이다(고정부에 요청별 값이 섞였는지 확인).
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+  };
 };
 
 let cached: Anthropic | null = null;
@@ -36,10 +46,28 @@ export function hasAnthropicKey(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
+// system 블록 구성 — 고정부/가변부가 오면 고정부에만 캐시 breakpoint 를 둔다.
+// 캐시 가능한 최소 prefix 길이(모델별 512~4096 토큰)에 못 미치면 조용히 캐시가 안 걸릴 뿐,
+// 동작·비용은 그대로다. 자소서 고정부는 약 5K 토큰이라 충분히 넘는다.
+function buildSystemBlocks(a: {
+  system: string;
+  systemCacheable?: string;
+  systemVariable?: string;
+}): Anthropic.TextBlockParam[] {
+  const { system, systemCacheable, systemVariable } = a;
+  if (systemCacheable && systemVariable !== undefined) {
+    return [
+      { type: "text", text: systemCacheable, cache_control: { type: "ephemeral" } },
+      { type: "text", text: systemVariable }
+    ];
+  }
+  return [{ type: "text", text: system, cache_control: { type: "ephemeral" } }];
+}
+
 export async function generateJsonAnthropic<T = Record<string, unknown>>(
   a: AnthropicJsonArgs
 ): Promise<AnthropicJsonResult<T>> {
-  const { model, system, user, schema, schemaName, temperature, maxTokens } = a;
+  const { model, system, user, schema, schemaName, temperature, maxTokens, systemCacheable, systemVariable } = a;
   const anthropic = client();
   if (!anthropic) return { data: null, raw: "", via: "none", error: "missing_anthropic_key" };
 
@@ -49,9 +77,10 @@ export async function generateJsonAnthropic<T = Record<string, unknown>>(
     const resp = await anthropic.messages.create({
       model,
       max_tokens: maxTokens ?? 4096,
-      // 시스템 프롬프트를 캐시 가능 블록으로 표시 — 반복 호출에서 입력 토큰 재사용분을 대폭 할인.
-      // (지시·품질 가이드가 길고 요청 간 대체로 동일. 캐시 미스여도 비용/동작 변화 없음.)
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      // 캐시는 prefix 바이트 완전 일치라서, 고정부와 가변부를 따로 받은 경우에는 고정부 블록에만
+      // cache_control 을 건다. 한 블록에 몰아넣고 요청별 값(목표 글자 수·키워드 등)을 끼워 넣으면
+      // 매 호출 캐시 미스가 된다. 분리 입력이 없으면 기존처럼 전체를 한 블록으로 캐시 시도.
+      system: buildSystemBlocks({ system, systemCacheable, systemVariable }),
       messages: [{ role: "user", content: user }],
       tools: [
         {
@@ -64,7 +93,9 @@ export async function generateJsonAnthropic<T = Record<string, unknown>>(
     });
     const usage = {
       inputTokens: resp.usage?.input_tokens ?? 0,
-      outputTokens: resp.usage?.output_tokens ?? 0
+      outputTokens: resp.usage?.output_tokens ?? 0,
+      cacheReadInputTokens: resp.usage?.cache_read_input_tokens ?? 0,
+      cacheCreationInputTokens: resp.usage?.cache_creation_input_tokens ?? 0
     };
     const block = resp.content.find((b) => b.type === "tool_use");
     if (block && block.type === "tool_use") {
