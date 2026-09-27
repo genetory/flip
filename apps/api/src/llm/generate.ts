@@ -29,6 +29,14 @@ export type GenerateJsonResult<T> = {
   raw: string;
   via: "responses" | "chat" | "anthropic" | "none";
   error?: string;
+  // Anthropic 경로에서만 채워진다. 프롬프트 캐시가 실제로 맞는지 확인하는 유일한 수단이므로
+  // 호출부에서 버리지 말 것(cacheReadInputTokens 가 계속 0 이면 고정부가 캐시에 안 걸린 것).
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+  };
 };
 
 function tryParse<T>(raw: string): T | null {
@@ -48,7 +56,7 @@ export async function generateJson<T = Record<string, unknown>>(
   // 0) Claude 계열이면 Anthropic(tool use) 경로로 라우팅.
   if (isClaudeModel(model)) {
     const r = await generateJsonAnthropic<T>({ model, system, user, schema, schemaName, temperature, systemCacheable, systemVariable });
-    return { data: r.data, raw: r.raw, via: r.via, error: r.error };
+    return { data: r.data, raw: r.raw, via: r.via, error: r.error, usage: r.usage };
   }
 
   // 1) Responses API + json_schema (스키마 강제).

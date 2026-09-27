@@ -26159,7 +26159,7 @@ app.post(
       // 구조화 출력(json_schema) 우선 + json_object 폴백 → 파싱 실패 무음 502 제거.
       // systemCacheable/systemVariable 을 그대로 넘겨 Claude 경로에서 고정부만 프롬프트 캐시에 태운다.
       const { system: systemPrompt, user: ctx, systemCacheable, systemVariable } = buildCoverLetterMessages(parsed.data);
-      const { data } = await generateJson<{ text?: unknown }>({
+      const { data, usage } = await generateJson<{ text?: unknown }>({
         openai,
         model: coverLetterModel,
         temperature: 0.6,
@@ -26170,6 +26170,18 @@ app.post(
         schema: COVER_TEXT_SCHEMA,
         schemaName: "cover_letter"
       });
+      // 프롬프트 캐시 적중 여부 관측 — Claude 경로에서만 usage 가 온다.
+      // cacheRead 가 반복 호출에서 계속 0 이면 고정부가 캐시에 안 걸린 것(최소 prefix 미달 등).
+      if (usage) {
+        console.log("[ai/cover-letter][usage]", {
+          model: coverLetterModel,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          cacheRead: usage.cacheReadInputTokens,
+          cacheWrite: usage.cacheCreationInputTokens,
+          cacheHit: usage.cacheReadInputTokens > 0
+        });
+      }
       const text = typeof data?.text === "string" ? stripCliches(data.text.trim()).slice(0, 6000) : "";
       if (!text) return res.status(502).json({ ok: false, message: "ai response empty" });
       return res.json({ ok: true, text });
