@@ -6,6 +6,7 @@ import { RichText } from "./rich-text";
 import { RECOMMENDED_JOBS, STUDENT, type RecommendedJob } from "../../lib/launch/data";
 import { requestJobChat, type JobChatMsg } from "../../lib/launch/job-chat-client";
 import { fetchProgress, patchProgress } from "../../lib/launch/progress-client";
+import { confirmTargetJob } from "../../lib/launch/week1";
 import { trackCareerStepComplete, trackCareerFunnel } from "../../lib/analytics";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { CoachingIntroScreen } from "./coaching/CoachingSessionShell";
@@ -171,9 +172,18 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   };
 
   const save = () => {
-    void patchProgress({ selectedJobs: selected }).catch(() => {
-      // 저장 실패해도 화면 상태 유지
-    });
+    const picked = [...selected];
+    void (async () => {
+      try {
+        await patchProgress({ selectedJobs: picked });
+      } catch {
+        return; // 저장 실패해도 화면 상태 유지
+      }
+      // 1순위를 목표 직무로도 확정(2주차 서류 기준·대시보드 1주차 완료). 선택 저장이 끝난 뒤에 해야
+      // 서버가 selectedJobs 를 합칠 때 방금 고른 목록을 덮어쓰지 않는다. 직무군으로 해석 안 되는
+      // 직접 입력 직무면 실패할 수 있는데, 단계 완료는 선택만으로도 인정되므로 무시한다.
+      if (picked[0]) await confirmTargetJob(picked[0], "primary", "confirmed", picked[0]).catch(() => null);
+    })();
     trackCareerStepComplete("jobs");
     setSaved(true);
     setMessages((m) => [
