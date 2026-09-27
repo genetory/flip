@@ -44,8 +44,12 @@ export type Report = {
   startedAt: string;
   generatorModel: string;
   judgeModel: string;
+  // --repeat N 이면 케이스당 N개 표본이 모두 들어간다(같은 id 가 N번 등장).
+  // 요약 평균도 전 표본 기준이라 프롬프트 버전 비교에 그대로 쓸 수 있다.
+  repeat: number;
   cases: CaseResult[];
   summary: {
+    // 표본 수(= 케이스 수 x repeat). 케이스 수가 아니다.
     total: number;
     errored: number;
     avgCheckScore: number; // 0~1

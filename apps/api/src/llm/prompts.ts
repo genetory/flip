@@ -180,7 +180,7 @@ export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
   variableRules.push(
     isPolish
       ? "· 분량: 위 다듬기 방향에 맞게 조절하세요.\n"
-      : `· 분량: 공백 포함 약 ${target}자(±15%)로 맞추세요. 목표에 미달하지 않게, 부족하면 경험의 배경·맥락·동기·배운 점을 더 구체적으로 풀어 목표 분량을 채웁니다(억지로 늘리기 위한 반복·군더더기는 금지). 한두 문단으로 자연스럽게 이어 씁니다.\n`
+      : `· 분량: 공백 포함 최소 ${target}자 이상(상한 ${Math.round(target * 1.2)}자). ${Math.max(2, Math.round(target / 250))}개 이상의 문단으로 나눠 쓰고, ${target}자에 못 미치면 실패한 답변입니다 — 부족하면 경험의 배경·맥락·동기·배운 점을 더 구체적으로 풀어 채우세요(같은 말 반복·군더더기로 늘리는 것은 금지).\n`
   );
   if (jd) {
     variableRules.push(

@@ -14,6 +14,8 @@
 //
 // 결과: eval-report/report-<timestamp>.json + 콘솔 요약 표. promptVersion 별로 비교하려면
 // 프롬프트를 바꾼 뒤 다시 돌려 avgCheckScore·avgJudgeOverall 변화를 본다.
+// 요약값은 --repeat 의 전 표본 평균이다. 단일 런 점수는 생성 온도(0.6) 때문에 흔들리므로
+// 프롬프트 비교는 --repeat 5 이상을 권장한다(경계 케이스가 표본 하나로 뒤집힌 전례 있음).
 import { promises as fs } from "fs";
 import path from "path";
 import OpenAI from "openai";
@@ -97,8 +99,9 @@ async function live(): Promise<void> {
   for (const c of cases) {
     const spec = FEATURES[c.feature];
     const { system, user } = spec.buildMessages(c.input);
-    // --repeat 시 케이스당 N회 생성·평가하고, 대표값으로 '마지막 표본'을 저장하되
-    // 콘솔엔 평균을 함께 찍는다(노이즈 위 신호용).
+    // --repeat 시 케이스당 N회 생성·평가하고 '전 표본'을 저장한다.
+    // (예전에는 마지막 표본 1개만 저장해서, 요약·리포트가 --repeat 을 무시한 n=1 이었다.
+    //  그 값으로 프롬프트 버전을 비교하면 경계 케이스가 표본 운에 따라 뒤집힌다.)
     const overalls: number[] = [];
     const cScores: number[] = [];
     let last!: CaseResult;
@@ -137,6 +140,7 @@ async function live(): Promise<void> {
         }
       }
       last = { id: c.id, feature: c.feature, output, error, checks, checkScore: cScore, judge, ms: Date.now() - started };
+      results.push(last);
       cScores.push(cScore);
       if (judge) overalls.push(judge.overall);
       if (REPEAT > 1) {
@@ -144,7 +148,6 @@ async function live(): Promise<void> {
         console.log(`  [${c.id}] #${rep + 1} check=${(cScore * 100).toFixed(0)}%${j}${error ? ` ⚠ ${error}` : ""}`);
       }
     }
-    results.push(last);
     const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
     if (REPEAT > 1) {
       const jAvg = overalls.length ? ` judge평균=${avg(overalls).toFixed(2)}/5 (${overalls.join(",")})` : "";
@@ -179,6 +182,7 @@ function summarize(cases: CaseResult[], generatorModel: string): Report {
   }
   return {
     startedAt: new Date().toISOString(),
+    repeat: REPEAT,
     generatorModel,
     judgeModel: NO_JUDGE ? "(off)" : JUDGE_MODEL,
     cases,
