@@ -222,6 +222,10 @@ export function ResumeCoachPanel({
 
   async function applySuggestion() {
     if (!resume || !suggestion || applying) return;
+    if (resume.source === "career-launch") {
+      setSuggestionError(tr("커리어런치에서 작성한 이력서는 커리어런치에서 수정해 주세요.", "Please edit this resume in Career Launch.", "请在 Career Launch 中修改这份简历。", "Vui lòng chỉnh sửa CV này trong Career Launch.", "この履歴書はキャリアローンチで編集してください。", "Silakan edit CV ini di Career Launch."));
+      return;
+    }
     setApplying(true);
     try {
       const nextContent: ResumeContent = { ...(resume.content ?? {}) };

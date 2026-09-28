@@ -14776,20 +14776,52 @@ app.delete(
 );
 
 // ---- Resumes (multiple Korean-style resume versions per member) ---------
+// 커리어런치 이력서를 미러링한 Resume id(없으면 null). 그 Resume 는 커리어런치 저장 때마다
+// content 가 통째로 덮어써지므로, 클라이언트가 편집을 막을 수 있게 source 로 알려준다.
+async function getCareerLaunchMirrorResumeId(userId: string): Promise<string | null> {
+  const row = await prisma.careerResumeData
+    .findUnique({ where: { studentUserId: userId }, select: { resumeId: true } })
+    .catch(() => null);
+  return row?.resumeId ?? null;
+}
+
+// 커리어런치 자소서를 미러링한 CoverLetter id(없으면 null). 이력서와 같은 이유로 source 를 알려준다.
+async function getCareerLaunchMirrorCoverLetterId(userId: string): Promise<string | null> {
+  const row = await prisma.careerCoverLetterData
+    .findUnique({ where: { studentUserId: userId }, select: { coverLetterId: true } })
+    .catch(() => null);
+  return row?.coverLetterId ?? null;
+}
+
+// 커리어런치가 관리하는 문서의 본문 수정 거절. 커리어런치 저장 때마다 본문이 통째로
+// 덮어써지므로, 여기서 받아주면 사용자는 저장된 줄 알지만 조용히 사라진다.
+// 제목만 바꾸는 요청은 동기화가 건드리지 않으므로 허용한다.
+function rejectCareerLaunchManaged(res: express.Response) {
+  return res.status(409).json({
+    ok: false,
+    code: "CAREER_LAUNCH_MANAGED",
+    message: "커리어런치에서 작성한 문서는 커리어런치에서 수정해 주세요."
+  });
+}
+
 app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
-    const rows = await prisma.resume.findMany({
-      where: { userId },
-      orderBy: { updatedAt: "desc" }
-    });
+    const [rows, mirrorId] = await Promise.all([
+      prisma.resume.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" }
+      }),
+      getCareerLaunchMirrorResumeId(userId)
+    ]);
     // 코칭 진입 리스트에서 카드별 점수 배지를 보여주기 위해 응답에 score
     // 를 함께 실어 보냄. rule-based 라 row 당 sub-ms — 별도 호출보다 한 번에
     // 끝내는 게 UX 와 비용 양쪽에 유리. 기존 클라이언트는 score 필드를
-    // 무시하면 되니 호환성 유지.
+    // 무시하면 되니 호환성 유지. source 도 같은 이유로 추가 필드일 뿐이다.
     const items = rows.map((row) => ({
       ...row,
-      score: calcResumeScores(row.content)
+      score: calcResumeScores(row.content),
+      source: row.id === mirrorId ? "career-launch" : null
     }));
     return res.json({ ok: true, items });
   } catch (err) {
@@ -14888,9 +14920,12 @@ app.get("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRole.
   const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
-    const item = await prisma.resume.findFirst({ where: { id: resumeId, userId } });
+    const [item, mirrorId] = await Promise.all([
+      prisma.resume.findFirst({ where: { id: resumeId, userId } }),
+      getCareerLaunchMirrorResumeId(userId)
+    ]);
     if (!item) return res.status(404).json({ ok: false, message: "resume not found" });
-    return res.json({ ok: true, item });
+    return res.json({ ok: true, item: { ...item, source: item.id === mirrorId ? "career-launch" : null } });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to get resume" });
   }
@@ -14915,6 +14950,9 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
   const parsed = updateResumeSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  if (parsed.data.content !== undefined && (await getCareerLaunchMirrorResumeId(userId)) === resumeId) {
+    return rejectCareerLaunchManaged(res);
   }
   try {
     // 기존 row 의 content/translations 까지 함께 가져옴 — 본문이 바뀐 필드만
@@ -15047,7 +15085,11 @@ const updateCoverLetterSchema = z.object({
 app.get("/members/me/cover-letters", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   try {
-    const items = await prisma.coverLetter.findMany({ where: { userId }, orderBy: { updatedAt: "desc" } });
+    const [rows, mirrorId] = await Promise.all([
+      prisma.coverLetter.findMany({ where: { userId }, orderBy: { updatedAt: "desc" } }),
+      getCareerLaunchMirrorCoverLetterId(userId)
+    ]);
+    const items = rows.map((row) => ({ ...row, source: row.id === mirrorId ? "career-launch" : null }));
     return res.json({ ok: true, items });
   } catch (err) {
     console.error("[GET /members/me/cover-letters] failed", err);
@@ -15081,9 +15123,12 @@ app.get("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles([
   const id = Array.isArray(req.params.coverLetterId) ? req.params.coverLetterId[0] : req.params.coverLetterId;
   if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
-    const item = await prisma.coverLetter.findFirst({ where: { id, userId } });
+    const [item, mirrorId] = await Promise.all([
+      prisma.coverLetter.findFirst({ where: { id, userId } }),
+      getCareerLaunchMirrorCoverLetterId(userId)
+    ]);
     if (!item) return res.status(404).json({ ok: false, message: "cover letter not found" });
-    return res.json({ ok: true, item });
+    return res.json({ ok: true, item: { ...item, source: item.id === mirrorId ? "career-launch" : null } });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to get cover letter" });
   }
@@ -15095,6 +15140,12 @@ app.patch("/members/me/cover-letters/:coverLetterId", authenticate, requireRoles
   if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
   const parsed = updateCoverLetterSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  if (
+    (parsed.data.items !== undefined || parsed.data.company !== undefined) &&
+    (await getCareerLaunchMirrorCoverLetterId(userId)) === id
+  ) {
+    return rejectCareerLaunchManaged(res);
+  }
   try {
     const existing = await prisma.coverLetter.findFirst({ where: { id, userId }, select: { id: true } });
     if (!existing) return res.status(404).json({ ok: false, message: "cover letter not found" });
@@ -17891,6 +17942,9 @@ function resumeContentToRenewalDocApi(raw: unknown): { doc: Record<string, unkno
   return { doc, info };
 }
 
+// 커리어런치 미러 이력서에서 동기화가 덮어쓰지 않고 남겨 두는 키 — 커리어런치가 만들지 않는 메타데이터.
+const CAREER_MIRROR_PRESERVED_KEYS = ["poolOptIn"] as const;
+
 // career-launch 이력서를 실제 aply.global Resume(지원·프로필용)로 자동 미러링한다.
 // 내용이 있으면 Resume 를 생성/갱신하고 CareerResumeData.resumeId 로 연결. 대표 이력서가
 // 없으면 대표로 지정해 바로 지원 가능하게 한다. 실패는 삼켜 대화 흐름을 막지 않는다.
@@ -17947,7 +18001,18 @@ async function syncCareerResumeToResume(userId: string): Promise<void> {
       }
     }
     if (resumeId) {
-      await prisma.resume.update({ where: { id: resumeId }, data: { content } });
+      // 본문은 커리어런치가 원본이라 통째로 교체하되, 커리어런치가 만들지 않는 메타데이터
+      // (인재풀 동의 표시 poolOptIn — 대표 지정·인재풀 등록 때 서버가 여기에 써 둔다)는 보존한다.
+      // 예전엔 이것까지 덮어써서, 커리어런치 이력서가 대표면 저장할 때마다 동의 표시가 사라졌다.
+      const existing = await prisma.resume.findUnique({ where: { id: resumeId }, select: { content: true } });
+      const prev = (existing?.content && typeof existing.content === "object" ? existing.content : {}) as Record<string, unknown>;
+      const preserved = Object.fromEntries(
+        CAREER_MIRROR_PRESERVED_KEYS.filter((k) => prev[k] !== undefined).map((k) => [k, prev[k]])
+      );
+      await prisma.resume.update({
+        where: { id: resumeId },
+        data: { content: { ...(content as Record<string, unknown>), ...preserved } as Prisma.InputJsonValue }
+      });
     }
   } catch (err) {
     console.error("[career-launch] syncCareerResumeToResume failed", err);

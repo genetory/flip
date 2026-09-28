@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ResumeContent, ResumeCoverLetterItem } from "../../lib/member-profile-client";
 import { saveBuilderState, saveResumeContent } from "../../lib/resume-maker-client";
+import { isCareerLaunchManagedError } from "../../lib/member-profile-client";
 import { updateCoverLetter } from "../../lib/cover-letter-client";
 import type { ResumeBuilderState } from "../../lib/resume-maker-types";
 
@@ -31,6 +32,8 @@ export function useResumeMakerAutosave(resumeId: string, baseContent: ResumeCont
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<ResumeBuilderState | null>(null);
   const baseRef = useRef<ResumeContent>(baseContent);
+  // 서버가 커리어런치 문서라며 거절하면 더 보내지 않는다 — 보낼 때마다 같은 거절이 반복된다.
+  const locked = useRef(false);
 
   useEffect(() => {
     baseRef.current = baseContent;
@@ -38,7 +41,7 @@ export function useResumeMakerAutosave(resumeId: string, baseContent: ResumeCont
 
   const flush = useCallback(async () => {
     const builder = pending.current;
-    if (!builder) return;
+    if (!builder || locked.current) return;
     pending.current = null;
     if (timer.current) {
       clearTimeout(timer.current);
@@ -54,7 +57,12 @@ export function useResumeMakerAutosave(resumeId: string, baseContent: ResumeCont
         /* ignore */
       }
       setStatus("saved");
-    } catch {
+    } catch (err) {
+      if (isCareerLaunchManagedError(err)) {
+        locked.current = true;
+        setStatus("error");
+        return;
+      }
       // 서버 저장 실패 — 로컬 임시 저장으로 입력 보존.
       try {
         localStorage.setItem(localKey(resumeId), JSON.stringify(builder));
@@ -67,6 +75,7 @@ export function useResumeMakerAutosave(resumeId: string, baseContent: ResumeCont
 
   const schedule = useCallback(
     (builder: ResumeBuilderState) => {
+      if (locked.current) return;
       pending.current = builder;
       setStatus("saving");
       if (timer.current) clearTimeout(timer.current);
@@ -138,10 +147,12 @@ export function useResumeContentAutosave(resumeId: string) {
   const [status, setStatus] = useState<AutosaveStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<ResumeContent | null>(null);
+  // 커리어런치 문서로 거절되면 멈춘다(위 훅과 같은 이유).
+  const locked = useRef(false);
 
   const flush = useCallback(async () => {
     const content = pending.current;
-    if (!content) return;
+    if (!content || locked.current) return;
     pending.current = null;
     if (timer.current) {
       clearTimeout(timer.current);
@@ -156,7 +167,12 @@ export function useResumeContentAutosave(resumeId: string) {
         /* ignore */
       }
       setStatus("saved");
-    } catch {
+    } catch (err) {
+      if (isCareerLaunchManagedError(err)) {
+        locked.current = true;
+        setStatus("error");
+        return;
+      }
       try {
         localStorage.setItem(localKey(resumeId), JSON.stringify(content));
       } catch {
@@ -168,6 +184,7 @@ export function useResumeContentAutosave(resumeId: string) {
 
   const schedule = useCallback(
     (content: ResumeContent) => {
+      if (locked.current) return;
       pending.current = content;
       setStatus("saving");
       if (timer.current) clearTimeout(timer.current);

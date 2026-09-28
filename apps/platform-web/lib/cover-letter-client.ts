@@ -11,6 +11,8 @@ export type CoverLetter = {
   resumeId: string | null; // 근거/연결 이력서(선택)
   items: ResumeCoverLetterItem[];
   shareSlug?: string; // 공개 공유 slug
+  // 'career-launch' 면 커리어런치 자소서의 미러본 — 여기서는 편집하지 않는다.
+  source?: "career-launch" | null;
   createdAt: string;
   updatedAt: string;
 };
