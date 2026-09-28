@@ -139,6 +139,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
 
   // ── 에피소드 내용(talent 문서 — 앱·기존 화면이 읽는 원본) ──
   const setText = (id: string, text: string) => saveCoverDoc({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
+  // 문서 단위 AI 재료(지원 공고·필수 소재) — 문항별이 아니라 자소서 전체에 적용된다.
+  const setDocMeta = (patch: Partial<CoverDoc>) => saveCoverDoc({ ...doc, ...patch });
   const newEpisode = () => {
     const prompt = layout.questions[q]?.prompt ?? "";
     const { doc: next, id } = addCoverItem(doc, prompt, "");
@@ -228,6 +230,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           onDeleteEpisode={deleteEpisode}
           onCopy={(text) => void copyAnswer(text)}
           onPolishedAnswer={applyPolishedAnswer}
+          onDocMeta={setDocMeta}
         />
       </div>
       <PrintCopy doc={doc} info={info} layout={layout} />
@@ -398,6 +401,7 @@ function Inspector(props: {
   onDeleteEpisode: (id: string) => void;
   onCopy: (text: string) => void;
   onPolishedAnswer: (q: number, text: string) => void;
+  onDocMeta: (patch: Partial<CoverDoc>) => void;
 }) {
   const { t, doc, layout, q, selectedId: id } = props;
   const question = layout.questions[q];
@@ -513,10 +517,25 @@ function Inspector(props: {
           t={t}
           title={t("문항 답변 AI로 다듬기", "Polish this answer with AI", "用 AI 润色此题答案", "Chỉnh câu trả lời bằng AI", "この回答をAIで整える", "Poles jawaban dengan AI")}
           text={answer}
-          polish={(src, style) => generateCoverLetter({ mode: "polish", style, prompt: question.prompt, current: src, targetChars: question.limit ?? undefined })}
+          // 지원 공고·필수 소재를 함께 넘긴다 — 프롬프트의 '공고 1:1 연결'과
+          // '반드시 반영할 소재(누락 시 실패)' 규칙이 이때 켜진다.
+          polish={(src, style) =>
+            generateCoverLetter({
+              mode: "polish",
+              style,
+              prompt: question.prompt,
+              current: src,
+              targetChars: question.limit ?? undefined,
+              companyName: doc.companyName?.trim() || undefined,
+              jobText: doc.jobText?.trim() || undefined,
+              keywords: (doc.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 10)
+            })
+          }
           onApply={(v) => props.onPolishedAnswer(q, v)}
         />
       </Section>
+
+      <DocContextSection t={t} doc={doc} onDocMeta={props.onDocMeta} />
 
       <Section title={t("문항 설정", "Question settings", "题目设置", "Cài đặt câu hỏi", "設問の設定", "Pengaturan pertanyaan")}>
         <Field key={`p-${question.id}`} label={t("문항", "Prompt", "题目", "Câu hỏi", "設問", "Pertanyaan")} value={question.prompt} multiline rows={3} onChange={(v) => props.onLayout(updateQuestion(layout, q, { prompt: v }))} />
@@ -567,5 +586,88 @@ function Inspector(props: {
         </p>
       </Section>
     </>
+  );
+}
+
+/** 지원 공고 · 필수 소재 — 문서 전체에 적용되는 AI 재료.
+ *  공고를 넣으면 프롬프트의 '목표 공고 반영'·'공고 1:1 연결' 규칙이 켜지고,
+ *  소재는 '하나라도 빠지면 실패한 답변'으로 최우선 처리된다(백엔드 buildCoverLetterMessages).
+ *  문항별 설정이 아니라 자소서 전체에 걸리므로 문항 설정과 분리해 둔다. */
+const JOB_TEXT_MAX = 4000;
+const KEYWORDS_MAX = 10;
+
+function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc; onDocMeta: (patch: Partial<CoverDoc>) => void }) {
+  const [draft, setDraft] = useState("");
+  const list = doc.keywords ?? [];
+  const jd = doc.jobText ?? "";
+  const addKeyword = () => {
+    const v = draft.trim().slice(0, 40);
+    if (!v || list.length >= KEYWORDS_MAX || list.includes(v)) { setDraft(""); return; }
+    onDocMeta({ keywords: [...list, v] });
+    setDraft("");
+  };
+
+  return (
+    <Section title={t("지원 공고 · 소재", "Target posting & points", "目标招聘·素材", "Tin tuyển & nội dung", "応募求人・要素", "Lowongan & poin")}>
+      <p className="text-[11.5px] leading-[1.6] text-[#8B95A1]">
+        {t(
+          "자소서 전체에 적용돼요. 공고를 넣으면 AI가 그 회사 요구에 내 경험을 연결하고, 소재는 빠짐없이 녹여 씁니다.",
+          "Applies to the whole document. With a posting, the AI ties your experience to it; every point gets woven in.",
+          "适用于整篇。填入招聘后，AI 会对应要求；素材会全部融入。",
+          "Áp dụng toàn bài. Có tin tuyển, AI sẽ nối kinh nghiệm; mọi nội dung đều được đưa vào.",
+          "全体に適用。求人を入れると要件に経験を結び付け、要素は必ず織り込みます。",
+          "Berlaku untuk seluruh dokumen. Dengan lowongan, AI menautkan pengalaman; semua poin dimasukkan."
+        )}
+      </p>
+      <Field
+        label={t("회사명", "Company", "公司名", "Tên công ty", "会社名", "Perusahaan")}
+        value={doc.companyName ?? ""}
+        onChange={(v) => onDocMeta({ companyName: v.slice(0, 120) })}
+      />
+      <Field
+        label={`${t("공고 내용", "Job posting", "招聘内容", "Nội dung tin", "求人内容", "Isi lowongan")} (${jd.length}/${JOB_TEXT_MAX})`}
+        value={jd}
+        multiline
+        rows={4}
+        onChange={(v) => onDocMeta({ jobText: v.slice(0, JOB_TEXT_MAX) })}
+      />
+      <div className="flex flex-col gap-2">
+        <span className="text-[12px] font-semibold text-[#333D4B]">
+          {t("반드시 넣을 소재", "Must-include points", "必写素材", "Nội dung bắt buộc", "必ず入れる要素", "Poin wajib")} {list.length}/{KEYWORDS_MAX}
+        </span>
+        {list.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {list.map((k) => (
+              <span key={k} className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] py-1 pl-2.5 pr-1.5 text-[11.5px] font-bold text-[#0B46E8]">
+                <span className="break-anywhere">{k}</span>
+                <button
+                  type="button"
+                  onClick={() => onDocMeta({ keywords: list.filter((x) => x !== k) })}
+                  aria-label={`${k} ${t("삭제", "Remove", "删除", "Xóa", "削除", "Hapus")}`}
+                  className="flex h-4 w-4 items-center justify-center rounded-full text-[#0B46E8]/60 transition hover:bg-white hover:text-[#F04452]"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {list.length < KEYWORDS_MAX ? (
+          <div className="flex gap-1.5">
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+              placeholder={t("예: 교환학생 경험", "e.g. exchange program", "例：交换生经历", "VD: du học trao đổi", "例：交換留学", "mis. pertukaran")}
+              aria-label={t("소재 추가", "Add a point", "添加素材", "Thêm nội dung", "要素を追加", "Tambah poin")}
+              className="min-w-0 flex-1 rounded-[10px] border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] text-[#191F28] outline-none focus:border-[#0B46E8]"
+            />
+            <button type="button" onClick={addKeyword} disabled={!draft.trim()} className={`${TINT_BTN} shrink-0 px-3`}>
+              {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </Section>
   );
 }
