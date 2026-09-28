@@ -36,6 +36,8 @@ import {
 } from "../../../lib/talent/cover-layout";
 import { generateCoverLetter, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
+import { ClicheHints } from "../career/ClicheHints";
+import { findClichePhrases } from "../../../lib/talent/cliche-phrases";
 import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useDocVersionStore } from "./editor-shared";
 
@@ -506,6 +508,8 @@ function Inspector(props: {
       <Section title={t("답변", "Answer", "答案", "Câu trả lời", "回答", "Jawaban")}>
         <div className="flex flex-col gap-2.5 rounded-2xl bg-[#F7F8FA] p-3.5">
           <CharGauge t={t} count={charCount(answer)} limit={question.limit} />
+          {/* 사용자가 직접 쓴 문장에도 AI와 같은 기준(프롬프트 금지 표현)을 보여 준다. */}
+          <ClicheHints text={answer} />
           <button type="button" onClick={() => props.onCopy(answer)} disabled={!answer} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] bg-white text-[12.5px] font-semibold leading-none text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:text-[#C4CAD2] disabled:hover:bg-white">
             <Copy size={14} weight="bold" className="shrink-0" />
             <span>{t("답변 복사 — 지원서에 붙여 넣기", "Copy answer to paste into an application", "复制答案", "Sao chép câu trả lời", "回答をコピー", "Salin jawaban")}</span>
@@ -536,6 +540,8 @@ function Inspector(props: {
       </Section>
 
       <DocContextSection t={t} doc={doc} onDocMeta={props.onDocMeta} />
+
+      <FinalCheckSection t={t} doc={doc} layout={layout} textOf={props.textOf} />
 
       <Section title={t("문항 설정", "Question settings", "题目设置", "Cài đặt câu hỏi", "設問の設定", "Pengaturan pertanyaan")}>
         <Field key={`p-${question.id}`} label={t("문항", "Prompt", "题目", "Câu hỏi", "設問", "Pertanyaan")} value={question.prompt} multiline rows={3} onChange={(v) => props.onLayout(updateQuestion(layout, q, { prompt: v }))} />
@@ -668,6 +674,72 @@ function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc;
           </div>
         ) : null}
       </div>
+    </Section>
+  );
+}
+
+/** 제출 전 최종 점검 — 미작성 문항 / 글자 수 초과·미달 / 상투어 / 필수 소재 누락을 한 곳에.
+ *  문항 간 중복은 넣지 않는다 — 이 에디터는 같은 에피소드를 여러 문항에 **의도적으로** 재사용하는
+ *  구조라, 텍스트 유사도로 잡으면 정상 사용을 오탐한다. */
+function FinalCheckSection({
+  t,
+  doc,
+  layout,
+  textOf
+}: {
+  t: PlatformT;
+  doc: CoverDoc;
+  layout: ResolvedCover;
+  textOf: (id: string) => string;
+}) {
+  const issues: string[] = [];
+  let filled = 0;
+
+  for (const [i, question] of layout.questions.entries()) {
+    const body = answerText(question.blocks.map(textOf)).trim();
+    const label = `${i + 1}. ${question.prompt.slice(0, 18)}`;
+    if (!body) {
+      issues.push(`${label} — ${t("아직 작성 안 됨", "Not written yet", "尚未填写", "Chưa viết", "未記入", "Belum ditulis")}`);
+      continue;
+    }
+    filled += 1;
+    const n = charCount(body);
+    if (question.limit) {
+      if (n > question.limit) {
+        issues.push(`${label} — ${n}/${question.limit} ${t("자 초과", "over limit", "超出", "vượt", "字超過", "lewat")}`);
+      } else if (n < Math.round(question.limit * 0.8)) {
+        issues.push(`${label} — ${n}/${question.limit} ${t("자, 분량 부족", "chars, too short", "字，偏短", "ký tự, hơi ngắn", "字・少なめ", "krt, terlalu pendek")}`);
+      }
+    }
+    const phrases = findClichePhrases(body);
+    if (phrases.length) {
+      issues.push(`${label} — ${t("다시 볼 표현", "Phrases to revisit", "可再斟酌", "Cụm nên xem lại", "見直したい表現", "Frasa ditinjau")} ${phrases.slice(0, 2).map((p) => `「${p}」`).join(" ")}`);
+    }
+  }
+
+  // 필수 소재는 문서 전체 본문에서 확인한다 — AI가 넣었더라도 이후 편집에서 지웠을 수 있다.
+  const all = layout.questions.map((q) => answerText(q.blocks.map(textOf))).join("\n");
+  for (const k of doc.keywords ?? []) {
+    const key = k.trim();
+    if (key && !all.includes(key)) {
+      issues.push(`${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${key}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`);
+    }
+  }
+
+  const pct = layout.questions.length ? Math.round((filled / layout.questions.length) * 100) : 0;
+  return (
+    <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${pct}%`}>
+      {issues.length === 0 ? (
+        <p className="text-[12px] text-[#00854A]">
+          {t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {issues.map((msg, i) => (
+            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">• {msg}</li>
+          ))}
+        </ul>
+      )}
     </Section>
   );
 }
