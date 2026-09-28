@@ -166,6 +166,36 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
         </TalentButton>
       </div>
 
+      {/* 공고 맞춤 분석 진입 — JD/공고를 넣어 적합도 점수와 보완점을 받는다.
+          (위 '새 버전'은 직무명 기준 초안 생성이고, 이건 공고 단위 분석으로 다른 기능이다.) */}
+      <TCard className="flex items-center gap-3 p-5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-bold text-[#191F28]">{t("공고에 얼마나 맞는지 볼까요?","Check your fit for a posting","看看与职位的匹配度","Xem mức độ phù hợp với tin","求人との適合度を見ますか？","Cek kecocokan dengan lowongan")}</p>
+          <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("지원할 공고를 넣으면 적합도 점수와 보완할 점을 알려드려요.","Paste a job posting to get a fit score and what to improve.","填入招聘信息，获取匹配分数和改进建议。","Dán tin tuyển dụng để nhận điểm phù hợp và điểm cần cải thiện.","応募先の求人を入れると適合度と改善点をお知らせします。","Tempel lowongan untuk skor kecocokan dan saran perbaikan.")}</p>
+        </div>
+        <Link
+          href={`${talentAppRoutes.resumes}/${encodeURIComponent(resumeId)}/tailor`}
+          className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-2 text-[13px] font-bold text-[#0B46E8] hover:bg-[#E1E9FC]"
+        >
+          {t("맞춤 분석","Analyze fit","匹配分析","Phân tích","適合度分析","Analisis")}
+        </Link>
+      </TCard>
+
+      {/* 이력서 AI 진단 진입 — 공고 없이 이력서 자체의 완성도·보완점을 본다.
+          (위 '맞춤 분석'은 공고 단위 적합도, 이건 공고와 무관한 진단으로 별개다.) */}
+      <TCard className="flex items-center gap-3 p-5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-bold text-[#191F28]">{t("내 이력서 진단받기","Get your resume diagnosed","诊断我的简历","Chẩn đoán CV của tôi","履歴書を診断する","Diagnosis CV saya")}</p>
+          <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("공고 없이도 이력서의 부족한 부분과 보완할 점을 짚어드려요.","See what's missing and what to improve — no job posting needed.","无需招聘信息，也能指出简历不足与改进点。","Không cần tin tuyển dụng vẫn chỉ ra điểm thiếu và cần cải thiện.","求人がなくても不足点と改善点をお知らせします。","Tanpa lowongan pun, kami tunjukkan kekurangan dan perbaikannya.")}</p>
+        </div>
+        <Link
+          href={talentAppRoutes.resumeDiagnosis}
+          className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-2 text-[13px] font-bold text-[#0B46E8] hover:bg-[#E1E9FC]"
+        >
+          {t("진단","Diagnose","诊断","Chẩn đoán","診断","Diagnosis")}
+        </Link>
+      </TCard>
+
       {/* 직무별 버전 */}
       <TCard className="flex items-center gap-3 p-5">
         <div className="min-w-0 flex-1">
