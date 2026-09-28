@@ -2,7 +2,7 @@
 // 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume.content)에 귀속된다(renewal-docs-store).
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
-import { setCoverDoc as storeSetCover, snapshotCover, subscribeDocs, syncUser } from "./renewal-docs-store";
+import { setCoverDoc as storeSetCover, snapshotCover, snapshotCoverHistory, subscribeDocs, syncUser, type DocVersion } from "./renewal-docs-store";
 
 export interface CoverItem {
   id: string;
@@ -108,4 +108,10 @@ export function useCoverDoc(): CoverDoc | null {
     syncUser(userId);
   }, [userId]);
   return useSyncExternalStore(subscribeDocs, snapshotCover, () => null);
+}
+
+// 자소서 버전 히스토리 — 에디터 헤더의 '이전 버전' 메뉴용.
+const EMPTY_HISTORY: DocVersion<CoverDoc>[] = [];
+export function useCoverHistory(): DocVersion<CoverDoc>[] {
+  return useSyncExternalStore(subscribeDocs, snapshotCoverHistory, () => EMPTY_HISTORY);
 }

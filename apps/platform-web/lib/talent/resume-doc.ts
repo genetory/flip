@@ -2,7 +2,7 @@
 // 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume)에 귀속된다(renewal-docs-store).
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
-import { setResumeDoc as storeSetResume, snapshotResume, snapshotStatus, subscribeDocs, syncUser, type RenewalDocsStatus, snapshotSaveState, type DocsSaveState } from "./renewal-docs-store";
+import { setResumeDoc as storeSetResume, snapshotResume, snapshotStatus, subscribeDocs, syncUser, type RenewalDocsStatus, snapshotSaveState, type DocsSaveState, snapshotResumeHistory, type DocVersion } from "./renewal-docs-store";
 import type { CareerSection } from "./career-chat";
 import type { FeedEntry } from "./career-feed";
 
@@ -160,6 +160,11 @@ export function useRenewalDocsStatus(): RenewalDocsStatus {
 // 저장 상태 — 에디터 헤더에 "저장됨 / 저장 중…"을 띄우는 용도.
 export function useDocsSaveState(): DocsSaveState {
   return useSyncExternalStore(subscribeDocs, snapshotSaveState, () => "idle" as DocsSaveState);
+}
+
+const EMPTY_HISTORY: DocVersion<ResumeDoc>[] = [];
+export function useResumeHistory(): DocVersion<ResumeDoc>[] {
+  return useSyncExternalStore(subscribeDocs, snapshotResumeHistory, () => EMPTY_HISTORY);
 }
 
 // mock "AI로 다듬기" — 대화체를 이력서 개조식(명사형 종결)으로. 추후 LLM 교체.

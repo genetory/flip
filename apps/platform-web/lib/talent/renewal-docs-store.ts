@@ -19,6 +19,14 @@ export type RenewalDocsStatus = "idle" | "loading" | "loaded";
 // pending=변경됨(debounce 대기) · saving=PATCH 중 · saved=반영 완료 · error=실패(재시도 예정).
 export type DocsSaveState = "idle" | "pending" | "saving" | "saved" | "error";
 
+// 문서 버전 스냅샷 — "며칠 전 버전으로 되돌리기"용. 같은 Resume.content 안에 보관한다
+// (content 가 JSON 이라 스키마 변경은 필요 없다).
+// 저장은 매번 content 전체를 PATCH 하므로 히스토리가 곧 업로드 용량이다 → 개수를 조인다.
+export type DocVersion<T> = { savedAt: number; doc: T };
+const MAX_VERSIONS = 3;
+// 스냅샷 간격 — 타이핑마다 쌓이면 10분 전 버전만 3개 남아 쓸모가 없다.
+const MIN_SNAPSHOT_GAP_MS = 10 * 60 * 1000;
+
 const listeners = new Set<() => void>();
 let status: RenewalDocsStatus = "idle";
 let loadedForUser: string | null = null;
@@ -48,6 +56,8 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving = false;
 let dirty = false;
 let saveState: DocsSaveState = "idle";
+let resumeHistory: DocVersion<ResumeDoc>[] = [];
+let coverHistory: DocVersion<CoverDoc>[] = [];
 
 function emit() {
   listeners.forEach((l) => l());
@@ -68,6 +78,35 @@ export function snapshotCover(): CoverDoc | null {
 }
 export function snapshotSaveState(): DocsSaveState {
   return saveState;
+}
+export function snapshotResumeHistory(): DocVersion<ResumeDoc>[] {
+  return resumeHistory;
+}
+export function snapshotCoverHistory(): DocVersion<CoverDoc>[] {
+  return coverHistory;
+}
+
+// 되돌리기 — 복원 자체도 되돌릴 수 있어야 하므로 현재 문서를 히스토리에 먼저 넣는다.
+// 그 스냅샷은 간격 제한을 우회한다(복원은 드물고, 못 되돌리면 데이터를 잃는다).
+export function restoreResumeVersion(savedAt: number): boolean {
+  const v = resumeHistory.find((x) => x.savedAt === savedAt);
+  if (!v) return false;
+  const rest = resumeHistory.filter((x) => x.savedAt !== savedAt);
+  resumeHistory = resumeDoc ? [{ savedAt: Date.now(), doc: resumeDoc }, ...rest].slice(0, MAX_VERSIONS) : rest;
+  resumeDoc = v.doc;
+  emit();
+  scheduleSave();
+  return true;
+}
+export function restoreCoverVersion(savedAt: number): boolean {
+  const v = coverHistory.find((x) => x.savedAt === savedAt);
+  if (!v) return false;
+  const rest = coverHistory.filter((x) => x.savedAt !== savedAt);
+  coverHistory = coverDoc ? [{ savedAt: Date.now(), doc: coverDoc }, ...rest].slice(0, MAX_VERSIONS) : rest;
+  coverDoc = v.doc;
+  emit();
+  scheduleSave();
+  return true;
 }
 export function snapshotStatus(): RenewalDocsStatus {
   return status;
@@ -114,6 +153,17 @@ function uid() {
 }
 
 // content 빌드/파싱 ----------------------------------------------------------
+// 이전 문서를 히스토리에 밀어넣는다. 내용이 실제로 달라졌고, 마지막 스냅샷이 충분히
+// 오래됐을 때만 쌓는다(연속 편집이 히스토리를 통째로 잡아먹지 않게).
+// export 는 테스트용 — 스냅샷 규칙이 틀리면 히스토리가 통째로 낭비되거나 데이터가 남지 않는다.
+export function pushVersion<T>(history: DocVersion<T>[], prev: T | null, next: T | null): DocVersion<T>[] {
+  if (!prev) return history;
+  if (next && JSON.stringify(prev) === JSON.stringify(next)) return history;
+  const newest = history[0]?.savedAt ?? 0;
+  if (Date.now() - newest < MIN_SNAPSHOT_GAP_MS) return history;
+  return [{ savedAt: Date.now(), doc: prev }, ...history].slice(0, MAX_VERSIONS);
+}
+
 function buildContent(): Record<string, unknown> {
   const content: Record<string, unknown> = {};
   if (resumeDoc) {
@@ -136,6 +186,8 @@ function buildContent(): Record<string, unknown> {
   if (applyCelebrated) content.renewalApplyCelebrated = true;
   if (notifPushOptOut) content.renewalNotifPushOptOut = true;
   if (notifEmailOptOut) content.renewalNotifEmailOptOut = true;
+  if (resumeHistory.length) content.renewalResumeHistory = resumeHistory;
+  if (coverHistory.length) content.renewalCoverHistory = coverHistory;
   return content;
 }
 
@@ -154,6 +206,8 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   applyCelebrated: boolean;
   notifPushOptOut: boolean;
   notifEmailOptOut: boolean;
+  resumeHistory: DocVersion<ResumeDoc>[];
+  coverHistory: DocVersion<CoverDoc>[];
 } {
   const c = content ?? {};
   const resume = (c.renewalResume as ResumeDoc | undefined) ?? null;
@@ -181,7 +235,16 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   const applyCelebrated = c.renewalApplyCelebrated === true;
   const notifPushOptOut = c.renewalNotifPushOptOut === true;
   const notifEmailOptOut = c.renewalNotifEmailOptOut === true;
-  return { resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
+  // 저장된 히스토리는 신뢰하지 않고 모양을 검사한다(구버전·손상 데이터로 화면이 깨지지 않게).
+  const parseHistory = <T,>(v: unknown): DocVersion<T>[] =>
+    Array.isArray(v)
+      ? (v as DocVersion<T>[])
+          .filter((x) => x && typeof x === "object" && typeof x.savedAt === "number" && x.doc != null)
+          .slice(0, MAX_VERSIONS)
+      : [];
+  const resumeHistory = parseHistory<ResumeDoc>(c.renewalResumeHistory);
+  const coverHistory = parseHistory<CoverDoc>(c.renewalCoverHistory);
+  return { resumeHistory, coverHistory, resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
 }
 
 // 로드 ----------------------------------------------------------------------
@@ -216,6 +279,8 @@ async function load(userId: string) {
       applyCelebrated = parsed.applyCelebrated;
       notifPushOptOut = parsed.notifPushOptOut;
       notifEmailOptOut = parsed.notifEmailOptOut;
+      resumeHistory = parsed.resumeHistory;
+      coverHistory = parsed.coverHistory;
     } else {
       resumeRowId = null;
       resumeDoc = null;
@@ -232,6 +297,8 @@ async function load(userId: string) {
       applyCelebrated = false;
       notifPushOptOut = false;
       notifEmailOptOut = false;
+      resumeHistory = [];
+      coverHistory = [];
     }
     status = "loaded";
     emit();
@@ -253,6 +320,8 @@ async function load(userId: string) {
     applyCelebrated = false;
     notifPushOptOut = false;
     notifEmailOptOut = false;
+    resumeHistory = [];
+    coverHistory = [];
     status = "loaded";
     emit();
   }
@@ -285,6 +354,8 @@ export function syncUser(userId: string | null): void {
     }
     dirty = false;
     saveState = "idle";
+    resumeHistory = [];
+    coverHistory = [];
     emit();
   }
   if (userId && status === "idle") {
@@ -332,12 +403,14 @@ async function flush() {
 }
 
 export function setResumeDoc(doc: ResumeDoc | null): void {
+  resumeHistory = pushVersion(resumeHistory, resumeDoc, doc);
   resumeDoc = doc;
   emit();
   scheduleSave();
 }
 
 export function setCoverDoc(doc: CoverDoc | null): void {
+  coverHistory = pushVersion(coverHistory, coverDoc, doc);
   coverDoc = doc;
   emit();
   scheduleSave();

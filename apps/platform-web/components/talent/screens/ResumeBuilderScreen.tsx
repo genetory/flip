@@ -15,6 +15,8 @@ import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { ResumeA4Preview } from "../career/ResumeA4";
 import { AiRevisionBar } from "../career/AiRevisionBar";
+import { VersionHistoryMenu } from "../career/VersionHistoryMenu";
+import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { SaveStatus } from "../career/SaveStatus";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
@@ -23,7 +25,7 @@ import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed"
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
-import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, useResumeHistory, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
 import { polishExperienceText, draftResumeText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
@@ -41,6 +43,7 @@ export function ResumeBuilderScreen() {
   const basicInfo = useBasicInfo();
   const feed = useCareerFeed();
   const stored = useResumeDoc();
+  const history = useResumeHistory();
   const status = useRenewalDocsStatus();
   const [doc, setDoc] = useState<ResumeDoc | null>(stored);
   const ready = isBasicInfoComplete(basicInfo);
@@ -75,6 +78,7 @@ export function ResumeBuilderScreen() {
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력서","Resume","简历","CV","履歴書","CV")}</h1>
               <SaveStatus />
+              <VersionHistoryMenu versions={history} onRestore={(ts) => restoreResumeVersion(ts)} />
             </div>
             {showEditor ? (
               <Link

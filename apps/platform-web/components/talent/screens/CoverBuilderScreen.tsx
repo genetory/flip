@@ -17,15 +17,17 @@ import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { CoverA4Preview } from "../career/CoverA4";
 import { AiRevisionBar } from "../career/AiRevisionBar";
+import { restoreCoverVersion } from "../../../lib/talent/renewal-docs-store";
 import { SaveStatus } from "../career/SaveStatus";
 import { ClicheHints } from "../career/ClicheHints";
 import { CoverReviewCard } from "../career/CoverReviewCard";
+import { VersionHistoryMenu } from "../career/VersionHistoryMenu";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
 import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { SECTION_META } from "../../../lib/talent/career-chat";
-import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { useCoverDoc, useCoverHistory, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverQuestionLabelOf } from "../../../lib/talent/career-labels";
 import { coverChat } from "../../../lib/talent/cover-assist-client";
 import { generateCoverLetter, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
@@ -41,6 +43,7 @@ export function CoverBuilderScreen() {
   const resume = useResumeDoc();
   const stored = useCoverDoc();
   const status = useRenewalDocsStatus();
+  const history = useCoverHistory();
   const [doc, setDoc] = useState<CoverDoc | null>(stored);
   const ready = isBasicInfoComplete(basicInfo);
 
@@ -79,6 +82,7 @@ export function CoverBuilderScreen() {
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")}</h1>
               <SaveStatus />
+              <VersionHistoryMenu versions={history} onRestore={(ts) => restoreCoverVersion(ts)} />
             </div>
             {showEditor ? (
               <Link
