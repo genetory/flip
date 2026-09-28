@@ -442,6 +442,15 @@ export async function getAiPointHistory(): Promise<AiPointLogEntry[]> {
   return Array.isArray(payload?.history) ? payload.history : [];
 }
 
+// ⚠️ 현재 정책: AI 기능은 전면 무료다.
+// 서버 aiGate(apps/api/src/index.ts)는 지갑/티켓을 차감하지 않고 다음만 검사한다.
+//   - 분당 호출 상한 AI_PER_MINUTE_CAP = 20 → 429 AI_RATE
+//   - 일일 총량 상한 AI_DAILY_TOTAL_CAP = 500 → 429 AI_DAILY_LIMIT
+//   - 고비용 모델 일일 상한 40 → 429 (interview_questions / interview_feedback 만)
+//   - 이메일 인증(기본 off) → 403 AI_VERIFY_REQUIRED
+// 즉 402 는 어디서도 내려오지 않으므로 AiQuotaError 와 충전 모달은 현재 발동하지 않는다.
+// 나중에 유료화할 여지를 남기려고 경로를 유지하는 것이다 — 지우지 말 것.
+// 사용자에게 보이는 안내는 429·5xx 를 notifyAiBlocked() → <AiBlockedHandler/> 토스트가 담당한다.
 function isQuotaError(err: unknown): boolean {
   return !!err && typeof err === "object" && (err as { status?: number }).status === 402;
 }

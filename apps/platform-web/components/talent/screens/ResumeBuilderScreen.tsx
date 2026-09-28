@@ -3,8 +3,9 @@
 // 이력서 — 자동 초안(기본 정보 + 커리어 피드) → 직접 편집 + AI로 다듬기 + 대화로 추가.
 // 편집 옆에 미리보기 상시 노출(데스크톱), 모바일은 '미리보기' 버튼으로 따로 보기.
 // 1개 문서. 다듬기는 실제 LLM(polish-experience), 빈 항목은 'AI로 작성'(draft-resume-text).
-// 최초 문서 자동 생성은 여전히 규칙 기반(refineText) — 첫 방문에 LLM 을 돌리면 항목 수만큼
-// 포인트가 자동 차감되므로 의도적으로 유지한다. AI 는 사용자가 누를 때만 돈다.
+// 최초 문서 자동 생성은 여전히 규칙 기반(refineText) — 첫 방문에 커리어 피드 항목 수만큼
+// LLM 을 돌리면 (1) 그만큼 API 요금이 나가고 (2) 항목이 20개면 분당 호출 상한(20회)에 바로
+// 걸린다. 그래서 의도적으로 유지한다. AI 는 사용자가 누를 때만 돈다.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
@@ -100,7 +101,10 @@ export function ResumeBuilderScreen() {
 /* 편집기 + (데스크톱) 미리보기 2단 */
 function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: BasicInfo; onChange: (d: ResumeDoc) => void }) {
   const t = usePlatformT();
-  // 포인트 부족(402) 시 충전 모달.
+  // 402(잔량 부족) 시 충전 모달.
+  // 현재 서버 aiGate 는 지갑을 차감하지 않고 429(분당 20회·일일 500회)만 낸다 → 402 는
+  // 실제로 오지 않는다(전면 무료). 유료화 여지를 남기려고 경로는 그대로 둔다.
+  // 429·5xx 는 aiPost → notifyAiBlocked → <AiBlockedHandler/> 가 전역 토스트로 안내한다.
   const [chargeOpen, setChargeOpen] = useState(false);
   const [usage, setUsage] = useState<AiUsage | null>(null);
   function setText(id: string, text: string) {
@@ -109,8 +113,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setDate(id: string, field: "startDate" | "endDate", value: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, [field]: value } : it)) });
   }
-  // AI로 다듬기 — 선택한 스타일로 실제 AI 다듬기(polish-experience, 1P 소모).
-  // 포인트 부족(402)이면 충전 모달을 연다. 실패 시 원문 유지.
+  // AI로 다듬기 — 선택한 스타일로 실제 AI 다듬기(polish-experience).
+  // 402 면 충전 모달(현재 미발생). 실패 시 원문 유지.
   async function refine(id: string, text: string, section: CareerSection, style: PolishStyle): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -127,7 +131,7 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
       }
     }
   }
-  // 빈 항목에 AI로 초안 쓰기(draft-resume-text, mode=generate, 1P 소모).
+  // 빈 항목에 AI로 초안 쓰기(draft-resume-text, mode=generate).
   // 다듬기(polish)는 기존 텍스트가 있어야 눌리므로, 빈 항목에는 여태 AI 도움이 전혀 없었다.
   // 근거는 사용자가 채운 이름·기간뿐이다 — 백엔드가 "제공하지 않은 사실은 만들지 않는다"를
   // 모든 모드에 걸어두므로, 이름이 비어 있으면 결과가 무의미해 버튼을 잠근다.
@@ -323,7 +327,8 @@ function ItemRow({
   // AI 호출이 실패하면 부모가 원문을 그대로 두므로 before===after 가 되고, 그 경우 바를 숨긴다.
   const [prevText, setPrevText] = useState<string | null>(null);
   const [prevLabel, setPrevLabel] = useState<"polish" | "draft">("polish");
-  // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
+  // AI 다듬기 스타일 3종 — concise=간결 · expand=구체 · professional=정중.
+  // (자소서 에디터는 백엔드 6종을 전부 노출한다. 이력서도 필요하면 같이 늘릴 수 있다.)
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
     { style: "concise", label: t("간결하게","Concise","简洁","Ngắn gọn","簡潔に","Ringkas"), hint: t("핵심만 짧게","Keep only the essentials","只留核心","Chỉ giữ ý chính","要点だけ短く","Inti saja") },
     { style: "expand", label: t("구체적으로","Detailed","具体","Chi tiết","具体的に","Rinci"), hint: t("맥락·역할을 풍부하게","Add context & detail","补充背景与角色","Thêm bối cảnh, vai trò","文脈・役割を補足","Tambah konteks & peran") },

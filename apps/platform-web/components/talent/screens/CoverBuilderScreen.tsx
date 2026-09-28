@@ -103,7 +103,10 @@ export function CoverBuilderScreen() {
 
 function Editor({ doc, basicInfo, resumeText, resume, onChange }: { doc: CoverDoc; basicInfo: BasicInfo; resumeText: string; resume: ResumeDoc | null; onChange: (d: CoverDoc) => void }) {
   const t = usePlatformT();
-  // 포인트 부족(402) 시 충전 모달.
+  // 402(잔량 부족) 시 충전 모달.
+  // 현재 서버 aiGate 는 지갑을 차감하지 않고 429(분당 20회·일일 500회)만 낸다 → 402 는
+  // 실제로 오지 않는다(전면 무료). 유료화 여지를 남기려고 경로는 그대로 둔다.
+  // 429·5xx 는 aiPost → notifyAiBlocked → <AiBlockedHandler/> 가 전역 토스트로 안내한다.
   const [chargeOpen, setChargeOpen] = useState(false);
   const [usage, setUsage] = useState<AiUsage | null>(null);
   async function openCharge() {
@@ -180,7 +183,7 @@ function Editor({ doc, basicInfo, resumeText, resume, onChange }: { doc: CoverDo
     }),
     [doc.companyName, doc.jobText, doc.keywords]
   );
-  // 문항별 AI 초안 — 이력서·공고·소재·목표 글자 수를 모두 넘겨 처음부터 쓴다(1P 소모).
+  // 문항별 AI 초안 — 이력서·공고·소재·목표 글자 수를 모두 넘겨 처음부터 쓴다.
   const [draftingQ, setDraftingQ] = useState<string | null>(null);
   async function aiDraft(question: string) {
     if (draftingQ) return;
@@ -487,7 +490,7 @@ function ItemRow({
   // AI 직전 원문 — 다듬기가 원문을 덮어쓰므로 되돌릴 수 있게 들고 있는다.
   // 사용자가 직접 타이핑을 시작하면 되돌릴 기준이 낡으므로 비운다(아래 textarea onChange).
   const [prevText, setPrevText] = useState<string | null>(null);
-  // AI 다듬기 스타일 — 백엔드 POLISH_STYLE_GUIDE 6종을 전부 노출한다(각 1P 소모).
+  // AI 다듬기 스타일 — 백엔드 POLISH_STYLE_GUIDE 6종을 전부 노출한다.
   // 자소서에서는 impact(강점 부각)·achievement(성과 중심)가 오히려 자주 필요하다.
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
     { style: "natural", label: t("자연스럽게","Natural","自然","Tự nhiên","自然に","Natural"), hint: t("어색한 문장만 다듬기","Smooth out awkward lines","只顺一下语句","Chỉ làm mượt câu","不自然な文だけ整える","Perhalus kalimat") },
