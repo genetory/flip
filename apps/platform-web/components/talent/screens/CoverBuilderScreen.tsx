@@ -16,6 +16,7 @@ import { ProfileGate } from "../career/ProfileGate";
 import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { CoverA4Preview } from "../career/CoverA4";
+import { AiRevisionBar } from "../career/AiRevisionBar";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
@@ -470,6 +471,9 @@ function ItemRow({
   const t = usePlatformT();
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // AI 직전 원문 — 다듬기가 원문을 덮어쓰므로 되돌릴 수 있게 들고 있는다.
+  // 사용자가 직접 타이핑을 시작하면 되돌릴 기준이 낡으므로 비운다(아래 textarea onChange).
+  const [prevText, setPrevText] = useState<string | null>(null);
   // AI 다듬기 스타일 — 백엔드 POLISH_STYLE_GUIDE 6종을 전부 노출한다(각 1P 소모).
   // 자소서에서는 impact(강점 부각)·achievement(성과 중심)가 오히려 자주 필요하다.
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
@@ -499,7 +503,10 @@ function ItemRow({
         ...shared,
         ...aiResume
       });
-      if (polished) onChange(polished);
+      if (polished) {
+        setPrevText(value);
+        onChange(polished);
+      }
       if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
     } catch (err) {
       if (err instanceof AiQuotaError) onQuota();
@@ -528,10 +535,18 @@ function ItemRow({
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
       <textarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { if (prevText !== null) setPrevText(null); onChange(e.target.value); }}
         rows={4}
         className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-[1.8] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
+      {prevText !== null && prevText !== value ? (
+        <AiRevisionBar
+          before={prevText}
+          after={value}
+          onUndo={() => { onChange(prevText); setPrevText(null); }}
+          onAccept={() => setPrevText(null)}
+        />
+      ) : null}
       <div className="mt-2 flex items-center gap-2">
         {targetChars != null ? (
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#F2F4F6]" aria-hidden>

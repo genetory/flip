@@ -14,6 +14,7 @@ import { ProfileGate } from "../career/ProfileGate";
 import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { ResumeA4Preview } from "../career/ResumeA4";
+import { AiRevisionBar } from "../career/AiRevisionBar";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
@@ -310,6 +311,10 @@ function ItemRow({
   const [refining, setRefining] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // AI 직전 원문 — 부모가 텍스트를 갈아끼우므로 되돌릴 기준을 여기서 들고 있는다.
+  // AI 호출이 실패하면 부모가 원문을 그대로 두므로 before===after 가 되고, 그 경우 바를 숨긴다.
+  const [prevText, setPrevText] = useState<string | null>(null);
+  const [prevLabel, setPrevLabel] = useState<"polish" | "draft">("polish");
   // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
     { style: "concise", label: t("간결하게","Concise","简洁","Ngắn gọn","簡潔に","Ringkas"), hint: t("핵심만 짧게","Keep only the essentials","只留核心","Chỉ giữ ý chính","要点だけ短く","Inti saja") },
@@ -378,11 +383,20 @@ function ItemRow({
       ) : null}
       <textarea
         value={text}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { if (prevText !== null) setPrevText(null); onChange(e.target.value); }}
         rows={4}
         placeholder={textPlaceholder}
         className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
+      {prevText !== null && prevText !== text ? (
+        <AiRevisionBar
+          before={prevText}
+          after={text}
+          title={prevLabel === "draft" ? t("AI가 작성했어요","Written by AI","AI 已撰写","AI đã viết","AIが作成しました","Ditulis AI") : undefined}
+          onUndo={() => { onChange(prevText); setPrevText(null); }}
+          onAccept={() => setPrevText(null)}
+        />
+      ) : null}
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정). 드롭다운 화살표는 phosphor CaretDown */}
         <div className="relative max-w-[45%]">
@@ -402,7 +416,7 @@ function ItemRow({
           {canDraft && !text.trim() ? (
             <button
               type="button"
-              onClick={async () => { if (drafting || !company.trim()) return; setDrafting(true); try { await onDraft(); } finally { setDrafting(false); } }}
+              onClick={async () => { if (drafting || !company.trim()) return; setDrafting(true); setPrevText(text); setPrevLabel("draft"); try { await onDraft(); } finally { setDrafting(false); } }}
               disabled={drafting || !company.trim()}
               title={!company.trim() ? t("이름을 먼저 입력해 주세요","Enter the name first","请先填写名称","Nhập tên trước","先に名称を入力","Isi nama dulu") : undefined}
               className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-2.5 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
@@ -433,7 +447,7 @@ function ItemRow({
                       key={c.style}
                       type="button"
                       role="menuitem"
-                      onClick={async () => { setMenuOpen(false); setRefining(true); try { await onRefine(c.style); } finally { setRefining(false); } }}
+                      onClick={async () => { setMenuOpen(false); setRefining(true); setPrevText(text); setPrevLabel("polish"); try { await onRefine(c.style); } finally { setRefining(false); } }}
                       className="flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition hover:bg-[#F6F8FB]"
                     >
                       <span className="flex flex-col">
