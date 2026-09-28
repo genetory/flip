@@ -148,13 +148,13 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
         <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-4 md:pt-8">
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href="/career-launch/week/3" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("3주차", "Week 3", "第3周", "Tuần 3", "3週目", "Minggu 3")}</Link>
+              <Link href="/career-launch/week/3" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 3", "Step 3", "Step 3", "Step 3", "Step 3", "Step 3")}</Link>
               <Link href="/career-launch/week/3" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("3주차 · 기본 면접", "Week 3 · Basic interview", "第3周 · 基础面试", "Tuần 3 · Phỏng vấn cơ bản", "Week 3 · 基本面接", "Minggu 3 · Wawancara dasar")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 3 · 기본 면접", "Step 3 · Basic interview", "Step 3 · 基础面试", "Step 3 · Phỏng vấn cơ bản", "Step 3 · 基本面接", "Step 3 · Wawancara dasar")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{label}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("내 이력서·자기소개서를 바탕으로 한 면접이에요", "Based on your resume and cover letter", "基于你的简历与自我介绍书", "Dựa trên CV và thư giới thiệu của bạn", "あなたの履歴書・自己紹介書に基づく面接です", "Berdasarkan resume dan surat lamaranmu")}</p>
           </div>

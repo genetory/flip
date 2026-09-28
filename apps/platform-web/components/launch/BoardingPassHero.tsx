@@ -57,10 +57,10 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
             <div className="v" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</div>
           </div>
           <div className="cl-meta">
-            <div className="k">{t("현재 주차", "Boarding", "当前周", "Tuần hiện tại", "現在の週", "Minggu")}</div>
+            <div className="k">{t("현재 단계", "Boarding", "当前步骤", "Bước hiện tại", "現在のステップ", "Langkah")}</div>
             <div className="v">
               <span className="cl-flap"><span className="cell">0</span><span className="cell">{week}</span></span>
-              <span style={{ fontSize: 12.5, color: "var(--cl-faint)", fontWeight: 800, marginLeft: 6 }}>{t("주차 진행 중", "in progress", "周 进行中", "đang học", "週目 進行中", "berjalan")}</span>
+              <span style={{ fontSize: 12.5, color: "var(--cl-faint)", fontWeight: 800, marginLeft: 6 }}>{t("단계 진행 중", "in progress", "步骤 进行中", "đang học", "ステップ 進行中", "berjalan")}</span>
             </div>
           </div>
           <div className="cl-meta">
@@ -69,7 +69,7 @@ export function BoardingPassHero({ vm, displayName, overall }: { vm: DashboardVM
           </div>
           <div className="cl-meta">
             <div className="k">{t("클래스", "Class", "舱位", "Hạng", "クラス", "Kelas")}</div>
-            <div className="v">{t("4주 집중 · AI 코치", "4-week · AI coach", "4周集中 · AI教练", "4 tuần · AI coach", "4週集中 · AIコーチ", "4 minggu · AI coach")}</div>
+            <div className="v">{t("4단계 집중 · AI 코치", "4-step · AI coach", "4个步骤 · AI教练", "4 bước · AI coach", "4ステップ集中 · AIコーチ", "4 langkah · AI coach")}</div>
           </div>
           <div className="cl-meta">
             <div className="k">{t("소속", "Cohort", "所属", "Thuộc về", "所属", "Kohort")}</div>

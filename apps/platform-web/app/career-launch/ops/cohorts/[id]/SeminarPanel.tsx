@@ -41,7 +41,7 @@ export default function SeminarPanel({ cohortId, seminars }: { cohortId: string;
   const save = async (w: number) => {
     const row = rows[w];
     if (!row.startsAt) {
-      setError(`${w}주차: 날짜·시간을 입력해 주세요.`);
+      setError(`Step ${w}: 날짜·시간을 입력해 주세요.`);
       return;
     }
     setBusy(w);
@@ -80,7 +80,7 @@ export default function SeminarPanel({ cohortId, seminars }: { cohortId: string;
     <article className="ops-partner-list-card">
       <div className="ops-partner-list-top">
         <h2>세미나 일정</h2>
-        <span className="ops-card-subtle">주차별로 입력하면 학생 화면에 표시돼요</span>
+        <span className="ops-card-subtle">단계별로 입력하면 학생 화면에 표시돼요</span>
       </div>
       {error ? <p className="ops-form-error">{error}</p> : null}
 
@@ -89,7 +89,7 @@ export default function SeminarPanel({ cohortId, seminars }: { cohortId: string;
           const row = rows[w];
           return (
             <div key={w} className="sem-row">
-              <div className="sem-week">{w}주차</div>
+              <div className="sem-week">Step {w}</div>
               <div className="sem-fields">
                 <div className="sem-line">
                   <input type="datetime-local" className="ops-input sem-dt" value={row.startsAt} onChange={(e) => patch(w, { startsAt: e.target.value })} />

@@ -1,7 +1,6 @@
-// 탤런트 이력서·자소서 편집기의 정식 경로는 /editor 다.
-// 이전 경로(/talent/career/resume · /cover)는 next.config 에서 여기로 308 리다이렉트한다.
-import { ResumeBuilderScreen } from "../../../../../components/talent/screens/ResumeBuilderScreen";
+import { ResumeEditorScreen } from "../../../../../components/talent/editor/ResumeEditorScreen";
 
-export default function TalentResumeRoute() {
-  return <ResumeBuilderScreen />;
+// 모듈형 이력서 에디터(전체 화면) — 모듈을 칸·순서로 조립하고 용도별 버전으로 저장한다.
+export default function TalentResumeEditorRoute() {
+  return <ResumeEditorScreen />;
 }

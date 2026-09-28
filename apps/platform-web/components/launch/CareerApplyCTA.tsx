@@ -39,7 +39,7 @@ export function CareerApplyCTA() {
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white p-6 shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)]">
-      <p className="text-[10.5px] font-black uppercase tracking-[0.14em] text-[#0B46E8]">🎉 {t("4주 완주", "4 weeks done", "完成4周", "Hoàn thành 4 tuần", "4週間完走", "4 minggu selesai")}</p>
+      <p className="text-[10.5px] font-black uppercase tracking-[0.14em] text-[#0B46E8]">🎉 {t("4단계 완주", "4 steps done", "完成4个步骤", "Hoàn thành 4 bước", "4ステップ完走", "4 langkah selesai")}</p>
       <h3 className="mt-1.5 break-keep text-[17px] font-black leading-[1.35] tracking-[-0.01em] text-[#0B1227]">
         {t("완성한 이력서·자소서로 이제 실제 공고에 지원하세요", "Apply to real jobs with your finished resume & cover letter", "用完成的简历与自我介绍投递真实职位", "Ứng tuyển việc thật với hồ sơ và thư đã hoàn thành", "完成した履歴書・自己紹介書で実際の求人に応募しましょう", "Lamar pekerjaan nyata dengan resume & surat lamaranmu")}
       </h3>

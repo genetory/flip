@@ -36,16 +36,16 @@ export function CareerLaunchIntro({ className = "" }: { className?: string }) {
       />
       <div className="p-5">
       <span className="inline-flex items-center rounded-full bg-[#0B46E8] px-2.5 py-0.5 text-[11px] font-bold text-white">
-        {t("4주 프로그램", "4-week program", "4周项目", "Chương trình 4 tuần", "4週間プログラム", "Program 4 minggu")}
+        {t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah")}
       </span>
       <p className="mt-2.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
         {t(
-          "AI 코치와 함께 취업 진단부터 이력서·자기소개서·모의면접까지 4주 만에 끝내고, 완성한 서류로 APLY 채용에 바로 연결돼요.",
-          "With an AI coach, finish everything from a career check to your resume, cover letter, and mock interview in 4 weeks — then connect straight to APLY hiring with your completed docs.",
-          "在 AI 教练的陪伴下，4 周内完成从求职诊断到简历、自我介绍、模拟面试的全部内容，并凭完成的材料直接对接 APLY 招聘。",
-          "Cùng huấn luyện viên AI, hoàn thành mọi thứ từ chẩn đoán nghề đến CV, thư giới thiệu và phỏng vấn thử trong 4 tuần — rồi kết nối thẳng đến tuyển dụng APLY bằng hồ sơ đã hoàn thiện.",
-          "AIコーチと一緒に、就職診断から履歴書・自己紹介書・模擬面接まで4週間で仕上げ、完成した書類でそのままAPLY採用につながります。",
-          "Bersama pelatih AI, selesaikan semuanya dari cek karier hingga resume, surat lamaran, dan wawancara simulasi dalam 4 minggu — lalu terhubung langsung ke rekrutmen APLY dengan dokumen jadi."
+          "AI 코치와 함께 취업 진단부터 이력서·자기소개서·모의면접까지 4단계에 걸쳐 끝내고, 완성한 서류로 APLY 채용에 바로 연결돼요.",
+          "With an AI coach, finish everything from a career check to your resume, cover letter, and mock interview across 4 steps — then connect straight to APLY hiring with your completed docs.",
+          "在 AI 教练的陪伴下，通过 4 个步骤完成从求职诊断到简历、自我介绍、模拟面试的全部内容，并凭完成的材料直接对接 APLY 招聘。",
+          "Cùng huấn luyện viên AI, hoàn thành mọi thứ từ chẩn đoán nghề đến CV, thư giới thiệu và phỏng vấn thử qua 4 bước — rồi kết nối thẳng đến tuyển dụng APLY bằng hồ sơ đã hoàn thiện.",
+          "AIコーチと一緒に、就職診断から履歴書・自己紹介書・模擬面接まで4ステップで仕上げ、完成した書類でそのままAPLY採用につながります。",
+          "Bersama pelatih AI, selesaikan semuanya dari cek karier hingga resume, surat lamaran, dan wawancara simulasi dalam 4 langkah — lalu terhubung langsung ke rekrutmen APLY dengan dokumen jadi."
         )}
       </p>
       <div className="mt-4 grid grid-cols-2 gap-2">

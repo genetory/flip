@@ -61,7 +61,7 @@ export function DeliverablesScreen() {
           <Reveal>
             <div>
               <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("결과물", "Deliverables", "成果", "Kết quả", "成果物", "Hasil")}</p>
-              <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.18] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t("4주 동안 만든 내 결과물", "Everything you built in 4 weeks", "4周内打造的成果", "Thành quả 4 tuần của bạn", "4週間で作った成果物", "Hasil yang kamu buat dalam 4 minggu")}</h1>
+              <h1 className="mt-2 break-keep text-[26px] font-black leading-[1.18] tracking-[-0.03em] text-[#191F28] md:text-[34px]">{t("4단계에 걸쳐 만든 내 결과물", "Everything you built across 4 steps", "4个步骤中打造的成果", "Thành quả 4 bước của bạn", "4ステップで作った成果物", "Hasil yang kamu buat dalam 4 langkah")}</h1>
               <p className="mt-2.5 max-w-[560px] break-keep text-[14.5px] leading-relaxed text-[#4E5968] md:text-[15.5px]">{t("진단부터 이력서·자기소개서, 면접 준비까지 한곳에 모았어요. 실제 지원에 그대로 활용하세요.", "From diagnosis to your resume, cover letter, and interview prep — all in one place, ready for real applications.", "从诊断到简历、求职信和面试准备，全都集中于此，可直接用于实际投递。", "Từ chẩn đoán đến CV, thư giới thiệu và chuẩn bị phỏng vấn — tất cả một nơi, sẵn sàng để ứng tuyển.", "診断から履歴書・自己紹介書、面接準備まで一箇所に。実際の応募にそのまま使えます。", "Dari diagnosis hingga resume, surat lamaran, dan persiapan wawancara — semua di satu tempat, siap untuk melamar.")}</p>
             </div>
           </Reveal>
@@ -78,7 +78,7 @@ export function DeliverablesScreen() {
                   loading={!loaded}
                   editHref="/career-launch/resume-collect"
                   fullHref="/career-launch/resume-preview"
-                  emptyLabel={t("2주차에서 작성해요", "Build it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Susun di Minggu 2")}
+                  emptyLabel={t("Step 2에서 작성해요", "Build it in Step 2", "在Step 2撰写", "Viết ở Step 2", "Step 2で作成", "Susun di Step 2")}
                   t={t}
                 >
                   <ResumeRender data={resume} />
@@ -89,7 +89,7 @@ export function DeliverablesScreen() {
                   loading={!loaded}
                   editHref="/career-launch/cover-collect"
                   fullHref="/career-launch/cover-preview"
-                  emptyLabel={t("2주차에서 작성해요", "Write it in Week 2", "在第2周撰写", "Viết ở Tuần 2", "Week 2で作成", "Tulis di Minggu 2")}
+                  emptyLabel={t("Step 2에서 작성해요", "Write it in Step 2", "在Step 2撰写", "Viết ở Step 2", "Step 2で作成", "Tulis di Step 2")}
                   t={t}
                 >
                   <CoverRender data={cover} />
@@ -99,7 +99,7 @@ export function DeliverablesScreen() {
 
             {/* 취업 준비 프로필 — 4주간의 진단을 한 장으로(준비도 추이·강점·보완점·관심 직무) */}
             <div>
-              <SectionTitle sub={t("4주 진단으로 정리한 나의 준비 상태", "Your readiness from the 4-week diagnosis", "4周诊断整理的准备状态", "Tình trạng sẵn sàng qua chẩn đoán 4 tuần", "4週間の診断でまとめた準備状態", "Kesiapan dari diagnosis 4 minggu")}>{t("취업 준비 프로필", "Job-readiness profile", "求职准备档案", "Hồ sơ sẵn sàng", "就職準備プロフィール", "Profil kesiapan kerja")}</SectionTitle>
+              <SectionTitle sub={t("4단계 진단으로 정리한 나의 준비 상태", "Your readiness from the 4-step diagnosis", "4个步骤诊断整理的准备状态", "Tình trạng sẵn sàng qua chẩn đoán 4 bước", "4ステップの診断でまとめた準備状態", "Kesiapan dari diagnosis 4 langkah")}>{t("취업 준비 프로필", "Job-readiness profile", "求职准备档案", "Hồ sơ sẵn sàng", "就職準備プロフィール", "Profil kesiapan kerja")}</SectionTitle>
               <ReadinessProfile prog={prog} t={t} />
 
               {/* 완성한 자산 → 실제 지원으로 */}
@@ -163,7 +163,7 @@ function ReadinessProfile({ prog, t }: { prog: CareerProgress | null; t: ReturnT
     return (
       <div className="rounded-2xl border border-dashed border-[#DDE3EA] bg-[#FAFBFC] p-6 text-center">
         <p className="text-[14px] font-bold text-[#191F28]">{t("아직 취업 준비 프로필이 없어요", "No readiness profile yet", "还没有求职准备档案", "Chưa có hồ sơ sẵn sàng", "まだ準備プロフィールがありません", "Belum ada profil kesiapan")}</p>
-        <p className="mx-auto mt-1.5 max-w-[300px] break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("1주차 진단을 마치면 준비도·강점·보완점이 여기에 정리돼요.", "Finish the Week 1 diagnosis and your readiness, strengths, and gaps appear here.", "完成第1周诊断后，准备度、优势与不足会整理在这里。", "Hoàn thành chẩn đoán Tuần 1 để xem mức độ sẵn sàng, điểm mạnh và điểm cần cải thiện tại đây.", "Week 1の診断を終えると、準備度・強み・改善点がここにまとまります。", "Selesaikan diagnosis Minggu 1, kesiapan, kekuatan, dan kekurangan muncul di sini.")}</p>
+        <p className="mx-auto mt-1.5 max-w-[300px] break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("Step 1 진단을 마치면 준비도·강점·보완점이 여기에 정리돼요.", "Finish the Step 1 diagnosis and your readiness, strengths, and gaps appear here.", "完成Step 1诊断后，准备度、优势与不足会整理在这里。", "Hoàn thành chẩn đoán Step 1 để xem mức độ sẵn sàng, điểm mạnh và điểm cần cải thiện tại đây.", "Step 1の診断を終えると、準備度・強み・改善点がここにまとまります。", "Selesaikan diagnosis Step 1, kesiapan, kekuatan, dan kekurangan muncul di sini.")}</p>
         <Link href="/career-launch/diagnosis" className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECF]">
           {t("진단 시작하기", "Start diagnosis", "开始诊断", "Bắt đầu chẩn đoán", "診断を始める", "Mulai diagnosis")}
           <ArrowRight className="h-4 w-4" weight="bold" aria-hidden />

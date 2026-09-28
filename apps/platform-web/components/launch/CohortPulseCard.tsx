@@ -26,7 +26,7 @@ export function CohortPulseCard() {
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] font-bold text-[#191F28]">{t(`우리 기수 ${stats.peerCount}명이 함께 달려요`, `${stats.peerCount} peers running with you`, `本期 ${stats.peerCount} 人一起冲刺`, `${stats.peerCount} bạn cùng khóa đang cùng tiến`, `同期${stats.peerCount}名が一緒に走っています`, `${stats.peerCount} rekan seangkatan berjuang bersama`)}</p>
           <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">
-            {t(`평균 ${stats.avgWeeks}/4주차 완료`, `Avg ${stats.avgWeeks}/4 weeks done`, `平均完成 ${stats.avgWeeks}/4 周`, `Trung bình ${stats.avgWeeks}/4 tuần`, `平均${stats.avgWeeks}/4週完了`, `Rata² ${stats.avgWeeks}/4 minggu`)}
+            {t(`평균 ${stats.avgWeeks}/4단계 완료`, `Avg ${stats.avgWeeks}/4 steps done`, `平均完成 ${stats.avgWeeks}/4 个步骤`, `Trung bình ${stats.avgWeeks}/4 bước`, `平均${stats.avgWeeks}/4ステップ完了`, `Rata² ${stats.avgWeeks}/4 langkah`)}
             {stats.aheadOfPct > 0 ? ` · ${t(`나는 상위 ${100 - stats.aheadOfPct}%`, `You're ahead of ${stats.aheadOfPct}%`, `你领先 ${stats.aheadOfPct}%`, `Bạn dẫn trước ${stats.aheadOfPct}%`, `あなたは上位${100 - stats.aheadOfPct}%`, `Kamu unggul dari ${stats.aheadOfPct}%`)}` : ""}
           </p>
         </div>

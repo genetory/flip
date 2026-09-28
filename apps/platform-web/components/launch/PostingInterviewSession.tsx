@@ -124,13 +124,13 @@ export function PostingInterviewSession({ posting, embedded = false, onClose }: 
         <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-4 md:pt-8">
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href="/career-launch/week/4" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("4주차", "Week 4", "第4周", "Tuần 4", "4週目", "Minggu 4")}</Link>
+              <Link href="/career-launch/week/4" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 4", "Step 4", "Step 4", "Step 4", "Step 4", "Step 4")}</Link>
               <Link href="/career-launch/week/4" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("4주차 · 공고별 모의면접", "Week 4 · Posting mock interview", "第4周 · 公告模拟面试", "Tuần 4 · Phỏng vấn theo tin", "Week 4 · 求人別模擬面接", "Minggu 4 · Wawancara per lowongan")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 4 · 공고별 모의면접", "Step 4 · Posting mock interview", "Step 4 · 公告模拟面试", "Step 4 · Phỏng vấn theo tin", "Step 4 · 求人別模擬面接", "Step 4 · Wawancara per lowongan")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{label}</h1>
           </div>
 

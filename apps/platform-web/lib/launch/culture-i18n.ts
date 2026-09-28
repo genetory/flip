@@ -37,7 +37,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           items: [
             { title: "Open recruitment and rolling hiring", body: "Large companies run regular open recruitment (gongchae) in spring and fall, while startups, foreign firms, and mid-sized companies mostly hire on a rolling (as-needed) basis. Because open recruitment has fixed timing, it matters to prepare your cover letter and aptitude test in advance; for rolling hiring, you need to apply quickly when a posting appears to seize the chance. Knowing which type your target companies use helps you align your timing and prep.", tip: "Search now to check whether your three target companies use open recruitment or rolling hiring.", example: "e.g. Large firms like Samsung, Hyundai Motor, and SK usually run open recruitment in the first half (Mar–Apr) and second half (Sep–Oct), while startups like Toss and Karrot post rolling openings on Saramin and Wanted." },
             { title: "Selection stages", body: "It usually goes: documents (resume and cover letter) → aptitude/coding test → working-level interview → executive interview. Each stage looks for something different — the documents show 'a reason to meet this person,' and the interview checks 'whether you're someone we want to work with.' Rather than starting to prepare for the next stage only after passing one, sketching out the whole flow before applying will put your mind at ease.", example: "e.g. Pass documents → online aptitude/coding test → 1st working-level interview (job questions) → 2nd executive interview (personality, values) → final offer; this usually takes 4–8 weeks." },
-            { title: "The weight of the cover letter", body: "Korea places special importance on the cover letter (jagisogaeseo). The key is to tell your motivation, growth story, and job competency as a 'story' rather than a plain list, so you need to include concrete experiences along with the concerns and results of the time to be persuasive. Foreign applicants in particular gain an edge by sincerely conveying 'why Korea, and why this company.'", tip: "You'll write your cover letter directly in Week 3 of this program, so for now just remember 'why it matters.'" },
+            { title: "The weight of the cover letter", body: "Korea places special importance on the cover letter (jagisogaeseo). The key is to tell your motivation, growth story, and job competency as a 'story' rather than a plain list, so you need to include concrete experiences along with the concerns and results of the time to be persuasive. Foreign applicants in particular gain an edge by sincerely conveying 'why Korea, and why this company.'", tip: "You'll write your cover letter directly in Step 2 of this program, so for now just remember 'why it matters.'" },
             { title: "Internship, industry-academic, and hire-linked tracks", body: "There are many paths where you first gain experience through an internship or industry-academic cooperation and then convert to a full-time role. It's a great entry point for new grads with little experience, letting you learn on the job while both sides check the fit. For international students especially, internship experience serves as proof that you've adapted to Korean organizational culture, which helps a lot when applying for full-time roles.", tip: "Watch for 'hire-linked internship' postings first. They recruit on the premise of full-time conversion, so passing is more likely to lead to employment." }
           ]
         },
@@ -157,7 +157,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           items: [
             { title: "公开招聘与随时招聘", body: "大企业在春秋两季有定期公开招聘（公채），初创企业、外资企业、中坚企业则多为需要时才招的随时招聘。公开招聘时间固定，因此提前准备好自我介绍书和职业适性测试很重要；随时招聘则要在公告一出就迅速应聘才能抓住机会。了解目标企业属于哪一类，便于配合应聘时机和准备方式。", tip: "现在就搜索确认你的三家目标企业采用的是公开招聘还是随时招聘。", example: "例）三星、现代汽车、SK等大企业通常在上半年（3~4月）、下半年（9~10月）进行公开招聘，Toss、当根等初创企业则在Saramin、Wanted上随时发布公告。" },
             { title: "选拔阶段", body: "通常按 材料（简历·自我介绍书）→ 职业适性·编程测试 → 实务面试 → 高管面试 的顺序进行。每个阶段看重的重点不同，材料是看‘值得见这个人的理由’，面试是确认‘是否是想一起共事的人’。不要通过一个阶段后才开始准备下一个，应聘前先在脑中勾勒整体流程，心里会踏实得多。", example: "例）材料合格 → 在线职业适性/编程测试 → 一次实务面试（岗位提问）→ 二次高管面试（人品·价值观）→ 最终录用通知，通常需要4~8周。" },
-            { title: "自我介绍书的分量", body: "韩国尤其重视自我介绍书（自기소개서）。关键是把应聘动机、成长历程、岗位能力以‘故事’来呈现，而非简单罗列，因此要写出具体的经历以及当时的思考与结果才有说服力。外国申请者若能真诚地写出‘为何在韩国、为何在这家公司工作’，尤其能成为优势。", tip: "本项目第3周你将亲手完成自我介绍书，现在只要记住‘为何重要’即可。" },
+            { title: "自我介绍书的分量", body: "韩国尤其重视自我介绍书（自기소개서）。关键是把应聘动机、成长历程、岗位能力以‘故事’来呈现，而非简单罗列，因此要写出具体的经历以及当时的思考与结果才有说服力。外国申请者若能真诚地写出‘为何在韩国、为何在这家公司工作’，尤其能成为优势。", tip: "本项目Step 2你将亲手完成自我介绍书，现在只要记住‘为何重要’即可。" },
             { title: "实习·产学·就业衔接型", body: "通过实习或产学合作先积累经验、再转为正式员工的路径也很多。对经验不足的应届生来说，这是能边学实务边确认与公司是否契合的好入口。尤其对留学生而言，实习经历能证明你已适应韩国组织文化，在申请正式岗位时大有帮助。", tip: "优先留意‘就业衔接型实习’公告。它以转正为前提招人，合格后就业的概率较高。" }
           ]
         },
@@ -277,7 +277,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           items: [
             { title: "Tuyển tập trung và tuyển linh hoạt", body: "Các tập đoàn lớn tổ chức tuyển tập trung định kỳ (gongchae) vào mùa xuân và mùa thu, còn startup, công ty nước ngoài, doanh nghiệp tầm trung thì phần lớn tuyển linh hoạt (khi cần). Vì tuyển tập trung có thời điểm cố định nên việc chuẩn bị trước thư giới thiệu bản thân và bài kiểm tra năng lực là quan trọng; còn tuyển linh hoạt thì phải nộp nhanh khi có tin đăng mới nắm được cơ hội. Biết công ty mục tiêu thuộc loại nào giúp bạn căn thời điểm và cách chuẩn bị.", tip: "Hãy tìm kiếm ngay để xác nhận ba công ty mục tiêu của bạn dùng tuyển tập trung hay tuyển linh hoạt.", example: "VD) Các tập đoàn lớn như Samsung, Hyundai Motor, SK thường tuyển tập trung vào nửa đầu năm (tháng 3–4) và nửa cuối năm (tháng 9–10), còn startup như Toss, Karrot thì đăng tin linh hoạt trên Saramin, Wanted." },
             { title: "Các vòng tuyển chọn", body: "Thường diễn ra theo thứ tự: hồ sơ (CV và thư giới thiệu) → kiểm tra năng lực/coding test → phỏng vấn chuyên môn → phỏng vấn ban lãnh đạo. Mỗi vòng nhìn vào một điểm khác nhau — hồ sơ cho thấy 'lý do để gặp người này', còn phỏng vấn xác nhận 'có phải người mình muốn cùng làm việc không'. Đừng đợi qua một vòng rồi mới bắt đầu chuẩn bị vòng sau; phác họa toàn bộ luồng trước khi nộp sẽ giúp bạn nhẹ nhõm hơn nhiều.", example: "VD) Đậu hồ sơ → kiểm tra năng lực/coding online → phỏng vấn chuyên môn vòng 1 (câu hỏi công việc) → phỏng vấn ban lãnh đạo vòng 2 (nhân cách, giá trị) → thông báo trúng tuyển; thường mất 4–8 tuần." },
-            { title: "Trọng lượng của thư giới thiệu bản thân", body: "Hàn Quốc đặc biệt coi trọng thư giới thiệu bản thân (jagisogaeseo). Điểm cốt lõi là trình bày động cơ ứng tuyển, quá trình trưởng thành, năng lực công việc như một 'câu chuyện' chứ không phải liệt kê, nên phải viết kèm trải nghiệm cụ thể cùng những trăn trở và kết quả lúc đó mới có sức thuyết phục. Ứng viên người nước ngoài đặc biệt có lợi thế khi truyền tải chân thành 'vì sao ở Hàn, vì sao ở công ty này'.", tip: "Bạn sẽ tự viết thư giới thiệu ở Tuần 3 của chương trình này, nên bây giờ chỉ cần nhớ 'vì sao nó quan trọng'." },
+            { title: "Trọng lượng của thư giới thiệu bản thân", body: "Hàn Quốc đặc biệt coi trọng thư giới thiệu bản thân (jagisogaeseo). Điểm cốt lõi là trình bày động cơ ứng tuyển, quá trình trưởng thành, năng lực công việc như một 'câu chuyện' chứ không phải liệt kê, nên phải viết kèm trải nghiệm cụ thể cùng những trăn trở và kết quả lúc đó mới có sức thuyết phục. Ứng viên người nước ngoài đặc biệt có lợi thế khi truyền tải chân thành 'vì sao ở Hàn, vì sao ở công ty này'.", tip: "Bạn sẽ tự viết thư giới thiệu ở Step 2 của chương trình này, nên bây giờ chỉ cần nhớ 'vì sao nó quan trọng'." },
             { title: "Thực tập · liên kết học-nghề · tuyển gắn với chuyển chính thức", body: "Có nhiều con đường tích lũy kinh nghiệm trước qua thực tập hoặc hợp tác học-nghề rồi chuyển sang chính thức. Đây là cửa vào tốt cho tân cử nhân ít kinh nghiệm, vừa học việc vừa để hai bên kiểm tra sự phù hợp. Đặc biệt với du học sinh, kinh nghiệm thực tập là bằng chứng bạn đã thích nghi với văn hóa tổ chức Hàn Quốc, rất hữu ích khi ứng tuyển chính thức.", tip: "Hãy để ý trước các tin 'thực tập gắn chuyển chính thức'. Vì họ tuyển với tiền đề chuyển chính thức nên đậu thì khả năng dẫn tới việc làm cao hơn." }
           ]
         },
@@ -397,7 +397,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           items: [
             { title: "定期採用と随時採用", body: "大企業は春・秋に定期採用（公採）を行い、スタートアップ・外資系・中堅企業は必要なときに採る随時採用が多いです。定期採用は時期が決まっているので自己紹介書と適性検査を前もって準備することが大切で、随時採用は募集が出たら素早く応募してこそチャンスをつかめます。志望企業がどちらか分かれば、応募時期と準備の仕方を合わせやすくなります。", tip: "今すぐ、志望企業3社の採用方式（定期／随時）を検索して確認してみましょう。", example: "例）サムスン・現代自動車・SKなど大企業は通常、上半期（3〜4月）・下半期（9〜10月）に定期採用を、Toss・当根などのスタートアップはSaramin・Wantedに随時募集を出します。" },
             { title: "選考段階", body: "通常、書類（履歴書・自己紹介書）→ 適性・コーディングテスト → 実務面接 → 役員面接 の順で進みます。段階ごとに見るポイントが違い、書類は『この人に会う理由』を、面接は『一緒に働きたい人か』を確認する場です。各段階を通過してから次の準備を始めるのではなく、応募前に全体の流れを描いておくと気持ちがずっと楽になります。", example: "例）書類合格 → オンライン適性/コーディングテスト → 一次実務面接（職務質問）→ 二次役員面接（人柄・価値観）→ 最終合格通知の順で、通常4〜8週間かかります。" },
-            { title: "自己紹介書の比重", body: "韓国は自己紹介書（自己紹介書）を特に重視します。志望動機・成長過程・職務能力を単なる羅列ではなく『ストーリー』として描くのがカギで、具体的な経験と当時の悩み・結果を一緒に書いてこそ説得力が生まれます。特に外国人応募者は『なぜ韓国で、なぜこの会社で働きたいのか』を誠実に込めると強みになります。", tip: "このプログラムの3週目で自己紹介書を実際に完成させるので、今は『なぜ重要か』だけ覚えておけば十分です。" },
+            { title: "自己紹介書の比重", body: "韓国は自己紹介書（自己紹介書）を特に重視します。志望動機・成長過程・職務能力を単なる羅列ではなく『ストーリー』として描くのがカギで、具体的な経験と当時の悩み・結果を一緒に書いてこそ説得力が生まれます。特に外国人応募者は『なぜ韓国で、なぜこの会社で働きたいのか』を誠実に込めると強みになります。", tip: "このプログラムのStep 2で自己紹介書を実際に完成させるので、今は『なぜ重要か』だけ覚えておけば十分です。" },
             { title: "インターン・産学・採用連携型", body: "インターンや産学連携でまず経験を積み、正社員に転換する道も多くあります。経験の少ない新卒に、実務を学びながら会社と互いの相性を確認できる良い入り口です。特に留学生はインターン経験が韓国の組織文化に適応した証となり、正社員応募時に大いに役立ちます。", tip: "『採用連携型インターン』の募集をまず注目しましょう。正社員転換を前提に採るので、合格すれば就職につながる確率が高いです。" }
           ]
         },
@@ -517,7 +517,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           items: [
             { title: "Rekrutmen terbuka dan sewaktu-waktu", body: "Perusahaan besar mengadakan rekrutmen terbuka berkala (gongchae) di musim semi dan gugur, sementara startup, perusahaan asing, dan perusahaan menengah lebih banyak merekrut sewaktu-waktu (saat dibutuhkan). Karena rekrutmen terbuka waktunya tetap, penting menyiapkan surat pengenalan diri dan tes bakat sejak awal; untuk rekrutmen sewaktu-waktu, kamu harus melamar cepat saat lowongan muncul agar tak kehilangan kesempatan. Mengetahui perusahaan targetmu termasuk yang mana membantu menyesuaikan waktu dan cara persiapan.", tip: "Cari sekarang untuk memastikan tiga perusahaan targetmu memakai rekrutmen terbuka atau sewaktu-waktu.", example: "Mis.) Perusahaan besar seperti Samsung, Hyundai Motor, SK biasanya mengadakan rekrutmen terbuka di paruh pertama (Mar–Apr) dan paruh kedua (Sep–Okt), sedangkan startup seperti Toss, Karrot memasang lowongan sewaktu-waktu di Saramin, Wanted." },
             { title: "Tahap seleksi", body: "Biasanya berurutan: berkas (resume dan surat pengenalan diri) → tes bakat/coding test → wawancara teknis → wawancara pimpinan. Tiap tahap menilai hal berbeda — berkas menunjukkan 'alasan untuk menemui orang ini', sedangkan wawancara memastikan 'apakah kamu orang yang ingin diajak bekerja'. Alih-alih baru menyiapkan tahap berikutnya setelah lolos satu tahap, menggambarkan seluruh alur sebelum melamar akan membuat hatimu jauh lebih tenang.", example: "Mis.) Lolos berkas → tes bakat/coding online → wawancara teknis tahap 1 (pertanyaan pekerjaan) → wawancara pimpinan tahap 2 (kepribadian, nilai) → pemberitahuan lolos akhir; biasanya butuh 4–8 minggu." },
-            { title: "Bobot surat pengenalan diri", body: "Korea sangat mementingkan surat pengenalan diri (jagisogaeseo). Kuncinya adalah menyampaikan motivasi melamar, proses pertumbuhan, dan kompetensi kerja sebagai 'cerita', bukan sekadar daftar, sehingga kamu perlu menulis pengalaman konkret beserta pergulatan dan hasil saat itu agar meyakinkan. Pelamar asing khususnya diuntungkan dengan menyampaikan dengan tulus 'mengapa di Korea, dan mengapa di perusahaan ini'.", tip: "Kamu akan menulis surat pengenalan diri langsung di Minggu ke-3 program ini, jadi untuk sekarang cukup ingat 'mengapa itu penting'." },
+            { title: "Bobot surat pengenalan diri", body: "Korea sangat mementingkan surat pengenalan diri (jagisogaeseo). Kuncinya adalah menyampaikan motivasi melamar, proses pertumbuhan, dan kompetensi kerja sebagai 'cerita', bukan sekadar daftar, sehingga kamu perlu menulis pengalaman konkret beserta pergulatan dan hasil saat itu agar meyakinkan. Pelamar asing khususnya diuntungkan dengan menyampaikan dengan tulus 'mengapa di Korea, dan mengapa di perusahaan ini'.", tip: "Kamu akan menulis surat pengenalan diri langsung di Step 2 program ini, jadi untuk sekarang cukup ingat 'mengapa itu penting'." },
             { title: "Jalur magang · kerja sama industri-akademik · magang-ke-tetap", body: "Ada banyak jalur di mana kamu lebih dulu menimba pengalaman lewat magang atau kerja sama industri-akademik lalu diangkat menjadi karyawan tetap. Ini pintu masuk yang bagus bagi fresh graduate minim pengalaman, sambil belajar bekerja dan kedua pihak saling mengecek kecocokan. Khususnya bagi mahasiswa internasional, pengalaman magang menjadi bukti bahwa kamu sudah beradaptasi dengan budaya organisasi Korea, sangat membantu saat melamar posisi tetap.", tip: "Perhatikan lebih dulu lowongan 'magang jalur pengangkatan tetap'. Karena direkrut dengan premis pengangkatan tetap, lolos lebih mungkin berujung pada pekerjaan." }
           ]
         },
@@ -624,7 +624,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
       emoji: "📄",
       title: "Korean-Style Resume Manners",
       intro:
-        "Learn in detail the format and writing methods of a Korean resume, and the mistakes to avoid. The quality of the resume you build this week will rise sharply. Check yourself with the quiz at the end.",
+        "Learn in detail the format and writing methods of a Korean resume, and the mistakes to avoid. The quality of the resume you build in this step will rise sharply. Check yourself with the quiz at the end.",
       objectives: [
         "Know the basic structure and format of a Korean resume",
         "Understand how to handle the photo and personal details",
@@ -720,7 +720,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
       emoji: "📄",
       title: "韩式简历礼仪",
       intro:
-        "详细学习韩国简历的格式、写法，以及应避免的错误。本周你制作的简历完成度会大幅提升。最后用测验检验自己。",
+        "详细学习韩国简历的格式、写法，以及应避免的错误。本步骤中你制作的简历完成度会大幅提升。最后用测验检验自己。",
       objectives: [
         "了解韩国简历的基本构成和格式",
         "理解如何处理照片和个人信息",
@@ -816,7 +816,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
       emoji: "📄",
       title: "Phép tắc CV kiểu Hàn Quốc",
       intro:
-        "Học chi tiết định dạng, cách viết CV Hàn Quốc và cả những lỗi cần tránh. Độ hoàn thiện của CV bạn làm tuần này sẽ tăng lên rõ rệt. Hãy tự kiểm tra bằng bài quiz ở cuối.",
+        "Học chi tiết định dạng, cách viết CV Hàn Quốc và cả những lỗi cần tránh. Độ hoàn thiện của CV bạn làm ở bước này sẽ tăng lên rõ rệt. Hãy tự kiểm tra bằng bài quiz ở cuối.",
       objectives: [
         "Biết cấu trúc và định dạng cơ bản của CV Hàn Quốc",
         "Hiểu cách xử lý ảnh và thông tin cá nhân",
@@ -912,7 +912,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
       emoji: "📄",
       title: "韓国式履歴書のマナー",
       intro:
-        "韓国の履歴書の形式や書き方、避けるべきミスまで詳しく学びます。今週作る履歴書の完成度がぐっと上がります。最後のクイズで確認しましょう。",
+        "韓国の履歴書の形式や書き方、避けるべきミスまで詳しく学びます。このステップで作る履歴書の完成度がぐっと上がります。最後のクイズで確認しましょう。",
       objectives: [
         "韓国の履歴書の基本構成と形式を知る",
         "写真・個人情報の扱い方を理解する",
@@ -1008,7 +1008,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
       emoji: "📄",
       title: "Etika Resume Gaya Korea",
       intro:
-        "Pelajari secara rinci format dan cara menulis resume Korea, hingga kesalahan yang harus dihindari. Tingkat kesempurnaan resume yang kamu buat minggu ini akan meningkat tajam. Periksa dirimu dengan kuis di akhir.",
+        "Pelajari secara rinci format dan cara menulis resume Korea, hingga kesalahan yang harus dihindari. Tingkat kesempurnaan resume yang kamu buat di langkah ini akan meningkat tajam. Periksa dirimu dengan kuis di akhir.",
       objectives: [
         "Mengetahui struktur dan format dasar resume Korea",
         "Memahami cara menangani foto dan data pribadi",
@@ -2099,7 +2099,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🛂",
           summary: "For foreigner hiring, the 'visa sponsor' is key. Be sure to check before applying.",
           items: [
-            { title: "What the E-7 (Specific Activities) visa is", body: "The most common work visa when a student takes a professional job after graduation is the E-7. It must be a role related to your major/experience, and the company has to prepare the documents needed for the visa together with you. That's why whether the company 'has experience hiring foreigners' matters.", tip: "The stronger the link between your major and the job, the more favorable for E-7 approval — that's why the Week 1 job selection was important." },
+            { title: "What the E-7 (Specific Activities) visa is", body: "The most common work visa when a student takes a professional job after graduation is the E-7. It must be a role related to your major/experience, and the company has to prepare the documents needed for the visa together with you. That's why whether the company 'has experience hiring foreigners' matters.", tip: "The stronger the link between your major and the job, the more favorable for E-7 approval — that's why the Step 1 job selection was important." },
             { title: "Reading signals in postings", body: "If a posting has phrases like 'foreigners may apply', 'visa sponsorship provided', or 'visa support', it's a green light. Conversely, conditions like 'Koreans only' or 'military service completed' may make applying difficult. If it's ambiguous, it's fine to politely inquire with the hiring manager before applying.", example: "Inquiry example:\n'I'd like to ask whether this position is open to foreign (E-7 visa) applicants as well.'" },
             { title: "Places open to foreigner hiring", body: "Foreign companies, IT/startups doing global business, trade/logistics, and roles requiring multiple languages are relatively open to hiring foreigners. Aiming for roles where your language/culture strength is 'needed' rather than merely 'nice to have' boosts your competitiveness.", tip: "For multilingual, localization, and global sales roles, an international student's strength becomes the very reason for hiring." },
             { title: "Check visa requirements in advance", body: "Checking your visa status (period of stay, D-2/D-10, etc.) and E-7 conversion requirements at the same time you apply makes the post-acceptance process smooth. Grasp the needed documents via HiKorea and the Immigration Office guidance.", tip: "If you're about to graduate, also learn about securing your stay period with a job-seeking (D-10) visa." }
@@ -2110,7 +2110,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🎯",
           summary: "Rather than blindly applying to many, apply carefully to the right places. And consistently.",
           items: [
-            { title: "Customization raises your acceptance rate", body: "Rather than sending the same resume and cover letter as-is, tweaking your motivation and strengths to match the posting's requirement keywords raises your pass rate. Just slightly adjusting the items you built in Week 3 for each posting is enough.", tip: "Match the posting's 'requirements/preferred qualifications' sentences to the wording in your resume." },
+            { title: "Customization raises your acceptance rate", body: "Rather than sending the same resume and cover letter as-is, tweaking your motivation and strengths to match the posting's requirement keywords raises your pass rate. Just slightly adjusting the items you built in Step 2 for each posting is enough.", tip: "Match the posting's 'requirements/preferred qualifications' sentences to the wording in your resume." },
             { title: "Building an application portfolio", body: "Applying to a mix of 'reach' companies you want, realistic 'target' companies, and 'safe' companies with a high chance of acceptance is psychologically steadying and widens your opportunities. Don't cling to one place — prepare along several tracks.", example: "e.g. Split into about 2 reach · 3 target · 2 safe and prepare them simultaneously." },
             { title: "Manage by keeping records", body: "Managing where and when you applied, along with deadlines and stages, in a table keeps you from missing things. Seeing your application status at a glance also makes clear what to prepare next.", tip: "Note the company, role, application date, deadline, and status in a simple spreadsheet." },
             { title: "Keep going even after rejection", body: "A rejection is often not a lack of ability but simply 'not a fit for that spot.' If there's feedback, apply it; if not, review on your own and keep going with the next application. Consistency ultimately leads to acceptance.", tip: "Note just one regret from a place you were rejected and reflect it in your next application." }
@@ -2184,7 +2184,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🛂",
           summary: "外国人招聘中，‘签证担保’是关键。申请前务必确认。",
           items: [
-            { title: "何为E-7（特定活动）签证", body: "留学生毕业后从事专业职务就业时，最常见的就业签证是E-7。必须是与专业·经历相关的职务，且公司要一同准备签证所需的文件。因此‘是否有外国人招聘经验的公司’很重要。", tip: "专业与职务的关联越大，越有利于E-7审批——所以第1周的职务选定很重要。" },
+            { title: "何为E-7（特定活动）签证", body: "留学生毕业后从事专业职务就业时，最常见的就业签证是E-7。必须是与专业·经历相关的职务，且公司要一同准备签证所需的文件。因此‘是否有外国人招聘经验的公司’很重要。", tip: "专业与职务的关联越大，越有利于E-7审批——所以Step 1的职务选定很重要。" },
             { title: "从公告读取信号", body: "公告中有‘外国人可申请’‘提供签证担保’‘visa support’这类文句就是绿灯。相反，若有‘限本国人’‘已服兵役’等条件，可能难以申请。含糊时，申请前礼貌地向招聘负责人咨询也无妨。", example: "咨询示例：\n‘想请教一下，该职位是否也接受外国人（E-7签证）申请。’" },
             { title: "对外国人招聘开放的地方", body: "外资企业、做全球业务的IT·初创企业、贸易·物流、需要多语言的职务，对外国人招聘相对开放。瞄准那些你的语言·文化优势‘是必需’而非‘有更好’的岗位，竞争力会更强。", tip: "多语言·本地化·全球销售职务上，留学生的优势本身就成为录用理由。" },
             { title: "提前确认签证要件", body: "在申请的同时提前确认自己的签证状态（滞留期限、D-2/D-10等）和E-7转换要件，合格后流程会更顺畅。通过HiKorea和出入境·外国人厅指南，把所需文件摸清楚。", tip: "若即将毕业，也了解一下用求职（D-10）签证确保滞留期限的方法。" }
@@ -2195,7 +2195,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🎯",
           summary: "与其盲目多投，不如向合适的地方用心投。而且要持续。",
           items: [
-            { title: "定制化提高合格率", body: "与其原样群发同一份简历·自我介绍书，不如按公告的资格要求关键词，把应聘动机和强项稍作修改，通过率会提高。只需把第3周做好的文项针对每份公告略作调整就够了。", tip: "把公告的‘资格要求·优待事项’语句，与你简历的表达对齐。" },
+            { title: "定制化提高合格率", body: "与其原样群发同一份简历·自我介绍书，不如按公告的资格要求关键词，把应聘动机和强项稍作修改，通过率会提高。只需把Step 2做好的文项针对每份公告略作调整就够了。", tip: "把公告的‘资格要求·优待事项’语句，与你简历的表达对齐。" },
             { title: "构建申请组合", body: "把想去的‘挑战’企业、现实的‘适中’企业、合格可能性高的‘稳妥’企业混合申请，心理上更安定，机会也更广。别只盯着一处，分多条路准备。", example: "例）分成挑战2处·适中3处·稳妥2处左右，同时准备。" },
             { title: "记录着管理", body: "把在何处、何时申请，以及截止日和甄选阶段用表格管理，就不会漏掉。一眼看清申请现状，接下来该准备什么也会更明确。", tip: "在简单的电子表格里记下公司·职务·申请日·截止日·状态。" },
             { title: "落选也要继续", body: "落选往往不是能力不足，而只是‘与那个岗位不合’而已。有反馈就采纳，没有就自己复盘，继续下一次申请。持之以恒最终会通向合格。", tip: "把落选处的一个遗憾点记下来，反映到下次申请中。" }
@@ -2269,7 +2269,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🛂",
           summary: "Với tuyển người nước ngoài, 'người bảo lãnh visa' là mấu chốt. Nhất định kiểm tra trước khi ứng tuyển.",
           items: [
-            { title: "Visa E-7 (hoạt động đặc định) là gì", body: "Visa lao động phổ biến nhất khi du học sinh làm công việc chuyên môn sau tốt nghiệp là E-7. Phải là vị trí liên quan đến ngành học · kinh nghiệm, và công ty phải cùng chuẩn bị giấy tờ cần cho visa với bạn. Vì thế 'công ty có kinh nghiệm tuyển người nước ngoài không' rất quan trọng.", tip: "Ngành học và công việc liên quan càng chặt càng có lợi cho việc duyệt E-7 — vì thế việc chọn công việc ở Tuần 1 rất quan trọng." },
+            { title: "Visa E-7 (hoạt động đặc định) là gì", body: "Visa lao động phổ biến nhất khi du học sinh làm công việc chuyên môn sau tốt nghiệp là E-7. Phải là vị trí liên quan đến ngành học · kinh nghiệm, và công ty phải cùng chuẩn bị giấy tờ cần cho visa với bạn. Vì thế 'công ty có kinh nghiệm tuyển người nước ngoài không' rất quan trọng.", tip: "Ngành học và công việc liên quan càng chặt càng có lợi cho việc duyệt E-7 — vì thế việc chọn công việc ở Step 1 rất quan trọng." },
             { title: "Đọc tín hiệu trong tin tuyển", body: "Nếu tin có cụm như 'người nước ngoài có thể ứng tuyển', 'cung cấp bảo lãnh visa', 'visa support' thì là đèn xanh. Ngược lại, điều kiện như 'chỉ người trong nước', 'đã hoàn thành nghĩa vụ quân sự' có thể khiến khó ứng tuyển. Nếu mơ hồ, hỏi lịch sự người phụ trách tuyển trước khi ứng tuyển cũng không sao.", example: "VD hỏi:\n'Em muốn hỏi vị trí này có nhận cả ứng viên nước ngoài (visa E-7) không ạ.'" },
             { title: "Nơi cởi mở với tuyển người nước ngoài", body: "Công ty nước ngoài, IT/startup làm kinh doanh toàn cầu, thương mại/logistics, và vị trí cần đa ngôn ngữ tương đối cởi mở với tuyển người nước ngoài. Nhắm vào vị trí mà thế mạnh ngôn ngữ · văn hóa của bạn 'là cần thiết' thay vì chỉ 'có thì tốt' sẽ tăng sức cạnh tranh.", tip: "Ở vị trí đa ngôn ngữ · bản địa hóa · bán hàng toàn cầu, thế mạnh của du học sinh chính là lý do tuyển dụng." },
             { title: "Kiểm tra điều kiện visa trước", body: "Kiểm tra tình trạng visa của bạn (thời gian lưu trú, D-2/D-10...) và điều kiện chuyển E-7 cùng lúc ứng tuyển giúp quy trình sau khi trúng tuyển mượt mà. Nắm giấy tờ cần thiết qua HiKorea và hướng dẫn của Cục Xuất nhập cảnh.", tip: "Nếu sắp tốt nghiệp, hãy tìm hiểu cách đảm bảo thời gian lưu trú bằng visa tìm việc (D-10)." }
@@ -2280,7 +2280,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🎯",
           summary: "Thay vì nộp bừa thật nhiều, hãy nộp cẩn thận vào nơi phù hợp. Và đều đặn.",
           items: [
-            { title: "Tùy chỉnh nâng tỷ lệ trúng tuyển", body: "Thay vì gửi nguyên cùng một CV · thư giới thiệu, chỉnh động cơ và thế mạnh theo từ khóa yêu cầu của tin tuyển sẽ nâng tỷ lệ qua vòng. Chỉ cần điều chỉnh nhẹ các mục bạn làm ở Tuần 3 cho từng tin là đủ.", tip: "Khớp câu 'yêu cầu · điểm ưu tiên' của tin tuyển với cách diễn đạt trong CV của bạn." },
+            { title: "Tùy chỉnh nâng tỷ lệ trúng tuyển", body: "Thay vì gửi nguyên cùng một CV · thư giới thiệu, chỉnh động cơ và thế mạnh theo từ khóa yêu cầu của tin tuyển sẽ nâng tỷ lệ qua vòng. Chỉ cần điều chỉnh nhẹ các mục bạn làm ở Step 2 cho từng tin là đủ.", tip: "Khớp câu 'yêu cầu · điểm ưu tiên' của tin tuyển với cách diễn đạt trong CV của bạn." },
             { title: "Xây danh mục ứng tuyển", body: "Ứng tuyển pha trộn công ty 'thử thách' bạn muốn, công ty 'vừa tầm' thực tế, và công ty 'an toàn' khả năng trúng cao vừa vững tâm lý vừa mở rộng cơ hội. Đừng bám một nơi — hãy chuẩn bị theo nhiều nhánh.", example: "VD) Chia khoảng thử thách 2 · vừa tầm 3 · an toàn 2 và chuẩn bị đồng thời." },
             { title: "Quản lý bằng ghi chép", body: "Quản lý bằng bảng việc bạn đã nộp ở đâu, khi nào, cùng hạn chót và các vòng giúp bạn không bỏ sót. Nhìn tình trạng ứng tuyển trong nháy mắt cũng làm rõ việc cần chuẩn bị tiếp theo.", tip: "Ghi công ty · vị trí · ngày nộp · hạn chót · trạng thái vào một bảng tính đơn giản." },
             { title: "Rớt vẫn tiếp tục", body: "Rớt thường không phải thiếu năng lực mà chỉ là 'không hợp với vị trí đó' thôi. Có phản hồi thì áp dụng, không thì tự phục dựng lại và tiếp tục lần nộp sau. Sự đều đặn rốt cuộc dẫn tới trúng tuyển.", tip: "Ghi lại chỉ một điều tiếc ở nơi bị rớt và phản ánh vào lần nộp sau." }
@@ -2354,7 +2354,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🛂",
           summary: "外国人採用は『ビザスポンサー』が肝心です。応募前に必ず確認しましょう。",
           items: [
-            { title: "E-7（特定活動）ビザとは", body: "留学生が卒業後に専門職で就職するとき、最も一般的な就労ビザがE-7です。専攻・経歴に関連する職務でなければならず、会社がビザ発給に必要な書類を一緒に準備してくれる必要があります。だから『外国人採用の経験がある会社』かが重要です。", tip: "専攻と職務の関連が大きいほどE-7承認に有利です——だから1週目の職務選定が重要でした。" },
+            { title: "E-7（特定活動）ビザとは", body: "留学生が卒業後に専門職で就職するとき、最も一般的な就労ビザがE-7です。専攻・経歴に関連する職務でなければならず、会社がビザ発給に必要な書類を一緒に準備してくれる必要があります。だから『外国人採用の経験がある会社』かが重要です。", tip: "専攻と職務の関連が大きいほどE-7承認に有利です——だからStep 1の職務選定が重要でした。" },
             { title: "募集から信号を読む", body: "募集に『外国人応募可能』『ビザスポンサーシップ提供』『visa support』のような文言があれば青信号です。逆に『国内在住者のみ』『兵役済み』のような条件があると応募が難しいことがあります。曖昧なら、応募前に採用担当者に丁寧に問い合わせても構いません。", example: "問い合わせ例：\n『こちらのポジションは外国人（E-7ビザ）応募も可能かお伺いしたいです。』" },
             { title: "外国人採用に前向きな所", body: "外資系企業、グローバル事業をするIT・スタートアップ、貿易・物流、多言語が必要な職務は、比較的外国人採用に前向きです。あなたの言語・文化の強みが『あればいい』ではなく『必要な』ポジションを狙うと、競争力が高まります。", tip: "多言語・ローカライズ・グローバルセールス職では、留学生の強みがそのまま採用理由になります。" },
             { title: "ビザ要件を前もって確認", body: "応募と同時に自分のビザ状態（滞在期間、D-2/D-10など）とE-7転換要件を前もって確認しておくと、合格後の手続きがスムーズです。HiKoreaと出入国・外国人庁の案内で必要書類を把握しておきましょう。", tip: "卒業予定なら、求職（D-10）ビザで滞在期間を確保する方法も知っておきましょう。" }
@@ -2365,7 +2365,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🎯",
           summary: "むやみに多く出すより、合う所に丁寧に。そして着実に。",
           items: [
-            { title: "カスタマイズが合格率を上げる", body: "同じ履歴書・自己紹介書をそのまま回すより、募集の資格要件キーワードに合わせて志望動機と強みを少し手直しすると通過率が上がります。3週目で作った項目を募集ごとに少し調整するだけで十分です。", tip: "募集の『資格要件・優遇事項』の文と、あなたの履歴書の表現を合わせてみましょう。" },
+            { title: "カスタマイズが合格率を上げる", body: "同じ履歴書・自己紹介書をそのまま回すより、募集の資格要件キーワードに合わせて志望動機と強みを少し手直しすると通過率が上がります。Step 2で作った項目を募集ごとに少し調整するだけで十分です。", tip: "募集の『資格要件・優遇事項』の文と、あなたの履歴書の表現を合わせてみましょう。" },
             { title: "応募ポートフォリオの構成", body: "行きたい『挑戦』企業、現実的な『適正』企業、合格可能性の高い『安定』企業を混ぜて応募すると、心理的にも安定し機会も広がります。一か所に固執せず、複数の道で準備しましょう。", example: "例）挑戦2社・適正3社・安定2社ほどに分けて同時に準備します。" },
             { title: "記録しながら管理", body: "どこにいつ応募したか、締切と選考段階を表で管理すると取りこぼしがありません。応募状況を一目で見れば、次に何を準備するかも明確になります。", tip: "簡単なスプレッドシートに会社・職務・応募日・締切・状態を書いておきましょう。" },
             { title: "落ちても続ける", body: "不合格は実力不足ではなく『そのポジションと合わなかった』だけの場合が多いです。フィードバックがあれば反映し、なければ自分で振り返って次の応募を続けましょう。着実さが結局は合格につながります。", tip: "落ちた所の惜しかった点を1つだけメモして、次の応募に反映しましょう。" }
@@ -2439,7 +2439,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🛂",
           summary: "Untuk rekrutmen orang asing, 'sponsor visa' adalah kuncinya. Pastikan mengecek sebelum melamar.",
           items: [
-            { title: "Apa itu visa E-7 (Aktivitas Tertentu)", body: "Visa kerja paling umum ketika mahasiswa mengambil pekerjaan profesional setelah lulus adalah E-7. Harus berupa posisi yang terkait jurusan · pengalaman, dan perusahaan harus menyiapkan dokumen yang diperlukan untuk visa bersamamu. Karena itu penting apakah perusahaan 'berpengalaman merekrut orang asing'.", tip: "Makin kuat kaitan antara jurusan dan pekerjaan, makin menguntungkan untuk persetujuan E-7 — itulah kenapa pemilihan pekerjaan di Minggu 1 penting." },
+            { title: "Apa itu visa E-7 (Aktivitas Tertentu)", body: "Visa kerja paling umum ketika mahasiswa mengambil pekerjaan profesional setelah lulus adalah E-7. Harus berupa posisi yang terkait jurusan · pengalaman, dan perusahaan harus menyiapkan dokumen yang diperlukan untuk visa bersamamu. Karena itu penting apakah perusahaan 'berpengalaman merekrut orang asing'.", tip: "Makin kuat kaitan antara jurusan dan pekerjaan, makin menguntungkan untuk persetujuan E-7 — itulah kenapa pemilihan pekerjaan di Step 1 penting." },
             { title: "Membaca sinyal dalam lowongan", body: "Jika lowongan memuat frasa seperti 'orang asing boleh melamar', 'menyediakan sponsor visa', atau 'visa support', itu lampu hijau. Sebaliknya, syarat seperti 'hanya warga lokal' atau 'wajib militer selesai' bisa menyulitkan lamaran. Jika ambigu, boleh bertanya sopan ke penanggung jawab rekrutmen sebelum melamar.", example: "Contoh pertanyaan:\n'Saya ingin bertanya apakah posisi ini juga terbuka untuk pelamar asing (visa E-7).'" },
             { title: "Tempat yang terbuka pada rekrutmen orang asing", body: "Perusahaan asing, IT/startup yang berbisnis global, perdagangan/logistik, dan posisi yang membutuhkan banyak bahasa relatif terbuka merekrut orang asing. Membidik posisi yang kelebihan bahasa · budayamu 'dibutuhkan' ketimbang sekadar 'baik jika ada' meningkatkan daya saingmu.", tip: "Pada posisi multibahasa · lokalisasi · penjualan global, kelebihan mahasiswa internasional justru menjadi alasan perekrutan." },
             { title: "Cek syarat visa lebih dulu", body: "Mengecek status visamu (masa tinggal, D-2/D-10, dll.) dan syarat konversi E-7 bersamaan dengan melamar membuat proses setelah diterima lancar. Pahami dokumen yang diperlukan lewat HiKorea dan panduan Kantor Imigrasi.", tip: "Jika hampir lulus, pelajari juga cara mengamankan masa tinggal dengan visa pencari kerja (D-10)." }
@@ -2450,7 +2450,7 @@ export const CULTURE_LESSONS_I18N: CultureI18n = {
           emoji: "🎯",
           summary: "Ketimbang melamar banyak secara membabi buta, lamar dengan cermat ke tempat yang tepat. Dan konsisten.",
           items: [
-            { title: "Penyesuaian menaikkan tingkat penerimaan", body: "Ketimbang mengirim resume dan surat pengenalan yang sama apa adanya, menyesuaikan motivasi dan kelebihan agar cocok dengan kata kunci persyaratan lowongan menaikkan tingkat lolos. Cukup sedikit menyesuaikan butir yang kamu buat di Minggu 3 untuk tiap lowongan.", tip: "Cocokkan kalimat 'persyaratan · kualifikasi yang diutamakan' lowongan dengan pilihan kata di resumemu." },
+            { title: "Penyesuaian menaikkan tingkat penerimaan", body: "Ketimbang mengirim resume dan surat pengenalan yang sama apa adanya, menyesuaikan motivasi dan kelebihan agar cocok dengan kata kunci persyaratan lowongan menaikkan tingkat lolos. Cukup sedikit menyesuaikan butir yang kamu buat di Step 2 untuk tiap lowongan.", tip: "Cocokkan kalimat 'persyaratan · kualifikasi yang diutamakan' lowongan dengan pilihan kata di resumemu." },
             { title: "Menyusun portofolio lamaran", body: "Melamar dengan campuran perusahaan 'tantangan' yang kamu inginkan, perusahaan 'sesuai' yang realistis, dan perusahaan 'aman' dengan peluang penerimaan tinggi menenangkan secara psikologis dan memperlebar peluang. Jangan berpaku pada satu tempat — siapkan lewat beberapa jalur.", example: "Mis.) Bagi menjadi sekitar tantangan 2 · sesuai 3 · aman 2 dan siapkan secara bersamaan." },
             { title: "Kelola dengan mencatat", body: "Mengelola di mana dan kapan kamu melamar, beserta tenggat dan tahap seleksi, dalam tabel membuatmu tak melewatkan hal. Melihat status lamaran sekilas juga memperjelas apa yang harus disiapkan berikutnya.", tip: "Catat perusahaan, posisi, tanggal lamaran, tenggat, dan status di lembar kerja sederhana." },
             { title: "Terus lanjut meski ditolak", body: "Penolakan sering bukan kekurangan kemampuan melainkan sekadar 'tak cocok dengan posisi itu'. Jika ada umpan balik, terapkan; jika tidak, tinjau sendiri dan lanjutkan lamaran berikutnya. Konsistensi pada akhirnya berujung pada penerimaan.", tip: "Catat satu saja penyesalan dari tempat yang menolakmu dan cerminkan pada lamaran berikutnya." }

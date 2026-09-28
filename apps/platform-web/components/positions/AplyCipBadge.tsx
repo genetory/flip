@@ -3,7 +3,7 @@
 import { Question as HelpCircle, Star, X, ArrowSquareOut as ExternalLinkIcon } from "@phosphor-icons/react";
 import type { PlatformLocale } from "../../lib/auth-messages";
 
-// "ONLY"(Aply 직접등록 = 여기서만 볼 수 있는) 포지션을 표시하는 라임색 배지 버튼.
+// "Aply ONLY"(Aply 직접등록 = 여기서만 볼 수 있는) 포지션을 표시하는 라임색 배지 버튼.
 // - 리스트 카드(PositionRow / PositionGridCard)와 포지션 상세 페이지에서 공유 사용.
 // - 클릭 시 상위에서 전달한 onClick 콜백을 통해 안내 모달을 띄움.
 // - 카드 영역 전체가 Link 인 경우가 많아 preventDefault + stopPropagation 으로
@@ -38,13 +38,13 @@ export function AplyCipBadgeButton({
       className={`relative z-20 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#b7ff5a] font-bold leading-none text-[#111111] transition hover:bg-[#a3eb43] ${sizeCls} ${className}`}
     >
       <Star className={iconSize} weight="fill" />
-      ONLY
+      Aply ONLY
       <HelpCircle className={size === "md" ? "h-3.5 w-3.5" : "h-3 w-3"} />
     </button>
   );
 }
 
-// "ONLY" 배지를 누르면 뜨는 안내 모달.
+// "Aply ONLY" 배지를 누르면 뜨는 안내 모달.
 // 6개 로케일(ko/en/zh-CN/vi/ja/id) 모두 번역 — 알 수 없는 로케일은 영어로 폴백.
 // "자세한 내용 확인" 버튼은 /pricing 페이지(브랜드명 Customized Support)로 새 탭 이동.
 export const CIP_COPY: Record<PlatformLocale, {
@@ -57,9 +57,9 @@ export const CIP_COPY: Record<PlatformLocale, {
   close: string;
 }> = {
   ko: {
-    title: "ONLY란?",
+    title: "Aply ONLY란?",
     body:
-      "ONLY는 Aply가 운영하는 외국인 맞춤 체험형 교육 프로그램입니다. 실무 경험이 적거나 없지만 한국에서의 커리어를 꿈꾸는 외국인 대학생 및 사회초년생들을 지원합니다. 한국 기업 문화를 배운 뒤, 실제 기업 현장에 투입되어 실무를 경험하며 커리어의 기반을 다질 수 있습니다.",
+      "Aply ONLY는 Aply가 운영하는 외국인 맞춤 체험형 교육 프로그램입니다. 실무 경험이 적거나 없지만 한국에서의 커리어를 꿈꾸는 외국인 대학생 및 사회초년생들을 지원합니다. 한국 기업 문화를 배운 뒤, 실제 기업 현장에 투입되어 실무를 경험하며 커리어의 기반을 다질 수 있습니다.",
     benefitsTitle: "💡 프로그램 참여 혜택",
     benefit1: "공식 수료증 발급",
     benefit2: "우수자 대상 추천서 및 채용 전환 기회 부여",
@@ -67,9 +67,9 @@ export const CIP_COPY: Record<PlatformLocale, {
     close: "닫기"
   },
   en: {
-    title: "What is ONLY?",
+    title: "What is Aply ONLY?",
     body:
-      "ONLY, operated by Aply, is a customized, hands-on training program designed for international talent. We support international university students and early-career professionals who aspire to build a career in South Korea, even with little to no prior work experience. Participants first learn about Korean corporate culture, then gain practical experience at companies across various industries to build a solid foundation for their careers.",
+      "Aply ONLY, operated by Aply, is a customized, hands-on training program designed for international talent. We support international university students and early-career professionals who aspire to build a career in South Korea, even with little to no prior work experience. Participants first learn about Korean corporate culture, then gain practical experience at companies across various industries to build a solid foundation for their careers.",
     benefitsTitle: "💡 Program Benefits",
     benefit1: "Official Certificate of Completion",
     benefit2: "Letters of recommendation and full-time employment opportunities for top performers",
@@ -77,9 +77,9 @@ export const CIP_COPY: Record<PlatformLocale, {
     close: "Close"
   },
   "zh-CN": {
-    title: "什么是 ONLY？",
+    title: "什么是 Aply ONLY？",
     body:
-      "ONLY 是 Aply 为外国人量身打造的实习体验式培训项目。我们为实务经验较少或没有经验，但希望在韩国发展职业的外籍大学生及职场新人提供支持。参与者将先学习韩国企业文化，然后进入真实企业现场积累实务经验，为职业生涯打下扎实基础。",
+      "Aply ONLY 是 Aply 为外国人量身打造的实习体验式培训项目。我们为实务经验较少或没有经验，但希望在韩国发展职业的外籍大学生及职场新人提供支持。参与者将先学习韩国企业文化，然后进入真实企业现场积累实务经验，为职业生涯打下扎实基础。",
     benefitsTitle: "💡 项目参与福利",
     benefit1: "颁发正式结业证书",
     benefit2: "优秀学员可获推荐信及正式录用机会",
@@ -87,9 +87,9 @@ export const CIP_COPY: Record<PlatformLocale, {
     close: "关闭"
   },
   vi: {
-    title: "ONLY là gì?",
+    title: "Aply ONLY là gì?",
     body:
-      "ONLY là chương trình đào tạo trải nghiệm thực tế dành riêng cho người nước ngoài, do Aply vận hành. Chúng tôi hỗ trợ sinh viên đại học và người mới bắt đầu sự nghiệp đến từ nước ngoài, những người mong muốn xây dựng sự nghiệp tại Hàn Quốc dù có ít hoặc chưa có kinh nghiệm làm việc. Người tham gia sẽ học về văn hóa doanh nghiệp Hàn Quốc trước, sau đó được tham gia vào môi trường doanh nghiệp thực tế để tích lũy kinh nghiệm và đặt nền móng vững chắc cho sự nghiệp của mình.",
+      "Aply ONLY là chương trình đào tạo trải nghiệm thực tế dành riêng cho người nước ngoài, do Aply vận hành. Chúng tôi hỗ trợ sinh viên đại học và người mới bắt đầu sự nghiệp đến từ nước ngoài, những người mong muốn xây dựng sự nghiệp tại Hàn Quốc dù có ít hoặc chưa có kinh nghiệm làm việc. Người tham gia sẽ học về văn hóa doanh nghiệp Hàn Quốc trước, sau đó được tham gia vào môi trường doanh nghiệp thực tế để tích lũy kinh nghiệm và đặt nền móng vững chắc cho sự nghiệp của mình.",
     benefitsTitle: "💡 Quyền lợi khi tham gia chương trình",
     benefit1: "Cấp giấy chứng nhận hoàn thành chính thức",
     benefit2: "Thư giới thiệu và cơ hội chuyển sang vị trí chính thức cho những người xuất sắc",
@@ -97,9 +97,9 @@ export const CIP_COPY: Record<PlatformLocale, {
     close: "Đóng"
   },
   ja: {
-    title: "ONLYとは？",
+    title: "Aply ONLYとは？",
     body:
-      "ONLYは、Aplyが運営する外国人向けの体験型実務研修プログラムです。実務経験が少ない、または未経験ながら韓国でのキャリアを目指す外国人大学生や社会人初心者を支援します。まず韓国の企業文化を学び、その後実際の企業現場で実務を経験することで、キャリアの基盤を築くことができます。",
+      "Aply ONLYは、Aplyが運営する外国人向けの体験型実務研修プログラムです。実務経験が少ない、または未経験ながら韓国でのキャリアを目指す外国人大学生や社会人初心者を支援します。まず韓国の企業文化を学び、その後実際の企業現場で実務を経験することで、キャリアの基盤を築くことができます。",
     benefitsTitle: "💡 プログラム参加メリット",
     benefit1: "公式修了証の発行",
     benefit2: "優秀者に推薦状および正規雇用転換の機会を付与",
@@ -107,9 +107,9 @@ export const CIP_COPY: Record<PlatformLocale, {
     close: "閉じる"
   },
   id: {
-    title: "Apa itu ONLY?",
+    title: "Apa itu Aply ONLY?",
     body:
-      "ONLY adalah program pelatihan berbasis pengalaman yang dirancang khusus untuk talenta internasional, dijalankan oleh Aply. Kami mendukung mahasiswa internasional dan profesional pemula yang bercita-cita membangun karier di Korea Selatan, bahkan dengan sedikit atau tanpa pengalaman kerja sebelumnya. Peserta akan terlebih dahulu mempelajari budaya perusahaan Korea, kemudian mendapatkan pengalaman praktis di berbagai perusahaan untuk membangun fondasi karier yang kuat.",
+      "Aply ONLY adalah program pelatihan berbasis pengalaman yang dirancang khusus untuk talenta internasional, dijalankan oleh Aply. Kami mendukung mahasiswa internasional dan profesional pemula yang bercita-cita membangun karier di Korea Selatan, bahkan dengan sedikit atau tanpa pengalaman kerja sebelumnya. Peserta akan terlebih dahulu mempelajari budaya perusahaan Korea, kemudian mendapatkan pengalaman praktis di berbagai perusahaan untuk membangun fondasi karier yang kuat.",
     benefitsTitle: "💡 Manfaat Program",
     benefit1: "Sertifikat Penyelesaian Resmi",
     benefit2: "Surat rekomendasi dan kesempatan transisi ke pekerjaan tetap untuk peserta terbaik",

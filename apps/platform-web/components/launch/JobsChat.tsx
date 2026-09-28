@@ -188,7 +188,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
     setSaved(true);
     setMessages((m) => [
       ...m,
-      { role: "bot", kind: "text", text: t("선정 완료! 🙌 대시보드에 저장했어요. 다음 주엔 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요.", "All set! 🙌 Saved to your dashboard. Next week let's build your resume in this direction. If you'd like to pick again, you can start over below.", "选择完成！🙌 已保存到仪表盘。下周就朝这个方向来做简历吧。如果想重新选择，可以在下方从头再来。", "Xong rồi! 🙌 Đã lưu vào bảng điều khiển. Tuần sau hãy làm CV theo hướng này nhé. Nếu muốn chọn lại, bạn có thể bắt đầu lại bên dưới.", "選定完了！🙌 ダッシュボードに保存しました。来週はこの方向で履歴書を作ってみましょう。もう一度選び直したい場合は、下から最初からやり直せます。", "Selesai! 🙌 Tersimpan di dasbormu. Minggu depan mari buat resume ke arah ini. Kalau mau memilih ulang, kamu bisa mulai lagi dari bawah.") }
+      { role: "bot", kind: "text", text: t("선정 완료! 🙌 대시보드에 저장했어요. 다음 단계에선 이 방향으로 이력서를 만들어봐요. 혹시 다시 골라보고 싶으면 아래에서 처음부터 다시 할 수 있어요.", "All set! 🙌 Saved to your dashboard. In the next step, let's build your resume in this direction. If you'd like to pick again, you can start over below.", "选择完成！🙌 已保存到仪表盘。下一步就朝这个方向来做简历吧。如果想重新选择，可以在下方从头再来。", "Xong rồi! 🙌 Đã lưu vào bảng điều khiển. Ở bước tiếp theo hãy làm CV theo hướng này nhé. Nếu muốn chọn lại, bạn có thể bắt đầu lại bên dưới.", "選定完了！🙌 ダッシュボードに保存しました。次のステップではこの方向で履歴書を作ってみましょう。もう一度選び直したい場合は、下から最初からやり直せます。", "Selesai! 🙌 Tersimpan di dasbormu. Di langkah berikutnya mari buat resume ke arah ini. Kalau mau memilih ulang, kamu bisa mulai lagi dari bawah.") }
     ]);
   };
 
@@ -268,13 +268,13 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
               <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
               <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 관심 직무", "Week 1 · Jobs", "第1周 · 职务", "Tuần 1 · Công việc", "Week 1 · 職務", "Minggu 1 · Pekerjaan")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 관심 직무", "Step 1 · Jobs", "Step 1 · 职务", "Step 1 · Công việc", "Step 1 · 職務", "Step 1 · Pekerjaan")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
