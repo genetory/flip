@@ -46,9 +46,10 @@ export function PdfDownloadButton() {
     <button
       type="button"
       onClick={() => window.print()}
-      className="no-print inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]"
+      className="no-print inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 text-[13px] font-bold leading-none text-white transition hover:bg-[#0A3ECB]"
     >
-      <DownloadSimple className="h-4 w-4" weight="bold" /> {t("PDF 다운받기", "Download PDF", "下载 PDF", "Tải PDF", "PDFダウンロード", "Unduh PDF")}
+      <DownloadSimple className="h-4 w-4 shrink-0" weight="bold" />
+      <span>{t("PDF 다운받기", "Download PDF", "下载 PDF", "Tải PDF", "PDFダウンロード", "Unduh PDF")}</span>
     </button>
   );
 }

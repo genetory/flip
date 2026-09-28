@@ -237,6 +237,16 @@ import {
   type AuditAction
 } from "./career-org";
 import { computeNorthStar, computeKpiSet, mergeKpiTargets, kpiStatus, KPI_DEFINITIONS, KPI_METRICS_VERSION, KPI_MIN_SAMPLE, type NorthStarStudent, type KpiInput } from "./career-kpi";
+import {
+  MAX_SNAPSHOT_CHARS,
+  MAX_VERSIONS_PER_KIND,
+  defaultLayout,
+  docVersionKindSchema,
+  isTalentContent,
+  layoutSchemaFor,
+  snapshotSchemaFor,
+  type DocVersionKind
+} from "./doc-versions";
 import { createHash } from "crypto";
 
 const app = express();
@@ -15144,6 +15154,159 @@ app.get("/cover-letters/share/:slug", async (req, res) => {
 // suggestions and free-form chat are split into separate endpoints so the
 // expensive paths only run when the user explicitly asks.
 // ---------------------------------------------------------------------------
+// ── 이력서·자기소개서 버전(DocVersion) ──────────────────────────────────────
+// 편집하는 문서는 하나 — talent 문서(Resume.content) + 편집 중 구성 행(snapshot = null, 종류별 1건).
+// '새 버전으로 저장'은 그 순간의 내용·구성을 통째로 복사한 읽기 전용 저장본(snapshot 있음)이다.
+// 순수 로직(기본 구성·검증)은 ./doc-versions.
+
+// 모듈이 담긴 talent 행 — renewal* 키가 있는 가장 최근 이력서(웹 talent 와 같은 기준).
+async function findTalentResumeRow(userId: string) {
+  const rows = await prisma.resume.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, content: true }
+  });
+  return rows.find((r) => isTalentContent(r.content)) ?? null;
+}
+
+// 편집 중 구성 행은 id 를 정해 두어, 첫 진입 요청이 동시에 와도 한 건만 생기게 한다(유일 제약으로 선점).
+function workingDocVersionId(resumeId: string, kind: DocVersionKind) {
+  return `${resumeId}:${kind}:default`;
+}
+
+const createDocVersionSchema = z.object({
+  kind: docVersionKindSchema,
+  name: z.string().trim().min(1).max(60),
+  layout: z.unknown(),
+  snapshot: z.unknown()
+});
+const updateDocVersionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60).optional(),
+    layout: z.unknown().optional()
+  })
+  .strict();
+
+app.get("/members/me/doc-versions", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const kind = docVersionKindSchema.safeParse(req.query.kind);
+  if (!kind.success) return res.status(400).json({ ok: false, message: "invalid kind" });
+  const userId = req.auth!.userId;
+  try {
+    const talent = await findTalentResumeRow(userId);
+    // talent 문서가 아직 없으면 버전도 없다 — 문서를 처음 저장하면 생긴다.
+    if (!talent) return res.json({ ok: true, talentResumeId: null, items: [] });
+    const where = { userId, kind: kind.data, resumeId: talent.id };
+    const working = await prisma.docVersion.findFirst({ where: { ...where, snapshot: { equals: Prisma.AnyNull } } });
+    if (!working) {
+      // 첫 진입 — 지금 문서 그대로의 구성으로 편집 중 행을 만든다.
+      await prisma.docVersion
+        .create({
+          data: {
+            id: workingDocVersionId(talent.id, kind.data),
+            ...where,
+            name: "편집 중",
+            layout: defaultLayout(kind.data, talent.content) as Prisma.InputJsonValue
+          }
+        })
+        .catch((err) => {
+          // 동시 요청이 먼저 만들었으면 그대로 쓴다.
+          if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+        });
+    }
+    // 편집 중 행이 맨 앞, 저장본은 최근 것부터.
+    const rows = await prisma.docVersion.findMany({ where, orderBy: { createdAt: "desc" } });
+    const items = [...rows.filter((r) => r.snapshot === null), ...rows.filter((r) => r.snapshot !== null)];
+    return res.json({ ok: true, talentResumeId: talent.id, items });
+  } catch (err) {
+    console.error("[GET /members/me/doc-versions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to list doc versions" });
+  }
+});
+
+// 새 버전으로 저장 — 화면에 보이는 그대로(내용 + 구성)를 읽기 전용 저장본으로.
+app.post("/members/me/doc-versions", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = createDocVersionSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  const userId = req.auth!.userId;
+  const { kind, name } = parsed.data;
+  const layout = layoutSchemaFor(kind).safeParse(parsed.data.layout);
+  if (!layout.success) return res.status(400).json({ ok: false, message: "invalid layout", errors: layout.error.flatten() });
+  const snapshot = snapshotSchemaFor(kind).safeParse(parsed.data.snapshot);
+  if (!snapshot.success) return res.status(400).json({ ok: false, message: "invalid snapshot", errors: snapshot.error.flatten() });
+  if (JSON.stringify(snapshot.data).length > MAX_SNAPSHOT_CHARS) {
+    return res.status(413).json({ ok: false, code: "SNAPSHOT_TOO_LARGE", message: "내용이 너무 길어 저장할 수 없어요." });
+  }
+  try {
+    const talent = await findTalentResumeRow(userId);
+    if (!talent) return res.status(404).json({ ok: false, code: "NO_TALENT_DOC", message: "이력서를 먼저 작성해 주세요." });
+    const count = await prisma.docVersion.count({ where: { userId, kind, resumeId: talent.id, snapshot: { not: Prisma.AnyNull } } });
+    if (count >= MAX_VERSIONS_PER_KIND) {
+      return res.status(409).json({ ok: false, code: "TOO_MANY_VERSIONS", message: `저장본은 ${MAX_VERSIONS_PER_KIND}개까지 만들 수 있어요. 안 쓰는 저장본을 지워 주세요.` });
+    }
+    const item = await prisma.docVersion.create({
+      data: {
+        userId,
+        kind,
+        resumeId: talent.id,
+        name,
+        layout: layout.data as Prisma.InputJsonValue,
+        snapshot: snapshot.data as Prisma.InputJsonValue
+      }
+    });
+    return res.status(201).json({ ok: true, item });
+  } catch (err) {
+    console.error("[POST /members/me/doc-versions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create doc version" });
+  }
+});
+
+// 편집 중 행은 구성만, 저장본은 이름만 바꿀 수 있다.
+app.patch("/members/me/doc-versions/:versionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const id = Array.isArray(req.params.versionId) ? req.params.versionId[0] : req.params.versionId;
+  const parsed = updateDocVersionSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const existing = await prisma.docVersion.findFirst({ where: { id, userId } });
+    if (!existing) return res.status(404).json({ ok: false, message: "version not found" });
+    const saved = existing.snapshot !== null;
+    const data: Prisma.DocVersionUpdateInput = {};
+    if (parsed.data.name !== undefined) {
+      if (!saved) return res.status(400).json({ ok: false, message: "working document has no name" });
+      data.name = parsed.data.name;
+    }
+    if (parsed.data.layout !== undefined) {
+      if (saved) return res.status(409).json({ ok: false, code: "SAVED_VERSION_READONLY", message: "저장본은 고칠 수 없어요." });
+      const layout = layoutSchemaFor(existing.kind as DocVersionKind).safeParse(parsed.data.layout);
+      if (!layout.success) return res.status(400).json({ ok: false, message: "invalid layout", errors: layout.error.flatten() });
+      data.layout = layout.data as Prisma.InputJsonValue;
+    }
+    const item = await prisma.docVersion.update({ where: { id }, data });
+    return res.json({ ok: true, item });
+  } catch (err) {
+    console.error("[PATCH /members/me/doc-versions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to update doc version" });
+  }
+});
+
+app.delete("/members/me/doc-versions/:versionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const userId = req.auth!.userId;
+  const id = Array.isArray(req.params.versionId) ? req.params.versionId[0] : req.params.versionId;
+  if (!id) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const existing = await prisma.docVersion.findFirst({ where: { id, userId }, select: { snapshot: true } });
+    if (!existing) return res.status(404).json({ ok: false, message: "version not found" });
+    if (existing.snapshot === null) {
+      return res.status(409).json({ ok: false, code: "WORKING_DOCUMENT", message: "편집 중인 문서는 지울 수 없어요." });
+    }
+    await prisma.docVersion.delete({ where: { id } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[DELETE /members/me/doc-versions] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to delete doc version" });
+  }
+});
+
 app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const userId = req.auth!.userId;
   const resumeId = Array.isArray(req.params.resumeId) ? req.params.resumeId[0] : req.params.resumeId;

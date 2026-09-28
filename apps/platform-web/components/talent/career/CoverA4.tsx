@@ -10,7 +10,7 @@ import { PdfBrandFooter } from "./pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 // 자소서 문항 헤더 표시용 라벨(COVER_QUESTIONS 값은 데이터 키로 유지, 화면 표기만 번역).
-function questionLabel(t: PlatformT, q: string): string {
+export function questionLabel(t: PlatformT, q: string): string {
   switch (q) {
     case "지원 동기":
       return t("지원 동기", "Motivation", "应聘动机", "Động lực ứng tuyển", "志望動機", "Motivasi melamar");
