@@ -2,7 +2,9 @@
 
 // 이력서 — 자동 초안(기본 정보 + 커리어 피드) → 직접 편집 + AI로 다듬기 + 대화로 추가.
 // 편집 옆에 미리보기 상시 노출(데스크톱), 모바일은 '미리보기' 버튼으로 따로 보기.
-// 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
+// 1개 문서. 다듬기는 실제 LLM(polish-experience), 빈 항목은 'AI로 작성'(draft-resume-text).
+// 최초 문서 자동 생성은 여전히 규칙 기반(refineText) — 첫 방문에 LLM 을 돌리면 항목 수만큼
+// 포인트가 자동 차감되므로 의도적으로 유지한다. AI 는 사용자가 누를 때만 돈다.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
@@ -20,13 +22,17 @@ import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../l
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
 import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
-import { polishExperienceText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { polishExperienceText, draftResumeText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
 
 // 섹션 칩 · 편집 리스트 순서 — 학력은 맨 오른쪽/맨 아래.
 // 이력서 순서 — 경험·프로젝트·자격증·스킬·대외활동·수상, 학력은 맨 아래.
 const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
+
+// 'AI로 작성'을 붙일 섹션 — 서술형만. 학력·자격증·어학·스킬은 짧은 사실 기재라
+// AI가 쓸 근거가 없고(없는 점수·급수를 만들 위험) 사용자가 직접 쓰는 게 빠르다.
+const DRAFTABLE_SECTIONS: CareerSection[] = ["experience", "project", "activity", "award"];
 
 export function ResumeBuilderScreen() {
   const t = usePlatformT();
@@ -112,6 +118,35 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
       }
     }
   }
+  // 빈 항목에 AI로 초안 쓰기(draft-resume-text, mode=generate, 1P 소모).
+  // 다듬기(polish)는 기존 텍스트가 있어야 눌리므로, 빈 항목에는 여태 AI 도움이 전혀 없었다.
+  // 근거는 사용자가 채운 이름·기간뿐이다 — 백엔드가 "제공하지 않은 사실은 만들지 않는다"를
+  // 모든 모드에 걸어두므로, 이름이 비어 있으면 결과가 무의미해 버튼을 잠근다.
+  async function draft(id: string, section: CareerSection, company: string, startDate: string, endDate: string): Promise<void> {
+    const name = company.trim();
+    if (!name) return;
+    const fieldType = section === "activity" || section === "award" ? "activity" : "career";
+    const period = [startDate, endDate].map((v) => v.trim()).filter(Boolean).join(" ~ ");
+    const hints = [sectionLabelOf(t, section), name, period].filter(Boolean).join(" · ");
+    try {
+      const text = await draftResumeText({
+        currentText: "",
+        fieldType,
+        mode: "generate",
+        context: section === "experience" ? { companyName: name } : { title: name },
+        hints
+      });
+      onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      if (err instanceof AiQuotaError) {
+        try { setUsage(await getAiUsage()); } catch { /* ignore */ }
+        setChargeOpen(true);
+      } else {
+        console.error("[resume/draft] failed", err);
+      }
+    }
+  }
   function remove(id: string) {
     onChange({ ...doc, items: doc.items.filter((it) => it.id !== id) });
   }
@@ -179,6 +214,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
                   onStartChange={(v) => setDate(it.id, "startDate", v)}
                   onEndChange={(v) => setDate(it.id, "endDate", v)}
                   onRefine={(style) => refine(it.id, it.text, section, style)}
+                  onDraft={() => draft(it.id, section, it.company ?? "", it.startDate ?? "", it.endDate ?? "")}
+                  canDraft={DRAFTABLE_SECTIONS.includes(section)}
                   onRemove={() => remove(it.id)}
                 />
               ))}
@@ -249,6 +286,8 @@ function ItemRow({
   onStartChange,
   onEndChange,
   onRefine,
+  onDraft,
+  canDraft,
   onRemove
 }: {
   text: string;
@@ -263,10 +302,13 @@ function ItemRow({
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
   onRefine: (style: PolishStyle) => Promise<void> | void;
+  onDraft: () => Promise<void> | void;
+  canDraft: boolean;
   onRemove: () => void;
 }) {
   const t = usePlatformT();
   const [refining, setRefining] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
@@ -357,7 +399,19 @@ function ItemRow({
           <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="relative">
+          {canDraft && !text.trim() ? (
+            <button
+              type="button"
+              onClick={async () => { if (drafting || !company.trim()) return; setDrafting(true); try { await onDraft(); } finally { setDrafting(false); } }}
+              disabled={drafting || !company.trim()}
+              title={!company.trim() ? t("이름을 먼저 입력해 주세요","Enter the name first","请先填写名称","Nhập tên trước","先に名称を入力","Isi nama dulu") : undefined}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-2.5 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
+            >
+              <Sparkle className="h-3.5 w-3.5" weight="fill" />
+              {drafting ? t("쓰는 중…","Writing…","撰写中…","Đang viết…","作成中…","Menulis…") : t("AI로 작성","Write with AI","用 AI 撰写","Viết bằng AI","AIで作成","Tulis dengan AI")}
+            </button>
+          ) : null}
+          <div className={`relative ${canDraft && !text.trim() ? "hidden" : ""}`}>
             <button
               type="button"
               onClick={() => { if (!refining && text.trim()) setMenuOpen((v) => !v); }}

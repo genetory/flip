@@ -519,6 +519,26 @@ export async function polishExperienceText(input: { text: string; style?: Polish
   return polished;
 }
 
+// 빈 항목에 AI 초안 쓰기 (POST /members/me/ai/draft-resume-text).
+// member-profile-client 의 postDraftResumeText 와 같은 엔드포인트지만, 그쪽은 402 를
+// 그대로 던진다. 리뉴얼 화면은 포인트 부족 시 충전 모달을 띄워야 하므로 aiPost 를 거쳐
+// AiQuotaError 로 변환되는 이 래퍼를 쓴다(다른 AI 호출과 처리 경로 통일).
+export async function draftResumeText(input: {
+  currentText: string;
+  fieldType: "selfIntroduction" | "summary" | "career" | "activity";
+  mode?: "improve" | "expand" | "generate";
+  context?: { companyName?: string; position?: string; title?: string };
+  hints?: string;
+}): Promise<string> {
+  const payload = (await aiPost<unknown>("/members/me/ai/draft-resume-text", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  })) as unknown as { draft?: { text?: string } };
+  const text = (payload.draft?.text ?? "").trim();
+  if (!text) throw new Error("내용을 만들지 못했어요. 이름·기간을 채우고 다시 시도해 주세요.");
+  return text;
+}
+
 // ① 한 줄 → 추론 → 체크: 역할 정보만으로 '흔히 하는 업무' 후보 목록을 받는다
 // (POST /members/me/ai/experience-tasks). 사용자가 체크한 항목만 경험 내용으로 확정.
 export async function suggestExperienceTasks(input: {

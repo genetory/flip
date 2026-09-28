@@ -470,10 +470,14 @@ function ItemRow({
   const t = usePlatformT();
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
+  // AI 다듬기 스타일 — 백엔드 POLISH_STYLE_GUIDE 6종을 전부 노출한다(각 1P 소모).
+  // 자소서에서는 impact(강점 부각)·achievement(성과 중심)가 오히려 자주 필요하다.
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
+    { style: "natural", label: t("자연스럽게","Natural","自然","Tự nhiên","自然に","Natural"), hint: t("어색한 문장만 다듬기","Smooth out awkward lines","只顺一下语句","Chỉ làm mượt câu","不自然な文だけ整える","Perhalus kalimat") },
     { style: "concise", label: t("간결하게","Concise","简洁","Ngắn gọn","簡潔に","Ringkas"), hint: t("핵심만 짧게","Keep only the essentials","只留核心","Chỉ giữ ý chính","要点だけ短く","Inti saja") },
     { style: "expand", label: t("구체적으로","Detailed","具体","Chi tiết","具体的に","Rinci"), hint: t("맥락·경험을 풍부하게","Add context & detail","补充背景与经历","Thêm bối cảnh, trải nghiệm","文脈・経験を補足","Tambah konteks & pengalaman") },
+    { style: "impact", label: t("강점 부각","Impact","突出优势","Nổi bật","強みを前面に","Tonjolkan"), hint: t("자신감 있는 톤으로","Confident tone","自信的语气","Giọng tự tin","自信のある文体","Nada percaya diri") },
+    { style: "achievement", label: t("성과 중심","Achievement","成果导向","Theo thành tích","成果中心","Fokus hasil"), hint: t("한 일과 결과를 앞으로","Lead with what you did & got","把做过的事和结果前置","Đưa việc làm & kết quả lên","やった事と結果を前に","Aksi & hasil di depan") },
     { style: "professional", label: t("정중하게","Professional","正式","Trang trọng","丁寧に","Formal"), hint: t("격식 있는 전문가 톤","Formal, professional tone","专业正式语气","Giọng chuyên nghiệp","丁寧な文体","Nada profesional") }
   ];
 
