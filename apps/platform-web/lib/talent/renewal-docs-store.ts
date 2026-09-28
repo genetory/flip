@@ -6,7 +6,8 @@
 //   content.coverLetterItems = [{id, prompt, answer}]  // 레거시/지원 스냅샷 호환용 미러
 // resume-doc / cover-doc 두 스토어가 같은 row 를 공유하므로, 저장은 항상 두 문서를
 // 병합한 content 를 debounce PATCH 한다(부분 저장으로 서로의 필드를 지우지 않도록).
-import { createMyResume, getMyResumes, updateMyResume } from "../member-profile-client";
+import { createMyResume, getMyResumes, updateMyResume, type ResumeContent } from "../member-profile-client";
+import { resumeContentToRenewalDoc } from "./resume-content-to-doc";
 import type { ResumeDoc } from "./resume-doc";
 import type { CoverDoc } from "./cover-doc";
 import type { BasicInfo } from "./basic-info";
@@ -247,6 +248,18 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   return { resumeHistory, coverHistory, resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
 }
 
+// resume-maker 형식(Career Launch 미러 / 구형 이력서)인지 — renewal 키가 있으면 아니다.
+// api 의 isResumeMakerContent 와 같은 규칙.
+function isResumeMakerShape(c: Record<string, unknown> | null | undefined): boolean {
+  if (!c) return false;
+  if (Object.keys(c).some((k) => k.startsWith("renewal"))) return false;
+  return (
+    Array.isArray(c.educations) || Array.isArray(c.careers) || Array.isArray(c.activities) ||
+    Array.isArray(c.skills) || Array.isArray(c.languages) || Array.isArray(c.certifications) ||
+    typeof c.summary === "string" || typeof c.basicName === "string"
+  );
+}
+
 // 로드 ----------------------------------------------------------------------
 async function load(userId: string) {
   status = "loading";
@@ -299,6 +312,36 @@ async function load(userId: string) {
       notifEmailOptOut = false;
       resumeHistory = [];
       coverHistory = [];
+
+      // [시딩] 리뉴얼 문서가 아직 없고 Career Launch 미러(또는 구형) 이력서가 있으면,
+      // 그 내용을 리뉴얼 문서 모양으로 변환해 에디터를 미리 채운다.
+      //
+      // 저장하지 않는다(resumeRowId 는 null 유지) — 사용자가 실제로 편집할 때 비로소
+      // 새 행이 만들어진다. Career Launch 미러 행을 그대로 claim 하면 이후 저장이 그 행에
+      // renewal 키를 심어, API 쪽 가드가 Career Launch 미러링을 막아버린다(원본과 단절).
+      // 그래서 '읽어서 채우기'만 하고 소유권은 가져오지 않는다.
+      //
+      // basicInfo 도 함께 채운다 — 이게 없으면 ProfileGate 에 막혀 시딩한 이력서를
+      // 아예 볼 수 없다.
+      // 대표 이력서를 우선한다 — 지원에 실제로 쓰이는 문서이므로 사용자가 '내 이력서'로
+      // 인식하는 것이다. 대표가 없으면 최근 수정 순.
+      const seed = resumes
+        .filter((r) => isResumeMakerShape(r.content as unknown as Record<string, unknown> | null))
+        .sort((a, b) => {
+          if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+          return a.updatedAt < b.updatedAt ? 1 : -1;
+        })[0];
+      if (seed) {
+        try {
+          const { doc, info } = resumeContentToRenewalDoc(seed.content as unknown as ResumeContent);
+          if (doc.items.length > 0) {
+            resumeDoc = doc;
+            basicInfo = info;
+          }
+        } catch {
+          /* 변환 실패는 무시 — 빈 상태로 시작한다 */
+        }
+      }
     }
     status = "loaded";
     emit();

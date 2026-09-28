@@ -17738,8 +17738,31 @@ async function syncCareerResumeToResume(userId: string): Promise<void> {
     const hasContent = hasResumeDataContent(normalizeResumeData(cr.content));
     // 유효한 미러 링크 확인 — Resume 가 삭제됐으면 무효화하고 재생성 경로로.
     let resumeId: string | null = cr.resumeId ?? null;
-    if (resumeId && !(await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true } }))) {
-      resumeId = null;
+    if (resumeId) {
+      const target = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { id: true, content: true } });
+      if (!target) {
+        resumeId = null;
+      } else {
+        // [가드] 리뉴얼 에디터(talent /career/resume·/cover)가 쓰는 행이면 절대 덮어쓰지 않는다.
+        // 아래 update 는 content 를 통째로 교체하므로, 이 행을 건드리면 renewalResume /
+        // renewalCover / renewal*History(버전 히스토리) 가 한 번에 사라진다 — 복구 불가.
+        // 정상 경로에서는 미러가 자기 행("글로벌 커리어 런치 이력서")을 만들어 링크하므로
+        // 여기 걸릴 일이 없지만, 걸렸다면 링크가 어긋난 것이므로 조용히 넘기지 않고 알린다.
+        const tc = (target.content ?? {}) as Record<string, unknown>;
+        if (Object.keys(tc).some((k) => k.startsWith("renewal"))) {
+          console.error("[career-launch] mirror target is a renewal doc — skipped to avoid data loss", {
+            userId,
+            resumeId
+          });
+          void postErrorToDiscord({
+            title: "career resume mirror pointed at renewal doc (skipped)",
+            source: "api",
+            path: "syncCareerResumeToResume",
+            stack: `userId=${userId} resumeId=${resumeId}`
+          });
+          return;
+        }
+      }
     }
     if (!resumeId && !hasContent) return; // 빈 내용 + 미러 없음 → 아무것도 안 함
     const content = careerResumeToResumeContent(cr.content) as Prisma.InputJsonValue;

@@ -270,6 +270,12 @@ All colors MUST be HSL.
    말줄임 대신 자연 줄바꿈으로 UI 밀림/가로 오버플로를 방지한다. */
 .break-anywhere { overflow-wrap: anywhere; word-break: break-word; }
 
+/* AdSense 미게재(unfilled) 광고 자리 접기.
+   광고가 없거나 승인 전이면 AdSense 가 <ins> 에 data-ad-status="unfilled" 를 붙인다.
+   그대로 두면 피드 중간(InFeedAd)에 어색한 빈 공간이 남으므로 접는다.
+   슬롯이 설정되기 전에는 <ins> 자체가 렌더되지 않아 적용 대상이 없다(무해). */
+ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
+
 /* ── Career Launch 매거진 에디토리얼 타입 스케일 ──────────────
    중요한 것은 크게(display/headline), 부가 정보는 작게(eyebrow/caption).
    Pretendard 기준, 한국어 줄바꿈(break-keep)·균형 줄바꿈(balance) 적용. */
