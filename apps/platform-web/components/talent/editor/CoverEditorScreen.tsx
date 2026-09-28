@@ -95,7 +95,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
     <EditorTopBar
       t={t}
       active="cover"
-      exitHref="/talent/career/cover"
+      exitHref="/talent/career"
       working={working}
       saved={store.saved}
       current={current}
