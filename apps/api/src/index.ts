@@ -4732,6 +4732,63 @@ type DailyCrawlerRunResult = {
 
 let crawlerRunInProgress = false;
 
+// 마감일이 지난 외부 공고를 CLOSED 로 내린다.
+//
+// 왜 삭제가 아니라 상태 전환인가: Position 을 지우면 Application /
+// MockInterviewSession / PartnerApplicantWorkflow 가 onDelete: Cascade 라서
+// 학생의 지원 내역과 공고별 모의면접 기록까지 함께 사라진다. 게다가
+// CareerApplicationTarget.positionId / CareerEmploymentOutcome.positionId 는
+// FK 가 아닌 느슨한 참조여서 에러 없이 dangling 이 된다. 그래서 행은 남기고
+// 상태만 내린다.
+//
+// 왜 목록 쿼리에 마감 필터를 안 붙이는가: status: OPEN 으로 공고를 고르는 곳이
+// 원시 SQL ANN 경로까지 14곳이다. status 자체를 진실하게 만들면 그 전부가
+// 수정 없이 정확해지고, 파트너·운영 화면에서도 상태가 일관된다.
+//
+// 타임존: sourceDeadlineDate 는 임포트 시 `YYYY-MM-DDT23:59:59+09:00`(마감일의
+// KST 끝)로 저장된다 → now() 와 직접 비교하면 되고 별도 보정이 필요 없다.
+// INTERNAL(파트너 직접 등록) 공고는 파트너가 상태를 관리하므로 건드리지 않는다.
+async function closeExpiredExternalPositions(trigger: string): Promise<number> {
+  try {
+    const result = await prisma.position.updateMany({
+      where: {
+        sourceKind: PositionSourceKind.EXTERNAL,
+        status: PositionStatus.OPEN,
+        sourceDeadlineDate: { not: null, lt: new Date() }
+      },
+      data: { status: PositionStatus.CLOSED }
+    });
+    if (result.count > 0) {
+      console.info("[expired-position-sweep] closed", { trigger, count: result.count });
+    }
+    return result.count;
+  } catch (error) {
+    // 스윕 실패가 크롤이나 API 부팅을 막지 않게 한다 — 다음 주기에 다시 시도된다.
+    console.error("[expired-position-sweep] failed", { trigger, error });
+    return 0;
+  }
+}
+
+// 크롤 주기(1일)보다 촘촘하게 돌려 '마감됐는데 모집중으로 보이는' 창을 최대 1시간으로 줄인다.
+// updateMany 는 멱등이라 인스턴스가 여러 개여도 동시 실행이 안전하다.
+const expiredPositionSweepEnabled =
+  String(process.env.EXPIRED_POSITION_SWEEP_ENABLED ?? "true").toLowerCase() === "true";
+const EXPIRED_POSITION_SWEEP_INTERVAL_MS = 60 * 60 * 1000;
+
+function startExpiredPositionSweeper() {
+  if (!expiredPositionSweepEnabled) {
+    console.info("[expired-position-sweep] disabled");
+    return;
+  }
+  void closeExpiredExternalPositions("boot");
+  const timer = setInterval(() => {
+    void closeExpiredExternalPositions("interval");
+  }, EXPIRED_POSITION_SWEEP_INTERVAL_MS);
+  const shutdown = () => clearInterval(timer);
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
+}
+
 async function runExternalCrawlers(
   source: CrawlerSource,
   triggeredBy: "manual" | "scheduler" = "manual"
@@ -4771,6 +4828,8 @@ async function runExternalCrawlers(
     const wanted = source === "all" || source === "wanted" || source === "buddies"
       ? await runCrawlerScript("scripts/import-wanted-job-postings.ts")
       : null;
+    // 새로 들어온 공고를 반영한 직후, 마감 지난 것들을 같은 사이클에서 내린다.
+    await closeExpiredExternalPositions("crawler");
     const elapsedMs = Date.now() - startedAt.getTime();
     console.info("[crawler-scheduler] completed", { elapsedMs, source, triggeredBy });
 
@@ -37048,6 +37107,7 @@ if (process.env.VERCEL !== "1") {
       }
     });
     startCrawlerScheduler();
+    startExpiredPositionSweeper();
     startJobAlertScheduler();
     void runInternalForeignerBackfillOnBoot();
     void runAiPointsScale10xOnBoot();
