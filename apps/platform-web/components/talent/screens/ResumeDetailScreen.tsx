@@ -166,6 +166,21 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
         </TalentButton>
       </div>
 
+      {/* 공고 맞춤 분석 진입 — JD/공고를 넣어 적합도 점수와 보완점을 받는다.
+          (위 '새 버전'은 직무명 기준 초안 생성이고, 이건 공고 단위 분석으로 다른 기능이다.) */}
+      <TCard className="flex items-center gap-3 p-5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-bold text-[#191F28]">{t("공고에 얼마나 맞는지 볼까요?","Check your fit for a posting","看看与职位的匹配度","Xem mức độ phù hợp với tin","求人との適合度を見ますか？","Cek kecocokan dengan lowongan")}</p>
+          <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("지원할 공고를 넣으면 적합도 점수와 보완할 점을 알려드려요.","Paste a job posting to get a fit score and what to improve.","填入招聘信息，获取匹配分数和改进建议。","Dán tin tuyển dụng để nhận điểm phù hợp và điểm cần cải thiện.","応募先の求人を入れると適合度と改善点をお知らせします。","Tempel lowongan untuk skor kecocokan dan saran perbaikan.")}</p>
+        </div>
+        <Link
+          href={`${talentAppRoutes.resumes}/${encodeURIComponent(resumeId)}/tailor`}
+          className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-2 text-[13px] font-bold text-[#0B46E8] hover:bg-[#E1E9FC]"
+        >
+          {t("맞춤 분석","Analyze fit","匹配分析","Phân tích","適合度分析","Analisis")}
+        </Link>
+      </TCard>
+
       {/* 직무별 버전 */}
       <TCard className="flex items-center gap-3 p-5">
         <div className="min-w-0 flex-1">

@@ -53,6 +53,8 @@ const nextConfig = {
 
       // 레거시 이력서 도구 → 리뉴얼 이력서 (공유 /resume/share/:slug 는 유지)
       { source: "/resume-maker/cover-letters/:path*", destination: "/talent/career/cover-letters", permanent: true },
+      // 공고 맞춤 분석은 리뉴얼 경로로 살려뒀다 — 넓은 :path* 규칙보다 먼저 와야 잡힌다.
+      { source: "/resume-maker/:resumeId/tailor", destination: "/talent/career/resumes/:resumeId/tailor", permanent: true },
       { source: "/resume-maker/:path*", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume/:id/edit", destination: "/talent/career/resumes", permanent: true },
