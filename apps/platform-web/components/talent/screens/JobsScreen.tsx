@@ -34,7 +34,7 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
 const PAGE_SIZE = 20;
-// ONLY 탭(Aply 직접등록 = 여기서만 볼 수 있는 공고)은 전량을 한 번에 받아 클라이언트에서 섞는다.
+// Aply ONLY 탭(Aply 직접등록 = 여기서만 볼 수 있는 공고)은 전량을 한 번에 받아 클라이언트에서 섞는다.
 // 규모가 작아서(프로덕션 37건) 가능한 방식이다 — 페이지를 나눠 받으면 1페이지에 늘 같은 20건만
 // 걸려서 '새로고침마다 랜덤'이 성립하지 않는다. 이 상한을 넘으면 넘는 만큼은 섞이지 않지만
 // 동작 자체는 유지된다(서버 정렬 순서로 잘림).
@@ -240,7 +240,7 @@ export function JobsScreen() {
       <div className="mb-5 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
           { key: "all", label: t("전체 공고", "All jobs", "全部职位", "Tất cả", "すべて", "Semua") },
-          { key: "aply", label: "ONLY" },
+          { key: "aply", label: "Aply ONLY" },
           { key: "interest", label: t("나의 관심 직무만", "My interests", "我的兴趣", "Sở thích của tôi", "関心職種", "Minat saya") },
           { key: "saved", label: t("즐겨찾기", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan") }
         ] as { key: Tab; label: string }[]).map((t) => {
