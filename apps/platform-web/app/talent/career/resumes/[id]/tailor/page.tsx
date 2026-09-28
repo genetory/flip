@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { AiUsageProvider } from "../../../../../../lib/resume-maker-ai-usage";
+import { ResumeMakerToolProviders } from "../../../../../../components/resume-maker/ResumeMakerToolProviders";
 import { ResumeTailorPage } from "../../../../../../components/resume-maker/ResumeTailorPage";
 
 // 공고 맞춤 분석 — 레거시 /resume-maker/[resumeId]/tailor 에만 마운트돼 있어서, 리뉴얼 전용
@@ -17,11 +17,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   return (
     <Suspense>
-      {/* ResumeTailorPage 가 useAiUsage() 를 쓴다. 기본 컨텍스트로도 동작하지만
-          잔량 표시·갱신이 무동작이 되므로 provider 로 감싼다. */}
-      <AiUsageProvider>
+      {/* ResumeMakerShell 이 useAiUsage·useResumePresence 를 쓴다 — 둘 다 없으면
+          도구 메뉴가 잠긴 상태로 보인다(레거시 layout 이 하던 역할). */}
+      <ResumeMakerToolProviders>
         <ResumeTailorPage resumeId={id} />
-      </AiUsageProvider>
+      </ResumeMakerToolProviders>
     </Suspense>
   );
 }

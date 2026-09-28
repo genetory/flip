@@ -181,6 +181,21 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
         </Link>
       </TCard>
 
+      {/* 이력서 AI 진단 진입 — 공고 없이 이력서 자체의 완성도·보완점을 본다.
+          (위 '맞춤 분석'은 공고 단위 적합도, 이건 공고와 무관한 진단으로 별개다.) */}
+      <TCard className="flex items-center gap-3 p-5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-bold text-[#191F28]">{t("내 이력서 진단받기","Get your resume diagnosed","诊断我的简历","Chẩn đoán CV của tôi","履歴書を診断する","Diagnosis CV saya")}</p>
+          <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("공고 없이도 이력서의 부족한 부분과 보완할 점을 짚어드려요.","See what's missing and what to improve — no job posting needed.","无需招聘信息，也能指出简历不足与改进点。","Không cần tin tuyển dụng vẫn chỉ ra điểm thiếu và cần cải thiện.","求人がなくても不足点と改善点をお知らせします。","Tanpa lowongan pun, kami tunjukkan kekurangan dan perbaikannya.")}</p>
+        </div>
+        <Link
+          href={talentAppRoutes.resumeDiagnosis}
+          className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-2 text-[13px] font-bold text-[#0B46E8] hover:bg-[#E1E9FC]"
+        >
+          {t("진단","Diagnose","诊断","Chẩn đoán","診断","Diagnosis")}
+        </Link>
+      </TCard>
+
       {/* 직무별 버전 */}
       <TCard className="flex items-center gap-3 p-5">
         <div className="min-w-0 flex-1">

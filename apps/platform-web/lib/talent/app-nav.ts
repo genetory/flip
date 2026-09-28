@@ -13,6 +13,8 @@ export const talentAppRoutes = {
   resume: "/talent/career/resume",
   resumePreview: "/talent/career/resume/preview",
   resumes: "/talent/career/resumes",
+  // 이력서 AI 진단(레거시 도구를 리뉴얼 경로로 되살린 화면) — per-id 가 아니다.
+  resumeDiagnosis: "/talent/career/resume/diagnosis",
   cover: "/talent/career/cover",
   coverPreview: "/talent/career/cover/preview",
   coverLetters: "/talent/career/cover-letters",
