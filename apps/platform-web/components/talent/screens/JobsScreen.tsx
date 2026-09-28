@@ -34,8 +34,26 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { notifySavedPosition } from "../../../lib/talent/activity-log";
 
 const PAGE_SIZE = 20;
+// ONLY 탭(Aply 직접등록 = 여기서만 볼 수 있는 공고)은 전량을 한 번에 받아 클라이언트에서 섞는다.
+// 규모가 작아서(프로덕션 37건) 가능한 방식이다 — 페이지를 나눠 받으면 1페이지에 늘 같은 20건만
+// 걸려서 '새로고침마다 랜덤'이 성립하지 않는다. 이 상한을 넘으면 넘는 만큼은 섞이지 않지만
+// 동작 자체는 유지된다(서버 정렬 순서로 잘림).
+const ONLY_PAGE_SIZE = 100;
+
+// Fisher-Yates — 편향 없는 셔플. 목록을 매 로드마다 새로 섞는다.
+// 렌더 중이 아니라 load() 안(클라이언트 fetch 이후)에서만 호출하므로 SSR 하이드레이션과 무관하다.
+function shuffled<T>(arr: readonly T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 type Tab = "all" | "aply" | "interest" | "saved";
-type Sort = "latest" | "deadline" | "relevance";
+// "random" 은 서버 정렬값이 아니다 — 서버에는 latest 로 요청하고 클라이언트에서 섞는다.
+// ONLY 탭 전용이며, 정렬 UI 에도 '랜덤'으로 표시해 보이는 것과 실제가 어긋나지 않게 한다.
+type Sort = "latest" | "deadline" | "relevance" | "random";
 type EmploymentType = "FULL_TIME" | "INTERN" | "PART_TIME";
 // 지역 필터(시·도) — 서버 LOCATION_ALIASES와 키 동일.
 const REGIONS = ["서울", "경기", "인천", "부산", "대구", "대전", "광주", "울산", "세종", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] as const;
@@ -81,7 +99,9 @@ export function JobsScreen() {
   const [page, setPage] = useState(1); // 번호 페이징(무한스크롤 대신)
   const [total, setTotal] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // ONLY 탭은 한 페이지에 전량을 받으므로 페이저 계산도 같은 크기를 써야 어긋나지 않는다.
+  const listPageSize = tab === "aply" ? ONLY_PAGE_SIZE : PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / listPageSize));
 
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [savedItems, setSavedItems] = useState<PublicPositionListItem[]>([]);
@@ -113,11 +133,14 @@ export function JobsScreen() {
     try {
       const providers = tab === "aply" ? (["INTERNAL"] as PublicPositionListItem["sourceProvider"][]) : undefined;
       const roles = tab === "interest" ? interestRoles : undefined;
+      const isOnly = tab === "aply";
+      const isRandom = isOnly && sort === "random";
       const res = await getPublicPositionsPage({
         page: p,
-        limit: PAGE_SIZE,
+        limit: isOnly ? ONLY_PAGE_SIZE : PAGE_SIZE,
         search: appliedSearch,
-        sort,
+        // 서버는 random 을 모른다 — 기본 정렬로 받아온 뒤 아래에서 섞는다.
+        sort: sort === "random" ? "latest" : sort,
         sourceProviders: providers,
         jobRoles: roles,
         employmentTypes: empTypes.length ? empTypes : undefined,
@@ -125,13 +148,22 @@ export function JobsScreen() {
         foreignerEligible: foreignerOnly,
         locale
       });
-      setItems(res.items);
+      // 소수의 자사 공고가 매번 같은 순서로 노출되지 않게 — 랜덤 정렬일 때만 섞는다.
+      setItems(isRandom ? shuffled(res.items) : res.items);
       setTotal(res.total ?? res.items.length);
       setStatus("ready");
     } catch {
       setStatus("error");
     }
   }, [appliedSearch, sort, tab, interestRoles, empTypes, locs, foreignerOnly, locale, interests.length]);
+
+  // 탭 전환 시 정렬 기본값 조정 — ONLY 는 랜덤이 기본, 다른 탭은 random 을 지원하지 않는다.
+  useEffect(() => {
+    setSort((prev) => {
+      if (tab === "aply") return prev === "latest" ? "random" : prev;
+      return prev === "random" ? "latest" : prev;
+    });
+  }, [tab]);
 
   // 검색/직무/정렬/소스/탭 변경 → 1페이지부터 다시.
   useEffect(() => {
@@ -208,7 +240,7 @@ export function JobsScreen() {
       <div className="mb-5 flex gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {([
           { key: "all", label: t("전체 공고", "All jobs", "全部职位", "Tất cả", "すべて", "Semua") },
-          { key: "aply", label: "APLY CIP" },
+          { key: "aply", label: "ONLY" },
           { key: "interest", label: t("나의 관심 직무만", "My interests", "我的兴趣", "Sở thích của tôi", "関心職種", "Minat saya") },
           { key: "saved", label: t("즐겨찾기", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan") }
         ] as { key: Tab; label: string }[]).map((t) => {
@@ -328,6 +360,9 @@ export function JobsScreen() {
             <div className="flex items-center gap-3.5">
               {appliedSearch ? (
                 <SortText on={sort === "relevance"} onClick={() => setSort("relevance")}>{t("관련도순", "Relevance", "相关度", "Liên quan", "関連度", "Relevansi")}</SortText>
+              ) : null}
+              {tab === "aply" ? (
+                <SortText on={sort === "random"} onClick={() => setSort("random")}>{t("랜덤", "Random", "随机", "Ngẫu nhiên", "ランダム", "Acak")}</SortText>
               ) : null}
               <SortText on={sort === "latest"} onClick={() => setSort("latest")}>{t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")}</SortText>
               <SortText on={sort === "deadline"} onClick={() => setSort("deadline")}>{t("마감 임박순", "Deadline", "临近截止", "Sắp hết hạn", "締切間近", "Tenggat")}</SortText>

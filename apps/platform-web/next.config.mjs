@@ -45,7 +45,7 @@ const nextConfig = {
       { source: "/profile/notifications", destination: "/talent/notifications", permanent: true },
       { source: "/profile/assignments", destination: "/talent/assignments", permanent: true },
       { source: "/profile/programs/:path*", destination: "/talent/programs", permanent: true },
-      { source: "/profile/resume/:path*", destination: "/talent/career/resume", permanent: true },
+      { source: "/profile/resume/:path*", destination: "/talent/career/resume/editor", permanent: true },
       { source: "/profile/:path*", destination: "/talent/career/profile", permanent: true },
       { source: "/notifications", destination: "/talent/notifications", permanent: true },
       { source: "/matching-probability", destination: "/talent/home", permanent: true },
@@ -56,6 +56,10 @@ const nextConfig = {
       // 공고 맞춤 분석은 리뉴얼 경로로 살려뒀다 — 넓은 :path* 규칙보다 먼저 와야 잡힌다.
       { source: "/resume-maker/:resumeId/tailor", destination: "/talent/career/resumes/:resumeId/tailor", permanent: true },
       { source: "/resume-maker/diagnosis", destination: "/talent/career/resume/diagnosis", permanent: true },
+      // 편집기 정식 경로는 /editor — 이전 경로로 들어오면 넘긴다(북마크·외부 링크 보존).
+      // preview·diagnosis 는 /talent/career/resume/* 하위에 그대로 있으므로 :path* 를 쓰지 않는다.
+      { source: "/talent/career/resume", destination: "/talent/career/resume/editor", permanent: true },
+      { source: "/talent/career/cover", destination: "/talent/career/cover/editor", permanent: true },
       { source: "/resume-maker/:path*", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume/:id/edit", destination: "/talent/career/resumes", permanent: true },
