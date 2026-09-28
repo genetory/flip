@@ -15,6 +15,10 @@ import type { SelfMockRecord } from "./self-mock";
 
 export type RenewalDocsStatus = "idle" | "loading" | "loaded";
 
+// 저장 표시용 상태 — 이력서·자소서는 긴 글을 쓰는 화면이라 "저장됐나?"가 불안 요소다.
+// pending=변경됨(debounce 대기) · saving=PATCH 중 · saved=반영 완료 · error=실패(재시도 예정).
+export type DocsSaveState = "idle" | "pending" | "saving" | "saved" | "error";
+
 const listeners = new Set<() => void>();
 let status: RenewalDocsStatus = "idle";
 let loadedForUser: string | null = null;
@@ -43,6 +47,7 @@ let notifEmailOptOut = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let saving = false;
 let dirty = false;
+let saveState: DocsSaveState = "idle";
 
 function emit() {
   listeners.forEach((l) => l());
@@ -60,6 +65,9 @@ export function snapshotResume(): ResumeDoc | null {
 }
 export function snapshotCover(): CoverDoc | null {
   return coverDoc;
+}
+export function snapshotSaveState(): DocsSaveState {
+  return saveState;
 }
 export function snapshotStatus(): RenewalDocsStatus {
   return status;
@@ -276,6 +284,7 @@ export function syncUser(userId: string | null): void {
       saveTimer = null;
     }
     dirty = false;
+    saveState = "idle";
     emit();
   }
   if (userId && status === "idle") {
@@ -286,6 +295,8 @@ export function syncUser(userId: string | null): void {
 // 저장 ----------------------------------------------------------------------
 function scheduleSave() {
   dirty = true;
+  saveState = "pending";
+  emit();
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
@@ -299,6 +310,8 @@ async function flush() {
   if (!userId) return;
   saving = true;
   dirty = false;
+  saveState = "saving";
+  emit();
   const content = buildContent();
   try {
     if (resumeRowId) {
@@ -307,10 +320,13 @@ async function flush() {
       const created = await createMyResume({ title: "내 이력서", content, allowIncomplete: true });
       if (loadedForUser === userId) resumeRowId = created.id;
     }
+    if (loadedForUser === userId) saveState = "saved";
   } catch {
     dirty = true; // 실패 → 다음 변경/스케줄에 재시도
+    if (loadedForUser === userId) saveState = "error";
   } finally {
     saving = false;
+    emit();
     if (dirty && loadedForUser === userId) scheduleSave();
   }
 }

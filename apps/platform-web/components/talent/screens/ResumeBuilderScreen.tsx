@@ -15,6 +15,7 @@ import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { ResumeA4Preview } from "../career/ResumeA4";
 import { AiRevisionBar } from "../career/AiRevisionBar";
+import { SaveStatus } from "../career/SaveStatus";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
@@ -71,7 +72,10 @@ export function ResumeBuilderScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력서","Resume","简历","CV","履歴書","CV")}</h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력서","Resume","简历","CV","履歴書","CV")}</h1>
+              <SaveStatus />
+            </div>
             {showEditor ? (
               <Link
                 href={talentAppRoutes.resumePreview}

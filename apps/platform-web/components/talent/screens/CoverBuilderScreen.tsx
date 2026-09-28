@@ -17,6 +17,9 @@ import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { CoverA4Preview } from "../career/CoverA4";
 import { AiRevisionBar } from "../career/AiRevisionBar";
+import { SaveStatus } from "../career/SaveStatus";
+import { ClicheHints } from "../career/ClicheHints";
+import { CoverReviewCard } from "../career/CoverReviewCard";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
@@ -73,7 +76,10 @@ export function CoverBuilderScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")}</h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("자기소개서","Cover letter","求职信","Thư xin việc","自己PR","Surat lamaran")}</h1>
+              <SaveStatus />
+            </div>
             {showEditor ? (
               <Link
                 href={talentAppRoutes.coverPreview}
@@ -262,6 +268,9 @@ function Editor({ doc, basicInfo, resumeText, resume, onChange }: { doc: CoverDo
         >
           <Plus className="h-4 w-4" weight="bold" /> {t("문항 추가","Add a section","添加问题","Thêm mục","設問を追加","Tambah bagian")}
         </button>
+
+        {/* 제출 전 최종 점검 — 글자 수·필수 소재·상투어·문항 간 중복을 한 곳에 모은다. */}
+        <CoverReviewCard doc={doc} />
       </div>
 
       <aside className="hidden lg:sticky lg:top-24 lg:block">
@@ -559,6 +568,7 @@ function ItemRow({
           {targetChars != null ? `${len} / ${targetChars}${t("자","","字","ký tự","字","krt")}` : `${len}${t("자","","字","ký tự","字","krt")}`}
         </span>
       </div>
+      <ClicheHints text={value} />
       <div className="mt-2 flex items-center justify-end gap-1.5">
         <div className="relative">
           <button

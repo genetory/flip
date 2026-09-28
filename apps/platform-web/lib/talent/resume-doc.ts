@@ -2,7 +2,7 @@
 // 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume)에 귀속된다(renewal-docs-store).
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
-import { setResumeDoc as storeSetResume, snapshotResume, snapshotStatus, subscribeDocs, syncUser, type RenewalDocsStatus } from "./renewal-docs-store";
+import { setResumeDoc as storeSetResume, snapshotResume, snapshotStatus, subscribeDocs, syncUser, type RenewalDocsStatus, snapshotSaveState, type DocsSaveState } from "./renewal-docs-store";
 import type { CareerSection } from "./career-chat";
 import type { FeedEntry } from "./career-feed";
 
@@ -155,6 +155,11 @@ export function useResumeDoc(): ResumeDoc | null {
 // 서버 로드 상태 — 빌더가 "문서 없음"으로 판단해 자동 생성하기 전에 로드 완료를 기다린다.
 export function useRenewalDocsStatus(): RenewalDocsStatus {
   return useSyncExternalStore(subscribeDocs, snapshotStatus, () => "idle" as RenewalDocsStatus);
+}
+
+// 저장 상태 — 에디터 헤더에 "저장됨 / 저장 중…"을 띄우는 용도.
+export function useDocsSaveState(): DocsSaveState {
+  return useSyncExternalStore(subscribeDocs, snapshotSaveState, () => "idle" as DocsSaveState);
 }
 
 // mock "AI로 다듬기" — 대화체를 이력서 개조식(명사형 종결)으로. 추후 LLM 교체.
