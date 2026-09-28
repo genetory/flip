@@ -87,7 +87,7 @@ export function jobHunting(t: PlatformT): CareerGuide[] {
       emoji: "🌱",
       title: t("경력이 없는데\n어떻게 어필하죠?", "No experience—\nhow do I stand out?", "没有经验\n怎么展示自己？", "Chưa có kinh nghiệm—\nlàm sao gây ấn tượng?", "経歴がないのに\nどうアピールする？", "Tanpa pengalaman—\nbagaimana menonjol?"),
       desc: t("경험은 이미 충분히 있어요", "You already have plenty of experience", "你其实已经有足够的经验", "Bạn đã có đủ kinh nghiệm rồi", "経験はもう十分にあります", "Anda sudah punya cukup pengalaman"),
-      href: "/talent/career/resume",
+      href: "/talent/career/resume/editor",
       ctaLabel: t("이력서에 정리하기", "Organize it into a resume", "整理进简历", "Sắp xếp vào CV", "履歴書に整理する", "Rapikan ke dalam resume"),
       body: [
         { heading: t("경험의 정의를 넓혀요", "Broaden what counts as experience", "拓宽经验的定义", "Mở rộng định nghĩa kinh nghiệm", "経験の定義を広げる", "Perluas makna pengalaman"), text: t("알바·동아리·팀플·공모전·개인 프로젝트 모두 훌륭한 재료예요. '무경력'이 아니라 '아직 정리 안 된 경험'일 뿐이에요.", "Part-time jobs, clubs, team projects, contests, and personal projects are all great material. You're not 'inexperienced'—it's just 'experience not yet organized.'", "兼职、社团、团队项目、比赛、个人项目都是很好的素材。你不是『没经验』，只是『还没整理的经验』。", "Việc làm thêm, câu lạc bộ, dự án nhóm, cuộc thi, dự án cá nhân đều là chất liệu tuyệt vời. Bạn không 'thiếu kinh nghiệm'—chỉ là 'kinh nghiệm chưa được sắp xếp'.", "アルバイト・サークル・チームプロジェクト・コンテスト・個人プロジェクトすべて立派な材料です。『無経験』ではなく『まだ整理されていない経験』なだけです。", "Kerja paruh waktu, klub, proyek tim, lomba, dan proyek pribadi semua materi bagus. Anda bukan 'tanpa pengalaman'—hanya 'pengalaman yang belum dirapikan'.") },

@@ -219,7 +219,7 @@ export function careerGuides(t: PlatformT): CareerGuide[] {
       emoji: "🗂️",
       title: t("경험이\n이력서가 되기까지", "Turning experience\ninto a resume", "让经验\n变成简历", "Biến kinh nghiệm\nthành CV", "経験が\n履歴書になるまで", "Mengubah pengalaman\nmenjadi resume"),
       desc: t("알바·프로젝트를 취업 언어로 바꾸는 법", "How to turn part-time jobs and projects into job-search language", "把兼职、项目转化为求职语言的方法", "Cách chuyển việc làm thêm và dự án thành ngôn ngữ xin việc", "アルバイト・プロジェクトを就活の言葉に変える方法", "Cara mengubah kerja paruh waktu dan proyek jadi bahasa lamaran"),
-      href: "/talent/career/resume",
+      href: "/talent/career/resume/editor",
       ctaLabel: t("이력서 만들기", "Build a resume", "制作简历", "Tạo CV", "履歴書を作る", "Buat resume"),
       body: [
         { heading: t("1. 경험은 '결과'까지 적어요", "1. Write experiences down to the 'result'", "1. 经验要写到『结果』", "1. Ghi kinh nghiệm đến cả 'kết quả'", "1. 経験は『結果』まで書く", "1. Tulis pengalaman sampai 'hasil'"), text: t("무엇을 했는지에서 멈추지 말고, 그래서 어떤 변화가 생겼는지까지 적어야 이력서 문장이 됩니다. 예: '주문을 받았다' → '주문 누락을 30% 줄였다'.", "Don't stop at what you did—write what changed as a result to make it a resume sentence. e.g., 'took orders' → 'cut order errors by 30%.'", "别只停在做了什么，还要写出因此带来的改变，才能成为简历句子。例：『接单』→『把订单遗漏减少了30%』。", "Đừng dừng ở việc đã làm gì—hãy ghi cả thay đổi nó tạo ra để thành câu trong CV. Ví dụ: 'nhận đơn' → 'giảm 30% đơn bị sót'.", "何をしたかで止めず、それでどんな変化が生まれたかまで書くと履歴書の文になります。例：『注文を受けた』→『注文漏れを30%減らした』。", "Jangan berhenti di apa yang dilakukan—tulis perubahan hasilnya agar jadi kalimat resume. Mis.: 'menerima pesanan' → 'menurunkan kesalahan pesanan 30%'.") },
@@ -232,7 +232,7 @@ export function careerGuides(t: PlatformT): CareerGuide[] {
       emoji: "📝",
       title: t("막막한 자기소개서,\n질문으로 시작", "Daunting cover letter?\nStart with the prompts", "自我介绍无从下笔？\n从问题开始", "Thư xin việc bí ý?\nBắt đầu từ câu hỏi", "手が止まる自己PR、\n設問から始める", "Surat lamaran buntu?\nMulai dari pertanyaan"),
       desc: t("빈 화면 대신 문항에 답하며 채우기", "Fill it by answering prompts instead of facing a blank page", "不面对空白页，而是回答问题来填写", "Điền bằng cách trả lời câu hỏi thay vì đối mặt trang trắng", "空白の画面ではなく設問に答えながら埋める", "Isi dengan menjawab pertanyaan alih-alih menatap halaman kosong"),
-      href: "/talent/career/cover",
+      href: "/talent/career/cover/editor",
       ctaLabel: t("자기소개서 시작하기", "Start a cover letter", "开始写自我介绍", "Bắt đầu thư xin việc", "自己PRを始める", "Mulai surat lamaran"),
       body: [
         { heading: t("1. 문항에 답하듯 써요", "1. Write by answering prompts", "1. 像回答问题一样写", "1. Viết như trả lời câu hỏi", "1. 設問に答えるように書く", "1. Tulis seperti menjawab pertanyaan"), text: t("빈 화면을 채우려 하지 말고, '지원 동기', '강점', '입사 후 포부' 같은 문항에 하나씩 답해보세요. 훨씬 수월해져요.", "Rather than filling a blank page, answer prompts like 'motivation,' 'strengths,' and 'ambitions after joining' one by one. It gets much easier.", "别想着填满空白页，逐一回答『求职动机』『优势』『入职后抱负』这类问题吧，会轻松许多。", "Thay vì lấp trang trắng, hãy trả lời từng câu như 'động cơ', 'điểm mạnh', 'hoài bão sau khi vào'. Sẽ dễ hơn nhiều.", "空白の画面を埋めようとせず、『志望動機』『強み』『入社後の抱負』などの設問に一つずつ答えてみましょう。ずっと楽になります。", "Alih-alih mengisi halaman kosong, jawab satu per satu pertanyaan seperti 'motivasi', 'kelebihan', 'ambisi setelah bergabung'. Jauh lebih mudah.") },
