@@ -2,7 +2,10 @@
 
 // 이력서 — 자동 초안(기본 정보 + 커리어 피드) → 직접 편집 + AI로 다듬기 + 대화로 추가.
 // 편집 옆에 미리보기 상시 노출(데스크톱), 모바일은 '미리보기' 버튼으로 따로 보기.
-// 1개 문서. 초안 생성/다듬기는 mock(규칙 기반), 추후 실제 LLM으로 교체.
+// 1개 문서. 다듬기는 실제 LLM(polish-experience), 빈 항목은 'AI로 작성'(draft-resume-text).
+// 최초 문서 자동 생성은 여전히 규칙 기반(refineText) — 첫 방문에 커리어 피드 항목 수만큼
+// LLM 을 돌리면 (1) 그만큼 API 요금이 나가고 (2) 항목이 20개면 분당 호출 상한(20회)에 바로
+// 걸린다. 그래서 의도적으로 유지한다. AI 는 사용자가 누를 때만 돈다.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Sparkle, PaperPlaneTilt, Trash, Eye, ArrowSquareOut, CaretDown, Plus } from "@phosphor-icons/react";
@@ -12,6 +15,11 @@ import { ProfileGate } from "../career/ProfileGate";
 import { ProfileCard } from "../career/ProfileCard";
 import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { ResumeA4Preview } from "../career/ResumeA4";
+import { AiRevisionBar } from "../career/AiRevisionBar";
+import { VersionHistoryMenu } from "../career/VersionHistoryMenu";
+import { Sparkle as SparkleIcon, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
+import { SaveStatus } from "../career/SaveStatus";
 import { TLoading } from "../ui/primitives";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { useBasicInfo, isBasicInfoComplete, type BasicInfo } from "../../../lib/talent/basic-info";
@@ -19,8 +27,8 @@ import { useCareerFeed, ensureFeedEntry } from "../../../lib/talent/career-feed"
 import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../lib/talent/career-chat";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
-import { useResumeDoc, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
-import { polishExperienceText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { useResumeDoc, useResumeHistory, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
+import { polishExperienceText, draftResumeText, polishResumeItems, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -28,11 +36,16 @@ import { usePlatformT } from "../../../lib/i18n";
 // 이력서 순서 — 경험·프로젝트·자격증·스킬·대외활동·수상, 학력은 맨 아래.
 const CHIP_ORDER: CareerSection[] = ["experience", "project", "certificate", "language", "skill", "activity", "award", "education"];
 
+// 'AI로 작성'을 붙일 섹션 — 서술형만. 학력·자격증·어학·스킬은 짧은 사실 기재라
+// AI가 쓸 근거가 없고(없는 점수·급수를 만들 위험) 사용자가 직접 쓰는 게 빠르다.
+const DRAFTABLE_SECTIONS: CareerSection[] = ["experience", "project", "activity", "award"];
+
 export function ResumeBuilderScreen() {
   const t = usePlatformT();
   const basicInfo = useBasicInfo();
   const feed = useCareerFeed();
   const stored = useResumeDoc();
+  const history = useResumeHistory();
   const status = useRenewalDocsStatus();
   const [doc, setDoc] = useState<ResumeDoc | null>(stored);
   const ready = isBasicInfoComplete(basicInfo);
@@ -64,7 +77,11 @@ export function ResumeBuilderScreen() {
         <div>
           <TalentBackButton className="mb-3" />
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력서","Resume","简历","CV","履歴書","CV")}</h1>
+            <div className="flex min-w-0 items-center gap-2">
+              <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력서","Resume","简历","CV","履歴書","CV")}</h1>
+              <SaveStatus />
+              <VersionHistoryMenu versions={history} onRestore={(ts) => restoreResumeVersion(ts)} />
+            </div>
             {showEditor ? (
               <Link
                 href={talentAppRoutes.resumePreview}
@@ -85,7 +102,10 @@ export function ResumeBuilderScreen() {
 /* 편집기 + (데스크톱) 미리보기 2단 */
 function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: BasicInfo; onChange: (d: ResumeDoc) => void }) {
   const t = usePlatformT();
-  // 포인트 부족(402) 시 충전 모달.
+  // 402(잔량 부족) 시 충전 모달.
+  // 현재 서버 aiGate 는 지갑을 차감하지 않고 429(분당 20회·일일 500회)만 낸다 → 402 는
+  // 실제로 오지 않는다(전면 무료). 유료화 여지를 남기려고 경로는 그대로 둔다.
+  // 429·5xx 는 aiPost → notifyAiBlocked → <AiBlockedHandler/> 가 전역 토스트로 안내한다.
   const [chargeOpen, setChargeOpen] = useState(false);
   const [usage, setUsage] = useState<AiUsage | null>(null);
   function setText(id: string, text: string) {
@@ -94,8 +114,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
   function setDate(id: string, field: "startDate" | "endDate", value: string) {
     onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, [field]: value } : it)) });
   }
-  // AI로 다듬기 — 선택한 스타일로 실제 AI 다듬기(polish-experience, 1P 소모).
-  // 포인트 부족(402)이면 충전 모달을 연다. 실패 시 원문 유지.
+  // AI로 다듬기 — 선택한 스타일로 실제 AI 다듬기(polish-experience).
+  // 402 면 충전 모달(현재 미발생). 실패 시 원문 유지.
   async function refine(id: string, text: string, section: CareerSection, style: PolishStyle): Promise<void> {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -109,6 +129,82 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
         setChargeOpen(true);
       } else {
         console.error("[resume/polish] failed", err);
+      }
+    }
+  }
+  // 전체 항목 일괄 정리 — 커리어 노트에서 자동으로 들어온 대화체 항목을 이력서 문장으로.
+  // 항목마다 polish 를 부르면 항목 수가 그대로 분당 상한(20회)을 먹으므로 배치 1회로 처리한다.
+  // 문서 전체를 갈아치우므로 직전 문서를 들고 있다가 되돌릴 수 있게 한다(버전 히스토리의
+  // 10분 간격 규칙에 걸려 스냅샷이 안 남을 수 있어 여기서 따로 보관).
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkPrev, setBulkPrev] = useState<ResumeDoc | null>(null);
+  const [bulkCount, setBulkCount] = useState(0);
+  const bulkTargets = doc.items.filter((it) => (it.text ?? "").trim().length > 0).slice(0, 40);
+  async function polishAll(): Promise<void> {
+    if (bulkBusy || bulkTargets.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const texts = await polishResumeItems(
+        bulkTargets.map((it) => ({
+          section: sectionLabelOf(t, it.section),
+          org: it.company?.trim() || undefined,
+          period: [it.startDate ?? "", it.endDate ?? ""].map((v) => v.trim()).filter(Boolean).join(" ~ ") || undefined,
+          text: (it.text ?? "").trim()
+        }))
+      );
+      const byId = new Map(bulkTargets.map((it, i) => [it.id, texts[i]]));
+      let changed = 0;
+      const items = doc.items.map((it) => {
+        const next = byId.get(it.id);
+        if (typeof next !== "string" || next === it.text) return it;
+        changed += 1;
+        return { ...it, text: next };
+      });
+      if (changed > 0) {
+        setBulkPrev(doc);
+        setBulkCount(changed);
+        onChange({ ...doc, items });
+      }
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      // 429·5xx 는 aiPost 가 전역 토스트로 안내한다(AiBlockedHandler).
+      if (err instanceof AiQuotaError) {
+        try { setUsage(await getAiUsage()); } catch { /* ignore */ }
+        setChargeOpen(true);
+      } else {
+        console.error("[resume/polish-all] failed", err);
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
+  // 빈 항목에 AI로 초안 쓰기(draft-resume-text, mode=generate).
+  // 다듬기(polish)는 기존 텍스트가 있어야 눌리므로, 빈 항목에는 여태 AI 도움이 전혀 없었다.
+  // 근거는 사용자가 채운 이름·기간뿐이다 — 백엔드가 "제공하지 않은 사실은 만들지 않는다"를
+  // 모든 모드에 걸어두므로, 이름이 비어 있으면 결과가 무의미해 버튼을 잠근다.
+  async function draft(id: string, section: CareerSection, company: string, startDate: string, endDate: string): Promise<void> {
+    const name = company.trim();
+    if (!name) return;
+    const fieldType = section === "activity" || section === "award" ? "activity" : "career";
+    const period = [startDate, endDate].map((v) => v.trim()).filter(Boolean).join(" ~ ");
+    const hints = [sectionLabelOf(t, section), name, period].filter(Boolean).join(" · ");
+    try {
+      const text = await draftResumeText({
+        currentText: "",
+        fieldType,
+        mode: "generate",
+        context: section === "experience" ? { companyName: name } : { title: name },
+        hints
+      });
+      onChange({ ...doc, items: doc.items.map((it) => (it.id === id ? { ...it, text } : it)) });
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      if (err instanceof AiQuotaError) {
+        try { setUsage(await getAiUsage()); } catch { /* ignore */ }
+        setChargeOpen(true);
+      } else {
+        console.error("[resume/draft] failed", err);
       }
     }
   }
@@ -146,6 +242,60 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
 
         <ResumePhotoRow label={t("이력서 사진","Resume photo","简历照片","Ảnh CV","履歴書写真","Foto CV")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
 
+        {/* 전체 항목을 이력서 문장으로 한 번에 정리(배치 1회 호출). */}
+        {bulkTargets.length > 0 ? (
+          <section className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <SparkleIcon className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+              <span className="min-w-0 flex-1 text-[13.5px] font-bold text-[#0B1227]">
+                {t("이력서 문장으로 한 번에 정리","Polish all at once","一键整理全部","Chỉnh tất cả một lần","まとめて整える","Rapikan sekaligus")}
+              </span>
+              <button
+                type="button"
+                onClick={() => void polishAll()}
+                disabled={bulkBusy}
+                className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              >
+                {bulkBusy
+                  ? t("정리 중…","Polishing…","整理中…","Đang chỉnh…","整えています…","Merapikan…")
+                  : `${t("정리","Polish","整理","Chỉnh","整える","Rapikan")} ${bulkTargets.length}`}
+              </button>
+            </div>
+            <p className="mt-1.5 text-[12px] leading-[1.6] text-[#8B95A1]">
+              {t(
+                "대화체로 적어둔 기록을 ‘~함/~완료’ 형태로 바꿉니다. 없는 사실은 추가하지 않아요.",
+                "Rewrites your notes in resume style. No facts are invented.",
+                "把口语记录改写为简历体，不会添加不存在的事实。",
+                "Viết lại ghi chú theo văn phong CV, không thêm điều không có.",
+                "話し言葉の記録を履歴書体に直します。事実は追加しません。",
+                "Menulis ulang catatan jadi gaya CV, tanpa menambah fakta."
+              )}
+            </p>
+            {bulkPrev ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#D7E3FF] bg-[#F5F8FF] px-3 py-2">
+                <span className="min-w-0 flex-1 text-[12px] font-bold text-[#0B46E8]">
+                  {t("항목","items","项","mục","項目","item")} {bulkCount}{t("개를 정리했어요"," polished"," 已整理"," đã chỉnh","件を整えました"," dirapikan")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { onChange(bulkPrev); setBulkPrev(null); }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2 py-1 text-[11.5px] font-bold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+                >
+                  <ArrowCounterClockwise className="h-3.5 w-3.5" weight="bold" />
+                  {t("되돌리기","Undo","撤销","Hoàn tác","元に戻す","Batalkan")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkPrev(null)}
+                  className="shrink-0 rounded-lg bg-[#0B46E8] px-2 py-1 text-[11.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                >
+                  {t("적용","Keep","保留","Giữ","採用","Simpan")}
+                </button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <ChatPanel onAdd={add} />
 
         {CHIP_ORDER.map((section) => {
@@ -179,6 +329,8 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
                   onStartChange={(v) => setDate(it.id, "startDate", v)}
                   onEndChange={(v) => setDate(it.id, "endDate", v)}
                   onRefine={(style) => refine(it.id, it.text, section, style)}
+                  onDraft={() => draft(it.id, section, it.company ?? "", it.startDate ?? "", it.endDate ?? "")}
+                  canDraft={DRAFTABLE_SECTIONS.includes(section)}
                   onRemove={() => remove(it.id)}
                 />
               ))}
@@ -249,6 +401,8 @@ function ItemRow({
   onStartChange,
   onEndChange,
   onRefine,
+  onDraft,
+  canDraft,
   onRemove
 }: {
   text: string;
@@ -263,12 +417,20 @@ function ItemRow({
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
   onRefine: (style: PolishStyle) => Promise<void> | void;
+  onDraft: () => Promise<void> | void;
+  canDraft: boolean;
   onRemove: () => void;
 }) {
   const t = usePlatformT();
   const [refining, setRefining] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  // AI 다듬기 스타일 3종 — 각 1P 소모. concise=간결 · expand=구체 · professional=정중.
+  // AI 직전 원문 — 부모가 텍스트를 갈아끼우므로 되돌릴 기준을 여기서 들고 있는다.
+  // AI 호출이 실패하면 부모가 원문을 그대로 두므로 before===after 가 되고, 그 경우 바를 숨긴다.
+  const [prevText, setPrevText] = useState<string | null>(null);
+  const [prevLabel, setPrevLabel] = useState<"polish" | "draft">("polish");
+  // AI 다듬기 스타일 3종 — concise=간결 · expand=구체 · professional=정중.
+  // (자소서 에디터는 백엔드 6종을 전부 노출한다. 이력서도 필요하면 같이 늘릴 수 있다.)
   const polishChoices: { style: PolishStyle; label: string; hint: string }[] = [
     { style: "concise", label: t("간결하게","Concise","简洁","Ngắn gọn","簡潔に","Ringkas"), hint: t("핵심만 짧게","Keep only the essentials","只留核心","Chỉ giữ ý chính","要点だけ短く","Inti saja") },
     { style: "expand", label: t("구체적으로","Detailed","具体","Chi tiết","具体的に","Rinci"), hint: t("맥락·역할을 풍부하게","Add context & detail","补充背景与角色","Thêm bối cảnh, vai trò","文脈・役割を補足","Tambah konteks & peran") },
@@ -336,11 +498,20 @@ function ItemRow({
       ) : null}
       <textarea
         value={text}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => { if (prevText !== null) setPrevText(null); onChange(e.target.value); }}
         rows={4}
         placeholder={textPlaceholder}
         className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
+      {prevText !== null && prevText !== text ? (
+        <AiRevisionBar
+          before={prevText}
+          after={text}
+          title={prevLabel === "draft" ? t("AI가 작성했어요","Written by AI","AI 已撰写","AI đã viết","AIが作成しました","Ditulis AI") : undefined}
+          onUndo={() => { onChange(prevText); setPrevText(null); }}
+          onAccept={() => setPrevText(null)}
+        />
+      ) : null}
       <div className="mt-2 flex items-center justify-between gap-1.5">
         {/* 사후 수정 — 섹션 이동(자동 분류 교정). 드롭다운 화살표는 phosphor CaretDown */}
         <div className="relative max-w-[45%]">
@@ -357,7 +528,19 @@ function ItemRow({
           <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="relative">
+          {canDraft && !text.trim() ? (
+            <button
+              type="button"
+              onClick={async () => { if (drafting || !company.trim()) return; setDrafting(true); setPrevText(text); setPrevLabel("draft"); try { await onDraft(); } finally { setDrafting(false); } }}
+              disabled={drafting || !company.trim()}
+              title={!company.trim() ? t("이름을 먼저 입력해 주세요","Enter the name first","请先填写名称","Nhập tên trước","先に名称を入力","Isi nama dulu") : undefined}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-2.5 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
+            >
+              <Sparkle className="h-3.5 w-3.5" weight="fill" />
+              {drafting ? t("쓰는 중…","Writing…","撰写中…","Đang viết…","作成中…","Menulis…") : t("AI로 작성","Write with AI","用 AI 撰写","Viết bằng AI","AIで作成","Tulis dengan AI")}
+            </button>
+          ) : null}
+          <div className={`relative ${canDraft && !text.trim() ? "hidden" : ""}`}>
             <button
               type="button"
               onClick={() => { if (!refining && text.trim()) setMenuOpen((v) => !v); }}
@@ -379,7 +562,7 @@ function ItemRow({
                       key={c.style}
                       type="button"
                       role="menuitem"
-                      onClick={async () => { setMenuOpen(false); setRefining(true); try { await onRefine(c.style); } finally { setRefining(false); } }}
+                      onClick={async () => { setMenuOpen(false); setRefining(true); setPrevText(text); setPrevLabel("polish"); try { await onRefine(c.style); } finally { setRefining(false); } }}
                       className="flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition hover:bg-[#F6F8FB]"
                     >
                       <span className="flex flex-col">

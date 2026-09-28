@@ -2,7 +2,7 @@
 // 저장은 localStorage 가 아니라 로그인한 계정(서버 Resume.content)에 귀속된다(renewal-docs-store).
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuthSession } from "../../components/auth/AuthSessionProvider";
-import { setCoverDoc as storeSetCover, snapshotCover, subscribeDocs, syncUser } from "./renewal-docs-store";
+import { setCoverDoc as storeSetCover, snapshotCover, snapshotCoverHistory, subscribeDocs, syncUser, type DocVersion } from "./renewal-docs-store";
 
 export interface CoverItem {
   id: string;
@@ -15,6 +15,11 @@ export interface CoverDoc {
   items: CoverItem[];
   questions?: string[]; // 문항(섹션) 목록·순서. 없으면 기본 COVER_QUESTIONS. 사용자가 이름 변경·추가·삭제 가능.
   showPhoto?: boolean; // 자기소개서에 프로필 사진 표시 여부(기본 false)
+  // ── AI 자소서 엔진(/members/me/ai/cover-letter) 입력 — 전부 선택값이라 기존 문서와 호환된다.
+  companyName?: string; // 지원 회사명
+  jobText?: string; // 목표 공고(JD) 본문. 있으면 프롬프트의 '공고 1:1 연결' 규칙이 켜진다.
+  keywords?: string[]; // 반드시 본문에 녹일 소재. 프롬프트에서 최우선(누락 시 실패) 규칙으로 처리된다.
+  targetChars?: Record<string, number>; // 문항명 → 목표 글자 수. 없는 문항은 길이 지시 없이 생성.
   createdAt: number;
   updatedAt: number;
 }
@@ -103,4 +108,10 @@ export function useCoverDoc(): CoverDoc | null {
     syncUser(userId);
   }, [userId]);
   return useSyncExternalStore(subscribeDocs, snapshotCover, () => null);
+}
+
+// 자소서 버전 히스토리 — 에디터 헤더의 '이전 버전' 메뉴용.
+const EMPTY_HISTORY: DocVersion<CoverDoc>[] = [];
+export function useCoverHistory(): DocVersion<CoverDoc>[] {
+  return useSyncExternalStore(subscribeDocs, snapshotCoverHistory, () => EMPTY_HISTORY);
 }

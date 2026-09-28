@@ -82,10 +82,12 @@ import {
   buildPolishExperienceMessages,
   buildPolishIntroMessages,
   buildDraftResumeTextMessages,
+  buildResumeItemsMessages,
   stripCliches,
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
-  DRAFT_TEXT_SCHEMA
+  DRAFT_TEXT_SCHEMA,
+  RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
 import { generateJsonAnthropic } from "./llm/anthropic";
@@ -26287,6 +26289,63 @@ app.post(
     } catch (err) {
       console.error("[ai/polish-experience] failed", err);
       return res.status(500).json({ ok: false, message: "failed to polish experience" });
+    }
+  }
+);
+
+// POST /members/me/ai/polish-resume-items — 이력서 항목 여러 개를 한 번에 개조식으로 정리.
+// 항목마다 polish-experience 를 부르면 항목 수가 그대로 분당 호출 상한(20회)을 먹으므로,
+// "커리어 노트 전체를 이력서 문장으로" 같은 일괄 작업은 이 엔드포인트로 한 번에 처리한다.
+// 순서·개수를 보존해 호출부가 인덱스로 되매핑한다(길이가 안 맞으면 원문 유지).
+const polishResumeItemsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        section: z.string().trim().max(40),
+        org: z.string().trim().max(120).optional(),
+        period: z.string().trim().max(60).optional(),
+        text: z.string().trim().min(1).max(2000)
+      })
+    )
+    .min(1)
+    .max(40),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/polish-resume-items",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  // 배치라 호출 1회로 최대 40항목을 처리한다 → 분당 횟수는 낮게 잡아도 충분하다.
+  rateLimit({ windowMs: 60_000, max: 6, keyPrefix: "ai-polish-items", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("polish_resume_items"),
+  async (req, res) => {
+    const parsed = polishResumeItemsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { items, locale } = parsed.data;
+      // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
+      const { system: systemPrompt, user: userPrompt } = buildResumeItemsMessages(items, locale);
+      const { data } = await generateJson<{ texts?: unknown }>({
+        openai,
+        model: openaiTranslationModel,
+        temperature: 0.4,
+        system: systemPrompt,
+        user: userPrompt,
+        schema: RESUME_ITEMS_SCHEMA,
+        schemaName: "resume_items"
+      });
+      const out = Array.isArray(data?.texts) ? (data!.texts as unknown[]) : [];
+      // 개수·타입이 안 맞으면 해당 항목만 원문 유지 — 부분 실패가 내용을 지우지 않게 한다.
+      const texts = items.map((it, i) => {
+        const v = out[i];
+        if (typeof v !== "string" || !v.trim()) return it.text;
+        return stripCliches(v.trim()).slice(0, 2000) || it.text;
+      });
+      return res.json({ ok: true, texts });
+    } catch (err) {
+      console.error("[ai/polish-resume-items] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to polish resume items" });
     }
   }
 );
