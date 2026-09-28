@@ -1,10 +1,15 @@
 "use client";
 
-// 자기소개서 — 문항별 직접 편집 + AI로 다듬기/초안. 옆에 A4 미리보기(전체 보기 링크).
-// 1개 문서. 기본 정보 미등록 시 게이트. mock 저장 + /api/cover-assist.
+// 자기소개서 — 문항별 직접 편집 + AI 초안/다듬기. 옆에 A4 미리보기(전체 보기 링크).
+// 1개 문서. 기본 정보 미등록 시 게이트.
+//
+// AI는 자소서 전용 엔진(/members/me/ai/cover-letter)을 쓴다. 이 엔진은 지원 공고(JD)·반드시
+// 넣을 소재·목표 글자 수·이력서 구조화 컨텍스트를 받아 한국형 자소서 규칙(STAR·두괄식·상투어
+// 금지·수치 날조 금지)으로 생성한다. 예전엔 이력서 '자기소개 다듬기'(polish-intro)를 불러서
+// 자소서 규칙이 전혀 적용되지 않았다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Sparkle, Eye, ArrowSquareOut, Trash, PaperPlaneTilt, CaretDown, Plus } from "@phosphor-icons/react";
+import { Sparkle, Eye, ArrowSquareOut, Trash, PaperPlaneTilt, CaretDown, Plus, Buildings, Tag, X } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { TalentBackButton } from "../TalentBackButton";
 import { ProfileGate } from "../career/ProfileGate";
@@ -19,7 +24,9 @@ import { SECTION_META } from "../../../lib/talent/career-chat";
 import { useCoverDoc, saveCoverDoc, generateCoverDoc, addCoverItem, coverQuestionEmoji, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { coverQuestionLabelOf } from "../../../lib/talent/career-labels";
 import { coverChat } from "../../../lib/talent/cover-assist-client";
-import { polishSelfIntro, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { generateCoverLetter, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { buildCoverAiResumeContext, type CoverAiResumeContext } from "../../../lib/talent/cover-ai-context";
+import type { ResumeDoc } from "../../../lib/talent/resume-doc";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { ensureFeedEntry } from "../../../lib/talent/career-feed";
 import { usePlatformT } from "../../../lib/i18n";
@@ -77,13 +84,13 @@ export function CoverBuilderScreen() {
           </div>
         </div>
 
-        {!ready ? <ProfileGate /> : doc ? <Editor doc={doc} basicInfo={basicInfo} resumeText={resumeText} onChange={update} /> : <TLoading />}
+        {!ready ? <ProfileGate /> : doc ? <Editor doc={doc} basicInfo={basicInfo} resumeText={resumeText} resume={resume} onChange={update} /> : <TLoading />}
       </div>
     </TalentAppShell>
   );
 }
 
-function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basicInfo: BasicInfo; resumeText: string; onChange: (d: CoverDoc) => void }) {
+function Editor({ doc, basicInfo, resumeText, resume, onChange }: { doc: CoverDoc; basicInfo: BasicInfo; resumeText: string; resume: ResumeDoc | null; onChange: (d: CoverDoc) => void }) {
   const t = usePlatformT();
   // 포인트 부족(402) 시 충전 모달.
   const [chargeOpen, setChargeOpen] = useState(false);
@@ -122,7 +129,13 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
     if (prev === next) return;
     const nextQuestions = questions.map((q, i) => (i === idx ? next : q));
     const items = doc.items.map((it) => (it.question === prev ? { ...it, question: next } : it));
-    onChange({ ...doc, questions: nextQuestions, items });
+    // 목표 글자 수는 문항명을 키로 쓰므로 rename 시 같이 옮긴다(안 하면 설정이 조용히 사라진다).
+    let targetChars = doc.targetChars;
+    if (targetChars && prev in targetChars) {
+      const { [prev]: moved, ...rest } = targetChars;
+      targetChars = { ...rest, [next]: moved };
+    }
+    onChange({ ...doc, questions: nextQuestions, items, targetChars });
   }
   // 새 문항 추가 — 이름 중복 피해 기본 이름 부여(사용자가 바로 수정 가능).
   function addQuestion() {
@@ -135,7 +148,56 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
   // 문항 삭제 — 목록에서 제거하고 그 문항의 항목도 함께 삭제.
   function removeQuestion(idx: number) {
     const q = questions[idx];
-    onChange({ ...doc, questions: questions.filter((_, i) => i !== idx), items: doc.items.filter((it) => it.question !== q) });
+    const { [q]: _dropped, ...targetChars } = doc.targetChars ?? {};
+    onChange({
+      ...doc,
+      questions: questions.filter((_, i) => i !== idx),
+      items: doc.items.filter((it) => it.question !== q),
+      targetChars
+    });
+  }
+
+  // 이력서를 엔진이 기대하는 구조(경험/학력/스킬/어학)로 접어둔다 — 프롬프트 1번 규칙이
+  // "제공된 정보 밖의 사실 금지"라서, 이 컨텍스트가 곧 AI가 쓸 수 있는 재료의 전부다.
+  const aiResume = useMemo<CoverAiResumeContext>(() => buildCoverAiResumeContext(resume), [resume]);
+  // 문서 단위 AI 입력(공고·소재)을 한 곳에 모아 ItemRow 로 내린다.
+  const aiShared = useMemo(
+    () => ({
+      companyName: doc.companyName?.trim() || undefined,
+      jobText: doc.jobText?.trim() || undefined,
+      keywords: (doc.keywords ?? []).map((k) => k.trim()).filter(Boolean).slice(0, 10)
+    }),
+    [doc.companyName, doc.jobText, doc.keywords]
+  );
+  // 문항별 AI 초안 — 이력서·공고·소재·목표 글자 수를 모두 넘겨 처음부터 쓴다(1P 소모).
+  const [draftingQ, setDraftingQ] = useState<string | null>(null);
+  async function aiDraft(question: string) {
+    if (draftingQ) return;
+    setDraftingQ(question);
+    try {
+      const text = await generateCoverLetter({
+        mode: "draft",
+        prompt: question,
+        targetChars: doc.targetChars?.[question],
+        ...aiShared,
+        ...aiResume
+      });
+      const { doc: next, id } = addCoverItem(doc, question, text);
+      onChange(next);
+      logCover(id, question, text);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      if (err instanceof AiQuotaError) void openCharge();
+      else console.error("[cover/draft] failed", err);
+    } finally {
+      setDraftingQ(null);
+    }
+  }
+  function setTargetChars(question: string, value: number | null) {
+    const next = { ...(doc.targetChars ?? {}) };
+    if (value == null) delete next[question];
+    else next[question] = value;
+    onChange({ ...doc, targetChars: next });
   }
 
   return (
@@ -145,6 +207,10 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
         <ProfileCard info={basicInfo} showPhoto={false} />
 
         <ResumePhotoRow label={t("자기소개서 사진","Cover letter photo","求职信照片","Ảnh thư xin việc","自己PR写真","Foto surat lamaran")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
+
+        {/* 지원 공고·소재 — AI 초안/다듬기의 그라운딩 소스. 비워두면 이력서만 근거로 쓴다. */}
+        <JobTargetCard doc={doc} onChange={onChange} />
+        <KeywordsCard doc={doc} onChange={onChange} />
 
         <ChatPanel name={basicInfo.realName} resumeText={resumeText} questions={questions} onAdd={add} />
 
@@ -162,7 +228,11 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
               onRename={(v) => renameQuestion(idx, v)}
               onRemoveSection={() => removeQuestion(idx)}
               removeLabel={t("문항 삭제","Delete section","删除问题","Xóa mục","設問を削除","Hapus bagian")}
+              onAiDraft={() => void aiDraft(q)}
+              aiDraftLabel={t("AI 초안","AI draft","AI 草稿","Nháp AI","AI下書き","Draf AI")}
+              aiBusy={draftingQ === q}
             >
+              <TargetCharsRow value={doc.targetChars?.[q] ?? null} onChange={(v) => setTargetChars(q, v)} />
               {items.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-5 text-center text-[13px] text-[#B0B8C1]">{t("‘직접 추가’로 답변을 직접 작성하거나, 위 AI 대화로 추가하세요.","Use ‘Add’ to write an answer, or add via the AI chat above.","用“直接添加”手动填写，或通过上方 AI 对话添加。","Dùng ‘Thêm’ để tự viết, hoặc thêm qua AI phía trên.","「直接追加」で自分で書くか、上のAI対話で追加してください。","Gunakan ‘Tambah’ untuk menulis, atau via chat AI di atas.")}</p>
               ) : null}
@@ -170,6 +240,10 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
                 <ItemRow
                   key={it.id}
                   text={it.text}
+                  question={q}
+                  targetChars={doc.targetChars?.[q] ?? null}
+                  shared={aiShared}
+                  aiResume={aiResume}
                   onChange={(v) => setText(it.id, v)}
                   onRemove={() => remove(it.id)}
                   onQuota={openCharge}
@@ -206,7 +280,7 @@ function Editor({ doc, basicInfo, resumeText, onChange }: { doc: CoverDoc; basic
 }
 
 // 접을 수 있는 섹션(문항) — 타이틀은 직접 편집 가능, '직접 추가'·'문항 삭제'·화살표.
-function CollapsibleSection({ emoji, title, count, children, defaultOpen = true, onAdd, addLabel, onRename, onRemoveSection, removeLabel }: { emoji: string; title: string; count: number; children: React.ReactNode; defaultOpen?: boolean; onAdd?: () => void; addLabel?: string; onRename?: (v: string) => void; onRemoveSection?: () => void; removeLabel?: string }) {
+function CollapsibleSection({ emoji, title, count, children, defaultOpen = true, onAdd, addLabel, onRename, onRemoveSection, removeLabel, onAiDraft, aiDraftLabel, aiBusy = false }: { emoji: string; title: string; count: number; children: React.ReactNode; defaultOpen?: boolean; onAdd?: () => void; addLabel?: string; onRename?: (v: string) => void; onRemoveSection?: () => void; removeLabel?: string; onAiDraft?: () => void; aiDraftLabel?: string; aiBusy?: boolean }) {
   const t = usePlatformT();
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -227,6 +301,17 @@ function CollapsibleSection({ emoji, title, count, children, defaultOpen = true,
           <h2 className="flex-1 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
         )}
         <span className="shrink-0 text-[13px] font-bold text-[#B0B8C1]">{count}</span>
+        {onAiDraft ? (
+          <button
+            type="button"
+            onClick={() => { onAiDraft(); setOpen(true); }}
+            disabled={aiBusy}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#0B46E8] px-2.5 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+          >
+            <Sparkle className="h-3.5 w-3.5" weight="fill" />
+            {aiBusy ? t("쓰는 중…","Writing…","撰写中…","Đang viết…","作成中…","Menulis…") : aiDraftLabel}
+          </button>
+        ) : null}
         {onAdd ? (
           <button
             type="button"
@@ -365,11 +450,19 @@ function ChipButton({ label, active, onClick }: { label: string; active: boolean
 
 function ItemRow({
   text,
+  question,
+  targetChars,
+  shared,
+  aiResume,
   onChange,
   onRemove,
   onQuota
 }: {
   text: string;
+  question: string;
+  targetChars: number | null;
+  shared: { companyName?: string; jobText?: string; keywords: string[] };
+  aiResume: CoverAiResumeContext;
   onChange: (v: string) => void;
   onRemove: () => void;
   onQuota: () => void;
@@ -386,12 +479,22 @@ function ItemRow({
 
   const value = text ?? "";
 
+  // 다듬기도 자소서 엔진으로 — 문항(prompt)·공고·소재·목표 글자 수·이력서를 함께 넘겨야
+  // '문항 의도에 맞게', '공고와 1:1로', '소재 누락 없이' 규칙이 작동한다.
   async function refine(style: PolishStyle) {
     if (busy || !value.trim()) return;
     setMenuOpen(false);
     setBusy(true);
     try {
-      const polished = await polishSelfIntro({ text: value.trim(), style });
+      const polished = await generateCoverLetter({
+        mode: "polish",
+        style,
+        prompt: question,
+        current: value.trim(),
+        targetChars: targetChars ?? undefined,
+        ...shared,
+        ...aiResume
+      });
       if (polished) onChange(polished);
       if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
     } catch (err) {
@@ -402,6 +505,21 @@ function ItemRow({
     }
   }
 
+  // 글자 수 — 자소서는 글자 수 제한이 곧 제출 조건이라 상시 노출한다.
+  // 색 기준은 백엔드 지시와 맞춘다(최소 target, 상한 target*1.2).
+  const len = value.length;
+  const over = targetChars != null ? Math.round(targetChars * 1.2) : null;
+  const tone =
+    targetChars == null
+      ? "text-[#B0B8C1]"
+      : len < targetChars
+        ? "text-[#C79A00]"
+        : over != null && len > over
+          ? "text-[#F04452]"
+          : "text-[#00A05B]";
+  const ratio = targetChars != null && targetChars > 0 ? Math.min(1, len / targetChars) : 0;
+  const barTone = targetChars == null ? "bg-[#E5E8EB]" : len < targetChars ? "bg-[#F5C400]" : over != null && len > over ? "bg-[#F04452]" : "bg-[#00C473]";
+
   return (
     <div className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
       <textarea
@@ -410,7 +528,19 @@ function ItemRow({
         rows={4}
         className="min-h-[116px] w-full resize-y break-keep rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[14px] leading-[1.8] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
       />
-      <div className="mt-2.5 flex items-center justify-end gap-1.5">
+      <div className="mt-2 flex items-center gap-2">
+        {targetChars != null ? (
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-[#F2F4F6]" aria-hidden>
+            <div className={`h-full rounded-full transition-all ${barTone}`} style={{ width: `${Math.round(ratio * 100)}%` }} />
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+        <span className={`shrink-0 text-[11.5px] font-bold tabular-nums ${tone}`}>
+          {targetChars != null ? `${len} / ${targetChars}${t("자","","字","ký tự","字","krt")}` : `${len}${t("자","","字","ký tự","字","krt")}`}
+        </span>
+      </div>
+      <div className="mt-2 flex items-center justify-end gap-1.5">
         <div className="relative">
           <button
             type="button"
@@ -449,6 +579,182 @@ function ItemRow({
           <Trash className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── 지원 공고(JD) — 있으면 프롬프트의 '공고 1:1 연결' 규칙이 켜지고, 없으면 이력서만 근거로 쓴다.
+// 백엔드가 jobText 를 4000자로 자르므로 입력도 같은 상한을 둔다.
+const JOB_TEXT_MAX = 4000;
+
+function JobTargetCard({ doc, onChange }: { doc: CoverDoc; onChange: (d: CoverDoc) => void }) {
+  const t = usePlatformT();
+  const has = Boolean(doc.companyName?.trim() || doc.jobText?.trim());
+  const [open, setOpen] = useState(has);
+  const jd = doc.jobText ?? "";
+  return (
+    <section className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
+        <Buildings className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+        <span className="flex-1 text-[13.5px] font-bold text-[#0B1227]">
+          {t("지원 공고","Target job posting","目标招聘","Tin tuyển dụng","応募求人","Lowongan target")}
+        </span>
+        <span className="shrink-0 text-[11.5px] font-bold text-[#8B95A1]">
+          {has
+            ? (doc.companyName?.trim() || t("공고 입력됨","Added","已填写","Đã nhập","入力済み","Terisi"))
+            : t("선택","Optional","可选","Tùy chọn","任意","Opsional")}
+        </span>
+        <CaretDown className={`h-4 w-4 shrink-0 text-[#C4CAD2] transition-transform ${open ? "rotate-180" : ""}`} weight="bold" />
+      </button>
+      {open ? (
+        <div className="mt-3 flex flex-col gap-2.5">
+          <p className="text-[12px] leading-[1.6] text-[#8B95A1]">
+            {t(
+              "공고를 넣으면 AI가 그 회사가 요구하는 역량에 내 경험을 직접 연결해 씁니다.",
+              "With a posting, the AI ties your experience to what that company asks for.",
+              "填入招聘后，AI 会把你的经历与该公司要求直接对应。",
+              "Có tin tuyển dụng, AI sẽ nối kinh nghiệm của bạn với yêu cầu công ty.",
+              "求人を入れると、AIが企業の要件にあなたの経験を結び付けます。",
+              "Dengan lowongan, AI menghubungkan pengalaman Anda dengan syarat perusahaan."
+            )}
+          </p>
+          <input
+            value={doc.companyName ?? ""}
+            onChange={(e) => onChange({ ...doc, companyName: e.target.value.slice(0, 120) })}
+            placeholder={t("회사명","Company","公司名","Tên công ty","会社名","Nama perusahaan")}
+            aria-label={t("회사명","Company","公司名","Tên công ty","会社名","Nama perusahaan")}
+            className="w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[13.5px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+          />
+          <textarea
+            value={jd}
+            onChange={(e) => onChange({ ...doc, jobText: e.target.value.slice(0, JOB_TEXT_MAX) })}
+            rows={4}
+            placeholder={t("공고 내용을 붙여넣어 주세요","Paste the job posting","粘贴招聘内容","Dán nội dung tin","求人内容を貼り付け","Tempel isi lowongan")}
+            aria-label={t("공고 내용","Job posting","招聘内容","Nội dung tin","求人内容","Isi lowongan")}
+            className="min-h-[96px] w-full resize-y break-anywhere rounded-lg bg-[#F5F6F8] px-3.5 py-3 text-[13px] leading-[1.7] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] tabular-nums text-[#B0B8C1]">{jd.length} / {JOB_TEXT_MAX}</span>
+            {has ? (
+              <button
+                type="button"
+                onClick={() => onChange({ ...doc, companyName: "", jobText: "" })}
+                className="text-[11.5px] font-bold text-[#8B95A1] transition hover:text-[#F04452]"
+              >
+                {t("지우기","Clear","清除","Xóa","クリア","Hapus")}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+// ── 반드시 넣을 소재 — 프롬프트에서 "하나라도 빠지면 실패한 답변"으로 처리되는 최우선 입력.
+// 이력서에 없는 개인 사연(예: "아빠가 삼성전자 출신")도 사실로 간주해 이야기로 녹여준다.
+const KEYWORDS_MAX = 10;
+
+function KeywordsCard({ doc, onChange }: { doc: CoverDoc; onChange: (d: CoverDoc) => void }) {
+  const t = usePlatformT();
+  const list = doc.keywords ?? [];
+  const [draft, setDraft] = useState("");
+  function commit() {
+    const v = draft.trim().slice(0, 40);
+    if (!v || list.length >= KEYWORDS_MAX || list.includes(v)) { setDraft(""); return; }
+    onChange({ ...doc, keywords: [...list, v] });
+    setDraft("");
+  }
+  return (
+    <section className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+      <div className="flex items-center gap-2">
+        <Tag className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+        <span className="flex-1 text-[13.5px] font-bold text-[#0B1227]">
+          {t("반드시 넣을 소재","Must-include points","必写素材","Nội dung bắt buộc","必ず入れる要素","Poin wajib")}
+        </span>
+        <span className="shrink-0 text-[11px] tabular-nums text-[#B0B8C1]">{list.length}/{KEYWORDS_MAX}</span>
+      </div>
+      <p className="mt-1.5 text-[12px] leading-[1.6] text-[#8B95A1]">
+        {t(
+          "이력서에 없는 내 이야기도 적어주세요. AI가 빠뜨리지 않고 녹여 씁니다.",
+          "Add your own stories too — the AI weaves every one in.",
+          "也可写简历里没有的经历，AI 会全部融入。",
+          "Thêm câu chuyện riêng — AI sẽ đưa vào hết.",
+          "履歴書にない話も書いてください。AIが必ず織り込みます。",
+          "Tambahkan cerita Anda — AI memasukkan semuanya."
+        )}
+      </p>
+      {list.length ? (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {list.map((k) => (
+            <span key={k} className="inline-flex items-center gap-1 rounded-full bg-[#EDF1FD] py-1 pl-2.5 pr-1.5 text-[12px] font-bold text-[#0B46E8]">
+              <span className="break-anywhere">{k}</span>
+              <button
+                type="button"
+                onClick={() => onChange({ ...doc, keywords: list.filter((x) => x !== k) })}
+                aria-label={`${k} ${t("삭제","Remove","删除","Xóa","削除","Hapus")}`}
+                className="flex h-4 w-4 items-center justify-center rounded-full text-[#0B46E8]/60 transition hover:bg-white hover:text-[#F04452]"
+              >
+                <X className="h-3 w-3" weight="bold" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {list.length < KEYWORDS_MAX ? (
+        <div className="mt-2.5 flex gap-1.5">
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
+            placeholder={t("예: 교환학생 경험","e.g. exchange program","例：交换生经历","VD: du học trao đổi","例：交換留学","mis. program pertukaran")}
+            aria-label={t("소재 추가","Add a point","添加素材","Thêm nội dung","要素を追加","Tambah poin")}
+            className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[13.5px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]"
+          />
+          <button
+            type="button"
+            onClick={commit}
+            disabled={!draft.trim()}
+            className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-2.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:opacity-40"
+          >
+            {t("추가","Add","添加","Thêm","追加","Tambah")}
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+// ── 문항별 목표 글자 수 — 기업 자소서는 글자 수 제한이 제출 조건이라 문항마다 따로 잡는다.
+// '자유'면 프롬프트에 길이 지시를 넣지 않는다(백엔드 targetChars 미전송).
+const TARGET_CHOICES = [500, 700, 800, 1000, 1500];
+
+function TargetCharsRow({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  const t = usePlatformT();
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-0.5 text-[11.5px] font-bold text-[#8B95A1]">
+        {t("목표 글자 수","Target length","目标字数","Độ dài mục tiêu","目標文字数","Target panjang")}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        aria-pressed={value == null}
+        className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold transition ${value == null ? "bg-[#0B1227] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E8EBED]"}`}
+      >
+        {t("자유","Any","不限","Tự do","自由","Bebas")}
+      </button>
+      {TARGET_CHOICES.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          aria-pressed={value === n}
+          className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold tabular-nums transition ${value === n ? "bg-[#0B1227] text-white" : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E8EBED]"}`}
+        >
+          {n}
+        </button>
+      ))}
     </div>
   );
 }
