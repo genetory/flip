@@ -22,7 +22,8 @@ import {
   saveResumeDoc,
   useRenewalDocsStatus,
   useResumeDoc,
-  type ResumeDoc
+  type ResumeDoc,
+  generateResumeDoc
 } from "../../../lib/talent/resume-doc";
 import { FIXED_MODULES, isFixedModule, type ResumeLayout, type ResumeSnapshot } from "../../../lib/talent/doc-versions";
 import {
@@ -62,16 +63,13 @@ function EditorGate() {
   const status = useRenewalDocsStatus();
   const info = useBasicInfo();
 
+  // 이력서가 없어도 빈 문서로 바로 편집을 시작한다(자소서 에디터와 동일).
+  // 예전에는 구 화면으로 보냈는데, 그 경로가 사라지면 '눌러도 반응 없음'이 된다.
+  // 첫 편집이 saveResumeDoc 을 타면서 계정에 저장된다.
+  const empty = useMemo(() => generateResumeDoc([]), []);
+
   if (status !== "loaded") return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
-  if (!doc) {
-    return (
-      <FullMessage
-        text={t("아직 이력서가 없어요. 먼저 이력서를 만들어 주세요.", "No resume yet. Create one first.", "还没有简历，请先创建。", "Chưa có hồ sơ. Hãy tạo trước.", "まだ履歴書がありません。先に作成してください。", "Belum ada resume. Buat dulu.")}
-        action={{ href: "/talent/career/resume", label: t("이력서 만들기", "Create resume", "创建简历", "Tạo hồ sơ", "履歴書を作る", "Buat resume") }}
-      />
-    );
-  }
-  return <Editor doc={doc} info={info} />;
+  return <Editor doc={doc ?? empty} info={info} />;
 }
 
 // ── 에디터 ───────────────────────────────────────────────────
@@ -124,7 +122,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
     <EditorTopBar
       t={t}
       active="resume"
-      exitHref="/talent/career/resume"
+      exitHref="/talent/career"
       working={working}
       saved={store.saved}
       current={current}
@@ -433,14 +431,33 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
     );
   }
   if (id === FIXED_MODULES.links) {
+    // 링크·포트폴리오를 여기서 바로 고친다 — 예전에는 구 이력서 화면으로 보냈다.
+    const links = doc.links ?? [];
+    const update = (i: number, patch: Partial<{ label: string; url: string }>) =>
+      props.onDoc({ links: links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
     return (
-      <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
-        <p className="text-[12px] leading-relaxed text-[#6B7684]">
-          {t("링크는 기존 이력서 화면에서 고칠 수 있어요.", "Edit links on the resume page.", "请在简历页面编辑链接。", "Sửa liên kết ở trang hồ sơ.", "リンクは履歴書画面で編集できます。", "Ubah tautan di halaman resume.")}{" "}
-          <Link href="/talent/career/resume" className="font-semibold text-[#0B46E8] underline">
-            {t("이력서 화면으로", "Go to resume", "前往简历", "Đến hồ sơ", "履歴書へ", "Ke resume")}
-          </Link>
-        </p>
+      <Section title={t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & hồ sơ", "リンク・ポートフォリオ", "Tautan & portofolio")}>
+        {links.length === 0 ? (
+          <p className="text-[12px] leading-relaxed text-[#8B95A1]">
+            {t("깃허브·노션·포트폴리오 주소를 넣어 보세요.", "Add your GitHub, Notion, or portfolio link.", "添加 GitHub、Notion 或作品集链接。", "Thêm GitHub, Notion hoặc portfolio.", "GitHub・Notion・ポートフォリオのURLを追加。", "Tambahkan GitHub, Notion, atau portofolio.")}
+          </p>
+        ) : null}
+        {links.map((l, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-[10px] bg-[#F7F8FA] p-2.5">
+            <Field label={t("이름", "Label", "名称", "Nhãn", "名称", "Label")} value={l.label} onChange={(v) => update(i, { label: v })} />
+            <Field label={t("주소", "URL", "网址", "Đường dẫn", "URL", "URL")} value={l.url} onChange={(v) => update(i, { url: v })} />
+            <button
+              type="button"
+              onClick={() => props.onDoc({ links: links.filter((_, idx) => idx !== i) })}
+              className="h-8 rounded-[10px] bg-white text-[12px] font-semibold text-[#8B95A1] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+            >
+              {t("삭제", "Remove", "删除", "Xóa", "削除", "Hapus")}
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={() => props.onDoc({ links: [...links, { label: "", url: "" }] })} className={`${TINT_BTN} h-9 w-full`}>
+          {t("링크 추가", "Add link", "添加链接", "Thêm liên kết", "リンクを追加", "Tambah tautan")}
+        </button>
       </Section>
     );
   }

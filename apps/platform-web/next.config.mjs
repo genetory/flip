@@ -56,6 +56,11 @@ const nextConfig = {
       // 공고 맞춤 분석은 리뉴얼 경로로 살려뒀다 — 넓은 :path* 규칙보다 먼저 와야 잡힌다.
       { source: "/resume-maker/:resumeId/tailor", destination: "/talent/career/resumes/:resumeId/tailor", permanent: true },
       { source: "/resume-maker/diagnosis", destination: "/talent/career/resume/diagnosis", permanent: true },
+      // 구 이력서·자소서 화면은 더 이상 쓰지 않는다 — 편집기는 모듈형(/editor) 하나다.
+      // 모듈형 에디터가 구 화면에 걸던 의존(생성·나가기·링크편집)을 먼저 없앤 뒤 막는 것이다.
+      // 하위 경로(preview·diagnosis·editor)를 삼키지 않도록 :path* 없이 정확히 일치만 잡는다.
+      { source: "/talent/career/resume", destination: "/talent/career/resume/editor", permanent: true },
+      { source: "/talent/career/cover", destination: "/talent/career/cover/editor", permanent: true },
       { source: "/resume-maker/:path*", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume", destination: "/talent/career/resumes", permanent: true },
       { source: "/resume/:id/edit", destination: "/talent/career/resumes", permanent: true },
