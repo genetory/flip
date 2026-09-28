@@ -39,9 +39,10 @@ import {
   type ResolvedLayout
 } from "../../../lib/talent/resume-layout";
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
-import { polishExperienceText, polishSelfIntro } from "../../../lib/resume-maker-client";
+import { polishExperienceText, polishSelfIntro, polishResumeItems } from "../../../lib/resume-maker-client";
+import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useDocVersionStore, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -363,6 +364,9 @@ function Inspector(props: {
 
   return (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      {/* 모듈 선택과 무관하게 항상 보인다 — 문서 전체에 거는 작업이다. */}
+      <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
+
       {id ? (
         <>
           <div>
@@ -510,4 +514,82 @@ function moduleTitle(t: PlatformT, id: string, doc: ResumeDoc, info: BasicInfo):
   }
   const it = doc.items.find((i) => i.id === id);
   return (it?.company?.trim() || it?.text.trim() || t("(내용 없음)", "(empty)")).split("\n")[0];
+}
+
+/** 전체 항목 일괄 정리 — 대화체로 적어둔 기록을 이력서 개조식으로 한 번에 바꾼다.
+ *  항목마다 다듬기를 부르면 항목 수가 그대로 분당 호출 상한(20회)을 먹으므로,
+ *  배치 엔드포인트(polish-resume-items)로 한 호출에 최대 40항목을 처리한다.
+ *  문서 전체를 갈아치우므로 직전 문서를 들고 있다가 되돌릴 수 있게 한다. */
+function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; onDoc: (patch: Partial<ResumeDoc>) => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [prev, setPrev] = useState<ResumeDoc["items"] | null>(null);
+  const targets = doc.items.filter((it) => (it.text ?? "").trim().length > 0).slice(0, 40);
+  if (targets.length === 0) return null;
+
+  const run = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const texts = await polishResumeItems(
+        targets.map((it) => ({
+          section: sectionLabelOf(t, it.section),
+          org: it.company?.trim() || undefined,
+          period: [it.startDate ?? "", it.endDate ?? ""].map((v) => v.trim()).filter(Boolean).join(" ~ ") || undefined,
+          text: (it.text ?? "").trim()
+        }))
+      );
+      const byId = new Map(targets.map((it, i) => [it.id, texts[i]]));
+      let changed = 0;
+      const items = doc.items.map((it) => {
+        const next = byId.get(it.id);
+        if (typeof next !== "string" || next === it.text) return it;
+        changed += 1;
+        return { ...it, text: next };
+      });
+      if (changed > 0) {
+        setPrev(doc.items);
+        onDoc({ items });
+      }
+      toast.success(
+        changed > 0
+          ? `${changed}${t("개 항목을 정리했어요", " items polished", " 项已整理", " mục đã chỉnh", "件を整えました", " item dirapikan")}`
+          : t("바꿀 내용이 없었어요", "Nothing to change", "没有需要修改的", "Không có gì để đổi", "変更点はありません", "Tidak ada perubahan")
+      );
+    } catch (err) {
+      // 429·5xx 는 aiPost 가 전역 토스트로 안내한다.
+      console.error("[resume-editor/bulk-polish] failed", err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title={t("이력서 문장으로 정리", "Polish into resume style", "整理为简历体", "Chỉnh theo văn phong CV", "履歴書体に整える", "Rapikan gaya CV")}>
+      <p className="text-[11.5px] leading-[1.6] text-[#8B95A1]">
+        {t(
+          "대화체 기록을 ‘~함/~완료’ 형태로 한 번에 바꿉니다. 없는 사실은 추가하지 않아요.",
+          "Rewrites your notes in resume style at once. No facts are invented.",
+          "一次性改写为简历体，不会添加不存在的事实。",
+          "Viết lại toàn bộ theo văn phong CV, không thêm điều không có.",
+          "話し言葉を一括で履歴書体に直します。事実は追加しません。",
+          "Menulis ulang sekaligus ke gaya CV, tanpa menambah fakta."
+        )}
+      </p>
+      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full`}>
+        {busy
+          ? t("정리 중…", "Polishing…", "整理中…", "Đang chỉnh…", "整えています…", "Merapikan…")
+          : `${t("정리", "Polish", "整理", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}
+      </button>
+      {prev ? (
+        <button
+          type="button"
+          onClick={() => { onDoc({ items: prev }); setPrev(null); }}
+          className="h-9 w-full rounded-[10px] bg-white text-[12.5px] font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+        >
+          {t("되돌리기", "Undo", "撤销", "Hoàn tác", "元に戻す", "Batalkan")}
+        </button>
+      ) : null}
+    </Section>
+  );
 }

@@ -16,7 +16,11 @@ function styles(t: PlatformT): { style: PolishStyle; label: string; hint: string
   return [
     { style: "concise", label: t("간결하게", "Concise", "简洁", "Ngắn gọn", "簡潔に", "Ringkas"), hint: t("핵심만 짧게", "Keep only the essentials", "只留核心", "Chỉ giữ ý chính", "要点だけ短く", "Inti saja") },
     { style: "expand", label: t("구체적으로", "Detailed", "具体", "Chi tiết", "具体的に", "Rinci"), hint: t("맥락·역할을 풍부하게", "Add context & detail", "补充背景与角色", "Thêm bối cảnh, vai trò", "文脈・役割を補足", "Tambah konteks & peran") },
-    { style: "professional", label: t("정중하게", "Professional", "正式", "Trang trọng", "丁寧に", "Formal"), hint: t("격식 있는 전문가 톤", "Formal, professional tone", "专业正式语气", "Giọng chuyên nghiệp", "丁寧な文体", "Nada profesional") }
+    { style: "professional", label: t("정중하게", "Professional", "正式", "Trang trọng", "丁寧に", "Formal"), hint: t("격식 있는 전문가 톤", "Formal, professional tone", "专业正式语气", "Giọng chuyên nghiệp", "丁寧な文体", "Nada profesional") },
+    // 백엔드 POLISH_STYLE_GUIDE 6종 중 나머지 — 자소서에서는 강점 부각·성과 중심이 자주 필요하다.
+    { style: "natural", label: t("자연스럽게", "Natural", "自然", "Tự nhiên", "自然に", "Natural"), hint: t("어색한 문장만 다듬기", "Smooth out awkward lines", "只顺一下语句", "Chỉ làm mượt câu", "不自然な文だけ整える", "Perhalus kalimat") },
+    { style: "impact", label: t("강점 부각", "Impact", "突出优势", "Nổi bật", "強みを前面に", "Tonjolkan"), hint: t("자신감 있는 톤으로", "Confident tone", "自信的语气", "Giọng tự tin", "自信のある文体", "Nada percaya diri") },
+    { style: "achievement", label: t("성과 중심", "Achievement", "成果导向", "Theo thành tích", "成果中心", "Fokus hasil"), hint: t("한 일과 결과를 앞으로", "Lead with what you did & got", "把做过的事和结果前置", "Đưa việc làm & kết quả lên", "やった事と結果を前に", "Aksi & hasil di depan") }
   ];
 }
 
