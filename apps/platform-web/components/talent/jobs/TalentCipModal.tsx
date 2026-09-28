@@ -1,7 +1,8 @@
 "use client";
 
-// Talent 전용 CIP 안내 모달 — wiyb.golf 톤(라이트/화이트, 블루 액센트, 넉넉한 여백, 부드러운 그림자).
+// Talent 전용 'Aply ONLY' 안내 모달 — wiyb.golf 톤(라이트/화이트, 블루 액센트, 넉넉한 여백, 부드러운 그림자).
 // 프로그램 참여혜택 카드는 노출하지 않는다. 카피는 기존 CIP_COPY 재사용(6개 로케일).
+// 문구 내용은 CIP 시절과 동일하고 명칭만 Aply ONLY 로 바뀌었다(사용자 확인).
 import { useEffect } from "react";
 import { X, Star } from "@phosphor-icons/react";
 import { CIP_COPY } from "../../positions/AplyCipBadge";
@@ -35,7 +36,7 @@ export function TalentCipModal({ locale, onClose }: { locale: PlatformLocale; on
         {/* 헤더 */}
         <div className="flex items-start justify-between px-7 pt-7">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDF1FD] px-3 py-1 text-[12px] font-bold text-[#0B46E8]">
-            <Star className="h-3.5 w-3.5" weight="fill" /> APLY CIP
+            <Star className="h-3.5 w-3.5" weight="fill" /> Aply ONLY
           </span>
           <button
             type="button"
