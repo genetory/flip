@@ -17,6 +17,7 @@ import { ResumePhotoRow } from "../career/ResumePhotoRow";
 import { ResumeA4Preview } from "../career/ResumeA4";
 import { AiRevisionBar } from "../career/AiRevisionBar";
 import { VersionHistoryMenu } from "../career/VersionHistoryMenu";
+import { Sparkle as SparkleIcon, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { SaveStatus } from "../career/SaveStatus";
 import { TLoading } from "../ui/primitives";
@@ -27,7 +28,7 @@ import { classifyCareerNote, SECTION_META, type CareerSection } from "../../../l
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import { careerAssist } from "../../../lib/talent/career-assist-client";
 import { useResumeDoc, useResumeHistory, useRenewalDocsStatus, saveResumeDoc, generateResumeDoc, addResumeItem, refineText, SECTION_HAS_DATE, type ResumeDoc, type ResumeLink } from "../../../lib/talent/resume-doc";
-import { polishExperienceText, draftResumeText, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
+import { polishExperienceText, draftResumeText, polishResumeItems, getAiUsage, AiQuotaError, type PolishStyle, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -131,6 +132,53 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
       }
     }
   }
+  // 전체 항목 일괄 정리 — 커리어 노트에서 자동으로 들어온 대화체 항목을 이력서 문장으로.
+  // 항목마다 polish 를 부르면 항목 수가 그대로 분당 상한(20회)을 먹으므로 배치 1회로 처리한다.
+  // 문서 전체를 갈아치우므로 직전 문서를 들고 있다가 되돌릴 수 있게 한다(버전 히스토리의
+  // 10분 간격 규칙에 걸려 스냅샷이 안 남을 수 있어 여기서 따로 보관).
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkPrev, setBulkPrev] = useState<ResumeDoc | null>(null);
+  const [bulkCount, setBulkCount] = useState(0);
+  const bulkTargets = doc.items.filter((it) => (it.text ?? "").trim().length > 0).slice(0, 40);
+  async function polishAll(): Promise<void> {
+    if (bulkBusy || bulkTargets.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const texts = await polishResumeItems(
+        bulkTargets.map((it) => ({
+          section: sectionLabelOf(t, it.section),
+          org: it.company?.trim() || undefined,
+          period: [it.startDate ?? "", it.endDate ?? ""].map((v) => v.trim()).filter(Boolean).join(" ~ ") || undefined,
+          text: (it.text ?? "").trim()
+        }))
+      );
+      const byId = new Map(bulkTargets.map((it, i) => [it.id, texts[i]]));
+      let changed = 0;
+      const items = doc.items.map((it) => {
+        const next = byId.get(it.id);
+        if (typeof next !== "string" || next === it.text) return it;
+        changed += 1;
+        return { ...it, text: next };
+      });
+      if (changed > 0) {
+        setBulkPrev(doc);
+        setBulkCount(changed);
+        onChange({ ...doc, items });
+      }
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("aply:ai-usage-changed"));
+    } catch (err) {
+      // 429·5xx 는 aiPost 가 전역 토스트로 안내한다(AiBlockedHandler).
+      if (err instanceof AiQuotaError) {
+        try { setUsage(await getAiUsage()); } catch { /* ignore */ }
+        setChargeOpen(true);
+      } else {
+        console.error("[resume/polish-all] failed", err);
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   // 빈 항목에 AI로 초안 쓰기(draft-resume-text, mode=generate).
   // 다듬기(polish)는 기존 텍스트가 있어야 눌리므로, 빈 항목에는 여태 AI 도움이 전혀 없었다.
   // 근거는 사용자가 채운 이름·기간뿐이다 — 백엔드가 "제공하지 않은 사실은 만들지 않는다"를
@@ -193,6 +241,60 @@ function Editor({ doc, basicInfo, onChange }: { doc: ResumeDoc; basicInfo: Basic
         <ProfileCard info={basicInfo} showPhoto={false} />
 
         <ResumePhotoRow label={t("이력서 사진","Resume photo","简历照片","Ảnh CV","履歴書写真","Foto CV")} on={doc.showPhoto === true} onChange={(v) => onChange({ ...doc, showPhoto: v })} />
+
+        {/* 전체 항목을 이력서 문장으로 한 번에 정리(배치 1회 호출). */}
+        {bulkTargets.length > 0 ? (
+          <section className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <SparkleIcon className="h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
+              <span className="min-w-0 flex-1 text-[13.5px] font-bold text-[#0B1227]">
+                {t("이력서 문장으로 한 번에 정리","Polish all at once","一键整理全部","Chỉnh tất cả một lần","まとめて整える","Rapikan sekaligus")}
+              </span>
+              <button
+                type="button"
+                onClick={() => void polishAll()}
+                disabled={bulkBusy}
+                className="shrink-0 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              >
+                {bulkBusy
+                  ? t("정리 중…","Polishing…","整理中…","Đang chỉnh…","整えています…","Merapikan…")
+                  : `${t("정리","Polish","整理","Chỉnh","整える","Rapikan")} ${bulkTargets.length}`}
+              </button>
+            </div>
+            <p className="mt-1.5 text-[12px] leading-[1.6] text-[#8B95A1]">
+              {t(
+                "대화체로 적어둔 기록을 ‘~함/~완료’ 형태로 바꿉니다. 없는 사실은 추가하지 않아요.",
+                "Rewrites your notes in resume style. No facts are invented.",
+                "把口语记录改写为简历体，不会添加不存在的事实。",
+                "Viết lại ghi chú theo văn phong CV, không thêm điều không có.",
+                "話し言葉の記録を履歴書体に直します。事実は追加しません。",
+                "Menulis ulang catatan jadi gaya CV, tanpa menambah fakta."
+              )}
+            </p>
+            {bulkPrev ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#D7E3FF] bg-[#F5F8FF] px-3 py-2">
+                <span className="min-w-0 flex-1 text-[12px] font-bold text-[#0B46E8]">
+                  {t("항목","items","项","mục","項目","item")} {bulkCount}{t("개를 정리했어요"," polished"," 已整理"," đã chỉnh","件を整えました"," dirapikan")}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { onChange(bulkPrev); setBulkPrev(null); }}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2 py-1 text-[11.5px] font-bold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+                >
+                  <ArrowCounterClockwise className="h-3.5 w-3.5" weight="bold" />
+                  {t("되돌리기","Undo","撤销","Hoàn tác","元に戻す","Batalkan")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkPrev(null)}
+                  className="shrink-0 rounded-lg bg-[#0B46E8] px-2 py-1 text-[11.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                >
+                  {t("적용","Keep","保留","Giữ","採用","Simpan")}
+                </button>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <ChatPanel onAdd={add} />
 

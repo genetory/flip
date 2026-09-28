@@ -225,6 +225,55 @@ export function buildCoverLetterMessages(input: CoverLetterInput): LlmMessages {
   return { system, user, systemCacheable: COVER_LETTER_SYSTEM_STABLE, systemVariable };
 }
 
+// ── 이력서 항목 일괄 정리(배치) ─────────────────────────────────────────
+// 커리어 노트(대화체)를 이력서 개조식으로 한 번에 바꾼다. 항목마다 따로 호출하면 항목 수가
+// 분당 호출 상한(20회)을 그대로 먹으므로, 한 호출로 전부 처리한다.
+// 순서·개수를 반드시 보존해야 호출부가 id 로 되매핑할 수 있다(인덱스가 곧 키).
+export type ResumeItemInput = {
+  section: string; // 표시용 섹션명(경험·프로젝트·대외활동·수상·자격증…)
+  org?: string; // 소속/이름
+  period?: string; // 기간
+  text: string;
+};
+
+export const RESUME_ITEMS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: { texts: { type: "array", items: { type: "string" } } },
+  required: ["texts"]
+} as const;
+
+// 입력 구분자 — 본문에 등장할 가능성이 없는 문자를 쓴다(translate-texts 와 동일한 관례).
+const ITEM_SEP = "\u241F";
+
+export function buildResumeItemsMessages(items: ResumeItemInput[], locale?: string): LlmMessages {
+  const system =
+    "당신은 한국 기업 채용에 제출하는 이력서를 다듬는 전문 코치입니다.\n" +
+    "사용자가 대화체로 적어둔 커리어 기록을 이력서에 바로 쓸 수 있는 문장으로 바꾸세요.\n" +
+    "\n규칙:\n" +
+    "1. 개조식으로 씁니다 — '~함/~됨/~취득/~완료' 같은 명사형 종결, 문장 끝 마침표 없음.\n" +
+    "2. 입력에 없는 사실(회사·수치·성과·기간·역할)을 지어내지 마세요. 특히 퍼센트·인원·금액 같은 수치는 입력에 명시된 값만 씁니다.\n" +
+    "3. 한 항목은 한두 줄로 압축합니다. 여러 일을 했으면 핵심부터.\n" +
+    "4. 입력에 결과·성과가 있으면 빠뜨리지 말고 '한 일 → 결과' 순서로 이어 씁니다(결과를 문장 맨 앞으로 도치시키지 마세요 — 어색해집니다). 결과가 없으면 한 일만 적습니다.\n" +
+    "5. 섹션 성격에 맞게 씁니다(자격증·어학은 취득 사실만, 경험·프로젝트는 한 일과 결과).\n" +
+    "6. 입력이 이미 개조식이면 거의 그대로 두고 어색한 표현만 고칩니다(불필요하게 바꾸지 마세요).\n" +
+    "7. 내용이 너무 빈약해 바꿀 것이 없으면 입력을 그대로 반환합니다(빈 문자열 금지).\n" +
+    RESUME_QUALITY_GUIDE +
+    `\n입력은 "<번호>${ITEM_SEP}[섹션] 소속 · 기간${ITEM_SEP}내용" 형태의 줄 목록입니다.\n` +
+    '반드시 JSON 한 개 객체로만 응답: { "texts": string[] } — texts[번호] 가 그 항목의 결과이고, ' +
+    "입력과 개수·순서가 정확히 같아야 합니다." +
+    aiLangDirective(locale);
+
+  const user = items
+    .map((it, i) => {
+      const head = [it.org?.trim(), it.period?.trim()].filter(Boolean).join(" · ");
+      return `${i}${ITEM_SEP}[${it.section}]${head ? ` ${head}` : ""}${ITEM_SEP}${it.text.trim()}`;
+    })
+    .join("\n");
+
+  return { system, user };
+}
+
 // ── 이력서 경험 설명 다듬기 ────────────────────────────────────────────
 export type PolishExperienceInput = {
   text: string;

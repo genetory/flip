@@ -528,6 +528,21 @@ export async function polishExperienceText(input: { text: string; style?: Polish
   return polished;
 }
 
+// 이력서 항목 여러 개를 한 번에 개조식으로 정리 (POST /members/me/ai/polish-resume-items).
+// 항목마다 polishExperienceText 를 부르면 항목 수가 그대로 분당 호출 상한(20회)을 먹으므로,
+// 전체 정리 같은 일괄 작업은 이 배치 호출을 쓴다. 반환은 입력과 같은 길이·순서다.
+export async function polishResumeItems(
+  items: { section: string; org?: string; period?: string; text: string }[]
+): Promise<string[]> {
+  const payload = (await aiPost<unknown>("/members/me/ai/polish-resume-items", {
+    method: "POST",
+    body: JSON.stringify({ items, locale: getBrowserLocale() })
+  })) as unknown as { texts?: unknown };
+  const out = Array.isArray(payload.texts) ? payload.texts : [];
+  // 서버도 길이를 맞춰 주지만, 방어적으로 한 번 더 원문 폴백을 건다(항목이 지워지면 안 된다).
+  return items.map((it, i) => (typeof out[i] === "string" && String(out[i]).trim() ? String(out[i]) : it.text));
+}
+
 // 빈 항목에 AI 초안 쓰기 (POST /members/me/ai/draft-resume-text).
 // member-profile-client 의 postDraftResumeText 와 같은 엔드포인트지만, 그쪽은 402 를
 // 그대로 던진다. 리뉴얼 화면은 포인트 부족 시 충전 모달을 띄워야 하므로 aiPost 를 거쳐
