@@ -50,7 +50,7 @@ export function RealOpeningsPreview({ roles }: { roles: string[] }) {
         {t("지금 열린 실제 채용 공고", "Live openings for your picks", "现在正在招聘的实际职位", "Tin tuyển dụng thật đang mở", "今開いている実際の求人", "Lowongan nyata yang sedang dibuka")}
       </p>
       <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#8B95A1]">
-        {t("선정한 직무로 지금 채용 중인 공고예요. 4주 뒤 완성한 서류로 바로 지원해봐요.", "These are hiring right now for your chosen roles. In 4 weeks, apply with your finished docs.", "这些是你所选职务当前正在招聘的职位。4周后用完成的材料直接申请吧。", "Đây là các tin đang tuyển cho nghề bạn chọn. Sau 4 tuần, hãy ứng tuyển bằng hồ sơ hoàn thiện.", "選んだ職種で今採用中の求人です。4週間後に完成した書類でそのまま応募しましょう。", "Ini sedang merekrut untuk peran pilihanmu. Setelah 4 minggu, lamar dengan dokumen jadimu.")}
+        {t("선정한 직무로 지금 채용 중인 공고예요. 4단계를 마친 뒤 완성한 서류로 바로 지원해봐요.", "These are hiring right now for your chosen roles. After the 4 steps, apply with your finished docs.", "这些是你所选职务当前正在招聘的职位。完成4个步骤后用完成的材料直接申请吧。", "Đây là các tin đang tuyển cho nghề bạn chọn. Sau 4 bước, hãy ứng tuyển bằng hồ sơ hoàn thiện.", "選んだ職種で今採用中の求人です。4ステップを終えたら完成した書類でそのまま応募しましょう。", "Ini sedang merekrut untuk peran pilihanmu. Setelah 4 langkah, lamar dengan dokumen jadimu.")}
       </p>
       <div className="mt-3 flex flex-col gap-2">
         {items.map((it) => {

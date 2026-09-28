@@ -121,7 +121,7 @@ export default function DeliverablesPage() {
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-8">
           <p className="cl-eyebrow">Career Launch</p>
           <h1 className="cl-display mt-1.5">{t("나의 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya")}</h1>
-          <p className="cl-lead mt-2.5 max-w-[52ch]">{t("4주 동안 만든 이력서·자기소개서와 면접 준비 결과를 한곳에서 확인해요.", "See the resume, cover letter, and interview prep you built over four weeks, all in one place.", "在一处查看你4周里完成的简历、自我介绍书和面试准备成果。", "Xem CV, thư giới thiệu và chuẩn bị phỏng vấn bạn đã làm trong 4 tuần, tại một nơi.", "4週間で作った履歴書・自己紹介書と面接準備の成果を一か所で確認します。", "Lihat resume, surat lamaran, dan persiapan wawancara yang kamu buat selama 4 minggu, di satu tempat.")}</p>
+          <p className="cl-lead mt-2.5 max-w-[52ch]">{t("4단계에 걸쳐 만든 이력서·자기소개서와 면접 준비 결과를 한곳에서 확인해요.", "See the resume, cover letter, and interview prep you built across four steps, all in one place.", "在一处查看你通过4个步骤完成的简历、自我介绍书和面试准备成果。", "Xem CV, thư giới thiệu và chuẩn bị phỏng vấn bạn đã làm qua 4 bước, tại một nơi.", "4ステップで作った履歴書・自己紹介書と面接準備の成果を一か所で確認します。", "Lihat resume, surat lamaran, dan persiapan wawancara yang kamu buat dalam 4 langkah, di satu tempat.")}</p>
 
           <hr className="cl-rule mt-5" />
 
@@ -142,7 +142,7 @@ export default function DeliverablesPage() {
                     label={t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}
                     score={rScore}
                     empty={resumeEmpty}
-                    emptyHint={t("2주차에서 이력서를 작성하면 여기에 미리보기가 나타나요.", "Build your resume in Week 2 to see a preview here.", "在第2周撰写简历后，这里会显示预览。", "Tạo CV ở tuần 2 để xem bản xem trước tại đây.", "2週目で履歴書を作成するとここにプレビューが表示されます。", "Buat resume di Minggu 2 untuk melihat pratinjau di sini.")}
+                    emptyHint={t("Step 2에서 이력서를 작성하면 여기에 미리보기가 나타나요.", "Build your resume in Step 2 to see a preview here.", "在Step 2撰写简历后，这里会显示预览。", "Tạo CV ở Step 2 để xem bản xem trước tại đây.", "Step 2で履歴書を作成するとここにプレビューが表示されます。", "Buat resume di Step 2 untuk melihat pratinjau di sini.")}
                     openHref="/career-launch/resume-preview"
                     editHref="/career-launch/resume-collect"
                     preview={<ResumePreview content={toResumeContent(resume)} design={DEFAULT_DESIGN} preserveOrder />}
@@ -152,7 +152,7 @@ export default function DeliverablesPage() {
                     label={t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}
                     score={cScore}
                     empty={coverEmpty}
-                    emptyHint={t("2주차에서 자기소개서를 작성하면 여기에 미리보기가 나타나요.", "Write your cover letter in Week 2 to see a preview here.", "在第2周撰写自我介绍后，这里会显示预览。", "Viết thư giới thiệu ở tuần 2 để xem bản xem trước tại đây.", "2週目で自己紹介書を作成するとここにプレビューが表示されます。", "Tulis surat lamaran di Minggu 2 untuk melihat pratinjau di sini.")}
+                    emptyHint={t("Step 2에서 자기소개서를 작성하면 여기에 미리보기가 나타나요.", "Write your cover letter in Step 2 to see a preview here.", "在Step 2撰写自我介绍后，这里会显示预览。", "Viết thư giới thiệu ở Step 2 để xem bản xem trước tại đây.", "Step 2で自己紹介書を作成するとここにプレビューが表示されます。", "Tulis surat lamaran di Step 2 untuk melihat pratinjau di sini.")}
                     openHref="/career-launch/cover-preview"
                     editHref="/career-launch/cover-collect"
                     preview={<CoverRender data={cover} />}
@@ -173,7 +173,7 @@ export default function DeliverablesPage() {
                     ) : (
                       <>
                         <p className="text-[14px] font-black text-[#191F28]">{t("아직 모의면접 기록이 없어요", "No mock interviews yet", "还没有模拟面试记录", "Chưa có phỏng vấn thử", "まだ模擬面接の記録がありません", "Belum ada wawancara simulasi")}</p>
-                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("3주차에서 모의면접을 연습해 보세요.", "Practice mock interviews in Week 3.", "在第3周练习模拟面试。", "Luyện phỏng vấn thử ở tuần 3.", "3週目で模擬面接を練習しましょう。", "Berlatih wawancara di Minggu 3.")}</p>
+                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("Step 3에서 모의면접을 연습해 보세요.", "Practice mock interviews in Step 3.", "在Step 3练习模拟面试。", "Luyện phỏng vấn thử ở Step 3.", "Step 3で模擬面接を練習しましょう。", "Berlatih wawancara di Step 3.")}</p>
                       </>
                     )}
                   </div>

@@ -123,14 +123,14 @@ export function StrengthStoryChat({ embedded = false, onClose }: { embedded?: bo
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
               <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
               <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 강점 스토리", "Week 1 · Strength Story", "第1周 · 优势故事", "Tuần 1 · Câu chuyện điểm mạnh", "Week 1 · 強みストーリー", "Minggu 1 · Cerita Kelebihan")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 강점 스토리", "Step 1 · Strength Story", "Step 1 · 优势故事", "Step 1 · Câu chuyện điểm mạnh", "Step 1 · 強みストーリー", "Step 1 · Cerita Kelebihan")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("강점 스토리 만들기", "Build a Strength Story", "打造优势故事", "Tạo câu chuyện điểm mạnh", "強みストーリーを作る", "Buat Cerita Kelebihan")}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("경험 하나를 상황·행동·결과가 담긴 짧은 이야기로. 면접·자기소개서에서 그대로 써먹어요.", "Turn an experience into a short situation–action–result story — ready for interviews and cover letters.", "把一段经验变成含情境·行动·结果的小故事，面试和自我介绍直接可用。", "Biến một kinh nghiệm thành câu chuyện ngắn tình huống–hành động–kết quả, dùng ngay cho phỏng vấn và thư.", "経験を状況・行動・結果の短い話に。面接や自己紹介書でそのまま使えます。", "Ubah pengalaman jadi cerita singkat situasi–aksi–hasil, siap untuk wawancara dan surat.")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>

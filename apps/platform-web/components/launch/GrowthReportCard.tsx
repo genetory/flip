@@ -43,8 +43,8 @@ export function GrowthReportCard() {
         {phase === "needsInitial" || phase === "needsFinal" ? (
           <div className="mt-4 rounded-xl bg-[#FFFBEB] px-4 py-3 text-[12.5px] font-semibold text-[#C77700]">
             {phase === "needsInitial"
-              ? t("먼저 3주차 최초 모의면접을 완료해주세요.", "Finish your Week 3 first mock interview first.", "请先完成第3周首次模拟面试。", "Hãy hoàn thành phỏng vấn thử đầu (Tuần 3) trước.", "まずWeek3の初回模擬面接を完了してください。", "Selesaikan wawancara simulasi pertama (Minggu 3) dulu.")
-              : t("먼저 이번 주 최종 모의면접을 완료해주세요.", "Finish this week's final mock interview first.", "请先完成本周最终模拟面试。", "Hãy hoàn thành phỏng vấn thử cuối tuần này trước.", "まず今週の最終模擬面接を完了してください。", "Selesaikan wawancara simulasi akhir minggu ini dulu.")}
+              ? t("먼저 Step 3 최초 모의면접을 완료해주세요.", "Finish your Step 3 first mock interview first.", "请先完成Step 3首次模拟面试。", "Hãy hoàn thành phỏng vấn thử đầu (Step 3) trước.", "まずStep 3の初回模擬面接を完了してください。", "Selesaikan wawancara simulasi pertama (Step 3) dulu.")
+              : t("먼저 이번 단계 최종 모의면접을 완료해주세요.", "Finish this step's final mock interview first.", "请先完成本步骤最终模拟面试。", "Hãy hoàn thành phỏng vấn thử cuối bước này trước.", "まずこのステップの最終模擬面接を完了してください。", "Selesaikan wawancara simulasi akhir langkah ini dulu.")}
           </div>
         ) : phase === "error" ? (
           <p className="mt-4 rounded-xl bg-[#FDECEC] px-4 py-3 text-[12.5px] font-semibold text-[#F04452]">{t("리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the report. Please try again shortly.", "无法加载报告，请稍后重试。", "Không tải được báo cáo. Thử lại sau.", "レポートを読み込めませんでした。少し後にお試しください。", "Gagal memuat laporan. Coba lagi.")}</p>

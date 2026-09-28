@@ -151,7 +151,7 @@ export default function CorrectionNotebookPage() {
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <p className="cl-eyebrow">Week 3 · 4</p>
+          <p className="cl-eyebrow">Step 3 · 4</p>
           <h1 className="cl-display mt-1.5">{t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}</h1>
           <p className="cl-lead mt-2.5 max-w-[52ch]">
             {t(

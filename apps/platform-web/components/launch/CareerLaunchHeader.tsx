@@ -51,7 +51,7 @@ export function CareerLaunchHeader() {
   // 홈 / 4주 프로그램 / 나의 결과물 / 면접 오답노트. (나의 성장 상세는 UX Phase 3)
   const nav = [
     { key: "home", href: "/career-launch/dashboard", label: t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda") },
-    { key: "program", href: "/career-launch/program", label: t("4주 프로그램", "4-week program", "4周项目", "Chương trình 4 tuần", "4週間プログラム", "Program 4 minggu") },
+    { key: "program", href: "/career-launch/program", label: t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah") },
     { key: "artifacts", href: "/career-launch/deliverables", label: t("나의 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya") },
     { key: "corrections", href: "/career-launch/corrections", label: t("면접 오답노트", "Interview notes", "面试错题本", "Sổ sửa lỗi PV", "面接復習ノート", "Catatan wawancara") },
     // 커리어 프로필(패스포트·경험은행·점수) — 홈에서 상세를 뺀 대신 여기서 접근한다.

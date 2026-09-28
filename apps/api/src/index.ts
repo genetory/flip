@@ -1847,15 +1847,15 @@ async function runAutoNudgesAndReminders() {
           if (sent.includes(w.week)) continue;
           void sendNotificationEmail({
             toUser: { id: st.id, email: st.email },
-            subject: `[Aply] Career Launch ${w.week}주차가 열렸어요`,
-            previewText: `${w.week}주차 미션이 열렸어요`,
+            subject: `[Aply] Career Launch Step ${w.week} 미션이 열렸어요`,
+            previewText: `Step ${w.week} 미션이 열렸어요`,
             title: "Career Launch",
-            headline: `${w.week}주차가 열렸어요`,
-            contextLine: "이번 주 미션을 시작해 취업 준비를 이어가요.",
-            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}Career Launch ${w.week}주차 미션이 열렸어요. 지금 들어가 이번 주 할 일을 시작해 보세요.`,
-            ctaLabel: "이번 주 미션 보기",
+            headline: `Step ${w.week} 미션이 열렸어요`,
+            contextLine: "이번 단계 미션을 시작해 취업 준비를 이어가요.",
+            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}Career Launch Step ${w.week} 미션이 열렸어요. 지금 들어가 이번 단계 할 일을 시작해 보세요.`,
+            ctaLabel: "이번 단계 미션 보기",
             ctaPath: `/career-launch/week/${w.week}`,
-            footerNote: "본 메일은 Career Launch 주차 오픈 안내입니다.",
+            footerNote: "본 메일은 Career Launch 단계 오픈 안내입니다.",
             logKey: `cl_week_open_${w.week}_${st.id}`
           });
           await prisma.careerLaunchProgress.upsert({
@@ -1888,13 +1888,13 @@ async function runAutoNudgesAndReminders() {
           if (sent.includes(prevWeek)) continue;
           void sendNotificationEmail({
             toUser: { id: st.id, email: st.email },
-            subject: `[Aply] ${prevWeek}주차 마무리 · 곧 ${w.week}주차가 열려요`,
-            previewText: `${prevWeek}주차를 마무리해요`,
+            subject: `[Aply] Step ${prevWeek} 마무리 · 곧 Step ${w.week} 시작`,
+            previewText: `Step ${prevWeek} 미션을 마무리해요`,
             title: "Career Launch",
-            headline: `${prevWeek}주차, 곧 마감이에요`,
-            contextLine: `${w.week}주차가 24시간 내 열려요.`,
-            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}${prevWeek}주차 미션이 아직 남아 있어요. 곧 ${w.week}주차가 열리니 지금 마무리해 리듬을 이어가요.`,
-            ctaLabel: `${prevWeek}주차 마무리하기`,
+            headline: `Step ${prevWeek}, 곧 마감이에요`,
+            contextLine: `Step ${w.week} 미션이 24시간 내 열려요.`,
+            bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}Step ${prevWeek} 미션이 아직 남아 있어요. 곧 Step ${w.week} 미션이 열리니 지금 마무리해 리듬을 이어가요.`,
+            ctaLabel: `Step ${prevWeek} 마무리하기`,
             ctaPath: `/career-launch/week/${prevWeek}`,
             footerNote: "본 메일은 Career Launch 마감 임박 안내입니다.",
             logKey: `cl_deadline_${prevWeek}_${st.id}`
@@ -1926,12 +1926,12 @@ async function runAutoNudgesAndReminders() {
         if (!target) continue;
         void sendNotificationEmail({
           toUser: { id: st.id, email: st.email },
-          subject: `[Aply] ${target}주차 코치 피드백이 준비됐어요`,
+          subject: `[Aply] Step ${target} 코치 피드백이 준비됐어요`,
           previewText: "코치 피드백을 받아보세요",
           title: "Career Launch",
-          headline: `${target}주차 피드백을 받아보세요`,
-          contextLine: "이번 주 결과물을 코치가 검토해 드려요.",
-          bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}${target}주차 미션을 마쳤어요! 코치 피드백을 받아 다음 주차를 더 탄탄하게 준비해요.`,
+          headline: `Step ${target} 피드백을 받아보세요`,
+          contextLine: "이번 단계 결과물을 코치가 검토해 드려요.",
+          bodyText: `${st.name?.trim() ? st.name.trim() + "님, " : ""}Step ${target} 미션을 마쳤어요! 코치 피드백을 받아 다음 단계를 더 탄탄하게 준비해요.`,
           ctaLabel: "피드백 받기",
           ctaPath: `/career-launch/week/${target}`,
           footerNote: "본 메일은 Career Launch 피드백 안내입니다.",
@@ -16545,19 +16545,19 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 1,
     step: "스텝 1 · 취업 준비 상태 자가진단",
     default:
-      "너는 한국 취업을 준비하는 학생을 전문적으로 돕는 커리어 코치야. 유료 부트캠프의 진단 세션답게, 짧지만 밀도 있는 대화로 '취업 준비 상태'를 정확히 파악하고 마지막에 준비도와 4주 실행 조언을 준다.\n\n" +
+      "너는 한국 취업을 준비하는 학생을 전문적으로 돕는 커리어 코치야. 유료 부트캠프의 진단 세션답게, 짧지만 밀도 있는 대화로 '취업 준비 상태'를 정확히 파악하고 마지막에 준비도와 4단계 프로그램 실행 조언을 준다.\n\n" +
       "진단 영역(대화로 모두 자연스럽게 파악):\n" +
       "A. 목표 직무 방향 — 지원 직무가 얼마나 구체적인가\n" +
       "B. 이력서·자기소개서 준비 정도\n" +
       "C. (외국인 유학생인 경우) 한국어 업무 수준 — 회의·이메일·문서 가능 여부, TOPIK 등 자격. 한국인 학생이면 이 항목은 생략.\n" +
-      "D. 직무 관련 경험·역량 — 관련 경험·스킬이 대략 있는지 정도만 가볍게(구체적인 인턴·프로젝트·경력 내역은 여기서 캐묻지 않는다. 상세 경력·경험은 2주차 이력서 단계에서 다루므로 진단에선 준비도 가늠에 필요한 만큼만)\n" +
+      "D. 직무 관련 경험·역량 — 관련 경험·스킬이 대략 있는지 정도만 가볍게(구체적인 인턴·프로젝트·경력 내역은 여기서 캐묻지 않는다. 상세 경력·경험은 Step 2 이력서 단계에서 다루므로 진단에선 준비도 가늠에 필요한 만큼만)\n" +
       "E. (외국인 유학생인 경우) 비자·근무 요건 — 현재 비자(D-2/D-10 등)와 취업 비자(E-7) 전환 계획. 한국인 학생이면 생략.\n" +
       "F. 취업 활동 — 지원 경험·정보 탐색·네트워크\n\n" +
       "규칙:\n" +
       "1. " + CAREER_TONE + " 한 번에 하나씩, 학생 답에 짧게 공감한 뒤 다음을 물어봐. [학생 프로필]로 이미 아는 건 다시 묻지 말고 가볍게 확인만 해.\n" +
       "1-1. " + CAREER_DEPTH + "\n" +
       "2. 답이 모호하면 한 번 더 구체화해 물어봐(예: '업무 회의도 가능한 수준인가요?'). 단정하지 말고 열린 질문으로.\n" +
-      "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 파악한 뒤(단 D 경험·경력은 상세 내역까지 캐묻지 말고 이력서 단계와 겹치지 않게 가볍게) done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4주 프로그램에서 바로 실행할 항목 2~3개 — 예: '2주차에 이력서 완성하기', '3주차 모의면접으로 답변 다듬기').\n" +
+      "3. 성급히 끝내지 말고 보통 6~8번 주고받으며 A~F 를 파악한 뒤(단 D 경험·경력은 상세 내역까지 캐묻지 말고 이력서 단계와 겹치지 않게 가볍게) done=true, result 를 채워: percent(정수, 아래 기준), level(현재 상태를 격려하는 한 문장), strengths(구체적 근거 기반 2~3개), improvements(이번 4단계 프로그램에서 바로 실행할 항목 2~3개 — 예: 'Step 2에서 이력서 완성하기', 'Step 3 모의면접으로 답변 다듬기').\n" +
       "3-1. 학생이 '이제 됐어요/진단해줘/그만/충분해요'처럼 마치려 하면, 아직 6번을 안 채웠어도 더 묻지 말고 즉시 done=true 로 하고 지금까지 대화만으로 result 를 채워.\n" +
       "4. percent 산정 기준: A~F 준비도를 종합해 — 방향·서류·경험이 대체로 약하면 30~50, 방향은 있으나 서류·경험이 부족하면 50~70, 대부분 갖췄으면 70~90. 완벽한 경우는 드무니 100은 피하고, 점수가 낮아도 반드시 격려하는 톤으로.\n" +
       "5. strengths 는 직무 역량·경험·태도 등 근거 기반 강점 위주로. (외국인 유학생이면) 다국어·문화 이해 같은 강점도 함께 반영하되 한국인 학생에겐 억지로 넣지 마.\n" +
@@ -16614,7 +16614,7 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
       "1-2. 선정한 직무를 [나열된 순서]대로 하나씩 차례차례 다뤄. 지금 다루는 직무가 무엇인지 분명히 밝히고(예: '먼저 첫 번째로 고르신 OO부터 알아볼게요'), 그 직무의 실제 하는 일·핵심 역량·자격·커리어 경로·나의 준비 상태를 충분히 짚은 뒤에야 '이제 다음으로 △△를 볼까요?' 하고 자연스럽게 다음 직무로 넘어가. 여러 직무를 한꺼번에 섞어서 다루지 마.\n" +
       "2. 너는 그 직무를 잘 아는 전문가야. 학생이 모르는 부분(실제 하는 일·필요 역량 등)은 네가 구체적으로 알려주고, 그다음 학생의 생각·상황을 물어봐. 일방적 설명만 하지 말고 대화로 주고받아.\n" +
       "3. 대화에서 학생이 '알게 된/정리할 만한' 핵심 포인트를 materials 배열에 간결한 한 줄로 담아(예: '백엔드 개발자: 서버·API 설계·구현이 주 업무, Java/Spring·DB 지식이 핵심'). 어느 직무 얘기인지 알 수 있게 앞에 '직무명: '을 붙여. 이전 것도 유지해 매 턴 누적 반환.\n" +
-      "4. 선정한 직무를 [처음부터 끝까지 순서대로 모두] 다뤘고 각 직무마다 핵심 포인트가 정리되면 done=true, 따뜻한 마무리와 함께 '다음 주엔 이 방향으로 이력서를 만든다'는 안내를 reply 에 담아. 아직 안 다룬 직무가 남았거나 얕으면 done 을 서두르지 마.\n" +
+      "4. 선정한 직무를 [처음부터 끝까지 순서대로 모두] 다뤘고 각 직무마다 핵심 포인트가 정리되면 done=true, 따뜻한 마무리와 함께 '다음 단계에서 이 방향으로 이력서를 만든다'는 안내를 reply 에 담아. 아직 안 다룬 직무가 남았거나 얕으면 done 을 서두르지 마.\n" +
       "5. 사실을 지어내지 마. 확실하지 않으면 일반적인 경향으로 설명하고 단정하지 마. [학생 프로필]과 고른 직무를 반영해.\n" +
       "6. 처음이면 인사하고 첫 질문·안내(materials 는 빈 배열). 진행 중이면 재인사 없이 이어가.\n" +
       "7. [대화가 끊기지 않게] 학생은 그 직무를 잘 몰라도 되고, 사전 지식이 없어도 돼. 대화를 이끄는 건 항상 너야. 학생이 '잘 모르겠어요/네/글쎄요'처럼 짧거나 막막해하면 절대 다그치지 말고, 네가 전문가로서 먼저 알기 쉽게 설명해준 뒤 이어가. 답하기 어려운 열린 질문 대신 고르기 쉬운 질문(예: 'A와 B 중 어느 쪽이 더 끌리세요?', '이 부분 더 들어볼까요, 아니면 다음으로 넘어갈까요?')으로 물어봐.\n" +
@@ -16777,17 +16777,17 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
   },
   // ── 주차 자동 피드백(1~3주차 공통) ──
   auto_feedback: {
-    label: "자동 피드백 · 1~3주차 공통",
+    label: "자동 피드백 · Step 1~3 공통",
     week: 1,
-    step: "자동 · 주차 결과물 코치 피드백",
+    step: "자동 · 단계 결과물 코치 피드백",
     default:
-      "너는 한국 취업을 준비하는 학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 주차에 만든 결과물을 꼼꼼히 살펴보고, 지금 바로 도움이 되는 충분히 상세하고 체계적인 코치 피드백을 준다.\n\n" +
+      "너는 한국 취업을 준비하는 학생을 돕는 따뜻하고 전문적인 커리어 코치야. 학생이 이번 단계에서 만든 결과물을 꼼꼼히 살펴보고, 지금 바로 도움이 되는 충분히 상세하고 체계적인 코치 피드백을 준다.\n\n" +
       "규칙:\n" +
       "1. [구조] 아래 네 부분으로 나눠서 써. 각 부분은 **볼드** 소제목으로 시작하고, 부분 사이는 빈 줄로 구분해.\n" +
-      "   • **이번 주 총평** — 이번 주 결과물을 한두 문장으로 요약하고 전반적인 완성도를 평가해.\n" +
+      "   • **이번 단계 총평** — 이번 단계 결과물을 한두 문장으로 요약하고 전반적인 완성도를 평가해.\n" +
       "   • **잘한 점** — 구체적으로 잘한 점 2~3가지를, 학생이 실제로 입력한 내용을 인용하며 '무엇이 왜 좋은지'까지 짚어 칭찬해.\n" +
       "   • **더 다듬으면 좋은 점** — 보완할 점 2~3가지를, 다그치지 말고 '무엇을 어떻게' 바꾸면 되는지 바로 실행할 수 있는 조언으로 제안해.\n" +
-      "   • **다음 한 걸음** — 다음 주차/다음 활동으로 이어질 구체적인 행동 1~2가지를 제안하며 따뜻하게 응원하고 마무리해.\n" +
+      "   • **다음 한 걸음** — 다음 단계/다음 활동으로 이어질 구체적인 행동 1~2가지를 제안하며 따뜻하게 응원하고 마무리해.\n" +
       "2. [근거] 학생이 실제로 입력한 내용만 근거로 해. 없는 사실을 지어내지 마. 결과물이 부족하면 부족한 대로 솔직히 짚되, 비난이 아니라 성장 방향으로 안내하는 톤으로.\n" +
       "3. [분량] 짧게 요약하지 말고, 각 소제목 아래 2~4문장씩 풍부하게 써. 학생이 자기 결과물을 다시 보고 싶어질 만큼 구체적이고 실질적으로.\n" +
       "4. (외국인 유학생이라면) 다국어·문화 이해 같은 강점이 보이면 살려 자신감을 줘.\n" +
@@ -16799,10 +16799,10 @@ const CAREER_PROMPTS: Record<string, { label: string; week: number; step: string
     week: 4,
     step: "완주 · 이력서·자소서·면접 종합 피드백",
     default:
-      "너는 한국 취업을 준비하는 학생을 4주간 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적이며 충분히 상세한 '최종 피드백'을 준다.\n\n" +
+      "너는 한국 취업을 준비하는 학생을 4단계에 걸쳐 이끈 커리어 코치야. 학생이 프로그램을 완주했어. 완성한 [이력서]·[자기소개서]와 [모의면접 결과]를 종합해, 취업 준비 상태에 대한 따뜻하고 실질적이며 충분히 상세한 '최종 피드백'을 준다.\n\n" +
       "규칙:\n" +
       "1. [이름 호출] 반드시 [학생 이름]에 주어진 실제 이름으로 '○○님'처럼 부르며 시작하고, 중간에도 자연스럽게 이름을 불러줘. 이름이 주어지지 않았을 때만 '○○님' 없이 진행해.\n" +
-      "2. 4주의 성장과 잘 갖춘 강점을 이력서·자소서·면접에서 드러난 구체적 근거를 인용해 짚어 격려해.\n" +
+      "2. 4단계 동안의 성장과 잘 갖춘 강점을 이력서·자소서·면접에서 드러난 구체적 근거를 인용해 짚어 격려해.\n" +
       "3. 이력서, 자기소개서, 모의면접(자기소개·직무·인성) 각각에 대해 잘된 점과 더 다듬으면 좋은 점을 구체적으로 코멘트해. 실제 지원·면접 전에 개선하면 좋은 항목은 '무엇을 어떻게' 실행 조언으로.\n" +
       "4. 학생이 실제로 입력·연습한 내용만 근거로 하고, 없는 사실은 지어내지 마.\n" +
       "5. (외국인 유학생이라면) 다국어·문화 이해 같은 강점이 보이면 살려 자신감을 줘.\n" +
@@ -16866,7 +16866,7 @@ const requireCareerEnrollment: import("express").RequestHandler = async (req, re
     // 주차 잠금 서버 강제 — 잠긴 주차의 쓰기(POST/PATCH/PUT/DELETE)만 차단. 읽기(GET)는 허용(잠금 안내 표시용).
     const wk = weekForCareerPath(req.path);
     if (wk && req.method !== "GET" && !(await isCareerWeekUnlocked(req.auth!.userId, wk))) {
-      return res.status(403).json({ ok: false, code: "week_locked", message: "아직 잠긴 주차예요. 이전 주차를 마치거나 오픈일이 되면 진행할 수 있어요." });
+      return res.status(403).json({ ok: false, code: "week_locked", message: "아직 잠긴 단계예요. 이전 단계를 마치거나 오픈일이 되면 진행할 수 있어요." });
     }
     return next();
   } catch (error) {
@@ -17473,7 +17473,7 @@ app.post(
         .join(", ");
 
       const systemPrompt =
-        "너는 구직자 전문 Career Coach다. 목표는 사용자의 경험을 '가볍게' 훑어 무엇을 했고 거기서 어떤 강점이 보이는지 빠르게 파악하는 것이다. 상세한 행동·성과·수치는 2주차 이력서 작성에서 다루므로 여기선 깊게 캐지 않는다.\n" +
+        "너는 구직자 전문 Career Coach다. 목표는 사용자의 경험을 '가볍게' 훑어 무엇을 했고 거기서 어떤 강점이 보이는지 빠르게 파악하는 것이다. 상세한 행동·성과·수치는 Step 2 이력서 작성에서 다루므로 여기선 깊게 캐지 않는다.\n" +
         "대상은 학생만이 아니다 — 직장 경력·인턴 경험이 있는 사람도 많다. '대학생활'로 좁히지 말고, 지금까지 살아온 모든 경험(직장 경력·인턴·프로젝트·학교·활동 등)을 폭넓게 다룬다.\n" +
         "대화 원칙:\n" +
         "1. 한 번에 질문은 1개만. 짧고 가볍게.\n" +
@@ -18626,7 +18626,7 @@ async function maybeAutoIssueCareerCertificate(userId: string, state: Record<str
         previewText: "프로그램을 완주하여 수료증이 발급되었어요",
         title: "수료증 발급",
         headline: "Career Launch를 완주하셨어요!",
-        bodyText: `축하합니다! 4주 프로그램을 완주하여 수료증(${certificateNo})이 발급되었습니다. 취업 성과 설문에도 참여해 주세요.`,
+        bodyText: `축하합니다! 4단계 프로그램을 완주하여 수료증(${certificateNo})이 발급되었습니다. 취업 성과 설문에도 참여해 주세요.`,
         ctaLabel: "수료증·설문 보기",
         ctaPath: "/career-launch/survey",
         footerNote: "본 메일은 Career Launch 프로그램 완주에 따라 발송되는 알림입니다.",
@@ -20207,10 +20207,10 @@ function nextActionStrings(lang: string | undefined, key: string, input: { weeks
       };
     case "complete_week":
       return {
-        label: srvT(lang, `${input.weeksCompleted + 1}주차 필수 미션을 완료해요`, `Finish Week ${input.weeksCompleted + 1}'s required missions`, `完成第${input.weeksCompleted + 1}周的必修任务`, `Hoàn thành nhiệm vụ bắt buộc Tuần ${input.weeksCompleted + 1}`, `Week ${input.weeksCompleted + 1}の必須ミッションを完了します`, `Selesaikan misi wajib Minggu ${input.weeksCompleted + 1}`),
+        label: srvT(lang, `Step ${input.weeksCompleted + 1} 필수 미션을 완료해요`, `Finish Step ${input.weeksCompleted + 1}'s required missions`, `完成 Step ${input.weeksCompleted + 1} 的必修任务`, `Hoàn thành nhiệm vụ bắt buộc Step ${input.weeksCompleted + 1}`, `Step ${input.weeksCompleted + 1}の必須ミッションを完了します`, `Selesaikan misi wajib Step ${input.weeksCompleted + 1}`),
         reason: growthReason,
-        expectedResult: srvT(lang, "이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini"),
-        cta: srvT(lang, "이번 주 이어서 하기", "Continue this week", "继续本周", "Tiếp tục tuần này", "今週の続きをする", "Lanjutkan minggu ini")
+        expectedResult: srvT(lang, "이번 단계 결과물", "This step's deliverables", "本步骤成果", "Kết quả bước này", "このステップの成果物", "Hasil langkah ini"),
+        cta: srvT(lang, "이번 단계 이어서 하기", "Continue this step", "继续本步骤", "Tiếp tục bước này", "このステップの続きをする", "Lanjutkan langkah ini")
       };
     case "resolve_critical":
       return {
@@ -20243,7 +20243,7 @@ function nextActionStrings(lang: string | undefined, key: string, input: { weeks
     default: // review_growth
       return {
         label: srvT(lang, "최종 성장을 확인해요", "Check your final growth", "查看最终成长", "Xem sự phát triển cuối cùng", "最終的な成長を確認します", "Cek pertumbuhan akhirmu"),
-        reason: srvT(lang, "4주 여정의 변화를 확인해요", "See how you changed over the 4-week journey", "回顾4周历程中的变化", "Xem thay đổi qua hành trình 4 tuần", "4週間の道のりの変化を確認します", "Lihat perubahanmu sepanjang perjalanan 4 minggu"),
+        reason: srvT(lang, "4단계 여정의 변화를 확인해요", "See how you changed over the 4-step journey", "回顾4个步骤历程中的变化", "Xem thay đổi qua hành trình 4 bước", "4ステップの道のりの変化を確認します", "Lihat perubahanmu sepanjang perjalanan 4 langkah"),
         expectedResult: srvT(lang, "성장 리포트", "Growth report", "成长报告", "Báo cáo phát triển", "成長レポート", "Laporan pertumbuhan"),
         cta: srvT(lang, "최종 성장 확인하기", "Check final growth", "查看最终成长", "Xem phát triển cuối", "最終成長を確認する", "Cek pertumbuhan akhir")
       };
@@ -20308,7 +20308,7 @@ app.get("/career-launch/dashboard", authenticate, requireCareerEnrollment, cache
         ? srvT(lang, "지난 상담 내용을 기억하고 있어요.", "I remember our last conversation.", "我记得上次的咨询内容。", "Tôi nhớ nội dung buổi tư vấn trước.", "前回の相談内容を覚えています。", "Aku ingat obrolan terakhir kita.")
         : null;
     const recentlyCompleted = weeksDoneCount > 0
-      ? srvT(lang, `Week ${weeksDoneCount}까지 마쳤어요.`, `You've finished through Week ${weeksDoneCount}.`, `你已完成到第${weeksDoneCount}周。`, `Bạn đã hoàn thành đến Tuần ${weeksDoneCount}.`, `Week ${weeksDoneCount}まで終えました。`, `Kamu sudah menyelesaikan hingga Minggu ${weeksDoneCount}.`)
+      ? srvT(lang, `Step ${weeksDoneCount}까지 마쳤어요.`, `You've finished through Step ${weeksDoneCount}.`, `你已完成到 Step ${weeksDoneCount}。`, `Bạn đã hoàn thành đến Step ${weeksDoneCount}.`, `Step ${weeksDoneCount}まで終えました。`, `Kamu sudah menyelesaikan hingga Step ${weeksDoneCount}.`)
       : null;
     const coach = { remembered, recentlyCompleted, todayFocus: nextAction.label, purpose: nextAction.reason, estimatedMinutes: nextAction.estimatedMinutes, expectedResult: nextAction.expectedResult, cta: nextAction.cta };
 
@@ -20522,7 +20522,7 @@ app.get("/career-launch/growth", authenticate, requireCareerEnrollment, async (r
     if (badge.firstPackage) parts.push("지원 패키지를 완성했으며");
     const scoreDelta = comparison?.initialScore != null && comparison?.finalScore != null ? comparison.finalScore - comparison.initialScore : null;
     if (scoreDelta != null) parts.push(`면접 답변 점수가 최초보다 ${scoreDelta >= 0 ? "+" : ""}${scoreDelta}점 달라졌어요`);
-    const summarySentence = parts.length ? `4주 동안 ${parts.join(", ")}.`.replace(/,([^,]*)$/, "$1") : "아직 비교할 성장 데이터가 쌓이는 중이에요.";
+    const summarySentence = parts.length ? `4단계에 걸쳐 ${parts.join(", ")}.`.replace(/,([^,]*)$/, "$1") : "아직 비교할 성장 데이터가 쌓이는 중이에요.";
     const weekOutcomes = [
       { week: 1, done: badge.targetConfirmed, label: badge.targetConfirmed ? "목표 직무 확정" : "목표 직무 정하기 전" },
       { week: 2, done: badge.firstPackage, label: badge.firstPackage ? "지원 패키지 완성" : "지원 패키지 작성 중" },
@@ -22849,7 +22849,7 @@ app.post(
         aiLangDirective("ko");
       const userPrompt =
         (profileSummary ? `[학생 프로필]\n${profileSummary}\n\n` : "") +
-        `[${week}주차 결과물: ${WEEK_FEEDBACK_TITLE[week]}]\n${JSON.stringify(input)}`;
+        `[Step ${week} 결과물: ${WEEK_FEEDBACK_TITLE[week]}]\n${JSON.stringify(input)}`;
       const pj = (await careerChatComplete(systemPrompt, userPrompt, "week_feedback", WEEK_FEEDBACK_SCHEMA)) as { feedback?: unknown };
       const feedback = typeof pj.feedback === "string" ? pj.feedback.trim() : "";
       if (!feedback) return res.status(502).json({ ok: false, message: "ai response empty" });

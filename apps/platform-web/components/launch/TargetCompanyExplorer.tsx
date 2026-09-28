@@ -170,16 +170,16 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
               <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+                <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
               <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 목표 기업 탐색", "Week 1 · Target companies", "第1周 · 目标企业", "Tuần 1 · Công ty mục tiêu", "Week 1 · 目標企業", "Minggu 1 · Perusahaan target")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 목표 기업 탐색", "Step 1 · Target companies", "Step 1 · 目标企业", "Step 1 · Công ty mục tiêu", "Step 1 · 目標企業", "Step 1 · Perusahaan target")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("가고 싶은 기업을 정해봐요", "Pick the companies you want to join", "选定你想去的企业", "Chọn công ty bạn muốn vào", "行きたい企業を決めましょう", "Pilih perusahaan yang kamu tuju")}</h1>
-            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("정한 직무로 지금 채용 중인 기업이에요. 도전·적정·안정을 섞어 3곳 정도 담아두면, 2주차 지원 서류를 그 기업에 맞춰 준비할 수 있어요.", "Companies hiring now for your role. Save about 3 — a mix of reach, match, and safe — so you can tailor your Week 2 documents to them.", "这些是你所选职务当前正在招聘的企业。混合冲刺·匹配·稳妥收藏约3家，第2周材料就能据此准备。", "Các công ty đang tuyển cho nghề của bạn. Lưu khoảng 3 (thử sức·phù hợp·an toàn) để chuẩn bị hồ sơ Tuần 2 theo họ.", "選んだ職種で今採用中の企業です。挑戦・適正・安定を混ぜて3社ほど保存すると、2週目の書類をその企業に合わせて準備できます。", "Perusahaan yang merekrut untuk peranmu. Simpan sekitar 3 (menantang, cocok, aman) agar bisa menyesuaikan dokumen Minggu 2.")}</p>
+            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("정한 직무로 지금 채용 중인 기업이에요. 도전·적정·안정을 섞어 3곳 정도 담아두면, Step 2 지원 서류를 그 기업에 맞춰 준비할 수 있어요.", "Companies hiring now for your role. Save about 3 — a mix of reach, match, and safe — so you can tailor your Step 2 documents to them.", "这些是你所选职务当前正在招聘的企业。混合冲刺·匹配·稳妥收藏约3家，Step 2材料就能据此准备。", "Các công ty đang tuyển cho nghề của bạn. Lưu khoảng 3 (thử sức·phù hợp·an toàn) để chuẩn bị hồ sơ Step 2 theo họ.", "選んだ職種で今採用中の企業です。挑戦・適正・安定を混ぜて3社ほど保存すると、Step 2の書類をその企業に合わせて準備できます。", "Perusahaan yang merekrut untuk peranmu. Simpan sekitar 3 (menantang, cocok, aman) agar bisa menyesuaikan dokumen Step 2.")}</p>
           </div>
 
           {/* 내 목표 기업 */}
@@ -244,7 +244,7 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
 
           {/* 마치기 */}
           <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
-            <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{saved.length > 0 ? t(`좋아요! 목표 기업 ${saved.length}곳을 담았어요. 2주차에서 이 기업들에 맞춰 서류를 준비해요.`, `Nice! ${saved.length} target companies saved. Tailor your Week 2 docs to them.`, `很好！已收藏 ${saved.length} 家目标企业。第2周据此准备材料。`, `Tuyệt! Đã lưu ${saved.length} công ty. Chuẩn bị hồ sơ Tuần 2 theo họ.`, `いいですね！目標企業を${saved.length}社保存しました。2週目で書類を合わせます。`, `Bagus! ${saved.length} perusahaan tersimpan. Sesuaikan dokumen Minggu 2.`) : t("관심 가는 기업을 하나 이상 담으면 이 단계가 완료돼요.", "Save at least one company to complete this step.", "至少收藏一家企业即可完成本步骤。", "Lưu ít nhất một công ty để hoàn thành bước này.", "1社以上保存するとこのステップが完了します。", "Simpan minimal satu perusahaan untuk menyelesaikan langkah ini.")}</p>
+            <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{saved.length > 0 ? t(`좋아요! 목표 기업 ${saved.length}곳을 담았어요. Step 2에서 이 기업들에 맞춰 서류를 준비해요.`, `Nice! ${saved.length} target companies saved. Tailor your Step 2 docs to them.`, `很好！已收藏 ${saved.length} 家目标企业。Step 2据此准备材料。`, `Tuyệt! Đã lưu ${saved.length} công ty. Chuẩn bị hồ sơ Step 2 theo họ.`, `いいですね！目標企業を${saved.length}社保存しました。Step 2で書類を合わせます。`, `Bagus! ${saved.length} perusahaan tersimpan. Sesuaikan dokumen Step 2.`) : t("관심 가는 기업을 하나 이상 담으면 이 단계가 완료돼요.", "Save at least one company to complete this step.", "至少收藏一家企业即可完成本步骤。", "Lưu ít nhất một công ty để hoàn thành bước này.", "1社以上保存するとこのステップが完了します。", "Simpan minimal satu perusahaan untuk menyelesaikan langkah ini.")}</p>
             {embedded ? (
               <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</button>
             ) : (

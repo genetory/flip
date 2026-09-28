@@ -128,14 +128,14 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
           {embedded ? null : (
           <div className="flex items-center justify-between gap-3">
             <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
-              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("1주차", "Week 1", "第1周", "Tuần 1", "1週目", "Minggu 1")}
+              <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
             </Link>
             <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("1주차 · 경험 채굴", "Week 1 · Experience Mining", "第1周 · 经验挖掘", "Tuần 1 · Khai thác kinh nghiệm", "Week 1 · 経験の発掘", "Minggu 1 · Penggalian Pengalaman")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 경험 채굴", "Step 1 · Experience Mining", "Step 1 · 经验挖掘", "Step 1 · Khai thác kinh nghiệm", "Step 1 · 経験の発掘", "Step 1 · Penggalian Pengalaman")}</p>
             <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</h1>
             <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("사소해 보여도 경험 하나하나에서 강점을 찾아 Experience Bank에 쌓아요. 이 경험은 이력서·자소서·면접에서 계속 쓰여요.", "Even small experiences hold strengths — we mine them into your Experience Bank, reused across your resume, cover letter, and interviews.", "即使看似微不足道，每段经验都藏着优势——我们把它整理进经验库，贯穿简历、自我介绍与面试。", "Dù nhỏ, mỗi kinh nghiệm đều có điểm mạnh — chúng tôi đưa vào Experience Bank, tái sử dụng cho CV, thư và phỏng vấn.", "小さな経験にも強みがあります。Experience Bankに蓄積し、履歴書・自己紹介書・面接で活用します。", "Sekecil apa pun, tiap pengalaman punya kelebihan — kami kumpulkan ke Experience Bank, dipakai di resume, surat, dan wawancara.")}</p>
           </div>

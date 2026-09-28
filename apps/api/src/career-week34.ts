@@ -270,8 +270,8 @@ export function computeWeek3Completion(inp: Week3CompletionInput): { complete: b
     { key: "evaluated", label: "질문별 평가 완료", done: inp.perQuestionEvaluated },
     { key: "weakness", label: "반복 취약 패턴 분석", done: inp.weaknessAnalyzed },
     { key: "notes", label: "핵심 오답 5개 이상 생성", done: inp.correctionNotes >= 5 },
-    { key: "report", label: "Week 3 종합 리포트 확인", done: inp.reportViewed },
-    { key: "plan", label: "Week 4 훈련계획 생성", done: inp.trainingPlanCreated }
+    { key: "report", label: "Step 3 종합 리포트 확인", done: inp.reportViewed },
+    { key: "plan", label: "Step 4 훈련계획 생성", done: inp.trainingPlanCreated }
   ];
   const doneCount = checks.filter((c) => c.done).length;
   return { complete: checks.every((c) => c.done), checks, doneCount };
