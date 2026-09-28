@@ -60,16 +60,21 @@ function FunnelCard({ label, pct, message, href, started, previewHref }: { label
   const shell = started
     ? "border border-[#EEF1F5] bg-white hover:border-[#0B46E8]/40 hover:shadow-[0_4px_16px_rgba(11,18,39,0.05)]"
     : "border border-dashed border-[#DCE3F0] bg-transparent hover:border-[#0B46E8]/50";
+  // 카드 전체가 편집기로 가는 링크다. 예전에는 진행률 링 + 제목만 <Link> 였는데 카드 전체에
+  // hover 효과(테두리·그림자)가 걸려 있어 클릭 가능해 보이고, 상태 메시지나 여백을 누르면
+  // 아무 일도 일어나지 않았다. 중첩 <a> 는 잘못된 HTML 이라 stretched-link 방식으로 덮는다:
+  // 절대 위치 링크가 카드를 덮고, 내용은 pointer-events-none, '미리보기'만 다시 클릭을 받는다.
   return (
-    <div className={`flex flex-col rounded-2xl p-5 transition ${shell}`}>
-      <Link href={href} className="block">
+    <div className={`relative flex flex-col rounded-2xl p-5 transition ${shell}`}>
+      <Link href={href} aria-label={label} className="absolute inset-0 z-0 rounded-2xl" />
+      <div className="pointer-events-none relative z-10">
         <ProgressRing pct={pct} muted={!started} />
         <p className="mt-3 text-[15px] font-bold text-[#191F28]">{label}</p>
-      </Link>
-      <div className="mt-0.5 flex items-center justify-between gap-2">
-        <p className="break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
+      </div>
+      <div className="relative z-10 mt-0.5 flex items-center justify-between gap-2">
+        <p className="pointer-events-none break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{message}</p>
         {previewHref ? (
-          <Link href={previewHref} className="shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}</Link>
+          <Link href={previewHref} className="pointer-events-auto shrink-0 rounded-lg bg-[#F2F4F6] px-3.5 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]">{t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}</Link>
         ) : null}
       </div>
     </div>
