@@ -426,6 +426,8 @@ const discordCommunityPostWebhookUrl = process.env.DISCORD_COMMUNITY_POST_WEBHOO
 const errorDiscordWebhookUrl = process.env.ERROR_DISCORD_WEBHOOK_URL?.trim() ?? "";
 // 사용자 버그·피드백 신고 전용 채널. 미설정 시 에러 채널로 폴백해 바로 동작한다.
 const feedbackDiscordWebhookUrl = process.env.FEEDBACK_DISCORD_WEBHOOK_URL?.trim() || errorDiscordWebhookUrl;
+// Career Launch 학생 질문 전용 채널. 미설정 시 피드백 채널로 폴백(설정 없이도 바로 알림이 간다).
+const careerQuestionDiscordWebhookUrl = process.env.CAREER_QUESTION_DISCORD_WEBHOOK_URL?.trim() || feedbackDiscordWebhookUrl;
 
 // In-memory dedup for error notifications. Last-N seconds per fingerprint so
 // a burst of the same error doesn't flood Discord.
@@ -510,6 +512,44 @@ async function postErrorToDiscord(input: {
     });
   }
 }
+// Career Launch 학생 질문을 Discord로 전달해 운영진이 바로 답할 수 있게 한다.
+// 실패해도 질문 저장은 이미 끝난 상태라 조용히 로그만 남긴다(학생 경험에 영향 없음).
+async function postCareerQuestionToDiscord(input: { questionId: string; body: string; stepNo?: number | null; studentName?: string | null; studentEmail?: string | null }) {
+  if (!careerQuestionDiscordWebhookUrl) return;
+  const env = process.env.NODE_ENV === "production" ? "production" : "staging";
+  const truncate = (text: string, maxLength: number) => (text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text);
+  const base = process.env.PUBLIC_WEB_URL ?? "https://aply.global";
+  const student = [input.studentName, input.studentEmail].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  const fields: Array<{ name: string; value: string; inline: boolean }> = [
+    { name: "학생", value: truncate(student || "(이름 없음)", 256), inline: true },
+    { name: "Step", value: input.stepNo ? `${input.stepNo}주차` : "미지정", inline: true },
+    { name: "Env", value: env, inline: true },
+    { name: "답변하기", value: `${base}/career-launch/ops/questions`, inline: false }
+  ];
+  try {
+    const response = await fetch(careerQuestionDiscordWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: "",
+        embeds: [
+          {
+            color: 0x0b46e8,
+            title: "🙋 커리어런치 질문",
+            description: truncate(input.body, 1800),
+            fields,
+            footer: { text: `Aply • Career Launch Q&A · ${input.questionId.slice(0, 8)}` },
+            timestamp: new Date().toISOString()
+          }
+        ]
+      })
+    });
+    if (!response.ok) console.error("career_question_discord_webhook_failed", { status: response.status });
+  } catch (error) {
+    console.error("career_question_discord_webhook_error", { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 // 사용자가 직접 보낸 버그·개선 피드백을 Discord로 전달.
 async function postFeedbackToDiscord(input: {
   message: string;
@@ -2750,13 +2790,15 @@ app.use(express.json({ limit: "40mb" }));
 type RateLimitBucket = { count: number; resetAt: number };
 const rateLimitStore = new Map<string, RateLimitBucket>();
 
-function rateLimit(options: { windowMs: number; max: number; keyPrefix: string; message?: string }) {
+// keyOf 로 IP 대신 다른 기준(예: 로그인 사용자)으로 셀 수 있다. 같은 학교 랩실·기숙사처럼
+// 여러 사람이 한 IP를 공유하는 곳에서 한 명 때문에 나머지가 막히는 걸 피할 때 쓴다.
+function rateLimit(options: { windowMs: number; max: number; keyPrefix: string; message?: string; keyOf?: (req: express.Request) => string | null }) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const ip =
       (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
       req.socket.remoteAddress ||
       "unknown";
-    const key = `${options.keyPrefix}:${ip}`;
+    const key = `${options.keyPrefix}:${options.keyOf?.(req) || ip}`;
     const now = Date.now();
     const bucket = rateLimitStore.get(key);
     if (!bucket || bucket.resetAt < now) {
@@ -17167,6 +17209,162 @@ const DIAGNOSIS_CHAT_SCHEMA = {
     }
   }
 } as const;
+
+// ── Career Launch 질문하기 (학생 → 운영진) ───────────────────────────────────
+// 학생은 홈 화면에서 질문을 남기고, 운영진이 답을 달면 같은 자리에서 답을 본다.
+// 질문이 들어오면 Discord 로 알려 답변이 빨라지게 한다.
+const CAREER_QUESTION_MAX_CHARS = 2000;
+
+function careerQuestionView(row: {
+  id: string;
+  body: string;
+  stepNo: number | null;
+  answerBody: string | null;
+  answeredAt: Date | null;
+  readAt: Date | null;
+  createdAt: Date;
+}) {
+  return {
+    id: row.id,
+    body: row.body,
+    stepNo: row.stepNo,
+    answer: row.answerBody,
+    answeredAt: row.answeredAt,
+    readAt: row.readAt,
+    createdAt: row.createdAt,
+    answered: Boolean(row.answerBody)
+  };
+}
+
+// GET /career-launch/questions — 내가 남긴 질문과 받은 답변. 최신순.
+app.get("/career-launch/questions", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const rows = await prisma.careerLaunchQuestion.findMany({
+      where: { studentUserId: req.auth!.userId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, body: true, stepNo: true, answerBody: true, answeredAt: true, readAt: true, createdAt: true }
+    });
+    const unread = rows.filter((r) => r.answerBody && !r.readAt).length;
+    return res.json({ ok: true, items: rows.map(careerQuestionView), unread });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// POST /career-launch/questions — 질문 등록 + Discord 알림.
+// 도배 방지로 10분에 5개까지만 받는다(운영진 채널이 잠기지 않게).
+app.post(
+  "/career-launch/questions",
+  authenticate,
+  requireCareerEnrollment,
+  // 사람 기준으로 센다 — 기숙사·랩실처럼 IP를 공유하는 환경에서 한 명이 나머지를 막지 않게.
+  rateLimit({ windowMs: 10 * 60_000, max: 5, keyPrefix: "career-question", message: "질문을 너무 빠르게 보냈어요. 잠시 후 다시 시도해 주세요.", keyOf: (r) => r.auth?.userId ?? null }),
+  async (req, res) => {
+    try {
+      const raw = (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
+      const body = typeof raw.body === "string" ? raw.body.trim() : "";
+      if (!body) return res.status(400).json({ ok: false, message: "질문 내용을 적어 주세요." });
+      if (body.length > CAREER_QUESTION_MAX_CHARS) {
+        return res.status(400).json({ ok: false, message: `질문은 ${CAREER_QUESTION_MAX_CHARS.toLocaleString()}자까지 쓸 수 있어요.` });
+      }
+      const stepNoRaw = Number(raw.stepNo);
+      const stepNo = Number.isInteger(stepNoRaw) && stepNoRaw >= 1 && stepNoRaw <= 4 ? stepNoRaw : null;
+      const created = await prisma.careerLaunchQuestion.create({
+        data: { studentUserId: req.auth!.userId, body, stepNo },
+        select: { id: true, body: true, stepNo: true, answerBody: true, answeredAt: true, readAt: true, createdAt: true }
+      });
+      // 알림은 응답을 막지 않는다 — 질문은 이미 저장됐으니 웹훅이 느리거나 죽어도 학생은 기다리지 않는다.
+      void (async () => {
+        const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true, email: true } }).catch(() => null);
+        await postCareerQuestionToDiscord({ questionId: created.id, body, stepNo, studentName: me?.name ?? null, studentEmail: me?.email ?? null });
+      })().catch((e) => console.error("[career-launch/questions] notify failed", e));
+      return res.status(201).json({ ok: true, item: careerQuestionView(created) });
+    } catch (error) {
+      console.error("[career-launch/questions POST] failed", error);
+      return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+    }
+  }
+);
+
+// POST /career-launch/questions/:id/read — 답변 확인 표시(안 읽은 답변 배지를 내린다).
+app.post("/career-launch/questions/:id/read", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const result = await prisma.careerLaunchQuestion.updateMany({
+      where: { id: String(req.params.id), studentUserId: req.auth!.userId, readAt: null, NOT: { answerBody: null } },
+      data: { readAt: new Date() }
+    });
+    return res.json({ ok: true, updated: result.count });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// GET /ops/career-launch/questions — 운영자 콘솔 목록. 기본은 미답변 먼저.
+// ?status=pending|answered|all (기본 pending)
+app.get("/ops/career-launch/questions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const status = typeof req.query.status === "string" ? req.query.status : "pending";
+    const where =
+      status === "answered" ? { NOT: { answerBody: null } } : status === "all" ? {} : { answerBody: null };
+    const [rows, pending] = await Promise.all([
+      prisma.careerLaunchQuestion.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: {
+          id: true,
+          body: true,
+          stepNo: true,
+          answerBody: true,
+          answeredAt: true,
+          readAt: true,
+          createdAt: true,
+          student: { select: { id: true, name: true, email: true } },
+          answeredBy: { select: { id: true, name: true } }
+        }
+      }),
+      prisma.careerLaunchQuestion.count({ where: { answerBody: null } })
+    ]);
+    const items = rows.map((row) => ({
+      ...careerQuestionView(row),
+      student: row.student,
+      answeredByName: row.answeredBy?.name ?? null
+    }));
+    return res.json({ ok: true, items, pending });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// POST /ops/career-launch/questions/:id/answer — 답변 등록(재등록 시 덮어쓰기). 학생에게 인앱 알림.
+app.post("/ops/career-launch/questions/:id/answer", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const raw = (req.body && typeof req.body === "object" ? req.body : {}) as Record<string, unknown>;
+    const answer = typeof raw.answer === "string" ? raw.answer.trim() : "";
+    if (!answer) return res.status(400).json({ ok: false, message: "답변 내용을 적어 주세요." });
+    const id = String(req.params.id);
+    const target = await prisma.careerLaunchQuestion.findUnique({ where: { id }, select: { id: true, studentUserId: true } });
+    if (!target) return res.status(404).json({ ok: false, message: "질문을 찾을 수 없어요." });
+    const updated = await prisma.careerLaunchQuestion.update({
+      where: { id },
+      data: { answerBody: answer, answeredByUserId: req.auth!.userId, answeredAt: new Date(), readAt: null },
+      select: { id: true, body: true, stepNo: true, answerBody: true, answeredAt: true, readAt: true, createdAt: true }
+    });
+    await createNotification({
+      userId: target.studentUserId,
+      type: "career_question_answered",
+      title: "질문에 답변이 도착했어요",
+      message: answer.length > 120 ? `${answer.slice(0, 120)}…` : answer,
+      linkPath: "/career-launch/dashboard",
+      email: true
+    });
+    return res.json({ ok: true, item: careerQuestionView(updated) });
+  } catch (error) {
+    console.error("[ops/career-launch/questions answer] failed", error);
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
 
 // POST /career-launch/job-chat — Career Launch 프로그램의 '관심 직무 찾기' AI 대화.
 // 학생과 자연스럽게 대화하며 후보 직무 풀에서 어울리는 직무를 추천하고, 마음에 드는

@@ -28,6 +28,7 @@ import { LeagueCard } from "../../../components/launch/LeagueCard";
 import { fetchDashboard, type DashboardVM } from "../../../lib/launch/dashboard-client";
 import { logActivity } from "../../../lib/launch/pilot-client";
 import { GrowthSummaryCard, CohortActivityCard, SeminarCard } from "../../../components/launch/dashboard-cards";
+import { AskOpsCard } from "../../../components/launch/AskOpsCard";
 import { DashboardSection, ErrorState, ResumeState, CardSkeleton } from "../../../components/launch/dashboard-states";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { Reveal } from "../../../components/site/Reveal";
@@ -302,6 +303,9 @@ export default function LaunchDashboardPage() {
 
               {/* 영역 8 — 일정 및 세미나 */}
               <SeminarCard vm={vm} />
+
+              {/* 영역 9 — 운영진에게 질문(AI가 답할 수 없는 일정·계정 문제는 사람이 답한다) */}
+              <AskOpsCard currentWeek={vm.currentWeek} />
             </div>
           )}
 
