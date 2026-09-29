@@ -7,6 +7,7 @@ import {
   Buildings as Building2,
   ListChecks as ClipboardCheck,
   ClipboardText as ClipboardList,
+  ChatCircleDots as MessageSquare,
   Database,
   FileText,
   ReadCvLogo as FileUser,
@@ -75,6 +76,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "Career Launch 대시보드", href: "/career-launch/ops", icon: GraduationCap },
       { label: "수강생", href: "/career-launch/ops/students", icon: Users },
+      { label: "학생 질문", href: "/career-launch/ops/questions", icon: MessageSquare },
       { label: "기수", href: "/career-launch/ops/cohorts", icon: ScrollText },
       { label: "콘텐츠", href: "/career-launch/ops/content", icon: FileText },
       { label: "프롬프트", href: "/career-launch/ops/prompts", icon: Sparkles },

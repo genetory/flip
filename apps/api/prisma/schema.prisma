@@ -78,6 +78,8 @@ model User {
   programFeedbacks                     ProgramFeedback[]             @relation("ProgramFeedbackAuthor")
   careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
   careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
+  careerLaunchQuestionsAsked           CareerLaunchQuestion[]        @relation("CareerLaunchQuestionStudent")
+  careerLaunchQuestionsAnswered        CareerLaunchQuestion[]        @relation("CareerLaunchQuestionAnswerer")
   careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
   careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
   careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
@@ -933,6 +935,29 @@ model CareerLaunchFeedback {
 
   @@index([studentUserId])
   @@index([authorUserId])
+}
+
+// Career Launch 학생 → 운영진 질문. 운영진이 답을 달면 학생 화면에 함께 보인다.
+// CareerLaunchFeedback 은 반대 방향(운영자 → 학생 코칭 피드백)이라 별도 테이블로 둔다.
+// 1:1 이다 — 학생은 자기 질문만 본다(다른 학생의 질문은 조회되지 않음).
+model CareerLaunchQuestion {
+  id               String    @id @default(uuid())
+  studentUserId    String
+  body             String // 질문 본문
+  stepNo           Int? // 관련 Step(주차) 번호 — 선택
+  answerBody       String? // 운영진 답변(없으면 답변 대기중)
+  answeredByUserId String?
+  answeredAt       DateTime?
+  readAt           DateTime? // 학생이 답변을 확인한 시각
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  student    User  @relation("CareerLaunchQuestionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
+  answeredBy User? @relation("CareerLaunchQuestionAnswerer", fields: [answeredByUserId], references: [id], onDelete: SetNull)
+
+  @@index([studentUserId, createdAt])
+  // 운영자 콘솔이 '미답변 먼저'로 훑는다.
+  @@index([answeredAt, createdAt])
 }
 
 // Career Launch 이력서 데이터. 학생이 별도 이력서 빌더로 가지 않고, 프로그램
