@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, GraduationCap, ChartBar as BarChart3, SlidersHorizontal, ArrowRight } from "@phosphor-icons/react";
+import { Users, GraduationCap, ChartBar as BarChart3, SlidersHorizontal, ArrowRight, ChatCircleDots } from "@phosphor-icons/react";
 import { fetchOpsStudents, studentProgress, fetchOperationHome, type OpsStudent, type OperationHome } from "../../../lib/launch/ops-client";
 import { fetchCohorts, type OpsCohort } from "../../../lib/launch/enrollment-client";
+import { fetchOpsQuestions } from "../../../lib/launch/question-client";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { trackCareerFunnel } from "../../../lib/analytics";
 
@@ -14,6 +15,8 @@ export default function LaunchOpsHomePage() {
   const [students, setStudents] = useState<OpsStudent[]>([]);
   const [cohorts, setCohorts] = useState<OpsCohort[]>([]);
   const [attn, setAttn] = useState<OperationHome | null>(null);
+  // 미답변 질문 수 — 운영자가 처음 보는 화면에 바로 띄운다(답변이 늦지 않게).
+  const [pendingQuestions, setPendingQuestions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -22,11 +25,17 @@ export default function LaunchOpsHomePage() {
     trackCareerFunnel("career_admin_home_viewed");
     void (async () => {
       try {
-        const [s, c, a] = await Promise.all([fetchOpsStudents(), fetchCohorts().catch(() => [] as OpsCohort[]), fetchOperationHome().catch(() => null)]);
+        const [s, c, a, q] = await Promise.all([
+          fetchOpsStudents(),
+          fetchCohorts().catch(() => [] as OpsCohort[]),
+          fetchOperationHome().catch(() => null),
+          fetchOpsQuestions("pending").catch(() => ({ items: [], pending: 0 }))
+        ]);
         if (alive) {
           setStudents(s);
           setCohorts(c);
           setAttn(a);
+          setPendingQuestions(q.pending);
         }
       } catch (e) {
         if (alive) setError(e instanceof Error ? e.message : t("불러오지 못했어요.", "Couldn't load.", "加载失败。", "Không thể tải.", "読み込めませんでした。", "Gagal memuat."));
@@ -84,6 +93,14 @@ export default function LaunchOpsHomePage() {
       desc: t("기수별 진행 현황을 봐요", "Cohort progress overview", "按期查看阶段完成率", "Tỷ lệ hoàn thành theo khóa", "期別の完了率を確認", "Tingkat penyelesaian per angkatan"),
       badge: t(`평균 ${stats.avgProgress}%`, `avg ${stats.avgProgress}%`, `平均${stats.avgProgress}%`, `TB ${stats.avgProgress}%`, `平均${stats.avgProgress}%`, `rata ${stats.avgProgress}%`),
       tone: "ops-pill-blue"
+    },
+    {
+      href: "/career-launch/ops/questions",
+      icon: ChatCircleDots,
+      title: t("학생 질문", "Questions", "学生提问", "Câu hỏi", "学生の質問", "Pertanyaan"),
+      desc: t("홈에서 올라온 질문에 답해요", "Answer questions from the home screen", "回复学生在首页提出的问题", "Trả lời câu hỏi từ trang chủ", "ホームから届いた質問に回答", "Jawab pertanyaan dari beranda"),
+      badge: pendingQuestions > 0 ? t(`미답변 ${pendingQuestions}`, `${pendingQuestions} pending`, `未回复${pendingQuestions}`, `${pendingQuestions} chờ`, `未回答${pendingQuestions}`, `${pendingQuestions} baru`) : t("모두 답변", "All clear", "已全部回复", "Đã xong", "すべて回答", "Selesai"),
+      tone: pendingQuestions > 0 ? "ops-pill-amber" : "ops-pill-gray"
     },
     {
       href: "/career-launch/ops/prompts",
