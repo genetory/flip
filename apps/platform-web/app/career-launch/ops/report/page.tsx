@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { fetchOpsStudents, studentProgress, type OpsStudent } from "../../../../lib/launch/ops-client";
+import { INTERVIEW_FOCUSES } from "../../../../lib/launch/step-status";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
 // 운영자 리포트 — 학생 진행 데이터(실데이터)로 기수별 집계.
@@ -139,7 +140,7 @@ export default function LaunchOpsReportPage() {
         s.materials,
         s.hasResume ? "O" : "",
         s.coverItems,
-        `${s.interviewPracticed}/3`,
+        `${s.interviewPracticed}/${INTERVIEW_FOCUSES.length}`,
         s.doneSteps
       ].map(esc).join(",")
     );

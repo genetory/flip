@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { fetchCohortReport, type CohortReport } from "../../../../lib/launch/ops-client";
+import { INTERVIEW_FOCUSES } from "../../../../lib/launch/step-status";
 import { useAuthSession } from "../../../../components/auth/AuthSessionProvider";
 import "./report-print.css";
 
@@ -254,7 +255,7 @@ export default function CohortOutcomeReportPage() {
                     { label: "직무 선정", done: s.selectedJobs > 0 },
                     { label: "이력서", done: s.hasResume },
                     { label: "자기소개서", done: s.coverItems > 0 },
-                    { label: `모의면접 ${s.interviewPracticed}/3`, done: s.interviewPracticed > 0 }
+                    { label: `모의면접 ${s.interviewPracticed}/${INTERVIEW_FOCUSES.length}`, done: s.interviewPracticed > 0 }
                   ];
                   // 산출물 정량 근거 — 실제로 만들어낸 결과물의 수치를 함께 제시(자료를 풍부하게).
                   const facts: { label: string; value: string }[] = [
@@ -275,7 +276,7 @@ export default function CohortOutcomeReportPage() {
                     ...(s.coverItems > 0 ? [{ label: "자기소개서", value: `${s.coverItems}문항 · ${s.coverChars.toLocaleString()}자` }] : []),
                     ...(s.coverItemChars.length > 0 ? [{ label: "자소서 문항별 글자수", value: `${s.coverItemChars.join(" · ")}자` }] : []),
                     ...(s.interviewPracticed > 0
-                      ? [{ label: "모의면접", value: `${s.interviewRounds.length > 0 ? s.interviewRounds.join(" · ") : ""}${s.interviewRounds.length > 0 ? " " : ""}(${s.interviewPracticed}/3)` }]
+                      ? [{ label: "모의면접", value: `${s.interviewRounds.length > 0 ? s.interviewRounds.join(" · ") : ""}${s.interviewRounds.length > 0 ? " " : ""}(${s.interviewPracticed}/${INTERVIEW_FOCUSES.length})` }]
                       : []),
                     ...(s.materialsCount > 0 ? [{ label: "생성 자료", value: `${s.materialsCount}건` }] : []),
                     { label: "등록일", value: s.enrolledAt ? s.enrolledAt.slice(0, 10) : "-" }
@@ -374,7 +375,7 @@ export default function CohortOutcomeReportPage() {
                   <tr key={s.userId}>
                     <td className="rp-num">{i + 1}</td>
                     <td>{s.name || s.email}</td>
-                    <td className="rp-num">{s.interviewPracticed}/3</td>
+                    <td className="rp-num">{s.interviewPracticed}/{INTERVIEW_FOCUSES.length}</td>
                     <td className={`rp-num ${s.successAfter !== null ? "rp-up" : ""}`}>{s.successAfter !== null ? `${s.successAfter}%` : "-"}</td>
                     <td className="rp-num">{s.certificateNo ? "발급" : "-"}</td>
                   </tr>
