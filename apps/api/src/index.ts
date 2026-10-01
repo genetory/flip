@@ -247,6 +247,14 @@ import {
   snapshotSchemaFor,
   type DocVersionKind
 } from "./doc-versions";
+import {
+  DERIVED_MARK,
+  renewalToCareerResume,
+  renewalToCareerCover,
+  hasDerivedResumeContent,
+  isHumanCollected,
+  canonicalJson
+} from "./career-derive";
 import { createHash } from "crypto";
 
 const app = express();
@@ -14951,6 +14959,7 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     });
     void getOrCreateDocSummary(userId).catch(() => {});
     void embedAndSaveResume(prisma, created.id).catch(() => {});
+    void deriveCareerDataFromRenewal(userId, created.id, resolvedContent);
     return res.status(201).json({ ok: true, item: created });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to create resume" });
@@ -15037,6 +15046,8 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     if (resolvedContent !== undefined) {
       await syncResumePoolOptin(userId, resolvedContent).catch((err) => console.error("[resume poolOptin sync] failed", err));
     }
+    // 리뉴얼 모듈형 문서면 Career Launch 수집 데이터로도 파생(진행률·AI 채점·운영자 콘솔이 그걸 읽는다).
+    if (resolvedContent !== undefined) void deriveCareerDataFromRenewal(userId, item.id, resolvedContent);
     // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
     void getOrCreateDocSummary(userId).catch(() => {});
     void embedAndSaveResume(prisma, item.id).catch(() => {});
@@ -16125,6 +16136,29 @@ async function buildTalentPassport(uid: string) {
 }
 
 // 순수 계산부 — 사전 조회한 입력으로 Passport 산출. 발견 화면의 배치 계산에서도 재사용.
+// 모의면접 완료 유형 — 카드형(state.basicInterviews)과 구 대화형(state.interview.practiced)을
+// 합쳐 중복 없이 센다. 리뉴얼 뒤 프로그램 스텝(data.ts)은 전부 카드형으로 가므로 practiced 만
+// 보면 실제로 면접을 본 학생도 0 으로 집계된다(학생 화면 step-status.ts 는 이미 둘 다 본다).
+const CAREER_INTERVIEW_FOCUSES = ["self", "job", "fit", "pressure"] as const;
+const CAREER_INTERVIEW_TOTAL = CAREER_INTERVIEW_FOCUSES.length;
+function careerPracticedFocuses(state: unknown): string[] {
+  const st = (state && typeof state === "object" ? state : {}) as Record<string, unknown>;
+  const valid = CAREER_INTERVIEW_FOCUSES as readonly string[];
+  const out = new Set<string>();
+  const iv = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
+  if (Array.isArray(iv.practiced)) {
+    for (const f of iv.practiced) if (typeof f === "string" && valid.includes(f)) out.add(f);
+  }
+  // 카드형은 '문항에 답한 기록이 하나라도 있을 때'만 완료로 본다(빈 세션 제외).
+  if (Array.isArray(st.basicInterviews)) {
+    for (const log of st.basicInterviews as unknown[]) {
+      const l = (log && typeof log === "object" ? log : {}) as { focus?: unknown; items?: unknown };
+      if (typeof l.focus === "string" && valid.includes(l.focus) && Array.isArray(l.items) && l.items.length > 0) out.add(l.focus);
+    }
+  }
+  return [...out];
+}
+
 function computeTalentPassport(input: { state: unknown; resumeContent: unknown; coverContent: unknown; applications: number; interviewsInvited: number }) {
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const state = (input.state && typeof input.state === "object" ? input.state : {}) as Record<string, any>;
@@ -16148,7 +16182,7 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
   const interviewScore = num(state.scores?.interview?.data?.total);
   const expBank = Array.isArray(state.experienceBank) ? state.experienceBank : [];
   const expCount = expBank.length;
-  const practiced = Array.isArray(state.interview?.practiced) ? state.interview.practiced.filter((x: any) => typeof x === "string") : [];
+  const practiced = careerPracticedFocuses(state);
   const selectedJobs = Array.isArray(state.selectedJobs) ? state.selectedJobs.filter((x: any) => typeof x === "string") : [];
   const jobRec = Array.isArray(state.jobRecommendation?.data?.jobs) ? state.jobRecommendation.data.jobs : [];
   const languages = Array.isArray(resumeContent.languages) ? resumeContent.languages : [];
@@ -16161,7 +16195,7 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
     direction: num(areas?.direction) ?? (diagnosisDone ? (selectedJobs.length ? 100 : 60) : 0),
     resume: num(areas?.resume) ?? resumeScore ?? (resumeReady ? 60 : 0),
     cover: num(areas?.cover) ?? coverScore ?? (coverReady ? 60 : 0),
-    interview: num(areas?.interview) ?? interviewScore ?? Math.round((Math.min(practiced.length, 3) / 3) * 100),
+    interview: num(areas?.interview) ?? interviewScore ?? Math.round((Math.min(practiced.length, CAREER_INTERVIEW_TOTAL) / CAREER_INTERVIEW_TOTAL) * 100),
     experience: num(areas?.experience) ?? Math.round((Math.min(expCount, 3) / 3) * 100),
     competency: num(areas?.competency)
   };
@@ -16173,7 +16207,7 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
   const gatePass = gate.diagnosisDone && gate.resumeReady && gate.experience3plus;
   let tier: "preparing" | "bronze" | "silver" | "gold" = "preparing";
   if (gatePass) {
-    if (readiness >= 88 && practiced.length >= 3 && coverReady) tier = "gold";
+    if (readiness >= 88 && practiced.length >= CAREER_INTERVIEW_TOTAL && coverReady) tier = "gold";
     else if (readiness >= 75 && practiced.length >= 2) tier = "silver";
     else if (readiness >= 60) tier = "bronze";
   }
@@ -17296,6 +17330,53 @@ app.post("/career-launch/questions/:id/read", authenticate, requireCareerEnrollm
     });
     return res.json({ ok: true, updated: result.count });
   } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// POST /ops/career-launch/derive-career-data — 리뉴얼 에디터만 쓴 기존 학생 일괄 백필.
+// 저장 훅(deriveCareerDataFromRenewal)은 앞으로의 저장만 잡으므로, 이미 만들어 둔 학생은
+// 여기서 한 번 채운다. 멱등이고, 사람이 프로그램 안에서 모은 데이터는 건드리지 않는다.
+// ?dryRun=1 이면 바꾸지 않고 몇 명이 대상인지만 돌려준다.
+app.post("/ops/career-launch/derive-career-data", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
+  try {
+    // Career Launch 수강생만 대상 — 전체 사용자를 훑지 않는다.
+    const enrollments = await prisma.careerEnrollment.findMany({ select: { studentUserId: true } });
+    const userIds = [...new Set(enrollments.map((e) => e.studentUserId))];
+    let scanned = 0;
+    let candidates = 0;
+    let updated = 0;
+    const skipped: { reason: string; count: number }[] = [];
+    const bump = (reason: string) => {
+      const hit = skipped.find((x) => x.reason === reason);
+      if (hit) hit.count += 1;
+      else skipped.push({ reason, count: 1 });
+    };
+    for (const userId of userIds) {
+      scanned += 1;
+      const row = await findTalentResumeRow(userId);
+      if (!row) {
+        bump("리뉴얼 문서 없음");
+        continue;
+      }
+      const saved = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      if (isHumanCollected(saved?.content)) {
+        bump("프로그램에서 모은 데이터 있음(보존)");
+        continue;
+      }
+      if (!hasDerivedResumeContent(renewalToCareerResume(row.content))) {
+        bump("리뉴얼 문서가 비어 있음");
+        continue;
+      }
+      candidates += 1;
+      if (dryRun) continue;
+      await deriveCareerDataFromRenewal(userId, row.id, row.content);
+      updated += 1;
+    }
+    return res.json({ ok: true, dryRun, scanned, candidates, updated, skipped });
+  } catch (error) {
+    console.error("[ops/derive-career-data] failed", error);
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
   }
 });
@@ -18498,6 +18579,67 @@ function normalizeCoverData(raw: unknown): Record<string, unknown> {
   return { company, items };
 }
 
+
+// 리뉴얼 모듈형 에디터 저장 직후, Career Launch 수집 데이터를 파생해 둔다.
+// 이게 없으면 /talent/career/resume/editor 로만 이력서를 만든 학생은 프로그램 쪽(진행률·완주·
+// AI 채점·운영자 콘솔 — 읽는 곳 40곳 이상)에서 "이력서 없음"으로 취급된다.
+// 사람이 프로그램 안에서 모은 데이터는 손실 변환으로 덮으면 안 되므로, 비어 있거나 과거에
+// 파생해 둔 행만 갱신한다. 실패해도 이력서 저장 결과에는 영향을 주지 않는다.
+async function deriveCareerDataFromRenewal(userId: string, resumeId: string, content: unknown): Promise<void> {
+  if (!isTalentContent(content)) return;
+  try {
+    const [savedResume, savedCover] = await Promise.all([
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+
+    if (!isHumanCollected(savedResume?.content)) {
+      const loose = renewalToCareerResume(content);
+      if (hasDerivedResumeContent(loose)) {
+        const normalized: Record<string, unknown> = { ...normalizeResumeData(loose), [DERIVED_MARK]: resumeId };
+        // 에디터 자동저장은 몇 초마다 들어온다 — 내용이 그대로면 쓰지 않는다.
+        const unchanged = canonicalJson(savedResume?.content ?? null) === canonicalJson(normalized);
+        if (!unchanged) {
+          await prisma.careerResumeData.upsert({
+            where: { studentUserId: userId },
+            create: { studentUserId: userId, content: normalized as object },
+            update: { content: normalized as object }
+          });
+        }
+        // 섹션별 스텝 완료도 같이 반영 — 안 하면 홈 진행률이 저장 후에도 안 움직인다.
+        // 내용이 그대로면 스텝도 이미 찍혀 있으니 건너뛴다(자동저장마다 쓰지 않게).
+        const add: string[] = [];
+        const b = normalized.basic as { name?: string | null; summary?: string | null } | undefined;
+        if (b && (b.name || b.summary)) add.push("w2-basic");
+        if ((normalized.educations as unknown[])?.length) add.push("w2-edu");
+        const exps = (normalized.experiences as { kind?: string }[]) ?? [];
+        if (exps.some((x) => x.kind === "work")) add.push("w2-exp");
+        if (exps.some((x) => x.kind === "other")) add.push("w2-exp-other");
+        if ((normalized.skills as unknown[])?.length) add.push("w2-skill");
+        if ((normalized.languages as unknown[])?.length) add.push("w2-lang");
+        if (!unchanged && add.length) await setCareerStepsDone(userId, add);
+      }
+    }
+
+    if (!isHumanCollected(savedCover?.content)) {
+      const loose = renewalToCareerCover(content);
+      const items = (loose.items as { answer?: string }[]) ?? [];
+      if (items.some((x) => (x.answer ?? "").trim())) {
+        const normalized: Record<string, unknown> = { ...normalizeCoverData(loose), [DERIVED_MARK]: resumeId };
+        if (canonicalJson(savedCover?.content ?? null) !== canonicalJson(normalized)) {
+          await prisma.careerCoverLetterData.upsert({
+            where: { studentUserId: userId },
+            create: { studentUserId: userId, content: normalized as object },
+            update: { content: normalized as object }
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[career-derive] failed", { userId, resumeId, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 // 자소서 병합 — 문항(question) 기준 union, 새 answer 우선(비어있으면 기존 유지).
 function mergeCoverData(saved: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
   const so = normalizeCoverData(saved);
@@ -18786,9 +18928,8 @@ const CAREER_CERTIFICATE_ENABLED = false;
 async function maybeAutoIssueCareerCertificate(userId: string, state: Record<string, unknown>) {
   if (!CAREER_CERTIFICATE_ENABLED) return;
   try {
-    const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
-    const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
-    if (practiced.length < 3) return;
+    const practiced = careerPracticedFocuses(state);
+    if (practiced.length < CAREER_INTERVIEW_TOTAL) return;
 
     const [resume, cover] = await Promise.all([
       prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
@@ -23093,7 +23234,7 @@ app.post(
       }
 
       const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const practiced = careerPracticedFocuses(progState);
       const results = (interview.results && typeof interview.results === "object" ? interview.results : {}) as Record<string, string>;
       const currentSig = simpleHash(JSON.stringify({ resume: resumeContent, cover: coverContent, interview: { practiced, results } }));
 
@@ -23214,8 +23355,7 @@ app.post(
       const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
       const resumeDone = hasResumeDataContent(normalizeResumeData(resumeContent));
       const coverDone = hasCoverContent(normalizeCoverData(coverContent));
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const practiced = careerPracticedFocuses(progState);
 
       const expBankSig = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<{ id?: unknown }>).map((e) => e?.id).join(",") : "";
       // 직무별 탭 — jobKey 지정 시 그 직무 기준 리포트를 개별 생성·캐시(서로 안 지움).
@@ -23554,7 +23694,7 @@ app.post(
       ]);
       const progState = (progRow?.state && typeof progRow.state === "object" ? progRow.state : {}) as Record<string, unknown>;
       const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown; results?: unknown; reports?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const practiced = careerPracticedFocuses(progState);
       if (practiced.length === 0) {
         return res.json({ ok: true, score: null, needsInterview: true });
       }
@@ -23647,8 +23787,7 @@ app.get(
       const resume = getData("resume");
       const cover = getData("cover");
       const interviewScore = getData("interview");
-      const interview = (progState.interview && typeof progState.interview === "object" ? progState.interview : {}) as { practiced?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]).filter((x) => typeof x === "string") : [];
+      const practiced = careerPracticedFocuses(progState);
 
       const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
       const before = num(progState.careerScoreBefore);
@@ -24640,7 +24779,7 @@ app.get("/career-launch/ops/students", authenticate, requireRoles([MemberRole.OP
         doneSteps: arrLen(st.doneSteps),
         hasResume: arrLen(rc.educations) + arrLen(rc.experiences) + arrLen(rc.skills) > 0 || Boolean((rc.basic as { name?: string } | undefined)?.name),
         coverItems: coverItems.length,
-        interviewPracticed: arrLen(interview.practiced),
+        interviewPracticed: careerPracticedFocuses(st).length,
         updatedAt: progMap.get(u.id)?.updatedAt ?? resume?.updatedAt ?? cover?.updatedAt ?? null
       };
     });
@@ -24791,8 +24930,7 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
     };
     const buildProgress = (userId: string) => {
       const st = (progByUser.get(userId)?.state ?? {}) as Record<string, unknown>;
-      const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+      const practiced = careerPracticedFocuses(st);
       const rc = (resumeByUser.get(userId)?.content ?? {}) as Record<string, unknown>;
       const cc = (coverByUser.get(userId)?.content ?? {}) as Record<string, unknown>;
       const hasResume =
@@ -24817,7 +24955,7 @@ app.get("/career-launch/ops/cohorts/:id", authenticate, requireRoles([MemberRole
         interviewPracticed,
         doneStepsCount: doneSteps.length,
         weeksCompleted,
-        completed: interviewPracticed >= 3 && hasResume && coverItems > 0
+        completed: interviewPracticed >= CAREER_INTERVIEW_TOTAL && hasResume && coverItems > 0
       };
     };
     const students = c.enrollments.map((e) => ({
@@ -25162,8 +25300,7 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
     const students = enrollments.map((e) => {
       const progRow = progByUser.get(e.studentUserId);
       const st = (progRow?.state ?? {}) as Record<string, unknown>;
-      const interview = (st.interview && typeof st.interview === "object" ? st.interview : {}) as { practiced?: unknown };
-      const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+      const practiced = careerPracticedFocuses(st);
       const rc = (resumeByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
       const cc = (coverByUser.get(e.studentUserId)?.content ?? {}) as Record<string, unknown>;
       const hasResume =
@@ -25246,7 +25383,7 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
         coverItems,
         interviewPracticed: practiced.length,
         interviewRounds,
-        completed: practiced.length >= 3 && hasResume && coverItems > 0,
+        completed: practiced.length >= CAREER_INTERVIEW_TOTAL && hasResume && coverItems > 0,
         verified: passport.verified,
         readiness: passport.readiness,
         passportTier: passport.tier,
@@ -25294,7 +25431,7 @@ app.get("/career-launch/ops/report/cohort/:id", authenticate, requireRoles([Memb
       resumes: students.filter((s) => s.hasResume).length,
       coverLetters: students.filter((s) => s.coverItems > 0).length,
       interviewAny: students.filter((s) => s.interviewPracticed > 0).length,
-      interviewAll: students.filter((s) => s.interviewPracticed >= 3).length,
+      interviewAll: students.filter((s) => s.interviewPracticed >= CAREER_INTERVIEW_TOTAL).length,
       completed: students.filter((s) => s.completed).length,
       verified: students.filter((s) => s.verified).length,
       // 향상도 — 사전·사후 진단을 모두 마친 학생만 대상(측정 가능 인원도 함께 알린다)
@@ -25607,8 +25744,7 @@ const opsNudgeSchema = z.object({
 
 // 진행 상태에서 아직 안 한 것들을 사람이 읽을 문구로.
 function pendingCareerSteps(state: Record<string, unknown>, hasResume: boolean, hasCover: boolean): { ko: string[]; en: string[] } {
-  const interview = (state.interview && typeof state.interview === "object" ? state.interview : {}) as { practiced?: unknown };
-  const practiced = Array.isArray(interview.practiced) ? (interview.practiced as string[]) : [];
+  const practiced = careerPracticedFocuses(state);
   const ko: string[] = [];
   const en: string[] = [];
   const add = (k: string, e: string) => {
@@ -25619,7 +25755,8 @@ function pendingCareerSteps(state: Record<string, unknown>, hasResume: boolean, 
   if (!Array.isArray(state.selectedJobs) || state.selectedJobs.length === 0) add("직무 선정", "Job selection");
   if (!hasResume) add("이력서 만들기", "Build your resume");
   if (!hasCover) add("자기소개서 만들기", "Write your cover letter");
-  if (practiced.length < 3) add(`모의면접 (${practiced.length}/3 완료)`, `Mock interviews (${practiced.length}/3 done)`);
+  if (practiced.length < CAREER_INTERVIEW_TOTAL)
+    add(`모의면접 (${practiced.length}/${CAREER_INTERVIEW_TOTAL} 완료)`, `Mock interviews (${practiced.length}/${CAREER_INTERVIEW_TOTAL} done)`);
   return { ko, en };
 }
 

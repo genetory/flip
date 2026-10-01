@@ -65,6 +65,8 @@ export default function LaunchDashboardPage() {
   const reportedRef = useRef(false);
 
   const [data, setData] = useState<LaunchData>({ progress: {}, resume: {}, cover: {} });
+  // 진행 상태 조회만 실패했을 때 — 0% 를 사실처럼 보여주지 않고 다시 불러올 수 있게 알린다.
+  const [progressFailed, setProgressFailed] = useState(false);
   const [schedule, setSchedule] = useState<WeekScheduleEntry[]>([]);
   const [serverNow, setServerNow] = useState<Date>(() => new Date(0)); // 스케줄 로드 전엔 과거로 둬서 날짜 오픈 미판정
   const [seminars, setSeminars] = useState<CohortSeminar[]>([]);
@@ -88,20 +90,25 @@ export default function LaunchDashboardPage() {
     if (isReady && isAuthenticated) loadVm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady, isAuthenticated, locale]);
-  useEffect(() => {
-    if (!isReady) return;
-    let alive = true;
-    void (async () => {
+  // 다시 불러오기 버튼이 쓸 수 있게 분리. alive 가드는 호출부에서 넘긴다.
+  const loadLegacy = (alive: () => boolean = () => true) =>
+    (async () => {
       try {
         // Phase 15 — 대시보드 진입 요청 축소: cohortLabel(미사용)용 fetchMyEnrollment 제거.
+        // 각 호출에 폴백을 둔다 — 하나라도 폴백이 없으면 429(분당 캡)·일시 네트워크 오류 한 번에
+        // Promise.all 이 거부되고 data 가 빈 상태로 남아 진행률이 0% 로 보인다(이력서·자소서까지 사라짐).
         const [p, r, c, sched, sems] = await Promise.all([
-          fetchProgress(),
+          fetchProgress().catch(() => {
+            setProgressFailed(true);
+            return {} as Awaited<ReturnType<typeof fetchProgress>>;
+          }),
           fetchResumeData().catch(() => ({ data: {} })),
           fetchCoverData().catch(() => ({ data: {} })),
           fetchWeekSchedule().catch(() => ({ weekSchedule: [] as WeekScheduleEntry[], serverNow: new Date().toISOString() })),
           fetchMySeminars().catch(() => [] as CohortSeminar[])
         ]);
-        if (alive) {
+        if (alive()) {
+          if (Object.keys(p).length > 0) setProgressFailed(false);
           setData({ progress: p, resume: r.data ?? {}, cover: c.data ?? {} });
           setSchedule(sched.weekSchedule);
           setServerNow(new Date(sched.serverNow));
@@ -111,9 +118,14 @@ export default function LaunchDashboardPage() {
         // 조회 실패 시 빈 상태
       }
     })();
+  useEffect(() => {
+    if (!isReady) return;
+    let alive = true;
+    void loadLegacy(() => alive);
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady]);
 
   const displayName = user?.name?.trim() || user?.email || STUDENT.name;
@@ -220,6 +232,12 @@ export default function LaunchDashboardPage() {
             <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-[#F0B429]/40 bg-[#FFF9EC] px-3 py-1.5 text-[12.5px] font-bold text-[#B7791F] transition hover:bg-[#FEF3D6]">
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
+          ) : null}
+          {/* 진행 상태만 못 받아온 경우 — 진행률이 0% 로 보이므로 사실이 아님을 알리고 재시도를 준다. */}
+          {progressFailed ? (
+            <div className="mt-3">
+              <ErrorState onRetry={() => void loadLegacy()} />
+            </div>
           ) : null}
           {/* 홈 최상단 히어로 — vm 준비 시 "보딩패스", 로딩/에러 시 정적 마스트헤드(폴백). */}
           {vm ? (
