@@ -7,6 +7,7 @@ import { ArrowLeft, Check } from "@phosphor-icons/react";
 import { fetchOpsStudentDetail, resetStudentStep, saveStudentMemo, nudgeStudents, type OpsStudentDetail, type OpsResetTarget } from "../../../../../lib/launch/ops-client";
 import { hasResumeContent } from "../../../../../lib/launch/resume-data";
 import { hasCoverContent } from "../../../../../lib/launch/cover-data";
+import { practicedFocuses, INTERVIEW_FOCUSES } from "../../../../../lib/launch/step-status";
 import { RECOMMENDED_JOBS } from "../../../../../lib/launch/data";
 import { RichText } from "../../../../../components/launch/rich-text";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
@@ -40,7 +41,8 @@ export default function LaunchOpsStudentDetailPage() {
   const INTERVIEW_LABEL: Record<string, string> = {
     self: t("자기소개 면접", "Self-intro interview", "自我介绍面试", "Phỏng vấn giới thiệu bản thân", "自己紹介面接", "Wawancara perkenalan diri"),
     job: t("직무 면접", "Job interview", "职务面试", "Phỏng vấn chuyên môn", "職務面接", "Wawancara pekerjaan"),
-    fit: t("인성·컬처핏 면접", "Personality & culture-fit interview", "人格·文化契合面试", "Phỏng vấn tính cách & văn hóa", "人柄・カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya")
+    fit: t("인성·컬처핏 면접", "Personality & culture-fit interview", "人格·文化契合面试", "Phỏng vấn tính cách & văn hóa", "人柄・カルチャーフィット面接", "Wawancara kepribadian & kecocokan budaya"),
+    pressure: t("압박 면접", "Pressure interview", "压力面试", "Phỏng vấn gây áp lực", "圧迫面接", "Wawancara tekanan")
   };
   const params = useParams();
   const id = String((params as { id?: string })?.id ?? "");
@@ -130,7 +132,7 @@ export default function LaunchOpsStudentDetailPage() {
   const jobs = detail?.state.selectedJobs ?? [];
   const materials = detail?.state.materials ?? [];
   const doneSteps = detail?.state.doneSteps ?? [];
-  const interviewPracticed = detail?.state.interview?.practiced ?? [];
+  const interviewPracticed = detail ? practicedFocuses(detail.state) : [];
   const interviewResults = detail?.state.interview?.results ?? {};
   const finalFeedbackText = detail?.state.finalFeedback?.text ?? "";
   // 성장 리포트(리뉴얼 산출물) — Experience Bank 중심의 점수화 결과.
@@ -157,9 +159,7 @@ export default function LaunchOpsStudentDetailPage() {
       { l: t("직무 선정", "Job selection", "职务选择", "Chọn vị trí", "職務選定", "Pilih posisi"), done: jobs.length > 0 },
       { l: t("이력서", "Resume", "简历", "CV", "履歴書", "Resume"), done: hasResume },
       { l: t("자기소개서", "Cover letter", "自我介绍", "Thư xin việc", "自己PR", "Cover letter"), done: hasCover },
-      { l: INTERVIEW_LABEL.self, done: interviewPracticed.includes("self") },
-      { l: INTERVIEW_LABEL.job, done: interviewPracticed.includes("job") },
-      { l: INTERVIEW_LABEL.fit, done: interviewPracticed.includes("fit") },
+      ...INTERVIEW_FOCUSES.map((f) => ({ l: INTERVIEW_LABEL[f], done: interviewPracticed.includes(f) })),
       { l: t("최종 피드백", "Final feedback", "最终反馈", "Phản hồi cuối cùng", "最終フィードバック", "Umpan balik akhir"), done: Boolean(finalFeedbackText) }
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -778,10 +778,10 @@ export default function LaunchOpsStudentDetailPage() {
                   {/* 유형별로 완료 상태 + AI 총평을 한 카드에 묶어 스캔하기 쉽게. */}
                   <section className="ops-detail-section">
                     <h3>
-                      {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} ({interviewPracticed.length}/3)
+                      {t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} ({interviewPracticed.length}/{INTERVIEW_FOCUSES.length})
                     </h3>
                     <div className="space-y-2.5">
-                      {(["self", "job", "fit"] as const).map((tp) => {
+                      {INTERVIEW_FOCUSES.map((tp) => {
                         const done = interviewPracticed.includes(tp);
                         const summary = interviewResults[tp];
                         return (

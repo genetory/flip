@@ -29,6 +29,27 @@ export const STEP_KIND: Record<string, string> = {
   "w4-pressure": "interview-pressure"
 };
 
+// 모의면접 완료 유형 — 카드형(basicInterviews)과 구 대화형(interview.practiced)을 합쳐 중복 없이.
+// 프로그램 스텝(data.ts)은 전부 카드형으로 가므로 practiced 만 보면 실제로 본 학생도 0 이 된다.
+// 운영자 화면(ops)도 이 함수를 써서 학생 화면과 같은 기준으로 센다.
+export const INTERVIEW_FOCUSES = ["self", "job", "fit", "pressure"] as const;
+export type InterviewFocusKey = (typeof INTERVIEW_FOCUSES)[number];
+
+export function practicedFocuses(prog: CareerProgress): InterviewFocusKey[] {
+  const out = new Set<InterviewFocusKey>();
+  for (const f of prog.interview?.practiced ?? []) {
+    if ((INTERVIEW_FOCUSES as readonly string[]).includes(f)) out.add(f as InterviewFocusKey);
+  }
+  // 카드형은 답한 문항이 하나라도 있을 때만 완료로 본다(빈 세션 제외).
+  for (const log of prog.basicInterviews ?? []) {
+    const f = log.focus;
+    if (typeof f === "string" && (INTERVIEW_FOCUSES as readonly string[]).includes(f) && (log.items?.length ?? 0) > 0) {
+      out.add(f as InterviewFocusKey);
+    }
+  }
+  return [...out];
+}
+
 export type LaunchData = { progress: CareerProgress; resume: ResumeData; cover: CoverData };
 
 export function isStepDone(id: string, d: LaunchData): boolean {
@@ -76,9 +97,8 @@ export function isStepDone(id: string, d: LaunchData): boolean {
     case "interview-job":
     case "interview-fit":
     case "interview-pressure": {
-      const f = kind.replace("interview-", "");
-      const doneBasic = (prog.basicInterviews ?? []).some((l) => l.focus === f && (l.items?.length ?? 0) > 0);
-      kd = doneBasic || (prog.interview?.practiced ?? []).includes(f);
+      const f = kind.replace("interview-", "") as InterviewFocusKey;
+      kd = practicedFocuses(prog).includes(f);
       break;
     }
     case "both": kd = hasResumeContent(resume) && hasCoverContent(cover); break;
