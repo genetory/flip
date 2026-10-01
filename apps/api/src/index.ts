@@ -17338,43 +17338,48 @@ app.post("/career-launch/questions/:id/read", authenticate, requireCareerEnrollm
 // 저장 훅(deriveCareerDataFromRenewal)은 앞으로의 저장만 잡으므로, 이미 만들어 둔 학생은
 // 여기서 한 번 채운다. 멱등이고, 사람이 프로그램 안에서 모은 데이터는 건드리지 않는다.
 // ?dryRun=1 이면 바꾸지 않고 몇 명이 대상인지만 돌려준다.
+// 운영자 엔드포인트와 기동 시 1회성 백필이 같은 로직을 쓴다.
+async function backfillCareerDerivedData(dryRun: boolean) {
+  // Career Launch 수강생만 대상 — 전체 사용자를 훑지 않는다.
+  const enrollments = await prisma.careerEnrollment.findMany({ select: { studentUserId: true } });
+  const userIds = [...new Set(enrollments.map((e) => e.studentUserId))];
+  let scanned = 0;
+  let candidates = 0;
+  let updated = 0;
+  const skipped: { reason: string; count: number }[] = [];
+  const bump = (reason: string) => {
+    const hit = skipped.find((x) => x.reason === reason);
+    if (hit) hit.count += 1;
+    else skipped.push({ reason, count: 1 });
+  };
+  for (const userId of userIds) {
+    scanned += 1;
+    const row = await findTalentResumeRow(userId);
+    if (!row) {
+      bump("리뉴얼 문서 없음");
+      continue;
+    }
+    const saved = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+    if (isHumanCollected(saved?.content)) {
+      bump("프로그램에서 모은 데이터 있음(보존)");
+      continue;
+    }
+    if (!hasDerivedResumeContent(renewalToCareerResume(row.content))) {
+      bump("리뉴얼 문서가 비어 있음");
+      continue;
+    }
+    candidates += 1;
+    if (dryRun) continue;
+    await deriveCareerDataFromRenewal(userId, row.id, row.content);
+    updated += 1;
+  }
+  return { dryRun, scanned, candidates, updated, skipped };
+}
+
 app.post("/ops/career-launch/derive-career-data", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
   try {
-    // Career Launch 수강생만 대상 — 전체 사용자를 훑지 않는다.
-    const enrollments = await prisma.careerEnrollment.findMany({ select: { studentUserId: true } });
-    const userIds = [...new Set(enrollments.map((e) => e.studentUserId))];
-    let scanned = 0;
-    let candidates = 0;
-    let updated = 0;
-    const skipped: { reason: string; count: number }[] = [];
-    const bump = (reason: string) => {
-      const hit = skipped.find((x) => x.reason === reason);
-      if (hit) hit.count += 1;
-      else skipped.push({ reason, count: 1 });
-    };
-    for (const userId of userIds) {
-      scanned += 1;
-      const row = await findTalentResumeRow(userId);
-      if (!row) {
-        bump("리뉴얼 문서 없음");
-        continue;
-      }
-      const saved = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
-      if (isHumanCollected(saved?.content)) {
-        bump("프로그램에서 모은 데이터 있음(보존)");
-        continue;
-      }
-      if (!hasDerivedResumeContent(renewalToCareerResume(row.content))) {
-        bump("리뉴얼 문서가 비어 있음");
-        continue;
-      }
-      candidates += 1;
-      if (dryRun) continue;
-      await deriveCareerDataFromRenewal(userId, row.id, row.content);
-      updated += 1;
-    }
-    return res.json({ ok: true, dryRun, scanned, candidates, updated, skipped });
+    return res.json({ ok: true, ...(await backfillCareerDerivedData(dryRun)) });
   } catch (error) {
     console.error("[ops/derive-career-data] failed", error);
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -37716,6 +37721,19 @@ if (process.env.VERCEL !== "1") {
     }
   }
 
+  // 1회성 백필 — BACKFILL_CAREER_DERIVE=true 시 기동 때 리뉴얼 에디터만 쓴 수강생의
+  // Career Launch 수집 데이터를 파생해 둔다(저장 훅은 앞으로의 저장만 잡는다).
+  // 멱등하고, 프로그램 안에서 사람이 모은 데이터는 건드리지 않는다. 완료 후 플래그 해제 권장.
+  async function runCareerDeriveBackfillOnBoot() {
+    if (String(process.env.BACKFILL_CAREER_DERIVE ?? "false").toLowerCase() !== "true") return;
+    try {
+      const result = await backfillCareerDerivedData(false);
+      console.info("[career-derive-backfill] done.", JSON.stringify(result));
+    } catch (e) {
+      console.error("[career-derive-backfill] failed:", e);
+    }
+  }
+
   // 1회성 백필 — BACKFILL_RESUME_EMBEDDINGS=true 시 기동 때 대표 이력서 전원의 시맨틱 임베딩 생성.
   // 완료 후 플래그 해제 권장.
   async function runResumeEmbeddingBackfillOnBoot() {
@@ -37758,6 +37776,7 @@ if (process.env.VERCEL !== "1") {
     void runAiPointsScale10xOnBoot();
     void runDocSummaryBackfillOnBoot();
     void runResumeEmbeddingBackfillOnBoot();
+    void runCareerDeriveBackfillOnBoot();
   });
 }
 
