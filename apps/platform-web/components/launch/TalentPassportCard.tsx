@@ -5,6 +5,7 @@
 // 성장 스토리(시작→현재) + 기업 피드백 + 잘 맞는 직무(추천 적합도).
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { INTERVIEW_FOCUSES } from "../../lib/launch/step-status";
 import { ArrowRight, SealCheck, TrendUp, FileText, PencilSimpleLine } from "@phosphor-icons/react";
 import { fetchTalentPassport, fetchProgress, sharePassport, type TalentPassport, type PassportTier, type CareerProgress } from "../../lib/launch/progress-client";
 import { useLaunchT } from "../../lib/launch/i18n";
@@ -153,7 +154,7 @@ export function TalentPassportCard() {
           {[
             { k: "exp", label: t("경험", "Experience", "经历", "Kinh nghiệm", "経験", "Pengalaman"), value: `${p.experienceCount}${t("건", "", "个", "", "件", "")}` },
             { k: "lang", label: t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa"), value: String((p.languages ?? []).length) },
-            { k: "mock", label: t("모의면접", "Mock", "模拟面试", "PV thử", "模擬面接", "Simulasi"), value: `${p.activity.mockInterviews}/3` }
+            { k: "mock", label: t("모의면접", "Mock", "模拟面试", "PV thử", "模擬面接", "Simulasi"), value: `${p.activity.mockInterviews}/${INTERVIEW_FOCUSES.length}` }
           ].map((s) => (
             <div key={s.k} className="rounded-2xl border border-[#EDF1F7] bg-white/70 px-3.5 py-3 backdrop-blur-sm">
               <p className="text-[11px] font-semibold text-[#8B95A1]">{s.label}</p>

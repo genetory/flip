@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "@phosphor-icons/react";
+import { INTERVIEW_FOCUSES } from "../../../../../lib/launch/step-status";
 import { useParams, useRouter } from "next/navigation";
 import { fetchCohort, enrollStudent, unenrollStudent, deleteCohort, setCohortWeek, type OpsCohortDetail, type CohortWeekOpen } from "../../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../../lib/launch/i18n";
@@ -216,7 +217,7 @@ export default function LaunchOpsCohortDetailPage() {
                               { label: t("진단", "Diag", "诊断", "Chẩn", "診断", "Diag"), done: pr.diagnosed },
                               { label: t("이력서", "Resume", "简历", "CV", "履歴", "CV"), done: pr.hasResume },
                               { label: t("자소서", "Cover", "自荐", "Thư", "自己PR", "Surat"), done: pr.hasCover },
-                              { label: `${t("면접", "Interview", "面试", "PV", "面接", "Wwc")} ${pr.interviewPracticed}/3`, done: pr.interviewPracticed > 0 }
+                              { label: `${t("면접", "Interview", "面试", "PV", "面接", "Wwc")} ${pr.interviewPracticed}/${INTERVIEW_FOCUSES.length}`, done: pr.interviewPracticed > 0 }
                             ]
                           : [];
                         return (

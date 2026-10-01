@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { INTERVIEW_FOCUSES } from "../../../../lib/launch/step-status";
 import {
   fetchOpsStudents,
   studentProgress,
@@ -210,7 +211,7 @@ export default function LaunchOpsStudentsPage() {
         s.diagnosisPercent ?? "",
         s.hasResume ? "O" : "",
         s.coverItems,
-        `${s.interviewPracticed}/3`
+        `${s.interviewPracticed}/${INTERVIEW_FOCUSES.length}`
       ].map(esc).join(",")
     );
     const csv = "﻿" + [head.map(esc).join(","), ...rows].join("\n");
@@ -507,7 +508,7 @@ export default function LaunchOpsStudentsPage() {
                         </td>
                         <td>
                           <span className={`ops-status-badge ${st.interviewPracticed > 0 ? "ops-status-approved" : "ops-status-draft"}`}>
-                            {st.interviewPracticed}/3
+                            {st.interviewPracticed}/{INTERVIEW_FOCUSES.length}
                           </span>
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>

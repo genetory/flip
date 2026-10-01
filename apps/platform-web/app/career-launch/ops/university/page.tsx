@@ -5,6 +5,7 @@
 // 데이터는 기존 fetchCohortReport(성과 리포트)를 재사용하고 Verified(Talent Passport)만 얹었다.
 import { useEffect, useMemo, useState } from "react";
 import { fetchCohortReport, type CohortReport, type CohortReportStudent } from "../../../../lib/launch/ops-client";
+import { INTERVIEW_FOCUSES } from "../../../../lib/launch/step-status";
 import { fetchCohorts, type OpsCohort } from "../../../../lib/launch/enrollment-client";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
@@ -202,7 +203,7 @@ export default function UniversityDashboardPage() {
                           <td style={{ padding: "11px 14px", color: "var(--ink-soft)" }}>{s.completed ? t("완주", "Completed", "完成", "Hoàn thành", "完走", "Selesai") : `${s.weeksCompleted}/4`}</td>
                           <td style={{ padding: "11px 14px", textAlign: "center", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{s.readiness}</td>
                           <td style={{ padding: "11px 14px", textAlign: "center", color: "var(--ink-soft)" }}>{s.hasResume ? "✓" : "—"}</td>
-                          <td style={{ padding: "11px 14px", textAlign: "center", color: "var(--ink-soft)", fontVariantNumeric: "tabular-nums" }}>{s.interviewPracticed}/3</td>
+                          <td style={{ padding: "11px 14px", textAlign: "center", color: "var(--ink-soft)", fontVariantNumeric: "tabular-nums" }}>{s.interviewPracticed}/{INTERVIEW_FOCUSES.length}</td>
                           <td style={{ padding: "11px 14px", textAlign: "center", fontVariantNumeric: "tabular-nums" }}>{s.applications}</td>
                           <td style={{ padding: "11px 14px" }}>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: r.bg, color: r.ink, fontSize: 11.5, fontWeight: 800 }}>{r.text}</span>
