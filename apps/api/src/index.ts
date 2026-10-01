@@ -247,6 +247,14 @@ import {
   snapshotSchemaFor,
   type DocVersionKind
 } from "./doc-versions";
+import {
+  DERIVED_MARK,
+  renewalToCareerResume,
+  renewalToCareerCover,
+  hasDerivedResumeContent,
+  isHumanCollected,
+  canonicalJson
+} from "./career-derive";
 import { createHash } from "crypto";
 
 const app = express();
@@ -14951,6 +14959,7 @@ app.post("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT])
     });
     void getOrCreateDocSummary(userId).catch(() => {});
     void embedAndSaveResume(prisma, created.id).catch(() => {});
+    void deriveCareerDataFromRenewal(userId, created.id, resolvedContent);
     return res.status(201).json({ ok: true, item: created });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to create resume" });
@@ -15037,6 +15046,8 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     if (resolvedContent !== undefined) {
       await syncResumePoolOptin(userId, resolvedContent).catch((err) => console.error("[resume poolOptin sync] failed", err));
     }
+    // 리뉴얼 모듈형 문서면 Career Launch 수집 데이터로도 파생(진행률·AI 채점·운영자 콘솔이 그걸 읽는다).
+    if (resolvedContent !== undefined) void deriveCareerDataFromRenewal(userId, item.id, resolvedContent);
     // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
     void getOrCreateDocSummary(userId).catch(() => {});
     void embedAndSaveResume(prisma, item.id).catch(() => {});
@@ -17323,6 +17334,53 @@ app.post("/career-launch/questions/:id/read", authenticate, requireCareerEnrollm
   }
 });
 
+// POST /ops/career-launch/derive-career-data — 리뉴얼 에디터만 쓴 기존 학생 일괄 백필.
+// 저장 훅(deriveCareerDataFromRenewal)은 앞으로의 저장만 잡으므로, 이미 만들어 둔 학생은
+// 여기서 한 번 채운다. 멱등이고, 사람이 프로그램 안에서 모은 데이터는 건드리지 않는다.
+// ?dryRun=1 이면 바꾸지 않고 몇 명이 대상인지만 돌려준다.
+app.post("/ops/career-launch/derive-career-data", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const dryRun = req.query.dryRun === "1" || req.query.dryRun === "true";
+  try {
+    // Career Launch 수강생만 대상 — 전체 사용자를 훑지 않는다.
+    const enrollments = await prisma.careerEnrollment.findMany({ select: { studentUserId: true } });
+    const userIds = [...new Set(enrollments.map((e) => e.studentUserId))];
+    let scanned = 0;
+    let candidates = 0;
+    let updated = 0;
+    const skipped: { reason: string; count: number }[] = [];
+    const bump = (reason: string) => {
+      const hit = skipped.find((x) => x.reason === reason);
+      if (hit) hit.count += 1;
+      else skipped.push({ reason, count: 1 });
+    };
+    for (const userId of userIds) {
+      scanned += 1;
+      const row = await findTalentResumeRow(userId);
+      if (!row) {
+        bump("리뉴얼 문서 없음");
+        continue;
+      }
+      const saved = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      if (isHumanCollected(saved?.content)) {
+        bump("프로그램에서 모은 데이터 있음(보존)");
+        continue;
+      }
+      if (!hasDerivedResumeContent(renewalToCareerResume(row.content))) {
+        bump("리뉴얼 문서가 비어 있음");
+        continue;
+      }
+      candidates += 1;
+      if (dryRun) continue;
+      await deriveCareerDataFromRenewal(userId, row.id, row.content);
+      updated += 1;
+    }
+    return res.json({ ok: true, dryRun, scanned, candidates, updated, skipped });
+  } catch (error) {
+    console.error("[ops/derive-career-data] failed", error);
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // GET /ops/career-launch/questions — 운영자 콘솔 목록. 기본은 미답변 먼저.
 // ?status=pending|answered|all (기본 pending)
 app.get("/ops/career-launch/questions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
@@ -18519,6 +18577,67 @@ function normalizeCoverData(raw: unknown): Record<string, unknown> {
         .filter((x) => x.question)
     : [];
   return { company, items };
+}
+
+
+// 리뉴얼 모듈형 에디터 저장 직후, Career Launch 수집 데이터를 파생해 둔다.
+// 이게 없으면 /talent/career/resume/editor 로만 이력서를 만든 학생은 프로그램 쪽(진행률·완주·
+// AI 채점·운영자 콘솔 — 읽는 곳 40곳 이상)에서 "이력서 없음"으로 취급된다.
+// 사람이 프로그램 안에서 모은 데이터는 손실 변환으로 덮으면 안 되므로, 비어 있거나 과거에
+// 파생해 둔 행만 갱신한다. 실패해도 이력서 저장 결과에는 영향을 주지 않는다.
+async function deriveCareerDataFromRenewal(userId: string, resumeId: string, content: unknown): Promise<void> {
+  if (!isTalentContent(content)) return;
+  try {
+    const [savedResume, savedCover] = await Promise.all([
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+
+    if (!isHumanCollected(savedResume?.content)) {
+      const loose = renewalToCareerResume(content);
+      if (hasDerivedResumeContent(loose)) {
+        const normalized: Record<string, unknown> = { ...normalizeResumeData(loose), [DERIVED_MARK]: resumeId };
+        // 에디터 자동저장은 몇 초마다 들어온다 — 내용이 그대로면 쓰지 않는다.
+        const unchanged = canonicalJson(savedResume?.content ?? null) === canonicalJson(normalized);
+        if (!unchanged) {
+          await prisma.careerResumeData.upsert({
+            where: { studentUserId: userId },
+            create: { studentUserId: userId, content: normalized as object },
+            update: { content: normalized as object }
+          });
+        }
+        // 섹션별 스텝 완료도 같이 반영 — 안 하면 홈 진행률이 저장 후에도 안 움직인다.
+        // 내용이 그대로면 스텝도 이미 찍혀 있으니 건너뛴다(자동저장마다 쓰지 않게).
+        const add: string[] = [];
+        const b = normalized.basic as { name?: string | null; summary?: string | null } | undefined;
+        if (b && (b.name || b.summary)) add.push("w2-basic");
+        if ((normalized.educations as unknown[])?.length) add.push("w2-edu");
+        const exps = (normalized.experiences as { kind?: string }[]) ?? [];
+        if (exps.some((x) => x.kind === "work")) add.push("w2-exp");
+        if (exps.some((x) => x.kind === "other")) add.push("w2-exp-other");
+        if ((normalized.skills as unknown[])?.length) add.push("w2-skill");
+        if ((normalized.languages as unknown[])?.length) add.push("w2-lang");
+        if (!unchanged && add.length) await setCareerStepsDone(userId, add);
+      }
+    }
+
+    if (!isHumanCollected(savedCover?.content)) {
+      const loose = renewalToCareerCover(content);
+      const items = (loose.items as { answer?: string }[]) ?? [];
+      if (items.some((x) => (x.answer ?? "").trim())) {
+        const normalized: Record<string, unknown> = { ...normalizeCoverData(loose), [DERIVED_MARK]: resumeId };
+        if (canonicalJson(savedCover?.content ?? null) !== canonicalJson(normalized)) {
+          await prisma.careerCoverLetterData.upsert({
+            where: { studentUserId: userId },
+            create: { studentUserId: userId, content: normalized as object },
+            update: { content: normalized as object }
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[career-derive] failed", { userId, resumeId, error: err instanceof Error ? err.message : String(err) });
+  }
 }
 
 // 자소서 병합 — 문항(question) 기준 union, 새 answer 우선(비어있으면 기존 유지).
