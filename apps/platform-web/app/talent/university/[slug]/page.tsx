@@ -4,18 +4,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { getUniversityLanding } from "../../../../lib/talent/university-landing";
+import { pageSeo } from "../../../../lib/seo";
 import { UniversityLandingView } from "../../../../components/talent/university/UniversityLandingView";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const u = getUniversityLanding(slug);
   if (!u) return { title: "Aply", robots: { index: false, follow: false } };
-  return {
+  // 색인을 허용(noindex=false)으로 바꿀 때 canonical 이 없으면 캠페인 파라미터가 붙은 URL 이
+  // 각각 다른 페이지로 잡힌다 — 지금부터 자기 URL 을 canonical 로 선언해 둔다.
+  return pageSeo({
+    path: `/talent/university/${slug}`,
     title: `${u.displayName} × Aply`,
     description: `${u.shortName} 학생을 위한 커리어 시작 — AI 이력서·자소서, 모의면접, 실제 지원까지.`,
     // 메뉴 미노출 단계에선 검색 색인 제외(원할 때 noindex=false 로 색인 허용).
-    robots: u.noindex === false ? undefined : { index: false, follow: false }
-  };
+    noindex: u.noindex !== false
+  });
 }
 
 export default async function UniversityLandingPage({ params }: { params: Promise<{ slug: string }> }) {

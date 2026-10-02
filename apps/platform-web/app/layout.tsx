@@ -59,12 +59,12 @@ export const metadata: Metadata = {
       ? { other: { "naver-site-verification": naverSiteVerification } }
       : {})
   },
-  // Single canonical URL. The previous per-locale alternates all pointed to
-  // "/" which is what triggered Google Search Console's "hreflang return tag"
-  // warnings — until we ship real per-locale URLs we keep one canonical.
-  alternates: {
-    canonical: "/"
-  },
+  // ⚠️ 여기에 canonical 을 두면 안 된다. Next.js 는 부모의 alternates.canonical 을
+  // 자식이 그대로 상속하므로, 예전의 `canonical: "/"` 때문에 공개 페이지 전부(공고
+  // 12,000여 개 포함)가 홈페이지를 canonical 로 선언해 "홈의 중복"으로 처리됐다.
+  // canonical 은 페이지마다 lib/seo.ts 의 pageSeo() 로 선언한다.
+  // 로케일별 alternates 도 넣지 않는다 — 로케일이 URL 에 없어 같은 URL 을 ko/en 양쪽으로
+  // 가리키게 되고, 그게 과거 Search Console "hreflang return tag" 경고의 원인이었다.
   openGraph: {
     type: "website",
     siteName: "Aply",
