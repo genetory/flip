@@ -197,12 +197,6 @@ function FinalCta({ t }: { t: PlatformT }) {
           {t("무료로 시작하기", "Get started free")}
         </Link>
       </div>
-      <p className="mt-6 text-[13px] text-[#8B95A1]">
-        {t("채용 담당자이신가요?", "Hiring?")}{" "}
-        <Link href="/partner" onClick={() => trackLandingSectionCta("partner")} className="font-bold text-[#4E5968] underline underline-offset-2 hover:text-[#0B46E8]">
-          {t("기업 서비스 보기", "For employers")}
-        </Link>
-      </p>
     </section>
   );
 }

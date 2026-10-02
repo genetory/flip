@@ -39,10 +39,11 @@ const siteDescription = "Apply your next move. Connect with Korean companies hir
 // 접근성을 위해 막지 않는다.
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1,
-  // 모바일 확대/축소(핀치 줌) 방지 + iOS 입력 포커스 시 자동 확대(폰트<16px) 방지.
-  maximumScale: 1,
-  userScalable: false
+  initialScale: 1
+  // 확대/축소를 막지 않는다. 예전에는 maximumScale:1 + userScalable:false 로 막아 뒀는데,
+  // (1) 좁은 화면에서 넘친 요소에 손이 닿지 않았고 (2) 확대 자체를 막는 것은 접근성
+  // 기준(WCAG 1.4.4) 위반이다. 원래 이걸 넣은 이유인 'iOS 입력 포커스 시 자동 확대'는
+  // globals.css 에서 터치 기기의 입력 글자를 16px 로 올려 해결한다(16px 이상이면 확대 안 함).
 };
 
 export const metadata: Metadata = {
