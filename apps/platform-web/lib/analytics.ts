@@ -40,8 +40,11 @@ export function trackAccountDeleted() {
 // ---- positions ----
 
 export function trackPositionSearch(query: string) {
-  if (!query.trim()) return;
-  safeSendEvent("search", { search_term: query.trim().slice(0, 120) });
+  const q = query.trim();
+  if (!q) return;
+  // 검색 원문은 보내지 않는다 — 사람 이름·회사명·개인 상황이 섞여 들어온다.
+  // 검색이 일어났다는 사실과 대략적인 길이만 남긴다.
+  safeSendEvent("search", { term_length: Math.min(q.length, 200), has_space: q.includes(" ") });
 }
 
 export function trackPositionView(positionId: string, source: string) {
@@ -321,4 +324,73 @@ export function trackUniversityLandingViewed(slug: string, campaign?: string) {
 
 export function trackUniversityCtaClicked(slug: string, cta: "primary" | "jobs" | "secondary", campaign?: string) {
   safeSendEvent("university_cta_clicked", { slug, cta, ...(campaign ? { campaign } : {}) });
+}
+
+
+// ---- 유입·전환 기반(Growth Phase 1) ----
+//
+// 공개 콘텐츠 → 무료 도구 → 회원가입 → Career Launch 로 이어지는 경로를 한 이름 체계로 센다.
+// 규칙: 개인정보·검색 원문·이력서 원문은 넣지 않는다. 식별자는 공개 ID(공고 id 등)만 쓴다.
+
+/** 공개 콘텐츠 종류 — 어느 문맥에서 전환이 일어났는지 구분한다. */
+export type GrowthSurface = "home" | "talent_landing" | "job_list" | "job_detail" | "visa" | "resume" | "interview" | "career_launch";
+
+/** 공개 랜딩 진입. */
+export function trackLandingView(surface: GrowthSurface) {
+  safeSendEvent("landing_view", { surface });
+}
+
+export function trackJobListView(params: { count: number; tab?: string } = { count: 0 }) {
+  safeSendEvent("job_list_view", { count: params.count, ...(params.tab ? { tab: params.tab } : {}) });
+}
+
+/** 공고 상세 열람. indexable 은 본문이 충분한 공고인지(품질 추적용). */
+export function trackJobDetailView(positionId: string, params: { closed?: boolean; external?: boolean } = {}) {
+  safeSendEvent("job_detail_view", { position_id: positionId, ...params });
+}
+
+/** 비자·이력서·면접 등 읽는 콘텐츠 열람. slug 는 공개 식별자만. */
+export function trackContentView(surface: GrowthSurface, slug: string) {
+  safeSendEvent("content_view", { surface, slug: slug.slice(0, 80) });
+}
+
+/** 무료 도구(진단·이력서 문장·모의면접 등) 시작·완료. */
+export function trackFreeToolStart(tool: string) {
+  safeSendEvent("free_tool_start", { tool });
+}
+
+export function trackFreeToolComplete(tool: string) {
+  safeSendEvent("free_tool_complete", { tool });
+}
+
+/** 가입 버튼 클릭(아직 가입 전) — surface 로 어느 콘텐츠가 가입을 만들었는지 본다. */
+export function trackSignupClick(surface: GrowthSurface) {
+  safeSendEvent("signup_click", { surface });
+}
+
+export function trackSignupComplete(method: SignupMethod) {
+  safeSendEvent("signup_complete", { method });
+}
+
+/** 커리어 프로필(기본 정보·경험) 작성 시작·완료. */
+export function trackCareerProfileStart() {
+  safeSendEvent("career_profile_start", {});
+}
+
+export function trackCareerProfileComplete() {
+  safeSendEvent("career_profile_complete", {});
+}
+
+export function trackJobSave(positionId: string, surface: GrowthSurface) {
+  safeSendEvent("job_save", { position_id: positionId, surface });
+}
+
+/** 지원 흐름 시작(지원 준비 또는 지원하기 클릭). */
+export function trackApplyStart(positionId: string, surface: GrowthSurface) {
+  safeSendEvent("apply_start", { position_id: positionId, surface });
+}
+
+/** Career Launch 진입(공개 랜딩에서 프로그램으로). */
+export function trackCareerLaunchStart(surface: GrowthSurface) {
+  safeSendEvent("career_launch_start", { surface });
 }

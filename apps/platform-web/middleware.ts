@@ -60,5 +60,5 @@ export function middleware(req: NextRequest) {
 // has had a chance to authenticate. Everything else (including pages, /api,
 // images, fonts) is gated.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|site\\.webmanifest).*)"]
+  matcher: ["/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|sitemaps/|site\\.webmanifest).*)"]
 };
