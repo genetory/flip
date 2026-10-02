@@ -13,6 +13,7 @@ import { ErrorReporter } from "../components/errors/ErrorReporter";
 import { FeedbackWidget } from "../components/feedback/FeedbackWidget";
 import { ToastProvider } from "../components/toast/ToastProvider";
 import { resolveLocaleFromAcceptLanguage } from "../lib/auth-messages";
+import { SITE_URL } from "../lib/seo";
 import { ADS_ENABLED } from "../lib/ads-config";
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
@@ -24,9 +25,12 @@ const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY?.trim() || "";
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim() || "";
 const naverSiteVerification = process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION?.trim() || "";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.NEXT_PUBLIC_API_URL?.includes("staging") ? "https://staging.aply.global" : "https://aply.global");
+// lib/seo.ts 와 같은 값을 쓴다(정의가 두 곳이면 어긋난다).
+// 예전에는 여기서 `process.env.NEXT_PUBLIC_SITE_URL ?? fallback` 으로 읽었는데, ?? 는 빈
+// 문자열을 통과시킨다 — 배포 빌드에서 이 env 가 빈 값으로 주입되자 new URL("") 이 터져
+// "Failed to collect configuration for /_not-found" 로 빌드가 실패했다. SITE_URL 은
+// trim 후 || 로 폴백하므로 빈 값에도 안전하다.
+const siteUrl = SITE_URL;
 
 const siteTitle = "Aply — The career platform connecting global talent with Korean partners";
 const siteDescription = "Apply your next move. Connect with Korean companies hiring international talent.";
