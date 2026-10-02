@@ -179,6 +179,8 @@ export function featuredBanners(t: PlatformT): {
 
 // 취업 준비 가이드(편집형 콘텐츠 카드). 카드를 누르면 body 를 팝업으로 보여준다.
 export interface CareerGuide {
+  /** 공개 상세 URL 의 slug. 있는 가이드만 /talent/insights/... 로 주소를 갖는다. */
+  slug?: string;
   emoji: string;
   title: string; // 카드용(줄바꿈 포함)
   desc: string;

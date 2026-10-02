@@ -10,9 +10,11 @@ import { pageSeo } from "../lib/seo";
 export const metadata: Metadata = pageSeo({
   path: "/",
   // 루트 layout 의 title template 은 같은 세그먼트(app/page.tsx)에 적용되지 않아 브랜드를 직접 붙인다.
-  title: "한국에서 일하고 싶은 외국인을 위한 취업 플랫폼 | Aply",
+  // 화면 h1 과 같은 문구를 쓴다 — 검색결과를 보고 들어온 사람이 기대한 화면을 보게 한다.
+  // (루트 layout 의 title template 은 같은 세그먼트에 적용되지 않아 브랜드를 직접 붙인다.)
+  title: "구직자와 기업을 잇는 첫 취업 플랫폼 | Aply",
   description:
-    "비자에 맞는 채용공고를 찾고, 한국식 이력서와 면접까지 한 곳에서 준비하세요. 외국인 지원 가능 공고를 APLY 에서 확인하세요."
+    "경험을 정리해 이력서·자기소개서를 만들고, 나에게 맞는 공고를 찾아 지원하세요. 외국인 지원 가능 공고와 비자별 안내도 함께 제공합니다."
 });
 
 export default function Page() {

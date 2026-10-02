@@ -470,3 +470,12 @@ export function trackVisaJobFitSignupComplete(p: VisaJobFitProps) {
 export function trackRecommendedJobView(positionId: string, source: string) {
   safeSendEvent("recommended_job_view", { position_id: positionId, source });
 }
+
+/** 취업 가이드 열람·CTA — slug 는 공개 식별자라 그대로 보낸다(자유 입력 아님). */
+export function trackInsightView(slug: string, category: string, locale: string) {
+  safeSendEvent("insight_view", { slug, category, locale });
+}
+
+export function trackInsightCtaClick(slug: string, cta: string) {
+  safeSendEvent("insight_cta_click", { slug, cta });
+}

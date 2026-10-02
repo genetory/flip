@@ -5,6 +5,7 @@
 // 리다이렉트 URL 을 sitemap 에 넣으면 Search Console 이 오류로 처리하므로 모두 제거했다.
 import { SITE_URL } from "../seo";
 import { VISA_DETAILS } from "../visa-details";
+import { INSIGHTS, insightPath } from "../insights/catalog";
 
 export type SitemapEntry = {
   path: string;
@@ -31,6 +32,8 @@ export const STATIC_ENTRIES: SitemapEntry[] = [
  * 레거시 /resources/visa/* 는 정책상 308 로 차단된 상태이므로 절대 넣지 않는다.
  */
 export const CONTENT_ENTRIES: SitemapEntry[] = [
+  { path: "/talent/insights", changefreq: "weekly", priority: 0.7 },
+  ...INSIGHTS.map((x) => ({ path: insightPath(x), changefreq: "monthly" as const, priority: 0.6 })),
   { path: "/talent/visa", changefreq: "monthly", priority: 0.7 },
   ...Object.keys(VISA_DETAILS).map((code) => ({
     path: `/talent/visa/${encodeURIComponent(code)}`,
