@@ -22,6 +22,12 @@ type Props = {
   descJa?: string;
   descId?: string;
   hideHero?: boolean;
+  /**
+   * 레거시 사이트 Header/Footer 를 렌더하지 않는다. 리뉴얼 셸(TalentAppShell) 안에서
+   * 재사용할 때 쓴다 — 레거시 헤더의 내비게이션은 전부 308 로 리다이렉트되는 옛 경로를
+   * 가리켜서, 리뉴얼 화면에 그대로 끼우면 막다른 링크만 보여 준다.
+   */
+  chromeless?: boolean;
   backHref?: string;
   backKo?: string;
   backEn?: string;
@@ -46,6 +52,7 @@ export function ResourceSubPageLayout({
   descJa,
   descId,
   hideHero = false,
+  chromeless = false,
   backHref = "/resources",
   backKo = "자료실로 돌아가기",
   backEn = "Back to Resources",
@@ -60,9 +67,9 @@ export function ResourceSubPageLayout({
     locale === "ko" ? ko : locale === "zh-CN" ? zh : locale === "vi" ? vi : locale === "ja" ? ja : locale === "id" ? id : en;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans text-foreground antialiased">
-      <Header />
-      <main className="flex-1 pb-16 pt-12 md:pt-16">
+    <div className={chromeless ? "" : "min-h-screen flex flex-col bg-[#F8FAFC] font-sans text-foreground antialiased"}>
+      {chromeless ? null : <Header />}
+      <main className={chromeless ? "" : "flex-1 pb-16 pt-12 md:pt-16"}>
         <div className="container">
           <div className="mx-auto max-w-4xl">
             <Link
@@ -88,7 +95,7 @@ export function ResourceSubPageLayout({
           </div>
         </div>
       </main>
-      <Footer />
+      {chromeless ? null : <Footer />}
     </div>
   );
 }
