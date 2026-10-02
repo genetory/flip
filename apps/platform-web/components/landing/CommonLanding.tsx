@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Sparkle, Globe, IdentificationCard, type Icon } from "@phosphor-icons/react";
+import { ArrowRight, Sparkle, Globe, IdentificationCard, type Icon } from "@phosphor-icons/react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AplyFooter } from "../AplyFooter";
 import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
@@ -47,6 +47,39 @@ function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; 
     </div>
   );
 }
+
+const cards = (t: PlatformT): { icon: ReactNode; tag: string; title: string; desc: string; cta: string; href: string }[] => [
+  {
+    icon: <Image src="/images/img_talent_card.webp" alt="" width={208} height={208} className="h-24 w-24 rounded-2xl object-cover shadow-[0_6px_18px_rgba(11,70,232,0.14)]" />,
+    tag: t("구직자", "Job seeker", "求职者", "Người tìm việc", "求職者", "Pencari kerja"),
+    title: t("첫 이력서부터 첫 지원까지", "From first resume to first application", "从第一份简历到第一次投递", "Từ hồ sơ đến ứng tuyển đầu tiên", "初めての履歴書から初応募まで", "Dari resume hingga lamaran pertama"),
+    desc: t(
+      "경험을 정리해 이력서·자기소개서를 만들고,\n나에게 맞는 공고를 찾아 지원해요.",
+      "Organize your experience into a resume and cover letter,\nthen find and apply to jobs that fit.",
+      "整理经历制作简历和自我介绍，\n找到适合的职位并投递。",
+      "Sắp xếp kinh nghiệm thành hồ sơ và thư giới thiệu,\nrồi tìm và ứng tuyển việc phù hợp.",
+      "経験を整理して履歴書・自己紹介書を作り、\n自分に合う求人を探して応募します。",
+      "Susun pengalaman jadi resume dan surat lamaran,\nlalu cari dan lamar lowongan yang cocok."
+    ),
+    cta: t("취업 준비 시작하기", "Start job prep", "开始求职准备", "Bắt đầu chuẩn bị", "就活を始める", "Mulai persiapan kerja"),
+    href: "/talent"
+  },
+  {
+    icon: <Image src="/images/img_partner_card.webp" alt="" width={208} height={208} className="h-24 w-24 rounded-2xl object-cover shadow-[0_6px_18px_rgba(11,70,232,0.14)]" />,
+    tag: t("파트너", "Partner", "合作伙伴", "Đối tác", "パートナー", "Partner"),
+    title: t("좋은 인재를 만나는 채용", "Hiring that meets great talent", "遇见优秀人才的招聘", "Tuyển dụng gặp nhân tài", "優秀な人材と出会う採用", "Rekrutmen bertemu talenta hebat"),
+    desc: t(
+      "공고를 올리고 지원자를 관리하고,\n면접 제안까지 한 곳에서 진행해요.",
+      "Post jobs, manage applicants,\nand send interview offers — all in one place.",
+      "发布职位、管理应聘者，\n面试邀约都在一处完成。",
+      "Đăng tin, quản lý ứng viên,\nvà mời phỏng vấn — tất cả ở một nơi.",
+      "求人を掲載し応募者を管理し、\n面接提案まで一箇所で進めます。",
+      "Pasang lowongan, kelola pelamar,\ndan kirim undangan wawancara di satu tempat."
+    ),
+    cta: t("채용 시작하기", "Start hiring", "开始招聘", "Bắt đầu tuyển dụng", "採用を始める", "Mulai merekrut"),
+    href: "/partner"
+  }
+];
 
 const chips = (t: PlatformT): { icon: Icon; label: string }[] => [
   { icon: Globe, label: t("외국인 지원 OK", "Foreigners welcome", "欢迎外籍", "Chào đón người nước ngoài", "外国人歓迎", "Terbuka untuk WNA") },
@@ -155,6 +188,15 @@ export function CommonLanding({ jobs = [], visaCodes = [] }: { jobs?: LandingJob
             </div>
           </Reveal>
 
+
+          {/* 구직자·파트너 진입 카드 — 원래 메인의 형태. 요청으로 복원했다. */}
+          <div className="mt-11 grid gap-4 md:grid-cols-2">
+            {cards(t).map((c, i) => (
+              <Reveal key={c.tag} delay={240 + i * 90}>
+                <AudienceCard {...c} />
+              </Reveal>
+            ))}
+          </div>
           {/* 본문 섹션 — 실제 공고 · 비자 가이드 · 준비 도구 · Career Launch · 신뢰 기준 · CTA */}
           <LandingSections jobs={jobs} visaCodes={visaCodes} />
         </div>
@@ -162,5 +204,19 @@ export function CommonLanding({ jobs = [], visaCodes = [] }: { jobs?: LandingJob
 
       <AplyFooter />
     </div>
+  );
+}
+
+function AudienceCard({ icon, tag, title, desc, cta, href }: { icon: ReactNode; tag: string; title: string; desc: string; cta: string; href: string }) {
+  return (
+    <Link href={href} className="group flex h-full flex-col rounded-3xl border border-[#EEF1F5] bg-[#FAFBFC] p-7 transition duration-300 hover:-translate-y-0.5 hover:border-[#0B46E8]/30 hover:bg-[#F5F8FF] hover:shadow-[0_12px_32px_rgba(11,70,232,0.1)]">
+      <span className="inline-flex">{icon}</span>
+      <p className="mt-5 text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{tag}</p>
+      <h2 className="mt-1.5 break-keep text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+      <p className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-[#8B95A1]">{desc}</p>
+      <span className="mt-6 inline-flex items-center gap-1 text-[13.5px] font-bold text-[#0B46E8]">
+        {cta} <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" weight="bold" />
+      </span>
+    </Link>
   );
 }
