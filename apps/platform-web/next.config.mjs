@@ -87,6 +87,10 @@ const nextConfig = {
       { source: "/business/:path*", destination: "/", permanent: true },
       { source: "/pricing", destination: "/", permanent: true },
       { source: "/community", destination: "/", permanent: true },
+      // 비자 안내는 리뉴얼 경로(/talent/visa)로 발행했다 — 기존 유입 링크를 홈으로 버리지 않고
+      // 같은 내용의 새 주소로 넘긴다. 나머지 /resources/* 는 그대로 홈으로 차단.
+      { source: "/resources/visa", destination: "/talent/visa", permanent: true },
+      { source: "/resources/visa/:code", destination: "/talent/visa/:code", permanent: true },
       { source: "/resources/:path*", destination: "/", permanent: true },
 
       // 기존 www → apex 정규화(유지)

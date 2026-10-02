@@ -4,6 +4,7 @@
 // 담고 있었는데 이들은 next.config.mjs 에서 308 로 리다이렉트된다(리뉴얼 전면 이관 정책).
 // 리다이렉트 URL 을 sitemap 에 넣으면 Search Console 이 오류로 처리하므로 모두 제거했다.
 import { SITE_URL } from "../seo";
+import { VISA_DETAILS } from "../visa-details";
 
 export type SitemapEntry = {
   path: string;
@@ -24,11 +25,17 @@ export const STATIC_ENTRIES: SitemapEntry[] = [
 ];
 
 /**
- * 콘텐츠(비자 등) sitemap — 지금은 비어 있다.
- * 비자 상세(/resources/visa/*)는 리뉴얼 정책상 308 로 차단돼 공개되지 않는다.
- * 공개를 되살리기로 결정하면 여기에 경로를 넣는다(그 전에는 넣으면 안 된다).
+ * 콘텐츠(비자) sitemap. 리뉴얼 경로(/talent/visa)로 발행한 것만 담는다.
+ * 레거시 /resources/visa/* 는 정책상 308 로 차단된 상태이므로 절대 넣지 않는다.
  */
-export const CONTENT_ENTRIES: SitemapEntry[] = [];
+export const CONTENT_ENTRIES: SitemapEntry[] = [
+  { path: "/talent/visa", changefreq: "monthly", priority: 0.7 },
+  ...Object.keys(VISA_DETAILS).map((code) => ({
+    path: `/talent/visa/${encodeURIComponent(code)}`,
+    changefreq: "monthly" as const,
+    priority: 0.6
+  }))
+];
 
 /** 공고 sitemap 한 조각의 최대 URL 수. Google 상한은 50,000 이지만 응답 크기를 위해 더 작게 쪼갠다. */
 export const JOBS_PER_SITEMAP = 5000;

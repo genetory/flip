@@ -10,9 +10,14 @@ import { VISA_DETAILS, type VisaStructuredLine } from "../../../lib/visa-details
 
 type Props = {
   code: string;
+  /**
+   * 목록으로 돌아가는 기준 경로. 리뉴얼 경로(/talent/visa)에서 재사용할 때 넘긴다.
+   * 기본값은 레거시 경로 그대로 — 기존 화면 동작을 바꾸지 않는다.
+   */
+  basePath?: string;
 };
 
-export function VisaDetailPage({ code }: Props) {
+export function VisaDetailPage({ code, basePath = "/resources/visa" }: Props) {
   const { locale } = useLanguage();
   const isKo = locale === "ko";
   const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
@@ -121,7 +126,7 @@ export function VisaDetailPage({ code }: Props) {
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <p className="text-sm text-slate-600">{t("해당 코드가 목록에 없어요.", "This code is not in the list.", "该代码不在列表中。", "Mã này không có trong danh sách.", "該当するコードはリストにありません。", "Kode ini tidak ada dalam daftar.")}</p>
-          <Link href="/resources/visa" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#0B46E8] hover:underline">
+          <Link href={basePath} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#0B46E8] hover:underline">
             <ChevronLeft className="h-4 w-4" />
             {t("비자 목록으로 돌아가기", "Back to visa list", "返回签证列表", "Quay lại danh sách visa", "ビザ一覧へ戻る", "Kembali ke daftar visa")}
           </Link>
@@ -145,7 +150,7 @@ export function VisaDetailPage({ code }: Props) {
       descJa="内部に保存されたビザ詳細情報をコード別に整理して表示します。"
       descId="Kami menampilkan detail visa berdasarkan kode dari data statis yang tersimpan di sistem."
       hideHero
-      backHref="/resources/visa"
+      backHref={basePath}
       backKo="비자 목록으로"
       backEn="Back to visa list"
       backZh="返回签证列表"
