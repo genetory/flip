@@ -10,7 +10,8 @@ import { JsonLd } from "../../../components/seo/JsonLd";
 import { GrowthPageView } from "../../../components/seo/GrowthPageView";
 import { breadcrumbJsonLd } from "../../../lib/seo-jsonld";
 import { pageSeo } from "../../../lib/seo";
-import { fetchPublicPositions, hasIndexableBody, isClosed } from "../../../lib/server/positions";
+import Link from "next/link";
+import { companyNameOf, fetchPublicPositions, hasIndexableBody, isClosed } from "../../../lib/server/positions";
 
 export const metadata: Metadata = pageSeo({
   path: "/talent/jobs",
@@ -26,12 +27,12 @@ export default async function TalentJobsRoute() {
     { name: "홈", path: "/" },
     { name: "채용 공고", path: "/talent/jobs" }
   ]);
-  const listedCount = (page?.items ?? []).filter((p) => hasIndexableBody(p) && !isClosed(p)).length;
+  const listed = (page?.items ?? []).filter((p) => hasIndexableBody(p) && !isClosed(p)).slice(0, 20);
 
   return (
     <>
       {crumbs ? <JsonLd data={crumbs} /> : null}
-      <GrowthPageView kind="job_list" count={listedCount} />
+      <GrowthPageView kind="job_list" count={listed.length} />
 
       {/* 목록을 못 불러온 경우에만 노출 — 빈 화면이나 에러 스택을 보여주지 않는다. */}
       {page === null ? (
@@ -43,7 +44,27 @@ export default async function TalentJobsRoute() {
         </section>
       ) : null}
 
-      <JobsScreen />
+      {/* 서버에서 읽은 최근 공고 — 셸 '안' 하단에 들어간다(셸 앞에 두면 GNB 위에 뜬다).
+          크롤러가 목록 HTML 에서 실제 공고를 볼 수 있게 하는 유일한 경로다. */}
+      <JobsScreen
+        seoSlot={
+          listed.length > 0 ? (
+            <nav aria-label="최근 등록된 공고">
+              <h2 className="text-[13px] font-bold text-[#8B95A1]">최근 등록된 공고</h2>
+              <ul className="mt-2 flex flex-col gap-1">
+                {listed.map((p) => (
+                  <li key={p.id} className="text-[13px] leading-relaxed">
+                    <Link href={`/talent/jobs/${p.id}`} className="text-[#4E5968] underline-offset-2 hover:underline">
+                      {p.title}
+                      {companyNameOf(p) ? <span className="text-[#8B95A1]"> · {companyNameOf(p)}</span> : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : undefined
+        }
+      />
     </>
   );
 }
