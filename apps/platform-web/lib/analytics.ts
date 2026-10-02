@@ -394,3 +394,13 @@ export function trackApplyStart(positionId: string, surface: GrowthSurface) {
 export function trackCareerLaunchStart(surface: GrowthSurface) {
   safeSendEvent("career_launch_start", { surface });
 }
+
+/** 메인 랜딩 진입(Phase 2) — surface 로 어느 섹션이 전환을 만들었는지 본다. */
+export function trackGrowthLandingView(params: { locale: string; loggedIn: boolean }) {
+  safeSendEvent("growth_landing_view", { locale: params.locale, logged_in: params.loggedIn });
+}
+
+/** 랜딩 섹션의 CTA 클릭. section 은 고정 키만 보낸다(자유 입력 없음). */
+export function trackLandingSectionCta(section: string) {
+  safeSendEvent("landing_section_cta", { section });
+}
