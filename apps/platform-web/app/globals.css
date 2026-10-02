@@ -163,11 +163,12 @@ All colors MUST be HSL.
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* 모바일 최소 폭 보장 — 360px(안드로이드 갤럭시 S 류 최소 폭)이하(폴더블·
-       iOS 디스플레이 줌 등)에선 레이아웃을 쥐어짜서 뱃지·타이틀이 2줄로 깨지는
-       대신 360px 레이아웃을 유지하고 가로 스크롤되게 한다. 360px 이상(대부분의
-       폰)에선 영향 없음. */
-    min-width: 360px;
+    /* 모바일 최소 폭 — 320px(iPhone SE 1세대·5s, 그리고 iOS 디스플레이 확대를 켠
+       최신 아이폰도 320px 로 보고한다).
+       예전에는 360px 이었는데, 그러면 320px 기기에서 40px 가 가로로 넘쳤다. 확대까지
+       막아 둬서 잘린 검색 버튼·필터 칩·쿠키 동의 버튼에 손이 닿지 않았다("모바일에서
+       깨진다"의 실체). 320px 에서 일부 요소가 2줄이 되더라도 잘려서 못 누르는 것보다 낫다. */
+    min-width: 320px;
     overflow-y: scroll;
     /* Disable text drag-selection / copy across the whole site. */
     -webkit-user-select: none;
@@ -177,6 +178,18 @@ All colors MUST be HSL.
     /* Stop the long-press selection callout on iOS Safari. */
     -webkit-touch-callout: none;
   }
+  /* iOS Safari 는 글자가 16px 미만인 입력창에 포커스하면 화면을 자동 확대한다.
+     그 때문에 예전에는 확대 자체를 막아 뒀는데(접근성 위반), 터치 기기에서만 입력 글자를
+     16px 로 올리면 자동 확대가 일어나지 않아 확대를 막을 이유가 없어진다.
+     마우스가 있는 환경(데스크톱)은 그대로 둬서 기존 디자인이 바뀌지 않는다. */
+  @media (hover: none) and (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
   /* Keep form fields selectable so users can edit / copy their own input. */
   input,
   textarea,
