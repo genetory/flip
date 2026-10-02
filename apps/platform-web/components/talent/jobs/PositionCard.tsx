@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { MapPin, BookmarkSimple, Buildings } from "@phosphor-icons/react";
 import { AplyCipBadgeButton } from "../../positions/AplyCipBadge";
+import { eligibilityLabel, eligibilityTone } from "../../../lib/talent/foreigner-eligibility";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT } from "../../../lib/i18n";
 import type { PositionView } from "../../../lib/talent/positions-adapter";
@@ -73,10 +74,17 @@ export function PositionCard({
                       {view.sourceLabel}
                     </span>
                   ) : null}
-                  {/* 외국인 지원 가능 — 모의면접 뱃지 왼쪽. 원티드와 동일한 UX(텍스트 pill). */}
-                  {view.foreignerOk ? (
-                    <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#E7F8EF] px-2 py-1 text-[10px] font-bold leading-none text-[#0A9B59]">
-                      {t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}
+                  {/* 외국인 지원 상태 — "확인"과 "가능성 높음"을 구분한다(단정 금지).
+                      '확인 필요'는 전체의 대부분이라 카드에서는 생략하고 상세에서 근거와 함께 보여 준다. */}
+                  {view.foreignerEligibility === "VERIFIED" || view.foreignerEligibility === "LIKELY" ? (
+                    <span
+                      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-bold leading-none"
+                      style={{
+                        backgroundColor: eligibilityTone(view.foreignerEligibility).bg,
+                        color: eligibilityTone(view.foreignerEligibility).fg
+                      }}
+                    >
+                      {eligibilityLabel(view.foreignerEligibility, (ko, en) => t(ko, en))}
                     </span>
                   ) : null}
                   {/* 회사가 모의 면접을 등록한 공고 — 카드 탭 시 상세에서 시작. */}

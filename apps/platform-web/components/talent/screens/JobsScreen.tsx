@@ -2,7 +2,7 @@
 
 // 채용공고 — aply.global 포지션 탐색과 동일한 실 API·기능·검색/필터 동작으로.
 // 소스 탭(전체 / Aply 채용) + 저장, 검색(입력→적용+트래킹), 직무 필터(서버), 정렬, 20개 페이징.
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { MagnifyingGlass, CaretLeft, CaretRight, CaretDown, Check, X } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
@@ -62,7 +62,11 @@ function toggleValue<T>(arr: T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 
-export function JobsScreen() {
+/**
+ * seoSlot — 서버에서 렌더한 보조 콘텐츠(최근 공고 링크 등). 셸 안 하단에 들어간다.
+ * 셸 앞(형제)에 두면 GNB 위에 떠서 화면이 깨지므로 반드시 안쪽에 둔다.
+ */
+export function JobsScreen({ seoSlot }: { seoSlot?: ReactNode } = {}) {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const toast = useTalentPopup();
@@ -232,7 +236,7 @@ export function JobsScreen() {
 
   return (
     <TalentAppShell allowGuest>
-      <TPageHeader title={t("포지션 탐색", "Explore jobs", "职位探索", "Khám phá việc làm", "求人を探す", "Jelajahi lowongan")} description={t("나에게 맞는 인턴·신입 공고를 찾아 지원을 시작해요.", "Find intern and entry-level jobs that fit you and start applying.", "找到适合你的实习和应届职位并开始申请。", "Tìm việc thực tập, mới ra trường phù hợp và bắt đầu ứng tuyển.", "自分に合うインターン・新卒求人を見つけて応募を始めましょう。", "Temukan lowongan magang dan pemula yang cocok, lalu mulai melamar.")} />
+      <TPageHeader title={t("포지션 탐색", "Explore jobs", "职位探索", "Khám phá việc làm", "求人を探す", "Jelajahi lowongan")} description={t("한국에서 일할 수 있는 채용공고를 찾아보세요.", "Find jobs you can work in Korea.", "寻找可以在韩国工作的职位。", "Tìm việc bạn có thể làm ở Hàn Quốc.", "韓国で働ける求人を探しましょう。", "Temukan lowongan untuk bekerja di Korea.")} />
 
       <ApplyReadinessBanner variant="compact" className="mb-5" />
 
@@ -344,7 +348,7 @@ export function JobsScreen() {
                 onClick={() => setForeignerOnly((v) => !v)}
                 className={`rounded-xl border px-3 py-2 text-[13px] font-bold transition ${foreignerOnly ? "border-[#0B46E8] bg-[#0B46E8]/[0.06] text-[#0B46E8]" : "border-[#E5E8EB] text-[#4E5968] hover:bg-[#F2F4F6]"}`}
               >
-                🌏 {t("외국인 가능", "Foreigners OK", "外国人可", "Cho WNA", "外国人可", "WNA OK")}
+                🌏 {t("외국인 지원 표시", "Marked for foreigners", "标注外国人可", "Có ghi cho WNA", "外国人可の表示", "Ditandai untuk WNA")}
               </button>
               {activeFilterCount > 0 ? (
                 <button
@@ -423,6 +427,7 @@ export function JobsScreen() {
       {cipOpen ? <TalentCipModal locale={locale} onClose={() => setCipOpen(false)} /> : null}
       {pickerOpen ? <JobInterestModal initial={interests} onClose={() => setPickerOpen(false)} /> : null}
       {loginModal}
+      {seoSlot ? <div className="mt-10 border-t border-[#EEF1F5] pt-6">{seoSlot}</div> : null}
     </TalentAppShell>
   );
 }

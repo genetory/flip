@@ -2,6 +2,7 @@
 // 데이터·기능은 aply.global 포지션 탐색과 동일한 API를 쓰고, 표시만 Talent 톤으로 맞춘다.
 import type { PublicPositionListItem } from "../member-profile-client";
 import type { PlatformT } from "../i18n";
+import { deriveForeignerEligibility, type ForeignerEligibility } from "./foreigner-eligibility";
 
 export interface PositionView {
   id: string;
@@ -14,6 +15,8 @@ export interface PositionView {
   workTypeLabel: string | null;
   deadlineText: string | null;
   foreignerOk: boolean;
+  /** 외국인 지원 판정 상태 — foreignerOk 보다 세분화된 표시용(lib/talent/foreigner-eligibility). */
+  foreignerEligibility: ForeignerEligibility;
   external: boolean;
   externalUrl: string | null;
   isInternal: boolean; // Aply 자체 채용(내부) — CIP 배지·실제 지원 페이지 대상
@@ -94,6 +97,8 @@ export function toPositionView(item: PublicPositionListItem, t: PlatformT): Posi
     // 외국인 지원 가능 = 서버 '외국인도 지원 가능' 필터와 동일 기준: 공고별 FOREIGNER_FRIENDLY 태그.
     // 내부(CIP)는 파트너가 에디터에서 켠 경우, 외부(원티드)는 외국인 지원 유형 공고에 태그가 붙는다.
     foreignerOk: (item.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY"),
+    // 단정 대신 상태로 — "가능성 높음"과 "확인됨"을 구분하고, 정보 없음은 '불가'로 읽히지 않게 한다.
+    foreignerEligibility: deriveForeignerEligibility({ eligibleVisas: item.eligibleVisas, sourceKind: item.sourceKind }),
     external: !isInternal,
     externalUrl: item.sourceUrl,
     isInternal,

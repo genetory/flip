@@ -14,6 +14,7 @@ import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { TalentAppShell } from "../app/TalentAppShell";
+import { ForeignerEligibilityNote } from "../jobs/ForeignerEligibilityNote";
 import { useLoginGate } from "../app/LoginRequiredModal";
 import { TCard, TChip, TError, TLoading } from "../ui/primitives";
 import { TalentButton } from "../TalentButton";
@@ -205,6 +206,9 @@ export function JobDetailScreen({ jobId }: { jobId: string }) {
             </TalentButton>
             <ApplyButton view={view} applied={applied} applying={applying} onApply={() => ensure(() => setApplyOpen(true))} />
           </div>
+
+          {/* 외국인 지원 판정 상태와 근거 — 셸 안(본문 최상단)에 둔다. */}
+          <ForeignerEligibilityNote item={item} />
 
           {/* 핵심 정보 · 상세 안내 · 기업 정보 */}
           <PositionDetailSections item={item} />
