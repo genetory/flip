@@ -414,3 +414,59 @@ export function trackCareerLaunchLandingView(params: { locale: string; loggedIn:
 export function trackCareerLaunchStartClick(source: string) {
   safeSendEvent("career_launch_start_click", { source });
 }
+
+// ---- 무료 비자·직무 진단(/tools/visa-job-fit) ----
+// 자유 입력·개인정보는 절대 보내지 않는다. 고정 키(비자 계열·경력 수준·직무 카테고리)만.
+
+export type VisaJobFitProps = {
+  locale: string;
+  source?: string;
+  /** 비자 계열(앞 글자, 예: "D" / "E" / "F") — 코드 전체를 보내지 않는다. */
+  visaCategory?: string;
+  experienceLevel?: string;
+  interestedJobCategory?: string;
+  resultCount?: number;
+  loggedIn?: boolean;
+};
+
+function fitParams(p: VisaJobFitProps): Record<string, unknown> {
+  return {
+    locale: p.locale,
+    ...(p.source ? { source: p.source } : {}),
+    ...(p.visaCategory ? { visa_category: p.visaCategory } : {}),
+    ...(p.experienceLevel ? { experience_level: p.experienceLevel } : {}),
+    ...(p.interestedJobCategory ? { interested_job_category: p.interestedJobCategory } : {}),
+    ...(typeof p.resultCount === "number" ? { result_count: p.resultCount } : {}),
+    ...(typeof p.loggedIn === "boolean" ? { logged_in: p.loggedIn } : {})
+  };
+}
+
+export function trackVisaJobFitStart(p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_start", fitParams(p));
+}
+
+/** step 은 1부터. 입력한 값은 보내지 않고 어느 단계를 넘겼는지만. */
+export function trackVisaJobFitStepComplete(step: number, p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_step_complete", { step, ...fitParams(p) });
+}
+
+export function trackVisaJobFitComplete(p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_complete", fitParams(p));
+}
+
+export function trackVisaJobFitResultView(p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_result_view", fitParams(p));
+}
+
+export function trackVisaJobFitSignupClick(p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_signup_click", fitParams(p));
+}
+
+export function trackVisaJobFitSignupComplete(p: VisaJobFitProps) {
+  safeSendEvent("visa_job_fit_signup_complete", fitParams(p));
+}
+
+/** 추천 공고 노출 — 공개 공고 id 만 보낸다. */
+export function trackRecommendedJobView(positionId: string, source: string) {
+  safeSendEvent("recommended_job_view", { position_id: positionId, source });
+}

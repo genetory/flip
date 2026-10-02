@@ -18,7 +18,7 @@ import { trackGrowthLandingView } from "../../lib/analytics";
 import { useLanguage } from "../i18n/LanguageProvider";
 
 /** hero primary CTA 목적지. 무료 진단 도구(/tools/visa-job-fit)가 나오면 여기만 바꾼다. */
-const PRIMARY_CTA_HREF = "/talent/jobs?foreigner=1";
+const PRIMARY_CTA_HREF = "/tools/visa-job-fit";
 
 // 진입 애니메이션 래퍼 — 마운트 시 한 번 리빌(단일 화면이라 전부 초기 노출).
 function Reveal({ children, delay = 0, className = "" }: { children: ReactNode; delay?: number; className?: string }) {
