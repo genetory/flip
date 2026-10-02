@@ -10,7 +10,8 @@ import { companyNameOf, fetchPublicPositions, hasIndexableBody, isClosed } from 
 
 export const metadata: Metadata = pageSeo({
   path: "/",
-  title: "한국에서 일하고 싶은 외국인을 위한 취업 플랫폼",
+  // 루트 layout 의 title template 은 같은 세그먼트(app/page.tsx)에 적용되지 않으므로 브랜드를 직접 붙인다.
+  title: "한국에서 일하고 싶은 외국인을 위한 취업 플랫폼 | Aply",
   description:
     "비자에 맞는 채용공고를 찾고, 한국식 이력서와 면접까지 한 곳에서 준비하세요. 외국인 지원 가능 공고를 APLY 에서 확인하세요."
 });
