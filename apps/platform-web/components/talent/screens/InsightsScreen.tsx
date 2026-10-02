@@ -1,7 +1,7 @@
 "use client";
 
 // 취업 가이드 — 매거진 스타일 콘텐츠 허브(직무 인사이트 · 취업 노하우 · 외국인 비자 · 취업 팁).
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode} from "react";
 import { CaretRight, X, ArrowRight } from "@phosphor-icons/react";
 import { TalentAppShell } from "../app/TalentAppShell";
 import { GuideModal } from "./HomeScreen";
@@ -17,7 +17,11 @@ const oneLine = (t: string) => t.replace(/\n/g, " ");
 const HIKOREA_URL = "https://www.hikorea.go.kr";
 const IMMIGRATION_URL = "https://www.immigration.go.kr";
 
-export function InsightsScreen() {
+/**
+ * seoSlot — 서버에서 렌더한 가이드 링크 목록. 셸 안 하단에 들어간다.
+ * 셸 앞(형제)에 두면 GNB 위에 떠서 화면이 깨지므로 반드시 안쪽에 둔다.
+ */
+export function InsightsScreen({ seoSlot }: { seoSlot?: ReactNode } = {}) {
   const t = usePlatformT();
   const [active, setActive] = useState<CareerGuide | null>(null);
   const [visa, setVisa] = useState<string | null>(null);
@@ -139,6 +143,7 @@ export function InsightsScreen() {
 
       {active ? <GuideModal guide={active} onClose={() => setActive(null)} /> : null}
       {visa ? <VisaModal code={visa} onClose={() => setVisa(null)} /> : null}
+      {seoSlot ? <div className="mt-10 border-t border-[#EEF1F5] pt-6">{seoSlot}</div> : null}
     </TalentAppShell>
   );
 }

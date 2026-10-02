@@ -20,6 +20,7 @@ export function jobVisas(t: PlatformT): { code: string; label: string; desc: str
 export function roleInsights(t: PlatformT): CareerGuide[] {
   return [
     {
+      slug: "software-developer",
       emoji: "💻",
       title: t("개발자는\n무슨 일을 하나요?", "What does\na developer do?", "开发者\n做什么工作？", "Lập trình viên\nlàm gì?", "開発者は\n何をしますか？", "Apa yang dilakukan\nseorang developer?"),
       desc: t("코딩만? 실제 하루와 준비물", "Just coding? The real day and what to prepare", "只是写代码？真实的一天与准备事项", "Chỉ code thôi? Một ngày thực tế và cần chuẩn bị gì", "コーディングだけ？実際の一日と準備物", "Cuma ngoding? Keseharian nyata dan yang perlu disiapkan"),
@@ -32,6 +33,7 @@ export function roleInsights(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "marketer",
       emoji: "📣",
       title: t("마케터는\n무슨 일을 하나요?", "What does\na marketer do?", "营销人员\n做什么工作？", "Marketer\nlàm gì?", "マーケターは\n何をしますか？", "Apa yang dilakukan\nseorang marketer?"),
       desc: t("감이 아니라 숫자로 일해요", "Working by numbers, not by gut", "靠数字而非直觉工作", "Làm việc bằng con số, không phải cảm tính", "勘ではなく数字で働きます", "Bekerja dengan angka, bukan firasat"),
@@ -44,6 +46,7 @@ export function roleInsights(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "designer-portfolio",
       emoji: "🎨",
       title: t("디자이너\n포트폴리오, 뭘 넣죠?", "Designer portfolio:\nwhat goes in?", "设计师作品集\n放什么？", "Portfolio thiết kế:\ncho gì vào?", "デザイナーの\nポートフォリオ、何を入れる？", "Portofolio desainer:\napa isinya?"),
       desc: t("결과물보다 '과정'을 보여주세요", "Show the 'process,' not just the final work", "比起成果，更要展示『过程』", "Hãy cho thấy 'quá trình', không chỉ sản phẩm", "成果物より『過程』を見せましょう", "Tunjukkan 'proses', bukan sekadar hasil"),
@@ -56,6 +59,7 @@ export function roleInsights(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "product-manager",
       emoji: "📝",
       title: t("기획·PM은\n무슨 일을 하나요?", "What does a\nplanner/PM do?", "策划·PM\n做什么工作？", "Planner/PM\nlàm gì?", "企画・PMは\n何をしますか？", "Apa yang dilakukan\nplanner/PM?"),
       desc: t("만드는 사람들을 잇는 역할", "The role that connects the makers", "连接创造者们的角色", "Vai trò kết nối những người tạo ra sản phẩm", "作る人たちをつなぐ役割", "Peran yang menghubungkan para pembuat"),
@@ -74,6 +78,7 @@ export function roleInsights(t: PlatformT): CareerGuide[] {
 export function jobHunting(t: PlatformT): CareerGuide[] {
   return [
     {
+      slug: "choosing-first-job",
       emoji: "🧭",
       title: t("첫 직장,\n어떻게 고르죠?", "How to choose\nyour first job?", "第一份工作\n怎么选？", "Chọn công việc\nđầu tiên thế nào?", "初めての職場、\nどう選ぶ？", "Bagaimana memilih\npekerjaan pertama?"),
       desc: t("연봉 말고 이걸 먼저 보세요", "Look at this before salary", "别只看薪资，先看这些", "Hãy xem điều này trước lương", "年収より先にこれを見て", "Lihat ini sebelum gaji"),
@@ -84,6 +89,7 @@ export function jobHunting(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "no-experience-appeal",
       emoji: "🌱",
       title: t("경력이 없는데\n어떻게 어필하죠?", "No experience—\nhow do I stand out?", "没有经验\n怎么展示自己？", "Chưa có kinh nghiệm—\nlàm sao gây ấn tượng?", "経歴がないのに\nどうアピールする？", "Tanpa pengalaman—\nbagaimana menonjol?"),
       desc: t("경험은 이미 충분히 있어요", "You already have plenty of experience", "你其实已经有足够的经验", "Bạn đã có đủ kinh nghiệm rồi", "経験はもう十分にあります", "Anda sudah punya cukup pengalaman"),
@@ -96,6 +102,7 @@ export function jobHunting(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "is-internship-needed",
       emoji: "🤝",
       title: t("인턴, 꼭\n해야 할까요?", "Do I really\nneed an internship?", "实习\n一定要做吗？", "Có nhất thiết\nphải thực tập?", "インターンは\n必ずすべき？", "Apakah magang\nitu wajib?"),
       desc: t("인턴을 200% 활용하는 법", "How to make the most of an internship", "把实习用到200%的方法", "Cách tận dụng thực tập tối đa", "インターンを200%活用する方法", "Cara memaksimalkan magang"),
@@ -108,6 +115,7 @@ export function jobHunting(t: PlatformT): CareerGuide[] {
       ]
     },
     {
+      slug: "interview-preparation",
       emoji: "💬",
       title: t("면접,\n뭘 준비하죠?", "Interviews:\nwhat to prepare?", "面试\n准备什么？", "Phỏng vấn:\nchuẩn bị gì?", "面接、\n何を準備する？", "Wawancara:\nsiapkan apa?"),
       desc: t("단골 질문 3개부터 시작", "Start with the 3 regular questions", "从3个常见问题开始", "Bắt đầu từ 3 câu hỏi quen thuộc", "定番質問3つから始める", "Mulai dari 3 pertanyaan langganan"),
