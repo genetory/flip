@@ -404,3 +404,13 @@ export function trackGrowthLandingView(params: { locale: string; loggedIn: boole
 export function trackLandingSectionCta(section: string) {
   safeSendEvent("landing_section_cta", { section });
 }
+
+/** Career Launch 공개 랜딩 진입. */
+export function trackCareerLaunchLandingView(params: { locale: string; loggedIn: boolean }) {
+  safeSendEvent("career_launch_landing_view", { locale: params.locale, logged_in: params.loggedIn });
+}
+
+/** Career Launch 시작 클릭 — source 로 어디서 눌렀는지 구분(고정 키만). */
+export function trackCareerLaunchStartClick(source: string) {
+  safeSendEvent("career_launch_start_click", { source });
+}
