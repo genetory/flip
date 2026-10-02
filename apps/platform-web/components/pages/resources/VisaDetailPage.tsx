@@ -15,9 +15,11 @@ type Props = {
    * 기본값은 레거시 경로 그대로 — 기존 화면 동작을 바꾸지 않는다.
    */
   basePath?: string;
+  /** 리뉴얼 셸(TalentAppShell) 안에서 쓸 때 레거시 Header/Footer 를 끈다. */
+  chromeless?: boolean;
 };
 
-export function VisaDetailPage({ code, basePath = "/resources/visa" }: Props) {
+export function VisaDetailPage({ code, basePath = "/resources/visa", chromeless = false }: Props) {
   const { locale } = useLanguage();
   const isKo = locale === "ko";
   const t = (ko: string, en: string, zh: string = en, vi: string = en, ja: string = en, id: string = en) =>
@@ -123,6 +125,7 @@ export function VisaDetailPage({ code, basePath = "/resources/visa" }: Props) {
         descJa="ご要望のビザ情報が見つかりませんでした。"
         descId="Informasi visa yang Anda minta tidak ditemukan."
         hideHero
+        chromeless={chromeless}
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <p className="text-sm text-slate-600">{t("해당 코드가 목록에 없어요.", "This code is not in the list.", "该代码不在列表中。", "Mã này không có trong danh sách.", "該当するコードはリストにありません。", "Kode ini tidak ada dalam daftar.")}</p>
@@ -150,6 +153,7 @@ export function VisaDetailPage({ code, basePath = "/resources/visa" }: Props) {
       descJa="内部に保存されたビザ詳細情報をコード別に整理して表示します。"
       descId="Kami menampilkan detail visa berdasarkan kode dari data statis yang tersimpan di sistem."
       hideHero
+      chromeless={chromeless}
       backHref={basePath}
       backKo="비자 목록으로"
       backEn="Back to visa list"

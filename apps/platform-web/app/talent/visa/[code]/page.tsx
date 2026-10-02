@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { VisaDetailPage } from "../../../../components/pages/resources/VisaDetailPage";
+import { TalentAppShell } from "../../../../components/talent/app/TalentAppShell";
 import { JsonLd } from "../../../../components/seo/JsonLd";
 import { GrowthPageView } from "../../../../components/seo/GrowthPageView";
 import { ContentReviewNote } from "../../../../components/seo/ContentReviewNote";
@@ -57,20 +58,24 @@ export default async function TalentVisaDetailRoute({ params }: Props) {
 
   return (
     <>
+      {/* JSON-LD 와 계측은 화면에 아무것도 그리지 않으므로 셸 바깥에 두어도 된다. */}
       {crumbs ? <JsonLd data={crumbs} /> : null}
       <GrowthPageView kind="content" surface="visa" slug={code} />
-      <VisaDetailPage code={code} basePath="/talent/visa" />
-      <div className="mx-auto w-full max-w-[720px] px-5 pb-10">
+      {/* 보이는 내용은 전부 리뉴얼 셸(GNB+푸터) 안에 들어간다 — 셸 앞에 두면 GNB 위에 뜬다. */}
+      <TalentAppShell allowGuest>
+        <VisaDetailPage code={code} basePath="/talent/visa" chromeless />
+        <div className="pb-2">
         {/* 비자 콘텐츠의 primary CTA — 읽고 끝나지 않게 공고로 연결한다.
             코드별 공고 필터는 아직 API 가 지원하지 않아 '외국인 지원 가능' 으로 연결한다. */}
-        <Link
+          <Link
           href="/talent/jobs?foreigner=1"
           className="inline-flex h-11 items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white"
         >
           외국인 지원 가능 공고 보기
         </Link>
-        <ContentReviewNote review={visaReviewOf(code)} disclaimer={VISA_DISCLAIMER_KO} />
-      </div>
+          <ContentReviewNote review={visaReviewOf(code)} disclaimer={VISA_DISCLAIMER_KO} />
+        </div>
+      </TalentAppShell>
     </>
   );
 }

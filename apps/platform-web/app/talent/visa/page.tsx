@@ -6,6 +6,7 @@ import { JsonLd } from "../../../components/seo/JsonLd";
 import { GrowthPageView } from "../../../components/seo/GrowthPageView";
 import { breadcrumbJsonLd } from "../../../lib/seo-jsonld";
 import { pageSeo } from "../../../lib/seo";
+import { TalentAppShell } from "../../../components/talent/app/TalentAppShell";
 import { VISA_DETAILS } from "../../../lib/visa-details";
 import { VISA_DISCLAIMER_KO } from "../../../lib/visa-review";
 
@@ -42,9 +43,11 @@ export default function TalentVisaIndexPage() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-[720px] px-5 py-6">
+    <>
+      {/* 비시각 요소는 셸 바깥, 보이는 내용은 전부 셸(GNB+푸터) 안. */}
       {crumbs ? <JsonLd data={crumbs} /> : null}
       <GrowthPageView kind="content" surface="visa" slug="index" />
+      <TalentAppShell allowGuest>
 
       <h1 className="text-[20px] font-black leading-snug tracking-[-0.02em] text-[#191F28]">한국 비자 종류 안내</h1>
       <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4E5968]">
@@ -82,7 +85,8 @@ export default function TalentVisaIndexPage() {
         외국인 지원 가능 공고 보기
       </Link>
 
-      <p className="mt-4 text-[11.5px] leading-relaxed text-[#8B95A1]">{VISA_DISCLAIMER_KO}</p>
-    </main>
+        <p className="mt-4 text-[11.5px] leading-relaxed text-[#8B95A1]">{VISA_DISCLAIMER_KO}</p>
+      </TalentAppShell>
+    </>
   );
 }
