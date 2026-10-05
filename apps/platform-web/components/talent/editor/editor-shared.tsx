@@ -2,10 +2,11 @@
 
 // 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
+import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
   deleteDocVersion,
@@ -420,6 +421,43 @@ export function SavedPanel<L, S>({
       </Section>
     </aside>
   );
+}
+
+/**
+ * 전체 점검(AI) 상태 — 버튼을 눌렀을 때만 돈다. 저장할 때는 절대 돌지 않는다
+ * (글 쓰는 중에 모델을 부르면 느려지고, 사용자가 부르지 않은 비용이 나간다).
+ *
+ * 점검 뒤 그 항목의 글이 바뀌면 지적을 내린다 — 이미 고쳤는데 옛 지적이 남아 있으면
+ * 사용자가 같은 곳을 또 고치려 한다. 다시 보려면 버튼을 다시 누르면 된다.
+ *
+ * texts 는 id → 지금 본문. 호출부에서 useMemo 로 만들어 넘긴다.
+ */
+export function useAiReview(texts: Map<string, string>) {
+  const [done, setDone] = useState<{ findings: AiReviewFinding[]; texts: Map<string, string> } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = useCallback(
+    async (fetchFindings: () => Promise<AiReviewFinding[]>) => {
+      setRunning(true);
+      setError(null);
+      try {
+        setDone({ findings: await fetchFindings(), texts: new Map(texts) });
+      } catch (err) {
+        // 포인트·한도 안내는 aiPost 가 따로 띄운다. 여기서는 점검이 실패했다는 것만.
+        setError(err instanceof Error && err.message ? err.message : "점검하지 못했어요.");
+      } finally {
+        setRunning(false);
+      }
+    },
+    [texts]
+  );
+
+  const findings = useMemo(
+    () => (done ? done.findings.filter((f) => done.texts.get(f.id) === texts.get(f.id)) : []),
+    [done, texts]
+  );
+  return { findings, running, error, ran: !!done, run };
 }
 
 export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {

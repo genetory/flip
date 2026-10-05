@@ -92,6 +92,12 @@ import {
 import { generateJson, isClaudeModel } from "./llm/generate";
 import { generateJsonAnthropic } from "./llm/anthropic";
 import {
+  REVIEW_FINDINGS_SCHEMA,
+  buildCoverReviewPrompt,
+  buildResumeReviewPrompt,
+  normalizeReviewFindings
+} from "./llm/review";
+import {
   getPositionTranslation,
   getPositionTranslationsCachedOnly,
   warmPositionTranslation,
@@ -404,6 +410,22 @@ const coverLetterModel =
 const careerCoachModel =
   process.env.CAREER_COACH_MODEL ??
   (process.env.CAREER_COACH_USE_CLAUDE === "1" && process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiMatchingModel);
+// 문서 '전체 점검'(이력서·자소서) 모델. 이 기능의 핵심은 **잘 쓴 글을 건드리지 않는** 판단이다.
+// 오탐은 놓치는 것보다 나쁘다 — 멀쩡한 항목을 지적받으면 사용자가 점검 자체를 믿지 않는다.
+//
+// 같은 입력을 4회씩 돌려 재어 본 결과(src/llm/review.ts 프롬프트 기준):
+//   gpt-4o-mini — 문제 섞인 문서에선 정상 항목을 안 건드리는데, **전부 잘 쓴 문서**에선
+//                 억지로 찾아낸다(이력서 정상 2항목에 4회 중 8건, 자소서 정상 답변 3/3).
+//   gpt-4o      — 네 경우(이력서·자소서 × 문제있음·전부정상) 모두 오탐 0, 잡아야 할 것은 4/4.
+// 그래서 다른 AI 기능과 달리 점검은 mini 를 쓰지 않는다. 생성기의 '짧은 이력서 필드는 mini'
+// 방침과 어긋나 보이지만 그건 '필드 생성' 얘기고, 이쪽은 문서 전체를 읽는 판단 작업이다.
+//
+// 환경마다 모델이 갈리면 로컬에서 재어 본 것이 프로덕션과 달라진다 → 모델명을 그대로 못 박는다.
+// 다른 모델 변수(openaiMatchingModel 등)를 재사용하지 않는 이유: 그 변수는 env 로 바뀌기 때문에
+// 측정한 모델과 실제로 도는 모델이 조용히 달라진다(실제로 로컬 OPENAI_MATCHING_MODEL 이
+// 접근 권한 없는 모델로 잡혀 있어 점검이 전 케이스 0건으로 나왔다).
+// 모델을 바꾸려면 DOC_REVIEW_MODEL 을 올리고 `npm run eval:review` 를 다시 돌려 확인한다.
+const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
 const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
@@ -15962,7 +15984,10 @@ const AI_FEATURE_COST: Record<string, number> = {
   career_interview_chat: 0,
   career_week_feedback: 0,
   career_final_feedback: 0,
-  career_docs_summary: 0
+  career_docs_summary: 0,
+  // 에디터 '전체 점검'(AI) — 지금은 AI 기능 전면 무료라 0. 제약은 분당·일일 캡뿐.
+  review_resume: 0,
+  review_cover: 0
 };
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -15970,7 +15995,8 @@ function aiFeatureCost(feature: string): number {
 
 // gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
-const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback"]);
+// 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
+const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover"]);
 const AI_PREMIUM_DAILY_CAP = 40;
 const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
 async function aiPremiumUsedToday(userId: string): Promise<number> {
@@ -26005,6 +26031,116 @@ app.post(
     } catch (err) {
       console.error("[ai/tailor-resume] failed", err);
       return res.status(500).json({ ok: false, message: "failed to tailor resume" });
+    }
+  }
+);
+
+// ── 문서 전체 점검(AI) — 에디터의 '전체 점검'에서 버튼을 눌렀을 때만 돈다 ──────────
+// 프롬프트·스키마·정규화는 llm/review.ts 에 있다(검증 스크립트가 같은 프롬프트를 쓸 수 있게).
+
+// POST /members/me/ai/review-resume — 이력서 전체를 읽고 '고쳐 볼 만한 항목'을 집어 준다.
+// 규칙 점검으로는 못 잡는 것(근거 없는 주장, 역할 불분명, 직무와 무관, 과장, 나열식)만 본다.
+const reviewResumeSchema = z.object({
+  targetRole: z.string().trim().max(120).optional(),
+  summary: z.string().trim().max(2000).optional(),
+  items: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(80),
+        section: z.string().trim().max(40),
+        company: z.string().trim().max(200).optional(),
+        period: z.string().trim().max(60).optional(),
+        text: z.string().trim().max(2000)
+      })
+    )
+    .min(1)
+    .max(40),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/review-resume",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 6, keyPrefix: "ai-review-resume", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("review_resume"),
+  async (req, res) => {
+    const parsed = reviewResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { items } = parsed.data;
+      const { system, user } = buildResumeReviewPrompt(parsed.data);
+      const { data, error } = await generateJson<{ findings?: unknown }>({
+        openai,
+        model: docReviewModel,
+        temperature: 0.2,
+        system,
+        user,
+        schema: REVIEW_FINDINGS_SCHEMA,
+        schemaName: "review_resume"
+      });
+      if (!data) {
+        console.error("[ai/review-resume] no data", error);
+        return res.status(502).json({ ok: false, message: "ai response invalid" });
+      }
+      const allowed = new Set(items.map((i) => i.id));
+      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8) });
+    } catch (err) {
+      console.error("[ai/review-resume] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to review resume" });
+    }
+  }
+);
+
+// POST /members/me/ai/review-cover — 자기소개서 문항별 답변을 읽고 고쳐 볼 곳을 집어 준다.
+// 이력서 점검과 같은 모델·같은 규칙(llm/review.ts)을 쓴다 — 보는 항목만 다르다.
+const reviewCoverSchema = z.object({
+  company: z.string().trim().max(200).optional(),
+  jobText: z.string().trim().max(4000).optional(),
+  questions: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(80),
+        prompt: z.string().trim().max(500),
+        limit: z.number().int().positive().max(10000).nullable().optional(),
+        text: z.string().trim().max(4000)
+      })
+    )
+    .min(1)
+    .max(12),
+  locale: z.string().max(10).optional()
+});
+app.post(
+  "/members/me/ai/review-cover",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 6, keyPrefix: "ai-review-cover", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("review_cover"),
+  async (req, res) => {
+    const parsed = reviewCoverSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    try {
+      const { questions } = parsed.data;
+      const { system, user } = buildCoverReviewPrompt(parsed.data);
+      const { data, error } = await generateJson<{ findings?: unknown }>({
+        openai,
+        model: docReviewModel,
+        temperature: 0.2,
+        system,
+        user,
+        schema: REVIEW_FINDINGS_SCHEMA,
+        schemaName: "review_cover"
+      });
+      if (!data) {
+        console.error("[ai/review-cover] no data", error);
+        return res.status(502).json({ ok: false, message: "ai response invalid" });
+      }
+      const allowed = new Set(questions.map((q) => q.id));
+      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8) });
+    } catch (err) {
+      console.error("[ai/review-cover] failed", err);
+      return res.status(500).json({ ok: false, message: "failed to review cover letter" });
     }
   }
 );

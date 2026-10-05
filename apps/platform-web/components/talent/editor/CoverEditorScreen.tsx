@@ -34,12 +34,12 @@ import {
   updateQuestion,
   type ResolvedCover
 } from "../../../lib/talent/cover-layout";
-import { generateCoverLetter, polishSelfIntro } from "../../../lib/resume-maker-client";
+import { generateCoverLetter, polishSelfIntro, reviewCover } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -82,7 +82,27 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // 예전엔 세 곳이 각자 buildScan 을 돌려서 같은 계산을 매 렌더마다 반복했다.
   // 아래 조기 반환(저장본 보기)보다 위에 있어야 한다 — 훅은 렌더마다 같은 순서로 불려야 하니까.
   const scan = useMemo(() => (layout ? buildScan(doc, layout, (id) => doc.items.find((i) => i.id === id)?.text ?? "") : null), [doc, layout]);
-  const flaggedQuestions = useMemo(() => new Set(scan ? scan.byQuestion.keys() : []), [scan]);
+
+  // AI 점검 — 버튼을 눌렀을 때만 돈다. 점검 단위는 문항이라 '문항 id → 지금 답변' 으로 본다.
+  const answers = useMemo(() => {
+    const textOfId = (id: string) => doc.items.find((i) => i.id === id)?.text ?? "";
+    return new Map((layout?.questions ?? []).map((q) => [q.id, answerText(q.blocks.map(textOfId))]));
+  }, [doc, layout]);
+  const review = useAiReview(answers);
+  const runReview = () =>
+    void review.run(() =>
+      reviewCover({
+        company: doc.companyName?.trim() || undefined,
+        jobText: doc.jobText?.trim() || undefined,
+        questions: (layout?.questions ?? []).map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answers.get(q.id) ?? "" }))
+      })
+    );
+
+  // 본문에 표시할 문항 — 규칙에 걸린 것과 AI 가 집은 것을 합친다.
+  const flaggedQuestions = useMemo(
+    () => new Set([...(scan ? scan.byQuestion.keys() : []), ...review.findings.map((f) => f.id)]),
+    [scan, review.findings]
+  );
 
   if (!working || !current || !layout || !scan) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
@@ -233,6 +253,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
           selectedId={selectedId}
           textOf={textOf}
           scan={scan}
+          review={review}
+          onRunReview={runReview}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
@@ -405,6 +427,8 @@ function Inspector(props: {
   selectedId: string | null;
   textOf: (id: string) => string;
   scan: CoverScan;
+  review: ReturnType<typeof useAiReview>;
+  onRunReview: () => void;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
@@ -567,6 +591,8 @@ function Inspector(props: {
         t={t}
         layout={layout}
         scan={props.scan}
+        review={props.review}
+        onRunReview={props.onRunReview}
         onGoQuestion={(n) => {
           props.onSelect(null);
           props.onActiveQ(n);
@@ -745,11 +771,15 @@ function FinalCheckSection({
   t,
   layout,
   scan,
+  review,
+  onRunReview,
   onGoQuestion
 }: {
   t: PlatformT;
   layout: ResolvedCover;
   scan: CoverScan;
+  review: ReturnType<typeof useAiReview>;
+  onRunReview: () => void;
   /** 문제가 있는 문항으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
   onGoQuestion: (q: number) => void;
 }) {
@@ -769,17 +799,24 @@ function FinalCheckSection({
       q: null
     });
   }
+  // AI 지적은 아래에 모은다 — 규칙 결과(바로 고칠 수 있는 것)를 먼저 보게.
+  const qIndexOf = new Map(layout.questions.map((q, i) => [q.id, i]));
+  const aiLines = review.findings
+    .filter((f) => qIndexOf.has(f.id))
+    .map((f) => ({ q: qIndexOf.get(f.id) as number, issue: f.issue, fix: f.fix }));
 
   return (
     <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${scan.filledPercent}%`}>
-      {lines.length === 0 ? (
+      {lines.length === 0 && aiLines.length === 0 ? (
         <p className="text-[12px] text-[#00854A]">
-          {t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")}
+          {review.ran
+            ? t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")
+            : t("규칙으로 걸리는 건 없어요. 아래에서 AI 점검도 해 보세요.", "Nothing caught by the rules. Try the AI check below.", "规则未发现问题。可试试下方 AI 检查。", "Quy tắc không phát hiện gì. Thử kiểm tra AI bên dưới.", "ルールでの指摘はありません。下のAIチェックもどうぞ。", "Aturan tidak menemukan apa pun. Coba cek AI di bawah.")}
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {lines.map((line, i) => (
-            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+            <li key={`r${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
               {line.q === null ? (
                 <span>• {line.text}</span>
               ) : (
@@ -793,8 +830,42 @@ function FinalCheckSection({
               )}
             </li>
           ))}
+          {aiLines.map((f, i) => (
+            <li key={`a${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+              <button type="button" onClick={() => onGoQuestion(f.q)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+                • {t("AI", "AI")} · {f.q + 1}. {layout.questions[f.q]?.prompt.slice(0, 14)} — {f.issue}
+              </button>
+              {f.fix ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{f.fix}</p> : null}
+            </li>
+          ))}
         </ul>
       )}
+
+      <button
+        type="button"
+        onClick={onRunReview}
+        // 답변이 하나도 없으면 누르지 못하게 — AI 는 '비어 있음'을 지적하지 않으므로(규칙이 이미 한다)
+        // 결과가 0건일 수밖에 없는 호출이 된다.
+        disabled={review.running || !layout.questions.some((q) => q.blocks.length > 0)}
+        className={`flex h-9 w-full items-center justify-center rounded-[10px] text-[12.5px] font-bold leading-none ${TINT_BTN}`}
+      >
+        {review.running
+          ? t("점검 중…", "Checking…", "检查中…", "Đang kiểm tra…", "チェック中…", "Memeriksa…")
+          : review.ran
+            ? t("AI로 다시 점검", "Check with AI again", "再用 AI 检查", "Kiểm tra lại bằng AI", "AIで再チェック", "Cek ulang dengan AI")
+            : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
+      </button>
+      {review.error ? <p className="text-[11.5px] leading-relaxed text-[#F04452]">{review.error}</p> : null}
+      <p className="text-[11px] leading-relaxed text-[#B0B8C1]">
+        {t(
+          "AI 점검은 눌렀을 때만 돌아요. 답변을 고치면 그 문항의 지적은 사라져요.",
+          "The AI check runs only when you press it. Edit an answer and its note clears.",
+          "AI 检查仅在点击时运行。修改答案后该条提示会消失。",
+          "Kiểm tra AI chỉ chạy khi bạn bấm. Sửa câu trả lời thì ghi chú sẽ mất.",
+          "AIチェックは押したときだけ動きます。回答を直すとその指摘は消えます。",
+          "Cek AI hanya jalan saat ditekan. Ubah jawabannya, catatannya hilang."
+        )}
+      </p>
     </Section>
   );
 }
