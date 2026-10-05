@@ -173,17 +173,24 @@ export function A4Pages({ render, editing, maxScale = 1 }: { render: () => React
 }
 
 /** 선택·호버 표시 — 자리를 차지하지 않게 블록 바깥으로 겹쳐 그린다. 부모에 `group relative` 가 필요하다. */
-export function EditOverlay({ selected, subtle }: { selected: boolean; subtle?: boolean }) {
+/**
+ * flagged = 전체 점검이 "고쳐 볼 만하다"고 표시한 블록. 선택 표시(파랑)보다 약하게 그려
+ * 지금 편집 중인 블록을 가리지 않는다. 선택되면 선택 표시가 우선한다.
+ * 이 표시도 자리를 차지하지 않고 print 에서 빠진다 — 미리보기·PDF 의 페이지 나눔이 같도록.
+ */
+export function EditOverlay({ selected, subtle, flagged }: { selected: boolean; subtle?: boolean; flagged?: boolean }) {
+  const base = "pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-[6px] transition-colors print:hidden";
+  if (selected) {
+    return <span aria-hidden className={`${base} ${subtle ? "bg-[#FFFBF2]" : "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]"}`} />;
+  }
+  if (flagged) {
+    // 점검에 걸린 블록 — 호버 때는 기존과 같은 반응을 유지한다.
+    return <span aria-hidden className={`${base} bg-[#FFFBF2] outline outline-1 outline-[#F0C27B] group-hover:outline-[#C77700]`} />;
+  }
   return (
     <span
       aria-hidden
-      className={`pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-[6px] transition-colors print:hidden ${
-        selected
-          ? subtle
-            ? "bg-[#F5F8FF]"
-            : "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]"
-          : "group-hover:bg-[#F7F9FC] group-hover:outline group-hover:outline-1 group-hover:outline-[#D7DCE3]"
-      }`}
+      className={`${base} group-hover:bg-[#F7F9FC] group-hover:outline group-hover:outline-1 group-hover:outline-[#D7DCE3]`}
     />
   );
 }

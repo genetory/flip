@@ -18,6 +18,8 @@ export type DropSlot = { col: number; index: number };
 
 export type EditorInteraction = {
   selectedId: string | null;
+  /** 전체 점검에서 걸린 항목 id — 본문에 옅은 표시를 한다. 편집 중에만 넘어온다. */
+  flagged?: ReadonlySet<string>;
   dragId: string | null;
   hover: DropSlot | null;
   onSelect: (id: string) => void;
@@ -170,7 +172,7 @@ function ModuleBlock({
       // 편집 표시는 자리를 차지하지 않는다(여백·테두리를 바깥 층으로) — 미리보기와 PDF 의 페이지 나눔이 같도록.
       className={`group relative cursor-grab ${index === 0 ? "" : spacing} ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
-      <EditOverlay selected={selected} />
+      <EditOverlay selected={selected} flagged={ix.flagged?.has(id)} />
       <div className="relative">{children}</div>
     </div>
   );

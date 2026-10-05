@@ -37,7 +37,6 @@ import {
 import { generateCoverLetter, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
-import { findClichePhrases } from "../../../lib/talent/cliche-phrases";
 import { scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useDocVersionStore } from "./editor-shared";
@@ -79,7 +78,13 @@ function Editor({ doc }: { doc: CoverDoc }) {
     return autoPlaceCover(resolveCoverLayout(working.layout, doc), doc);
   }, [working, doc]);
 
-  if (!working || !current || !layout) {
+  // 전체 점검(규칙만, AI 호출 없음) — 본문 표시·문항 배지·최종 점검 목록이 같은 결과를 쓴다.
+  // 예전엔 세 곳이 각자 buildScan 을 돌려서 같은 계산을 매 렌더마다 반복했다.
+  // 아래 조기 반환(저장본 보기)보다 위에 있어야 한다 — 훅은 렌더마다 같은 순서로 불려야 하니까.
+  const scan = useMemo(() => (layout ? buildScan(doc, layout, (id) => doc.items.find((i) => i.id === id)?.text ?? "") : null), [doc, layout]);
+  const flaggedQuestions = useMemo(() => new Set(scan ? scan.byQuestion.keys() : []), [scan]);
+
+  if (!working || !current || !layout || !scan) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
   }
 
@@ -207,6 +212,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
               interaction={{
                 activeQ: q,
                 selectedId,
+                flaggedQuestions,
                 onActivate: (qi) => {
                   setActiveQ(qi);
                   setSelectedId(null);
@@ -226,6 +232,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           q={q}
           selectedId={selectedId}
           textOf={textOf}
+          scan={scan}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
@@ -397,6 +404,7 @@ function Inspector(props: {
   q: number;
   selectedId: string | null;
   textOf: (id: string) => string;
+  scan: CoverScan;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
@@ -413,7 +421,7 @@ function Inspector(props: {
   const n = layout.questions.length;
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
-  const questionIssues = question ? buildScan(doc, layout, props.textOf).byQuestion.get(question.id) ?? [] : [];
+  const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
 
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
@@ -557,9 +565,8 @@ function Inspector(props: {
 
       <FinalCheckSection
         t={t}
-        doc={doc}
         layout={layout}
-        textOf={props.textOf}
+        scan={props.scan}
         onGoQuestion={(n) => {
           props.onSelect(null);
           props.onActiveQ(n);
@@ -736,21 +743,18 @@ function issueText(issue: CoverScanIssue, t: PlatformT): string {
 
 function FinalCheckSection({
   t,
-  doc,
   layout,
-  textOf,
+  scan,
   onGoQuestion
 }: {
   t: PlatformT;
-  doc: CoverDoc;
   layout: ResolvedCover;
-  textOf: (id: string) => string;
+  scan: CoverScan;
   /** 문제가 있는 문항으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
   onGoQuestion: (q: number) => void;
 }) {
   // 예전에는 이 안에서 검사를 직접 다시 구현했고 그 과정에서 '문항 간 내용 중복'이 빠져 있었다.
-  // 지금은 cover-scan 한 곳에서 계산해, 아래 목록과 문항 카드 배지가 같은 근거를 쓴다.
-  const scan = buildScan(doc, layout, textOf);
+  // 지금은 화면 위쪽에서 cover-scan 으로 한 번 계산해 내려받는다 — 본문 표시·배지·이 목록이 같은 근거를 쓴다.
   // 줄마다 어느 문항인지 들고 다닌다 — 눌러서 그 문항으로 바로 갈 수 있게.
   const lines: { text: string; q: number | null }[] = [];
   for (const [i, question] of layout.questions.entries()) {
