@@ -17,7 +17,15 @@ const EXCLUDED_PREFIXES: RegExp[] = [
   /^\/signup(\/|$)/,
   /^\/auth(\/|$)/,
   /^\/account(\/|$)/,
-  /^\/verify-email(\/|$)/
+  /^\/verify-email(\/|$)/,
+  // 이력서·자기소개서 문서 화면(편집·미리보기·진단) — 전체 화면 3단 레이아웃이라
+  // 좌우 고정 광고가 편집 영역을 밀어내고, 작성에 집중해야 하는 자리다.
+  /^\/talent\/career\/resume(\/|$)/,
+  /^\/talent\/career\/cover(\/|$)/,
+  // 공개 공유된 남의 문서 위에도 광고를 얹지 않는다.
+  /^\/p\//,
+  /^\/resume\/share(\/|$)/,
+  /^\/cover-letter\/share(\/|$)/
 ];
 
 function shouldShowAds(pathname: string) {
