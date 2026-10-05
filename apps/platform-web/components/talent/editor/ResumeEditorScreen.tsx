@@ -455,7 +455,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
             </button>
           </div>
         ))}
-        <button type="button" onClick={() => props.onDoc({ links: [...links, { label: "", url: "" }] })} className={`${TINT_BTN} h-9 w-full`}>
+        <button type="button" onClick={() => props.onDoc({ links: [...links, { label: "", url: "" }] })} className={`${TINT_BTN} h-9 w-full rounded-[10px] text-[13px] font-semibold leading-none`}>
           {t("링크 추가", "Add link", "添加链接", "Thêm liên kết", "リンクを追加", "Tambah tautan")}
         </button>
       </Section>
@@ -593,7 +593,7 @@ function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; on
           "Menulis ulang sekaligus ke gaya CV, tanpa menambah fakta."
         )}
       </p>
-      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full`}>
+      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full rounded-[10px] text-[13px] font-semibold leading-none`}>
         {busy
           ? t("정리 중…", "Polishing…", "整理中…", "Đang chỉnh…", "整えています…", "Merapikan…")
           : `${t("정리", "Polish", "整理", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}

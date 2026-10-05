@@ -691,7 +691,7 @@ function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc;
               aria-label={t("소재 추가", "Add a point", "添加素材", "Thêm nội dung", "要素を追加", "Tambah poin")}
               className="min-w-0 flex-1 rounded-[10px] border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] text-[#191F28] outline-none focus:border-[#0B46E8]"
             />
-            <button type="button" onClick={addKeyword} disabled={!draft.trim()} className={`${TINT_BTN} shrink-0 px-3`}>
+            <button type="button" onClick={addKeyword} disabled={!draft.trim()} className={`${TINT_BTN} shrink-0 rounded-[10px] px-3 text-[12.5px] font-semibold leading-none`}>
               {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
             </button>
           </div>

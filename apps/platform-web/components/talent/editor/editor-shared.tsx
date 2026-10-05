@@ -79,6 +79,12 @@ export const INPUT_CLS =
 /** 보조 버튼: 회색 채움. */
 export const SOFT_BTN = "bg-[#F2F4F6] text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
 /** 강조 보조 버튼: 옅은 파랑 채움. */
+/**
+ * 연한 파랑 버튼의 **색상만** 담는다 — 글자 크기·굵기·모서리는 쓰는 쪽에서 붙인다.
+ * (여기에 폰트를 넣으면 rounded-full 로 쓰는 곳과 충돌한다.)
+ * 붙이는 걸 빠뜨리면 그 버튼만 본문 기본 글꼴(16px·normal)로 떠서 혼자 달라 보인다 —
+ * 실제로 '정리'·'링크 추가'·'추가' 버튼이 그랬다.
+ */
 export const TINT_BTN = "bg-[#EDF1FD] text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
 
 /**
