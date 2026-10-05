@@ -40,6 +40,7 @@ import {
   type ResolvedLayout
 } from "../../../lib/talent/resume-layout";
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
+import { scanResume, type ResumeScan, type ResumeScanIssue } from "../../../lib/talent/resume-scan";
 import { polishExperienceText, polishSelfIntro, polishResumeItems } from "../../../lib/resume-maker-client";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
@@ -90,10 +91,17 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
 
   const commitLayout = (next: ResolvedLayout) => store.setWorkingLayout(toStoredLayout(next));
 
+  // 전체 점검(규칙만, AI 호출 없음) — 본문의 옅은 표시와 오른쪽 목록이 같은 결과를 쓴다.
+  // 이력서에서 빼 둔 모듈은 제출물에 없으니 점검하지 않는다 — 고칠 필요 없는 걸 지적하지 않게.
+  const placedIds = useMemo(() => new Set(layout ? layout.cols.flat() : []), [layout]);
+  const scan = useMemo(() => scanResume(doc.items.filter((it) => placedIds.has(it.id))), [doc.items, placedIds]);
+  const flagged = useMemo(() => new Set(scan.byItem.keys()), [scan]);
+
   // ── 드래그 앤 드롭 ──
   const interaction: EditorInteraction | undefined = layout
     ? {
         selectedId,
+        flagged,
         dragId,
         hover,
         onSelect: setSelectedId,
@@ -174,6 +182,12 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   };
 
   const placed = new Set(layout.cols.flat());
+  // 점검 목록에서 누르면 그 항목을 고르고, 화면 밖이면 보이는 곳까지 굴린다.
+  // 편집 영역 안에서만 찾는다 — 인쇄 사본(PrintCopy)에도 같은 data-module 이 있다.
+  const goItem = (id: string) => {
+    setSelectedId(id);
+    document.querySelector(`main [data-module="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
 
   return (
     <div className="flex h-screen flex-col bg-[#EEF0F3] text-[#191F28] print:block print:h-auto print:bg-white">
@@ -211,6 +225,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onBasic={(patch) => saveBasicInfo({ ...info, ...patch })}
           onLayout={commitLayout}
           onDelete={deleteItem}
+          scan={scan}
+          onGoItem={goItem}
         />
       </div>
       <PrintCopy doc={doc} info={info} layout={layout} />
@@ -354,6 +370,9 @@ function Inspector(props: {
   onBasic: (patch: Partial<BasicInfo>) => void;
   onLayout: (next: ResolvedLayout) => void;
   onDelete: (id: string) => void;
+  scan: ResumeScan;
+  /** 문제가 있는 항목으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
+  onGoItem: (id: string) => void;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
@@ -364,6 +383,8 @@ function Inspector(props: {
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
       {/* 모듈 선택과 무관하게 항상 보인다 — 문서 전체에 거는 작업이다. */}
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
+
+      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} />
 
       {id ? (
         <>
@@ -455,7 +476,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
             </button>
           </div>
         ))}
-        <button type="button" onClick={() => props.onDoc({ links: [...links, { label: "", url: "" }] })} className={`${TINT_BTN} h-9 w-full`}>
+        <button type="button" onClick={() => props.onDoc({ links: [...links, { label: "", url: "" }] })} className={`${TINT_BTN} h-9 w-full rounded-[10px] text-[13px] font-semibold leading-none`}>
           {t("링크 추가", "Add link", "添加链接", "Thêm liên kết", "リンクを追加", "Tambah tautan")}
         </button>
       </Section>
@@ -508,6 +529,61 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
 }
 
 // ── 조각 ─────────────────────────────────────────────────────
+
+/** 문제 1건을 사람이 읽는 한 줄로. 표시 문구는 화면에서 만든다(스캔은 숫자·이름만 준다). */
+function resumeIssueText(issue: ResumeScanIssue, t: PlatformT): string {
+  switch (issue.kind) {
+    case "empty":
+      return t("내용이 비어 있어요", "Empty", "内容为空", "Đang để trống", "内容が空です", "Masih kosong");
+    case "noNumber":
+      return t("성과 수치가 없어요", "No numbers", "缺少量化成果", "Chưa có số liệu", "成果の数値がありません", "Belum ada angka");
+    case "noPeriod":
+      return t("기간이 없어요", "No dates", "缺少起止时间", "Chưa có thời gian", "期間がありません", "Belum ada periode");
+    case "tooShort":
+      return `${issue.length}${t("자, 너무 짧아요", " chars, too short", "字，太短", " ký tự, quá ngắn", "字・短すぎます", " krt, terlalu pendek")}`;
+    case "spoken":
+      return `${t("대화체 문장", "Conversational", "口语化表达", "Văn nói", "話し言葉", "Gaya bicara")} 「${issue.sample}」`;
+    case "overlap":
+      return `${t("내용 중복", "Overlaps", "内容重复", "Trùng nội dung", "内容の重複", "Tumpang tindih")} 「${issue.withText}」`;
+  }
+}
+
+/** 전체 점검 — 규칙으로 잡은 '고쳐 볼 만한 곳'을 한 곳에 모으고, 누르면 그 항목으로 간다.
+ *  본문의 옅은 표시(EditOverlay flagged)와 같은 결과를 쓴다. */
+function ResumeCheckSection({ t, doc, scan, onGoItem }: { t: PlatformT; doc: ResumeDoc; scan: ResumeScan; onGoItem: (id: string) => void }) {
+  // 문서 순서대로 — 사용자가 위에서 아래로 훑으며 고칠 수 있게.
+  const lines: { id: string; text: string }[] = [];
+  for (const it of doc.items) {
+    const issues = scan.byItem.get(it.id);
+    if (!issues?.length) continue;
+    const label = ((it.company ?? "").trim() || (it.text ?? "").trim()).slice(0, 14) || sectionLabelOf(t, it.section);
+    for (const issue of issues) lines.push({ id: it.id, text: `${label} — ${resumeIssueText(issue, t)}` });
+  }
+
+  return (
+    <Section title={`${t("전체 점검", "Full check", "整体检查", "Kiểm tra toàn bộ", "全体チェック", "Cek menyeluruh")}${scan.flaggedCount ? ` · ${scan.flaggedCount}` : ""}`}>
+      {lines.length === 0 ? (
+        <p className="text-[12px] text-[#00854A]">
+          {t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")}
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {lines.map((line, i) => (
+            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+              <button
+                type="button"
+                onClick={() => onGoItem(line.id)}
+                className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline"
+              >
+                • {line.text}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
 
 function SharedNote({ t }: { t: PlatformT }) {
   return (
@@ -593,7 +669,7 @@ function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; on
           "Menulis ulang sekaligus ke gaya CV, tanpa menambah fakta."
         )}
       </p>
-      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full`}>
+      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full rounded-[10px] text-[13px] font-semibold leading-none`}>
         {busy
           ? t("정리 중…", "Polishing…", "整理中…", "Đang chỉnh…", "整えています…", "Merapikan…")
           : `${t("정리", "Polish", "整理", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}

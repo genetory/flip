@@ -37,7 +37,7 @@ import {
 import { generateCoverLetter, polishSelfIntro } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
-import { findClichePhrases } from "../../../lib/talent/cliche-phrases";
+import { scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useDocVersionStore } from "./editor-shared";
 
@@ -78,7 +78,13 @@ function Editor({ doc }: { doc: CoverDoc }) {
     return autoPlaceCover(resolveCoverLayout(working.layout, doc), doc);
   }, [working, doc]);
 
-  if (!working || !current || !layout) {
+  // 전체 점검(규칙만, AI 호출 없음) — 본문 표시·문항 배지·최종 점검 목록이 같은 결과를 쓴다.
+  // 예전엔 세 곳이 각자 buildScan 을 돌려서 같은 계산을 매 렌더마다 반복했다.
+  // 아래 조기 반환(저장본 보기)보다 위에 있어야 한다 — 훅은 렌더마다 같은 순서로 불려야 하니까.
+  const scan = useMemo(() => (layout ? buildScan(doc, layout, (id) => doc.items.find((i) => i.id === id)?.text ?? "") : null), [doc, layout]);
+  const flaggedQuestions = useMemo(() => new Set(scan ? scan.byQuestion.keys() : []), [scan]);
+
+  if (!working || !current || !layout || !scan) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
   }
 
@@ -206,6 +212,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
               interaction={{
                 activeQ: q,
                 selectedId,
+                flaggedQuestions,
                 onActivate: (qi) => {
                   setActiveQ(qi);
                   setSelectedId(null);
@@ -225,6 +232,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           q={q}
           selectedId={selectedId}
           textOf={textOf}
+          scan={scan}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
@@ -396,6 +404,7 @@ function Inspector(props: {
   q: number;
   selectedId: string | null;
   textOf: (id: string) => string;
+  scan: CoverScan;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
@@ -411,6 +420,8 @@ function Inspector(props: {
   const index = question && id ? question.blocks.indexOf(id) : -1;
   const n = layout.questions.length;
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
+  // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
+  const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
 
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
@@ -501,7 +512,18 @@ function Inspector(props: {
   return aside(
     <>
       <div>
-        <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{qLabel}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{qLabel}</span>
+          {/* 이 문항에서 규칙 스캔이 잡은 문제 수 — 아래 최종 점검과 같은 계산을 쓴다. */}
+          {questionIssues.length > 0 ? (
+            <span
+              title={questionIssues.map((x) => issueText(x, t)).join(" · ")}
+              className="inline-flex h-6 items-center rounded-full bg-[#FFF3E0] px-2.5 text-[11.5px] font-bold leading-none text-[#C77700]"
+            >
+              {t(`확인 ${questionIssues.length}`, `${questionIssues.length} to check`, `待查 ${questionIssues.length}`, `${questionIssues.length} cần xem`, `確認 ${questionIssues.length}`, `${questionIssues.length} dicek`)}
+            </span>
+          ) : null}
+        </span>
         <p className="mt-2 line-clamp-3 text-[16px] font-bold leading-snug tracking-[-0.01em]">{question.prompt || t("(문항 없음)", "(no prompt)")}</p>
       </div>
 
@@ -541,7 +563,15 @@ function Inspector(props: {
 
       <DocContextSection t={t} doc={doc} onDocMeta={props.onDocMeta} />
 
-      <FinalCheckSection t={t} doc={doc} layout={layout} textOf={props.textOf} />
+      <FinalCheckSection
+        t={t}
+        layout={layout}
+        scan={props.scan}
+        onGoQuestion={(n) => {
+          props.onSelect(null);
+          props.onActiveQ(n);
+        }}
+      />
 
       <Section title={t("문항 설정", "Question settings", "题目设置", "Cài đặt câu hỏi", "設問の設定", "Pengaturan pertanyaan")}>
         <Field key={`p-${question.id}`} label={t("문항", "Prompt", "题目", "Câu hỏi", "設問", "Pertanyaan")} value={question.prompt} multiline rows={3} onChange={(v) => props.onLayout(updateQuestion(layout, q, { prompt: v }))} />
@@ -668,7 +698,7 @@ function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc;
               aria-label={t("소재 추가", "Add a point", "添加素材", "Thêm nội dung", "要素を追加", "Tambah poin")}
               className="min-w-0 flex-1 rounded-[10px] border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] text-[#191F28] outline-none focus:border-[#0B46E8]"
             />
-            <button type="button" onClick={addKeyword} disabled={!draft.trim()} className={`${TINT_BTN} shrink-0 px-3`}>
+            <button type="button" onClick={addKeyword} disabled={!draft.trim()} className={`${TINT_BTN} shrink-0 rounded-[10px] px-3 text-[12.5px] font-semibold leading-none`}>
               {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
             </button>
           </div>
@@ -681,62 +711,87 @@ function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc;
 /** 제출 전 최종 점검 — 미작성 문항 / 글자 수 초과·미달 / 상투어 / 필수 소재 누락을 한 곳에.
  *  문항 간 중복은 넣지 않는다 — 이 에디터는 같은 에피소드를 여러 문항에 **의도적으로** 재사용하는
  *  구조라, 텍스트 유사도로 잡으면 정상 사용을 오탐한다. */
+/** 문항별 본문을 스캔 입력 형태로 — 목록·배지·최종 점검이 같은 계산을 쓴다. */
+function buildScan(doc: CoverDoc, layout: ResolvedCover, textOf: (id: string) => string): CoverScan {
+  return scanCover(
+    layout.questions.map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answerText(q.blocks.map(textOf)) })),
+    doc.keywords ?? [],
+    charCount
+  );
+}
+
+/** 문제 1건을 사람이 읽는 한 줄로. 표시 문구는 화면에서 만든다(스캔은 숫자·이름만 준다). */
+function issueText(issue: CoverScanIssue, t: PlatformT): string {
+  switch (issue.kind) {
+    case "empty":
+      return t("아직 작성 안 됨", "Not written yet", "尚未填写", "Chưa viết", "未記入", "Belum ditulis");
+    case "over":
+      return `${issue.length}/${issue.limit} ${t("자 초과", "over limit", "超出", "vượt", "字超過", "lewat")}`;
+    case "under":
+      return `${issue.length}/${issue.limit} ${t("자, 분량 부족", "chars, too short", "字，偏短", "ký tự, hơi ngắn", "字・少なめ", "krt, terlalu pendek")}`;
+    case "cliche":
+      return `${t("다시 볼 표현", "Phrases to revisit", "可再斟酌", "Cụm nên xem lại", "見直したい表現", "Frasa ditinjau")} ${issue.phrases
+        .slice(0, 2)
+        .map((x) => `「${x}」`)
+        .join(" ")}`;
+    case "overlap":
+      return `${t("내용 중복", "Overlaps with", "内容重复", "Trùng nội dung", "内容が重複", "Tumpang tindih")} 「${issue.withQuestion.slice(0, 14)}」${
+        issue.shared.length ? ` (${issue.shared.slice(0, 2).join(", ")})` : ""
+      }`;
+  }
+}
+
 function FinalCheckSection({
   t,
-  doc,
   layout,
-  textOf
+  scan,
+  onGoQuestion
 }: {
   t: PlatformT;
-  doc: CoverDoc;
   layout: ResolvedCover;
-  textOf: (id: string) => string;
+  scan: CoverScan;
+  /** 문제가 있는 문항으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
+  onGoQuestion: (q: number) => void;
 }) {
-  const issues: string[] = [];
-  let filled = 0;
-
+  // 예전에는 이 안에서 검사를 직접 다시 구현했고 그 과정에서 '문항 간 내용 중복'이 빠져 있었다.
+  // 지금은 화면 위쪽에서 cover-scan 으로 한 번 계산해 내려받는다 — 본문 표시·배지·이 목록이 같은 근거를 쓴다.
+  // 줄마다 어느 문항인지 들고 다닌다 — 눌러서 그 문항으로 바로 갈 수 있게.
+  const lines: { text: string; q: number | null }[] = [];
   for (const [i, question] of layout.questions.entries()) {
-    const body = answerText(question.blocks.map(textOf)).trim();
+    const issues = scan.byQuestion.get(question.id);
+    if (!issues?.length) continue;
     const label = `${i + 1}. ${question.prompt.slice(0, 18)}`;
-    if (!body) {
-      issues.push(`${label} — ${t("아직 작성 안 됨", "Not written yet", "尚未填写", "Chưa viết", "未記入", "Belum ditulis")}`);
-      continue;
-    }
-    filled += 1;
-    const n = charCount(body);
-    if (question.limit) {
-      if (n > question.limit) {
-        issues.push(`${label} — ${n}/${question.limit} ${t("자 초과", "over limit", "超出", "vượt", "字超過", "lewat")}`);
-      } else if (n < Math.round(question.limit * 0.8)) {
-        issues.push(`${label} — ${n}/${question.limit} ${t("자, 분량 부족", "chars, too short", "字，偏短", "ký tự, hơi ngắn", "字・少なめ", "krt, terlalu pendek")}`);
-      }
-    }
-    const phrases = findClichePhrases(body);
-    if (phrases.length) {
-      issues.push(`${label} — ${t("다시 볼 표현", "Phrases to revisit", "可再斟酌", "Cụm nên xem lại", "見直したい表現", "Frasa ditinjau")} ${phrases.slice(0, 2).map((p) => `「${p}」`).join(" ")}`);
-    }
+    for (const issue of issues) lines.push({ text: `${label} — ${issueText(issue, t)}`, q: i });
+  }
+  for (const k of scan.missingKeywords) {
+    lines.push({
+      text: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`,
+      q: null
+    });
   }
 
-  // 필수 소재는 문서 전체 본문에서 확인한다 — AI가 넣었더라도 이후 편집에서 지웠을 수 있다.
-  const all = layout.questions.map((q) => answerText(q.blocks.map(textOf))).join("\n");
-  for (const k of doc.keywords ?? []) {
-    const key = k.trim();
-    if (key && !all.includes(key)) {
-      issues.push(`${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${key}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`);
-    }
-  }
-
-  const pct = layout.questions.length ? Math.round((filled / layout.questions.length) * 100) : 0;
   return (
-    <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${pct}%`}>
-      {issues.length === 0 ? (
+    <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${scan.filledPercent}%`}>
+      {lines.length === 0 ? (
         <p className="text-[12px] text-[#00854A]">
           {t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")}
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {issues.map((msg, i) => (
-            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">• {msg}</li>
+          {lines.map((line, i) => (
+            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+              {line.q === null ? (
+                <span>• {line.text}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onGoQuestion(line.q as number)}
+                  className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline"
+                >
+                  • {line.text}
+                </button>
+              )}
+            </li>
           ))}
         </ul>
       )}

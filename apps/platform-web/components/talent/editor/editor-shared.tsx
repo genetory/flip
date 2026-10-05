@@ -15,6 +15,58 @@ import {
   type DocVersionKind
 } from "../../../lib/talent/doc-versions";
 
+/**
+ * 버전 조회 실패 안내 — 원인을 구분해서 알려 준다.
+ * 예전에는 무엇이 잘못됐든 "버전을 불러오지 못했어요." 하나만 띄워서, 로그인이 풀린 건지
+ * 서버가 아픈 건지 사용자가 알 수 없었다(실제로 로컬 DB 에 DocVersion 테이블이 없어 500 이
+ * 나던 때도 같은 문구만 보였다).
+ * authedJsonFetch 는 상태 코드를 가진 에러를 던지므로 그것으로 구분한다(클래스가 export 되지
+ * 않아 status 유무로 판별한다).
+ */
+function loadErrorMessage(err: unknown, t: PlatformT): string {
+  const status = typeof (err as { status?: unknown } | null)?.status === "number" ? (err as { status: number }).status : null;
+  const message = err instanceof Error ? err.message : "";
+
+  if (status === 401 || message.includes("로그인")) {
+    return t(
+      "로그인이 풀렸어요. 다시 로그인한 뒤 열어 주세요.",
+      "Your session expired. Please sign in again.",
+      "登录已过期，请重新登录。",
+      "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      "ログインが切れました。再度ログインしてください。",
+      "Sesi berakhir. Silakan masuk lagi."
+    );
+  }
+  if (status === 403) {
+    return t(
+      "이 문서를 열 권한이 없어요.",
+      "You don't have access to this document.",
+      "没有权限打开此文档。",
+      "Bạn không có quyền mở tài liệu này.",
+      "この文書を開く権限がありません。",
+      "Anda tidak punya akses ke dokumen ini."
+    );
+  }
+  if (status !== null && status >= 500) {
+    return t(
+      "서버에서 문제가 생겼어요. 작성한 내용은 그대로 있으니 잠시 후 다시 열어 주세요.",
+      "Something went wrong on our side. Your work is safe — please try again shortly.",
+      "服务器出现问题。您的内容仍在，请稍后重试。",
+      "Máy chủ gặp sự cố. Nội dung của bạn vẫn còn, vui lòng thử lại sau.",
+      "サーバーで問題が発生しました。入力内容は残っています。しばらくして再度お試しください。",
+      "Terjadi masalah di server. Isianmu aman — coba lagi sebentar lagi."
+    );
+  }
+  return t(
+    "버전을 불러오지 못했어요. 연결 상태를 확인해 주세요.",
+    "Couldn't load versions. Please check your connection.",
+    "无法加载版本，请检查网络连接。",
+    "Không tải được phiên bản. Vui lòng kiểm tra kết nối.",
+    "バージョンを読み込めませんでした。接続状態をご確認ください。",
+    "Gagal memuat versi. Periksa koneksi Anda."
+  );
+}
+
 export type SaveState = "idle" | "saving" | "saved" | "error";
 type Patch<L> = { name?: string; layout?: L };
 
@@ -27,6 +79,12 @@ export const INPUT_CLS =
 /** 보조 버튼: 회색 채움. */
 export const SOFT_BTN = "bg-[#F2F4F6] text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
 /** 강조 보조 버튼: 옅은 파랑 채움. */
+/**
+ * 연한 파랑 버튼의 **색상만** 담는다 — 글자 크기·굵기·모서리는 쓰는 쪽에서 붙인다.
+ * (여기에 폰트를 넣으면 rounded-full 로 쓰는 곳과 충돌한다.)
+ * 붙이는 걸 빠뜨리면 그 버튼만 본문 기본 글꼴(16px·normal)로 떠서 혼자 달라 보인다 —
+ * 실제로 '정리'·'링크 추가'·'추가' 버튼이 그랬다.
+ */
 export const TINT_BTN = "bg-[#EDF1FD] text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
 
 /**
@@ -49,7 +107,7 @@ export function useDocVersionStore<L, S>(kind: DocVersionKind, t: PlatformT) {
         setVersions(items);
         setCurrentId(items.find((v) => v.snapshot === null)?.id ?? null);
       })
-      .catch(() => alive && toast.error(t("버전을 불러오지 못했어요.", "Couldn't load versions.", "无法加载版本。", "Không tải được phiên bản.", "バージョンを読み込めませんでした。", "Gagal memuat versi.")));
+      .catch((err) => alive && toast.error(loadErrorMessage(err, t)));
     return () => {
       alive = false;
     };

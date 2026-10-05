@@ -14,6 +14,8 @@ import { A4Pages, EditOverlay, useOffPage } from "./A4Pages";
 export type CoverInteraction = {
   activeQ: number;
   selectedId: string | null;
+  /** 전체 점검에서 걸린 문항 id — 점검은 문항 단위라서 문단이 아니라 문항 제목에 표시한다. */
+  flaggedQuestions?: ReadonlySet<string>;
   onActivate: (q: number) => void;
   onSelect: (q: number, id: string) => void;
 };
@@ -61,6 +63,7 @@ function CoverBody({ doc, info, layout, interaction: ix }: Props) {
           const title = (
             <QuestionTitle
               q={q}
+              questionId={question.id}
               title={questionLabel(t, question.prompt) || t("(문항 없음)", "(no prompt)")}
               empty={question.blocks.length === 0}
               ix={ix}
@@ -96,13 +99,13 @@ function Block({ id, className, children }: { id: string; className: string; chi
   );
 }
 
-function QuestionTitle({ q, title, empty, ix }: { q: number; title: string; empty: boolean; ix?: CoverInteraction }) {
+function QuestionTitle({ q, questionId, title, empty, ix }: { q: number; questionId: string; title: string; empty: boolean; ix?: CoverInteraction }) {
   const t = usePlatformT();
   const h2 = <h2 className="relative border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{title}</h2>;
   if (!ix) return h2;
   return (
     <div role="button" tabIndex={0} aria-label={t(`문항 ${q + 1}`, `Question ${q + 1}`, `题目 ${q + 1}`, `Câu ${q + 1}`, `設問 ${q + 1}`, `Pertanyaan ${q + 1}`)} onClick={() => ix.onActivate(q)} onKeyDown={(e) => e.key === "Enter" && ix.onActivate(q)} className="group relative cursor-pointer">
-      <EditOverlay selected={ix.activeQ === q && !ix.selectedId} />
+      <EditOverlay selected={ix.activeQ === q && !ix.selectedId} flagged={ix.flaggedQuestions?.has(questionId)} />
       {h2}
       {empty ? (
         // 빈 문항 안내 — 다음 문항과의 간격 안에 겹쳐 그려 자리를 차지하지 않는다(PDF 와 페이지 나눔이 같게).
