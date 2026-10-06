@@ -864,7 +864,7 @@ function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc;
 /** 문항별 본문을 스캔 입력 형태로 — 목록·배지·최종 점검이 같은 계산을 쓴다. */
 function buildScan(doc: CoverDoc, layout: ResolvedCover, textOf: (id: string) => string): CoverScan {
   return scanCover(
-    layout.questions.map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answerText(q.blocks.map(textOf)) })),
+    layout.questions.map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answerText(q.blocks.map(textOf)), blocks: q.blocks })),
     doc.keywords ?? [],
     charCount
   );
