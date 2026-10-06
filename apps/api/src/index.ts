@@ -14268,15 +14268,38 @@ type ApplicationDocs = {
   coverLetterSnapshot: Prisma.InputJsonValue | undefined;
 };
 async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null, selectedCoverLetterId?: string | null): Promise<ApplicationDocs> {
-  // 이력서 — 지원자가 고른 이력서(본인 소유)가 있으면 우선, 없으면 대표→최근 순으로 폴백.
+  // 이력서 — 고른 것 → **지금 에디터로 쓰는 이력서** → 대표 → 최근.
+  //
+  // 예전에는 고른 것 다음이 바로 isPrimary 였다. 그런데 지금 사용자가 갈 수 있는 이력서 화면은
+  // 리뉴얼 에디터뿐인데(옛 경로는 308), 대표 플래그는 그 전에 만든 레거시 행에 남아 있을 수 있다.
+  // 그러면 **사용자가 오늘 고쳐 쓴 이력서가 아니라 작년 이력서가 제출된다**(로컬 확인:
+  // 대표=2026-08 레거시 0항목 / 리뉴얼=2026-10 11항목).
+  //
+  // 리뉴얼 행이 **비어 있으면** 끼어들지 않는다 — 내용 있는 레거시 이력서를 빈 것으로 바꾸면 안 된다.
+  const userResumes = await prisma.resume.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, content: true, isPrimary: true }
+  });
+  const hasRenewalItems = (c: unknown) => {
+    const o = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+    const doc = (o.renewalResume && typeof o.renewalResume === "object" ? o.renewalResume : null) as Record<string, unknown> | null;
+    return Array.isArray(doc?.items) && (doc!.items as unknown[]).length > 0;
+  };
   const resume =
-    (selectedResumeId
-      ? await prisma.resume.findFirst({ where: { id: selectedResumeId, userId }, select: { id: true, content: true } })
-      : null) ??
-    (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
-    (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
+    (selectedResumeId ? userResumes.find((r) => r.id === selectedResumeId) : undefined) ??
+    userResumes.find((r) => hasRenewalItems(r.content)) ??
+    userResumes.find((r) => r.isPrimary) ??
+    userResumes[0] ??
+    null;
 
-  // 자소서 — 지원자가 고른 것(본인 소유) 우선, 없으면 회사명 일치, 그것도 없으면 최근 수정본.
+  // 자소서 — 고른 것 → 회사명 일치 → **지금 에디터에서 쓰고 있는 자소서** → 최근 수정본.
+  //
+  // 리뉴얼 에디터 자소서는 CoverLetter 테이블이 아니라 Resume.content 에 산다. 예전에는 이 함수가
+  // CoverLetter 테이블만 봐서, 사용자가 공들여 쓴 자소서를 두고 **작년에 만든 다른 회사 자소서가
+  // 첨부**되는 일이 가능했다(로컬 확인: 리뉴얼 답변 4개 vs 테이블의 무관한 행 2개).
+  // content.coverLetterItems 는 스토어가 저장할 때마다 리뉴얼 자소서를 같은 모양
+  // ([{id, prompt, answer}])으로 미러해 두므로 그대로 쓸 수 있다.
   let coverLetterId: string | null = null;
   let coverLetterSnapshot: Prisma.InputJsonValue | undefined = undefined;
   const allCls = await prisma.coverLetter.findMany({
@@ -14285,18 +14308,41 @@ async function snapshotApplicationDocs(userId: string, companyName: string | nul
     select: { id: true, title: true, company: true, items: true }
   });
   const company = (companyName ?? "").trim().toLowerCase();
+  const matchesCompany = (cc: string | null | undefined) => {
+    const v = (cc ?? "").trim().toLowerCase();
+    return !!company && !!v && (v.includes(company) || company.includes(v));
+  };
+
+  // 지금 에디터에서 편집 중인 자소서(있으면).
+  // 위에서 고른 resume 행을 쓰면 안 된다 — 그건 isPrimary 기준이라 **옛 레거시 행**일 수 있고,
+  // 거기엔 리뉴얼 자소서가 없다. 웹 스토어와 같은 규칙으로 따로 찾는다:
+  // renewal* 키를 가진 행 중 가장 최근 것.
+  const renewalRow = userResumes.find((r) => {
+    const o = (r.content && typeof r.content === "object" ? r.content : {}) as Record<string, unknown>;
+    return Object.keys(o).some((k) => k.startsWith("renewal"));
+  });
+  const renewalContent = (renewalRow?.content && typeof renewalRow.content === "object" ? renewalRow.content : {}) as Record<string, unknown>;
+  const renewalCover = (renewalContent.renewalCover && typeof renewalContent.renewalCover === "object" ? renewalContent.renewalCover : null) as
+    | Record<string, unknown>
+    | null;
+  const renewalItems = Array.isArray(renewalContent.coverLetterItems)
+    ? (renewalContent.coverLetterItems as Record<string, unknown>[]).filter((x) => String(x?.answer ?? "").trim())
+    : [];
+  const renewalCompany = typeof renewalCover?.companyName === "string" ? renewalCover.companyName : null;
+
   const chosenCl =
     (selectedCoverLetterId ? allCls.find((c) => c.id === selectedCoverLetterId) : undefined) ??
-    (company
-      ? allCls.find((c) => {
-          const cc = (c.company ?? "").trim().toLowerCase();
-          return cc && (cc.includes(company) || company.includes(cc));
-        })
-      : undefined) ??
-    allCls[0];
+    (company ? allCls.find((c) => matchesCompany(c.company)) : undefined);
+
   if (chosenCl) {
     coverLetterId = chosenCl.id;
     coverLetterSnapshot = { title: chosenCl.title, company: chosenCl.company, items: chosenCl.items } as Prisma.InputJsonValue;
+  } else if (renewalItems.length) {
+    // 테이블에 회사가 맞는 게 없으면, 사용자가 지금 쓰고 있는 자소서를 쓴다(id 는 없다 — 행이 아니다).
+    coverLetterSnapshot = { title: "자기소개서", company: renewalCompany, items: renewalItems } as Prisma.InputJsonValue;
+  } else if (allCls[0]) {
+    coverLetterId = allCls[0].id;
+    coverLetterSnapshot = { title: allCls[0].title, company: allCls[0].company, items: allCls[0].items } as Prisma.InputJsonValue;
   }
 
   return {
