@@ -123,6 +123,22 @@ const coverDoc = {
   updatedAt: now
 };
 
+// 모의면접 답변 기록 — '내 면접 약점' 화면을 보려면 채점된 답변이 있어야 한다.
+// 영역을 일부러 섞는다: 잘한 영역 / 약한 영역 / 아직 안 해 본 영역이 모두 보이게.
+const mockInterview = {
+  answers: [
+    { question: "1분 자기소개를 해주세요.", category: "intro", answer: "결제·정산 백엔드를 4년간 맡아 왔습니다. 일 300만 건 트랜잭션을 다루며 장애 없이 배포하는 구조를 만드는 데 집중해 왔습니다.", score: 84,
+      feedback: { score: 84, strengths: ["맡은 도메인이 분명하다"], improvements: [], sampleAnswer: "" }, updatedAt: now - 86400000 },
+    { question: "맡았던 가장 어려운 기술적 문제는 무엇이었나요?", category: "competency", answer: "팀에서 결제 실패율을 낮추는 작업을 했습니다. 여러 가지를 개선했습니다.", score: 55,
+      feedback: { score: 55, strengths: [], improvements: ["팀이 한 일인지 본인이 한 일인지 알 수 없어, 읽는 사람이 기여를 가늠할 수 없습니다"], sampleAnswer: "" }, updatedAt: now - 72000000 },
+    { question: "기술 선택의 근거를 설명해 주세요.", category: "competency", answer: "요즘 많이 쓰는 기술이라 골랐습니다.", score: 61,
+      feedback: { score: 61, strengths: [], improvements: ["대안을 무엇과 비교했는지 한 줄 넣어 주세요"], sampleAnswer: "" }, updatedAt: now - 60000000 },
+    { question: "실패했던 경험과 그로부터 배운 점을 말씀해 주세요.", category: "experience", answer: "배포를 잘못해서 장애가 났습니다. 다음부터는 조심하고 있습니다.", score: 42,
+      feedback: { score: 42, strengths: [], improvements: ["그래서 무엇을 바꿨는지(절차·도구)를 한 줄 넣어 주세요"], sampleAnswer: "" }, updatedAt: now - 50000000 }
+  ],
+  updatedAt: now
+};
+
 const basicInfo = {
   realName: "이준호",
   email: "student@test.com",
@@ -163,12 +179,14 @@ async function main() {
     delete content.renewalResume;
     delete content.renewalCover;
     delete content.coverLetterItems;
+    delete content.renewalMockInterview;
   } else {
     content.renewalResume = resumeDoc;
     content.renewalCover = coverDoc;
     // 레거시 화면이 읽는 미러도 같이 맞춘다(화면 저장 로직과 동일).
     content.coverLetterItems = coverItems.map((c) => ({ id: c.id, prompt: c.question, answer: c.text }));
     content.renewalBasicInfo = (base.renewalBasicInfo as unknown) ?? basicInfo;
+    content.renewalMockInterview = mockInterview;
     content.desiredJobRole = resumeDoc.targetRole;
   }
 
@@ -188,6 +206,7 @@ async function main() {
 
   if (!clean) {
     console.log(`  이력서 ${resumeItems.length}개 항목 · 자소서 ${coverItems.length}개 답변(문항 5개 중 1개는 일부러 비움)`);
+    console.log(`  모의면접 답변 ${mockInterview.answers.length}개(잘한 영역·약한 영역·안 해 본 영역이 섞여 있음)`);
     console.log("  /talent/career/resume · /talent/career/cover 에서 '전체 점검'을 확인하세요.");
   }
 }
