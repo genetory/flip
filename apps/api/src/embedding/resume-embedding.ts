@@ -87,11 +87,34 @@ export function buildResumeEmbeddingText(content: unknown): string {
 }
 
 // 대표 이력서 임베딩 재생성. 쓰기 경로에서 fire-and-forget, 백필에서 await.
+/**
+ * 이력서 id → 마지막으로 임베딩한 텍스트의 서명.
+ *
+ * 저장(PATCH)은 타이핑을 멈출 때마다 들어오는데(웹 스토어 700ms 디바운스) 예전에는 그때마다
+ * 임베딩 API 를 불렀다 — 글자 하나 고쳐도, 심지어 임베딩 입력이 하나도 안 바뀌는 수정이어도.
+ * 프로세스 메모리라 재시작하면 비지만, 한 사람이 한참 편집하는 동안의 연속 호출을 없애는 게
+ * 목적이라 그걸로 충분하다(재시작 후 이력서당 1회 더 부르는 정도). 컬럼 추가·마이그레이션 없이
+ * 해결되는 선을 택했다.
+ */
+const lastEmbeddedSig = new Map<string, string>();
+/** 메모리가 무한히 늘지 않게 — 넘으면 통째로 비운다(다음 저장에 한 번씩 다시 계산될 뿐). */
+const SIG_CACHE_MAX = 5000;
+
+function signature(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i += 1) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return `${text.length}:${(h >>> 0).toString(36)}`;
+}
+
 export async function embedAndSaveResume(prisma: PrismaClient, resumeId: string): Promise<boolean> {
   try {
     const resume = await prisma.resume.findUnique({ where: { id: resumeId }, select: { id: true, content: true } });
     if (!resume) return false;
     const text = buildResumeEmbeddingText(resume.content);
+    // 담을 내용이 없으면 부르지 않는다 — 빈 벡터는 매칭에 해롭다.
+    if (!text.trim()) return false;
+    const sig = signature(text);
+    if (lastEmbeddedSig.get(resumeId) === sig) return true;
     const vector = await generateEmbedding(text);
     if (!vector) return false;
     const vectorLiteral = toPgVector(vector);
@@ -101,6 +124,8 @@ export async function embedAndSaveResume(prisma: PrismaClient, resumeId: string)
           "embeddingUpdatedAt" = NOW()
       WHERE "id" = ${resumeId}
     `;
+    if (lastEmbeddedSig.size >= SIG_CACHE_MAX) lastEmbeddedSig.clear();
+    lastEmbeddedSig.set(resumeId, sig);
     return true;
   } catch (error) {
     console.error("[embedding] embedAndSaveResume failed", { resumeId, error });

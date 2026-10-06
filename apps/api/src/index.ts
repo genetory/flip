@@ -15122,8 +15122,11 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     // (기존 행 정리는 scripts/backfill-primary-resume.ts)
     if (resolvedContent !== undefined) void promoteRenewalResumeToPrimary(userId, item.id, resolvedContent);
     // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
-    void getOrCreateDocSummary(userId).catch(() => {});
-    void embedAndSaveResume(prisma, item.id).catch(() => {});
+    // content 가 안 바뀐 저장(예: 제목만 수정)에서는 부르지 않는다. 둘 다 유료 호출이다.
+    if (resolvedContent !== undefined) {
+      void getOrCreateDocSummary(userId).catch(() => {});
+      void embedAndSaveResume(prisma, item.id).catch(() => {});
+    }
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update resume" });
@@ -35451,6 +35454,9 @@ const partnerDocSummaryCache = new Map<string, { resumeBullets: string[]; coverB
 // 지원자/인재 공용 — 대표 이력서·자소서를 불렛으로 요약(candidateUserId 기준, version=updatedAt 로 캐싱).
 // 인메모리 + ApplicantDocSummary(DB) 영속 캐시. 문서가 바뀌면 version 이 달라져 재생성한다.
 type DocSummary = { resumeBullets: string[]; coverBullets: string[]; disabled?: boolean };
+/** 요약 프롬프트·모델을 바꿔 캐시를 통째로 버려야 할 때 올린다. */
+const DOC_SUMMARY_PROMPT_V = 1;
+
 async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "", fallbackCover = ""): Promise<DocSummary> {
   const primary = await prisma.resume.findFirst({
     where: { userId: candidateUserId },
@@ -35473,7 +35479,11 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
   let sig = 5381;
   const sigInput = `${resumeText} ${coverText}`;
   for (let i = 0; i < sigInput.length; i += 1) sig = ((sig << 5) + sig + sigInput.charCodeAt(i)) | 0;
-  const version = `${primary?.updatedAt?.getTime() ?? 0}:${(sig >>> 0).toString(36)}`;
+  // 예전엔 여기에 updatedAt 이 들어 있었다. 그런데 저장은 본문이 그대로여도 updatedAt 을 올리므로
+  // **키가 매번 달라져 캐시가 항상 미스**였다 — 타이핑을 멈출 때마다(700ms 디바운스) 요약 LLM 을
+  // 새로 불렀다. 바로 위에서 만든 sig 가 이미 요약 입력 텍스트 전체의 서명이라 그것만으로 충분하다.
+  // DOC_SUMMARY_PROMPT_V 는 프롬프트·모델을 바꿨을 때 일부러 캐시를 버리기 위한 손잡이다.
+  const version = `v${DOC_SUMMARY_PROMPT_V}:${(sig >>> 0).toString(36)}`;
   const cacheKey = `${candidateUserId}:${version}`;
 
   const cached = partnerDocSummaryCache.get(cacheKey);
