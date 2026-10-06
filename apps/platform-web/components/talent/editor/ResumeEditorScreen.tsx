@@ -352,7 +352,7 @@ function ModuleList({
     );
   };
   return (
-    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
+    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
       <div className="px-2.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
@@ -418,7 +418,7 @@ function Inspector(props: {
   const reveal = useRevealOnChange<HTMLDivElement>(id);
 
   return (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
       {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
           UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />

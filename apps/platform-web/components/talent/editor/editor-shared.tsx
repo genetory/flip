@@ -387,7 +387,7 @@ export function SavedPanel<L, S>({
 }) {
   const saved = new Date(version.createdAt);
   return (
-    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5 [&>*]:shrink-0" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
       <Section title={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
         <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
           {t("이름", "Name", "名称", "Tên", "名前", "Nama")}
@@ -483,9 +483,11 @@ export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
   return ref;
 }
 
+/** 패널 한 블록. shrink-0 인 이유: 이 블록이 놓이는 패널은 flex 열이면서 스크롤돼서,
+ *  내용이 넘치면 직계 자식이 눌려 안쪽 버튼 높이(h-9/h-10)까지 무시된다. */
 export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {
   return (
-    <section className={`flex flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
+    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
       <h3 className="text-[13px] font-bold">{title}</h3>
       {children}
     </section>

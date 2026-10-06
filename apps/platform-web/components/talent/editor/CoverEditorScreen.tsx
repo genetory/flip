@@ -342,8 +342,8 @@ function EpisodeLibrary({
   const active = layout.questions[activeQ];
   const unplaced = new Set(layout.unplaced);
   return (
-    <aside className="no-print flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6" aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}>
-      <div className="px-1.5">
+    <aside className="no-print flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}>
+      <div className="shrink-0 px-1.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
           {t(
@@ -356,12 +356,14 @@ function EpisodeLibrary({
           )}
         </p>
       </div>
-      <button type="button" onClick={onNew} className={`flex h-10 items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none ${TINT_BTN}`}>
+      {/* shrink-0 필수 — 이 패널은 flex 열이면서 스크롤된다. 직계 자식은 기본값(flex-shrink:1)이라
+          에피소드가 늘어 내용이 넘치면 h-10 이 무시되고 버튼이 찌그러진다(실제로 14px 까지 줄었다). */}
+      <button type="button" onClick={onNew} className={`flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none ${TINT_BTN}`}>
         <Plus size={14} weight="bold" className="shrink-0" />
         <span>{t("새 에피소드 쓰기", "Write a new episode", "写新经历", "Viết đoạn mới", "新しいエピソードを書く", "Tulis episode baru")}</span>
       </button>
       {doc.items.length === 0 ? (
-        <p className="px-1 text-[12px] text-[#8B95A1]">{t("아직 에피소드가 없어요.", "No episodes yet.", "还没有经历。", "Chưa có đoạn kể.", "まだエピソードがありません。", "Belum ada episode.")}</p>
+        <p className="shrink-0 px-1 text-[12px] text-[#8B95A1]">{t("아직 에피소드가 없어요.", "No episodes yet.", "还没有经历。", "Chưa có đoạn kể.", "まだエピソードがありません。", "Belum ada episode.")}</p>
       ) : null}
       <ul className="flex flex-col gap-2">
         {doc.items.map((it) => {
@@ -468,7 +470,7 @@ function Inspector(props: {
   // 밀렸기 때문인데, 그건 자리 문제가 아니라 **고른 곳으로 데려다 주지 않은** 문제였다.
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
       <FinalCheckSection
         t={t}
