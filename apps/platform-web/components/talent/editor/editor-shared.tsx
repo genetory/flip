@@ -432,8 +432,55 @@ export function SavedPanel<L, S>({
  *
  * texts 는 id → 지금 본문. 호출부에서 useMemo 로 만들어 넘긴다.
  */
-export function useAiReview(texts: Map<string, string>) {
-  const [done, setDone] = useState<{ findings: AiReviewFinding[]; texts: Map<string, string> } | null>(null);
+/**
+ * 한 탭 안에서만 사는 저장소(sessionStorage) 기반 상태.
+ *
+ * 점검 결과는 사용자 글이 아니라 **도우미 정보**라서 계정 문서(Resume.content)에 넣지 않는다.
+ * 거기 넣으면 글자 하나 칠 때마다 함께 PATCH 되고, 며칠 전 점검이 되살아난다.
+ * 탭을 닫으면 사라지는 편이 맞다 — 다시 누르면 된다.
+ *
+ * 시크릿 창·저장소 차단 환경에서는 읽기·쓰기가 모두 던질 수 있어 전부 감싼다. 저장이 안 되면
+ * 기능이 꺼지는 게 아니라 '새로고침하면 사라지는' 예전 동작으로 돌아갈 뿐이다.
+ */
+function useSessionState<T>(key: string, initial: T): [T, (v: T) => void] {
+  const [value, setValue] = useState<T>(initial);
+  const loaded = useRef(false);
+  useEffect(() => {
+    // 저장소는 서버 렌더에 없으므로 **마운트 뒤에 한 번만** 읽는다. 처음 렌더에 바로 읽으면
+    // 서버가 그린 HTML 과 달라져 하이드레이션이 깨진다.
+    if (loaded.current) return;
+    loaded.current = true;
+    try {
+      const raw = sessionStorage.getItem(key);
+      // 규칙(set-state-in-effect)이 막으려는 것은 렌더마다 이어지는 setState 인데, 여기는 위의
+      // ref 로 막아 둔 1회성 초기 로드라 연쇄가 생기지 않는다. useSyncExternalStore 로 바꾸려면
+      // 스냅샷 캐시와 저장소 비작동 폴백을 직접 들고 있어야 해서 코드만 네 배로 늘어난다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (raw) setValue(JSON.parse(raw) as T);
+    } catch {
+      /* 저장소를 못 쓰면(시크릿 창 등) 초깃값으로 간다 — 새로고침하면 사라질 뿐 기능은 돈다 */
+    }
+  }, [key]);
+  const set = useCallback(
+    (v: T) => {
+      setValue(v);
+      try {
+        if (v === null || v === undefined) sessionStorage.removeItem(key);
+        else sessionStorage.setItem(key, JSON.stringify(v));
+      } catch {
+        /* 저장 못 해도 화면 동작은 그대로 */
+      }
+    },
+    [key]
+  );
+  return [value, set];
+}
+
+/** 저장할 수 있는 형태 — Map 은 JSON 으로 못 가므로 쌍 배열로 둔다. */
+type StoredReview = { findings: AiReviewFinding[]; texts: [string, string][] };
+
+export function useAiReview(kind: "resume" | "cover", texts: Map<string, string>) {
+  const [done, setDone] = useSessionState<StoredReview | null>(`aply.review.${kind}`, null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -442,7 +489,7 @@ export function useAiReview(texts: Map<string, string>) {
       setRunning(true);
       setError(null);
       try {
-        setDone({ findings: await fetchFindings(), texts: new Map(texts) });
+        setDone({ findings: await fetchFindings(), texts: [...texts] });
       } catch (err) {
         // 포인트·한도 안내는 aiPost 가 따로 띄운다. 여기서는 점검이 실패했다는 것만.
         setError(err instanceof Error && err.message ? err.message : "점검하지 못했어요.");
@@ -450,14 +497,37 @@ export function useAiReview(texts: Map<string, string>) {
         setRunning(false);
       }
     },
-    [texts]
+    [texts, setDone]
   );
 
-  const findings = useMemo(
-    () => (done ? done.findings.filter((f) => done.texts.get(f.id) === texts.get(f.id)) : []),
-    [done, texts]
-  );
-  return { findings, running, error, ran: !!done, run };
+  // 점검한 뒤 그 항목의 글이 바뀌면 지적을 내린다. 새로고침 뒤에도 같은 판단이 서도록
+  // 점검 당시 본문을 함께 저장해 둔다 — 다른 계정으로 바뀌어도 본문이 안 맞아 자동으로 비워진다.
+  const findings = useMemo(() => {
+    if (!done) return [];
+    const at = new Map(done.texts);
+    return done.findings.filter((f) => at.get(f.id) === texts.get(f.id));
+  }, [done, texts]);
+
+  const clear = useCallback(() => setDone(null), [setDone]);
+  return { findings, running, error, ran: !!done, run, clear };
+}
+
+/**
+ * 점검 목록에서 치워 둔 줄.
+ *
+ * 고친 지적은 저절로 사라진다(규칙은 다시 계산되고, AI 지적은 글이 바뀌면 내려간다).
+ * 그래서 이 기능이 필요한 쪽은 **안 고치기로 한 지적**이다 — 예컨대 일부러 넣은 동아리 활동에
+ * "직무와 관련이 약하다"가 계속 떠 있으면, 남은 할 일이 몇 개인지 알 수 없게 된다.
+ *
+ * 키에 지적 내용을 넣는다. 글을 고쳐 다른 지적이 나오면 키가 달라져 다시 보인다 —
+ * 한 번 치웠다고 영영 안 보이면 그게 더 위험하다.
+ */
+export function useHiddenIssues(kind: "resume" | "cover") {
+  const [list, setList] = useSessionState<string[]>(`aply.review-hidden.${kind}`, []);
+  const hidden = useMemo(() => new Set(list), [list]);
+  const hide = useCallback((key: string) => setList([...new Set([...list, key])]), [list, setList]);
+  const showAll = useCallback(() => setList([]), [setList]);
+  return { hidden, hide, showAll, hiddenCount: list.length };
 }
 
 /**
