@@ -24,24 +24,35 @@ export const REVIEW_FINDINGS_SCHEMA = {
           id: { type: "string" },
           severity: { type: "string", enum: ["high", "medium"] },
           issue: { type: "string" },
-          fix: { type: "string" }
+          fix: { type: "string" },
+          // 지적이 가리키는 원문 구절 — 화면이 그 글자에 형광펜을 칠한다.
+          quote: { type: "string" }
         },
-        required: ["id", "severity", "issue", "fix"]
+        required: ["id", "severity", "issue", "fix", "quote"]
       }
     }
   },
   required: ["findings"]
 };
 
-export type ReviewFinding = { id: string; severity: "high" | "medium"; issue: string; fix: string };
+export type ReviewFinding = { id: string; severity: "high" | "medium"; issue: string; fix: string; quote: string };
 
 /** AI 가 돌려준 지적을 믿을 수 있는 형태로 — 모르는 id·빈 내용은 버리고, 한 블록당 2건까지.
- *  모르는 id 를 버리는 게 핵심이다: AI 가 id 를 지어내도 엉뚱한 블록에 표시되지 않는다. */
-export function normalizeReviewFindings(raw: unknown, allowed: Set<string>, maxTotal: number): ReviewFinding[] {
+ *  모르는 id 를 버리는 게 핵심이다: AI 가 id 를 지어내도 엉뚱한 블록에 표시되지 않는다.
+ *
+ *  quote 도 같은 이유로 **원문에 그대로 있는지 확인하고** 아니면 버린다. 화면이 이 구절에
+ *  형광펜을 칠하므로, 지어낸 인용을 그대로 두면 엉뚱한 글자가 칠해지거나(부분 일치) 아무 데도
+ *  안 칠해진다. texts = 블록 id → 원문. */
+export function normalizeReviewFindings(
+  raw: unknown,
+  allowed: Set<string>,
+  maxTotal: number,
+  texts?: ReadonlyMap<string, string>
+): ReviewFinding[] {
   if (!Array.isArray(raw)) return [];
   const perId = new Map<string, number>();
   const out: ReviewFinding[] = [];
-  for (const r of raw as { id?: unknown; severity?: unknown; issue?: unknown; fix?: unknown }[]) {
+  for (const r of raw as { id?: unknown; severity?: unknown; issue?: unknown; fix?: unknown; quote?: unknown }[]) {
     if (!r || typeof r !== "object") continue;
     const id = typeof r.id === "string" ? r.id.trim() : "";
     if (!allowed.has(id)) continue;
@@ -50,11 +61,16 @@ export function normalizeReviewFindings(raw: unknown, allowed: Set<string>, maxT
     const n = perId.get(id) ?? 0;
     if (n >= 2) continue;
     perId.set(id, n + 1);
+    // 2글자 미만은 아무 데나 걸려서 엉뚱한 글자가 칠해진다.
+    const q = typeof r.quote === "string" ? r.quote.trim().slice(0, 200) : "";
+    const body = texts?.get(id);
+    const quote = q.length >= 2 && (body === undefined || body.includes(q)) ? q : "";
     out.push({
       id,
       severity: r.severity === "high" ? "high" : "medium",
       issue,
-      fix: typeof r.fix === "string" ? r.fix.trim().slice(0, 400) : ""
+      fix: typeof r.fix === "string" ? r.fix.trim().slice(0, 400) : "",
+      quote
     });
     if (out.length >= maxTotal) break;
   }
@@ -80,20 +96,27 @@ const HONESTY_RULES =
   "2. **잘 쓴 글은 건드리지 마세요.** 한 항목에 (가) 본인이 무엇을 했는지, (나) 어떻게 했는지, " +
   "(다) 무엇이 달라졌는지가 이미 드러나 있으면 그 항목은 findings 에 넣지 마세요. " +
   "잘 쓴 글에 억지로 트집을 잡으면 사용자가 이 점검을 믿지 않게 됩니다 — 놓치는 것보다 나쁩니다.\n" +
-  "3. fix 는 사용자가 그대로 쓸 수 있는 **완성된 한 문장**으로 쓰세요. 다만 근거가 글에 없으면 " +
-  "문장을 지어내지 말고, 무엇을 적어야 하는지 묻는 형태로 쓰세요(예: '맡은 역할이 무엇이었는지 한 줄 넣어 주세요').\n" +
-  "4. issue 는 '무엇이 왜 약한지' 한 문장. 글에서 걸린 대목을 가리켜 쓰세요. 짧고 담백하게, 훈계하지 마세요.\n" +
+  "3. fix 는 **어떻게 고치면 되는지**를 바로 따라 할 수 있게 쓰세요. 글에 근거가 있으면 사용자가 " +
+  "그대로 붙여 넣을 수 있는 완성된 한 문장으로, 근거가 글에 없으면 문장을 지어내지 말고 무엇을 적어야 하는지 " +
+  "묻는 형태로(예: '맡은 역할이 무엇이었는지 한 줄 넣어 주세요').\n" +
+  "4. issue 는 **무엇이 걸렸는지 + 읽는 사람(채용 담당자)에게 왜 문제인지**를 한 문장으로. " +
+  "'구체적이지 않습니다' 처럼 판정만 쓰지 말고, 그게 왜 손해인지까지 쓰세요 " +
+  "(예: '팀이 한 일인지 본인이 한 일인지 알 수 없어, 읽는 사람이 기여를 가늠할 수 없습니다'). " +
+  "짧고 담백하게, 훈계하지 마세요.\n" +
   "5. 고칠 게 없으면 findings 를 빈 배열로 두세요. 억지로 채우지 마세요. 0건도 좋은 답입니다.\n" +
   "6. 한 항목에 최대 2건, 전체 최대 8건. 읽는 사람에게 가장 크게 걸리는 것부터.\n" +
   "7. severity: high = 이대로 내면 손해인 것, medium = 고치면 나아지는 것.\n" +
   "8. 안내·머리말·따옴표를 붙이지 마세요. issue·fix 둘 다 문장만.\n" +
+  "9. quote 는 **지적이 가리키는 원문 구절을 글자 그대로** 옮겨 적으세요(화면이 그 글자에 형광펜을 칠합니다). " +
+  "한 구절만, 되도록 짧게(한 어절~한 문장). 요약하거나 고쳐 쓰지 말고 **원문에 있는 그대로** 복사하세요 — " +
+  "한 글자라도 다르면 칠하지 못합니다. 가리킬 구절이 없는 지적(빠진 것)이면 quote 를 빈 문자열로 두세요.\n" +
   "\n[내보내기 전 자기 점검] 지적 하나하나에 대해 스스로 물어보세요 — " +
   "이 지적이 숫자·길이·기간·말투·중복·상투어에 관한 것인가? 또는 '더 구체적으로'라는 말뿐인가? " +
   "하나라도 그렇다면 그 지적을 버리세요. 남은 것만 내보내세요.\n";
 
 const ID_RULE = "\nid 는 반드시 입력으로 받은 항목의 id 를 그대로 쓰세요. 새 id 를 만들면 안 됩니다.\n";
 const JSON_SHAPE =
-  'JSON 한 개 객체로만 응답: { "findings": [{ "id": string, "severity": "high"|"medium", "issue": string, "fix": string }] }';
+  'JSON 한 개 객체로만 응답: { "findings": [{ "id": string, "severity": "high"|"medium", "issue": string, "fix": string, "quote": string }] }';
 
 export type ResumeReviewInput = {
   targetRole?: string;

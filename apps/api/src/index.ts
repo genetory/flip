@@ -26084,7 +26084,8 @@ app.post(
         return res.status(502).json({ ok: false, message: "ai response invalid" });
       }
       const allowed = new Set(items.map((i) => i.id));
-      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8) });
+      const texts = new Map(items.map((i) => [i.id, i.text]));
+      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8, texts) });
     } catch (err) {
       console.error("[ai/review-resume] failed", err);
       return res.status(500).json({ ok: false, message: "failed to review resume" });
@@ -26137,7 +26138,8 @@ app.post(
         return res.status(502).json({ ok: false, message: "ai response invalid" });
       }
       const allowed = new Set(questions.map((q) => q.id));
-      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8) });
+      const texts = new Map(questions.map((q) => [q.id, q.text]));
+      return res.json({ ok: true, findings: normalizeReviewFindings(data.findings, allowed, 8, texts) });
     } catch (err) {
       console.error("[ai/review-cover] failed", err);
       return res.status(500).json({ ok: false, message: "failed to review cover letter" });

@@ -9,13 +9,18 @@ import type { CoverDoc } from "../../../lib/talent/cover-doc";
 import type { ResolvedCover } from "../../../lib/talent/cover-layout";
 import { usePlatformT } from "../../../lib/i18n";
 import { questionLabel } from "../career/CoverA4";
-import { A4Pages, EditOverlay, useOffPage } from "./A4Pages";
+import { A4Pages, EditOverlay, Highlighted, useOffPage } from "./A4Pages";
 
 export type CoverInteraction = {
   activeQ: number;
   selectedId: string | null;
-  /** 전체 점검에서 걸린 문항 id — 점검은 문항 단위라서 문단이 아니라 문항 제목에 표시한다. */
-  flaggedQuestions?: ReadonlySet<string>;
+  /**
+   * 전체 점검에서 걸린 문항 — 문항 id → 본문에서 형광펜으로 칠할 구절.
+   * 점검 단위는 문항이지만 표시는 답변 글자에 한다 — 제목에 표시하면 '이 문항 어딘가'까지만
+   * 알려 주고, 어디를 고쳐야 하는지는 여전히 사용자가 찾아야 한다.
+   * 값이 빈 배열이면 가리킬 구절이 없는 지적이라 답변 전체를 옅게 칠한다.
+   */
+  flaggedQuestions?: ReadonlyMap<string, string[]>;
   onActivate: (q: number) => void;
   onSelect: (q: number, id: string) => void;
 };
@@ -63,7 +68,6 @@ function CoverBody({ doc, info, layout, interaction: ix }: Props) {
           const title = (
             <QuestionTitle
               q={q}
-              questionId={question.id}
               title={questionLabel(t, question.prompt) || t("(문항 없음)", "(no prompt)")}
               empty={question.blocks.length === 0}
               ix={ix}
@@ -81,7 +85,7 @@ function CoverBody({ doc, info, layout, interaction: ix }: Props) {
             // 같은 에피소드가 여러 문항에 들어갈 수 있어 블록 id 는 문항과 묶는다.
             <Block key={`${question.id}:${id}`} id={`${question.id}:${id}`} className={i === 0 ? top : "mt-2.5"}>
               {i === 0 ? title : null}
-              <Paragraph q={q} id={id} text={textOf(id)} ix={ix} className={i === 0 ? "mt-3" : ""} />
+              <Paragraph q={q} id={id} text={textOf(id)} ix={ix} highlight={ix?.flaggedQuestions?.get(question.id)} className={i === 0 ? "mt-3" : ""} />
             </Block>
           ));
         })}
@@ -99,13 +103,13 @@ function Block({ id, className, children }: { id: string; className: string; chi
   );
 }
 
-function QuestionTitle({ q, questionId, title, empty, ix }: { q: number; questionId: string; title: string; empty: boolean; ix?: CoverInteraction }) {
+function QuestionTitle({ q, title, empty, ix }: { q: number; title: string; empty: boolean; ix?: CoverInteraction }) {
   const t = usePlatformT();
   const h2 = <h2 className="relative border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black tracking-[-0.01em] text-[#0B1227]">{title}</h2>;
   if (!ix) return h2;
   return (
     <div role="button" tabIndex={0} aria-label={t(`문항 ${q + 1}`, `Question ${q + 1}`, `题目 ${q + 1}`, `Câu ${q + 1}`, `設問 ${q + 1}`, `Pertanyaan ${q + 1}`)} onClick={() => ix.onActivate(q)} onKeyDown={(e) => e.key === "Enter" && ix.onActivate(q)} className="group relative cursor-pointer">
-      <EditOverlay selected={ix.activeQ === q && !ix.selectedId} flagged={ix.flaggedQuestions?.has(questionId)} />
+      <EditOverlay selected={ix.activeQ === q && !ix.selectedId} />
       {h2}
       {empty ? (
         // 빈 문항 안내 — 다음 문항과의 간격 안에 겹쳐 그려 자리를 차지하지 않는다(PDF 와 페이지 나눔이 같게).
@@ -117,9 +121,13 @@ function QuestionTitle({ q, questionId, title, empty, ix }: { q: number; questio
   );
 }
 
-function Paragraph({ q, id, text, ix, className }: { q: number; id: string; text: string; ix?: CoverInteraction; className: string }) {
+function Paragraph({ q, id, text, ix, highlight, className }: { q: number; id: string; text: string; ix?: CoverInteraction; highlight?: string[]; className: string }) {
   const t = usePlatformT();
-  const body = text.trim() ? text : <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>;
+  const body = text.trim() ? (
+    highlight ? <Highlighted text={text} quotes={highlight} /> : text
+  ) : (
+    <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>
+  );
   const p = <p className="relative whitespace-pre-line break-keep text-[13.5px] leading-[1.9] text-[#333D4B]">{body}</p>;
   if (!ix) return <div className={className}>{p}</div>;
   return (

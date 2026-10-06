@@ -547,7 +547,14 @@ export async function polishResumeItems(
 // 에디터에서 '전체 점검' 버튼을 눌렀을 때만 부른다. 저장할 때는 절대 부르지 않는다.
 // 지적은 블록 id 로 돌아오므로 문서 본문의 그 블록에 그대로 표시할 수 있다.
 // 서버가 모르는 id 를 걸러 주지만, 화면에서도 한 번 더 확인한다(엉뚱한 곳에 표시되면 안 된다).
-export type AiReviewFinding = { id: string; severity: "high" | "medium"; issue: string; fix: string };
+export type AiReviewFinding = {
+  id: string;
+  severity: "high" | "medium";
+  issue: string;
+  fix: string;
+  /** 지적이 가리키는 원문 구절 — 본문에서 이 글자에 형광펜을 칠한다. 없으면 "". */
+  quote: string;
+};
 
 function parseFindings(payload: unknown, allowed: Set<string>): AiReviewFinding[] {
   const raw = (payload as { findings?: unknown })?.findings;
@@ -558,7 +565,13 @@ function parseFindings(payload: unknown, allowed: Set<string>): AiReviewFinding[
       const o = f as Record<string, unknown>;
       return typeof o.id === "string" && allowed.has(o.id) && typeof o.issue === "string" && o.issue.trim().length > 0;
     })
-    .map((f) => ({ id: f.id, severity: f.severity === "high" ? "high" : "medium", issue: f.issue.trim(), fix: (f.fix ?? "").trim() }));
+    .map((f) => ({
+      id: f.id,
+      severity: f.severity === "high" ? ("high" as const) : ("medium" as const),
+      issue: f.issue.trim(),
+      fix: (f.fix ?? "").trim(),
+      quote: typeof f.quote === "string" ? f.quote.trim() : ""
+    }));
 }
 
 export async function reviewResume(input: {

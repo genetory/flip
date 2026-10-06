@@ -52,7 +52,11 @@ type Case = {
   neverHit: string[];
   build: () => { system: string; user: string };
   ids: string[];
+  /** 블록 id → 원문. 인용(quote)이 원문에 그대로 있는지 확인하는 데 쓴다. */
+  texts: Map<string, string>;
 };
+
+const textsOf = (rows: { id: string; text: string }[]) => new Map(rows.map((r) => [r.id, r.text]));
 
 const CASES: Case[] = [
   (() => {
@@ -69,6 +73,7 @@ const CASES: Case[] = [
       mustHit: ["vague"],
       neverHit: [GOOD_EXPERIENCE.id],
       ids: items.map((i) => i.id),
+      texts: textsOf(items),
       build: () => buildResumeReviewPrompt({ targetRole: "물류/운영 담당자", items })
     };
   })(),
@@ -90,6 +95,7 @@ const CASES: Case[] = [
       mustHit: [],
       neverHit: items.map((i) => i.id),
       ids: items.map((i) => i.id),
+      texts: textsOf(items),
       build: () => buildResumeReviewPrompt({ targetRole: "물류/운영 담당자", items })
     };
   })(),
@@ -112,6 +118,7 @@ const CASES: Case[] = [
       mustHit: ["off_ask"],
       neverHit: [GOOD_ANSWER.id],
       ids: questions.map((q) => q.id),
+      texts: textsOf(questions),
       build: () => buildCoverReviewPrompt({ company: "한국물류", questions })
     };
   })(),
@@ -125,6 +132,7 @@ const CASES: Case[] = [
       mustHit: [],
       neverHit: ["blank", GOOD_ANSWER.id],
       ids: questions.map((q) => q.id),
+      texts: textsOf(questions),
       build: () => buildCoverReviewPrompt({ company: "한국물류", questions })
     };
   })(),
@@ -136,6 +144,7 @@ const CASES: Case[] = [
       mustHit: [],
       neverHit: ["blank", GOOD_EXPERIENCE.id],
       ids: items.map((i) => i.id),
+      texts: textsOf(items),
       build: () => buildResumeReviewPrompt({ targetRole: "물류/운영 담당자", items })
     };
   })(),
@@ -147,6 +156,7 @@ const CASES: Case[] = [
       mustHit: [],
       neverHit: [GOOD_ANSWER.id],
       ids: questions.map((q) => q.id),
+      texts: textsOf(questions),
       build: () => buildCoverReviewPrompt({ company: "한국물류", questions })
     };
   })()
@@ -177,6 +187,7 @@ async function main() {
     let dup = 0;
     let unknownId = 0;
     let callFailed = 0;
+    let withQuote = 0; // 원문 검증을 통과한 인용 수(이게 곧 형광펜이 칠해지는 지적 수)
 
     for (let i = 0; i < REPEAT; i++) {
       const r = await generateJson<{ findings?: unknown }>({
@@ -197,7 +208,7 @@ async function main() {
       }
       // 정규화 전/후를 비교해 '모르는 id' 가 얼마나 오는지도 센다(화면이 엉뚱한 곳을 표시할 위험).
       const rawCount = Array.isArray(r.data.findings) ? (r.data.findings as unknown[]).length : 0;
-      const findings = normalizeReviewFindings(r.data.findings, allowed, 8);
+      const findings = normalizeReviewFindings(r.data.findings, allowed, 8, c.texts);
       unknownId += Math.max(0, rawCount - findings.length);
       const seen = new Set<string>();
       for (const f of findings) {
@@ -206,10 +217,11 @@ async function main() {
           seen.add(f.id);
           runsWith[f.id] = (runsWith[f.id] ?? 0) + 1;
         }
+        if (f.quote) withQuote += 1;
         if (DUP_WORDS.test(f.issue)) {
           dup += 1;
           notes.push(`[규칙중복] ${f.id}: ${f.issue}`);
-        } else if (notes.length < 4) notes.push(`${f.id}: ${f.issue}`);
+        } else if (notes.length < 4) notes.push(`${f.id}: ${f.issue}${f.quote ? ` 〔칠함: ${f.quote}〕` : " 〔칠할 구절 없음〕"}`);
       }
     }
 
@@ -218,7 +230,10 @@ async function main() {
     const ok = missed.length === 0 && falsePos.length === 0 && dup === 0 && callFailed === 0;
     if (!ok) failed += 1;
     console.log(`\n${ok ? "PASS" : "FAIL"}  ${c.name}`);
-    console.log(`  지적 ${total}건 · 규칙중복 ${dup} · 모르는 id ${unknownId}${callFailed ? ` · 호출 실패 ${callFailed}/${REPEAT}` : ""}`);
+    console.log(
+      `  지적 ${total}건 · 규칙중복 ${dup} · 모르는 id ${unknownId}` +
+        `${total ? ` · 원문에 있는 인용 ${withQuote}/${total}` : ""}${callFailed ? ` · 호출 실패 ${callFailed}/${REPEAT}` : ""}`
+    );
     console.log(`  적중: ${Object.entries(runsWith).map(([k, v]) => `${k}=${v}/${REPEAT}`).join(" ") || "(0건)"}`);
     if (missed.length) console.log(`  누락: ${missed.join(", ")} (매 회 잡아야 함)`);
     if (falsePos.length) console.log(`  오탐: ${falsePos.join(", ")} ← 멀쩡한 글을 지적했다`);

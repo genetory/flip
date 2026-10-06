@@ -11,15 +11,19 @@ import { displayMonth, normalizeUrl, type ResumeDoc, type ResumeItem } from "../
 import type { ResolvedLayout } from "../../../lib/talent/resume-layout";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import { usePlatformT } from "../../../lib/i18n";
-import { A4Pages, EditOverlay, useOffPage } from "./A4Pages";
+import { A4Pages, EditOverlay, Highlighted, useOffPage } from "./A4Pages";
 
 /** 놓을 자리 — col 칸의 index 번째 앞. */
 export type DropSlot = { col: number; index: number };
 
 export type EditorInteraction = {
   selectedId: string | null;
-  /** 전체 점검에서 걸린 항목 id — 본문에 옅은 표시를 한다. 편집 중에만 넘어온다. */
-  flagged?: ReadonlySet<string>;
+  /**
+   * 전체 점검에서 걸린 항목 — 항목 id → 본문에서 형광펜으로 칠할 구절.
+   * 값이 빈 배열이면 가리킬 구절이 없는 지적(기간·수치가 '없다')이라 본문 전체를 옅게 칠한다.
+   * 편집 중에만 넘어온다 — 저장본·인쇄 사본에는 표시가 없다.
+   */
+  flagged?: ReadonlyMap<string, string[]>;
   dragId: string | null;
   hover: DropSlot | null;
   onSelect: (id: string) => void;
@@ -102,7 +106,7 @@ function Column({
         const section: CareerSection | "@" = item ? item.section : "@";
         const showTitle = !!item && section !== prevSection;
         prevSection = section;
-        const content = renderModule({ id, item, doc, info, narrow, t, showTitle });
+        const content = renderModule({ id, item, doc, info, narrow, t, showTitle, highlight: ix?.flagged?.get(id) });
         if (!content) return null;
         return (
           <div key={id}>
@@ -172,7 +176,7 @@ function ModuleBlock({
       // 편집 표시는 자리를 차지하지 않는다(여백·테두리를 바깥 층으로) — 미리보기와 PDF 의 페이지 나눔이 같도록.
       className={`group relative cursor-grab ${index === 0 ? "" : spacing} ${dragging ? "opacity-40" : ""} ${offPage ? "invisible" : ""}`}
     >
-      <EditOverlay selected={selected} flagged={ix.flagged?.has(id)} />
+      <EditOverlay selected={selected} />
       <div className="relative">{children}</div>
     </div>
   );
@@ -214,7 +218,8 @@ function renderModule({
   info,
   narrow,
   t,
-  showTitle
+  showTitle,
+  highlight
 }: {
   id: string;
   item: ResumeItem | undefined;
@@ -223,6 +228,8 @@ function renderModule({
   narrow: boolean;
   t: ReturnType<typeof usePlatformT>;
   showTitle: boolean;
+  /** 점검에 걸린 항목이면 칠할 구절(빈 배열 = 전체 옅게). 안 걸렸으면 undefined. */
+  highlight?: string[];
 }): ReactNode {
   if (id === FIXED_MODULES.basic) {
     const contact = [info.email, info.phone, info.address].filter(Boolean);
@@ -290,7 +297,11 @@ function renderModule({
         {!narrow ? <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden /> : null}
         <span className="min-w-0 flex-1">
           {company ? <span className="block font-bold text-[#191F28]">{company}</span> : null}
-          {text ? <span className={`whitespace-pre-line ${company ? "mt-0.5 block text-[#4E5968]" : ""}`}>{text}</span> : null}
+          {text ? (
+          <span className={`whitespace-pre-line ${company ? "mt-0.5 block text-[#4E5968]" : ""}`}>
+            {highlight ? <Highlighted text={text} quotes={highlight} /> : text}
+          </span>
+        ) : null}
         </span>
         {range ? <span className="shrink-0 text-[12px] font-medium text-[#8B95A1]">{range}</span> : null}
       </div>

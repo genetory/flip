@@ -37,7 +37,7 @@ import {
 import { generateCoverLetter, polishSelfIntro, reviewCover } from "../../../lib/resume-maker-client";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
-import { scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
+import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore } from "./editor-shared";
 
@@ -101,11 +101,14 @@ function Editor({ doc }: { doc: CoverDoc }) {
       })
     );
 
-  // 본문에 표시할 문항 — 규칙에 걸린 것과 AI 가 집은 것을 합친다.
-  const flaggedQuestions = useMemo(
-    () => new Set([...(scan ? scan.byQuestion.keys() : []), ...review.findings.map((f) => f.id)]),
-    [scan, review.findings]
-  );
+  // 본문에 칠할 것 — 문항 id → 형광펜으로 칠할 구절. 규칙과 AI 를 합친다.
+  const flaggedQuestions = useMemo(() => {
+    const m = new Map<string, string[]>();
+    const add = (id: string, quotes: string[]) => m.set(id, [...(m.get(id) ?? []), ...quotes.filter(Boolean)]);
+    for (const [id, issues] of scan?.byQuestion ?? []) add(id, issues.flatMap(coverIssueQuotes));
+    for (const f of review.findings) add(f.id, f.quote ? [f.quote] : []);
+    return m;
+  }, [scan, review.findings]);
 
   if (!working || !current || !layout || !scan) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
@@ -753,24 +756,65 @@ function buildScan(doc: CoverDoc, layout: ResolvedCover, textOf: (id: string) =>
   );
 }
 
-/** 문제 1건을 사람이 읽는 한 줄로. 표시 문구는 화면에서 만든다(스캔은 숫자·이름만 준다). */
-function issueText(issue: CoverScanIssue, t: PlatformT): string {
+/**
+ * 문제 1건을 사람이 읽는 두 줄로 — 무엇이 걸렸는지(what)와 왜·어떻게(why).
+ * 지적만 던지면 고치는 방향을 모른다. 이유가 있어야 납득하고 고친다.
+ */
+function issueText(issue: CoverScanIssue, t: PlatformT): { what: string; why: string } {
   switch (issue.kind) {
     case "empty":
-      return t("아직 작성 안 됨", "Not written yet", "尚未填写", "Chưa viết", "未記入", "Belum ditulis");
+      return {
+        what: t("아직 작성 안 됨", "Not written yet", "尚未填写", "Chưa viết", "未記入", "Belum ditulis"),
+        why: t(
+          "빈 문항이 있으면 제출할 수 없어요. 완성하려 하지 말고 떠오르는 대로 몇 줄만 먼저 채워 두면 다듬기 쉬워요.",
+          "An unanswered question blocks submission. Jot a few rough lines first — polishing is the easy part.",
+          "有空题目就无法提交。先随意写几行，之后再润色会容易得多。",
+          "Câu hỏi để trống thì không nộp được. Cứ viết vài dòng thô trước, chỉnh sửa sau sẽ dễ hơn.",
+          "未記入の設問があると提出できません。完成させようとせず、まず数行だけ書いておくと直しやすいです。",
+          "Pertanyaan kosong membuat tidak bisa dikirim. Tulis beberapa baris kasar dulu, memolesnya lebih mudah."
+        )
+      };
     case "over":
-      return `${issue.length}/${issue.limit} ${t("자 초과", "over limit", "超出", "vượt", "字超過", "lewat")}`;
-    case "under":
-      return `${issue.length}/${issue.limit} ${t("자, 분량 부족", "chars, too short", "字，偏短", "ký tự, hơi ngắn", "字・少なめ", "krt, terlalu pendek")}`;
+      return {
+        what: `${issue.length}/${issue.limit} ${t("자 초과", "over limit", "超出", "vượt", "字超過", "lewat")}`,
+        why: t(
+          "글자 수를 넘으면 제출 자체가 막혀요. 설명하는 문장부터 덜어 내면 사례는 그대로 남아요.",
+          "Going over the limit blocks submission. Cut explanatory sentences first — the examples survive.",
+          "超出字数将无法提交。先删减说明性句子，事例可以保留。",
+          "Vượt giới hạn sẽ không nộp được. Cắt câu giải thích trước, phần ví dụ vẫn giữ nguyên.",
+          "文字数を超えると提出できません。説明の文から削ると、事例はそのまま残ります。",
+          "Melebihi batas membuat tidak bisa dikirim. Pangkas kalimat penjelasan dulu, contohnya tetap."
+        )
+      };
     case "cliche":
-      return `${t("다시 볼 표현", "Phrases to revisit", "可再斟酌", "Cụm nên xem lại", "見直したい表現", "Frasa ditinjau")} ${issue.phrases
-        .slice(0, 2)
-        .map((x) => `「${x}」`)
-        .join(" ")}`;
+      return {
+        what: `${t("다시 볼 표현", "Phrases to revisit", "可再斟酌", "Cụm nên xem lại", "見直したい表現", "Frasa ditinjau")} ${issue.phrases
+          .slice(0, 2)
+          .map((x) => `「${x}」`)
+          .join(" ")}`,
+        why: t(
+          "누구나 쓰는 표현이라 읽는 사람 기억에 남지 않아요. 그 말을 뒷받침하는 사례 한 줄로 바꾸면 훨씬 세게 읽혀요.",
+          "Everyone writes these, so they don't stick. Swap in one concrete example that backs the claim.",
+          "人人都这么写，留不下印象。换成一句能佐证的具体事例会有力得多。",
+          "Ai cũng viết vậy nên không đọng lại. Thay bằng một ví dụ cụ thể chứng minh điều đó.",
+          "誰もが書く表現なので印象に残りません。その主張を裏づける事例一行に替えると強く読まれます。",
+          "Semua menulis begitu, jadi tak berkesan. Ganti dengan satu contoh konkret yang mendukungnya."
+        )
+      };
     case "overlap":
-      return `${t("내용 중복", "Overlaps with", "内容重复", "Trùng nội dung", "内容が重複", "Tumpang tindih")} 「${issue.withQuestion.slice(0, 14)}」${
-        issue.shared.length ? ` (${issue.shared.slice(0, 2).join(", ")})` : ""
-      }`;
+      return {
+        what: `${t("내용 중복", "Overlaps with", "内容重复", "Trùng nội dung", "内容が重複", "Tumpang tindih")} 「${issue.withQuestion.slice(0, 14)}」${
+          issue.shared.length ? ` (${issue.shared.slice(0, 2).join(", ")})` : ""
+        }`,
+        why: t(
+          "같은 경험을 두 문항에 쓰면 쓸 이야기가 없어 보여요. 한쪽은 다른 경험으로 바꾸거나 같은 경험이라도 다른 면을 써 주세요.",
+          "The same story in two answers reads as if you have little to show. Swap one, or show a different side of it.",
+          "同一经历写在两题会显得素材不足。换成其他经历，或写出同一经历的不同侧面。",
+          "Cùng trải nghiệm ở hai câu trông như thiếu nội dung. Đổi một câu, hoặc nói về khía cạnh khác.",
+          "同じ経験を二つの設問に書くと書くことがないように見えます。片方を別の経験にするか、別の側面を書いてください。",
+          "Pengalaman sama di dua jawaban terlihat minim materi. Ganti salah satu, atau tunjukkan sisi lain."
+        )
+      };
   }
 }
 
@@ -795,16 +839,27 @@ function FinalCheckSection({
   // 예전에는 이 안에서 검사를 직접 다시 구현했고 그 과정에서 '문항 간 내용 중복'이 빠져 있었다.
   // 지금은 화면 위쪽에서 cover-scan 으로 한 번 계산해 내려받는다 — 본문 표시·배지·이 목록이 같은 근거를 쓴다.
   // 줄마다 어느 문항인지 들고 다닌다 — 눌러서 그 문항으로 바로 갈 수 있게.
-  const lines: { text: string; q: number | null }[] = [];
+  const lines: { what: string; why: string; q: number | null }[] = [];
   for (const [i, question] of layout.questions.entries()) {
     const issues = scan.byQuestion.get(question.id);
     if (!issues?.length) continue;
     const label = `${i + 1}. ${question.prompt.slice(0, 18)}`;
-    for (const issue of issues) lines.push({ text: `${label} — ${issueText(issue, t)}`, q: i });
+    for (const issue of issues) {
+      const { what, why } = issueText(issue, t);
+      lines.push({ what: `${label} — ${what}`, why, q: i });
+    }
   }
   for (const k of scan.missingKeywords) {
     lines.push({
-      text: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`,
+      what: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`,
+      why: t(
+        "직접 '반드시 넣을 소재'로 적어 둔 거예요. 가장 어울리는 문항에 한 문장으로 녹여 주세요.",
+        "You marked this as a must-include point. Work it into the answer where it fits best.",
+        "这是你标记的必写素材。请融入最合适的题目中。",
+        "Bạn đã đánh dấu đây là nội dung bắt buộc. Hãy lồng vào câu phù hợp nhất.",
+        "自分で「必ず入れる要素」に入れたものです。いちばん合う設問に一文で織り込んでください。",
+        "Anda menandainya sebagai poin wajib. Masukkan ke pertanyaan yang paling cocok."
+      ),
       q: null
     });
   }
@@ -827,16 +882,17 @@ function FinalCheckSection({
           {lines.map((line, i) => (
             <li key={`r${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
               {line.q === null ? (
-                <span>• {line.text}</span>
+                <span>• {line.what}</span>
               ) : (
                 <button
                   type="button"
                   onClick={() => onGoQuestion(line.q as number)}
                   className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline"
                 >
-                  • {line.text}
+                  • {line.what}
                 </button>
               )}
+              <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{line.why}</p>
             </li>
           ))}
           {aiLines.map((f, i) => (

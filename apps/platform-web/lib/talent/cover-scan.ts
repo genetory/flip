@@ -9,10 +9,12 @@
 import { findClichePhrases } from "./cliche-phrases";
 import { findCoverOverlaps } from "./cover-overlap";
 
+// '분량 부족'은 뺐다 — 문항마다 걸려서 목록이 길어지고, 길이는 문항 옆 글자 수 막대가
+// 이미 보여 준다. '초과'는 남긴다: 넘치면 제출 자체가 안 되는데, 지금 보고 있지 않은
+// 문항의 초과는 이 목록 말고는 알 길이 없다.
 export type CoverScanIssue =
   | { kind: "empty" }
   | { kind: "over"; length: number; limit: number }
-  | { kind: "under"; length: number; limit: number }
   | { kind: "cliche"; phrases: string[] }
   | { kind: "overlap"; withQuestion: string; shared: string[] };
 
@@ -29,8 +31,15 @@ export type CoverScan = {
 
 export type ScanQuestion = { id: string; prompt: string; limit: number | null; text: string };
 
-/** 분량 '부족' 기준 — 한도의 80% 미만이면 짧다고 본다(기존 최종 점검과 같은 기준). */
-const UNDER_RATIO = 0.8;
+/**
+ * 이 지적이 답변의 어느 글자를 가리키는가 — 형광펜으로 칠할 구절.
+ * 빈 배열이면 가리킬 곳이 없는 지적이다(분량 초과·미달, 미작성은 칠할 글자가 없다).
+ */
+export function coverIssueQuotes(issue: CoverScanIssue): string[] {
+  if (issue.kind === "cliche") return issue.phrases;
+  if (issue.kind === "overlap") return issue.shared;
+  return [];
+}
 
 export function scanCover(questions: ScanQuestion[], keywords: string[], charCount: (s: string) => number): CoverScan {
   const byQuestion = new Map<string, CoverScanIssue[]>();
@@ -52,7 +61,6 @@ export function scanCover(questions: ScanQuestion[], keywords: string[], charCou
     if (q.limit) {
       const n = charCount(body);
       if (n > q.limit) add(q.id, { kind: "over", length: n, limit: q.limit });
-      else if (n < Math.round(q.limit * UNDER_RATIO)) add(q.id, { kind: "under", length: n, limit: q.limit });
     }
 
     const phrases = findClichePhrases(body);
