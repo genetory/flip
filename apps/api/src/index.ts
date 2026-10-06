@@ -6991,6 +6991,93 @@ app.get("/ops/crawlers/history", authenticate, requireRoles([MemberRole.OPERATOR
   }
 });
 
+// ---- ops 유지보수: 대표 이력서 정리 ----------------------------------------
+// GET  /ops/maintenance/primary-resume        → 점검만(쓰기 없음). 몇 명이 대상인지 센다.
+// POST /ops/maintenance/primary-resume {confirm:"APPLY"} → 실제 이관.
+//
+// 왜 엔드포인트로 두나: 프로덕션 DB 는 Azure 내부에서만 접속되므로 로컬에서 스크립트를 돌릴 수
+// 없다. 운영자 권한으로 호출할 수 있게 해 두면 방화벽을 열지 않고도 정리할 수 있다.
+// (같은 로직의 CLI 는 scripts/backfill-primary-resume.ts — 로컬·스테이징용)
+//
+// 안전 규칙은 저장 훅(promoteRenewalResumeToPrimary)과 같다:
+//  1. 리뉴얼 행에 항목이 있을 때만 옮긴다(내용 있는 레거시를 빈 것으로 바꾸지 않는다).
+//  2. 인재풀 동의(poolOptIn)를 새 대표로 승계한다(안 하면 기업 추천에서 조용히 사라진다).
+async function planPrimaryResumeBackfill() {
+  const rows = await prisma.resume.findMany({
+    select: { id: true, userId: true, isPrimary: true, content: true, updatedAt: true },
+    orderBy: { updatedAt: "desc" }
+  });
+  const byUser = new Map<string, typeof rows>();
+  for (const r of rows) byUser.set(r.userId, [...(byUser.get(r.userId) ?? []), r]);
+
+  const asObj = (c: unknown): Record<string, unknown> => (c && typeof c === "object" ? (c as Record<string, unknown>) : {});
+  const isRenewal = (c: unknown) => Object.keys(asObj(c)).some((k) => k.startsWith("renewal"));
+  const itemCount = (c: unknown) => {
+    const d = asObj(asObj(c).renewalResume).items;
+    return Array.isArray(d) ? d.length : 0;
+  };
+
+  const stats = { usersWithRenewal: 0, alreadyPrimary: 0, skippedEmpty: 0, toMove: 0, carryOptIn: 0 };
+  const plan: { userId: string; targetId: string }[] = [];
+  for (const [userId, rs] of byUser) {
+    const ren = rs.find((r) => isRenewal(r.content));
+    if (!ren) continue;
+    stats.usersWithRenewal += 1;
+    if (ren.isPrimary) {
+      stats.alreadyPrimary += 1;
+      continue;
+    }
+    if (itemCount(ren.content) === 0) {
+      stats.skippedEmpty += 1;
+      continue;
+    }
+    const oldPrimary = rs.find((r) => r.isPrimary);
+    if (asObj(oldPrimary?.content).poolOptIn && !asObj(ren.content).poolOptIn) stats.carryOptIn += 1;
+    stats.toMove += 1;
+    plan.push({ userId, targetId: ren.id });
+  }
+  return { stats, plan };
+}
+
+app.get("/ops/maintenance/primary-resume", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const { stats } = await planPrimaryResumeBackfill();
+    return res.json({ ok: true, dryRun: true, ...stats });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.post("/ops/maintenance/primary-resume", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  if (String(req.body?.confirm ?? "") !== "APPLY") {
+    return res.status(400).json({ ok: false, message: 'confirm must equal "APPLY"' });
+  }
+  try {
+    const { stats, plan } = await planPrimaryResumeBackfill();
+    let moved = 0;
+    for (const p of plan) {
+      const target = await prisma.resume.findUnique({ where: { id: p.targetId }, select: { content: true } });
+      if (!target) continue;
+      const oldPrimary = await prisma.resume.findFirst({ where: { userId: p.userId, isPrimary: true }, select: { content: true } });
+      const oldObj = (oldPrimary?.content && typeof oldPrimary.content === "object" ? (oldPrimary.content as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const targetObj = (target.content && typeof target.content === "object" ? (target.content as Record<string, unknown>) : {}) as Record<string, unknown>;
+      const carry = oldObj.poolOptIn && !targetObj.poolOptIn;
+      await prisma.$transaction([
+        prisma.resume.updateMany({ where: { userId: p.userId, isPrimary: true }, data: { isPrimary: false } }),
+        prisma.resume.update({
+          where: { id: p.targetId },
+          data: { isPrimary: true, ...(carry ? { content: { ...targetObj, poolOptIn: oldObj.poolOptIn } as Prisma.InputJsonValue } : {}) }
+        })
+      ]);
+      moved += 1;
+    }
+    await writeAuditLog(req, { action: "BACKFILL_PRIMARY_RESUME", resource: "Resume", metadata: { ...stats, moved } });
+    return res.json({ ok: true, dryRun: false, ...stats, moved });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
 // ---- ops data management (destructive) ------------------------------------
 // Wipes that operators run from the ops dashboard's "데이터 관리" page. Test
 // seed accounts (test@test.com, partner@test.com, student@test.com, and any
@@ -14957,16 +15044,35 @@ app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]),
 async function resolveResumePhoto(content: unknown): Promise<unknown> {
   if (!content || typeof content !== "object") return content;
   const obj = content as Record<string, unknown>;
+  let next = obj;
+
+  // 레거시 폼의 사진.
   const raw = obj.basicPhotoUrl;
-  if (typeof raw !== "string" || !raw.trim()) return content;
-  try {
-    const url = await uploadDataUrlImageIfNeeded(raw, "resumes/photos");
-    return { ...obj, basicPhotoUrl: url };
-  } catch {
-    // Fall back to keeping the original value (the data URL would be
-    // huge on the row but we still save valid JSON).
-    return content;
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      next = { ...next, basicPhotoUrl: await uploadDataUrlImageIfNeeded(raw, "resumes/photos") };
+    } catch {
+      // 올리기 실패해도 저장은 막지 않는다(원래 값 유지). 다음 저장에 다시 시도된다.
+    }
   }
+
+  // 리뉴얼 에디터의 사진(renewalBasicInfo.photoUrl) — 예전에는 여기를 안 봤다.
+  // 그 결과 base64 data URL 이 그대로 jsonb 에 들어가고, **저장할 때마다 통째로 재전송**됐다.
+  // 실제로 로컬에서 한 행의 renewalBasicInfo 가 974KB(전체 1,010KB 의 96%)였다 —
+  // 타이핑을 멈출 때마다(700ms 디바운스) 1MB 를 올리고 있었다.
+  const basic = next.renewalBasicInfo;
+  if (basic && typeof basic === "object") {
+    const b = basic as Record<string, unknown>;
+    const photo = b.photoUrl;
+    if (typeof photo === "string" && photo.startsWith("data:")) {
+      try {
+        next = { ...next, renewalBasicInfo: { ...b, photoUrl: await uploadDataUrlImageIfNeeded(photo, "resumes/photos") } };
+      } catch {
+        /* 위와 같다 — 저장을 막지 않는다 */
+      }
+    }
+  }
+  return next;
 }
 
 // 이력서 저장 시 강제하는 최소 필수 필드. 폼이 `*` 로 마킹한 항목들과 1:1
