@@ -475,9 +475,10 @@ function Inspector(props: {
         review={props.review}
         onRunReview={props.onRunReview}
         reviewableCount={props.reviewableCount}
-        onGoQuestion={(n) => {
-          props.onSelect(null);
+        textOf={props.textOf}
+        onGoQuestion={(n, episodeId) => {
           props.onActiveQ(n);
+          props.onSelect(episodeId ?? null);
         }}
       />
     </aside>
@@ -939,6 +940,7 @@ function FinalCheckSection({
   review,
   onRunReview,
   reviewableCount,
+  textOf,
   onGoQuestion
 }: {
   t: PlatformT;
@@ -947,8 +949,9 @@ function FinalCheckSection({
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
   reviewableCount: number;
-  /** 문제가 있는 문항으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
-  onGoQuestion: (q: number) => void;
+  textOf: (id: string) => string;
+  /** 문제가 있는 문항(과 아는 경우 그 에피소드)으로 바로 이동 — 사용자가 찾아다니지 않게. */
+  onGoQuestion: (q: number, episodeId?: string | null) => void;
 }) {
   // 예전에는 이 안에서 검사를 직접 다시 구현했고 그 과정에서 '문항 간 내용 중복'이 빠져 있었다.
   // 지금은 화면 위쪽에서 cover-scan 으로 한 번 계산해 내려받는다 — 본문 표시·배지·이 목록이 같은 근거를 쓴다.
@@ -979,10 +982,19 @@ function FinalCheckSection({
     });
   }
   // AI 지적은 아래에 모은다 — 규칙 결과(바로 고칠 수 있는 것)를 먼저 보게.
+  //
+  // 점검 단위는 문항이지만 고치는 단위는 에피소드다. 문항까지만 데려다 주면 긴 답변 중
+  // 어디를 고칠지는 사용자가 다시 찾아야 한다. 인용 구절이 어느 에피소드에 있는지 찾아
+  // 그 에피소드까지 열어 준다(못 찾으면 예전처럼 문항까지만).
   const qIndexOf = new Map(layout.questions.map((q, i) => [q.id, i]));
   const aiLines = review.findings
     .filter((f) => qIndexOf.has(f.id))
-    .map((f) => ({ q: qIndexOf.get(f.id) as number, issue: f.issue, fix: f.fix }));
+    .map((f) => {
+      const qi = qIndexOf.get(f.id) as number;
+      const blocks = layout.questions[qi]?.blocks ?? [];
+      const episodeId = f.quote ? blocks.find((bid) => textOf(bid).includes(f.quote)) ?? null : null;
+      return { q: qi, issue: f.issue, fix: f.fix, episodeId };
+    });
 
   return (
     <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${scan.filledPercent}%`}>
@@ -1012,7 +1024,7 @@ function FinalCheckSection({
           ))}
           {aiLines.map((f, i) => (
             <li key={`a${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
-              <button type="button" onClick={() => onGoQuestion(f.q)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+              <button type="button" onClick={() => onGoQuestion(f.q, f.episodeId)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
                 • {t("AI", "AI")} · {f.q + 1}. {layout.questions[f.q]?.prompt.slice(0, 14)} — {f.issue}
               </button>
               {f.fix ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{f.fix}</p> : null}

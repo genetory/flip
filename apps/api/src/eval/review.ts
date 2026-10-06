@@ -188,6 +188,8 @@ async function main() {
     let unknownId = 0;
     let callFailed = 0;
     let withQuote = 0; // 원문 검증을 통과한 인용 수(이게 곧 형광펜이 칠해지는 지적 수)
+    // AI 가 제안 문장에 원문에 없는 숫자를 넣으면, 사용자가 그대로 베껴 쓸 때 거짓이 들어간다.
+    const invented: string[] = [];
 
     for (let i = 0; i < REPEAT; i++) {
       const r = await generateJson<{ findings?: unknown }>({
@@ -218,6 +220,14 @@ async function main() {
           runsWith[f.id] = (runsWith[f.id] ?? 0) + 1;
         }
         if (f.quote) withQuote += 1;
+        {
+          const body = c.texts.get(f.id) ?? "";
+          const bodyNums = new Set(body.match(/\d+(?:[.,]\d+)?/g) ?? []);
+          for (const n of f.fix.match(/\d+(?:[.,]\d+)?/g) ?? []) {
+            // '한 줄', '2~3개' 같은 안내용 작은 수는 날조가 아니다.
+            if (Number(n) > 3 && !bodyNums.has(n)) invented.push(`${f.id}: "${f.fix.slice(0, 60)}" ← 원문에 없는 숫자 ${n}`);
+          }
+        }
         if (DUP_WORDS.test(f.issue)) {
           dup += 1;
           notes.push(`[규칙중복] ${f.id}: ${f.issue}`);
@@ -227,16 +237,19 @@ async function main() {
 
     const missed = c.mustHit.filter((id) => (runsWith[id] ?? 0) < REPEAT);
     const falsePos = c.neverHit.filter((id) => (runsWith[id] ?? 0) > 0);
-    const ok = missed.length === 0 && falsePos.length === 0 && dup === 0 && callFailed === 0;
+    // 사실 날조는 어떤 경우에도 통과시키지 않는다 — 사용자 글에 없는 내용이 들어가는 일이다.
+    const ok = missed.length === 0 && falsePos.length === 0 && dup === 0 && callFailed === 0 && invented.length === 0;
     if (!ok) failed += 1;
     console.log(`\n${ok ? "PASS" : "FAIL"}  ${c.name}`);
     console.log(
       `  지적 ${total}건 · 규칙중복 ${dup} · 모르는 id ${unknownId}` +
-        `${total ? ` · 원문에 있는 인용 ${withQuote}/${total}` : ""}${callFailed ? ` · 호출 실패 ${callFailed}/${REPEAT}` : ""}`
+        `${total ? ` · 원문에 있는 인용 ${withQuote}/${total}` : ""}` +
+        `${callFailed ? ` · 호출 실패 ${callFailed}/${REPEAT}` : ""}`
     );
     console.log(`  적중: ${Object.entries(runsWith).map(([k, v]) => `${k}=${v}/${REPEAT}`).join(" ") || "(0건)"}`);
     if (missed.length) console.log(`  누락: ${missed.join(", ")} (매 회 잡아야 함)`);
     if (falsePos.length) console.log(`  오탐: ${falsePos.join(", ")} ← 멀쩡한 글을 지적했다`);
+    for (const x of invented) console.log(`  사실 날조: ${x}`);
     for (const n of notes) console.log("   ·", n);
   }
 
