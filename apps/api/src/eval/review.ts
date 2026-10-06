@@ -10,7 +10,16 @@
 //   npm run eval:review                      # 기본 모델(= 프로덕션 docReviewModel)
 //   REPEAT=6 npm run eval:review             # 반복 늘리기
 //   MODEL=gpt-4o-mini npm run eval:review    # 모델 바꿔 비교
+//   ONLY="잘 쓴" npm run eval:review          # 케이스 좁히기(비용 절약)
+//   AGREE=2 npm run eval:review              # 두 번 돌려 교집합만(오탐 억제, 호출 2배)
 //   npm run eval:review -- --dry             # 프롬프트만 출력(모델 호출 없음, 비용 0)
+//
+// ── 측정 기록 (gpt-4o, 2026-10) ──────────────────────────────
+// 오탐(잘 쓴 글을 지적)은 이 기능의 최대 위험이라 따로 재 왔다.
+//   자소서 프롬프트에 '잘 쓴 답변' 기준을 넣기 전: 6회 중 1회.
+//   넣은 뒤: '전부 잘 쓴' 케이스 이력서 10회·자소서 18회 연속 0회, 다른 케이스 포함 1/32 수준.
+// 그래서 AGREE=2(호출 2배)는 평소에는 켜지 않는다 — 이 비율에서는 값을 못 한다.
+// 사용자 제보가 들어오면 ONLY/REPEAT 로 먼저 재현부터 하고, 안 되면 AGREE 나 모델 상향을 본다.
 import { config as loadDotenv } from "dotenv";
 loadDotenv();
 loadDotenv({ path: "../../.env" });
@@ -22,6 +31,12 @@ const REPEAT = Number(process.env.REPEAT ?? 4);
 // 프로덕션 기본값(index.ts docReviewModel)과 같게 둔다 — 다른 모델 변수를 섞지 않는다.
 const MODEL = process.env.MODEL ?? process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
 const DRY = process.argv.includes("--dry");
+/** AGREE=2 면 한 번 재는 데 두 번 돌려 **양쪽에서 모두 지적된 블록만** 남긴다.
+ *  오탐은 확률적으로 나오고(측정상 6회 중 1회) 진짜 지적은 매번 나오므로, 교집합을 쓰면
+ *  오탐만 선택적으로 걸러진다. 대가는 호출 2배. 효과가 있는지 재보려고 둔 스위치다. */
+const AGREE = Math.max(1, Number(process.env.AGREE ?? 1));
+/** ONLY=부분문자열 로 케이스를 좁힌다(비용 절약). */
+const ONLY = process.env.ONLY ?? "";
 
 // 규칙 점검(platform-web/lib/talent/*-scan.ts)이 이미 보여 주는 지적을 AI 가 또 했는지 — 문구로 본다.
 const DUP_WORDS = /숫자|수치|정량|짧|길이|글자 ?수|기간|날짜|말투|문체|어미|했습니다|중복|겹치|상투/;
@@ -175,10 +190,11 @@ async function main() {
     process.exit(1);
   }
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  console.log(`모델 ${MODEL} · 케이스당 ${REPEAT}회`);
+  console.log(`모델 ${MODEL} · 케이스당 ${REPEAT}회${AGREE > 1 ? ` · 합의 ${AGREE}회` : ""}${ONLY ? ` · "${ONLY}" 만` : ""}`);
   let failed = 0;
 
   for (const c of CASES) {
+    if (ONLY && !c.name.includes(ONLY)) continue;
     const { system, user } = c.build();
     const allowed = new Set(c.ids);
     const runsWith: Record<string, number> = {};
@@ -192,15 +208,21 @@ async function main() {
     const invented: string[] = [];
 
     for (let i = 0; i < REPEAT; i++) {
-      const r = await generateJson<{ findings?: unknown }>({
-        openai,
-        model: MODEL,
-        temperature: 0.2,
-        system,
-        user,
-        schema: REVIEW_FINDINGS_SCHEMA,
-        schemaName: `review_${c.kind}`
-      });
+      // AGREE 번 돌려 블록 id 교집합만 남긴다(AGREE=1 이면 예전과 같다).
+      const rounds = await Promise.all(
+        Array.from({ length: AGREE }, () =>
+          generateJson<{ findings?: unknown }>({
+            openai,
+            model: MODEL,
+            temperature: 0.2,
+            system,
+            user,
+            schema: REVIEW_FINDINGS_SCHEMA,
+            schemaName: `review_${c.kind}`
+          })
+        )
+      );
+      const r = rounds[0];
       // 호출 자체가 실패한 것과 '지적 0건'은 전혀 다르다. 구분하지 않으면 접근 권한이 없는
       // 모델이 '전부 잘 쓴 문서' 케이스를 통과해 버린다(실제로 한 번 그렇게 속았다).
       if (!r.data) {
@@ -210,7 +232,11 @@ async function main() {
       }
       // 정규화 전/후를 비교해 '모르는 id' 가 얼마나 오는지도 센다(화면이 엉뚱한 곳을 표시할 위험).
       const rawCount = Array.isArray(r.data.findings) ? (r.data.findings as unknown[]).length : 0;
-      const findings = normalizeReviewFindings(r.data.findings, allowed, 8, c.texts);
+      let findings = normalizeReviewFindings(r.data.findings, allowed, 8, c.texts);
+      for (const other of rounds.slice(1)) {
+        const ids = new Set(normalizeReviewFindings(other.data?.findings, allowed, 8, c.texts).map((f) => f.id));
+        findings = findings.filter((f) => ids.has(f.id));
+      }
       unknownId += Math.max(0, rawCount - findings.length);
       const seen = new Set<string>();
       for (const f of findings) {
