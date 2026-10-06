@@ -39,7 +39,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -88,7 +88,9 @@ function Editor({ doc }: { doc: CoverDoc }) {
     const textOfId = (id: string) => doc.items.find((i) => i.id === id)?.text ?? "";
     return new Map((layout?.questions ?? []).map((q) => [q.id, answerText(q.blocks.map(textOfId))]));
   }, [doc, layout]);
-  const review = useAiReview(answers);
+  const review = useAiReview("cover", answers);
+  // 치워 둔 지적 — 목록에서도 본문 형광펜에서도 빠진다(남은 할 일만 보이게).
+  const hiddenIssues = useHiddenIssues("cover");
   // 답변이 빈 문항은 보내지 않는다 — AI 가 '비어 있다'고 지적하면 규칙 점검('아직 작성 안 됨')과
   // 같은 말이 두 번 나온다. 프롬프트로 금지해도 넘어와서, 입력에서 빼는 쪽으로 막는다.
   const reviewable = (layout?.questions ?? []).filter((q) => (answers.get(q.id) ?? "").trim());
@@ -105,10 +107,16 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const flaggedQuestions = useMemo(() => {
     const m = new Map<string, string[]>();
     const add = (id: string, quotes: string[]) => m.set(id, [...(m.get(id) ?? []), ...quotes.filter(Boolean)]);
-    for (const [id, issues] of scan?.byQuestion ?? []) add(id, issues.flatMap(coverIssueQuotes));
-    for (const f of review.findings) add(f.id, f.quote ? [f.quote] : []);
+    for (const [id, issues] of scan?.byQuestion ?? []) {
+      const live = issues.filter((x) => !hiddenIssues.hidden.has(coverIssueKey(id, x)));
+      if (live.length) add(id, live.flatMap(coverIssueQuotes));
+    }
+    for (const f of review.findings) {
+      if (hiddenIssues.hidden.has(`ai:${f.id}:${f.issue}`)) continue;
+      add(f.id, f.quote ? [f.quote] : []);
+    }
     return m;
-  }, [scan, review.findings]);
+  }, [scan, review.findings, hiddenIssues.hidden]);
 
   if (!working || !current || !layout || !scan) {
     return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
@@ -261,6 +269,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           scan={scan}
           review={review}
           onRunReview={runReview}
+          hiddenIssues={hiddenIssues}
           reviewableCount={reviewable.length}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
@@ -439,6 +448,7 @@ function Inspector(props: {
   scan: CoverScan;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  hiddenIssues: ReturnType<typeof useHiddenIssues>;
   /** AI 에 보낼 수 있는(답변이 있는) 문항 수 — 0 이면 버튼을 막는다. */
   reviewableCount: number;
   onLayout: (next: ResolvedCover) => void;
@@ -478,6 +488,7 @@ function Inspector(props: {
         scan={props.scan}
         review={props.review}
         onRunReview={props.onRunReview}
+        hiddenIssues={props.hiddenIssues}
         reviewableCount={props.reviewableCount}
         textOf={props.textOf}
         onGoQuestion={(n, episodeId) => {
@@ -876,6 +887,14 @@ function buildScan(doc: CoverDoc, layout: ResolvedCover, textOf: (id: string) =>
   );
 }
 
+/** 지적 1건의 키 — 치워 둔 것을 알아보는 데 쓴다. 내용이 들어가야 답변을 고쳐 다른
+ *  지적이 나왔을 때 키가 달라져 다시 보인다. */
+function coverIssueKey(id: string, issue: CoverScanIssue): string {
+  const detail =
+    issue.kind === "cliche" ? issue.phrases.join(",") : issue.kind === "overlap" ? issue.shared.join(",") : issue.kind === "over" ? String(issue.length) : "";
+  return `rule:${id}:${issue.kind}:${detail}`;
+}
+
 /**
  * 문제 1건을 사람이 읽는 두 줄로 — 무엇이 걸렸는지(what)와 왜·어떻게(why).
  * 지적만 던지면 고치는 방향을 모른다. 이유가 있어야 납득하고 고친다.
@@ -944,6 +963,7 @@ function FinalCheckSection({
   scan,
   review,
   onRunReview,
+  hiddenIssues,
   reviewableCount,
   textOf,
   onGoQuestion
@@ -953,6 +973,7 @@ function FinalCheckSection({
   scan: CoverScan;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  hiddenIssues: ReturnType<typeof useHiddenIssues>;
   reviewableCount: number;
   textOf: (id: string) => string;
   /** 문제가 있는 문항(과 아는 경우 그 에피소드)으로 바로 이동 — 사용자가 찾아다니지 않게. */
@@ -961,18 +982,22 @@ function FinalCheckSection({
   // 예전에는 이 안에서 검사를 직접 다시 구현했고 그 과정에서 '문항 간 내용 중복'이 빠져 있었다.
   // 지금은 화면 위쪽에서 cover-scan 으로 한 번 계산해 내려받는다 — 본문 표시·배지·이 목록이 같은 근거를 쓴다.
   // 줄마다 어느 문항인지 들고 다닌다 — 눌러서 그 문항으로 바로 갈 수 있게.
-  const lines: { what: string; why: string; q: number | null }[] = [];
+  const lines: { what: string; why: string; q: number | null; key: string }[] = [];
   for (const [i, question] of layout.questions.entries()) {
     const issues = scan.byQuestion.get(question.id);
     if (!issues?.length) continue;
     const label = `${i + 1}. ${question.prompt.slice(0, 18)}`;
     for (const issue of issues) {
+      const key = coverIssueKey(question.id, issue);
+      if (hiddenIssues.hidden.has(key)) continue;
       const { what, why } = issueText(issue, t);
-      lines.push({ what: `${label} — ${what}`, why, q: i });
+      lines.push({ what: `${label} — ${what}`, why, q: i, key });
     }
   }
   for (const k of scan.missingKeywords) {
+    if (hiddenIssues.hidden.has(`kw:${k}`)) continue;
     lines.push({
+      key: `kw:${k}`,
       // '「…」가 본문에' 처럼 조사를 붙이면 외래어에서 틀린다("Python가"). 다른 줄과 같은 '— ' 형식으로 쓴다.
       what: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 — ${t("본문에 없어요", "missing from the text", "正文中未出现", "chưa có trong bài", "本文にありません", "belum ada di teks")}`,
       why: t(
@@ -993,13 +1018,38 @@ function FinalCheckSection({
   // 그 에피소드까지 열어 준다(못 찾으면 예전처럼 문항까지만).
   const qIndexOf = new Map(layout.questions.map((q, i) => [q.id, i]));
   const aiLines = review.findings
-    .filter((f) => qIndexOf.has(f.id))
+    .filter((f) => qIndexOf.has(f.id) && !hiddenIssues.hidden.has(`ai:${f.id}:${f.issue}`))
     .map((f) => {
       const qi = qIndexOf.get(f.id) as number;
       const blocks = layout.questions[qi]?.blocks ?? [];
       const episodeId = f.quote ? blocks.find((bid) => textOf(bid).includes(f.quote)) ?? null : null;
-      return { q: qi, issue: f.issue, fix: f.fix, episodeId };
+      return { q: qi, issue: f.issue, fix: f.fix, episodeId, key: `ai:${f.id}:${f.issue}` };
     });
+
+  // 한 줄 = 무엇이 걸렸나 + 왜·어떻게 + 치우기(×). × 는 마우스를 올렸을 때만 보인다.
+  const row = (rk: string, hideKey: string, what: string, why: string, go: (() => void) | null) => (
+    <li key={rk} className="group/row break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+      <div className="flex items-start gap-1">
+        {go ? (
+          <button type="button" onClick={go} className="min-w-0 flex-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+            • {what}
+          </button>
+        ) : (
+          <span className="min-w-0 flex-1">• {what}</span>
+        )}
+        <button
+          type="button"
+          onClick={() => hiddenIssues.hide(hideKey)}
+          aria-label={t("이 지적 치우기", "Dismiss", "收起该提示", "Bỏ qua", "この指摘を片づける", "Sembunyikan")}
+          title={t("안 고치기로 했다면 치워 두세요. 내용을 고치면 다시 보여요.", "Dismiss if you won't act on it. It returns if you edit the text.", "若不打算修改可收起。修改内容后会再次出现。", "Bỏ qua nếu không sửa. Sẽ hiện lại khi bạn sửa nội dung.", "直さないなら片づけてください。内容を直すと再び表示されます。", "Sembunyikan jika tidak akan diubah. Muncul lagi bila teks diubah.")}
+          className="mt-[1px] shrink-0 rounded px-1 text-[12px] leading-none text-[#C4CAD2] opacity-0 transition group-hover/row:opacity-100 hover:text-[#8B95A1]"
+        >
+          ×
+        </button>
+      </div>
+      {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
+    </li>
+  );
 
   return (
     <Section title={`${t("제출 전 최종 점검", "Final check", "提交前检查", "Kiểm tra cuối", "提出前チェック", "Cek akhir")} · ${scan.filledPercent}%`}>
@@ -1011,30 +1061,10 @@ function FinalCheckSection({
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {lines.map((line, i) => (
-            <li key={`r${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
-              {line.q === null ? (
-                <span>• {line.what}</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onGoQuestion(line.q as number)}
-                  className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline"
-                >
-                  • {line.what}
-                </button>
-              )}
-              <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{line.why}</p>
-            </li>
-          ))}
-          {aiLines.map((f, i) => (
-            <li key={`a${i}`} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
-              <button type="button" onClick={() => onGoQuestion(f.q, f.episodeId)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
-                • {t("AI", "AI")} · {f.q + 1}. {layout.questions[f.q]?.prompt.slice(0, 14)} — {f.issue}
-              </button>
-              {f.fix ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{f.fix}</p> : null}
-            </li>
-          ))}
+          {lines.map((line, i) => row(`r${i}`, line.key, line.what, line.why, line.q === null ? null : () => onGoQuestion(line.q as number)))}
+          {aiLines.map((f, i) =>
+            row(`a${i}`, f.key, `${t("AI", "AI")} · ${f.q + 1}. ${layout.questions[f.q]?.prompt.slice(0, 14)} — ${f.issue}`, f.fix, () => onGoQuestion(f.q, f.episodeId))
+          )}
         </ul>
       )}
 
@@ -1052,6 +1082,11 @@ function FinalCheckSection({
             : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
       </button>
       {review.error ? <p className="text-[11.5px] leading-relaxed text-[#F04452]">{review.error}</p> : null}
+      {hiddenIssues.hiddenCount > 0 ? (
+        <button type="button" onClick={hiddenIssues.showAll} className="self-start text-[11px] text-[#8B95A1] underline-offset-2 hover:text-[#4E5968] hover:underline">
+          {t(`치워 둔 ${hiddenIssues.hiddenCount}개 다시 보기`, `Show ${hiddenIssues.hiddenCount} dismissed`, `显示已收起的 ${hiddenIssues.hiddenCount} 条`, `Xem lại ${hiddenIssues.hiddenCount} mục đã bỏ`, `片づけた ${hiddenIssues.hiddenCount} 件を表示`, `Tampilkan ${hiddenIssues.hiddenCount} yang disembunyikan`)}
+        </button>
+      ) : null}
       <p className="text-[11px] leading-relaxed text-[#B0B8C1]">
         {t(
           "AI 점검은 눌렀을 때만 돌아요. 답변을 고치면 그 문항의 지적은 사라져요.",

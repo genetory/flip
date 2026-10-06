@@ -44,7 +44,7 @@ import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } 
 import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume } from "../../../lib/resume-maker-client";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -98,7 +98,9 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
 
   // AI 점검 — 버튼을 눌렀을 때만 돈다. 규칙 점검과 같은 표시 체계에 얹는다.
   const texts = useMemo(() => new Map(doc.items.map((it) => [it.id, it.text ?? ""])), [doc.items]);
-  const review = useAiReview(texts);
+  const review = useAiReview("resume", texts);
+  // 치워 둔 지적 — 목록에서도 본문 형광펜에서도 빠진다(남은 할 일만 보이게).
+  const hiddenIssues = useHiddenIssues("resume");
   const runReview = () =>
     void review.run(() =>
       reviewResume({
@@ -124,10 +126,16 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   const flagged = useMemo(() => {
     const m = new Map<string, string[]>();
     const add = (id: string, quotes: string[]) => m.set(id, [...(m.get(id) ?? []), ...quotes.filter(Boolean)]);
-    for (const [id, issues] of scan.byItem) add(id, issues.flatMap(resumeIssueQuotes));
-    for (const f of review.findings) add(f.id, f.quote ? [f.quote] : []);
+    for (const [id, issues] of scan.byItem) {
+      const live = issues.filter((x) => !hiddenIssues.hidden.has(issueKey(id, x)));
+      if (live.length) add(id, live.flatMap(resumeIssueQuotes));
+    }
+    for (const f of review.findings) {
+      if (hiddenIssues.hidden.has(`ai:${f.id}:${f.issue}`)) continue;
+      add(f.id, f.quote ? [f.quote] : []);
+    }
     return m;
-  }, [scan, review.findings]);
+  }, [scan, review.findings, hiddenIssues.hidden]);
 
   // ── 드래그 앤 드롭 ──
   const interaction: EditorInteraction | undefined = layout
@@ -261,6 +269,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onGoItem={goItem}
           review={review}
           onRunReview={runReview}
+          hiddenIssues={hiddenIssues}
         />
       </div>
       <PrintCopy doc={doc} info={info} layout={layout} />
@@ -409,6 +418,7 @@ function Inspector(props: {
   onGoItem: (id: string) => void;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  hiddenIssues: ReturnType<typeof useHiddenIssues>;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
@@ -422,7 +432,7 @@ function Inspector(props: {
       {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
           UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
-      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
+      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} hiddenIssues={props.hiddenIssues} />
 
       {id ? (
         <>
@@ -569,6 +579,12 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
 
 // ── 조각 ─────────────────────────────────────────────────────
 
+/** 지적 1건의 키 — 치워 둔 것을 알아보는 데 쓴다. 종류와 내용을 같이 넣어야,
+ *  글을 고쳐 다른 지적이 나왔을 때 키가 달라져 다시 보인다. */
+function issueKey(id: string, issue: ResumeScanIssue): string {
+  return `rule:${id}:${issue.kind}:${"sample" in issue ? issue.sample : "shared" in issue ? issue.shared.join(",") : ""}`;
+}
+
 /**
  * 문제 1건을 사람이 읽는 두 줄로 — 무엇이 걸렸는지(what)와 왜·어떻게(why).
  * "기간이 없어요"만 보면 고치라는 건지 알아도 왜 중요한지는 모른다. 지적은 이유가 있어야
@@ -639,7 +655,8 @@ function ResumeCheckSection({
   scan,
   onGoItem,
   review,
-  onRunReview
+  onRunReview,
+  hiddenIssues
 }: {
   t: PlatformT;
   doc: ResumeDoc;
@@ -647,6 +664,7 @@ function ResumeCheckSection({
   onGoItem: (id: string) => void;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  hiddenIssues: ReturnType<typeof useHiddenIssues>;
 }) {
   // 문서 순서대로 — 사용자가 위에서 아래로 훑으며 고칠 수 있게.
   const byId = new Map(doc.items.map((it) => [it.id, it]));
@@ -655,22 +673,39 @@ function ResumeCheckSection({
     if (!it) return "";
     return ((it.company ?? "").trim() || (it.text ?? "").trim()).slice(0, 14) || sectionLabelOf(t, it.section);
   };
-  const lines: { id: string; what: string; why: string }[] = [];
+  const lines: { id: string; what: string; why: string; key: string }[] = [];
   for (const it of doc.items) {
     for (const issue of scan.byItem.get(it.id) ?? []) {
+      const key = issueKey(it.id, issue);
+      if (hiddenIssues.hidden.has(key)) continue;
       const { what, why } = resumeIssueText(issue, t);
-      lines.push({ id: it.id, what: `${labelOf(it.id)} — ${what}`, why });
+      lines.push({ id: it.id, what: `${labelOf(it.id)} — ${what}`, why, key });
     }
   }
   // AI 지적은 아래에 모은다 — 규칙 결과(즉시 고칠 수 있는 것)를 먼저 보게.
-  const aiLines = review.findings.filter((f) => byId.has(f.id));
+  const aiLines = review.findings
+    .filter((f) => byId.has(f.id))
+    .map((f) => ({ ...f, key: `ai:${f.id}:${f.issue}` }))
+    .filter((f) => !hiddenIssues.hidden.has(f.key));
 
-  // 한 줄 = 무엇이 걸렸나(누르면 그 항목으로) + 왜·어떻게(회색 보조 줄).
-  const row = (key: string, id: string, what: string, why: string) => (
-    <li key={key} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
-      <button type="button" onClick={() => onGoItem(id)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
-        • {what}
-      </button>
+  // 한 줄 = 무엇이 걸렸나(누르면 그 항목으로) + 왜·어떻게(회색 보조 줄) + 치우기(×).
+  // × 는 마우스를 올렸을 때만 보인다 — 늘 떠 있으면 '지우기'처럼 보여서 누르기 겁난다.
+  const row = (rk: string, hideKey: string, id: string, what: string, why: string) => (
+    <li key={rk} className="group/row break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+      <div className="flex items-start gap-1">
+        <button type="button" onClick={() => onGoItem(id)} className="min-w-0 flex-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+          • {what}
+        </button>
+        <button
+          type="button"
+          onClick={() => hiddenIssues.hide(hideKey)}
+          aria-label={t("이 지적 치우기", "Dismiss", "收起该提示", "Bỏ qua", "この指摘を片づける", "Sembunyikan")}
+          title={t("안 고치기로 했다면 치워 두세요. 내용을 고치면 다시 보여요.", "Dismiss if you won't act on it. It returns if you edit the text.", "若不打算修改可收起。修改内容后会再次出现。", "Bỏ qua nếu không sửa. Sẽ hiện lại khi bạn sửa nội dung.", "直さないなら片づけてください。内容を直すと再び表示されます。", "Sembunyikan jika tidak akan diubah. Muncul lagi bila teks diubah.")}
+          className="mt-[1px] shrink-0 rounded px-1 text-[12px] leading-none text-[#C4CAD2] opacity-0 transition group-hover/row:opacity-100 hover:text-[#8B95A1]"
+        >
+          ×
+        </button>
+      </div>
       {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
     </li>
   );
@@ -685,8 +720,8 @@ function ResumeCheckSection({
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {lines.map((line, i) => row(`r${i}`, line.id, line.what, line.why))}
-          {aiLines.map((f, i) => row(`a${i}`, f.id, `${t("AI", "AI")} · ${labelOf(f.id)} — ${f.issue}`, f.fix))}
+          {lines.map((line, i) => row(`r${i}`, line.key, line.id, line.what, line.why))}
+          {aiLines.map((f, i) => row(`a${i}`, f.key, f.id, `${t("AI", "AI")} · ${labelOf(f.id)} — ${f.issue}`, f.fix))}
         </ul>
       )}
 
@@ -704,6 +739,11 @@ function ResumeCheckSection({
             : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
       </button>
       {review.error ? <p className="text-[11.5px] leading-relaxed text-[#F04452]">{review.error}</p> : null}
+      {hiddenIssues.hiddenCount > 0 ? (
+        <button type="button" onClick={hiddenIssues.showAll} className="self-start text-[11px] text-[#8B95A1] underline-offset-2 hover:text-[#4E5968] hover:underline">
+          {t(`치워 둔 ${hiddenIssues.hiddenCount}개 다시 보기`, `Show ${hiddenIssues.hiddenCount} dismissed`, `显示已收起的 ${hiddenIssues.hiddenCount} 条`, `Xem lại ${hiddenIssues.hiddenCount} mục đã bỏ`, `片づけた ${hiddenIssues.hiddenCount} 件を表示`, `Tampilkan ${hiddenIssues.hiddenCount} yang disembunyikan`)}
+        </button>
+      ) : null}
       <p className="text-[11px] leading-relaxed text-[#B0B8C1]">
         {t(
           "AI 점검은 눌렀을 때만 돌아요. 내용을 고치면 그 항목의 지적은 사라져요.",
