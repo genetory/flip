@@ -8,14 +8,14 @@
 import type { ResumeItem } from "./resume-doc";
 import { findCoverOverlaps } from "./cover-overlap";
 
+// 어떤 검사를 넣지 '않는지'가 중요하다. '성과 수치가 없다'·'너무 짧다' 는 항목마다 걸려서
+// 목록이 금세 열 줄이 넘고, 그러면 사용자는 목록 자체를 안 읽는다. 그런 건 AI 점검이
+// "이 문장은 무엇을 했는지가 없다"처럼 **이유와 함께** 짚어 주는 쪽이 낫다.
+// 여기 남긴 것은 전부 '보면 바로 알고, 자주는 안 걸리는' 것들이다.
 export type ResumeScanIssue =
   | { kind: "empty" }
-  /** 경력·프로젝트·활동인데 한 일만 있고 결과(수치)가 없다. */
-  | { kind: "noNumber" }
   /** 기간을 쓰는 섹션인데 비어 있다. */
   | { kind: "noPeriod" }
-  /** 내용이 너무 짧아 읽는 사람이 판단할 수 없다. */
-  | { kind: "tooShort"; length: number }
   /** 이력서체가 아닌 대화체 종결(…했어요 / …했습니다). */
   | { kind: "spoken"; sample: string }
   /** 다른 항목과 내용이 겹친다. */
@@ -28,19 +28,21 @@ export type ResumeScan = {
 
 /** 기간을 기대하는 섹션(스킬·어학은 기간이 없는 게 정상이다). */
 const DATE_SECTIONS = new Set(["education", "experience", "project", "activity", "certificate", "award"]);
-/** 성과 수치를 기대하는 섹션 — 학력·자격증에 숫자를 요구하면 오탐이다. */
-const RESULT_SECTIONS = new Set(["experience", "project", "activity"]);
-
-/** 너무 짧다고 보는 길이(공백 제외). 서술이 필요한 섹션에만 적용한다 —
- *  학력("한국대학교 컴퓨터공학 학사")·자격증·스킬은 원래 짧아서 여기 걸면 전부 오탐이 된다. */
-const MIN_CHARS = 20;
 /** 중복 비교 대상이 되는 최소 길이 — 짧은 항목은 우연히 겹친다. */
 const OVERLAP_MIN_CHARS = 60;
-
-const HAS_NUMBER = /\d/;
 // 이력서는 명사형(…함, …개선)으로 끝내는 것이 관례다. 대화체·경어체 종결이 보이면 알려 준다.
 // 어간을 일일이 나열하면("했습니다"만) "만들었습니다" 같은 변형을 놓친다 → 어미로 잡는다.
 const SPOKEN_END = /(?:습니다|읍니다|어요|아요|해요|예요|에요|네요|죠)[.!?]?\s*$/;
+
+/**
+ * 이 지적이 본문의 어느 글자를 가리키는가 — 형광펜으로 칠할 구절.
+ * 빈 배열이면 가리킬 곳이 없는 지적이다('수치가 없다'처럼 **빠진 것**은 칠할 글자가 없다).
+ */
+export function resumeIssueQuotes(issue: ResumeScanIssue): string[] {
+  if (issue.kind === "spoken") return [issue.sample];
+  if (issue.kind === "overlap") return issue.shared;
+  return [];
+}
 
 export function scanResume(items: ResumeItem[]): ResumeScan {
   const byItem = new Map<string, ResumeScanIssue[]>();
@@ -57,15 +59,8 @@ export function scanResume(items: ResumeItem[]): ResumeScan {
       continue;
     }
 
-    const bare = text.replace(/\s/g, "");
-    if (RESULT_SECTIONS.has(it.section) && bare.length < MIN_CHARS) add(it.id, { kind: "tooShort", length: bare.length });
-
     if (DATE_SECTIONS.has(it.section) && !(it.startDate ?? "").trim() && !(it.endDate ?? "").trim()) {
       add(it.id, { kind: "noPeriod" });
-    }
-
-    if (RESULT_SECTIONS.has(it.section) && !HAS_NUMBER.test(text)) {
-      add(it.id, { kind: "noNumber" });
     }
 
     // 줄 단위로 본다 — 여러 줄 중 하나만 대화체인 경우가 많다.

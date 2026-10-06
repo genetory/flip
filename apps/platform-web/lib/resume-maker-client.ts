@@ -543,6 +543,61 @@ export async function polishResumeItems(
   return items.map((it, i) => (typeof out[i] === "string" && String(out[i]).trim() ? String(out[i]) : it.text));
 }
 
+// ── 문서 전체 점검(AI) ────────────────────────────────────────────────
+// 에디터에서 '전체 점검' 버튼을 눌렀을 때만 부른다. 저장할 때는 절대 부르지 않는다.
+// 지적은 블록 id 로 돌아오므로 문서 본문의 그 블록에 그대로 표시할 수 있다.
+// 서버가 모르는 id 를 걸러 주지만, 화면에서도 한 번 더 확인한다(엉뚱한 곳에 표시되면 안 된다).
+export type AiReviewFinding = {
+  id: string;
+  severity: "high" | "medium";
+  issue: string;
+  fix: string;
+  /** 지적이 가리키는 원문 구절 — 본문에서 이 글자에 형광펜을 칠한다. 없으면 "". */
+  quote: string;
+};
+
+function parseFindings(payload: unknown, allowed: Set<string>): AiReviewFinding[] {
+  const raw = (payload as { findings?: unknown })?.findings;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f): f is AiReviewFinding => {
+      if (!f || typeof f !== "object") return false;
+      const o = f as Record<string, unknown>;
+      return typeof o.id === "string" && allowed.has(o.id) && typeof o.issue === "string" && o.issue.trim().length > 0;
+    })
+    .map((f) => ({
+      id: f.id,
+      severity: f.severity === "high" ? ("high" as const) : ("medium" as const),
+      issue: f.issue.trim(),
+      fix: (f.fix ?? "").trim(),
+      quote: typeof f.quote === "string" ? f.quote.trim() : ""
+    }));
+}
+
+export async function reviewResume(input: {
+  targetRole?: string;
+  summary?: string;
+  items: { id: string; section: string; company?: string; period?: string; text: string }[];
+}): Promise<AiReviewFinding[]> {
+  const payload = await aiPost<unknown>("/members/me/ai/review-resume", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  });
+  return parseFindings(payload, new Set(input.items.map((i) => i.id)));
+}
+
+export async function reviewCover(input: {
+  company?: string;
+  jobText?: string;
+  questions: { id: string; prompt: string; limit: number | null; text: string }[];
+}): Promise<AiReviewFinding[]> {
+  const payload = await aiPost<unknown>("/members/me/ai/review-cover", {
+    method: "POST",
+    body: JSON.stringify({ ...input, locale: getBrowserLocale() })
+  });
+  return parseFindings(payload, new Set(input.questions.map((q) => q.id)));
+}
+
 // 빈 항목에 AI 초안 쓰기 (POST /members/me/ai/draft-resume-text).
 // member-profile-client 의 postDraftResumeText 와 같은 엔드포인트지만, 그쪽은 402 를
 // 그대로 던진다. 리뉴얼 화면은 포인트 부족 시 충전 모달을 띄워야 하므로 aiPost 를 거쳐

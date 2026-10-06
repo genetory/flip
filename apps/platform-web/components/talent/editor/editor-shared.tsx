@@ -2,10 +2,11 @@
 
 // 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
+import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
   deleteDocVersion,
@@ -386,7 +387,7 @@ export function SavedPanel<L, S>({
 }) {
   const saved = new Date(version.createdAt);
   return (
-    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
+    <aside className="no-print flex w-[336px] shrink-0 flex-col gap-6 overflow-y-auto border-l border-[#E5E8EB] bg-white p-5 [&>*]:shrink-0" aria-label={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
       <Section title={t("저장본", "Saved version", "保存版本", "Bản đã lưu", "保存版", "Versi tersimpan")}>
         <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
           {t("이름", "Name", "名称", "Tên", "名前", "Nama")}
@@ -422,9 +423,71 @@ export function SavedPanel<L, S>({
   );
 }
 
+/**
+ * 전체 점검(AI) 상태 — 버튼을 눌렀을 때만 돈다. 저장할 때는 절대 돌지 않는다
+ * (글 쓰는 중에 모델을 부르면 느려지고, 사용자가 부르지 않은 비용이 나간다).
+ *
+ * 점검 뒤 그 항목의 글이 바뀌면 지적을 내린다 — 이미 고쳤는데 옛 지적이 남아 있으면
+ * 사용자가 같은 곳을 또 고치려 한다. 다시 보려면 버튼을 다시 누르면 된다.
+ *
+ * texts 는 id → 지금 본문. 호출부에서 useMemo 로 만들어 넘긴다.
+ */
+export function useAiReview(texts: Map<string, string>) {
+  const [done, setDone] = useState<{ findings: AiReviewFinding[]; texts: Map<string, string> } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = useCallback(
+    async (fetchFindings: () => Promise<AiReviewFinding[]>) => {
+      setRunning(true);
+      setError(null);
+      try {
+        setDone({ findings: await fetchFindings(), texts: new Map(texts) });
+      } catch (err) {
+        // 포인트·한도 안내는 aiPost 가 따로 띄운다. 여기서는 점검이 실패했다는 것만.
+        setError(err instanceof Error && err.message ? err.message : "점검하지 못했어요.");
+      } finally {
+        setRunning(false);
+      }
+    },
+    [texts]
+  );
+
+  const findings = useMemo(
+    () => (done ? done.findings.filter((f) => done.texts.get(f.id) === texts.get(f.id)) : []),
+    [done, texts]
+  );
+  return { findings, running, error, ran: !!done, run };
+}
+
+/**
+ * 고른 대상이 바뀌면 그 블록이 패널에 보이도록 굴린다.
+ *
+ * 오른쪽 패널 맨 위에는 문서 전체 도구(정리·다듬기·점검)가 늘 있다. 그래서 고른 모듈의
+ * 편집 UI 는 그 아래에 오고, 도구 목록이 길면 화면 밖으로 밀린다. 고른 순간 데려다 주면
+ * 도구를 위에 두면서도 편집이 가려지지 않는다.
+ *
+ * 처음 렌더에서는 굴리지 않는다 — 화면을 열자마자 스크롤이 내려가 있으면 당황스럽다.
+ */
+export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
+  const ref = useRef<T | null>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!key) return;
+    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [key]);
+  return ref;
+}
+
+/** 패널 한 블록. shrink-0 인 이유: 이 블록이 놓이는 패널은 flex 열이면서 스크롤돼서,
+ *  내용이 넘치면 직계 자식이 눌려 안쪽 버튼 높이(h-9/h-10)까지 무시된다. */
 export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {
   return (
-    <section className={`flex flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
+    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
       <h3 className="text-[13px] font-bold">{title}</h3>
       {children}
     </section>
@@ -457,7 +520,8 @@ export function Field({
   multiline,
   rows = 6,
   placeholder,
-  type
+  type,
+  autoFocus
 }: {
   label: string;
   value: string;
@@ -467,9 +531,19 @@ export function Field({
   rows?: number;
   placeholder?: string;
   type?: "text" | "number";
+  /** 방금 '쓰기'로 만든 빈 칸처럼, 사용자가 바로 타이핑할 곳에만 켠다.
+   *  아무 데나 켜면 화면이 열릴 때 멋대로 스크롤이 튄다.
+   *  켜면 그 칸이 보이도록 패널을 굴려 준다 — 위쪽에 전체 도구(정리·점검)가 늘 있어서
+   *  긴 문서에서는 입력란이 접힌 곳 아래에 있을 수 있다. */
+  autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
+  const box = useRef<HTMLLabelElement | null>(null);
+  useEffect(() => {
+    if (!autoFocus) return;
+    box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [autoFocus]);
   const common = {
     value: draft,
     placeholder,
@@ -478,10 +552,11 @@ export function Field({
       onChange?.(e.target.value);
     },
     onBlur: () => onBlurValue?.(draft),
+    autoFocus,
     className: INPUT_CLS
   };
   return (
-    <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
+    <label ref={box} className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
       {label}
       {multiline ? (
         <textarea {...common} rows={rows} className={`${common.className} resize-y py-2.5 leading-relaxed`} />

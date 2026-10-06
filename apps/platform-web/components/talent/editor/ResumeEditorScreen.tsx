@@ -40,11 +40,11 @@ import {
   type ResolvedLayout
 } from "../../../lib/talent/resume-layout";
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
-import { scanResume, type ResumeScan, type ResumeScanIssue } from "../../../lib/talent/resume-scan";
-import { polishExperienceText, polishSelfIntro, polishResumeItems } from "../../../lib/resume-maker-client";
+import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } from "../../../lib/talent/resume-scan";
+import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume } from "../../../lib/resume-maker-client";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useDocVersionStore, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -95,7 +95,39 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 이력서에서 빼 둔 모듈은 제출물에 없으니 점검하지 않는다 — 고칠 필요 없는 걸 지적하지 않게.
   const placedIds = useMemo(() => new Set(layout ? layout.cols.flat() : []), [layout]);
   const scan = useMemo(() => scanResume(doc.items.filter((it) => placedIds.has(it.id))), [doc.items, placedIds]);
-  const flagged = useMemo(() => new Set(scan.byItem.keys()), [scan]);
+
+  // AI 점검 — 버튼을 눌렀을 때만 돈다. 규칙 점검과 같은 표시 체계에 얹는다.
+  const texts = useMemo(() => new Map(doc.items.map((it) => [it.id, it.text ?? ""])), [doc.items]);
+  const review = useAiReview(texts);
+  const runReview = () =>
+    void review.run(() =>
+      reviewResume({
+        targetRole: doc.targetRole?.trim() || undefined,
+        summary: doc.summary?.trim() || undefined,
+        // 이력서에 들어간 항목만, 그리고 내용이 있는 것만 보낸다.
+        // 빈 항목을 보내면 AI 가 '비어 있다'고 지적해 규칙 점검과 같은 말이 두 번 나온다
+        // (프롬프트로 금지해도 넘어온다 — 아예 안 보내는 게 확실하다).
+        items: doc.items
+          .filter((it) => placedIds.has(it.id) && (it.text ?? "").trim())
+          .map((it) => ({
+            id: it.id,
+            section: sectionLabelOf(t, it.section),
+            company: (it.company ?? "").trim() || undefined,
+            period: [it.startDate, it.endDate].filter(Boolean).join(" ~ ") || undefined,
+            text: it.text ?? ""
+          }))
+      })
+    );
+
+  // 본문에 칠할 것 — 항목 id → 형광펜으로 칠할 구절. 규칙과 AI 를 합친다.
+  // 구절이 하나도 없으면 빈 배열로 둔다('기간이 없다'처럼 빠진 것은 칠할 글자가 없어 전체를 옅게).
+  const flagged = useMemo(() => {
+    const m = new Map<string, string[]>();
+    const add = (id: string, quotes: string[]) => m.set(id, [...(m.get(id) ?? []), ...quotes.filter(Boolean)]);
+    for (const [id, issues] of scan.byItem) add(id, issues.flatMap(resumeIssueQuotes));
+    for (const f of review.findings) add(f.id, f.quote ? [f.quote] : []);
+    return m;
+  }, [scan, review.findings]);
 
   // ── 드래그 앤 드롭 ──
   const interaction: EditorInteraction | undefined = layout
@@ -227,6 +259,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onDelete={deleteItem}
           scan={scan}
           onGoItem={goItem}
+          review={review}
+          onRunReview={runReview}
         />
       </div>
       <PrintCopy doc={doc} info={info} layout={layout} />
@@ -318,7 +352,7 @@ function ModuleList({
     );
   };
   return (
-    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
+    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
       <div className="px-2.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
@@ -373,22 +407,26 @@ function Inspector(props: {
   scan: ResumeScan;
   /** 문제가 있는 항목으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
   onGoItem: (id: string) => void;
+  review: ReturnType<typeof useAiReview>;
+  onRunReview: () => void;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
+  // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
+  const reveal = useRevealOnChange<HTMLDivElement>(id);
 
   return (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
-      {/* 모듈 선택과 무관하게 항상 보인다 — 문서 전체에 거는 작업이다. */}
+    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
+          UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
-
-      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} />
+      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
 
       {id ? (
         <>
-          <div>
+          <div ref={reveal} className="scroll-mt-6">
             <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</span>
             <p className="mt-2 text-[18px] font-bold leading-snug tracking-[-0.01em]">{moduleTitle(t, id, doc, info)}</p>
           </div>
@@ -431,6 +469,7 @@ function Inspector(props: {
           <p className="text-[13px] leading-relaxed text-[#8B95A1]">{t("페이지나 왼쪽 목록에서 모듈을 골라 주세요.", "Pick a module on the page or in the list.", "请在页面或列表中选择模块。", "Chọn một mô-đun trên trang hoặc danh sách.", "ページかリストからモジュールを選んでください。", "Pilih modul di halaman atau daftar.")}</p>
         </div>
       )}
+
 
     </aside>
   );
@@ -530,57 +569,151 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
 
 // ── 조각 ─────────────────────────────────────────────────────
 
-/** 문제 1건을 사람이 읽는 한 줄로. 표시 문구는 화면에서 만든다(스캔은 숫자·이름만 준다). */
-function resumeIssueText(issue: ResumeScanIssue, t: PlatformT): string {
+/**
+ * 문제 1건을 사람이 읽는 두 줄로 — 무엇이 걸렸는지(what)와 왜·어떻게(why).
+ * "기간이 없어요"만 보면 고치라는 건지 알아도 왜 중요한지는 모른다. 지적은 이유가 있어야
+ * 납득하고 고친다. 표시 문구는 화면에서 만든다(스캔은 숫자·이름만 준다).
+ */
+function resumeIssueText(issue: ResumeScanIssue, t: PlatformT): { what: string; why: string } {
   switch (issue.kind) {
     case "empty":
-      return t("내용이 비어 있어요", "Empty", "内容为空", "Đang để trống", "内容が空です", "Masih kosong");
-    case "noNumber":
-      return t("성과 수치가 없어요", "No numbers", "缺少量化成果", "Chưa có số liệu", "成果の数値がありません", "Belum ada angka");
+      return {
+        what: t("내용이 비어 있어요", "Empty", "内容为空", "Đang để trống", "内容が空です", "Masih kosong"),
+        why: t(
+          "빈 줄이 남아 있으면 준비가 덜 된 인상을 줘요. 한 일과 결과를 한 줄로 적거나, 이력서에서 빼 주세요.",
+          "An empty line looks unfinished. Add one line on what you did and the result, or remove it.",
+          "留白会显得准备不足。写一行你做了什么和结果，或将其移除。",
+          "Dòng trống trông như chưa hoàn thiện. Thêm một dòng về việc bạn làm và kết quả, hoặc bỏ đi.",
+          "空欄は準備不足に見えます。やったことと結果を一行で書くか、履歴書から外してください。",
+          "Baris kosong terlihat belum siap. Tulis satu baris tentang yang Anda kerjakan dan hasilnya, atau hapus."
+        )
+      };
     case "noPeriod":
-      return t("기간이 없어요", "No dates", "缺少起止时间", "Chưa có thời gian", "期間がありません", "Belum ada periode");
-    case "tooShort":
-      return `${issue.length}${t("자, 너무 짧아요", " chars, too short", "字，太短", " ký tự, quá ngắn", "字・短すぎます", " krt, terlalu pendek")}`;
+      return {
+        what: t("기간이 없어요", "No dates", "缺少起止时间", "Chưa có thời gian", "期間がありません", "Belum ada periode"),
+        why: t(
+          "언제 한 일인지 모르면 경력으로 세기 어려워요. 시작·종료 월만 넣어도 충분해요.",
+          "Without dates it's hard to count as experience. Start and end month is enough.",
+          "没有时间就难以计入经历。写明起止年月即可。",
+          "Không có thời gian thì khó tính là kinh nghiệm. Chỉ cần tháng bắt đầu và kết thúc.",
+          "いつのことか分からないと経歴として数えにくいです。開始・終了の年月だけで十分です。",
+          "Tanpa tanggal sulit dihitung sebagai pengalaman. Cukup bulan mulai dan selesai."
+        )
+      };
     case "spoken":
-      return `${t("대화체 문장", "Conversational", "口语化表达", "Văn nói", "話し言葉", "Gaya bicara")} 「${issue.sample}」`;
+      return {
+        what: `${t("대화체 문장", "Conversational", "口语化表达", "Văn nói", "話し言葉", "Gaya bicara")} 「${issue.sample}」`,
+        why: t(
+          "이력서는 '…함 / …개선' 같은 명사형으로 끝내요. 말하듯 쓴 문장은 혼자 튀어 보여요.",
+          "Resumes end in noun form. A spoken-style sentence stands out from the rest.",
+          "简历多用名词结尾。口语化的句子会显得突兀。",
+          "Hồ sơ thường kết thúc dạng danh từ. Câu văn nói sẽ lạc lõng.",
+          "履歴書は体言止めが基本です。話し言葉の文は浮いて見えます。",
+          "Resume diakhiri bentuk nomina. Kalimat gaya bicara terlihat menonjol."
+        )
+      };
     case "overlap":
-      return `${t("내용 중복", "Overlaps", "内容重复", "Trùng nội dung", "内容の重複", "Tumpang tindih")} 「${issue.withText}」`;
+      return {
+        what: `${t("다른 항목과 겹쳐요", "Overlaps", "与其他条目重复", "Trùng mục khác", "他の項目と重複", "Tumpang tindih")} 「${issue.withText}」`,
+        why: t(
+          "같은 경험이 두 번 나오면 쓸 이야기가 없어 보여요. 하나는 다른 경험으로 바꾸거나 관점을 달리해 주세요.",
+          "The same story twice reads as if you have little to show. Swap one or change the angle.",
+          "同一经历出现两次会显得素材不足。换成其他经历或改变切入点。",
+          "Cùng một trải nghiệm hai lần trông như thiếu nội dung. Đổi một cái hoặc đổi góc nhìn.",
+          "同じ経験が二度出ると書くことがないように見えます。片方を別の経験にするか切り口を変えてください。",
+          "Pengalaman sama dua kali terlihat minim materi. Ganti salah satu atau ubah sudut pandang."
+        )
+      };
   }
 }
 
-/** 전체 점검 — 규칙으로 잡은 '고쳐 볼 만한 곳'을 한 곳에 모으고, 누르면 그 항목으로 간다.
- *  본문의 옅은 표시(EditOverlay flagged)와 같은 결과를 쓴다. */
-function ResumeCheckSection({ t, doc, scan, onGoItem }: { t: PlatformT; doc: ResumeDoc; scan: ResumeScan; onGoItem: (id: string) => void }) {
+/** 전체 점검 — 고쳐 볼 만한 곳을 한 곳에 모으고, 누르면 그 항목으로 간다.
+ *  본문의 형광펜과 같은 결과를 쓴다.
+ *
+ *  두 층이다: 규칙 점검은 늘 켜져 있고(즉시·무료), AI 점검은 버튼을 눌렀을 때만 돈다.
+ *  AI 는 규칙이 못 잡는 것(근거 없는 주장·역할 불분명·과장)만 보도록 서버에서 막아 둬서
+ *  두 목록이 같은 말을 반복하지 않는다. */
+function ResumeCheckSection({
+  t,
+  doc,
+  scan,
+  onGoItem,
+  review,
+  onRunReview
+}: {
+  t: PlatformT;
+  doc: ResumeDoc;
+  scan: ResumeScan;
+  onGoItem: (id: string) => void;
+  review: ReturnType<typeof useAiReview>;
+  onRunReview: () => void;
+}) {
   // 문서 순서대로 — 사용자가 위에서 아래로 훑으며 고칠 수 있게.
-  const lines: { id: string; text: string }[] = [];
+  const byId = new Map(doc.items.map((it) => [it.id, it]));
+  const labelOf = (id: string) => {
+    const it = byId.get(id);
+    if (!it) return "";
+    return ((it.company ?? "").trim() || (it.text ?? "").trim()).slice(0, 14) || sectionLabelOf(t, it.section);
+  };
+  const lines: { id: string; what: string; why: string }[] = [];
   for (const it of doc.items) {
-    const issues = scan.byItem.get(it.id);
-    if (!issues?.length) continue;
-    const label = ((it.company ?? "").trim() || (it.text ?? "").trim()).slice(0, 14) || sectionLabelOf(t, it.section);
-    for (const issue of issues) lines.push({ id: it.id, text: `${label} — ${resumeIssueText(issue, t)}` });
+    for (const issue of scan.byItem.get(it.id) ?? []) {
+      const { what, why } = resumeIssueText(issue, t);
+      lines.push({ id: it.id, what: `${labelOf(it.id)} — ${what}`, why });
+    }
   }
+  // AI 지적은 아래에 모은다 — 규칙 결과(즉시 고칠 수 있는 것)를 먼저 보게.
+  const aiLines = review.findings.filter((f) => byId.has(f.id));
+
+  // 한 줄 = 무엇이 걸렸나(누르면 그 항목으로) + 왜·어떻게(회색 보조 줄).
+  const row = (key: string, id: string, what: string, why: string) => (
+    <li key={key} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+      <button type="button" onClick={() => onGoItem(id)} className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+        • {what}
+      </button>
+      {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
+    </li>
+  );
 
   return (
-    <Section title={`${t("전체 점검", "Full check", "整体检查", "Kiểm tra toàn bộ", "全体チェック", "Cek menyeluruh")}${scan.flaggedCount ? ` · ${scan.flaggedCount}` : ""}`}>
-      {lines.length === 0 ? (
+    <Section title={`${t("전체 점검", "Full check", "整体检查", "Kiểm tra toàn bộ", "全体チェック", "Cek menyeluruh")}${lines.length + aiLines.length ? ` · ${lines.length + aiLines.length}` : ""}`}>
+      {lines.length === 0 && aiLines.length === 0 ? (
         <p className="text-[12px] text-[#00854A]">
-          {t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")}
+          {review.ran
+            ? t("확인할 항목이 없어요.", "Nothing to fix.", "没有待修项。", "Không có gì cần sửa.", "修正点はありません。", "Tidak ada perbaikan.")
+            : t("규칙으로 걸리는 건 없어요. 아래에서 AI 점검도 해 보세요.", "Nothing caught by the rules. Try the AI check below.", "规则未发现问题。可试试下方 AI 检查。", "Quy tắc không phát hiện gì. Thử kiểm tra AI bên dưới.", "ルールでの指摘はありません。下のAIチェックもどうぞ。", "Aturan tidak menemukan apa pun. Coba cek AI di bawah.")}
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {lines.map((line, i) => (
-            <li key={i} className="break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
-              <button
-                type="button"
-                onClick={() => onGoItem(line.id)}
-                className="w-full text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline"
-              >
-                • {line.text}
-              </button>
-            </li>
-          ))}
+          {lines.map((line, i) => row(`r${i}`, line.id, line.what, line.why))}
+          {aiLines.map((f, i) => row(`a${i}`, f.id, `${t("AI", "AI")} · ${labelOf(f.id)} — ${f.issue}`, f.fix))}
         </ul>
       )}
+
+      <button
+        type="button"
+        onClick={onRunReview}
+        // 내용이 있는 항목이 하나도 없으면 누르지 못하게 — 자소서 쪽과 같은 이유.
+        disabled={review.running || !doc.items.some((it) => (it.text ?? "").trim())}
+        className={`flex h-9 w-full items-center justify-center rounded-[10px] text-[12.5px] font-bold leading-none ${TINT_BTN}`}
+      >
+        {review.running
+          ? t("점검 중…", "Checking…", "检查中…", "Đang kiểm tra…", "チェック中…", "Memeriksa…")
+          : review.ran
+            ? t("AI로 다시 점검", "Check with AI again", "再用 AI 检查", "Kiểm tra lại bằng AI", "AIで再チェック", "Cek ulang dengan AI")
+            : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
+      </button>
+      {review.error ? <p className="text-[11.5px] leading-relaxed text-[#F04452]">{review.error}</p> : null}
+      <p className="text-[11px] leading-relaxed text-[#B0B8C1]">
+        {t(
+          "AI 점검은 눌렀을 때만 돌아요. 내용을 고치면 그 항목의 지적은 사라져요.",
+          "The AI check runs only when you press it. Edit an item and its note clears.",
+          "AI 检查仅在点击时运行。修改内容后该条提示会消失。",
+          "Kiểm tra AI chỉ chạy khi bạn bấm. Sửa nội dung thì ghi chú sẽ mất.",
+          "AIチェックは押したときだけ動きます。内容を直すとその指摘は消えます。",
+          "Cek AI hanya jalan saat ditekan. Ubah isinya, catatannya hilang."
+        )}
+      </p>
     </Section>
   );
 }

@@ -173,19 +173,10 @@ export function A4Pages({ render, editing, maxScale = 1 }: { render: () => React
 }
 
 /** 선택·호버 표시 — 자리를 차지하지 않게 블록 바깥으로 겹쳐 그린다. 부모에 `group relative` 가 필요하다. */
-/**
- * flagged = 전체 점검이 "고쳐 볼 만하다"고 표시한 블록. 선택 표시(파랑)보다 약하게 그려
- * 지금 편집 중인 블록을 가리지 않는다. 선택되면 선택 표시가 우선한다.
- * 이 표시도 자리를 차지하지 않고 print 에서 빠진다 — 미리보기·PDF 의 페이지 나눔이 같도록.
- */
-export function EditOverlay({ selected, subtle, flagged }: { selected: boolean; subtle?: boolean; flagged?: boolean }) {
+export function EditOverlay({ selected, subtle }: { selected: boolean; subtle?: boolean }) {
   const base = "pointer-events-none absolute -inset-x-2 -inset-y-1 rounded-[6px] transition-colors print:hidden";
   if (selected) {
     return <span aria-hidden className={`${base} ${subtle ? "bg-[#FFFBF2]" : "bg-[#F5F8FF] outline outline-2 outline-[#0B46E8]"}`} />;
-  }
-  if (flagged) {
-    // 점검에 걸린 블록 — 호버 때는 기존과 같은 반응을 유지한다.
-    return <span aria-hidden className={`${base} bg-[#FFFBF2] outline outline-1 outline-[#F0C27B] group-hover:outline-[#C77700]`} />;
   }
   return (
     <span
@@ -193,4 +184,69 @@ export function EditOverlay({ selected, subtle, flagged }: { selected: boolean; 
       className={`${base} group-hover:bg-[#F7F9FC] group-hover:outline group-hover:outline-1 group-hover:outline-[#D7DCE3]`}
     />
   );
+}
+
+// ── 전체 점검 표시 — 형광펜 ──────────────────────────────────
+//
+// 블록에 테두리를 두르면 "이 카드에 문제가 있다"까지만 말한다. 지적이 가리키는 구절을
+// 알면 그 글자만 칠해서 "여기"를 보여 준다.
+//
+// 글자 뒤에 배경만 깐다 — 여백·테두리·글꼴을 건드리지 않으므로 줄바꿈과 페이지 나눔이
+// 그대로다(편집 화면과 PDF 가 같은 곳에서 나뉘어야 한다).
+// box-decoration-clone 은 여러 줄로 접힐 때 줄마다 칠해 주는 것 — 진짜 형광펜처럼 보인다.
+
+// 색은 형광펜 그대로 — 네온 노랑 한 가지. 본문 글자색(#333D4B·#4E5968)이 충분히 어두워 대비는 유지된다.
+// 세기를 둘로 나눠 봤다가 되돌렸다: 색이 두 가지면 "왜 이건 진하고 저건 연하지?"를 먼저 묻게 된다.
+// 칠한 곳은 전부 같은 뜻이어야 한다 — **이 글자가 문제다**.
+const HL = "rounded-[2px] bg-[#F2FF33] box-decoration-clone";
+
+/** 칠할 구간을 찾아 겹치는 것은 합친다. 같은 구절이 여러 번 나오면 전부 칠한다. */
+function highlightRanges(text: string, quotes: string[]): [number, number][] {
+  const found: [number, number][] = [];
+  for (const raw of quotes) {
+    const q = raw.trim();
+    // 너무 짧은 조각은 아무 데나 걸려서 엉뚱한 글자가 칠해진다.
+    if (q.length < 2) continue;
+    let from = 0;
+    for (;;) {
+      const i = text.indexOf(q, from);
+      if (i < 0) break;
+      found.push([i, i + q.length]);
+      from = i + q.length;
+    }
+  }
+  if (!found.length) return [];
+  found.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [found[0]];
+  for (const [a, b] of found.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  }
+  return merged;
+}
+
+/**
+ * 본문 글자에 형광펜을 칠한다 — quotes 에 든 구절을 본문에서 찾아 그 글자만.
+ *
+ * 못 찾으면 **아무것도 칠하지 않는다**. 가리킬 곳이 없는 지적('기간이 없어요'처럼 빠진 것)은
+ * 칠할 글자가 없고, 글 전체를 칠해 봐야 "어디를 고치라는 거지"가 된다. 그런 지적은 오른쪽
+ * 목록에서 이유와 함께 읽으면 된다.
+ */
+export function Highlighted({ text, quotes }: { text: string; quotes: string[] }) {
+  const ranges = quotes.length ? highlightRanges(text, quotes) : [];
+  if (!ranges.length) return <>{text}</>;
+  const out: ReactNode[] = [];
+  let at = 0;
+  for (const [a, b] of ranges) {
+    if (a > at) out.push(text.slice(at, a));
+    out.push(
+      <span key={a} className={HL}>
+        {text.slice(a, b)}
+      </span>
+    );
+    at = b;
+  }
+  if (at < text.length) out.push(text.slice(at));
+  return <>{out}</>;
 }
