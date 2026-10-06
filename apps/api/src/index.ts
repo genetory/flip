@@ -15044,16 +15044,35 @@ app.get("/members/me/resumes", authenticate, requireRoles([MemberRole.STUDENT]),
 async function resolveResumePhoto(content: unknown): Promise<unknown> {
   if (!content || typeof content !== "object") return content;
   const obj = content as Record<string, unknown>;
+  let next = obj;
+
+  // 레거시 폼의 사진.
   const raw = obj.basicPhotoUrl;
-  if (typeof raw !== "string" || !raw.trim()) return content;
-  try {
-    const url = await uploadDataUrlImageIfNeeded(raw, "resumes/photos");
-    return { ...obj, basicPhotoUrl: url };
-  } catch {
-    // Fall back to keeping the original value (the data URL would be
-    // huge on the row but we still save valid JSON).
-    return content;
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      next = { ...next, basicPhotoUrl: await uploadDataUrlImageIfNeeded(raw, "resumes/photos") };
+    } catch {
+      // 올리기 실패해도 저장은 막지 않는다(원래 값 유지). 다음 저장에 다시 시도된다.
+    }
   }
+
+  // 리뉴얼 에디터의 사진(renewalBasicInfo.photoUrl) — 예전에는 여기를 안 봤다.
+  // 그 결과 base64 data URL 이 그대로 jsonb 에 들어가고, **저장할 때마다 통째로 재전송**됐다.
+  // 실제로 로컬에서 한 행의 renewalBasicInfo 가 974KB(전체 1,010KB 의 96%)였다 —
+  // 타이핑을 멈출 때마다(700ms 디바운스) 1MB 를 올리고 있었다.
+  const basic = next.renewalBasicInfo;
+  if (basic && typeof basic === "object") {
+    const b = basic as Record<string, unknown>;
+    const photo = b.photoUrl;
+    if (typeof photo === "string" && photo.startsWith("data:")) {
+      try {
+        next = { ...next, renewalBasicInfo: { ...b, photoUrl: await uploadDataUrlImageIfNeeded(photo, "resumes/photos") } };
+      } catch {
+        /* 위와 같다 — 저장을 막지 않는다 */
+      }
+    }
+  }
+  return next;
 }
 
 // 이력서 저장 시 강제하는 최소 필수 필드. 폼이 `*` 로 마킹한 항목들과 1:1
