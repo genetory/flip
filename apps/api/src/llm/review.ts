@@ -102,6 +102,15 @@ export type ResumeReviewInput = {
   locale?: string;
 };
 
+/**
+ * 내용이 빈 블록은 아예 입력에서 뺀다.
+ * 넣어 두면 AI 가 "비어 있다"고 지적하는데, 그건 규칙 점검이 이미 보여 주는 말이라 같은 항목이
+ * 두 번 나온다(프롬프트로 금지해도 넘어오는 것을 실제로 확인했다).
+ */
+function withText<T extends { text: string }>(rows: T[]): T[] {
+  return rows.filter((r) => r.text.trim().length > 0);
+}
+
 export function buildResumeReviewPrompt(input: ResumeReviewInput): { system: string; user: string } {
   const system =
     "당신은 한국 기업 채용을 돕는 이력서 컨설턴트입니다. 지원자가 쓴 이력서 항목들을 읽고, " +
@@ -121,13 +130,13 @@ export function buildResumeReviewPrompt(input: ResumeReviewInput): { system: str
     `${input.targetRole ? `지원자 희망 직무: ${input.targetRole}\n` : ""}` +
     `${input.summary ? `\n[자기소개]\n${input.summary}\n` : ""}` +
     `\n[이력서 항목]\n` +
-    input.items
+    withText(input.items)
       .map(
         (it) =>
           `- id: ${it.id}\n  구분: ${it.section}\n` +
           `${it.company ? `  소속/제목: ${it.company}\n` : ""}` +
           `${it.period ? `  기간: ${it.period}\n` : ""}` +
-          `  내용: ${it.text || "(비어 있음)"}`
+          `  내용: ${it.text}`
       )
       .join("\n");
   return { system, user };
@@ -159,12 +168,12 @@ export function buildCoverReviewPrompt(input: CoverReviewInput): { system: strin
     `${input.company ? `지원 회사: ${input.company}\n` : ""}` +
     `${input.jobText ? `\n[채용 공고]\n${input.jobText}\n` : ""}` +
     `\n[문항과 답변]\n` +
-    input.questions
+    withText(input.questions)
       .map(
         (q) =>
           `- id: ${q.id}\n  문항: ${q.prompt || "(문항 없음)"}\n` +
           `${q.limit ? `  글자 수 제한: ${q.limit}\n` : ""}` +
-          `  답변: ${q.text || "(비어 있음)"}`
+          `  답변: ${q.text}`
       )
       .join("\n\n");
   return { system, user };

@@ -89,12 +89,15 @@ function Editor({ doc }: { doc: CoverDoc }) {
     return new Map((layout?.questions ?? []).map((q) => [q.id, answerText(q.blocks.map(textOfId))]));
   }, [doc, layout]);
   const review = useAiReview(answers);
+  // 답변이 빈 문항은 보내지 않는다 — AI 가 '비어 있다'고 지적하면 규칙 점검('아직 작성 안 됨')과
+  // 같은 말이 두 번 나온다. 프롬프트로 금지해도 넘어와서, 입력에서 빼는 쪽으로 막는다.
+  const reviewable = (layout?.questions ?? []).filter((q) => (answers.get(q.id) ?? "").trim());
   const runReview = () =>
     void review.run(() =>
       reviewCover({
         company: doc.companyName?.trim() || undefined,
         jobText: doc.jobText?.trim() || undefined,
-        questions: (layout?.questions ?? []).map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answers.get(q.id) ?? "" }))
+        questions: reviewable.map((q) => ({ id: q.id, prompt: q.prompt, limit: q.limit, text: answers.get(q.id) ?? "" }))
       })
     );
 
@@ -255,6 +258,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           scan={scan}
           review={review}
           onRunReview={runReview}
+          reviewableCount={reviewable.length}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
@@ -429,6 +433,8 @@ function Inspector(props: {
   scan: CoverScan;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  /** AI 에 보낼 수 있는(답변이 있는) 문항 수 — 0 이면 버튼을 막는다. */
+  reviewableCount: number;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
@@ -593,6 +599,7 @@ function Inspector(props: {
         scan={props.scan}
         review={props.review}
         onRunReview={props.onRunReview}
+        reviewableCount={props.reviewableCount}
         onGoQuestion={(n) => {
           props.onSelect(null);
           props.onActiveQ(n);
@@ -773,6 +780,7 @@ function FinalCheckSection({
   scan,
   review,
   onRunReview,
+  reviewableCount,
   onGoQuestion
 }: {
   t: PlatformT;
@@ -780,6 +788,7 @@ function FinalCheckSection({
   scan: CoverScan;
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
+  reviewableCount: number;
   /** 문제가 있는 문항으로 바로 이동 — 목록만 보고 사용자가 카드를 찾아다니지 않게. */
   onGoQuestion: (q: number) => void;
 }) {
@@ -844,9 +853,8 @@ function FinalCheckSection({
       <button
         type="button"
         onClick={onRunReview}
-        // 답변이 하나도 없으면 누르지 못하게 — AI 는 '비어 있음'을 지적하지 않으므로(규칙이 이미 한다)
-        // 결과가 0건일 수밖에 없는 호출이 된다.
-        disabled={review.running || !layout.questions.some((q) => q.blocks.length > 0)}
+        // 보낼 답변이 하나도 없으면 누르지 못하게 — 결과가 0건일 수밖에 없는 호출이 된다.
+        disabled={review.running || reviewableCount === 0}
         className={`flex h-9 w-full items-center justify-center rounded-[10px] text-[12.5px] font-bold leading-none ${TINT_BTN}`}
       >
         {review.running

@@ -116,6 +116,30 @@ const CASES: Case[] = [
     };
   })(),
   (() => {
+    // 실제로 한 번 놓친 경우 — 빈 문항을 보냈더니 AI 가 "비어 있다"고 지적해서
+    // 규칙 점검('아직 작성 안 됨')과 같은 말이 두 번 나왔다. 지금은 입력에서 빼서 막는다.
+    const questions = [GOOD_ANSWER, { id: "blank", prompt: "입사 후 포부를 서술해 주세요.", limit: 500, text: "" }];
+    return {
+      name: "자소서 — 빈 문항은 규칙이 잡는다(AI 가 건드리면 안 됨)",
+      kind: "cover" as const,
+      mustHit: [],
+      neverHit: ["blank", GOOD_ANSWER.id],
+      ids: questions.map((q) => q.id),
+      build: () => buildCoverReviewPrompt({ company: "한국물류", questions })
+    };
+  })(),
+  (() => {
+    const items = [GOOD_EXPERIENCE, { id: "blank", section: "활동", company: "동아리", period: "", text: "" }];
+    return {
+      name: "이력서 — 빈 항목은 규칙이 잡는다(AI 가 건드리면 안 됨)",
+      kind: "resume" as const,
+      mustHit: [],
+      neverHit: ["blank", GOOD_EXPERIENCE.id],
+      ids: items.map((i) => i.id),
+      build: () => buildResumeReviewPrompt({ targetRole: "물류/운영 담당자", items })
+    };
+  })(),
+  (() => {
     const questions = [GOOD_ANSWER];
     return {
       name: "자소서 — 전부 잘 쓴 문서(0건이어야 함)",

@@ -104,9 +104,11 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       reviewResume({
         targetRole: doc.targetRole?.trim() || undefined,
         summary: doc.summary?.trim() || undefined,
-        // 이력서에 들어간 항목만 보낸다 — 빼 둔 모듈은 제출물에 없다.
+        // 이력서에 들어간 항목만, 그리고 내용이 있는 것만 보낸다.
+        // 빈 항목을 보내면 AI 가 '비어 있다'고 지적해 규칙 점검과 같은 말이 두 번 나온다
+        // (프롬프트로 금지해도 넘어온다 — 아예 안 보내는 게 확실하다).
         items: doc.items
-          .filter((it) => placedIds.has(it.id))
+          .filter((it) => placedIds.has(it.id) && (it.text ?? "").trim())
           .map((it) => ({
             id: it.id,
             section: sectionLabelOf(t, it.section),

@@ -16,7 +16,8 @@
     "smoke:talent-partner": "tsx scripts/smoke-talent-partner.mts",
     "check:doc-versions": "tsx scripts/check-doc-versions.ts",
     "eval": "tsx src/eval/run.ts",
-    "eval:review": "tsx src/eval/review.ts"
+    "eval:review": "tsx src/eval/review.ts",
+    "db:seed:docs": "node --import tsx scripts/seed-example-docs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
