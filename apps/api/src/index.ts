@@ -14268,15 +14268,38 @@ type ApplicationDocs = {
   coverLetterSnapshot: Prisma.InputJsonValue | undefined;
 };
 async function snapshotApplicationDocs(userId: string, companyName: string | null, selectedResumeId?: string | null, selectedCoverLetterId?: string | null): Promise<ApplicationDocs> {
-  // 이력서 — 지원자가 고른 이력서(본인 소유)가 있으면 우선, 없으면 대표→최근 순으로 폴백.
+  // 이력서 — 고른 것 → **지금 에디터로 쓰는 이력서** → 대표 → 최근.
+  //
+  // 예전에는 고른 것 다음이 바로 isPrimary 였다. 그런데 지금 사용자가 갈 수 있는 이력서 화면은
+  // 리뉴얼 에디터뿐인데(옛 경로는 308), 대표 플래그는 그 전에 만든 레거시 행에 남아 있을 수 있다.
+  // 그러면 **사용자가 오늘 고쳐 쓴 이력서가 아니라 작년 이력서가 제출된다**(로컬 확인:
+  // 대표=2026-08 레거시 0항목 / 리뉴얼=2026-10 11항목).
+  //
+  // 리뉴얼 행이 **비어 있으면** 끼어들지 않는다 — 내용 있는 레거시 이력서를 빈 것으로 바꾸면 안 된다.
+  const userResumes = await prisma.resume.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, content: true, isPrimary: true }
+  });
+  const hasRenewalItems = (c: unknown) => {
+    const o = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+    const doc = (o.renewalResume && typeof o.renewalResume === "object" ? o.renewalResume : null) as Record<string, unknown> | null;
+    return Array.isArray(doc?.items) && (doc!.items as unknown[]).length > 0;
+  };
   const resume =
-    (selectedResumeId
-      ? await prisma.resume.findFirst({ where: { id: selectedResumeId, userId }, select: { id: true, content: true } })
-      : null) ??
-    (await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { id: true, content: true } })) ??
-    (await prisma.resume.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { id: true, content: true } }));
+    (selectedResumeId ? userResumes.find((r) => r.id === selectedResumeId) : undefined) ??
+    userResumes.find((r) => hasRenewalItems(r.content)) ??
+    userResumes.find((r) => r.isPrimary) ??
+    userResumes[0] ??
+    null;
 
-  // 자소서 — 지원자가 고른 것(본인 소유) 우선, 없으면 회사명 일치, 그것도 없으면 최근 수정본.
+  // 자소서 — 고른 것 → 회사명 일치 → **지금 에디터에서 쓰고 있는 자소서** → 최근 수정본.
+  //
+  // 리뉴얼 에디터 자소서는 CoverLetter 테이블이 아니라 Resume.content 에 산다. 예전에는 이 함수가
+  // CoverLetter 테이블만 봐서, 사용자가 공들여 쓴 자소서를 두고 **작년에 만든 다른 회사 자소서가
+  // 첨부**되는 일이 가능했다(로컬 확인: 리뉴얼 답변 4개 vs 테이블의 무관한 행 2개).
+  // content.coverLetterItems 는 스토어가 저장할 때마다 리뉴얼 자소서를 같은 모양
+  // ([{id, prompt, answer}])으로 미러해 두므로 그대로 쓸 수 있다.
   let coverLetterId: string | null = null;
   let coverLetterSnapshot: Prisma.InputJsonValue | undefined = undefined;
   const allCls = await prisma.coverLetter.findMany({
@@ -14285,18 +14308,41 @@ async function snapshotApplicationDocs(userId: string, companyName: string | nul
     select: { id: true, title: true, company: true, items: true }
   });
   const company = (companyName ?? "").trim().toLowerCase();
+  const matchesCompany = (cc: string | null | undefined) => {
+    const v = (cc ?? "").trim().toLowerCase();
+    return !!company && !!v && (v.includes(company) || company.includes(v));
+  };
+
+  // 지금 에디터에서 편집 중인 자소서(있으면).
+  // 위에서 고른 resume 행을 쓰면 안 된다 — 그건 isPrimary 기준이라 **옛 레거시 행**일 수 있고,
+  // 거기엔 리뉴얼 자소서가 없다. 웹 스토어와 같은 규칙으로 따로 찾는다:
+  // renewal* 키를 가진 행 중 가장 최근 것.
+  const renewalRow = userResumes.find((r) => {
+    const o = (r.content && typeof r.content === "object" ? r.content : {}) as Record<string, unknown>;
+    return Object.keys(o).some((k) => k.startsWith("renewal"));
+  });
+  const renewalContent = (renewalRow?.content && typeof renewalRow.content === "object" ? renewalRow.content : {}) as Record<string, unknown>;
+  const renewalCover = (renewalContent.renewalCover && typeof renewalContent.renewalCover === "object" ? renewalContent.renewalCover : null) as
+    | Record<string, unknown>
+    | null;
+  const renewalItems = Array.isArray(renewalContent.coverLetterItems)
+    ? (renewalContent.coverLetterItems as Record<string, unknown>[]).filter((x) => String(x?.answer ?? "").trim())
+    : [];
+  const renewalCompany = typeof renewalCover?.companyName === "string" ? renewalCover.companyName : null;
+
   const chosenCl =
     (selectedCoverLetterId ? allCls.find((c) => c.id === selectedCoverLetterId) : undefined) ??
-    (company
-      ? allCls.find((c) => {
-          const cc = (c.company ?? "").trim().toLowerCase();
-          return cc && (cc.includes(company) || company.includes(cc));
-        })
-      : undefined) ??
-    allCls[0];
+    (company ? allCls.find((c) => matchesCompany(c.company)) : undefined);
+
   if (chosenCl) {
     coverLetterId = chosenCl.id;
     coverLetterSnapshot = { title: chosenCl.title, company: chosenCl.company, items: chosenCl.items } as Prisma.InputJsonValue;
+  } else if (renewalItems.length) {
+    // 테이블에 회사가 맞는 게 없으면, 사용자가 지금 쓰고 있는 자소서를 쓴다(id 는 없다 — 행이 아니다).
+    coverLetterSnapshot = { title: "자기소개서", company: renewalCompany, items: renewalItems } as Prisma.InputJsonValue;
+  } else if (allCls[0]) {
+    coverLetterId = allCls[0].id;
+    coverLetterSnapshot = { title: allCls[0].title, company: allCls[0].company, items: allCls[0].items } as Prisma.InputJsonValue;
   }
 
   return {
@@ -15070,9 +15116,17 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     }
     // 리뉴얼 모듈형 문서면 Career Launch 수집 데이터로도 파생(진행률·AI 채점·운영자 콘솔이 그걸 읽는다).
     if (resolvedContent !== undefined) void deriveCareerDataFromRenewal(userId, item.id, resolvedContent);
+    // 내용이 생긴 리뉴얼 이력서는 '대표'로 올린다. 추천 공고·신규공고 알림·파트너 인재검색은
+    // isPrimary 한 행만 보는데, 대표 플래그는 리뉴얼 이전에 찍힌 레거시 행에 남아 있을 수 있다.
+    // 대표를 바꾸던 화면(/profile)도 지금은 308 이라 사용자가 스스로 바로잡을 수 없다.
+    // (기존 행 정리는 scripts/backfill-primary-resume.ts)
+    if (resolvedContent !== undefined) void promoteRenewalResumeToPrimary(userId, item.id, resolvedContent);
     // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
-    void getOrCreateDocSummary(userId).catch(() => {});
-    void embedAndSaveResume(prisma, item.id).catch(() => {});
+    // content 가 안 바뀐 저장(예: 제목만 수정)에서는 부르지 않는다. 둘 다 유료 호출이다.
+    if (resolvedContent !== undefined) {
+      void getOrCreateDocSummary(userId).catch(() => {});
+      void embedAndSaveResume(prisma, item.id).catch(() => {});
+    }
     return res.json({ ok: true, item });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to update resume" });
@@ -15135,6 +15189,38 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
     return res.status(500).json({ ok: false, message: "failed to set primary resume" });
   }
 });
+
+/**
+ * 내용이 있는 리뉴얼 이력서를 대표로 올린다. 이미 대표면 아무것도 안 한다.
+ *
+ * 규칙은 POST /members/me/resumes/:id/primary 와 같다 — 특히 **인재풀 동의(poolOptIn) 승계**.
+ * 그게 없으면 대표가 바뀌는 순간 기업 추천 인재풀에서 조용히 사라진다.
+ * 비어 있는 리뉴얼 행은 올리지 않는다(내용 있는 레거시 이력서를 빈 것으로 바꾸면 안 된다).
+ */
+async function promoteRenewalResumeToPrimary(userId: string, resumeId: string, content: unknown): Promise<void> {
+  try {
+    const obj = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+    const doc = (obj.renewalResume && typeof obj.renewalResume === "object" ? obj.renewalResume : null) as Record<string, unknown> | null;
+    if (!Array.isArray(doc?.items) || (doc!.items as unknown[]).length === 0) return;
+
+    const row = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { isPrimary: true } });
+    if (!row || row.isPrimary) return;
+
+    const oldPrimary = await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { content: true } });
+    const oldOptIn = (oldPrimary?.content && typeof oldPrimary.content === "object" ? (oldPrimary.content as Record<string, unknown>).poolOptIn : undefined);
+    const carryOptIn = oldOptIn && !obj.poolOptIn;
+    await prisma.$transaction([
+      prisma.resume.updateMany({ where: { userId, isPrimary: true }, data: { isPrimary: false } }),
+      prisma.resume.update({
+        where: { id: resumeId },
+        data: { isPrimary: true, ...(carryOptIn ? { content: { ...obj, poolOptIn: oldOptIn } as Prisma.InputJsonValue } : {}) }
+      })
+    ]);
+  } catch (err) {
+    // 저장 자체를 막지 않는다 — 다음 저장이나 백필에서 다시 맞춘다.
+    console.error("[promoteRenewalResumeToPrimary] failed", err);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Cover letters — 한국형 자기소개서. 이력서와 별개 컬렉션(회사/공고마다 다르게 제출).
@@ -35368,6 +35454,9 @@ const partnerDocSummaryCache = new Map<string, { resumeBullets: string[]; coverB
 // 지원자/인재 공용 — 대표 이력서·자소서를 불렛으로 요약(candidateUserId 기준, version=updatedAt 로 캐싱).
 // 인메모리 + ApplicantDocSummary(DB) 영속 캐시. 문서가 바뀌면 version 이 달라져 재생성한다.
 type DocSummary = { resumeBullets: string[]; coverBullets: string[]; disabled?: boolean };
+/** 요약 프롬프트·모델을 바꿔 캐시를 통째로 버려야 할 때 올린다. */
+const DOC_SUMMARY_PROMPT_V = 1;
+
 async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "", fallbackCover = ""): Promise<DocSummary> {
   const primary = await prisma.resume.findFirst({
     where: { userId: candidateUserId },
@@ -35390,7 +35479,11 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
   let sig = 5381;
   const sigInput = `${resumeText} ${coverText}`;
   for (let i = 0; i < sigInput.length; i += 1) sig = ((sig << 5) + sig + sigInput.charCodeAt(i)) | 0;
-  const version = `${primary?.updatedAt?.getTime() ?? 0}:${(sig >>> 0).toString(36)}`;
+  // 예전엔 여기에 updatedAt 이 들어 있었다. 그런데 저장은 본문이 그대로여도 updatedAt 을 올리므로
+  // **키가 매번 달라져 캐시가 항상 미스**였다 — 타이핑을 멈출 때마다(700ms 디바운스) 요약 LLM 을
+  // 새로 불렀다. 바로 위에서 만든 sig 가 이미 요약 입력 텍스트 전체의 서명이라 그것만으로 충분하다.
+  // DOC_SUMMARY_PROMPT_V 는 프롬프트·모델을 바꿨을 때 일부러 캐시를 버리기 위한 손잡이다.
+  const version = `v${DOC_SUMMARY_PROMPT_V}:${(sig >>> 0).toString(36)}`;
   const cacheKey = `${candidateUserId}:${version}`;
 
   const cached = partnerDocSummaryCache.get(cacheKey);
