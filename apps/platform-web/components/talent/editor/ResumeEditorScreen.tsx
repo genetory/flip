@@ -23,7 +23,8 @@ import {
   useRenewalDocsStatus,
   useResumeDoc,
   type ResumeDoc,
-  generateResumeDoc
+  generateResumeDoc,
+  useResumeHistory
 } from "../../../lib/talent/resume-doc";
 import { FIXED_MODULES, isFixedModule, type ResumeLayout, type ResumeSnapshot } from "../../../lib/talent/doc-versions";
 import {
@@ -44,6 +45,9 @@ import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } 
 import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume, importResume } from "../../../lib/resume-maker-client";
 import { importedResumeToPreview, type ImportPreview } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile, resumeImportSummary } from "./ImportFromFile";
+import { RecentChanges, type ChangePoint } from "./RecentChanges";
+import { diffResumeDocs } from "../../../lib/talent/doc-diff";
+import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
 import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
@@ -86,6 +90,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 가져오기 되돌리기용 스냅샷. **훅이라 아래 조기 반환(불러오는 중)보다 위에 있어야 한다.**
   // 아래에 뒀더니 로딩이 끝나는 순간 훅 개수가 달라져 화면이 통째로 깨졌다.
   const [importUndo, setImportUndo] = useState<ResumeDoc | null>(null);
+  const history = useResumeHistory();
   const [hover, setHover] = useState<DropSlot | null>(null);
 
   // 지금 문서에 맞춘 편집 중 구성 — 앱·기존 화면에서 새로 생긴 모듈도 빠지지 않게 자연스러운 자리에 넣어 보여준다.
@@ -228,16 +233,23 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
 
   const placed = new Set(layout.cols.flat());
 
+  // 되돌릴 수 있는 지점 — 각 지점 **이후** 무엇이 달라졌는지 계산해 함께 보여 준다.
+  const changePoints: ChangePoint[] = history.map((v) => ({ savedAt: v.savedAt, label: v.label, change: diffResumeDocs(v.doc, doc) }));
+
   const applyImport = (p: ImportPreview) => {
     setImportUndo(doc);
-    saveResumeDoc({
+    saveResumeDoc(
+      {
       ...doc,
       items: [...doc.items, ...p.items],
       // 희망 직무·자기소개·링크는 비어 있을 때만 채운다 — 이미 쓴 글을 덮으면 안 된다.
       targetRole: doc.targetRole?.trim() ? doc.targetRole : p.targetRole,
       summary: (doc.summary ?? "").trim() ? doc.summary : p.summary,
       links: (doc.links ?? []).length ? doc.links : p.links
-    });
+      },
+      // 글이 한 번에 크게 늘어나는 작업 — 직전에 타이핑이 있었어도 되돌릴 지점을 남긴다.
+      { label: "파일에서 가져오기", force: true }
+    );
     // 새로 들어온 항목은 아직 '이력서에 넣기' 전 상태다 — 자동 배치는 레이아웃이 알아서 한다.
   };
   // 점검 목록에서 누르면 그 항목을 고르고, 화면 밖이면 보이는 곳까지 굴린다.
@@ -279,7 +291,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           selectedId={selectedId}
           placed={placed.has(selectedId ?? "")}
           onItem={updateItem}
-          onDoc={(patch) => saveResumeDoc({ ...doc, ...patch })}
+          onDoc={(patch, opts) => saveResumeDoc({ ...doc, ...patch }, opts)}
           onBasic={(patch) => saveBasicInfo({ ...info, ...patch })}
           onLayout={commitLayout}
           onDelete={deleteItem}
@@ -288,6 +300,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           review={review}
           onRunReview={runReview}
           hiddenIssues={hiddenIssues}
+          changePoints={changePoints}
           onImport={applyImport}
           importUndo={importUndo ? () => { saveResumeDoc(importUndo); setImportUndo(null); } : null}
         />
@@ -429,7 +442,7 @@ function Inspector(props: {
   selectedId: string | null;
   placed: boolean;
   onItem: (id: string, patch: Partial<{ text: string; company: string; startDate: string; endDate: string; section: CareerSection }>) => void;
-  onDoc: (patch: Partial<ResumeDoc>) => void;
+  onDoc: (patch: Partial<ResumeDoc>, opts?: { label?: string; force?: boolean }) => void;
   onBasic: (patch: Partial<BasicInfo>) => void;
   onLayout: (next: ResolvedLayout) => void;
   onDelete: (id: string) => void;
@@ -439,6 +452,7 @@ function Inspector(props: {
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
   hiddenIssues: ReturnType<typeof useHiddenIssues>;
+  changePoints: ChangePoint[];
   onImport: (p: ImportPreview) => void;
   importUndo: (() => void) | null;
 }) {
@@ -469,6 +483,8 @@ function Inspector(props: {
         onApply={props.onImport}
         onUndo={props.importUndo}
       />
+
+      <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreResumeVersion(at)} />
 
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
       <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} hiddenIssues={props.hiddenIssues} />
@@ -825,7 +841,7 @@ function moduleTitle(t: PlatformT, id: string, doc: ResumeDoc, info: BasicInfo):
  *  항목마다 다듬기를 부르면 항목 수가 그대로 분당 호출 상한(20회)을 먹으므로,
  *  배치 엔드포인트(polish-resume-items)로 한 호출에 최대 40항목을 처리한다.
  *  문서 전체를 갈아치우므로 직전 문서를 들고 있다가 되돌릴 수 있게 한다. */
-function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; onDoc: (patch: Partial<ResumeDoc>) => void }) {
+function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; onDoc: (patch: Partial<ResumeDoc>, opts?: { label?: string; force?: boolean }) => void }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [prev, setPrev] = useState<ResumeDoc["items"] | null>(null);
@@ -854,7 +870,7 @@ function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; on
       });
       if (changed > 0) {
         setPrev(doc.items);
-        onDoc({ items });
+        onDoc({ items }, { label: "이력서 문장으로 정리", force: true });
       }
       toast.success(
         changed > 0

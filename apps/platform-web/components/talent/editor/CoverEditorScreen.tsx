@@ -15,7 +15,7 @@ import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-pr
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { useBasicInfo, type BasicInfo } from "../../../lib/talent/basic-info";
-import { addCoverItem, generateCoverDoc, saveCoverDoc, useCoverDoc, type CoverDoc, type CoverItem } from "../../../lib/talent/cover-doc";
+import { addCoverItem, generateCoverDoc, saveCoverDoc, useCoverDoc, type CoverDoc, type CoverItem, useCoverHistory } from "../../../lib/talent/cover-doc";
 import type { CoverLayout, CoverSnapshot } from "../../../lib/talent/doc-versions";
 import {
   addBlock,
@@ -37,6 +37,9 @@ import {
 import { generateCoverLetter, polishSelfIntro, reviewCover, importCoverLetter } from "../../../lib/resume-maker-client";
 import { importedCoverToItems } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile } from "./ImportFromFile";
+import { RecentChanges, type ChangePoint } from "./RecentChanges";
+import { diffCoverDocs } from "../../../lib/talent/doc-diff";
+import { restoreCoverVersion } from "../../../lib/talent/renewal-docs-store";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
@@ -75,6 +78,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 파일에서 가져오기 되돌리기용 스냅샷. 훅이라 조기 반환(저장본 보기)보다 위에 있어야 한다.
   const [importUndo, setImportUndo] = useState<CoverDoc | null>(null);
+  const coverHistory = useCoverHistory();
 
   // 편집 중 구성 — 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
   const layout: ResolvedCover | null = useMemo(() => {
@@ -98,9 +102,12 @@ function Editor({ doc }: { doc: CoverDoc }) {
 
   // 가져온 에피소드는 뒤에 더하기만 한다. 문항에 꽂는 건 사용자가 고른다 —
   // 자동으로 넣으면 어느 문항이 바뀌었는지 모른 채 본문이 달라진다.
+  // 되돌릴 수 있는 지점 — 각 지점 이후 무엇이 달라졌는지 함께 보여 준다.
+  const changePoints: ChangePoint[] = coverHistory.map((v) => ({ savedAt: v.savedAt, label: v.label, change: diffCoverDocs(v.doc, doc) }));
+
   const applyCoverImport = (items: CoverItem[]) => {
     setImportUndo(doc);
-    saveCoverDoc({ ...doc, items: [...doc.items, ...items] });
+    saveCoverDoc({ ...doc, items: [...doc.items, ...items] }, { label: "파일에서 가져오기", force: true });
   };
 
   // 답변이 빈 문항은 보내지 않는다 — AI 가 '비어 있다'고 지적하면 규칙 점검('아직 작성 안 됨')과
@@ -282,6 +289,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           review={review}
           onRunReview={runReview}
           hiddenIssues={hiddenIssues}
+          changePoints={changePoints}
           reviewableCount={reviewable.length}
           onLayout={commitLayout}
           onActiveQ={setActiveQ}
@@ -463,13 +471,14 @@ function Inspector(props: {
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
   hiddenIssues: ReturnType<typeof useHiddenIssues>;
+  changePoints: ChangePoint[];
   /** AI 에 보낼 수 있는(답변이 있는) 문항 수 — 0 이면 버튼을 막는다. */
   reviewableCount: number;
   onLayout: (next: ResolvedCover) => void;
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
   onText: (id: string, v: string) => void;
-  onDoc: (next: CoverDoc) => void;
+  onDoc: (next: CoverDoc, opts?: { label?: string; force?: boolean }) => void;
   onImport: (items: CoverItem[]) => void;
   importUndo: (() => void) | null;
   onDeleteEpisode: (id: string) => void;
@@ -497,6 +506,8 @@ function Inspector(props: {
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
+
       <ImportFromFile
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
@@ -752,7 +763,7 @@ const KEYWORDS_MAX = 10;
  *
  * 글을 한꺼번에 건드리는 작업이라 되돌리기를 같이 둔다(이력서 쪽과 같은 약속).
  */
-function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc: (next: CoverDoc) => void }) {
+function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc: (next: CoverDoc, opts?: { label?: string; force?: boolean }) => void }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [prev, setPrev] = useState<CoverDoc["items"] | null>(null);
@@ -784,7 +795,7 @@ function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc
       });
       if (changed > 0) {
         setPrev(doc.items);
-        onDoc({ ...doc, items });
+        onDoc({ ...doc, items }, { label: "문장 다듬기", force: true });
       }
       toast.success(
         changed > 0

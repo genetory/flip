@@ -60,8 +60,8 @@ function uid() {
 }
 
 // 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
-export function saveCoverDoc(doc: CoverDoc): void {
-  storeSetCover({ ...doc, updatedAt: Date.now() });
+export function saveCoverDoc(doc: CoverDoc, opts?: { label?: string; force?: boolean }): void {
+  storeSetCover({ ...doc, updatedAt: Date.now() }, opts);
 }
 
 export function clearCoverDoc(): void {
