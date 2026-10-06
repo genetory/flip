@@ -39,7 +39,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -457,16 +457,18 @@ function Inspector(props: {
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
+  // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
+  const reveal = useRevealOnChange<HTMLDivElement>(`${q}:${id ?? ""}`);
 
-  // 문서 전체에 거는 도구(다듬기·점검)는 무엇을 고르고 있든 늘 보인다 — aside 헬퍼에 두어
-  // 아래 분기 전부가 갖게 한다. 예전에는 '문항을 고른 때' 분기 안에만 있어서 에피소드를
-  // 고르면 통째로 사라졌다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에 따라 없어지면 안 된다.
+  // 문서 전체에 거는 도구(다듬기·점검)는 무엇을 고르고 있든 **맨 위에** 늘 보인다 —
+  // aside 헬퍼에 두어 아래 분기 전부가 갖게 한다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에
+  // 따라 없어지거나 자리를 옮기면 안 된다.
   //
-  // 단, **고른 대상의 편집 UI가 먼저**다. 위에 뒀더니 '새 에피소드 쓰기'를 눌렀을 때 쓸 칸이
-  // 화면 밖으로 밀려서, 쓰라고 해 놓고 쓸 곳을 안 보여 주는 꼴이 됐다.
+  // 한 번 아래로 내렸던 적이 있다. 위에 두니 '새 에피소드 쓰기'를 눌렀을 때 쓸 칸이 화면 밖으로
+  // 밀렸기 때문인데, 그건 자리 문제가 아니라 **고른 곳으로 데려다 주지 않은** 문제였다.
+  // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
-      {children}
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
       <FinalCheckSection
         t={t}
@@ -481,6 +483,7 @@ function Inspector(props: {
           props.onSelect(episodeId ?? null);
         }}
       />
+      {children}
     </aside>
   );
   const qLabel = t(`문항 ${q + 1}`, `Question ${q + 1}`, `题目 ${q + 1}`, `Câu ${q + 1}`, `設問 ${q + 1}`, `Pertanyaan ${q + 1}`);
@@ -490,7 +493,7 @@ function Inspector(props: {
     const para = props.textOf(id);
     return aside(
       <>
-        <div>
+        <div ref={reveal} className="scroll-mt-6">
           {question ? (
             <button type="button" onClick={() => props.onSelect(null)} className="-ml-1.5 mb-2 flex h-7 items-center gap-1 rounded-lg px-1.5 text-[12.5px] font-semibold leading-none text-[#6B7684] transition hover:bg-[#F2F4F6] hover:text-[#191F28]">
               <CaretLeft size={13} weight="bold" className="shrink-0" />
@@ -583,7 +586,7 @@ function Inspector(props: {
   // ── 문항을 고른 때 — 답변(글자 수·복사·AI 다듬기) → 문항 설정 → 순서 ──
   return aside(
     <>
-      <div>
+      <div ref={reveal} className="scroll-mt-6">
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{qLabel}</span>
           {/* 이 문항에서 규칙 스캔이 잡은 문제 수 — 아래 최종 점검과 같은 계산을 쓴다. */}

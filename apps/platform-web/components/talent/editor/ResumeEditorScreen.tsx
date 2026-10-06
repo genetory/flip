@@ -44,7 +44,7 @@ import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } 
 import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume } from "../../../lib/resume-maker-client";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -414,12 +414,19 @@ function Inspector(props: {
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
+  // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
+  const reveal = useRevealOnChange<HTMLDivElement>(id);
 
   return (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
+          UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
+      <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
+      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
+
       {id ? (
         <>
-          <div>
+          <div ref={reveal} className="scroll-mt-6">
             <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</span>
             <p className="mt-2 text-[18px] font-bold leading-snug tracking-[-0.01em]">{moduleTitle(t, id, doc, info)}</p>
           </div>
@@ -463,10 +470,6 @@ function Inspector(props: {
         </div>
       )}
 
-      {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 보인다. 고른 모듈의 편집 UI 아래에
-          두는 이유: 지금 하려는 일이 먼저고, 이것들은 다 쓰고 나서 찾는 도구다. */}
-      <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
-      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
 
     </aside>
   );

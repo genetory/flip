@@ -460,6 +460,29 @@ export function useAiReview(texts: Map<string, string>) {
   return { findings, running, error, ran: !!done, run };
 }
 
+/**
+ * 고른 대상이 바뀌면 그 블록이 패널에 보이도록 굴린다.
+ *
+ * 오른쪽 패널 맨 위에는 문서 전체 도구(정리·다듬기·점검)가 늘 있다. 그래서 고른 모듈의
+ * 편집 UI 는 그 아래에 오고, 도구 목록이 길면 화면 밖으로 밀린다. 고른 순간 데려다 주면
+ * 도구를 위에 두면서도 편집이 가려지지 않는다.
+ *
+ * 처음 렌더에서는 굴리지 않는다 — 화면을 열자마자 스크롤이 내려가 있으면 당황스럽다.
+ */
+export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
+  const ref = useRef<T | null>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!key) return;
+    ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [key]);
+  return ref;
+}
+
 export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {
   return (
     <section className={`flex flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
@@ -507,11 +530,18 @@ export function Field({
   placeholder?: string;
   type?: "text" | "number";
   /** 방금 '쓰기'로 만든 빈 칸처럼, 사용자가 바로 타이핑할 곳에만 켠다.
-   *  아무 데나 켜면 화면이 열릴 때 멋대로 스크롤이 튄다. */
+   *  아무 데나 켜면 화면이 열릴 때 멋대로 스크롤이 튄다.
+   *  켜면 그 칸이 보이도록 패널을 굴려 준다 — 위쪽에 전체 도구(정리·점검)가 늘 있어서
+   *  긴 문서에서는 입력란이 접힌 곳 아래에 있을 수 있다. */
   autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
+  const box = useRef<HTMLLabelElement | null>(null);
+  useEffect(() => {
+    if (!autoFocus) return;
+    box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [autoFocus]);
   const common = {
     value: draft,
     placeholder,
@@ -524,7 +554,7 @@ export function Field({
     className: INPUT_CLS
   };
   return (
-    <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
+    <label ref={box} className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">
       {label}
       {multiline ? (
         <textarea {...common} rows={rows} className={`${common.className} resize-y py-2.5 leading-relaxed`} />
