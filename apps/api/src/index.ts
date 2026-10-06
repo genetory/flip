@@ -15116,6 +15116,11 @@ app.patch("/members/me/resumes/:resumeId", authenticate, requireRoles([MemberRol
     }
     // 리뉴얼 모듈형 문서면 Career Launch 수집 데이터로도 파생(진행률·AI 채점·운영자 콘솔이 그걸 읽는다).
     if (resolvedContent !== undefined) void deriveCareerDataFromRenewal(userId, item.id, resolvedContent);
+    // 내용이 생긴 리뉴얼 이력서는 '대표'로 올린다. 추천 공고·신규공고 알림·파트너 인재검색은
+    // isPrimary 한 행만 보는데, 대표 플래그는 리뉴얼 이전에 찍힌 레거시 행에 남아 있을 수 있다.
+    // 대표를 바꾸던 화면(/profile)도 지금은 308 이라 사용자가 스스로 바로잡을 수 없다.
+    // (기존 행 정리는 scripts/backfill-primary-resume.ts)
+    if (resolvedContent !== undefined) void promoteRenewalResumeToPrimary(userId, item.id, resolvedContent);
     // 인재검색용 AI 요약 + 시맨틱 임베딩을 백그라운드 갱신 — 이력서 완성 즉시 반영.
     void getOrCreateDocSummary(userId).catch(() => {});
     void embedAndSaveResume(prisma, item.id).catch(() => {});
@@ -15181,6 +15186,38 @@ app.post("/members/me/resumes/:resumeId/primary", authenticate, requireRoles([Me
     return res.status(500).json({ ok: false, message: "failed to set primary resume" });
   }
 });
+
+/**
+ * 내용이 있는 리뉴얼 이력서를 대표로 올린다. 이미 대표면 아무것도 안 한다.
+ *
+ * 규칙은 POST /members/me/resumes/:id/primary 와 같다 — 특히 **인재풀 동의(poolOptIn) 승계**.
+ * 그게 없으면 대표가 바뀌는 순간 기업 추천 인재풀에서 조용히 사라진다.
+ * 비어 있는 리뉴얼 행은 올리지 않는다(내용 있는 레거시 이력서를 빈 것으로 바꾸면 안 된다).
+ */
+async function promoteRenewalResumeToPrimary(userId: string, resumeId: string, content: unknown): Promise<void> {
+  try {
+    const obj = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+    const doc = (obj.renewalResume && typeof obj.renewalResume === "object" ? obj.renewalResume : null) as Record<string, unknown> | null;
+    if (!Array.isArray(doc?.items) || (doc!.items as unknown[]).length === 0) return;
+
+    const row = await prisma.resume.findFirst({ where: { id: resumeId, userId }, select: { isPrimary: true } });
+    if (!row || row.isPrimary) return;
+
+    const oldPrimary = await prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { content: true } });
+    const oldOptIn = (oldPrimary?.content && typeof oldPrimary.content === "object" ? (oldPrimary.content as Record<string, unknown>).poolOptIn : undefined);
+    const carryOptIn = oldOptIn && !obj.poolOptIn;
+    await prisma.$transaction([
+      prisma.resume.updateMany({ where: { userId, isPrimary: true }, data: { isPrimary: false } }),
+      prisma.resume.update({
+        where: { id: resumeId },
+        data: { isPrimary: true, ...(carryOptIn ? { content: { ...obj, poolOptIn: oldOptIn } as Prisma.InputJsonValue } : {}) }
+      })
+    ]);
+  } catch (err) {
+    // 저장 자체를 막지 않는다 — 다음 저장이나 백필에서 다시 맞춘다.
+    console.error("[promoteRenewalResumeToPrimary] failed", err);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Cover letters — 한국형 자기소개서. 이력서와 별개 컬렉션(회사/공고마다 다르게 제출).
