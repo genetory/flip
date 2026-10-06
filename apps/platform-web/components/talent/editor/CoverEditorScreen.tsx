@@ -34,7 +34,9 @@ import {
   updateQuestion,
   type ResolvedCover
 } from "../../../lib/talent/cover-layout";
-import { generateCoverLetter, polishSelfIntro, reviewCover } from "../../../lib/resume-maker-client";
+import { generateCoverLetter, polishSelfIntro, reviewCover, importCoverLetter } from "../../../lib/resume-maker-client";
+import { importedCoverToItems } from "../../../lib/talent/import-to-renewal";
+import { ImportFromFile } from "./ImportFromFile";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
@@ -71,6 +73,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // 지금 보고 있는 문항과 고른 에피소드. 한 문항 안엔 같은 에피소드가 한 번만 있어 (문항, 에피소드)로 블록이 정해진다.
   const [activeQ, setActiveQ] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 파일에서 가져오기 되돌리기용 스냅샷. 훅이라 조기 반환(저장본 보기)보다 위에 있어야 한다.
+  const [importUndo, setImportUndo] = useState<CoverDoc | null>(null);
 
   // 편집 중 구성 — 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
   const layout: ResolvedCover | null = useMemo(() => {
@@ -91,6 +95,14 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const review = useAiReview("cover", answers);
   // 치워 둔 지적 — 목록에서도 본문 형광펜에서도 빠진다(남은 할 일만 보이게).
   const hiddenIssues = useHiddenIssues("cover");
+
+  // 가져온 에피소드는 뒤에 더하기만 한다. 문항에 꽂는 건 사용자가 고른다 —
+  // 자동으로 넣으면 어느 문항이 바뀌었는지 모른 채 본문이 달라진다.
+  const applyCoverImport = (items: CoverItem[]) => {
+    setImportUndo(doc);
+    saveCoverDoc({ ...doc, items: [...doc.items, ...items] });
+  };
+
   // 답변이 빈 문항은 보내지 않는다 — AI 가 '비어 있다'고 지적하면 규칙 점검('아직 작성 안 됨')과
   // 같은 말이 두 번 나온다. 프롬프트로 금지해도 넘어와서, 입력에서 빼는 쪽으로 막는다.
   const reviewable = (layout?.questions ?? []).filter((q) => (answers.get(q.id) ?? "").trim());
@@ -276,6 +288,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
           onSelect={setSelectedId}
           onText={setText}
           onDoc={saveCoverDoc}
+          onImport={applyCoverImport}
+          importUndo={importUndo ? () => { saveCoverDoc(importUndo); setImportUndo(null); } : null}
           onDeleteEpisode={deleteEpisode}
           onCopy={(text) => void copyAnswer(text)}
           onPolishedAnswer={applyPolishedAnswer}
@@ -456,6 +470,8 @@ function Inspector(props: {
   onSelect: (id: string | null) => void;
   onText: (id: string, v: string) => void;
   onDoc: (next: CoverDoc) => void;
+  onImport: (items: CoverItem[]) => void;
+  importUndo: (() => void) | null;
   onDeleteEpisode: (id: string) => void;
   onCopy: (text: string) => void;
   onPolishedAnswer: (q: number, text: string) => void;
@@ -481,6 +497,23 @@ function Inspector(props: {
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      <ImportFromFile
+        t={t}
+        title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
+        hint={t(
+          "기존 자기소개서 PDF 를 올리면 문항별 답변을 에피소드로 넣어 드려요. 어느 문항에 쓸지는 직접 고르면 돼요.",
+          "Upload an existing cover letter PDF and each answer becomes an episode. You choose which question to use it for.",
+          "上传现有自我介绍 PDF，各题答案会成为经历。放入哪个题目由你决定。",
+          "Tải lên PDF thư giới thiệu cũ, mỗi câu trả lời thành một đoạn kể. Bạn chọn dùng cho câu nào.",
+          "既存の自己紹介書PDFを上げると設問ごとの回答をエピソードとして入れます。どの設問に使うかは自分で選べます。",
+          "Unggah PDF surat lamaran lama, tiap jawaban jadi episode. Kamu pilih untuk pertanyaan mana."
+        )}
+        parse={async (input) => importedCoverToItems((await importCoverLetter(input)).items)}
+        summarize={(items) => (items.length ? [{ label: t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode"), count: items.length }] : [])}
+        onApply={props.onImport}
+        onUndo={props.importUndo}
+      />
+
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
       <FinalCheckSection
         t={t}

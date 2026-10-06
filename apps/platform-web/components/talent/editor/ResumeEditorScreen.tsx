@@ -41,7 +41,9 @@ import {
 } from "../../../lib/talent/resume-layout";
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "./ModularResumePages";
 import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } from "../../../lib/talent/resume-scan";
-import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume } from "../../../lib/resume-maker-client";
+import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume, importResume } from "../../../lib/resume-maker-client";
+import { importedResumeToPreview, type ImportPreview } from "../../../lib/talent/import-to-renewal";
+import { ImportFromFile, resumeImportSummary } from "./ImportFromFile";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
 import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
@@ -81,6 +83,9 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   const { working, current } = store;
   const [selectedId, setSelectedId] = useState<string | null>(FIXED_MODULES.basic);
   const [dragId, setDragId] = useState<string | null>(null);
+  // 가져오기 되돌리기용 스냅샷. **훅이라 아래 조기 반환(불러오는 중)보다 위에 있어야 한다.**
+  // 아래에 뒀더니 로딩이 끝나는 순간 훅 개수가 달라져 화면이 통째로 깨졌다.
+  const [importUndo, setImportUndo] = useState<ResumeDoc | null>(null);
   const [hover, setHover] = useState<DropSlot | null>(null);
 
   // 지금 문서에 맞춘 편집 중 구성 — 앱·기존 화면에서 새로 생긴 모듈도 빠지지 않게 자연스러운 자리에 넣어 보여준다.
@@ -222,6 +227,19 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   };
 
   const placed = new Set(layout.cols.flat());
+
+  const applyImport = (p: ImportPreview) => {
+    setImportUndo(doc);
+    saveResumeDoc({
+      ...doc,
+      items: [...doc.items, ...p.items],
+      // 희망 직무·자기소개·링크는 비어 있을 때만 채운다 — 이미 쓴 글을 덮으면 안 된다.
+      targetRole: doc.targetRole?.trim() ? doc.targetRole : p.targetRole,
+      summary: (doc.summary ?? "").trim() ? doc.summary : p.summary,
+      links: (doc.links ?? []).length ? doc.links : p.links
+    });
+    // 새로 들어온 항목은 아직 '이력서에 넣기' 전 상태다 — 자동 배치는 레이아웃이 알아서 한다.
+  };
   // 점검 목록에서 누르면 그 항목을 고르고, 화면 밖이면 보이는 곳까지 굴린다.
   // 편집 영역 안에서만 찾는다 — 인쇄 사본(PrintCopy)에도 같은 data-module 이 있다.
   const goItem = (id: string) => {
@@ -270,6 +288,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           review={review}
           onRunReview={runReview}
           hiddenIssues={hiddenIssues}
+          onImport={applyImport}
+          importUndo={importUndo ? () => { saveResumeDoc(importUndo); setImportUndo(null); } : null}
         />
       </div>
       <PrintCopy doc={doc} info={info} layout={layout} />
@@ -419,6 +439,8 @@ function Inspector(props: {
   review: ReturnType<typeof useAiReview>;
   onRunReview: () => void;
   hiddenIssues: ReturnType<typeof useHiddenIssues>;
+  onImport: (p: ImportPreview) => void;
+  importUndo: (() => void) | null;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
@@ -431,6 +453,23 @@ function Inspector(props: {
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
       {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
           UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
+      <ImportFromFile
+        t={t}
+        title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
+        hint={t(
+          "기존 이력서 PDF 를 올리면 항목으로 정리해서 넣어 드려요. 지금 쓴 내용은 지우지 않아요.",
+          "Upload an existing resume PDF and we'll turn it into items. Nothing you've written is removed.",
+          "上传现有简历 PDF，我们会整理成条目。已写内容不会被删除。",
+          "Tải lên PDF hồ sơ cũ, chúng tôi sẽ sắp thành các mục. Nội dung hiện có không bị xóa.",
+          "既存の履歴書PDFを上げると項目に整理して入れます。今の内容は消しません。",
+          "Unggah PDF resume lama, akan dirapikan jadi item. Isi yang ada tidak dihapus."
+        )}
+        parse={async (input) => importedResumeToPreview(await importResume(input))}
+        summarize={(p) => resumeImportSummary(t, p.countsBySection)}
+        onApply={props.onImport}
+        onUndo={props.importUndo}
+      />
+
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
       <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} hiddenIssues={props.hiddenIssues} />
 
