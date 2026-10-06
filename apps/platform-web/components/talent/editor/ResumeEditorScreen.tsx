@@ -417,11 +417,6 @@ function Inspector(props: {
 
   return (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
-      {/* 모듈 선택과 무관하게 항상 보인다 — 문서 전체에 거는 작업이다. */}
-      <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
-
-      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
-
       {id ? (
         <>
           <div>
@@ -467,6 +462,11 @@ function Inspector(props: {
           <p className="text-[13px] leading-relaxed text-[#8B95A1]">{t("페이지나 왼쪽 목록에서 모듈을 골라 주세요.", "Pick a module on the page or in the list.", "请在页面或列表中选择模块。", "Chọn một mô-đun trên trang hoặc danh sách.", "ページかリストからモジュールを選んでください。", "Pilih modul di halaman atau daftar.")}</p>
         </div>
       )}
+
+      {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 보인다. 고른 모듈의 편집 UI 아래에
+          두는 이유: 지금 하려는 일이 먼저고, 이것들은 다 쓰고 나서 찾는 도구다. */}
+      <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
+      <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} />
 
     </aside>
   );

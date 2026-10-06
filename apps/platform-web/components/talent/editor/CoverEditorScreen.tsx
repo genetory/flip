@@ -458,11 +458,15 @@ function Inspector(props: {
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
 
-  // 점검은 무엇을 고르고 있든 늘 보인다 — aside 헬퍼 안에 두어 아래 분기 전부가 갖게 한다.
-  // 예전에는 '문항을 고른 때' 분기 안쪽, 그것도 한참 아래에 있어서 에피소드를 고르면 통째로
-  // 사라졌다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에 따라 없어지면 안 된다(이력서는 늘 보인다).
+  // 문서 전체에 거는 도구(다듬기·점검)는 무엇을 고르고 있든 늘 보인다 — aside 헬퍼에 두어
+  // 아래 분기 전부가 갖게 한다. 예전에는 '문항을 고른 때' 분기 안에만 있어서 에피소드를
+  // 고르면 통째로 사라졌다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에 따라 없어지면 안 된다.
+  //
+  // 단, **고른 대상의 편집 UI가 먼저**다. 위에 뒀더니 '새 에피소드 쓰기'를 눌렀을 때 쓸 칸이
+  // 화면 밖으로 밀려서, 쓰라고 해 놓고 쓸 곳을 안 보여 주는 꼴이 됐다.
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      {children}
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
       <FinalCheckSection
         t={t}
@@ -476,7 +480,6 @@ function Inspector(props: {
           props.onActiveQ(n);
         }}
       />
-      {children}
     </aside>
   );
   const qLabel = t(`문항 ${q + 1}`, `Question ${q + 1}`, `题目 ${q + 1}`, `Câu ${q + 1}`, `設問 ${q + 1}`, `Pertanyaan ${q + 1}`);
@@ -538,7 +541,24 @@ function Inspector(props: {
         ) : null}
 
         <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
-          <Field key={`t-${id}`} label={t(`본문 · ${charCount(para.trim()).toLocaleString()}자`, `Text · ${charCount(para.trim()).toLocaleString()} chars`)} value={para} multiline rows={9} onChange={(v) => props.onText(id, v)} />
+          <Field
+            key={`t-${id}`}
+            label={t(`본문 · ${charCount(para.trim()).toLocaleString()}자`, `Text · ${charCount(para.trim()).toLocaleString()} chars`)}
+            value={para}
+            multiline
+            rows={9}
+            // 빈 에피소드 = 방금 '새 에피소드 쓰기'로 만든 것 → 커서를 여기 둔다.
+            autoFocus={!para.trim()}
+            placeholder={t(
+              "언제, 무엇을, 어떻게 했고 무엇이 달라졌는지 순서대로 적어 보세요.",
+              "Write what you did, how, and what changed — in that order.",
+              "按时间、做了什么、怎么做、带来什么变化的顺序写。",
+              "Viết theo thứ tự: khi nào, làm gì, làm thế nào, kết quả ra sao.",
+              "いつ・何を・どのように行い、何が変わったかを順に書いてみてください。",
+              "Tulis berurutan: kapan, apa, bagaimana, dan apa yang berubah."
+            )}
+            onChange={(v) => props.onText(id, v)}
+          />
           <AiPolish key={`ai-${id}`} t={t} text={para} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
         </Section>
 

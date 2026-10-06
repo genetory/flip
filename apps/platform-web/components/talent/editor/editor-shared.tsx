@@ -495,7 +495,8 @@ export function Field({
   multiline,
   rows = 6,
   placeholder,
-  type
+  type,
+  autoFocus
 }: {
   label: string;
   value: string;
@@ -505,6 +506,9 @@ export function Field({
   rows?: number;
   placeholder?: string;
   type?: "text" | "number";
+  /** 방금 '쓰기'로 만든 빈 칸처럼, 사용자가 바로 타이핑할 곳에만 켠다.
+   *  아무 데나 켜면 화면이 열릴 때 멋대로 스크롤이 튄다. */
+  autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -516,6 +520,7 @@ export function Field({
       onChange?.(e.target.value);
     },
     onBlur: () => onBlurValue?.(draft),
+    autoFocus,
     className: INPUT_CLS
   };
   return (
