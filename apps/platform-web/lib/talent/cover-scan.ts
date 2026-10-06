@@ -78,10 +78,12 @@ export function scanCover(questions: ScanQuestion[], keywords: string[], charCou
   }
 
   // 필수 소재는 문서 전체에서 확인한다 — AI 가 넣었더라도 이후 편집에서 지웠을 수 있다.
-  const all = questions.map((q) => q.text).join("\n");
+  // 띄어쓰기는 무시하고 찾는다: 소재를 "결제 시스템"으로 적어 두고 본문에 "결제시스템"으로
+  // 썼다면 넣은 것이다. 글자 그대로만 맞추면 멀쩡히 쓴 소재를 "없다"고 하게 된다.
+  const all = questions.map((q) => q.text).join("\n").replace(/\s/g, "");
   const missingKeywords = keywords
     .map((k) => k.trim())
-    .filter((k) => k.length > 0 && !all.includes(k));
+    .filter((k) => k.length > 0 && !all.includes(k.replace(/\s/g, "")));
 
   return {
     byQuestion,

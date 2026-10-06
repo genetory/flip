@@ -266,6 +266,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           onActiveQ={setActiveQ}
           onSelect={setSelectedId}
           onText={setText}
+          onDoc={saveCoverDoc}
           onDeleteEpisode={deleteEpisode}
           onCopy={(text) => void copyAnswer(text)}
           onPolishedAnswer={applyPolishedAnswer}
@@ -442,6 +443,7 @@ function Inspector(props: {
   onActiveQ: (q: number) => void;
   onSelect: (id: string | null) => void;
   onText: (id: string, v: string) => void;
+  onDoc: (next: CoverDoc) => void;
   onDeleteEpisode: (id: string) => void;
   onCopy: (text: string) => void;
   onPolishedAnswer: (q: number, text: string) => void;
@@ -456,8 +458,24 @@ function Inspector(props: {
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
 
+  // 점검은 무엇을 고르고 있든 늘 보인다 — aside 헬퍼 안에 두어 아래 분기 전부가 갖게 한다.
+  // 예전에는 '문항을 고른 때' 분기 안쪽, 그것도 한참 아래에 있어서 에피소드를 고르면 통째로
+  // 사라졌다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에 따라 없어지면 안 된다(이력서는 늘 보인다).
   const aside = (children: ReactNode) => (
     <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+      <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
+      <FinalCheckSection
+        t={t}
+        layout={layout}
+        scan={props.scan}
+        review={props.review}
+        onRunReview={props.onRunReview}
+        reviewableCount={props.reviewableCount}
+        onGoQuestion={(n) => {
+          props.onSelect(null);
+          props.onActiveQ(n);
+        }}
+      />
       {children}
     </aside>
   );
@@ -596,19 +614,6 @@ function Inspector(props: {
 
       <DocContextSection t={t} doc={doc} onDocMeta={props.onDocMeta} />
 
-      <FinalCheckSection
-        t={t}
-        layout={layout}
-        scan={props.scan}
-        review={props.review}
-        onRunReview={props.onRunReview}
-        reviewableCount={props.reviewableCount}
-        onGoQuestion={(n) => {
-          props.onSelect(null);
-          props.onActiveQ(n);
-        }}
-      />
-
       <Section title={t("문항 설정", "Question settings", "题目设置", "Cài đặt câu hỏi", "設問の設定", "Pengaturan pertanyaan")}>
         <Field key={`p-${question.id}`} label={t("문항", "Prompt", "题目", "Câu hỏi", "設問", "Pertanyaan")} value={question.prompt} multiline rows={3} onChange={(v) => props.onLayout(updateQuestion(layout, q, { prompt: v }))} />
         <Field
@@ -667,6 +672,95 @@ function Inspector(props: {
  *  문항별 설정이 아니라 자소서 전체에 걸리므로 문항 설정과 분리해 둔다. */
 const JOB_TEXT_MAX = 4000;
 const KEYWORDS_MAX = 10;
+
+/**
+ * 에피소드 일괄 다듬기 — 이력서의 '정리'에 해당한다.
+ *
+ * 다만 하는 일이 다르다. 이력서는 대화체를 '…함' 명사형으로 **바꾸는** 기계적 변환이지만,
+ * 자소서는 존댓말 산문이 정답이라 문체를 바꾸면 안 된다. 그래서 style="natural" —
+ * 어색한 표현과 맞춤법·띄어쓰기만 고치고 길이와 내용은 그대로 둔다.
+ *
+ * 글을 한꺼번에 건드리는 작업이라 되돌리기를 같이 둔다(이력서 쪽과 같은 약속).
+ */
+function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc: (next: CoverDoc) => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [prev, setPrev] = useState<CoverDoc["items"] | null>(null);
+  const targets = doc.items.filter((it) => (it.text ?? "").trim().length > 0).slice(0, 20);
+  if (targets.length === 0) return null;
+
+  const run = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      // 에피소드마다 한 번씩 부른다 — 자소서 다듬기는 문단 단위 배치 엔드포인트가 없다.
+      // 20개로 자른 건 분당 호출 상한 때문이다(한 번에 그 이상을 다듬을 일도 드물다).
+      const results = await Promise.all(
+        targets.map(async (it) => {
+          try {
+            return [it.id, await polishSelfIntro({ text: it.text.trim(), style: "natural" })] as const;
+          } catch {
+            return [it.id, null] as const; // 한 개가 실패해도 나머지는 살린다
+          }
+        })
+      );
+      const byId = new Map(results);
+      let changed = 0;
+      const items = doc.items.map((it) => {
+        const next = byId.get(it.id);
+        if (typeof next !== "string" || !next.trim() || next === it.text) return it;
+        changed += 1;
+        return { ...it, text: next };
+      });
+      if (changed > 0) {
+        setPrev(doc.items);
+        onDoc({ ...doc, items });
+      }
+      toast.success(
+        changed > 0
+          ? `${changed}${t("개 에피소드를 다듬었어요", " episodes polished", " 段已润色", " đoạn đã chỉnh", "件を整えました", " episode dirapikan")}`
+          : t("바꿀 내용이 없었어요", "Nothing to change", "没有需要修改的", "Không có gì để đổi", "変更点はありません", "Tidak ada perubahan")
+      );
+    } catch (err) {
+      // 429·5xx 는 aiPost 가 전역 토스트로 안내한다.
+      console.error("[cover-editor/bulk-tidy] failed", err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title={t("문장 다듬기", "Tidy up sentences", "润色句子", "Chỉnh câu văn", "文章を整える", "Rapikan kalimat")}>
+      <p className="text-[11.5px] leading-[1.6] text-[#8B95A1]">
+        {t(
+          "어색한 표현과 맞춤법만 한 번에 고쳐요. 길이·내용·문체는 그대로 두고, 없는 사실은 추가하지 않아요.",
+          "Fixes awkward wording and typos at once. Length, content and tone stay as they are; no facts are invented.",
+          "一次性修正生硬表达和错别字。长度、内容、语气保持不变，不添加不存在的事实。",
+          "Sửa cách diễn đạt gượng và lỗi chính tả cùng lúc. Độ dài, nội dung, giọng văn giữ nguyên; không thêm điều không có.",
+          "不自然な表現と誤字だけを一括で直します。長さ・内容・文体はそのまま、事実は追加しません。",
+          "Memperbaiki ungkapan janggal dan salah ketik sekaligus. Panjang, isi, dan nada tetap; tanpa menambah fakta."
+        )}
+      </p>
+      <button type="button" onClick={() => void run()} disabled={busy} className={`${TINT_BTN} h-9 w-full rounded-[10px] text-[13px] font-semibold leading-none`}>
+        {busy
+          ? t("다듬는 중…", "Polishing…", "润色中…", "Đang chỉnh…", "整えています…", "Merapikan…")
+          : `${t("다듬기", "Tidy up", "润色", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}
+      </button>
+      {prev ? (
+        <button
+          type="button"
+          onClick={() => {
+            onDoc({ ...doc, items: prev });
+            setPrev(null);
+          }}
+          className="h-9 w-full rounded-[10px] bg-white text-[12.5px] font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+        >
+          {t("되돌리기", "Undo", "撤销", "Hoàn tác", "元に戻す", "Batalkan")}
+        </button>
+      ) : null}
+    </Section>
+  );
+}
 
 function DocContextSection({ t, doc, onDocMeta }: { t: PlatformT; doc: CoverDoc; onDocMeta: (patch: Partial<CoverDoc>) => void }) {
   const [draft, setDraft] = useState("");
@@ -851,7 +945,8 @@ function FinalCheckSection({
   }
   for (const k of scan.missingKeywords) {
     lines.push({
-      what: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 ${t("가 본문에 없어요", "is missing", "未出现", "chưa có", "が本文にありません", "belum ada")}`,
+      // '「…」가 본문에' 처럼 조사를 붙이면 외래어에서 틀린다("Python가"). 다른 줄과 같은 '— ' 형식으로 쓴다.
+      what: `${t("소재", "Point", "素材", "Nội dung", "要素", "Poin")} 「${k}」 — ${t("본문에 없어요", "missing from the text", "正文中未出现", "chưa có trong bài", "本文にありません", "belum ada di teks")}`,
       why: t(
         "직접 '반드시 넣을 소재'로 적어 둔 거예요. 가장 어울리는 문항에 한 문장으로 녹여 주세요.",
         "You marked this as a must-include point. Work it into the answer where it fits best.",
