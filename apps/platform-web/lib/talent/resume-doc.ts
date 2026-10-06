@@ -79,8 +79,8 @@ function uid() {
 }
 
 // 저장 — 계정(서버)에 반영. 실제 쓰기는 공유 스토어가 debounce 처리한다.
-export function saveResumeDoc(doc: ResumeDoc): void {
-  storeSetResume({ ...doc, updatedAt: Date.now() });
+export function saveResumeDoc(doc: ResumeDoc, opts?: { label?: string; force?: boolean }): void {
+  storeSetResume({ ...doc, updatedAt: Date.now() }, opts);
 }
 
 export function clearResumeDoc(): void {

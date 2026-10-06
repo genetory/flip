@@ -23,7 +23,10 @@ export type DocsSaveState = "idle" | "pending" | "saving" | "saved" | "error";
 // 문서 버전 스냅샷 — "며칠 전 버전으로 되돌리기"용. 같은 Resume.content 안에 보관한다
 // (content 가 JSON 이라 스키마 변경은 필요 없다).
 // 저장은 매번 content 전체를 PATCH 하므로 히스토리가 곧 업로드 용량이다 → 개수를 조인다.
-export type DocVersion<T> = { savedAt: number; doc: T };
+// label — 이 지점 **이후에** 무엇을 했는지(AI 다듬기·전체 정리·파일 가져오기). 없으면 직접 편집.
+// 되돌리기만 있으면 사용자는 무엇이 사라질지 모른 채 눌러야 한다. 화면은 label 과 실제 차이를
+// 함께 보여 준다(차이는 doc-diff 가 계산한다 — label 이 없어도 정확하다).
+export type DocVersion<T> = { savedAt: number; doc: T; label?: string };
 const MAX_VERSIONS = 3;
 // 스냅샷 간격 — 타이핑마다 쌓이면 10분 전 버전만 3개 남아 쓸모가 없다.
 const MIN_SNAPSHOT_GAP_MS = 10 * 60 * 1000;
@@ -157,12 +160,20 @@ function uid() {
 // 이전 문서를 히스토리에 밀어넣는다. 내용이 실제로 달라졌고, 마지막 스냅샷이 충분히
 // 오래됐을 때만 쌓는다(연속 편집이 히스토리를 통째로 잡아먹지 않게).
 // export 는 테스트용 — 스냅샷 규칙이 틀리면 히스토리가 통째로 낭비되거나 데이터가 남지 않는다.
-export function pushVersion<T>(history: DocVersion<T>[], prev: T | null, next: T | null): DocVersion<T>[] {
+export function pushVersion<T>(
+  history: DocVersion<T>[],
+  prev: T | null,
+  next: T | null,
+  opts?: { label?: string; force?: boolean }
+): DocVersion<T>[] {
   if (!prev) return history;
   if (next && JSON.stringify(prev) === JSON.stringify(next)) return history;
   const newest = history[0]?.savedAt ?? 0;
-  if (Date.now() - newest < MIN_SNAPSHOT_GAP_MS) return history;
-  return [{ savedAt: Date.now(), doc: prev }, ...history].slice(0, MAX_VERSIONS);
+  // 한 번에 글을 크게 바꾸는 작업(다듬기·정리·가져오기)은 10분 규칙과 무관하게 지점을 남긴다.
+  // 그 순간이야말로 사용자가 되돌리고 싶어 하는 지점인데, 직전에 타이핑이 있었다는 이유로
+  // 건너뛰면 돌아갈 곳이 없어진다.
+  if (!opts?.force && Date.now() - newest < MIN_SNAPSHOT_GAP_MS) return history;
+  return [{ savedAt: Date.now(), doc: prev, ...(opts?.label ? { label: opts.label } : {}) }, ...history].slice(0, MAX_VERSIONS);
 }
 
 function buildContent(): Record<string, unknown> {
@@ -445,15 +456,15 @@ async function flush() {
   }
 }
 
-export function setResumeDoc(doc: ResumeDoc | null): void {
-  resumeHistory = pushVersion(resumeHistory, resumeDoc, doc);
+export function setResumeDoc(doc: ResumeDoc | null, opts?: { label?: string; force?: boolean }): void {
+  resumeHistory = pushVersion(resumeHistory, resumeDoc, doc, opts);
   resumeDoc = doc;
   emit();
   scheduleSave();
 }
 
-export function setCoverDoc(doc: CoverDoc | null): void {
-  coverHistory = pushVersion(coverHistory, coverDoc, doc);
+export function setCoverDoc(doc: CoverDoc | null, opts?: { label?: string; force?: boolean }): void {
+  coverHistory = pushVersion(coverHistory, coverDoc, doc, opts);
   coverDoc = doc;
   emit();
   scheduleSave();
