@@ -7,8 +7,8 @@
 //   구성      → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretLeft, CaretRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -262,6 +262,33 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
     );
     // 새로 들어온 항목은 아직 '이력서에 넣기' 전 상태다 — 자동 배치는 레이아웃이 알아서 한다.
   };
+  // 시트 1단 탭 — '항목' 과 '점검' 은 같은 자리에서 갈아끼운다. 데스크톱에는 없다(양쪽에 늘 보인다).
+  const sheetTabs = (active: "items" | "check") => {
+    const chip = (on: boolean) =>
+      `flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
+        on ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
+      }`;
+    return (
+      <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center gap-1.5 lg:hidden">
+        <button type="button" aria-pressed={active === "items"} onClick={() => setSheet("modules")} className={chip(active === "items")}>
+          {t("항목", "Items", "条目", "Mục", "項目", "Item")}
+        </button>
+        <button
+          type="button"
+          aria-pressed={active === "check"}
+          onClick={() => {
+            setSheet("props");
+            setFocus(`check:${Date.now()}`);
+          }}
+          className={chip(active === "check")}
+        >
+          {t("점검", "Check", "检查", "Kiểm tra", "チェック", "Cek")}
+          {scan.flaggedCount ? <span className={active === "check" ? "text-white/70" : "text-[#B0B8C1]"}>{scan.flaggedCount}</span> : null}
+        </button>
+      </nav>
+    );
+  };
+
   // 점검 목록에서 누르면 그 항목을 고르고, 화면 밖이면 보이는 곳까지 굴린다.
   // 편집 영역 안에서만 찾는다 — 인쇄 사본(PrintCopy)에도 같은 data-module 이 있다.
   const goItem = (id: string) => {
@@ -283,6 +310,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       <div className="flex min-h-0 flex-1 print:block">
         <ModuleList
           open={sheet === "modules"}
+          tabs={sheetTabs("items")}
           onClose={() => setSheet("none")}
           t={t}
           doc={doc}
@@ -331,8 +359,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         <Inspector
           open={sheet === "props"}
           focus={focus}
+          tabs={sheetTabs(focus?.startsWith("check:") ? "check" : "items")}
           onClose={() => setSheet("none")}
-          onBrowse={() => setSheet("modules")}
           t={t}
           doc={doc}
           info={info}
@@ -395,6 +423,7 @@ function TemplateSwitch({ t, template, onTemplate }: { t: PlatformT; template: R
 
 function ModuleList({
   open,
+  tabs,
   onClose,
   t,
   doc,
@@ -406,6 +435,8 @@ function ModuleList({
 }: {
   /** 모바일 시트가 열려 있는지. 데스크톱(lg)에서는 항상 보이므로 영향 없다. */
   open: boolean;
+  /** 시트 1단 탭(항목·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
   onClose: () => void;
   t: PlatformT;
   doc: ResumeDoc;
@@ -416,6 +447,8 @@ function ModuleList({
   onAdd: (section: CareerSection) => void;
 }) {
   const kb = useKeyboardInset();
+  // 모바일에서 지금 보고 있는 묶음. 데스크톱에서는 쓰이지 않는다 — 전부 한 번에 보인다.
+  const [tab, setTab] = useState<"basic" | CareerSection>("basic");
   const fixed: { id: string; label: string }[] = [
     { id: FIXED_MODULES.basic, label: t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar") },
     { id: FIXED_MODULES.summary, label: t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") },
@@ -457,20 +490,17 @@ function ModuleList({
       aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}
     >
       {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
-      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
-        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
+        {tabs}
         <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>
       </div>
 
       <div className="px-2.5">
-        {/* '모듈' 은 편집기 용어다 — 모바일에서는 무엇의 목록인지 바로 알 수 있게 쓴다. */}
-        <p className="text-[16px] font-bold tracking-[-0.01em]">
-          <span className="lg:hidden">{t("이력서 항목", "Resume items", "简历条目", "Mục hồ sơ", "履歴書の項目", "Item resume")}</span>
-          <span className="hidden lg:inline">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</span>
-        </p>
-        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
+        {/* 모바일에서는 1단 탭('항목')이 제목을 대신한다 — 같은 말을 두 번 쓰지 않는다. */}
+        <p className="hidden text-[16px] font-bold tracking-[-0.01em] lg:block">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
+        <p className="text-[12.5px] leading-relaxed text-[#8B95A1] lg:mt-1.5">
           <span className="lg:hidden">
             {t(
               "왼쪽 네모를 누르면 이력서에 넣고 빼요. 이름을 누르면 바로 고칠 수 있어요.",
@@ -493,23 +523,55 @@ function ModuleList({
           </span>
         </p>
       </div>
-      <ul className="flex flex-col gap-0.5">{fixed.map((f) => row(f.id, f.label))}</ul>
+      {/* 묶음 탭 — 모바일에서만. 섹션을 찾아 길게 굴리지 않고 위에서 갈아끼운다. */}
+      <div className="-mx-4 overflow-x-auto px-4 lg:hidden">
+        <div className="flex w-max items-center gap-1.5">
+          {([["basic", t("기본", "Basics", "基本", "Cơ bản", "基本", "Dasar"), fixed.length]] as [string, string, number][])
+            .concat(SECTIONS.map((sec) => [sec, sectionLabelOf(t, sec), doc.items.filter((i) => i.section === sec).length]))
+            .map(([key, label, n]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key as "basic" | CareerSection)}
+                aria-pressed={tab === key}
+                className={`flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
+                  tab === key ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
+                }`}
+              >
+                {label}
+                {n ? <span className={tab === key ? "text-white/70" : "text-[#B0B8C1]"}>{n}</span> : null}
+              </button>
+            ))}
+        </div>
+      </div>
+      <ul className={`flex-col gap-0.5 lg:flex ${tab === "basic" ? "flex" : "hidden"}`}>{fixed.map((f) => row(f.id, f.label))}</ul>
       {SECTIONS.map((section) => {
         const items = doc.items.filter((i) => i.section === section);
         return (
-          <div key={section}>
+          <div key={section} className={`${tab === section ? "" : "hidden"} lg:block`}>
             <div className="flex items-center justify-between px-2.5 pb-1.5">
-              <span className="text-[12px] font-semibold text-[#8B95A1]">
+              <span className="hidden text-[12px] font-semibold text-[#8B95A1] lg:inline">
                 {sectionLabelOf(t, section)}
                 {items.length ? <span className="ml-1.5 font-medium text-[#B0B8C1]">{items.filter((i) => placed.has(i.id)).length}/{items.length}</span> : null}
               </span>
-              <button type="button" onClick={() => onAdd(section)} aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#EDF1FD] hover:text-[#0B46E8]">
-                <Plus size={14} weight="bold" />
+              {/* 모바일에서는 탭이 섹션 이름을 대신하므로 '추가' 를 글자 버튼으로 크게 둔다. */}
+              <button
+                type="button"
+                onClick={() => onAdd(section)}
+                aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)}
+                className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#EDF1FD] lg:h-7 lg:w-7 lg:justify-center lg:px-0 lg:text-[#8B95A1] lg:hover:text-[#0B46E8]"
+              >
+                <Plus size={14} weight="bold" className="shrink-0" />
+                <span className="lg:hidden">{t(`${sectionLabelOf(t, section)} 추가`, "Add", "添加", "Thêm", "追加", "Tambah")}</span>
               </button>
             </div>
             {items.length ? (
               <ul className="flex flex-col gap-0.5">{items.map((i) => row(i.id, (i.company?.trim() || i.text.trim() || t("(내용 없음)", "(empty)")).split("\n")[0]))}</ul>
-            ) : null}
+            ) : (
+              <p className="px-2.5 py-3 text-[13px] leading-relaxed text-[#8B95A1] lg:hidden">
+                {t("아직 없어요. 위 ‘추가’ 를 눌러 하나 만들어 보세요.", "Nothing yet. Tap ‘Add’ above.", "还没有内容。点上方“添加”。", "Chưa có. Nhấn ‘Thêm’ ở trên.", "まだありません。上の「追加」を押してください。", "Belum ada. Ketuk ‘Tambah’ di atas.")}
+              </p>
+            )}
           </div>
         );
       })}
@@ -544,9 +606,9 @@ function Inspector(props: {
   open: boolean;
   /** 시트를 연 이유 — "item:<id>:<n>" 이면 그 항목 입력란으로, "check:<n>" 이면 점검 목록으로 스크롤한다. */
   focus: string | null;
+  /** 시트 1단 탭(항목·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
   onClose: () => void;
-  /** 모바일에서 항목 목록 시트로 건너가기. 데스크톱에서는 쓰이지 않는다(왼쪽에 늘 있다). */
-  onBrowse: () => void;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
@@ -568,14 +630,7 @@ function Inspector(props: {
     >
       {/* 모바일 시트 머리 — 손잡이·다른 항목으로 건너가기·닫기. 데스크톱에는 없다. */}
       <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-5 pb-2 pt-6 lg:order-none lg:hidden">
-        {itemFocused ? (
-          <button type="button" onClick={props.onBrowse} className="-ml-1.5 flex items-center gap-1 rounded-full px-1.5 py-1 text-[12.5px] font-bold leading-none text-[#4E5968]">
-            <CaretLeft size={13} weight="bold" className="shrink-0" />
-            {t("다른 항목", "Other items", "其他条目", "Mục khác", "他の項目", "Item lain")}
-          </button>
-        ) : (
-          <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
-        )}
+        {props.tabs}
         <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>

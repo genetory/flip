@@ -156,6 +156,33 @@ function Editor({ doc }: { doc: CoverDoc }) {
     }
   };
 
+  // 시트 1단 탭 — '에피소드' 와 '점검' 을 같은 자리에서 갈아끼운다. 데스크톱에는 없다.
+  const sheetTabs = (active: "items" | "check") => {
+    const chip = (on: boolean) =>
+      `flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
+        on ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
+      }`;
+    return (
+      <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center gap-1.5 lg:hidden">
+        <button type="button" aria-pressed={active === "items"} onClick={() => setSheet("modules")} className={chip(active === "items")}>
+          {t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
+        </button>
+        <button
+          type="button"
+          aria-pressed={active === "check"}
+          onClick={() => {
+            setSheet("props");
+            setFocus(`check:${Date.now()}`);
+          }}
+          className={chip(active === "check")}
+        >
+          {t("점검", "Check", "检查", "Kiểm tra", "チェック", "Cek")}
+          {scan?.flaggedCount ? <span className={active === "check" ? "text-white/70" : "text-[#B0B8C1]"}>{scan.flaggedCount}</span> : null}
+        </button>
+      </nav>
+    );
+  };
+
   const topBar = (
     <EditorTopBar
       t={t}
@@ -236,6 +263,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
       <div className="flex min-h-0 flex-1 print:block">
         <EpisodeLibrary
           open={sheet === "modules"}
+          tabs={sheetTabs("items")}
           onClose={() => setSheet("none")}
           t={t}
           doc={doc}
@@ -328,8 +356,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
         <Inspector
           open={sheet === "props"}
           focus={focus}
+          tabs={sheetTabs(focus?.startsWith("check:") ? "check" : "items")}
           onClose={() => setSheet("none")}
-          onBrowse={() => setSheet("modules")}
           t={t}
           doc={doc}
           layout={layout}
@@ -402,6 +430,7 @@ function AnswerList({ t, layout, textOf, onCopy }: { t: PlatformT; layout: Pick<
 
 function EpisodeLibrary({
   open,
+  tabs,
   onClose,
   t,
   doc,
@@ -415,6 +444,8 @@ function EpisodeLibrary({
 }: {
   /** 모바일에서 시트로 열려 있는지. 데스크톱(lg~)에서는 늘 보이므로 쓰이지 않는다. */
   open: boolean;
+  /** 시트 1단 탭(에피소드·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
   onClose: () => void;
   t: PlatformT;
   doc: CoverDoc;
@@ -436,8 +467,8 @@ function EpisodeLibrary({
       aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
     >
       {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
-      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
-        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
+        {tabs}
         <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>
@@ -545,9 +576,9 @@ function Inspector(props: {
   open: boolean;
   /** 시트를 연 이유 — "item:…" 이면 고른 문항·에피소드로, "check:…" 이면 점검 목록으로 스크롤한다. */
   focus: string | null;
+  /** 시트 1단 탭(에피소드·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
   onClose: () => void;
-  /** 모바일에서 에피소드 목록 시트로 건너가기. 데스크톱에서는 쓰이지 않는다(왼쪽에 늘 있다). */
-  onBrowse: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -603,14 +634,7 @@ function Inspector(props: {
     >
       {/* 모바일 시트 머리 — 손잡이·에피소드 목록으로 건너가기·닫기. 데스크톱에는 없다. */}
       <div className="sticky -top-6 z-10 -mx-5 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-5 pb-2 pt-6 lg:hidden">
-        {itemFocused ? (
-          <button type="button" onClick={props.onBrowse} className="-ml-1.5 flex items-center gap-1 rounded-full px-1.5 py-1 text-[12.5px] font-bold leading-none text-[#4E5968]">
-            <CaretLeft size={13} weight="bold" className="shrink-0" />
-            {t("에피소드 목록", "Episodes", "经历列表", "Danh sách đoạn kể", "エピソード一覧", "Daftar episode")}
-          </button>
-        ) : (
-          <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
-        )}
+        {props.tabs}
         <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>
