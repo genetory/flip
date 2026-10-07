@@ -457,7 +457,7 @@ function ModuleList({
       aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}
     >
       {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
-      <div className="-mt-2 flex items-center justify-between lg:hidden">
+      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
         <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
         <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
@@ -567,7 +567,7 @@ function Inspector(props: {
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
       {/* 모바일 시트 머리 — 손잡이·다른 항목으로 건너가기·닫기. 데스크톱에는 없다. */}
-      <div className="sticky top-0 z-10 order-first -mt-2 flex items-center justify-between gap-2 bg-white pb-1.5 lg:order-none lg:hidden">
+      <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-5 pb-2 pt-6 lg:order-none lg:hidden">
         {itemFocused ? (
           <button type="button" onClick={props.onBrowse} className="-ml-1.5 flex items-center gap-1 rounded-full px-1.5 py-1 text-[12.5px] font-bold leading-none text-[#4E5968]">
             <CaretLeft size={13} weight="bold" className="shrink-0" />
