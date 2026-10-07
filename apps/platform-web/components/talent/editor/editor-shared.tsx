@@ -203,6 +203,12 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
   );
 }
 
+/** 모바일에서만 시트로 띄우기 위한 위치 지정. lg 이상에서는 전부 원래 값으로 되돌려,
+ *  넓은 화면의 계산된 스타일이 바뀌지 않게 한다(static·radius 0·그림자 없음). */
+export const SHEET_CLS =
+  "fixed inset-x-0 bottom-0 z-40 max-h-[75vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "lg:static lg:z-auto lg:max-h-none lg:rounded-none lg:shadow-none";
+
 export const EDITOR_ROUTES = {
   resume: "/talent/career/resume/editor",
   cover: "/talent/career/cover/editor"
@@ -242,11 +248,11 @@ export function EditorTopBar<L, S>({
   // 문서 전환 — 1단/2단 전환과 같은 세그먼트 모양.
   const tab = (key: "resume" | "cover", label: string) =>
     key === active ? (
-      <span aria-current="page" className="flex h-[30px] items-center rounded-[8px] bg-white px-3.5 text-[13.5px] font-bold leading-none text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <span aria-current="page" className="flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-[8px] bg-white px-3 text-[13px] font-bold lg:px-3.5 lg:text-[13.5px] leading-none text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
         {label}
       </span>
     ) : (
-      <Link href={EDITOR_ROUTES[key]} className="flex h-[30px] items-center rounded-[8px] px-3.5 text-[13.5px] font-semibold leading-none text-[#6B7684] transition hover:text-[#191F28]">
+      <Link href={EDITOR_ROUTES[key]} className="flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-[8px] px-3 text-[13px] font-semibold lg:px-3.5 lg:text-[13.5px] leading-none text-[#6B7684] transition hover:text-[#191F28]">
         {label}
       </Link>
     );
@@ -264,11 +270,11 @@ export function EditorTopBar<L, S>({
     </button>
   );
   return (
-    <header className="no-print flex h-16 shrink-0 items-center gap-4 border-b border-[#E5E8EB] bg-white px-5">
+    <header className="no-print flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-b border-[#E5E8EB] bg-white px-3 lg:h-16 lg:gap-4 lg:overflow-visible lg:px-5">
       <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4E5968] transition hover:bg-[#F2F4F6]">
         <ArrowLeft size={18} weight="bold" />
       </Link>
-      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
+      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex shrink-0 items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
         {tab("resume", t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"))}
         {tab("cover", t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"))}
       </nav>

@@ -50,7 +50,7 @@ import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, SHEET_CLS, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -90,6 +90,9 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 가져오기 되돌리기용 스냅샷. **훅이라 아래 조기 반환(불러오는 중)보다 위에 있어야 한다.**
   // 아래에 뒀더니 로딩이 끝나는 순간 훅 개수가 달라져 화면이 통째로 깨졌다.
   const [importUndo, setImportUndo] = useState<ResumeDoc | null>(null);
+  // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
+  // 'props' 는 항목을 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
+  const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
   const history = useResumeHistory();
   const [hover, setHover] = useState<DropSlot | null>(null);
 
@@ -154,7 +157,10 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
         flagged,
         dragId,
         hover,
-        onSelect: setSelectedId,
+        onSelect: (id) => {
+          setSelectedId(id);
+          setSheet("props");
+        },
         onDragStart: (id) => {
           setDragId(id);
           setSelectedId(id);
@@ -256,6 +262,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 편집 영역 안에서만 찾는다 — 인쇄 사본(PrintCopy)에도 같은 data-module 이 있다.
   const goItem = (id: string) => {
     setSelectedId(id);
+    setSheet("props");
     document.querySelector(`main [data-module="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
   };
 
@@ -270,6 +277,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       )}
       <div className="flex min-h-0 flex-1 print:block">
         <ModuleList
+          open={sheet === "modules"}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           placed={placed}
@@ -278,12 +287,42 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onToggle={(id) => commitLayout(placed.has(id) ? hideModule(layout, id) : placeModule(layout, doc, id))}
           onAdd={addItem}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
+        <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
+          {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
+              평소 화면에 더해지는 건 이 두 버튼뿐이고, 편집 패널은 탭했을 때만 올라온다. */}
+          <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSheet("modules")}
+              className={`${TINT_BTN} h-11 flex-1 rounded-[12px] text-[13.5px] font-bold leading-none`}
+            >
+              {t("항목 추가·구성", "Items & layout", "条目·结构", "Mục & bố cục", "項目・構成", "Item & tata letak")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSheet("props")}
+              className="h-11 flex-1 rounded-[12px] bg-white text-[13.5px] font-bold leading-none text-[#4E5968] ring-1 ring-[#E5E8EB]"
+            >
+              {t(`전체 점검${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Check${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `检查${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Kiểm tra${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `チェック${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Cek${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`)}
+            </button>
+          </div>
           <div className="mx-auto max-w-[794px]">
             <ModularResumePages doc={doc} info={info} layout={layout} interaction={interaction} />
           </div>
         </main>
+
+        {/* 시트 뒤 어둡게 — 바깥을 누르면 닫힌다. 데스크톱에는 없다. */}
+        {sheet !== "none" ? (
+          <button
+            type="button"
+            aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+            onClick={() => setSheet("none")}
+            className="fixed inset-0 z-30 bg-[#0B1227]/30 lg:hidden"
+          />
+        ) : null}
         <Inspector
+          open={sheet === "props"}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           info={info}
@@ -345,6 +384,8 @@ function TemplateSwitch({ t, template, onTemplate }: { t: PlatformT; template: R
 // ── 왼쪽: 모듈 목록 ──────────────────────────────────────────
 
 function ModuleList({
+  open,
+  onClose,
   t,
   doc,
   placed,
@@ -353,6 +394,9 @@ function ModuleList({
   onToggle,
   onAdd
 }: {
+  /** 모바일 시트가 열려 있는지. 데스크톱(lg)에서는 항상 보이므로 영향 없다. */
+  open: boolean;
+  onClose: () => void;
   t: PlatformT;
   doc: ResumeDoc;
   placed: Set<string>;
@@ -394,7 +438,18 @@ function ModuleList({
     );
   };
   return (
-    <aside className="no-print flex w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}>
+    <aside
+      className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-6 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[288px] lg:shrink-0 lg:border-r`}
+      aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}
+    >
+      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
+      <div className="-mt-2 flex items-center justify-between lg:hidden">
+        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+        <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
+
       <div className="px-2.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
@@ -455,6 +510,9 @@ function Inspector(props: {
   changePoints: ChangePoint[];
   onImport: (p: ImportPreview) => void;
   importUndo: (() => void) | null;
+  /** 모바일 시트가 열려 있는지. 데스크톱(lg)에서는 항상 보인다. */
+  open: boolean;
+  onClose: () => void;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
@@ -464,7 +522,18 @@ function Inspector(props: {
   const reveal = useRevealOnChange<HTMLDivElement>(id);
 
   return (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside
+      className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
+      aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
+    >
+      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
+      <div className="-mt-2 flex items-center justify-between lg:hidden">
+        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+        <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
+
       {/* 문서 전체에 거는 작업 — 모듈 선택과 무관하게 늘 맨 위에 보인다. 고른 모듈의 편집
           UI 는 아래에 오지만, 고르면 그 입력란으로 스크롤해 주므로 가려지지 않는다. */}
       <ImportFromFile

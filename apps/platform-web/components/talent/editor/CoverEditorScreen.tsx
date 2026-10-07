@@ -44,7 +44,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, SHEET_CLS, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -78,6 +78,9 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 파일에서 가져오기 되돌리기용 스냅샷. 훅이라 조기 반환(저장본 보기)보다 위에 있어야 한다.
   const [importUndo, setImportUndo] = useState<CoverDoc | null>(null);
+  // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
+  // 'props' 는 에피소드를 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
+  const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
   const coverHistory = useCoverHistory();
 
   // 편집 중 구성 — 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
@@ -229,6 +232,8 @@ function Editor({ doc }: { doc: CoverDoc }) {
       {topBar}
       <div className="flex min-h-0 flex-1 print:block">
         <EpisodeLibrary
+          open={sheet === "modules"}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           layout={layout}
@@ -242,7 +247,25 @@ function Editor({ doc }: { doc: CoverDoc }) {
           }}
           onNew={newEpisode}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+        <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+          {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
+              문서 위에 둔다. 아래에 두면 A4 를 끝까지 넘겨야 닿는다. */}
+          <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSheet("modules")}
+              className={`${TINT_BTN} h-11 flex-1 rounded-[12px] text-[13.5px] font-bold leading-none`}
+            >
+              {t("에피소드 넣기", "Add episodes", "插入经历", "Thêm đoạn kể", "エピソードを入れる", "Tambah episode")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSheet("props")}
+              className="h-11 flex-1 rounded-[12px] bg-white text-[13.5px] font-bold leading-none text-[#4E5968] ring-1 ring-[#E5E8EB]"
+            >
+              {t(`전체 점검${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Check${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `检查${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Kiểm tra${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `チェック${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Cek${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`)}
+            </button>
+          </div>
           <div className="mx-auto flex max-w-[794px] flex-col gap-3">
             <div className="flex justify-end">
               <button
@@ -269,16 +292,30 @@ function Editor({ doc }: { doc: CoverDoc }) {
                 onActivate: (qi) => {
                   setActiveQ(qi);
                   setSelectedId(null);
+                  setSheet("props");
                 },
                 onSelect: (qi, id) => {
                   setActiveQ(qi);
                   setSelectedId(id);
+                  setSheet("props");
                 }
               }}
             />
           </div>
         </main>
+
+        {/* 시트 뒤 어둡게 — 바깥을 누르면 닫힌다. 데스크톱에는 없다. */}
+        {sheet !== "none" ? (
+          <button
+            type="button"
+            aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+            onClick={() => setSheet("none")}
+            className="fixed inset-0 z-30 bg-[#0B1227]/30 lg:hidden"
+          />
+        ) : null}
         <Inspector
+          open={sheet === "props"}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           layout={layout}
@@ -350,6 +387,8 @@ function AnswerList({ t, layout, textOf, onCopy }: { t: PlatformT; layout: Pick<
 // ── 왼쪽: 에피소드 모음 ──────────────────────────────────────
 
 function EpisodeLibrary({
+  open,
+  onClose,
   t,
   doc,
   layout,
@@ -360,6 +399,9 @@ function EpisodeLibrary({
   onInsert,
   onNew
 }: {
+  /** 모바일에서 시트로 열려 있는지. 데스크톱(lg~)에서는 늘 보이므로 쓰이지 않는다. */
+  open: boolean;
+  onClose: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -373,7 +415,17 @@ function EpisodeLibrary({
   const active = layout.questions[activeQ];
   const unplaced = new Set(layout.unplaced);
   return (
-    <aside className="no-print flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}>
+    <aside
+      className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-4 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[300px] lg:shrink-0 lg:border-r`}
+      aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
+    >
+      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
+      <div className="-mt-2 flex items-center justify-between lg:hidden">
+        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+        <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
       <div className="shrink-0 px-1.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
@@ -461,6 +513,9 @@ function CharGauge({ t, count, limit }: { t: PlatformT; count: number; limit: nu
 // ── 오른쪽: 문항·에피소드·버전 ───────────────────────────────
 
 function Inspector(props: {
+  /** 모바일에서 시트로 열려 있는지. 데스크톱(lg~)에서는 늘 보이므로 쓰이지 않는다. */
+  open: boolean;
+  onClose: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -505,7 +560,17 @@ function Inspector(props: {
   // 밀렸기 때문인데, 그건 자리 문제가 아니라 **고른 곳으로 데려다 주지 않은** 문제였다.
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside
+      className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
+      aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
+    >
+      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
+      <div className="-mt-2 flex items-center justify-between lg:hidden">
+        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+        <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
       <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
 
       <ImportFromFile
