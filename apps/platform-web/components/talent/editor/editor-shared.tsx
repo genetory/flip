@@ -210,9 +210,9 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
 /** 모바일에서만 시트로 띄우기 위한 위치 지정. lg 이상에서는 전부 원래 값으로 되돌려,
  *  넓은 화면의 계산된 스타일이 바뀌지 않게 한다(static·radius 0·그림자 없음). */
 export const SHEET_CLS =
-  // 높이는 늘 화면의 80%(위 20% 는 문서가 보이게). 내용에 따라 올라오는 높이가 달라지면
+  // 높이는 늘 화면의 90%(위 10% 만 남긴다). 내용에 따라 올라오는 높이가 달라지면
   // 누를 자리가 매번 움직여 쓰기 어렵다.
-  "fixed inset-x-0 bottom-0 z-40 h-[80vh] max-h-[80vh] overscroll-contain rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "fixed inset-x-0 bottom-0 z-40 h-[90vh] max-h-[90vh] overscroll-contain rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
   "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
 
 export const EDITOR_ROUTES = {
@@ -602,7 +602,7 @@ export function DesktopHintToast({ t, hidden }: { t: PlatformT; hidden?: boolean
   );
 }
 
-/** 키보드가 올라왔을 때만 시트를 '지금 보이는 영역'에 맞춘다. 아니면 undefined — 클래스(80vh) 그대로.
+/** 키보드가 올라왔을 때만 시트를 '지금 보이는 영역'에 맞춘다. 아니면 undefined — 클래스(90vh) 그대로.
  *  iOS 는 키보드가 떠도 레이아웃 뷰포트가 그대로라 position:fixed 시트가 키보드 뒤로 숨고,
  *  입력란을 보이려고 페이지를 밀어 올려 시트가 화면 밖으로 나가기도 한다. 그래서 bottom 만
  *  올리지 않고 visualViewport 의 위치·높이를 그대로 받아 쓴다.
