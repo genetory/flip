@@ -44,6 +44,82 @@ export function ModularResumePages({ doc, info, layout, interaction, maxScale = 
   return <A4Pages editing={!!interaction} maxScale={maxScale} render={() => <ResumeBody doc={doc} info={info} layout={layout} interaction={interaction} />} />;
 }
 
+// ── 모바일 목록 ──────────────────────────────────────────────
+// A4 를 390px 에 맞춰 줄이면 글씨가 6px 이 돼 읽지도, 손가락으로 집지도 못한다.
+// 모바일에서는 같은 모듈을 **줄이지 않고** 카드로 세워 보여준다 — 내용은 A4 와 같은 renderModule 이라
+// 두 화면이 다른 이력서처럼 보이지 않는다. 데스크톱에서는 쓰이지 않는다.
+export function ResumeMobileList({
+  doc,
+  info,
+  layout,
+  flagged,
+  selectedId,
+  onEdit
+}: {
+  doc: ResumeDoc;
+  info: BasicInfo;
+  layout: ResolvedLayout;
+  flagged?: ReadonlyMap<string, string[]>;
+  selectedId: string | null;
+  onEdit: (id: string) => void;
+}) {
+  const t = usePlatformT();
+  const itemById = new Map(doc.items.map((i) => [i.id, i]));
+  // 칸 순서대로 이어 붙인다 — 두 칸 틀이어도 모바일에서는 한 줄로 읽는다.
+  const ids = layout.cols.flat();
+  let prevSection: CareerSection | "@" | null = null;
+  const cards: ReactNode[] = [];
+
+  for (const id of ids) {
+    const item = itemById.get(id);
+    const section: CareerSection | "@" = item ? item.section : "@";
+    const showTitle = !!item && section !== prevSection;
+    const content = renderModule({ id, item, doc, info, narrow: false, t, showTitle, highlight: flagged?.get(id) });
+    if (!content) continue;
+    prevSection = section;
+    const flags = flagged?.get(id);
+    const selected = selectedId === id;
+    cards.push(
+      <li key={id}>
+        <div
+          onClick={() => onEdit(id)}
+          className={`rounded-[14px] bg-white px-4 py-4 ring-1 transition ${selected ? "ring-2 ring-[#0B46E8]" : "ring-[#E5E8EB]"}`}
+        >
+          {content}
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#F2F4F6] pt-2.5">
+            {flags ? (
+              <span className="rounded-full bg-[#FFF6D6] px-2 py-1 text-[11.5px] font-bold leading-none text-[#8A6D00]">
+                {t("점검 필요", "Needs a look", "需检查", "Cần xem lại", "要チェック", "Perlu dicek")}
+              </span>
+            ) : (
+              <span />
+            )}
+            <button type="button" onClick={() => onEdit(id)} className="rounded-full px-2 py-1 text-[13px] font-bold leading-none text-[#0B46E8]">
+              {t("고치기", "Edit", "修改", "Sửa", "編集", "Ubah")}
+            </button>
+          </div>
+        </div>
+      </li>
+    );
+  }
+
+  if (!cards.length) {
+    return (
+      <p className="rounded-[14px] bg-white px-4 py-8 text-center text-[13.5px] leading-relaxed text-[#8B95A1] ring-1 ring-[#E5E8EB]">
+        {t(
+          "‘항목 추가·구성’ 에서 넣으면 여기에 이력서로 정리돼요.",
+          "Add items from ‘Items & layout’ and they'll appear here.",
+          "在“条目·结构”中添加后会在此整理成简历。",
+          "Thêm từ ‘Mục & bố cục’ để hiển thị tại đây.",
+          "「項目・構成」から入れると、ここに履歴書として整理されます。",
+          "Tambahkan dari ‘Item & tata letak’, akan tersusun di sini."
+        )}
+      </p>
+    );
+  }
+  return <ul className="flex flex-col gap-2.5">{cards}</ul>;
+}
+
 // ── A4 본문 ──────────────────────────────────────────────────
 
 function ResumeBody({
