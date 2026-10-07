@@ -206,7 +206,7 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
 /** 모바일에서만 시트로 띄우기 위한 위치 지정. lg 이상에서는 전부 원래 값으로 되돌려,
  *  넓은 화면의 계산된 스타일이 바뀌지 않게 한다(static·radius 0·그림자 없음). */
 export const SHEET_CLS =
-  "fixed inset-x-0 bottom-0 z-40 max-h-[75vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "fixed inset-x-0 bottom-0 z-40 max-h-[88vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
   "lg:static lg:z-auto lg:max-h-none lg:rounded-none lg:shadow-none";
 
 export const EDITOR_ROUTES = {

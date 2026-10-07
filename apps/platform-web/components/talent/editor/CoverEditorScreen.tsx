@@ -43,7 +43,7 @@ import { restoreCoverVersion } from "../../../lib/talent/renewal-docs-store";
 import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
-import { CoverMobileList, ModularCoverPages } from "./ModularCoverPages";
+import { ModularCoverPages } from "./ModularCoverPages";
 import { EditorTopBar, Field, FullMessage, SavedPanel, Section, SHEET_CLS, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
@@ -81,8 +81,6 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
   // 'props' 는 에피소드를 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
   const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
-  // 모바일에서 A4 모양을 확인하는 미리보기. 평소에는 읽을 수 있는 목록을 보여준다.
-  const [preview, setPreview] = useState(false);
   // 시트를 무엇 때문에 열었는지. 값이 바뀔 때마다 패널이 그 자리로 스크롤한다 —
   // '고치기' 를 눌렀는데 맨 위 도구만 보이면 쓸 수가 없다.
   const [focus, setFocus] = useState<string | null>(null);
@@ -245,7 +243,11 @@ function Editor({ doc }: { doc: CoverDoc }) {
           activeQ={q}
           selectedId={selectedId}
           textOf={textOf}
-          onSelect={setSelectedId}
+          onSelect={(id) => {
+            setSelectedId(id);
+            setSheet("props");
+            setFocus(`item:${q}:${id}:${Date.now()}`);
+          }}
           onInsert={(id) => {
             commitLayout(addBlock(layout, doc, q, id));
             setSelectedId(id);
@@ -288,39 +290,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
                 <Plus size={14} weight="bold" className="shrink-0" />
                 <span>{t("문항 추가", "Add question", "添加题目", "Thêm câu hỏi", "設問を追加", "Tambah pertanyaan")}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setPreview((v) => !v)}
-                className="order-first flex h-8 items-center rounded-full bg-white px-3 text-[12.5px] font-bold leading-none text-[#4E5968] ring-1 ring-[#E5E8EB] lg:hidden"
-              >
-                {preview
-                  ? t("목록으로", "Back to list", "回到列表", "Về danh sách", "一覧に戻る", "Ke daftar")
-                  : t("A4 미리보기", "A4 preview", "A4 预览", "Xem A4", "A4 プレビュー", "Pratinjau A4")}
-              </button>
             </div>
-            {/* 모바일 기본 화면 — 줄이지 않은 목록. 데스크톱에는 없다. */}
-            <div className={`lg:hidden ${preview ? "hidden" : ""}`}>
-              <CoverMobileList
-                doc={doc}
-                layout={layout}
-                flaggedQuestions={flaggedQuestions}
-                activeQ={q}
-                selectedId={selectedId}
-                onActivate={(qi) => {
-                  setActiveQ(qi);
-                  setSelectedId(null);
-                  setSheet("props");
-                  setFocus(`item:${qi}::${Date.now()}`);
-                }}
-                onSelect={(qi, id) => {
-                  setActiveQ(qi);
-                  setSelectedId(id);
-                  setSheet("props");
-                  setFocus(`item:${qi}:${id}:${Date.now()}`);
-                }}
-              />
-            </div>
-            <div className={preview ? "" : "hidden lg:block"}>
             <ModularCoverPages
               doc={doc}
               info={info}
@@ -343,7 +313,6 @@ function Editor({ doc }: { doc: CoverDoc }) {
                 }
               }}
             />
-            </div>
           </div>
         </main>
 
@@ -360,6 +329,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           open={sheet === "props"}
           focus={focus}
           onClose={() => setSheet("none")}
+          onBrowse={() => setSheet("modules")}
           t={t}
           doc={doc}
           layout={layout}
@@ -562,6 +532,8 @@ function Inspector(props: {
   /** 시트를 연 이유 — "item:…" 이면 고른 문항·에피소드로, "check:…" 이면 점검 목록으로 스크롤한다. */
   focus: string | null;
   onClose: () => void;
+  /** 모바일에서 에피소드 목록 시트로 건너가기. 데스크톱에서는 쓰이지 않는다(왼쪽에 늘 있다). */
+  onBrowse: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -598,6 +570,8 @@ function Inspector(props: {
   // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : `${q}:${id ?? ""}`);
   const revealCheck = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("check:") ? props.focus : null);
+  // 모바일에서 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접는다.
+  const itemFocused = !!props.focus?.startsWith("item:");
 
   // 문서 전체에 거는 도구(다듬기·점검)는 무엇을 고르고 있든 **맨 위에** 늘 보인다 —
   // aside 헬퍼에 두어 아래 분기 전부가 갖게 한다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에
@@ -611,15 +585,26 @@ function Inspector(props: {
       className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
-      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
-      <div className="-mt-2 flex items-center justify-between lg:hidden">
-        <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+      {/* 모바일 시트 머리 — 손잡이·에피소드 목록으로 건너가기·닫기. 데스크톱에는 없다. */}
+      <div className="sticky top-0 z-10 -mt-2 flex items-center justify-between gap-2 bg-white pb-1.5 lg:hidden">
+        {itemFocused ? (
+          <button type="button" onClick={props.onBrowse} className="-ml-1.5 flex items-center gap-1 rounded-full px-1.5 py-1 text-[12.5px] font-bold leading-none text-[#4E5968]">
+            <CaretLeft size={13} weight="bold" className="shrink-0" />
+            {t("에피소드 목록", "Episodes", "经历列表", "Danh sách đoạn kể", "エピソード一覧", "Daftar episode")}
+          </button>
+        ) : (
+          <span className="h-1 w-10 rounded-full bg-[#E5E8EB]" aria-hidden />
+        )}
         <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>
       </div>
       <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
 
+      {/* 모바일에서 '고치기' 로 연 시트에서는 숨긴다(고칠 것만 보이게). '전체 점검' 으로 열면 보인다.
+          display:contents 가 아니라 같은 gap 의 flex 열인 이유: 패널의 [&>*]:shrink-0 가
+          안쪽 자식에 닿지 않아 스크롤 열에서 버튼 높이가 눌린다. */}
+      <div className={`flex shrink-0 flex-col gap-7 [&>*]:shrink-0 ${itemFocused ? "hidden lg:flex" : ""}`}>
       <ImportFromFile
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
@@ -653,6 +638,7 @@ function Inspector(props: {
           props.onSelect(episodeId ?? null);
         }}
       />
+      </div>
       </div>
       {children}
     </aside>

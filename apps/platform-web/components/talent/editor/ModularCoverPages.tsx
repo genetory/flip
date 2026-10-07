@@ -6,7 +6,7 @@
 import type { ReactNode } from "react";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 import type { CoverDoc } from "../../../lib/talent/cover-doc";
-import { answerText, type ResolvedCover } from "../../../lib/talent/cover-layout";
+import type { ResolvedCover } from "../../../lib/talent/cover-layout";
 import { usePlatformT } from "../../../lib/i18n";
 import { questionLabel } from "../career/CoverA4";
 import { A4Pages, EditOverlay, Highlighted, useOffPage } from "./A4Pages";
@@ -34,127 +34,6 @@ type Props = {
 
 export function ModularCoverPages({ doc, info, layout, interaction, maxScale = 1 }: Props & { maxScale?: number }) {
   return <A4Pages editing={!!interaction} maxScale={maxScale} render={() => <CoverBody doc={doc} info={info} layout={layout} interaction={interaction} />} />;
-}
-
-// ── 모바일 목록 ──────────────────────────────────────────────
-// A4 를 390px 로 줄이면 답변 글씨가 6px 이 된다. 모바일에서는 문항 하나를 카드 하나로,
-// 줄이지 않은 글씨로 보여준다. 문단을 누르면 그 에피소드를, 제목을 누르면 문항을 고른다.
-// 데스크톱에서는 쓰이지 않는다.
-export function CoverMobileList({
-  doc,
-  layout,
-  flaggedQuestions,
-  activeQ,
-  selectedId,
-  onActivate,
-  onSelect
-}: {
-  doc: CoverDoc;
-  layout: Pick<ResolvedCover, "questions">;
-  flaggedQuestions?: ReadonlyMap<string, string[]>;
-  activeQ: number;
-  selectedId: string | null;
-  onActivate: (q: number) => void;
-  onSelect: (q: number, id: string) => void;
-}) {
-  const t = usePlatformT();
-  const textOf = (id: string) => doc.items.find((i) => i.id === id)?.text ?? "";
-
-  if (!layout.questions.length) {
-    return (
-      <p className="rounded-[14px] bg-white px-4 py-8 text-center text-[13.5px] leading-relaxed text-[#8B95A1] ring-1 ring-[#E5E8EB]">
-        {t(
-          "문항을 추가하고 에피소드를 넣으면 여기에 자기소개서로 정리돼요.",
-          "Add questions and episodes and they'll appear here as your cover letter.",
-          "添加题目和经历后会在此整理成自我介绍。",
-          "Thêm câu hỏi và đoạn kể để hiển thị thành thư giới thiệu tại đây.",
-          "設問とエピソードを入れると、ここに自己紹介書として整理されます。",
-          "Tambahkan pertanyaan dan episode, akan tersusun di sini."
-        )}
-      </p>
-    );
-  }
-
-  return (
-    <ul className="flex flex-col gap-2.5">
-      {layout.questions.map((question, q) => {
-        const quotes = flaggedQuestions?.get(question.id);
-        const count = answerText(question.blocks.map(textOf)).length;
-        const over = question.limit ? count > question.limit : false;
-        const selected = activeQ === q;
-        return (
-          <li key={question.id}>
-            <div className={`rounded-[14px] bg-white px-4 py-4 ring-1 transition ${selected ? "ring-2 ring-[#0B46E8]" : "ring-[#E5E8EB]"}`}>
-              <h2
-                role="button"
-                tabIndex={0}
-                onClick={() => onActivate(q)}
-                onKeyDown={(e) => e.key === "Enter" && onActivate(q)}
-                className="border-l-[3px] border-[#0B46E8] pl-2.5 text-[15px] font-black leading-snug tracking-[-0.01em] text-[#0B1227]"
-              >
-                {questionLabel(t, question.prompt) || t("(문항 없음)", "(no prompt)")}
-              </h2>
-
-              {question.blocks.length ? (
-                <div className="mt-3 flex flex-col gap-2.5">
-                  {question.blocks.map((id) => (
-                    <p
-                      key={id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onSelect(q, id)}
-                      onKeyDown={(e) => e.key === "Enter" && onSelect(q, id)}
-                      className={`whitespace-pre-line break-keep rounded-[8px] text-[13.5px] leading-[1.9] text-[#333D4B] ${
-                        selectedId === id ? "bg-[#F4F7FF] px-2 py-1.5" : ""
-                      }`}
-                    >
-                      {textOf(id).trim() ? (
-                        quotes ? (
-                          <Highlighted text={textOf(id)} quotes={quotes} />
-                        ) : (
-                          textOf(id)
-                        )
-                      ) : (
-                        <span className="text-[#B0B8C1]">{t("(내용 없음)", "(empty)")}</span>
-                      )}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-[12.5px] leading-relaxed text-[#B0B8C1]">
-                  {t(
-                    "‘에피소드 넣기’ 에서 골라 이 문항에 넣어 보세요",
-                    "Pick an episode from ‘Add episodes’ to put it here",
-                    "在“插入经历”中选择后放入此题目",
-                    "Chọn một đoạn kể ở ‘Thêm đoạn kể’ để thêm vào đây",
-                    "「エピソードを入れる」から選んでこの設問に入れてください",
-                    "Pilih episode dari ‘Tambah episode’ untuk ditambahkan"
-                  )}
-                </p>
-              )}
-
-              <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#F2F4F6] pt-2.5">
-                <span className="flex items-center gap-1.5">
-                  <span className={`text-[12px] font-semibold tabular-nums ${over ? "text-[#F04452]" : "text-[#8B95A1]"}`}>
-                    {question.limit ? `${count.toLocaleString()} / ${question.limit.toLocaleString()}` : count.toLocaleString()}
-                    {t("자", " chars", " 字", " ký tự", " 字", " karakter")}
-                  </span>
-                  {quotes ? (
-                    <span className="rounded-full bg-[#FFF6D6] px-2 py-1 text-[11.5px] font-bold leading-none text-[#8A6D00]">
-                      {t("점검 필요", "Needs a look", "需检查", "Cần xem lại", "要チェック", "Perlu dicek")}
-                    </span>
-                  ) : null}
-                </span>
-                <button type="button" onClick={() => onActivate(q)} className="rounded-full px-2 py-1 text-[13px] font-bold leading-none text-[#0B46E8]">
-                  {t("고치기", "Edit", "修改", "Sửa", "編集", "Ubah")}
-                </button>
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
 }
 
 function CoverBody({ doc, info, layout, interaction: ix }: Props) {
