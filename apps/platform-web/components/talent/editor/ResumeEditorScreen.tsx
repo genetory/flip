@@ -521,6 +521,23 @@ function ModuleList({
   );
 }
 
+/** 고른 탭을 가로 스크롤 줄 가운데로 데려온다. 세로는 건드리지 않는다(시트가 통째로 움직이면 안 된다).
+ *  바깥 상자는 data-tabscroll 로 찾는다. 시트가 닫혀 있으면(폭 0) 가만히 둔다. */
+function useCenterInRow<T extends HTMLElement>(key: string | null) {
+  const ref = useRef<T | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    const box = el?.closest<HTMLElement>("[data-tabscroll]");
+    if (!el || !box || box.clientWidth === 0) return;
+    const er = el.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    const delta = er.left + er.width / 2 - (br.left + br.width / 2);
+    if (Math.abs(delta) < 2) return;
+    box.scrollBy({ left: delta, behavior: "smooth" });
+  }, [key]);
+  return ref;
+}
+
 /** 고정 모듈 세 개 — 왼쪽 패널과 모바일 탭이 같은 이름을 쓴다. */
 function FIXED_LIST(t: PlatformT): { id: string; label: string }[] {
   return [
@@ -596,6 +613,9 @@ function Inspector(props: {
   const sectionOfSelected: "basic" | CareerSection = item ? item.section : "basic";
   const curSection = sectionTab ?? sectionOfSelected;
   const group = groupOf(curSection);
+  // 고른 탭을 각 줄의 가운데로.
+  const centerSection = useCenterInRow<HTMLButtonElement>(curSection);
+  const centerItem = useCenterInRow<HTMLButtonElement>(`${curSection}:${id ?? ""}`);
   const tabList: ["basic" | CareerSection, string, number][] = [
     ["basic", t("기본", "Basics", "基本", "Cơ bản", "基本", "Dasar"), FIXED_LIST(t).length],
     ...SECTIONS.map((sec) => [sec, sectionLabelOf(t, sec), doc.items.filter((i) => i.section === sec).length] as ["basic" | CareerSection, string, number])
@@ -620,12 +640,13 @@ function Inspector(props: {
             머리와 한 덩어리로 고정해, 길게 굴려도 탭이 사라지지 않는다. 데스크톱에는 없다. */}
         {itemFocused ? (
           <div className="flex flex-col gap-2">
-          <div className="-mx-5 overflow-x-auto px-5">
+          <div data-tabscroll className="-mx-5 overflow-x-auto px-5">
             <div className="flex w-max items-center gap-1.5 pr-5">
               {tabList.map(([key, label, n]) => (
                 <button
                   key={key}
                   type="button"
+                  ref={curSection === key ? centerSection : undefined}
                   aria-pressed={curSection === key}
                   onClick={() => {
                     const first = groupOf(key)[0];
@@ -642,12 +663,13 @@ function Inspector(props: {
               ))}
             </div>
           </div>
-          <div className="-mx-5 overflow-x-auto px-5">
+          <div data-tabscroll className="-mx-5 overflow-x-auto px-5">
             <div className="flex w-max items-center gap-1.5 pr-5">
               {group.map((g) => (
                 <button
                   key={g.id}
                   type="button"
+                  ref={id === g.id ? centerItem : undefined}
                   aria-pressed={id === g.id}
                   onClick={() => props.onSelect(g.id)}
                   className={`flex h-[38px] max-w-[160px] shrink-0 items-center rounded-[10px] px-3.5 text-[13px] font-bold leading-none transition ${
