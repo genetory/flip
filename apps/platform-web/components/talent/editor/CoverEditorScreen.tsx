@@ -242,11 +242,16 @@ function Editor({ doc }: { doc: CoverDoc }) {
     saveCoverDoc(next);
     if (layout.questions[q]) commitLayout(addBlock(resolveCoverLayout(toStoredCover(layout), next), next, q, id));
     setSelectedId(id);
+    // 모바일에서는 고르기만 해선 아무 일도 안 일어난 것처럼 보인다 — 쓸 칸이 있는 시트로 바로 넘긴다.
+    setSheet("props");
+    setFocus(`item:${q}:${id}:${Date.now()}`);
   };
   const deleteEpisode = (id: string) => {
     if (!window.confirm(t("이 에피소드를 삭제할까요? 이미 저장한 버전에는 그대로 남아요.", "Delete this episode? Saved versions keep it.", "要删除此经历吗？已保存的版本仍会保留。", "Xóa đoạn này? Các bản đã lưu vẫn giữ.", "このエピソードを削除しますか？保存済みのバージョンには残ります。", "Hapus episode ini? Versi tersimpan tetap menyimpannya."))) return;
     saveCoverDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
     setSelectedId(null);
+    // 지운 것을 계속 열어 둘 이유가 없다 — 모바일에서는 빈 시트가 남는다.
+    setSheet("none");
   };
   // 문항 AI 다듬기 결과 — 다듬은 답변을 새 에피소드로 만들어 이 문항의 답으로 바꾼다(원래 에피소드는 모음에 남는다).
   const applyPolishedAnswer = (qi: number, text: string) => {
@@ -646,12 +651,12 @@ function Inspector(props: {
           {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
         </button>
       </div>
-      <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
-
       {/* 모바일에서 '고치기' 로 연 시트에서는 숨긴다(고칠 것만 보이게). '전체 점검' 으로 열면 보인다.
+          RecentChanges 가 이 묶음 밖에 있어 항목을 고칠 때도 '최근 변경' 이 맨 위에 남아 있었다.
           display:contents 가 아니라 같은 gap 의 flex 열인 이유: 패널의 [&>*]:shrink-0 가
           안쪽 자식에 닿지 않아 스크롤 열에서 버튼 높이가 눌린다. */}
       <div className={`flex shrink-0 flex-col gap-7 [&>*]:shrink-0 ${itemFocused ? "hidden lg:flex" : ""}`}>
+      <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
       <ImportFromFile
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
@@ -697,7 +702,7 @@ function Inspector(props: {
     const para = props.textOf(id);
     return aside(
       <>
-        <div ref={reveal} className="scroll-mt-6">
+        <div ref={reveal} className="order-1 scroll-mt-6 lg:order-none">
           {question ? (
             <button type="button" onClick={() => props.onSelect(null)} className="-ml-1.5 mb-2 flex h-7 items-center gap-1 rounded-lg px-1.5 text-[12.5px] font-semibold leading-none text-[#6B7684] transition hover:bg-[#F2F4F6] hover:text-[#191F28]">
               <CaretLeft size={13} weight="bold" className="shrink-0" />
@@ -706,12 +711,13 @@ function Inspector(props: {
               </span>
             </button>
           ) : null}
-          <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{t("에피소드", "Episode", "经历", "Đoạn kể", "エピソード", "Episode")}</span>
-          <p className="mt-2 line-clamp-2 text-[16px] font-bold leading-snug tracking-[-0.01em]">{para.trim().split("\n")[0] || t("(내용 없음)", "(empty)")}</p>
+          {/* 모바일에서는 1단 탭이 '에피소드' 라고 말해 주고, 새로 쓴 것은 제목이 '(내용 없음)' 이라 쓸모없다. */}
+          <span className="hidden h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8] lg:inline-flex">{t("에피소드", "Episode", "经历", "Đoạn kể", "エピソード", "Episode")}</span>
+          <p className="mt-2 line-clamp-2 hidden text-[16px] font-bold leading-snug tracking-[-0.01em] lg:block">{para.trim().split("\n")[0] || t("(내용 없음)", "(empty)")}</p>
         </div>
 
         {question ? (
-          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")}>
+          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")} className="order-3 lg:order-none">
             {index >= 0 ? (
               <div className="grid grid-cols-2 gap-2">
                 <ToolButton icon={<ArrowUp size={14} weight="bold" />} label={t("위로", "Up", "上移", "Lên", "上へ", "Naik")} disabled={index === 0} onClick={() => props.onLayout(nudgeBlock(layout, q, index, -1).layout)} />
@@ -748,7 +754,7 @@ function Inspector(props: {
           </Section>
         ) : null}
 
-        <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
+        <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")} className="order-2 lg:order-none">
           <Field
             key={`t-${id}`}
             label={t(`본문 · ${charCount(para.trim()).toLocaleString()}자`, `Text · ${charCount(para.trim()).toLocaleString()} chars`)}
@@ -770,7 +776,7 @@ function Inspector(props: {
           <AiPolish key={`ai-${id}`} t={t} text={para} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
         </Section>
 
-        <button type="button" onClick={() => props.onDeleteEpisode(id)} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1]">
+        <button type="button" onClick={() => props.onDeleteEpisode(id)} className="order-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1] lg:order-none">
           <Trash size={15} weight="bold" className="shrink-0" />
           <span>{t("에피소드 삭제", "Delete episode", "删除经历", "Xóa đoạn kể", "エピソードを削除", "Hapus episode")}</span>
         </button>

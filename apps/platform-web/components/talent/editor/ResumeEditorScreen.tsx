@@ -240,6 +240,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
     if (!window.confirm(t("이 항목을 삭제할까요? 이미 저장한 버전에는 그대로 남아요.", "Delete this item? Saved versions keep it.", "要删除此条目吗？已保存的版本仍会保留。", "Xóa mục này? Các bản đã lưu vẫn giữ.", "この項目を削除しますか？保存済みのバージョンには残ります。", "Hapus item ini? Versi tersimpan tetap menyimpannya."))) return;
     saveResumeDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
     setSelectedId(null);
+    // 지운 것을 계속 열어 둘 이유가 없다 — 모바일에서는 빈 시트가 남는다.
+    setSheet("none");
   };
 
   const placed = new Set(layout.cols.flat());
