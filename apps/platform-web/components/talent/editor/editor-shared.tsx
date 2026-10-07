@@ -2,7 +2,7 @@
 
 // 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
@@ -545,6 +545,34 @@ export function useHiddenIssues(kind: "resume" | "cover") {
  *
  * 처음 렌더에서는 굴리지 않는다 — 화면을 열자마자 스크롤이 내려가 있으면 당황스럽다.
  */
+/** 키보드가 가린 높이(px). 모바일 하단 시트가 키보드 뒤로 숨지 않게 쓴다.
+ *  visualViewport 가 없으면(데스크톱 포함) 늘 0 이라 아무 영향이 없다.
+ *  주소창이 접히고 펴지는 것도 같은 신호로 오므로 80px 미만은 무시한다. */
+export function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const on = () => {
+      const gap = window.innerHeight - vv.height - vv.offsetTop;
+      setInset(gap > 80 ? Math.round(gap) : 0);
+    };
+    vv.addEventListener("resize", on);
+    vv.addEventListener("scroll", on);
+    on();
+    return () => {
+      vv.removeEventListener("resize", on);
+      vv.removeEventListener("scroll", on);
+    };
+  }, []);
+  return inset;
+}
+
+/** 키보드가 올라왔을 때만 시트를 그 위로 올리고 높이를 줄인다. 안 올라왔으면 undefined — 클래스 그대로. */
+export function sheetStyle(inset: number): CSSProperties | undefined {
+  return inset ? { bottom: inset, maxHeight: `calc(100vh - ${inset + 16}px)` } : undefined;
+}
+
 export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
   const ref = useRef<T | null>(null);
   const first = useRef(true);
@@ -561,9 +589,9 @@ export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
 
 /** 패널 한 블록. shrink-0 인 이유: 이 블록이 놓이는 패널은 flex 열이면서 스크롤돼서,
  *  내용이 넘치면 직계 자식이 눌려 안쪽 버튼 높이(h-9/h-10)까지 무시된다. */
-export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {
+export function Section({ title, children, divider, className }: { title: string; children: ReactNode; divider?: boolean; className?: string }) {
   return (
-    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
+    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""} ${className ?? ""}`}>
       <h3 className="text-[13px] font-bold">{title}</h3>
       {children}
     </section>

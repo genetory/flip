@@ -50,7 +50,7 @@ import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, SHEET_CLS, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, SHEET_CLS, sheetStyle, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -415,6 +415,7 @@ function ModuleList({
   onToggle: (id: string) => void;
   onAdd: (section: CareerSection) => void;
 }) {
+  const kb = useKeyboardInset();
   const fixed: { id: string; label: string }[] = [
     { id: FIXED_MODULES.basic, label: t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar") },
     { id: FIXED_MODULES.summary, label: t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") },
@@ -449,6 +450,7 @@ function ModuleList({
   };
   return (
     <aside
+      style={sheetStyle(kb)}
       className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-6 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[288px] lg:shrink-0 lg:border-r`}
       aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}
     >
@@ -532,6 +534,7 @@ function Inspector(props: {
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
+  const kb = useKeyboardInset();
   // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   // 항목을 고르면 그 편집 영역으로, '전체 점검' 으로 열었으면 점검 목록으로 데려다 준다.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : id);
@@ -541,11 +544,12 @@ function Inspector(props: {
 
   return (
     <aside
+      style={sheetStyle(kb)}
       className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
       {/* 모바일 시트 머리 — 손잡이·다른 항목으로 건너가기·닫기. 데스크톱에는 없다. */}
-      <div className="sticky top-0 z-10 -mt-2 flex items-center justify-between gap-2 bg-white pb-1.5 lg:hidden">
+      <div className="sticky top-0 z-10 order-first -mt-2 flex items-center justify-between gap-2 bg-white pb-1.5 lg:order-none lg:hidden">
         {itemFocused ? (
           <button type="button" onClick={props.onBrowse} className="-ml-1.5 flex items-center gap-1 rounded-full px-1.5 py-1 text-[12.5px] font-bold leading-none text-[#4E5968]">
             <CaretLeft size={13} weight="bold" className="shrink-0" />
@@ -591,12 +595,12 @@ function Inspector(props: {
 
       {id ? (
         <>
-          <div ref={reveal} className="scroll-mt-6">
+          <div ref={reveal} className="order-1 scroll-mt-6 lg:order-none">
             <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</span>
             <p className="mt-2 text-[18px] font-bold leading-snug tracking-[-0.01em]">{moduleTitle(t, id, doc, info)}</p>
           </div>
 
-          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")}>
+          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")} className="order-3 lg:order-none">
             {props.placed ? (
               <div className="grid grid-cols-2 gap-2">
                 <ToolButton icon={<ArrowUp size={14} weight="bold" />} label={t("위로", "Up", "上移", "Lên", "上へ", "Naik")} disabled={!at || at.index === 0} onClick={() => id && props.onLayout(nudgeModule(layout, id, -1))} />
@@ -619,10 +623,10 @@ function Inspector(props: {
             </p>
           </Section>
 
-          <ContentEditor {...props} id={id} item={item} />
+          <ContentEditor {...props} id={id} item={item} className="order-2 lg:order-none" />
 
           {item ? (
-            <button type="button" onClick={() => props.onDelete(item.id)} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1]">
+            <button type="button" onClick={() => props.onDelete(item.id)} className="order-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1] lg:order-none">
               <Trash size={15} weight="bold" className="shrink-0" />
               <span>{t("항목 삭제", "Delete item", "删除条目", "Xóa mục", "項目を削除", "Hapus item")}</span>
             </button>
@@ -640,12 +644,13 @@ function Inspector(props: {
   );
 }
 
-function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; item: ResumeDoc["items"][number] | undefined }) {
+function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; item: ResumeDoc["items"][number] | undefined; className?: string }) {
   const { t, id, item, doc, info } = props;
+  const cls = props.className;
 
   if (id === FIXED_MODULES.basic) {
     return (
-      <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
+      <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")} className={cls}>
         <Field label={t("이름", "Name", "姓名", "Họ tên", "氏名", "Nama")} value={info.realName} onChange={(v) => props.onBasic({ realName: v })} />
         <Field label={t("희망 직무", "Target role", "期望职位", "Vị trí mong muốn", "希望職種", "Posisi yang diinginkan")} value={doc.targetRole} onChange={(v) => props.onDoc({ targetRole: v })} />
         <Field label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")} value={info.email} onChange={(v) => props.onBasic({ email: v })} />
@@ -661,7 +666,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
     const update = (i: number, patch: Partial<{ label: string; url: string }>) =>
       props.onDoc({ links: links.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
     return (
-      <Section title={t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & hồ sơ", "リンク・ポートフォリオ", "Tautan & portofolio")}>
+      <Section title={t("링크·포트폴리오", "Links & portfolio", "链接·作品集", "Liên kết & hồ sơ", "リンク・ポートフォリオ", "Tautan & portofolio")} className={cls}>
         {links.length === 0 ? (
           <p className="text-[12px] leading-relaxed text-[#8B95A1]">
             {t("깃허브·노션·포트폴리오 주소를 넣어 보세요.", "Add your GitHub, Notion, or portfolio link.", "添加 GitHub、Notion 或作品集链接。", "Thêm GitHub, Notion hoặc portfolio.", "GitHub・Notion・ポートフォリオのURLを追加。", "Tambahkan GitHub, Notion, atau portofolio.")}
@@ -694,7 +699,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
   const setCompany = (v: string) => props.onItem(id, { company: v });
 
   return (
-    <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
+    <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")} className={cls}>
       {item ? (
         <>
           <label className="flex flex-col gap-1.5 text-[12px] font-semibold text-[#6B7684]">

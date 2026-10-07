@@ -44,7 +44,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, SHEET_CLS, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -426,10 +426,12 @@ function EpisodeLibrary({
   onInsert: (id: string) => void;
   onNew: () => void;
 }) {
+  const kb = useKeyboardInset();
   const active = layout.questions[activeQ];
   const unplaced = new Set(layout.unplaced);
   return (
     <aside
+      style={sheetStyle(kb)}
       className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-4 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[300px] lg:shrink-0 lg:border-r`}
       aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
     >
@@ -567,6 +569,7 @@ function Inspector(props: {
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
+  const kb = useKeyboardInset();
   // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : `${q}:${id ?? ""}`);
   const revealCheck = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("check:") ? props.focus : null);
@@ -582,6 +585,7 @@ function Inspector(props: {
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
     <aside
+      style={sheetStyle(kb)}
       className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
