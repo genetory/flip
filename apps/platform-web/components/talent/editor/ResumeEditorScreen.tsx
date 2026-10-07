@@ -265,11 +265,11 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 시트 1단 탭 — '항목' 과 '점검' 은 같은 자리에서 갈아끼운다. 데스크톱에는 없다(양쪽에 늘 보인다).
   const sheetTabs = (active: "items" | "check") => {
     const chip = (on: boolean) =>
-      `flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
-        on ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
+      `flex h-[30px] shrink-0 items-center gap-1 whitespace-nowrap rounded-[8px] px-3.5 text-[13px] leading-none transition ${
+        on ? "bg-white font-bold text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]" : "font-semibold text-[#6B7684]"
       }`;
     return (
-      <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center gap-1.5 lg:hidden">
+      <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center rounded-[10px] bg-[#F2F4F6] p-[3px] lg:hidden">
         <button
           type="button"
           aria-pressed={active === "items"}
@@ -291,7 +291,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           className={chip(active === "check")}
         >
           {t("점검", "Check", "检查", "Kiểm tra", "チェック", "Cek")}
-          {scan.flaggedCount ? <span className={active === "check" ? "text-white/70" : "text-[#B0B8C1]"}>{scan.flaggedCount}</span> : null}
+          {scan.flaggedCount ? <span className={active === "check" ? "text-[#8B95A1]" : "text-[#B0B8C1]"}>{scan.flaggedCount}</span> : null}
         </button>
       </nav>
     );
@@ -601,7 +601,7 @@ function Inspector(props: {
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
       {/* 모바일 시트 머리 — 손잡이·다른 항목으로 건너가기·닫기. 데스크톱에는 없다. */}
-      <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex flex-col rounded-t-2xl bg-white px-5 pb-2.5 pt-6 lg:order-none lg:hidden">
+      <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex flex-col gap-2.5 rounded-t-2xl bg-white px-5 pb-3 pt-5 shadow-[0_6px_10px_-10px_rgba(11,18,39,0.25)] lg:order-none lg:hidden">
         <div className="flex items-center justify-between gap-2">
           {props.tabs}
           <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
@@ -611,9 +611,9 @@ function Inspector(props: {
         {/* 2단: 묶음. 3단: 그 묶음의 항목. 고르면 아래에 그 입력란이 바로 나온다.
             머리와 한 덩어리로 고정해, 길게 굴려도 탭이 사라지지 않는다. 데스크톱에는 없다. */}
         {itemFocused ? (
-          <div className="flex flex-col gap-1.5 pt-2">
+          <div className="flex flex-col gap-2">
           <div className="-mx-5 overflow-x-auto px-5">
-            <div className="flex w-max items-center gap-1.5">
+            <div className="flex w-max items-center gap-1.5 pr-5">
               {tabList.map(([key, label, n]) => (
                 <button
                   key={key}
@@ -624,8 +624,8 @@ function Inspector(props: {
                     setSectionTab(key);
                     if (first) props.onSelect(first.id);
                   }}
-                  className={`flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[12.5px] font-bold leading-none transition ${
-                    curSection === key ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F7F8FA] text-[#8B95A1]"
+                  className={`flex h-[30px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[12.5px] leading-none transition ${
+                    curSection === key ? "bg-[#EDF1FD] font-bold text-[#0B46E8]" : "font-semibold text-[#8B95A1] hover:text-[#4E5968]"
                   }`}
                 >
                   {label}
@@ -635,15 +635,15 @@ function Inspector(props: {
             </div>
           </div>
           <div className="-mx-5 overflow-x-auto px-5">
-            <div className="flex w-max items-center gap-1.5">
+            <div className="flex w-max items-center gap-1.5 pr-5">
               {group.map((g) => (
                 <button
                   key={g.id}
                   type="button"
                   aria-pressed={id === g.id}
                   onClick={() => props.onSelect(g.id)}
-                  className={`flex h-9 max-w-[180px] shrink-0 items-center rounded-[10px] px-3 text-[13px] font-bold leading-none transition ${
-                    id === g.id ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#4E5968]"
+                  className={`flex h-[38px] max-w-[160px] shrink-0 items-center rounded-[10px] px-3.5 text-[13px] font-bold leading-none transition ${
+                    id === g.id ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#4E5968]"
                   }`}
                 >
                   <span className="truncate">{g.label}</span>
@@ -653,7 +653,7 @@ function Inspector(props: {
                 <button
                   type="button"
                   onClick={() => props.onAdd(curSection as CareerSection)}
-                  className="flex h-9 shrink-0 items-center gap-1 rounded-[10px] px-3 text-[13px] font-bold leading-none text-[#0B46E8] ring-1 ring-[#CBD8FA] transition"
+                  className="flex h-[38px] shrink-0 items-center gap-1 rounded-[10px] px-3.5 text-[13px] font-bold leading-none text-[#0B46E8] ring-1 ring-inset ring-[#CBD8FA] transition"
                 >
                   <Plus size={13} weight="bold" className="shrink-0" />
                   {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}

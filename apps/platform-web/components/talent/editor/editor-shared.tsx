@@ -206,8 +206,10 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
 /** 모바일에서만 시트로 띄우기 위한 위치 지정. lg 이상에서는 전부 원래 값으로 되돌려,
  *  넓은 화면의 계산된 스타일이 바뀌지 않게 한다(static·radius 0·그림자 없음). */
 export const SHEET_CLS =
-  "fixed inset-x-0 bottom-0 z-40 max-h-[88vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
-  "lg:static lg:z-auto lg:max-h-none lg:rounded-none lg:shadow-none";
+  // 높이는 늘 화면의 80%(위 20% 는 문서가 보이게). 내용에 따라 올라오는 높이가 달라지면
+  // 누를 자리가 매번 움직여 쓰기 어렵다.
+  "fixed inset-x-0 bottom-0 z-40 h-[80vh] max-h-[80vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
 
 export const EDITOR_ROUTES = {
   resume: "/talent/career/resume/editor",
