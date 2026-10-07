@@ -7,7 +7,7 @@
 //   에피소드 내용 → talent 문서(saveCoverDoc) — 앱·기존 화면이 읽는 원본
 //   문항·조합     → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 문항·답변을 읽기 전용 저장본으로 남긴다(회사별 제출본).
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, CaretRight, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { useToast } from "../../toast/ToastProvider";
@@ -44,7 +44,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 
 export function CoverEditorScreen() {
   return (
@@ -283,6 +283,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           onNew={newEpisode}
         />
         <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+          <DesktopHintToast t={t} />
           {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
               문서 위에 둔다. 아래에 두면 A4 를 끝까지 넘겨야 닿는다. */}
           <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
@@ -615,7 +616,11 @@ function Inspector(props: {
   const kb = useKeyboardInset();
   // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : `${q}:${id ?? ""}`);
-  const revealCheck = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("check:") ? props.focus : null);
+  // '점검' 으로 열면 맨 위에서 시작한다 — 점검 목록이 첫 블록이라 굴릴 필요가 없다.
+  const sheetRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (props.focus?.startsWith("check:")) sheetRef.current?.scrollTo({ top: 0 });
+  }, [props.focus]);
   // 모바일에서 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접는다.
   const itemFocused = !!props.focus?.startsWith("item:");
 
@@ -628,6 +633,7 @@ function Inspector(props: {
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
     <aside
+      ref={sheetRef}
       style={sheetStyle(kb)}
       className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
@@ -663,7 +669,7 @@ function Inspector(props: {
       />
 
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
-      <div ref={revealCheck} className="scroll-mt-6">
+      <div className="order-first lg:order-none">
       <FinalCheckSection
         t={t}
         layout={layout}

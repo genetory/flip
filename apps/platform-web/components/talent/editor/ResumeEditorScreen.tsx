@@ -7,7 +7,7 @@
 //   구성      → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
@@ -50,7 +50,7 @@ import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, SHEET_CLS, sheetStyle, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -326,6 +326,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onAdd={addItem}
         />
         <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
+          <DesktopHintToast t={t} />
           {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
               평소 화면에 더해지는 건 이 두 버튼뿐이고, 편집 패널은 탭했을 때만 올라온다. */}
           <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
@@ -580,7 +581,12 @@ function Inspector(props: {
   // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   // 항목을 고르면 그 편집 영역으로, '전체 점검' 으로 열었으면 점검 목록으로 데려다 준다.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : id);
-  const revealCheck = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("check:") ? props.focus : null);
+  // '점검' 으로 열면 맨 위에서 시작한다 — 점검 목록이 첫 블록이라 굴릴 필요가 없다.
+  // scrollIntoView 로는 고정된 머리 높이만큼 어긋나 72px 내려간 자리에서 시작했다.
+  const sheetRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (props.focus?.startsWith("check:")) sheetRef.current?.scrollTo({ top: 0 });
+  }, [props.focus]);
   // 모바일에서 항목을 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접고 탭 두 줄을 보여 준다.
   const itemFocused = !!props.focus?.startsWith("item:");
   const groupOf = (key: "basic" | CareerSection): { id: string; label: string }[] =>
@@ -596,6 +602,7 @@ function Inspector(props: {
 
   return (
     <aside
+      ref={sheetRef}
       style={sheetStyle(kb)}
       className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
@@ -695,7 +702,7 @@ function Inspector(props: {
       <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreResumeVersion(at)} />
 
       <BulkPolishSection t={t} doc={doc} onDoc={props.onDoc} />
-      <div ref={revealCheck} className="scroll-mt-6">
+      <div className="order-first lg:order-none">
         <ResumeCheckSection t={t} doc={doc} scan={props.scan} onGoItem={props.onGoItem} review={props.review} onRunReview={props.onRunReview} hiddenIssues={props.hiddenIssues} />
       </div>
       </div>

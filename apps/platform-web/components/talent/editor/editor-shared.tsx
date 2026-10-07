@@ -547,6 +547,57 @@ export function useHiddenIssues(kind: "resume" | "cover") {
  *
  * 처음 렌더에서는 굴리지 않는다 — 화면을 열자마자 스크롤이 내려가 있으면 당황스럽다.
  */
+/** 좁은 화면에서 '큰 화면이 더 편하다' 고 한 번 알려 주는 알림. 닫으면 다시 뜨지 않는다.
+ *  편집 영역 맨 위에 붙여 굴려도 따라온다. 화면에 띄워(fixed) 두면 바로 아래 조작 버튼을
+ *  덮어 눌리지 않는다 — 실제로 그렇게 만들었다가 클릭이 막혔다. 데스크톱에는 없다. */
+export function DesktopHintToast({ t, hidden }: { t: PlatformT; hidden?: boolean }) {
+  const KEY = "aply.editor.desktopHint.v1";
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(KEY) !== "off") setShow(true);
+    } catch {
+      setShow(true);
+    }
+  }, []);
+  if (!show || hidden) return null;
+  const close = () => {
+    setShow(false);
+    try {
+      window.localStorage.setItem(KEY, "off");
+    } catch {
+      // 저장이 막혀 있어도 이번 화면에서는 닫힌다.
+    }
+  };
+  return (
+    <div className="no-print sticky top-0 z-20 mb-3 flex justify-center lg:hidden">
+      <div
+        role="status"
+        className="flex w-full max-w-[794px] items-start gap-2 rounded-[12px] bg-[#191F28]/95 px-3.5 py-3 text-white shadow-[0_8px_24px_-8px_rgba(11,18,39,0.45)] backdrop-blur-sm"
+      >
+        <p className="min-w-0 flex-1 break-keep text-[12.5px] font-medium leading-[1.55]">
+          {t(
+            "여기서도 고칠 수 있지만, 이력서·자기소개서는 PC 에서 작업하는 걸 권해요. 문서 전체를 보면서 고칠 수 있어요.",
+            "You can edit here, but a desktop is easier for resumes and cover letters — you can see the whole page while you work.",
+            "这里也能修改，但简历和自我介绍建议在电脑上编辑，可以边看整页边改。",
+            "Bạn vẫn sửa được ở đây, nhưng nên dùng máy tính cho hồ sơ và thư giới thiệu — xem được cả trang khi sửa.",
+            "ここでも編集できますが、履歴書・自己紹介書はPCでの作業をおすすめします。ページ全体を見ながら直せます。",
+            "Bisa diedit di sini, tapi resume dan surat lamaran lebih mudah di PC — seluruh halaman terlihat saat mengubah."
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={close}
+          aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+          className="-mr-1 -mt-0.5 shrink-0 rounded px-2 py-1 text-[15px] leading-none text-white/70 transition hover:text-white"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** 키보드가 가린 높이(px). 모바일 하단 시트가 키보드 뒤로 숨지 않게 쓴다.
  *  visualViewport 가 없으면(데스크톱 포함) 늘 0 이라 아무 영향이 없다.
  *  주소창이 접히고 펴지는 것도 같은 신호로 오므로 80px 미만은 무시한다. */
