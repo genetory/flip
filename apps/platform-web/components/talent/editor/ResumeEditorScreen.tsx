@@ -7,7 +7,7 @@
 //   구성      → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
@@ -92,7 +92,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   const [importUndo, setImportUndo] = useState<ResumeDoc | null>(null);
   // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
   // 'props' 는 항목을 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
-  const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
+  const [sheet, setSheet] = useState<"none" | "props">("none");
   // 시트를 무엇 때문에 열었는지. 값이 바뀔 때마다 패널이 그 자리로 스크롤한다 —
   // 모바일에서 '고치기' 를 눌렀는데 맨 위 도구만 보이면 쓸 수가 없다.
   const [focus, setFocus] = useState<string | null>(null);
@@ -270,7 +270,15 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       }`;
     return (
       <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center gap-1.5 lg:hidden">
-        <button type="button" aria-pressed={active === "items"} onClick={() => setSheet("modules")} className={chip(active === "items")}>
+        <button
+          type="button"
+          aria-pressed={active === "items"}
+          onClick={() => {
+            setSheet("props");
+            setFocus(`item:${selectedId ?? ""}:${Date.now()}`);
+          }}
+          className={chip(active === "items")}
+        >
           {t("항목", "Items", "条目", "Mục", "項目", "Item")}
         </button>
         <button
@@ -309,9 +317,6 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
       )}
       <div className="flex min-h-0 flex-1 print:block">
         <ModuleList
-          open={sheet === "modules"}
-          tabs={sheetTabs("items")}
-          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           placed={placed}
@@ -326,7 +331,10 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
             <button
               type="button"
-              onClick={() => setSheet("modules")}
+              onClick={() => {
+                setSheet("props");
+                setFocus(`item:${selectedId ?? ""}:${Date.now()}`);
+              }}
               className={`${TINT_BTN} h-11 flex-1 rounded-[12px] text-[13.5px] font-bold leading-none`}
             >
               {t("항목 추가·구성", "Items & layout", "条目·结构", "Mục & bố cục", "項目・構成", "Item & tata letak")}
@@ -360,6 +368,8 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           open={sheet === "props"}
           focus={focus}
           tabs={sheetTabs(focus?.startsWith("check:") ? "check" : "items")}
+          onAdd={addItem}
+          onSelect={setSelectedId}
           onClose={() => setSheet("none")}
           t={t}
           doc={doc}
@@ -421,10 +431,9 @@ function TemplateSwitch({ t, template, onTemplate }: { t: PlatformT; template: R
 
 // ── 왼쪽: 모듈 목록 ──────────────────────────────────────────
 
+// 왼쪽 패널 — **데스크톱 전용**. 모바일에서는 같은 역할을 편집 시트의 탭 두 줄이 한다
+// (섹션 → 항목 → 바로 입력란). 좁은 화면에서 목록을 거쳐 한 단계 더 들어가지 않게.
 function ModuleList({
-  open,
-  tabs,
-  onClose,
   t,
   doc,
   placed,
@@ -433,11 +442,6 @@ function ModuleList({
   onToggle,
   onAdd
 }: {
-  /** 모바일 시트가 열려 있는지. 데스크톱(lg)에서는 항상 보이므로 영향 없다. */
-  open: boolean;
-  /** 시트 1단 탭(항목·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
-  tabs: ReactNode;
-  onClose: () => void;
   t: PlatformT;
   doc: ResumeDoc;
   placed: Set<string>;
@@ -446,24 +450,16 @@ function ModuleList({
   onToggle: (id: string) => void;
   onAdd: (section: CareerSection) => void;
 }) {
-  const kb = useKeyboardInset();
-  // 모바일에서 지금 보고 있는 묶음. 데스크톱에서는 쓰이지 않는다 — 전부 한 번에 보인다.
-  const [tab, setTab] = useState<"basic" | CareerSection>("basic");
-  const fixed: { id: string; label: string }[] = [
-    { id: FIXED_MODULES.basic, label: t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar") },
-    { id: FIXED_MODULES.summary, label: t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") },
-    { id: FIXED_MODULES.links, label: t("링크·포트폴리오", "Links", "链接", "Liên kết", "リンク", "Tautan") }
-  ];
   const row = (id: string, label: string) => {
     const on = placed.has(id);
     return (
-      <li key={id} className={`flex items-center gap-3 rounded-[10px] px-2.5 transition lg:gap-2.5 lg:py-[7px] ${selectedId === id ? "bg-[#EDF1FD]" : "hover:bg-[#F7F8FA]"}`}>
+      <li key={id} className={`flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] transition ${selectedId === id ? "bg-[#EDF1FD]" : "hover:bg-[#F7F8FA]"}`}>
         <button
           type="button"
           onClick={() => onToggle(id)}
           aria-pressed={on}
           aria-label={on ? t(`이력서에서 빼기: ${label}`, `Remove from resume: ${label}`) : t(`이력서에 넣기: ${label}`, `Add to resume: ${label}`)}
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] transition lg:h-[18px] lg:w-[18px] lg:rounded-[6px] ${on ? "bg-[#0B46E8]" : "bg-[#E5E8EB] hover:bg-[#D1D6DB]"}`}
+          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] transition ${on ? "bg-[#0B46E8]" : "bg-[#E5E8EB] hover:bg-[#D1D6DB]"}`}
         >
           {on ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -474,109 +470,67 @@ function ModuleList({
         <button
           type="button"
           onClick={() => onSelect(id)}
-          className={`line-clamp-2 min-w-0 flex-1 py-3 text-left text-[14px] leading-snug lg:truncate lg:py-0 lg:text-[13px] ${selectedId === id ? "font-semibold text-[#0B46E8]" : on ? "font-medium text-[#191F28]" : "text-[#B0B8C1]"}`}
+          className={`min-w-0 flex-1 truncate text-left text-[13px] ${selectedId === id ? "font-semibold text-[#0B46E8]" : on ? "font-medium text-[#191F28]" : "text-[#B0B8C1]"}`}
         >
           {label}
         </button>
-        {/* 눌러서 고칠 수 있다는 표시 — 데스크톱에는 오른쪽 패널이 늘 보여서 필요 없다. */}
-        <CaretRight size={14} weight="bold" className="shrink-0 text-[#C4CAD2] lg:hidden" aria-hidden />
       </li>
     );
   };
   return (
     <aside
-      style={sheetStyle(kb)}
-      className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-6 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[288px] lg:shrink-0 lg:border-r`}
+      className="no-print hidden w-[288px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:flex"
       aria-label={t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}
     >
-      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
-      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
-        {tabs}
-        <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
-          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
-        </button>
-      </div>
-
       <div className="px-2.5">
-        {/* 모바일에서는 1단 탭('항목')이 제목을 대신한다 — 같은 말을 두 번 쓰지 않는다. */}
-        <p className="hidden text-[16px] font-bold tracking-[-0.01em] lg:block">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
-        <p className="text-[12.5px] leading-relaxed text-[#8B95A1] lg:mt-1.5">
-          <span className="lg:hidden">
-            {t(
-              "왼쪽 네모를 누르면 이력서에 넣고 빼요. 이름을 누르면 바로 고칠 수 있어요.",
-              "Tap the box to add or remove it. Tap the name to edit it.",
-              "点方框可加入或移除，点名称可直接修改。",
-              "Chạm ô vuông để thêm/bỏ, chạm tên để sửa.",
-              "四角を押すと出し入れ、名前を押すとすぐ編集できます。",
-              "Ketuk kotak untuk menambah/menghapus, ketuk nama untuk mengubah."
-            )}
-          </span>
-          <span className="hidden lg:inline">
-            {t(
-              "체크한 항목만 이력서에 들어가요. 페이지에서 끌어 순서를 바꿀 수 있어요.",
-              "Only checked items go into the resume. Drag on the page to reorder.",
-              "只有勾选的条目会放入简历。可在页面上拖动调整顺序。",
-              "Chỉ các mục được chọn mới vào hồ sơ. Kéo trên trang để đổi thứ tự.",
-              "チェックした項目だけが履歴書に入ります。ページ上でドラッグして並べ替えできます。",
-              "Hanya item yang dicentang masuk ke resume. Seret di halaman untuk mengurutkan."
-            )}
-          </span>
+        <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
+          {t(
+            "체크한 항목만 이력서에 들어가요. 페이지에서 끌어 순서를 바꿀 수 있어요.",
+            "Only checked items go into the resume. Drag on the page to reorder.",
+            "只有勾选的条目会放入简历。可在页面上拖动调整顺序。",
+            "Chỉ các mục được chọn mới vào hồ sơ. Kéo trên trang để đổi thứ tự.",
+            "チェックした項目だけが履歴書に入ります。ページ上でドラッグして並べ替えできます。",
+            "Hanya item yang dicentang masuk ke resume. Seret di halaman untuk mengurutkan."
+          )}
         </p>
       </div>
-      {/* 묶음 탭 — 모바일에서만. 섹션을 찾아 길게 굴리지 않고 위에서 갈아끼운다. */}
-      <div className="-mx-4 overflow-x-auto px-4 lg:hidden">
-        <div className="flex w-max items-center gap-1.5">
-          {([["basic", t("기본", "Basics", "基本", "Cơ bản", "基本", "Dasar"), fixed.length]] as [string, string, number][])
-            .concat(SECTIONS.map((sec) => [sec, sectionLabelOf(t, sec), doc.items.filter((i) => i.section === sec).length]))
-            .map(([key, label, n]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key as "basic" | CareerSection)}
-                aria-pressed={tab === key}
-                className={`flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
-                  tab === key ? "bg-[#0B46E8] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
-                }`}
-              >
-                {label}
-                {n ? <span className={tab === key ? "text-white/70" : "text-[#B0B8C1]"}>{n}</span> : null}
-              </button>
-            ))}
-        </div>
-      </div>
-      <ul className={`flex-col gap-0.5 lg:flex ${tab === "basic" ? "flex" : "hidden"}`}>{fixed.map((f) => row(f.id, f.label))}</ul>
+      <ul className="flex flex-col gap-0.5">{FIXED_LIST(t).map((f) => row(f.id, f.label))}</ul>
       {SECTIONS.map((section) => {
         const items = doc.items.filter((i) => i.section === section);
         return (
-          <div key={section} className={`${tab === section ? "" : "hidden"} lg:block`}>
+          <div key={section}>
             <div className="flex items-center justify-between px-2.5 pb-1.5">
-              <span className="hidden text-[12px] font-semibold text-[#8B95A1] lg:inline">
+              <span className="text-[12px] font-semibold text-[#8B95A1]">
                 {sectionLabelOf(t, section)}
                 {items.length ? <span className="ml-1.5 font-medium text-[#B0B8C1]">{items.filter((i) => placed.has(i.id)).length}/{items.length}</span> : null}
               </span>
-              {/* 모바일에서는 탭이 섹션 이름을 대신하므로 '추가' 를 글자 버튼으로 크게 둔다. */}
-              <button
-                type="button"
-                onClick={() => onAdd(section)}
-                aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)}
-                className="flex h-9 items-center gap-1 rounded-lg px-2.5 text-[13px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#EDF1FD] lg:h-7 lg:w-7 lg:justify-center lg:px-0 lg:text-[#8B95A1] lg:hover:text-[#0B46E8]"
-              >
-                <Plus size={14} weight="bold" className="shrink-0" />
-                <span className="lg:hidden">{t(`${sectionLabelOf(t, section)} 추가`, "Add", "添加", "Thêm", "追加", "Tambah")}</span>
+              <button type="button" onClick={() => onAdd(section)} aria-label={t(`${sectionLabelOf(t, section)} 추가`, `Add ${sectionLabelOf(t, section)}`)} className="flex h-7 w-7 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#EDF1FD] hover:text-[#0B46E8]">
+                <Plus size={14} weight="bold" />
               </button>
             </div>
             {items.length ? (
-              <ul className="flex flex-col gap-0.5">{items.map((i) => row(i.id, (i.company?.trim() || i.text.trim() || t("(내용 없음)", "(empty)")).split("\n")[0]))}</ul>
-            ) : (
-              <p className="px-2.5 py-3 text-[13px] leading-relaxed text-[#8B95A1] lg:hidden">
-                {t("아직 없어요. 위 ‘추가’ 를 눌러 하나 만들어 보세요.", "Nothing yet. Tap ‘Add’ above.", "还没有内容。点上方“添加”。", "Chưa có. Nhấn ‘Thêm’ ở trên.", "まだありません。上の「追加」を押してください。", "Belum ada. Ketuk ‘Tambah’ di atas.")}
-              </p>
-            )}
+              <ul className="flex flex-col gap-0.5">{items.map((i) => row(i.id, itemLabel(t, i)))}</ul>
+            ) : null}
           </div>
         );
       })}
     </aside>
   );
+}
+
+/** 고정 모듈 세 개 — 왼쪽 패널과 모바일 탭이 같은 이름을 쓴다. */
+function FIXED_LIST(t: PlatformT): { id: string; label: string }[] {
+  return [
+    { id: FIXED_MODULES.basic, label: t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar") },
+    { id: FIXED_MODULES.summary, label: t("자기소개", "About", "自我介绍", "Giới thiệu", "自己紹介", "Tentang") },
+    { id: FIXED_MODULES.links, label: t("링크·포트폴리오", "Links", "链接", "Liên kết", "リンク", "Tautan") }
+  ];
+}
+
+/** 목록·탭에 쓰는 한 줄 이름. */
+function itemLabel(t: PlatformT, i: ResumeDoc["items"][number]): string {
+  return (i.company?.trim() || i.text.trim() || t("(내용 없음)", "(empty)")).split("\n")[0];
 }
 
 // ── 오른쪽: 선택한 모듈·버전 ─────────────────────────────────
@@ -608,6 +562,10 @@ function Inspector(props: {
   focus: string | null;
   /** 시트 1단 탭(항목·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
   tabs: ReactNode;
+  /** 모바일 탭 줄 끝의 '추가'. 데스크톱에서는 왼쪽 패널이 같은 일을 한다. */
+  onAdd: (section: CareerSection) => void;
+  /** 모바일 3단 탭에서 항목을 고를 때. */
+  onSelect: (id: string) => void;
   onClose: () => void;
 }) {
   const { t, doc, info, layout, selectedId: id } = props;
@@ -615,12 +573,26 @@ function Inspector(props: {
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
   const kb = useKeyboardInset();
+  // 모바일 2단 탭에서 고른 묶음. 보통은 고른 항목이 속한 묶음을 따라가고,
+  // 빈 묶음을 눌렀을 때만 따로 기억한다(고를 항목이 없어 선택이 안 바뀌므로).
+  const [sectionTab, setSectionTab] = useState<"basic" | CareerSection | null>(null);
+  useEffect(() => setSectionTab(null), [id]);
   // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   // 항목을 고르면 그 편집 영역으로, '전체 점검' 으로 열었으면 점검 목록으로 데려다 준다.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : id);
   const revealCheck = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("check:") ? props.focus : null);
-  // 모바일에서 항목을 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접는다.
-  const itemFocused = !!id && !!props.focus?.startsWith("item:");
+  // 모바일에서 항목을 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접고 탭 두 줄을 보여 준다.
+  const itemFocused = !!props.focus?.startsWith("item:");
+  const groupOf = (key: "basic" | CareerSection): { id: string; label: string }[] =>
+    key === "basic" ? FIXED_LIST(t) : doc.items.filter((i) => i.section === key).map((i) => ({ id: i.id, label: itemLabel(t, i) }));
+  // 고른 항목이 속한 묶음 — 고정 모듈 세 개는 '기본'.
+  const sectionOfSelected: "basic" | CareerSection = item ? item.section : "basic";
+  const curSection = sectionTab ?? sectionOfSelected;
+  const group = groupOf(curSection);
+  const tabList: ["basic" | CareerSection, string, number][] = [
+    ["basic", t("기본", "Basics", "基本", "Cơ bản", "基本", "Dasar"), FIXED_LIST(t).length],
+    ...SECTIONS.map((sec) => [sec, sectionLabelOf(t, sec), doc.items.filter((i) => i.section === sec).length] as ["basic" | CareerSection, string, number])
+  ];
 
   return (
     <aside
@@ -629,12 +601,74 @@ function Inspector(props: {
       aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
     >
       {/* 모바일 시트 머리 — 손잡이·다른 항목으로 건너가기·닫기. 데스크톱에는 없다. */}
-      <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-5 pb-2 pt-6 lg:order-none lg:hidden">
-        {props.tabs}
-        <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
-          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
-        </button>
+      <div className="sticky -top-6 z-10 order-first -mx-5 -mt-6 flex flex-col rounded-t-2xl bg-white px-5 pb-2.5 pt-6 lg:order-none lg:hidden">
+        <div className="flex items-center justify-between gap-2">
+          {props.tabs}
+          <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+            {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+          </button>
+        </div>
+        {/* 2단: 묶음. 3단: 그 묶음의 항목. 고르면 아래에 그 입력란이 바로 나온다.
+            머리와 한 덩어리로 고정해, 길게 굴려도 탭이 사라지지 않는다. 데스크톱에는 없다. */}
+        {itemFocused ? (
+          <div className="flex flex-col gap-1.5 pt-2">
+          <div className="-mx-5 overflow-x-auto px-5">
+            <div className="flex w-max items-center gap-1.5">
+              {tabList.map(([key, label, n]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={curSection === key}
+                  onClick={() => {
+                    const first = groupOf(key)[0];
+                    setSectionTab(key);
+                    if (first) props.onSelect(first.id);
+                  }}
+                  className={`flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3 text-[12.5px] font-bold leading-none transition ${
+                    curSection === key ? "bg-[#EDF1FD] text-[#0B46E8]" : "bg-[#F7F8FA] text-[#8B95A1]"
+                  }`}
+                >
+                  {label}
+                  {n ? <span className="font-medium opacity-70">{n}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="-mx-5 overflow-x-auto px-5">
+            <div className="flex w-max items-center gap-1.5">
+              {group.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  aria-pressed={id === g.id}
+                  onClick={() => props.onSelect(g.id)}
+                  className={`flex h-9 max-w-[180px] shrink-0 items-center rounded-[10px] px-3 text-[13px] font-bold leading-none transition ${
+                    id === g.id ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#4E5968]"
+                  }`}
+                >
+                  <span className="truncate">{g.label}</span>
+                </button>
+              ))}
+              {curSection !== "basic" ? (
+                <button
+                  type="button"
+                  onClick={() => props.onAdd(curSection as CareerSection)}
+                  className="flex h-9 shrink-0 items-center gap-1 rounded-[10px] px-3 text-[13px] font-bold leading-none text-[#0B46E8] ring-1 ring-[#CBD8FA] transition"
+                >
+                  <Plus size={13} weight="bold" className="shrink-0" />
+                  {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
+                </button>
+              ) : null}
+            </div>
+          </div>
+          </div>
+        ) : null}
       </div>
+          {!group.length ? (
+            <p className="order-1 text-[13px] leading-relaxed text-[#8B95A1] lg:hidden">
+              {t("아직 없어요. ‘추가’ 를 눌러 하나 만들어 보세요.", "Nothing yet. Tap ‘Add’.", "还没有内容。点“添加”。", "Chưa có. Nhấn ‘Thêm’.", "まだありません。「追加」を押してください。", "Belum ada. Ketuk ‘Tambah’.")}
+            </p>
+          ) : null}
 
       {/* 문서 전체에 거는 작업 — 데스크톱에서는 모듈 선택과 무관하게 늘 맨 위에 보인다.
           모바일에서 '고치기' 로 연 시트에서는 숨긴다(항목 편집만 보이게). '전체 점검' 으로 열면 보인다.
@@ -668,7 +702,7 @@ function Inspector(props: {
 
       {id ? (
         <>
-          <div ref={reveal} className="order-1 scroll-mt-6 lg:order-none">
+          <div ref={reveal} className="order-1 hidden scroll-mt-[150px] lg:order-none lg:block lg:scroll-mt-6">
             <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{moduleKindLabel(t, id, item?.section)}</span>
             <p className="mt-2 text-[18px] font-bold leading-snug tracking-[-0.01em]">{moduleTitle(t, id, doc, info)}</p>
           </div>
