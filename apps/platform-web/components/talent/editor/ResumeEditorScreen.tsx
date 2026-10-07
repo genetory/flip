@@ -8,7 +8,7 @@
 // '새 버전으로 저장'은 그 순간의 내용·구성을 읽기 전용 저장본으로 남긴다(지원할 때 고른다).
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretLeft, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, ArrowsLeftRight, CaretLeft, CaretRight, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -424,13 +424,13 @@ function ModuleList({
   const row = (id: string, label: string) => {
     const on = placed.has(id);
     return (
-      <li key={id} className={`flex items-center gap-2.5 rounded-[10px] px-2.5 py-[7px] transition ${selectedId === id ? "bg-[#EDF1FD]" : "hover:bg-[#F7F8FA]"}`}>
+      <li key={id} className={`flex items-center gap-3 rounded-[10px] px-2.5 transition lg:gap-2.5 lg:py-[7px] ${selectedId === id ? "bg-[#EDF1FD]" : "hover:bg-[#F7F8FA]"}`}>
         <button
           type="button"
           onClick={() => onToggle(id)}
           aria-pressed={on}
           aria-label={on ? t(`이력서에서 빼기: ${label}`, `Remove from resume: ${label}`) : t(`이력서에 넣기: ${label}`, `Add to resume: ${label}`)}
-          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] transition ${on ? "bg-[#0B46E8]" : "bg-[#E5E8EB] hover:bg-[#D1D6DB]"}`}
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] transition lg:h-[18px] lg:w-[18px] lg:rounded-[6px] ${on ? "bg-[#0B46E8]" : "bg-[#E5E8EB] hover:bg-[#D1D6DB]"}`}
         >
           {on ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -441,10 +441,12 @@ function ModuleList({
         <button
           type="button"
           onClick={() => onSelect(id)}
-          className={`min-w-0 flex-1 truncate text-left text-[13px] ${selectedId === id ? "font-semibold text-[#0B46E8]" : on ? "font-medium text-[#191F28]" : "text-[#B0B8C1]"}`}
+          className={`line-clamp-2 min-w-0 flex-1 py-3 text-left text-[14px] leading-snug lg:truncate lg:py-0 lg:text-[13px] ${selectedId === id ? "font-semibold text-[#0B46E8]" : on ? "font-medium text-[#191F28]" : "text-[#B0B8C1]"}`}
         >
           {label}
         </button>
+        {/* 눌러서 고칠 수 있다는 표시 — 데스크톱에는 오른쪽 패널이 늘 보여서 필요 없다. */}
+        <CaretRight size={14} weight="bold" className="shrink-0 text-[#C4CAD2] lg:hidden" aria-hidden />
       </li>
     );
   };
@@ -463,16 +465,32 @@ function ModuleList({
       </div>
 
       <div className="px-2.5">
-        <p className="text-[16px] font-bold tracking-[-0.01em]">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</p>
+        {/* '모듈' 은 편집기 용어다 — 모바일에서는 무엇의 목록인지 바로 알 수 있게 쓴다. */}
+        <p className="text-[16px] font-bold tracking-[-0.01em]">
+          <span className="lg:hidden">{t("이력서 항목", "Resume items", "简历条目", "Mục hồ sơ", "履歴書の項目", "Item resume")}</span>
+          <span className="hidden lg:inline">{t("모듈", "Modules", "模块", "Mô-đun", "モジュール", "Modul")}</span>
+        </p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
-          {t(
-            "체크한 항목만 이력서에 들어가요. 페이지에서 끌어 순서를 바꿀 수 있어요.",
-            "Only checked items go into the resume. Drag on the page to reorder.",
-            "只有勾选的条目会放入简历。可在页面上拖动调整顺序。",
-            "Chỉ các mục được chọn mới vào hồ sơ. Kéo trên trang để đổi thứ tự.",
-            "チェックした項目だけが履歴書に入ります。ページ上でドラッグして並べ替えできます。",
-            "Hanya item yang dicentang masuk ke resume. Seret di halaman untuk mengurutkan."
-          )}
+          <span className="lg:hidden">
+            {t(
+              "왼쪽 네모를 누르면 이력서에 넣고 빼요. 이름을 누르면 바로 고칠 수 있어요.",
+              "Tap the box to add or remove it. Tap the name to edit it.",
+              "点方框可加入或移除，点名称可直接修改。",
+              "Chạm ô vuông để thêm/bỏ, chạm tên để sửa.",
+              "四角を押すと出し入れ、名前を押すとすぐ編集できます。",
+              "Ketuk kotak untuk menambah/menghapus, ketuk nama untuk mengubah."
+            )}
+          </span>
+          <span className="hidden lg:inline">
+            {t(
+              "체크한 항목만 이력서에 들어가요. 페이지에서 끌어 순서를 바꿀 수 있어요.",
+              "Only checked items go into the resume. Drag on the page to reorder.",
+              "只有勾选的条目会放入简历。可在页面上拖动调整顺序。",
+              "Chỉ các mục được chọn mới vào hồ sơ. Kéo trên trang để đổi thứ tự.",
+              "チェックした項目だけが履歴書に入ります。ページ上でドラッグして並べ替えできます。",
+              "Hanya item yang dicentang masuk ke resume. Seret di halaman untuk mengurutkan."
+            )}
+          </span>
         </p>
       </div>
       <ul className="flex flex-col gap-0.5">{fixed.map((f) => row(f.id, f.label))}</ul>
@@ -851,22 +869,23 @@ function ResumeCheckSection({
   // 한 줄 = 무엇이 걸렸나(누르면 그 항목으로) + 왜·어떻게(회색 보조 줄) + 치우기(×).
   // × 는 마우스를 올렸을 때만 보인다 — 늘 떠 있으면 '지우기'처럼 보여서 누르기 겁난다.
   const row = (rk: string, hideKey: string, id: string, what: string, why: string) => (
-    <li key={rk} className="group/row break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+    <li key={rk} className="group/row break-anywhere rounded-[10px] bg-[#F7F8FA] p-3 text-[13px] leading-[1.6] text-[#4E5968] lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[11.5px]">
       <div className="flex items-start gap-1">
-        <button type="button" onClick={() => onGoItem(id)} className="min-w-0 flex-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
-          • {what}
+        <button type="button" onClick={() => onGoItem(id)} className="flex min-w-0 flex-1 items-start gap-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+          <span className="min-w-0 flex-1">• {what}</span>
+          <CaretRight size={13} weight="bold" className="mt-[3px] shrink-0 text-[#B0B8C1] lg:hidden" aria-hidden />
         </button>
         <button
           type="button"
           onClick={() => hiddenIssues.hide(hideKey)}
           aria-label={t("이 지적 치우기", "Dismiss", "收起该提示", "Bỏ qua", "この指摘を片づける", "Sembunyikan")}
           title={t("안 고치기로 했다면 치워 두세요. 내용을 고치면 다시 보여요.", "Dismiss if you won't act on it. It returns if you edit the text.", "若不打算修改可收起。修改内容后会再次出现。", "Bỏ qua nếu không sửa. Sẽ hiện lại khi bạn sửa nội dung.", "直さないなら片づけてください。内容を直すと再び表示されます。", "Sembunyikan jika tidak akan diubah. Muncul lagi bila teks diubah.")}
-          className="mt-[1px] shrink-0 rounded px-1 text-[12px] leading-none text-[#C4CAD2] opacity-0 transition group-hover/row:opacity-100 hover:text-[#8B95A1]"
+          className="-mr-1 -mt-1 shrink-0 rounded px-2 py-1 text-[15px] leading-none text-[#B0B8C1] transition hover:text-[#8B95A1] lg:mr-0 lg:mt-[1px] lg:px-1 lg:py-0 lg:text-[12px] lg:text-[#C4CAD2] lg:opacity-0 lg:group-hover/row:opacity-100"
         >
           ×
         </button>
       </div>
-      {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
+      {why ? <p className="mt-1 pl-2.5 text-[12.5px] leading-[1.6] text-[#8B95A1] lg:mt-0.5 lg:text-[11px]">{why}</p> : null}
     </li>
   );
 
@@ -879,7 +898,7 @@ function ResumeCheckSection({
             : t("규칙으로 걸리는 건 없어요. 아래에서 AI 점검도 해 보세요.", "Nothing caught by the rules. Try the AI check below.", "规则未发现问题。可试试下方 AI 检查。", "Quy tắc không phát hiện gì. Thử kiểm tra AI bên dưới.", "ルールでの指摘はありません。下のAIチェックもどうぞ。", "Aturan tidak menemukan apa pun. Coba cek AI di bawah.")}
         </p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-2 lg:gap-1.5">
           {lines.map((line, i) => row(`r${i}`, line.key, line.id, line.what, line.why))}
           {aiLines.map((f, i) => row(`a${i}`, f.key, f.id, `${t("AI", "AI")} · ${labelOf(f.id)} — ${f.issue}`, f.fix))}
         </ul>

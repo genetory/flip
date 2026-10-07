@@ -8,7 +8,7 @@
 //   문항·조합     → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 문항·답변을 읽기 전용 저장본으로 남긴다(회사별 제출본).
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, CaretRight, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { useToast } from "../../toast/ToastProvider";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
@@ -445,6 +445,17 @@ function EpisodeLibrary({
       <div className="shrink-0 px-1.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
+          <span className="lg:hidden">
+            {t(
+              "글을 누르면 바로 고칠 수 있어요. ‘문항에 넣기’ 를 누르면 지금 보고 있는 문항에 들어가요.",
+              "Tap the text to edit it. ‘Add to question’ puts it into the question you're on.",
+              "点文字可直接修改。点“放入题目”会加入当前题目。",
+              "Chạm vào đoạn để sửa. ‘Thêm vào câu hỏi’ sẽ đưa vào câu đang xem.",
+              "文章を押すとすぐ編集できます。「設問に入れる」で今の設問に入ります。",
+              "Ketuk teks untuk mengubah. ‘Masukkan ke pertanyaan’ menaruhnya di pertanyaan saat ini."
+            )}
+          </span>
+          <span className="hidden lg:inline">
           {t(
             "경험 이야기 한 단락이 하나의 모듈이에요. 고른 문항에 넣어 답변을 조립해요.",
             "Each story paragraph is a module. Put it into the selected question and mix them per question.",
@@ -453,6 +464,7 @@ function EpisodeLibrary({
             "経験の一段落がモジュールです。選んだ設問に入れ、設問ごとに組み合わせを変えます。",
             "Setiap paragraf cerita adalah modul. Masukkan ke pertanyaan terpilih dan kombinasikan per pertanyaan."
           )}
+          </span>
         </p>
       </div>
       {/* shrink-0 필수 — 이 패널은 flex 열이면서 스크롤된다. 직계 자식은 기본값(flex-shrink:1)이라
@@ -480,7 +492,7 @@ function EpisodeLibrary({
               >
                 <button type="button" onClick={() => onSelect(it.id)} className="flex flex-col gap-1 text-left">
                   {it.question ? <span className="text-[11px] font-semibold text-[#0B46E8]">{it.question}</span> : null}
-                  <span className="line-clamp-3 text-[13px] leading-relaxed text-[#333D4B]">{textOf(it.id).trim() || t("(내용 없음)", "(empty)")}</span>
+                  <span className="line-clamp-3 text-[14px] leading-relaxed text-[#333D4B] lg:text-[13px]">{textOf(it.id).trim() || t("(내용 없음)", "(empty)")}</span>
                 </button>
                 <div className="flex items-center justify-between gap-2">
                   <span className={`text-[11.5px] leading-none ${usedIn.length ? "text-[#6B7684]" : unplaced.has(it.id) ? "font-bold text-[#B25E09]" : "text-[#B0B8C1]"}`}>{usage}</span>
@@ -489,7 +501,7 @@ function EpisodeLibrary({
                       type="button"
                       onClick={() => onInsert(it.id)}
                       disabled={inActive}
-                      className="flex h-7 shrink-0 items-center rounded-full bg-white px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-transparent disabled:text-[#B0B8C1]"
+                      className="flex h-9 shrink-0 items-center rounded-full bg-white px-3 text-[12.5px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-transparent disabled:text-[#B0B8C1] lg:h-7 lg:px-2.5 lg:text-[11.5px]"
                     >
                       {inActive
                         ? t(`문항 ${activeQ + 1}에 있음`, `In Q${activeQ + 1}`, `已在题目 ${activeQ + 1}`, `Đã ở câu ${activeQ + 1}`, `設問 ${activeQ + 1} にあり`, `Ada di P${activeQ + 1}`)
@@ -1176,11 +1188,12 @@ function FinalCheckSection({
 
   // 한 줄 = 무엇이 걸렸나 + 왜·어떻게 + 치우기(×). × 는 마우스를 올렸을 때만 보인다.
   const row = (rk: string, hideKey: string, what: string, why: string, go: (() => void) | null) => (
-    <li key={rk} className="group/row break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+    <li key={rk} className="group/row break-anywhere rounded-[10px] bg-[#F7F8FA] p-3 text-[13px] leading-[1.6] text-[#4E5968] lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[11.5px]">
       <div className="flex items-start gap-1">
         {go ? (
-          <button type="button" onClick={go} className="min-w-0 flex-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
-            • {what}
+          <button type="button" onClick={go} className="flex min-w-0 flex-1 items-start gap-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+            <span className="min-w-0 flex-1">• {what}</span>
+            <CaretRight size={13} weight="bold" className="mt-[3px] shrink-0 text-[#B0B8C1] lg:hidden" aria-hidden />
           </button>
         ) : (
           <span className="min-w-0 flex-1">• {what}</span>
@@ -1190,12 +1203,12 @@ function FinalCheckSection({
           onClick={() => hiddenIssues.hide(hideKey)}
           aria-label={t("이 지적 치우기", "Dismiss", "收起该提示", "Bỏ qua", "この指摘を片づける", "Sembunyikan")}
           title={t("안 고치기로 했다면 치워 두세요. 내용을 고치면 다시 보여요.", "Dismiss if you won't act on it. It returns if you edit the text.", "若不打算修改可收起。修改内容后会再次出现。", "Bỏ qua nếu không sửa. Sẽ hiện lại khi bạn sửa nội dung.", "直さないなら片づけてください。内容を直すと再び表示されます。", "Sembunyikan jika tidak akan diubah. Muncul lagi bila teks diubah.")}
-          className="mt-[1px] shrink-0 rounded px-1 text-[12px] leading-none text-[#C4CAD2] opacity-0 transition group-hover/row:opacity-100 hover:text-[#8B95A1]"
+          className="-mr-1 -mt-1 shrink-0 rounded px-2 py-1 text-[15px] leading-none text-[#B0B8C1] transition hover:text-[#8B95A1] lg:mr-0 lg:mt-[1px] lg:px-1 lg:py-0 lg:text-[12px] lg:text-[#C4CAD2] lg:opacity-0 lg:group-hover/row:opacity-100"
         >
           ×
         </button>
       </div>
-      {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
+      {why ? <p className="mt-1 pl-2.5 text-[12.5px] leading-[1.6] text-[#8B95A1] lg:mt-0.5 lg:text-[11px]">{why}</p> : null}
     </li>
   );
 
@@ -1208,7 +1221,7 @@ function FinalCheckSection({
             : t("규칙으로 걸리는 건 없어요. 아래에서 AI 점검도 해 보세요.", "Nothing caught by the rules. Try the AI check below.", "规则未发现问题。可试试下方 AI 检查。", "Quy tắc không phát hiện gì. Thử kiểm tra AI bên dưới.", "ルールでの指摘はありません。下のAIチェックもどうぞ。", "Aturan tidak menemukan apa pun. Coba cek AI di bawah.")}
         </p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-2 lg:gap-1.5">
           {lines.map((line, i) => row(`r${i}`, line.key, line.what, line.why, line.q === null ? null : () => onGoQuestion(line.q as number)))}
           {aiLines.map((f, i) =>
             row(`a${i}`, f.key, `${t("AI", "AI")} · ${f.q + 1}. ${layout.questions[f.q]?.prompt.slice(0, 14)} — ${f.issue}`, f.fix, () => onGoQuestion(f.q, f.episodeId))
