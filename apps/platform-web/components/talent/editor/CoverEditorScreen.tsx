@@ -44,7 +44,8 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 export function CoverEditorScreen() {
   return (
@@ -458,7 +459,7 @@ function EpisodeLibrary({
   onInsert: (id: string) => void;
   onNew: () => void;
 }) {
-  const kb = useKeyboardInset();
+  const kb = useVisualViewport();
   const active = layout.questions[activeQ];
   const unplaced = new Set(layout.unplaced);
   return (
@@ -613,7 +614,7 @@ function Inspector(props: {
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
-  const kb = useKeyboardInset();
+  const kb = useVisualViewport();
   // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : `${q}:${id ?? ""}`);
   // '점검' 으로 열면 맨 위에서 시작한다 — 점검 목록이 첫 블록이라 굴릴 필요가 없다.

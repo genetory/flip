@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
+import type { VisualViewportRect } from "../../../lib/useVisualViewport";
 import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
@@ -76,6 +77,9 @@ const SAVE_DELAY = 600;
 // 에디터 공통 모양 — 버튼·칩·입력칸은 테두리 없이 채움 색으로 구분한다.
 /** 입력칸: 옅은 회색 채움, 포커스 땐 흰 바탕 + 파란 링. */
 export const INPUT_CLS =
+  // 글자 크기를 여기서 16px 로 올리지 않는다 — globals.css 가 터치 기기에서만 16px 로 올려
+  // iOS 자동 확대를 막고 있고(특이도가 더 높아 이 클래스보다 이긴다), 여기서 또 올리면
+  // 마우스 쓰는 좁은 창까지 글자가 커진다.
   "rounded-[10px] bg-[#F2F4F6] px-3 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:bg-white focus:shadow-[0_0_0_2px_#0B46E8]";
 /** 보조 버튼: 회색 채움. */
 export const SOFT_BTN = "bg-[#F2F4F6] text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
@@ -208,7 +212,7 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
 export const SHEET_CLS =
   // 높이는 늘 화면의 80%(위 20% 는 문서가 보이게). 내용에 따라 올라오는 높이가 달라지면
   // 누를 자리가 매번 움직여 쓰기 어렵다.
-  "fixed inset-x-0 bottom-0 z-40 h-[80vh] max-h-[80vh] rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "fixed inset-x-0 bottom-0 z-40 h-[80vh] max-h-[80vh] overscroll-contain rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
   "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
 
 export const EDITOR_ROUTES = {
@@ -598,34 +602,20 @@ export function DesktopHintToast({ t, hidden }: { t: PlatformT; hidden?: boolean
   );
 }
 
-/** 키보드가 가린 높이(px). 모바일 하단 시트가 키보드 뒤로 숨지 않게 쓴다.
- *  visualViewport 가 없으면(데스크톱 포함) 늘 0 이라 아무 영향이 없다.
- *  주소창이 접히고 펴지는 것도 같은 신호로 오므로 80px 미만은 무시한다. */
-export function useKeyboardInset(): number {
-  const [inset, setInset] = useState(0);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const on = () => {
-      const gap = window.innerHeight - vv.height - vv.offsetTop;
-      setInset(gap > 80 ? Math.round(gap) : 0);
-    };
-    vv.addEventListener("resize", on);
-    vv.addEventListener("scroll", on);
-    on();
-    return () => {
-      vv.removeEventListener("resize", on);
-      vv.removeEventListener("scroll", on);
-    };
-  }, []);
-  return inset;
+/** 키보드가 올라왔을 때만 시트를 '지금 보이는 영역'에 맞춘다. 아니면 undefined — 클래스(80vh) 그대로.
+ *  iOS 는 키보드가 떠도 레이아웃 뷰포트가 그대로라 position:fixed 시트가 키보드 뒤로 숨고,
+ *  입력란을 보이려고 페이지를 밀어 올려 시트가 화면 밖으로 나가기도 한다. 그래서 bottom 만
+ *  올리지 않고 visualViewport 의 위치·높이를 그대로 받아 쓴다.
+ *  주소창이 접히고 펴지는 것도 같은 신호로 오므로 80px 미만 변화는 건드리지 않는다. */
+export function sheetStyle(vp: VisualViewportRect | null): CSSProperties | undefined {
+  if (!vp) return undefined;
+  const hidden = window.innerHeight - vp.height - vp.offsetTop;
+  if (hidden <= 80) return undefined;
+  const gap = 8;
+  return { top: Math.round(vp.offsetTop) + gap, bottom: "auto", height: Math.round(vp.height) - gap * 2, maxHeight: "none" };
 }
 
-/** 키보드가 올라왔을 때만 시트를 그 위로 올리고 높이를 줄인다. 안 올라왔으면 undefined — 클래스 그대로. */
-export function sheetStyle(inset: number): CSSProperties | undefined {
-  return inset ? { bottom: inset, maxHeight: `calc(100vh - ${inset + 16}px)` } : undefined;
-}
-
+/** 값이 바뀔 때 그 요소를 보이는 곳까지 굴려 준다(처음 그릴 때는 가만히 둔다). */
 export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
   const ref = useRef<T | null>(null);
   const first = useRef(true);

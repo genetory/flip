@@ -50,7 +50,8 @@ import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, ToolButton, useAiReview, useKeyboardInset, useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 
 // 왼쪽 목록·새 항목 추가에 쓰는 섹션 순서(기존 편집 화면과 같다).
@@ -573,7 +574,7 @@ function Inspector(props: {
   const item = id ? doc.items.find((i) => i.id === id) : undefined;
   const at = id ? locate(layout, id) : null;
   const colLen = at ? layout.cols[at.col].length : 0;
-  const kb = useKeyboardInset();
+  const kb = useVisualViewport();
   // 모바일 2단 탭에서 고른 묶음. 보통은 고른 항목이 속한 묶음을 따라가고,
   // 빈 묶음을 눌렀을 때만 따로 기억한다(고를 항목이 없어 선택이 안 바뀌므로).
   const [sectionTab, setSectionTab] = useState<"basic" | CareerSection | null>(null);
