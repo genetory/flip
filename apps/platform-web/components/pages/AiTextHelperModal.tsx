@@ -5,6 +5,7 @@ import { Sparkle, X } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "../ui/button";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
+import { useVisualViewport } from "../../lib/useVisualViewport";
 import type { PlatformLocale } from "../../lib/auth-messages";
 import {
   postDraftResumeText,
@@ -59,6 +60,7 @@ export function AiTextHelperModal({
 }) {
   const tr = useTr();
   useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
+  const vp = useVisualViewport();
 
   const [mode, setMode] = useState<DraftResumeTextMode>("improve");
   const [hints, setHints] = useState("");
@@ -148,6 +150,8 @@ export function AiTextHelperModal({
       role="dialog"
       aria-modal="true"
       aria-label={tr("AI 작성 도우미", "AI writing helper", "AI 写作助手", "Trợ lý viết AI", "AI作成アシスタント", "Asisten penulis AI")}
+      // 키보드가 올라오면 보이는 영역에 맞춘다 — 안 그러면 입력란이 키보드 뒤로 숨는다.
+      style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
       onClick={() => {
         if (!busy) onClose();

@@ -5,6 +5,7 @@ import { PaperPlaneRight, X } from "@phosphor-icons/react";
 import { getApplicationMessages, sendApplicationMessage, type ApplicationMessage } from "../../lib/member-profile-client";
 import { usePlatformT } from "../../lib/i18n";
 import { useLockBodyScroll } from "../../lib/talent/useLockBodyScroll";
+import { useVisualViewport } from "../../lib/useVisualViewport";
 
 type Props = {
   open: boolean;
@@ -22,6 +23,7 @@ function formatTime(iso: string) {
 export function ApplicationMessagesModal({ open, applicationId, positionTitle, companyName, onClose }: Props) {
   const t = usePlatformT();
   useLockBodyScroll(open); // 모달 열림 동안 배경 스크롤 잠금(iOS 스크롤 블리드 방지).
+  const vp = useVisualViewport();
   const [messages, setMessages] = useState<ApplicationMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,8 @@ export function ApplicationMessagesModal({ open, applicationId, positionTitle, c
     <div
       role="dialog"
       aria-modal="true"
+      // 키보드가 올라오면 보이는 영역에 맞춘다 — 안 그러면 아래 입력란이 키보드 뒤로 숨는다.
+      style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0B1227]/55 p-5"
       onClick={onClose}
     >

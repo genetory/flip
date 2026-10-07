@@ -7,8 +7,8 @@
 //   에피소드 내용 → talent 문서(saveCoverDoc) — 앱·기존 화면이 읽는 원본
 //   문항·조합     → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 문항·답변을 읽기 전용 저장본으로 남긴다(회사별 제출본).
-import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, CaretRight, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../app/TalentGuard";
 import { useToast } from "../../toast/ToastProvider";
 import { PDF_PRINT_AREA, PdfDownloadButton, PrintStyles } from "../career/pdf-print";
@@ -44,7 +44,8 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, TINT_BTN, ToolButton, useAiReview, useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 export function CoverEditorScreen() {
   return (
@@ -78,6 +79,12 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 파일에서 가져오기 되돌리기용 스냅샷. 훅이라 조기 반환(저장본 보기)보다 위에 있어야 한다.
   const [importUndo, setImportUndo] = useState<CoverDoc | null>(null);
+  // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
+  // 'props' 는 에피소드를 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
+  const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
+  // 시트를 무엇 때문에 열었는지. 값이 바뀔 때마다 패널이 그 자리로 스크롤한다 —
+  // '고치기' 를 눌렀는데 맨 위 도구만 보이면 쓸 수가 없다.
+  const [focus, setFocus] = useState<string | null>(null);
   const coverHistory = useCoverHistory();
 
   // 편집 중 구성 — 앱·기존 화면에서 새로 쓴 단락이 빠지지 않게 원래 문항에 넣어 보여준다.
@@ -150,6 +157,33 @@ function Editor({ doc }: { doc: CoverDoc }) {
     }
   };
 
+  // 시트 1단 탭 — '에피소드' 와 '점검' 을 같은 자리에서 갈아끼운다. 데스크톱에는 없다.
+  const sheetTabs = (active: "items" | "check") => {
+    const chip = (on: boolean) =>
+      `flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-3.5 text-[13px] font-bold leading-none transition ${
+        on ? "bg-[#191F28] text-white" : "bg-[#F2F4F6] text-[#6B7684]"
+      }`;
+    return (
+      <nav aria-label={t("시트 메뉴", "Sheet menu", "面板菜单", "Menu bảng", "シートメニュー", "Menu panel")} className="flex min-w-0 items-center gap-1.5 lg:hidden">
+        <button type="button" aria-pressed={active === "items"} onClick={() => setSheet("modules")} className={chip(active === "items")}>
+          {t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
+        </button>
+        <button
+          type="button"
+          aria-pressed={active === "check"}
+          onClick={() => {
+            setSheet("props");
+            setFocus(`check:${Date.now()}`);
+          }}
+          className={chip(active === "check")}
+        >
+          {t("점검", "Check", "检查", "Kiểm tra", "チェック", "Cek")}
+          {scan?.flaggedCount ? <span className={active === "check" ? "text-white/70" : "text-[#B0B8C1]"}>{scan.flaggedCount}</span> : null}
+        </button>
+      </nav>
+    );
+  };
+
   const topBar = (
     <EditorTopBar
       t={t}
@@ -208,11 +242,16 @@ function Editor({ doc }: { doc: CoverDoc }) {
     saveCoverDoc(next);
     if (layout.questions[q]) commitLayout(addBlock(resolveCoverLayout(toStoredCover(layout), next), next, q, id));
     setSelectedId(id);
+    // 모바일에서는 고르기만 해선 아무 일도 안 일어난 것처럼 보인다 — 쓸 칸이 있는 시트로 바로 넘긴다.
+    setSheet("props");
+    setFocus(`item:${q}:${id}:${Date.now()}`);
   };
   const deleteEpisode = (id: string) => {
     if (!window.confirm(t("이 에피소드를 삭제할까요? 이미 저장한 버전에는 그대로 남아요.", "Delete this episode? Saved versions keep it.", "要删除此经历吗？已保存的版本仍会保留。", "Xóa đoạn này? Các bản đã lưu vẫn giữ.", "このエピソードを削除しますか？保存済みのバージョンには残ります。", "Hapus episode ini? Versi tersimpan tetap menyimpannya."))) return;
     saveCoverDoc({ ...doc, items: doc.items.filter((it) => it.id !== id) });
     setSelectedId(null);
+    // 지운 것을 계속 열어 둘 이유가 없다 — 모바일에서는 빈 시트가 남는다.
+    setSheet("none");
   };
   // 문항 AI 다듬기 결과 — 다듬은 답변을 새 에피소드로 만들어 이 문항의 답으로 바꾼다(원래 에피소드는 모음에 남는다).
   const applyPolishedAnswer = (qi: number, text: string) => {
@@ -229,20 +268,49 @@ function Editor({ doc }: { doc: CoverDoc }) {
       {topBar}
       <div className="flex min-h-0 flex-1 print:block">
         <EpisodeLibrary
+          open={sheet === "modules"}
+          tabs={sheetTabs("items")}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           layout={layout}
           activeQ={q}
           selectedId={selectedId}
           textOf={textOf}
-          onSelect={setSelectedId}
+          onSelect={(id) => {
+            setSelectedId(id);
+            setSheet("props");
+            setFocus(`item:${q}:${id}:${Date.now()}`);
+          }}
           onInsert={(id) => {
             commitLayout(addBlock(layout, doc, q, id));
             setSelectedId(id);
           }}
           onNew={newEpisode}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-8 py-8 print:hidden" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+        <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+          <DesktopHintToast t={t} />
+          {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
+              문서 위에 둔다. 아래에 두면 A4 를 끝까지 넘겨야 닿는다. */}
+          <div className="mx-auto mb-4 flex max-w-[794px] gap-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSheet("modules")}
+              className={`${TINT_BTN} h-11 flex-1 rounded-[12px] text-[13.5px] font-bold leading-none`}
+            >
+              {t("에피소드 넣기", "Add episodes", "插入经历", "Thêm đoạn kể", "エピソードを入れる", "Tambah episode")}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSheet("props");
+                setFocus(`check:${Date.now()}`);
+              }}
+              className="h-11 flex-1 rounded-[12px] bg-white text-[13.5px] font-bold leading-none text-[#4E5968] ring-1 ring-[#E5E8EB]"
+            >
+              {t(`전체 점검${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Check${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `检查${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Kiểm tra${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `チェック${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`, `Cek${scan.flaggedCount ? ` ${scan.flaggedCount}` : ""}`)}
+            </button>
+          </div>
           <div className="mx-auto flex max-w-[794px] flex-col gap-3">
             <div className="flex justify-end">
               <button
@@ -269,16 +337,34 @@ function Editor({ doc }: { doc: CoverDoc }) {
                 onActivate: (qi) => {
                   setActiveQ(qi);
                   setSelectedId(null);
+                  setSheet("props");
+                  setFocus(`item:${qi}::${Date.now()}`);
                 },
                 onSelect: (qi, id) => {
                   setActiveQ(qi);
                   setSelectedId(id);
+                  setSheet("props");
+                  setFocus(`item:${qi}:${id}:${Date.now()}`);
                 }
               }}
             />
           </div>
         </main>
+
+        {/* 시트 뒤 어둡게 — 바깥을 누르면 닫힌다. 데스크톱에는 없다. */}
+        {sheet !== "none" ? (
+          <button
+            type="button"
+            aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+            onClick={() => setSheet("none")}
+            className="fixed inset-0 z-30 bg-[#0B1227]/30 lg:hidden"
+          />
+        ) : null}
         <Inspector
+          open={sheet === "props"}
+          focus={focus}
+          tabs={sheetTabs(focus?.startsWith("check:") ? "check" : "items")}
+          onClose={() => setSheet("none")}
           t={t}
           doc={doc}
           layout={layout}
@@ -350,6 +436,9 @@ function AnswerList({ t, layout, textOf, onCopy }: { t: PlatformT; layout: Pick<
 // ── 왼쪽: 에피소드 모음 ──────────────────────────────────────
 
 function EpisodeLibrary({
+  open,
+  tabs,
+  onClose,
   t,
   doc,
   layout,
@@ -360,6 +449,11 @@ function EpisodeLibrary({
   onInsert,
   onNew
 }: {
+  /** 모바일에서 시트로 열려 있는지. 데스크톱(lg~)에서는 늘 보이므로 쓰이지 않는다. */
+  open: boolean;
+  /** 시트 1단 탭(에피소드·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
+  onClose: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -370,13 +464,36 @@ function EpisodeLibrary({
   onInsert: (id: string) => void;
   onNew: () => void;
 }) {
+  const kb = useVisualViewport();
   const active = layout.questions[activeQ];
   const unplaced = new Set(layout.unplaced);
   return (
-    <aside className="no-print flex w-[300px] shrink-0 flex-col gap-4 overflow-y-auto border-r border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0" aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}>
+    <aside
+      style={sheetStyle(kb)}
+      className={`no-print ${open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-4 overflow-y-auto border-[#E5E8EB] bg-white px-4 py-6 [&>*]:shrink-0 lg:w-[300px] lg:shrink-0 lg:border-r`}
+      aria-label={t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}
+    >
+      {/* 모바일 시트 손잡이·닫기 — 데스크톱에는 없다. */}
+      <div className="sticky -top-6 z-10 -mx-4 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-4 pb-2 pt-6 lg:hidden">
+        {tabs}
+        <button type="button" onClick={onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
       <div className="shrink-0 px-1.5">
         <p className="text-[16px] font-bold tracking-[-0.01em]">{t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode")}</p>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8B95A1]">
+          <span className="lg:hidden">
+            {t(
+              "글을 누르면 바로 고칠 수 있어요. ‘문항에 넣기’ 를 누르면 지금 보고 있는 문항에 들어가요.",
+              "Tap the text to edit it. ‘Add to question’ puts it into the question you're on.",
+              "点文字可直接修改。点“放入题目”会加入当前题目。",
+              "Chạm vào đoạn để sửa. ‘Thêm vào câu hỏi’ sẽ đưa vào câu đang xem.",
+              "文章を押すとすぐ編集できます。「設問に入れる」で今の設問に入ります。",
+              "Ketuk teks untuk mengubah. ‘Masukkan ke pertanyaan’ menaruhnya di pertanyaan saat ini."
+            )}
+          </span>
+          <span className="hidden lg:inline">
           {t(
             "경험 이야기 한 단락이 하나의 모듈이에요. 고른 문항에 넣어 답변을 조립해요.",
             "Each story paragraph is a module. Put it into the selected question and mix them per question.",
@@ -385,6 +502,7 @@ function EpisodeLibrary({
             "経験の一段落がモジュールです。選んだ設問に入れ、設問ごとに組み合わせを変えます。",
             "Setiap paragraf cerita adalah modul. Masukkan ke pertanyaan terpilih dan kombinasikan per pertanyaan."
           )}
+          </span>
         </p>
       </div>
       {/* shrink-0 필수 — 이 패널은 flex 열이면서 스크롤된다. 직계 자식은 기본값(flex-shrink:1)이라
@@ -412,7 +530,7 @@ function EpisodeLibrary({
               >
                 <button type="button" onClick={() => onSelect(it.id)} className="flex flex-col gap-1 text-left">
                   {it.question ? <span className="text-[11px] font-semibold text-[#0B46E8]">{it.question}</span> : null}
-                  <span className="line-clamp-3 text-[13px] leading-relaxed text-[#333D4B]">{textOf(it.id).trim() || t("(내용 없음)", "(empty)")}</span>
+                  <span className="line-clamp-3 text-[14px] leading-relaxed text-[#333D4B] lg:text-[13px]">{textOf(it.id).trim() || t("(내용 없음)", "(empty)")}</span>
                 </button>
                 <div className="flex items-center justify-between gap-2">
                   <span className={`text-[11.5px] leading-none ${usedIn.length ? "text-[#6B7684]" : unplaced.has(it.id) ? "font-bold text-[#B25E09]" : "text-[#B0B8C1]"}`}>{usage}</span>
@@ -421,7 +539,7 @@ function EpisodeLibrary({
                       type="button"
                       onClick={() => onInsert(it.id)}
                       disabled={inActive}
-                      className="flex h-7 shrink-0 items-center rounded-full bg-white px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-transparent disabled:text-[#B0B8C1]"
+                      className="flex h-9 shrink-0 items-center rounded-full bg-white px-3 text-[12.5px] font-bold leading-none text-[#0B46E8] transition hover:bg-[#E1E9FC] disabled:cursor-default disabled:bg-transparent disabled:text-[#B0B8C1] lg:h-7 lg:px-2.5 lg:text-[11.5px]"
                     >
                       {inActive
                         ? t(`문항 ${activeQ + 1}에 있음`, `In Q${activeQ + 1}`, `已在题目 ${activeQ + 1}`, `Đã ở câu ${activeQ + 1}`, `設問 ${activeQ + 1} にあり`, `Ada di P${activeQ + 1}`)
@@ -461,6 +579,13 @@ function CharGauge({ t, count, limit }: { t: PlatformT; count: number; limit: nu
 // ── 오른쪽: 문항·에피소드·버전 ───────────────────────────────
 
 function Inspector(props: {
+  /** 모바일에서 시트로 열려 있는지. 데스크톱(lg~)에서는 늘 보이므로 쓰이지 않는다. */
+  open: boolean;
+  /** 시트를 연 이유 — "item:…" 이면 고른 문항·에피소드로, "check:…" 이면 점검 목록으로 스크롤한다. */
+  focus: string | null;
+  /** 시트 1단 탭(에피소드·점검). 데스크톱에서는 lg:hidden 이라 보이지 않는다. */
+  tabs: ReactNode;
+  onClose: () => void;
   t: PlatformT;
   doc: CoverDoc;
   layout: ResolvedCover;
@@ -494,8 +619,16 @@ function Inspector(props: {
   const answer = question ? answerText(question.blocks.map(props.textOf)) : "";
   // 규칙 스캔(AI 호출 없음) — 지금 보고 있는 문항에 문제가 있으면 칩 옆에 개수를 띄운다.
   const questionIssues = question ? props.scan.byQuestion.get(question.id) ?? [] : [];
+  const kb = useVisualViewport();
   // 문항·에피소드를 바꾸면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
-  const reveal = useRevealOnChange<HTMLDivElement>(`${q}:${id ?? ""}`);
+  const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : `${q}:${id ?? ""}`);
+  // '점검' 으로 열면 맨 위에서 시작한다 — 점검 목록이 첫 블록이라 굴릴 필요가 없다.
+  const sheetRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (props.focus?.startsWith("check:")) sheetRef.current?.scrollTo({ top: 0 });
+  }, [props.focus]);
+  // 모바일에서 고치려고 연 시트인지 — 그때는 문서 전체 도구를 접는다.
+  const itemFocused = !!props.focus?.startsWith("item:");
 
   // 문서 전체에 거는 도구(다듬기·점검)는 무엇을 고르고 있든 **맨 위에** 늘 보인다 —
   // aside 헬퍼에 두어 아래 분기 전부가 갖게 한다. 고칠 곳을 찾는 도구가 무엇을 고르느냐에
@@ -505,9 +638,25 @@ function Inspector(props: {
   // 밀렸기 때문인데, 그건 자리 문제가 아니라 **고른 곳으로 데려다 주지 않은** 문제였다.
   // 지금은 고른 입력란으로 스크롤해 주므로(scrollToSelf) 맨 위에 둬도 된다.
   const aside = (children: ReactNode) => (
-    <aside className="no-print flex w-[340px] shrink-0 flex-col gap-7 overflow-y-auto border-l border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0" aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}>
+    <aside
+      ref={sheetRef}
+      style={sheetStyle(kb)}
+      className={`no-print ${props.open ? "flex" : "hidden"} lg:flex ${SHEET_CLS} w-full flex-col gap-7 overflow-y-auto border-[#E5E8EB] bg-white px-5 py-6 [&>*]:shrink-0 lg:w-[340px] lg:shrink-0 lg:border-l`}
+      aria-label={t("속성", "Properties", "属性", "Thuộc tính", "プロパティ", "Properti")}
+    >
+      {/* 모바일 시트 머리 — 손잡이·에피소드 목록으로 건너가기·닫기. 데스크톱에는 없다. */}
+      <div className="sticky -top-6 z-10 -mx-5 -mt-6 flex items-center justify-between gap-2 rounded-t-2xl bg-white px-5 pb-2 pt-6 lg:hidden">
+        {props.tabs}
+        <button type="button" onClick={props.onClose} className="rounded-full px-2 py-1 text-[12.5px] font-semibold text-[#6B7684]">
+          {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+        </button>
+      </div>
+      {/* 모바일에서 '고치기' 로 연 시트에서는 숨긴다(고칠 것만 보이게). '전체 점검' 으로 열면 보인다.
+          RecentChanges 가 이 묶음 밖에 있어 항목을 고칠 때도 '최근 변경' 이 맨 위에 남아 있었다.
+          display:contents 가 아니라 같은 gap 의 flex 열인 이유: 패널의 [&>*]:shrink-0 가
+          안쪽 자식에 닿지 않아 스크롤 열에서 버튼 높이가 눌린다. */}
+      <div className={`flex shrink-0 flex-col gap-7 [&>*]:shrink-0 ${itemFocused ? "hidden lg:flex" : ""}`}>
       <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
-
       <ImportFromFile
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
@@ -526,6 +675,7 @@ function Inspector(props: {
       />
 
       <BulkTidySection t={t} doc={doc} onDoc={props.onDoc} />
+      <div className="order-first lg:order-none">
       <FinalCheckSection
         t={t}
         layout={layout}
@@ -540,6 +690,8 @@ function Inspector(props: {
           props.onSelect(episodeId ?? null);
         }}
       />
+      </div>
+      </div>
       {children}
     </aside>
   );
@@ -550,7 +702,7 @@ function Inspector(props: {
     const para = props.textOf(id);
     return aside(
       <>
-        <div ref={reveal} className="scroll-mt-6">
+        <div ref={reveal} className="order-1 scroll-mt-6 lg:order-none">
           {question ? (
             <button type="button" onClick={() => props.onSelect(null)} className="-ml-1.5 mb-2 flex h-7 items-center gap-1 rounded-lg px-1.5 text-[12.5px] font-semibold leading-none text-[#6B7684] transition hover:bg-[#F2F4F6] hover:text-[#191F28]">
               <CaretLeft size={13} weight="bold" className="shrink-0" />
@@ -559,12 +711,13 @@ function Inspector(props: {
               </span>
             </button>
           ) : null}
-          <span className="inline-flex h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8]">{t("에피소드", "Episode", "经历", "Đoạn kể", "エピソード", "Episode")}</span>
-          <p className="mt-2 line-clamp-2 text-[16px] font-bold leading-snug tracking-[-0.01em]">{para.trim().split("\n")[0] || t("(내용 없음)", "(empty)")}</p>
+          {/* 모바일에서는 1단 탭이 '에피소드' 라고 말해 주고, 새로 쓴 것은 제목이 '(내용 없음)' 이라 쓸모없다. */}
+          <span className="hidden h-6 items-center rounded-full bg-[#EDF1FD] px-2.5 text-[11.5px] font-bold leading-none text-[#0B46E8] lg:inline-flex">{t("에피소드", "Episode", "经历", "Đoạn kể", "エピソード", "Episode")}</span>
+          <p className="mt-2 line-clamp-2 hidden text-[16px] font-bold leading-snug tracking-[-0.01em] lg:block">{para.trim().split("\n")[0] || t("(내용 없음)", "(empty)")}</p>
         </div>
 
         {question ? (
-          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")}>
+          <Section title={t("배치", "Placement", "位置", "Vị trí", "配置", "Penempatan")} className="order-3 lg:order-none">
             {index >= 0 ? (
               <div className="grid grid-cols-2 gap-2">
                 <ToolButton icon={<ArrowUp size={14} weight="bold" />} label={t("위로", "Up", "上移", "Lên", "上へ", "Naik")} disabled={index === 0} onClick={() => props.onLayout(nudgeBlock(layout, q, index, -1).layout)} />
@@ -601,7 +754,7 @@ function Inspector(props: {
           </Section>
         ) : null}
 
-        <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")}>
+        <Section title={t("내용", "Content", "内容", "Nội dung", "内容", "Isi")} className="order-2 lg:order-none">
           <Field
             key={`t-${id}`}
             label={t(`본문 · ${charCount(para.trim()).toLocaleString()}자`, `Text · ${charCount(para.trim()).toLocaleString()} chars`)}
@@ -623,7 +776,7 @@ function Inspector(props: {
           <AiPolish key={`ai-${id}`} t={t} text={para} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
         </Section>
 
-        <button type="button" onClick={() => props.onDeleteEpisode(id)} className="flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1]">
+        <button type="button" onClick={() => props.onDeleteEpisode(id)} className="order-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none text-[#F04452] transition hover:bg-[#FFF0F1] lg:order-none">
           <Trash size={15} weight="bold" className="shrink-0" />
           <span>{t("에피소드 삭제", "Delete episode", "删除经历", "Xóa đoạn kể", "エピソードを削除", "Hapus episode")}</span>
         </button>
@@ -1072,11 +1225,12 @@ function FinalCheckSection({
 
   // 한 줄 = 무엇이 걸렸나 + 왜·어떻게 + 치우기(×). × 는 마우스를 올렸을 때만 보인다.
   const row = (rk: string, hideKey: string, what: string, why: string, go: (() => void) | null) => (
-    <li key={rk} className="group/row break-anywhere text-[11.5px] leading-[1.6] text-[#4E5968]">
+    <li key={rk} className="group/row break-anywhere rounded-[10px] bg-[#F7F8FA] p-3 text-[13px] leading-[1.6] text-[#4E5968] lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[11.5px]">
       <div className="flex items-start gap-1">
         {go ? (
-          <button type="button" onClick={go} className="min-w-0 flex-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
-            • {what}
+          <button type="button" onClick={go} className="flex min-w-0 flex-1 items-start gap-1 text-left underline-offset-2 transition hover:text-[#0B46E8] hover:underline">
+            <span className="min-w-0 flex-1">• {what}</span>
+            <CaretRight size={13} weight="bold" className="mt-[3px] shrink-0 text-[#B0B8C1] lg:hidden" aria-hidden />
           </button>
         ) : (
           <span className="min-w-0 flex-1">• {what}</span>
@@ -1086,12 +1240,12 @@ function FinalCheckSection({
           onClick={() => hiddenIssues.hide(hideKey)}
           aria-label={t("이 지적 치우기", "Dismiss", "收起该提示", "Bỏ qua", "この指摘を片づける", "Sembunyikan")}
           title={t("안 고치기로 했다면 치워 두세요. 내용을 고치면 다시 보여요.", "Dismiss if you won't act on it. It returns if you edit the text.", "若不打算修改可收起。修改内容后会再次出现。", "Bỏ qua nếu không sửa. Sẽ hiện lại khi bạn sửa nội dung.", "直さないなら片づけてください。内容を直すと再び表示されます。", "Sembunyikan jika tidak akan diubah. Muncul lagi bila teks diubah.")}
-          className="mt-[1px] shrink-0 rounded px-1 text-[12px] leading-none text-[#C4CAD2] opacity-0 transition group-hover/row:opacity-100 hover:text-[#8B95A1]"
+          className="-mr-1 -mt-1 shrink-0 rounded px-2 py-1 text-[15px] leading-none text-[#B0B8C1] transition hover:text-[#8B95A1] lg:mr-0 lg:mt-[1px] lg:px-1 lg:py-0 lg:text-[12px] lg:text-[#C4CAD2] lg:opacity-0 lg:group-hover/row:opacity-100"
         >
           ×
         </button>
       </div>
-      {why ? <p className="mt-0.5 pl-2.5 text-[11px] leading-[1.6] text-[#8B95A1]">{why}</p> : null}
+      {why ? <p className="mt-1 pl-2.5 text-[12.5px] leading-[1.6] text-[#8B95A1] lg:mt-0.5 lg:text-[11px]">{why}</p> : null}
     </li>
   );
 
@@ -1104,7 +1258,7 @@ function FinalCheckSection({
             : t("규칙으로 걸리는 건 없어요. 아래에서 AI 점검도 해 보세요.", "Nothing caught by the rules. Try the AI check below.", "规则未发现问题。可试试下方 AI 检查。", "Quy tắc không phát hiện gì. Thử kiểm tra AI bên dưới.", "ルールでの指摘はありません。下のAIチェックもどうぞ。", "Aturan tidak menemukan apa pun. Coba cek AI di bawah.")}
         </p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="flex flex-col gap-2 lg:gap-1.5">
           {lines.map((line, i) => row(`r${i}`, line.key, line.what, line.why, line.q === null ? null : () => onGoQuestion(line.q as number)))}
           {aiLines.map((f, i) =>
             row(`a${i}`, f.key, `${t("AI", "AI")} · ${f.q + 1}. ${layout.questions[f.q]?.prompt.slice(0, 14)} — ${f.issue}`, f.fix, () => onGoQuestion(f.q, f.episodeId))

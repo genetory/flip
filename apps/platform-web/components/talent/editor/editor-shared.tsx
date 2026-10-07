@@ -2,10 +2,11 @@
 
 // 모듈형 에디터(이력서·자기소개서) 공통 — 편집 중 구성·저장본 관리와 상단 바·저장본 패널·입력 조각.
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
+import type { VisualViewportRect } from "../../../lib/useVisualViewport";
 import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
@@ -76,6 +77,9 @@ const SAVE_DELAY = 600;
 // 에디터 공통 모양 — 버튼·칩·입력칸은 테두리 없이 채움 색으로 구분한다.
 /** 입력칸: 옅은 회색 채움, 포커스 땐 흰 바탕 + 파란 링. */
 export const INPUT_CLS =
+  // 글자 크기를 여기서 16px 로 올리지 않는다 — globals.css 가 터치 기기에서만 16px 로 올려
+  // iOS 자동 확대를 막고 있고(특이도가 더 높아 이 클래스보다 이긴다), 여기서 또 올리면
+  // 마우스 쓰는 좁은 창까지 글자가 커진다.
   "rounded-[10px] bg-[#F2F4F6] px-3 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:bg-white focus:shadow-[0_0_0_2px_#0B46E8]";
 /** 보조 버튼: 회색 채움. */
 export const SOFT_BTN = "bg-[#F2F4F6] text-[#333D4B] transition hover:bg-[#E8EBEE] disabled:cursor-default disabled:bg-[#F7F8FA] disabled:text-[#C4CAD2]";
@@ -203,6 +207,14 @@ export function FullMessage({ text, action }: { text: string; action?: { href: s
   );
 }
 
+/** 모바일에서만 시트로 띄우기 위한 위치 지정. lg 이상에서는 전부 원래 값으로 되돌려,
+ *  넓은 화면의 계산된 스타일이 바뀌지 않게 한다(static·radius 0·그림자 없음). */
+export const SHEET_CLS =
+  // 높이는 늘 화면의 90%(위 10% 만 남긴다). 내용에 따라 올라오는 높이가 달라지면
+  // 누를 자리가 매번 움직여 쓰기 어렵다.
+  "fixed inset-x-0 bottom-0 z-40 h-[90vh] max-h-[90vh] overscroll-contain rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
+  "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
+
 export const EDITOR_ROUTES = {
   resume: "/talent/career/resume/editor",
   cover: "/talent/career/cover/editor"
@@ -242,11 +254,11 @@ export function EditorTopBar<L, S>({
   // 문서 전환 — 1단/2단 전환과 같은 세그먼트 모양.
   const tab = (key: "resume" | "cover", label: string) =>
     key === active ? (
-      <span aria-current="page" className="flex h-[30px] items-center rounded-[8px] bg-white px-3.5 text-[13.5px] font-bold leading-none text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <span aria-current="page" className="flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-[8px] bg-white px-3 text-[13px] font-bold lg:px-3.5 lg:text-[13.5px] leading-none text-[#191F28] shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
         {label}
       </span>
     ) : (
-      <Link href={EDITOR_ROUTES[key]} className="flex h-[30px] items-center rounded-[8px] px-3.5 text-[13.5px] font-semibold leading-none text-[#6B7684] transition hover:text-[#191F28]">
+      <Link href={EDITOR_ROUTES[key]} className="flex h-[30px] shrink-0 items-center whitespace-nowrap rounded-[8px] px-3 text-[13px] font-semibold lg:px-3.5 lg:text-[13.5px] leading-none text-[#6B7684] transition hover:text-[#191F28]">
         {label}
       </Link>
     );
@@ -264,11 +276,11 @@ export function EditorTopBar<L, S>({
     </button>
   );
   return (
-    <header className="no-print flex h-16 shrink-0 items-center gap-4 border-b border-[#E5E8EB] bg-white px-5">
+    <header className="no-print flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-b border-[#E5E8EB] bg-white px-3 lg:h-16 lg:gap-4 lg:overflow-visible lg:px-5">
       <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-[#4E5968] transition hover:bg-[#F2F4F6]">
         <ArrowLeft size={18} weight="bold" />
       </Link>
-      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
+      <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex shrink-0 items-center rounded-[10px] bg-[#F2F4F6] p-[3px]">
         {tab("resume", t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"))}
         {tab("cover", t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"))}
       </nav>
@@ -539,6 +551,71 @@ export function useHiddenIssues(kind: "resume" | "cover") {
  *
  * 처음 렌더에서는 굴리지 않는다 — 화면을 열자마자 스크롤이 내려가 있으면 당황스럽다.
  */
+/** 좁은 화면에서 '큰 화면이 더 편하다' 고 한 번 알려 주는 알림. 닫으면 다시 뜨지 않는다.
+ *  편집 영역 맨 위에 붙여 굴려도 따라온다. 화면에 띄워(fixed) 두면 바로 아래 조작 버튼을
+ *  덮어 눌리지 않는다 — 실제로 그렇게 만들었다가 클릭이 막혔다. 데스크톱에는 없다. */
+export function DesktopHintToast({ t, hidden }: { t: PlatformT; hidden?: boolean }) {
+  const KEY = "aply.editor.desktopHint.v1";
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(KEY) !== "off") setShow(true);
+    } catch {
+      setShow(true);
+    }
+  }, []);
+  if (!show || hidden) return null;
+  const close = () => {
+    setShow(false);
+    try {
+      window.localStorage.setItem(KEY, "off");
+    } catch {
+      // 저장이 막혀 있어도 이번 화면에서는 닫힌다.
+    }
+  };
+  return (
+    <div className="no-print sticky top-0 z-20 mb-3 flex justify-center lg:hidden">
+      <div
+        role="status"
+        className="flex w-full max-w-[794px] items-start gap-2 rounded-[12px] bg-[#191F28]/95 px-3.5 py-3 text-white shadow-[0_8px_24px_-8px_rgba(11,18,39,0.45)] backdrop-blur-sm"
+      >
+        <p className="min-w-0 flex-1 break-keep text-[12.5px] font-medium leading-[1.55]">
+          {t(
+            "여기서도 고칠 수 있지만, 이력서·자기소개서는 PC 에서 작업하는 걸 권해요. 문서 전체를 보면서 고칠 수 있어요.",
+            "You can edit here, but a desktop is easier for resumes and cover letters — you can see the whole page while you work.",
+            "这里也能修改，但简历和自我介绍建议在电脑上编辑，可以边看整页边改。",
+            "Bạn vẫn sửa được ở đây, nhưng nên dùng máy tính cho hồ sơ và thư giới thiệu — xem được cả trang khi sửa.",
+            "ここでも編集できますが、履歴書・自己紹介書はPCでの作業をおすすめします。ページ全体を見ながら直せます。",
+            "Bisa diedit di sini, tapi resume dan surat lamaran lebih mudah di PC — seluruh halaman terlihat saat mengubah."
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={close}
+          aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+          className="-mr-1 -mt-0.5 shrink-0 rounded px-2 py-1 text-[15px] leading-none text-white/70 transition hover:text-white"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** 키보드가 올라왔을 때만 시트를 '지금 보이는 영역'에 맞춘다. 아니면 undefined — 클래스(90vh) 그대로.
+ *  iOS 는 키보드가 떠도 레이아웃 뷰포트가 그대로라 position:fixed 시트가 키보드 뒤로 숨고,
+ *  입력란을 보이려고 페이지를 밀어 올려 시트가 화면 밖으로 나가기도 한다. 그래서 bottom 만
+ *  올리지 않고 visualViewport 의 위치·높이를 그대로 받아 쓴다.
+ *  주소창이 접히고 펴지는 것도 같은 신호로 오므로 80px 미만 변화는 건드리지 않는다. */
+export function sheetStyle(vp: VisualViewportRect | null): CSSProperties | undefined {
+  if (!vp) return undefined;
+  const hidden = window.innerHeight - vp.height - vp.offsetTop;
+  if (hidden <= 80) return undefined;
+  const gap = 8;
+  return { top: Math.round(vp.offsetTop) + gap, bottom: "auto", height: Math.round(vp.height) - gap * 2, maxHeight: "none" };
+}
+
+/** 값이 바뀔 때 그 요소를 보이는 곳까지 굴려 준다(처음 그릴 때는 가만히 둔다). */
 export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
   const ref = useRef<T | null>(null);
   const first = useRef(true);
@@ -555,9 +632,9 @@ export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
 
 /** 패널 한 블록. shrink-0 인 이유: 이 블록이 놓이는 패널은 flex 열이면서 스크롤돼서,
  *  내용이 넘치면 직계 자식이 눌려 안쪽 버튼 높이(h-9/h-10)까지 무시된다. */
-export function Section({ title, children, divider }: { title: string; children: ReactNode; divider?: boolean }) {
+export function Section({ title, children, divider, className }: { title: string; children: ReactNode; divider?: boolean; className?: string }) {
   return (
-    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""}`}>
+    <section className={`flex shrink-0 flex-col gap-2.5 ${divider ? "border-t border-[#F2F4F6] pt-5" : ""} ${className ?? ""}`}>
       <h3 className="text-[13px] font-bold">{title}</h3>
       {children}
     </section>
