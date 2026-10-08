@@ -50,7 +50,7 @@ import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 
@@ -94,6 +94,15 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
   // 'props' 는 항목을 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
   const [sheet, setSheet] = useState<"none" | "props">("none");
+  const mainLock = useSheetScrollLock(sheet !== "none");
+  useDropEmptyItems({
+    items: doc.items,
+    isEmpty: (it) => ![it.text, it.company, it.startDate, it.endDate].some((v) => v?.trim()),
+    selectedId,
+    sheetOpen: sheet !== "none",
+    drop: (ids) => saveResumeDoc({ ...doc, items: doc.items.filter((it) => !ids.includes(it.id)) }),
+    deselect: () => setSelectedId(null)
+  });
   // 시트를 무엇 때문에 열었는지. 값이 바뀔 때마다 패널이 그 자리로 스크롤한다 —
   // 모바일에서 '고치기' 를 눌렀는데 맨 위 도구만 보이면 쓸 수가 없다.
   const [focus, setFocus] = useState<string | null>(null);
@@ -328,7 +337,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
           onToggle={(id) => commitLayout(placed.has(id) ? hideModule(layout, id) : placeModule(layout, doc, id))}
           onAdd={addItem}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
+        <main className={`min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8 ${mainLock}`} aria-label={t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume")}>
           <DesktopHintToast t={t} />
           {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
               평소 화면에 더해지는 건 이 두 버튼뿐이고, 편집 패널은 탭했을 때만 올라온다. */}
