@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle, CircleNotch, FloppyDisk, LockSimple, Trash, War
 import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
 import type { VisualViewportRect } from "../../../lib/useVisualViewport";
+import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
@@ -214,6 +215,80 @@ export const SHEET_CLS =
   // 누를 자리가 매번 움직여 쓰기 어렵다.
   "fixed inset-x-0 bottom-0 z-40 h-[90vh] max-h-[90vh] overscroll-contain rounded-t-2xl shadow-[0_-10px_30px_-12px_rgba(11,18,39,0.28)] " +
   "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
+
+/** 모바일 시트가 떠 있는 동안 뒤 화면이 굴러가지 않게 잠근다.
+ *  이 편집기는 문서가 body 가 아니라 안쪽 <main> 에서 스크롤되므로, body 잠금(iOS 에서
+ *  h-screen 페이지가 통째로 밀리는 것)과 함께 돌려주는 값으로 main 의 스크롤도 막는다.
+ *  lg 이상에서는 시트가 옆 패널이라 잠그지 않는다(선택하면 sheet 상태가 바뀌어도 그대로). */
+export function useSheetScrollLock(open: boolean): string {
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023.98px)");
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  useLockBodyScroll(open && narrow);
+  return open ? "max-lg:overflow-hidden" : "";
+}
+
+/** 내용 없이 남은 항목(에피소드)을 알아서 지운다 — '새로 쓰기'만 눌러 두고 떠나면 빈 칸이
+ *  목록·문서에 쌓인다. 쓰는 중엔 건드리지 않고, 손을 뗐을 때만 지운다:
+ *  - 처음 열 때 이미 쌓여 있던 빈 항목
+ *  - 다른 항목을 고르거나 선택을 풀어 빈 항목을 떠날 때
+ *  - (모바일) 빈 항목을 연 채로 시트를 닫을 때 — 선택도 함께 푼다
+ *  drop 은 렌더마다 새로 만들어도 된다(늘 최신 문서로 지우도록 ref 로 받는다). */
+export function useDropEmptyItems<T extends { id: string }>({
+  items,
+  isEmpty,
+  selectedId,
+  sheetOpen,
+  drop,
+  deselect
+}: {
+  items: T[];
+  isEmpty: (item: T) => boolean;
+  selectedId: string | null;
+  sheetOpen: boolean;
+  drop: (ids: string[]) => void;
+  deselect: () => void;
+}) {
+  const latest = useRef({ items, isEmpty, drop, deselect });
+  useEffect(() => {
+    latest.current = { items, isEmpty, drop, deselect };
+  });
+  const emptyIds = (ids: (string | null)[]) => {
+    const { items: list, isEmpty: empty } = latest.current;
+    return ids.filter((id): id is string => !!id && list.some((it) => it.id === id && empty(it)));
+  };
+
+  useEffect(() => {
+    const { items: list, isEmpty: empty, drop: run } = latest.current;
+    const ids = list.filter(empty).map((it) => it.id);
+    if (ids.length) run(ids);
+  }, []);
+
+  const prevSelected = useRef(selectedId);
+  useEffect(() => {
+    const prev = prevSelected.current;
+    prevSelected.current = selectedId;
+    if (prev === selectedId) return;
+    const ids = emptyIds([prev]);
+    if (ids.length) latest.current.drop(ids);
+  }, [selectedId]);
+
+  const prevOpen = useRef(sheetOpen);
+  useEffect(() => {
+    const wasOpen = prevOpen.current;
+    prevOpen.current = sheetOpen;
+    if (!wasOpen || sheetOpen) return;
+    const ids = emptyIds([prevSelected.current]);
+    if (!ids.length) return;
+    latest.current.drop(ids);
+    latest.current.deselect();
+  }, [sheetOpen]);
+}
 
 export const EDITOR_ROUTES = {
   resume: "/talent/career/resume/editor",

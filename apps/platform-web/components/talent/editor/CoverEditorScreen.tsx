@@ -44,7 +44,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 export function CoverEditorScreen() {
@@ -82,6 +82,15 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // 모바일에서 열려 있는 시트. 데스크톱에서는 쓰이지 않는다(패널이 늘 보인다).
   // 'props' 는 에피소드를 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
   const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
+  const mainLock = useSheetScrollLock(sheet !== "none");
+  useDropEmptyItems({
+    items: doc.items,
+    isEmpty: (it) => !it.text.trim(),
+    selectedId,
+    sheetOpen: sheet !== "none",
+    drop: (ids) => saveCoverDoc({ ...doc, items: doc.items.filter((it) => !ids.includes(it.id)) }),
+    deselect: () => setSelectedId(null)
+  });
   // 시트를 무엇 때문에 열었는지. 값이 바뀔 때마다 패널이 그 자리로 스크롤한다 —
   // '고치기' 를 눌렀는데 맨 위 도구만 보이면 쓸 수가 없다.
   const [focus, setFocus] = useState<string | null>(null);
@@ -288,7 +297,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
           }}
           onNew={newEpisode}
         />
-        <main className="min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8" aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
+        <main className={`min-w-0 flex-1 overflow-auto px-4 py-5 print:hidden lg:px-8 lg:py-8 ${mainLock}`} aria-label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}>
           <DesktopHintToast t={t} />
           {/* 모바일 조작부 — 데스크톱에는 패널이 늘 보이므로 숨긴다.
               문서 위에 둔다. 아래에 두면 A4 를 끝까지 넘겨야 닿는다. */}
