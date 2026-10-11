@@ -67,13 +67,13 @@ function Jobs() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   // '혹시 외국인이세요?' — 한국인도 보는 화면이라 먼저 걸러 두지 않고 물어본다. 답은 이 브라우저에만 기억.
-  //   yes → 필터를 켜고 다음에도 켠 채로 시작 / no·닫기 → 다시 묻지 않음. 저장소를 못 써도 화면은 그대로 동작.
+  //   yes → 필터를 켜고 다음에도 켠 채로 시작 / no → 다시 묻지 않음(닫기 없이 둘 중 하나로 답한다). 저장소를 못 써도 화면은 그대로 동작.
   const stored = useSyncExternalStore(subscribeForeigner, readForeigner, () => "ssr");
   const [answered, setAnswered] = useState(false);
   const [foreignerToggle, setForeigner] = useState<boolean | null>(null);
   const foreigner = foreignerToggle ?? stored === "yes";
   const askForeigner = stored === null && !answered;
-  const answerForeigner = (answer: "yes" | "no" | "dismiss") => {
+  const answerForeigner = (answer: "yes" | "no") => {
     trackForeignerPrompt(answer);
     writeForeigner(answer === "yes" ? "yes" : "no");
     if (answer === "yes") setForeigner(true);
@@ -175,7 +175,7 @@ function Jobs() {
       />
 
       {askForeigner && !foreigner ? (
-        <div className="mx-5 mb-4 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] py-3 pl-4 pr-2">
+        <div className="mx-5 mb-4 flex items-center gap-2 rounded-2xl bg-[color:var(--v2-accent-weak)] py-3 pl-4 pr-3">
           <p className="min-w-0 flex-1 text-[14px] leading-[1.5] text-[color:var(--v2-ink-2)]">
             <span className="font-bold text-[color:var(--v2-ink)]">{t("혹시 외국인이세요?", "Are you a foreigner?", "您是外国人吗？", "Bạn là người nước ngoài?", "外国の方ですか？", "Apakah Anda WNA?")}</span>{" "}
             {/* 설명은 PC 에서만 — 모바일은 질문 한 줄로 얇게. */}
@@ -183,9 +183,6 @@ function Jobs() {
           </p>
           <Button size="sm" onClick={() => answerForeigner("yes")}>{t("네", "Yes", "是", "Có", "はい", "Ya")}</Button>
           <Button size="sm" variant="neutral" onClick={() => answerForeigner("no")}>{t("아니요", "No", "不是", "Không", "いいえ", "Tidak")}</Button>
-          <button type="button" onClick={() => answerForeigner("dismiss")} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-8 shrink-0 items-center justify-center text-[18px] leading-none text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
-            ×
-          </button>
         </div>
       ) : null}
 
