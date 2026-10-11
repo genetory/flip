@@ -89,9 +89,8 @@ function Header() {
           {navLinks(false)}
         </nav>
 
-        {/* 오른쪽 — 언어 · 알림 · 프로필(사진 + 닉네임) */}
+        {/* 오른쪽 — 알림 · 프로필 사진 · 언어(맨 끝). 셋 다 40px 칸에 비슷한 크기로. */}
         <div className="ml-auto flex items-center gap-1">
-          <LanguageSwitcher />
           {isAuthenticated ? (
             <>
               <Link
@@ -99,17 +98,18 @@ function Header() {
                 aria-label={unread > 0 ? t(`알림 ${unread}개`, `${unread} notifications`, `${unread} 条通知`, `${unread} thông báo`, `通知 ${unread}件`, `${unread} notifikasi`) : t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]"
               >
-                <Bell className="h-[22px] w-[22px]" />
+                <Bell className="h-6 w-6" />
                 {unread > 0 ? (
-                  <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--v2-attention)] px-1 text-[10px] font-bold leading-none text-white">{unread > 9 ? "9+" : unread}</span>
+                  <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[color:var(--v2-attention)] px-1 text-[10px] font-bold leading-none text-white">{unread > 9 ? "9+" : unread}</span>
                 ) : null}
               </Link>
               <Link
                 href="/talent/settings"
                 aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
-                className="flex items-center gap-2 rounded-xl py-1 pl-1 pr-1 transition hover:bg-[color:var(--v2-band)] md:pr-3"
+                title={name || undefined}
+                className="flex h-10 w-10 items-center justify-center rounded-xl transition hover:bg-[color:var(--v2-band)]"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[13px] font-bold text-[color:var(--v2-ink-3)]">
+                <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[12px] font-bold text-[color:var(--v2-ink-3)]">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element -- 계정 사진은 data URL·외부 주소가 섞여 next/image 로 못 받는다.
                     <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -117,14 +117,14 @@ function Header() {
                     <span aria-hidden>{(name || "?").charAt(0).toUpperCase()}</span>
                   )}
                 </span>
-                <span className="hidden max-w-[120px] truncate text-[15px] font-semibold text-[color:var(--v2-ink-2)] md:block">{name || t("내 계정", "My account", "我的账户", "Tài khoản", "マイアカウント", "Akun saya")}</span>
               </Link>
             </>
           ) : (
-            <Link href={`/talent/login?next=${encodeURIComponent(pathname)}`} className="ml-1 rounded-xl bg-[color:var(--v2-accent)] px-4 py-2 text-[15px] font-semibold text-white transition hover:opacity-90">
+            <Link href={`/talent/login?next=${encodeURIComponent(pathname)}`} className="mr-1 rounded-xl bg-[color:var(--v2-accent)] px-4 py-2 text-[15px] font-semibold text-white transition hover:opacity-90">
               {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
             </Link>
           )}
+          <LanguageSwitcher size="lg" />
         </div>
       </div>
       {/* 모바일 — 메뉴를 숨기지 않고 가로로 넘기는 한 줄 */}
