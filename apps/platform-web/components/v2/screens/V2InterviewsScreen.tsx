@@ -4,7 +4,7 @@
 // 실제 연습은 기존 팝업(MockGateModal → MockInterviewModal)과 '전날 볼 한 장'을 그대로 쓴다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
-import { Attention, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
+import { Actions, Attention, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT } from "../../../lib/i18n";
@@ -135,7 +135,7 @@ function Interviews() {
           title={d === 0 ? t("오늘 면접이에요", "Your interview is today", "今天面试", "Hôm nay phỏng vấn", "今日が面接です", "Hari ini wawancara") : t(`면접까지 ${d}일 남았어요`, `${d} days until your interview`, `距离面试还有 ${d} 天`, `Còn ${d} ngày đến phỏng vấn`, `面接まであと${d}日`, `${d} hari lagi wawancara`)}
           lede={t("나올 만한 질문을 미리 풀어 두면 당일에 당황하지 않아요.", "Practice the likely questions now so you stay calm on the day.", "提前练习可能的问题，当天就不会慌。", "Luyện trước câu hỏi có thể gặp để không bối rối hôm đó.", "出そうな質問を先に練習しておけば当日あわてません。", "Latih pertanyaan yang mungkin muncul agar tenang di hari H.")}
           action={
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <Actions>
               <PrimaryButton onClick={() => void startById(next.positionId, "upcoming")}>{t("이 공고로 연습하기", "Practice for this job", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan untuk lowongan ini")}</PrimaryButton>
               <SecondaryButton
                 onClick={() => {
@@ -145,7 +145,7 @@ function Interviews() {
               >
                 {t("면접 전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日に見る1枚", "Lembar ringkas")}
               </SecondaryButton>
-            </div>
+            </Actions>
           }
         />
       ) : (

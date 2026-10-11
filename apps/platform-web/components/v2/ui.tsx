@@ -87,18 +87,50 @@ export function Row({ href, onClick, title, meta, right, lead, thumb }: { href?:
   return <div className={cls}>{body}</div>;
 }
 
-/** 주 행동 — 화면에 하나. 큰 파란 둥근 버튼(모바일은 꽉 차게). */
-export function PrimaryButton({ href, onClick, children, disabled }: { href?: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
-  const cls = "inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-accent)] px-6 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40 md:w-auto md:min-w-[200px]";
+/** 버튼 — 크기는 둘뿐: md(48px, 화면의 행동) · sm(36px, 목록 안 행동). 같은 쓰임이면 같은 크기.
+ *  모양은 셋: primary(파랑, 화면에 하나) · secondary(연파랑) · neutral(회색). */
+export function Button({
+  href,
+  onClick,
+  children,
+  disabled,
+  variant = "primary",
+  size = "md",
+  full = false
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "neutral";
+  size?: "md" | "sm";
+  full?: boolean;
+}) {
+  const sizeCls = size === "md" ? "h-12 rounded-xl px-5 text-[16px]" : "h-9 rounded-lg px-3.5 text-[14px]";
+  const variantCls =
+    variant === "primary"
+      ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90"
+      : variant === "secondary"
+        ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)] hover:opacity-80"
+        : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]";
+  const cls = `inline-flex shrink-0 items-center justify-center gap-1.5 font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${sizeCls} ${variantCls} ${full ? "w-full" : ""}`;
   if (href) return <Link href={href} className={cls}>{children}</Link>;
   return <button type="button" onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
 }
 
-/** 보조 행동 — 연파랑 바탕. */
-export function SecondaryButton({ href, onClick, children }: { href?: string; onClick?: () => void; children: ReactNode }) {
-  const cls = "inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent-weak)] px-4 text-[15px] font-semibold text-[color:var(--v2-accent)] transition active:scale-[0.98]";
-  if (href) return <Link href={href} className={cls}>{children}</Link>;
-  return <button type="button" onClick={onClick} className={cls}>{children}</button>;
+/** 주 행동 — 화면에 하나. */
+export function PrimaryButton(props: { href?: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
+  return <Button {...props} variant="primary" />;
+}
+
+/** 보조 행동 — 주 행동과 같은 크기, 연파랑. */
+export function SecondaryButton(props: { href?: string; onClick?: () => void; children: ReactNode }) {
+  return <Button {...props} variant="secondary" />;
+}
+
+/** 버튼 여럿 — 늘 한 줄로 나란히(넘치면 다음 줄). */
+export function Actions({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-2">{children}</div>;
 }
 
 /** 글자 링크 — 회색, 구획 오른쪽 '전체' 같은 곳. */
@@ -184,7 +216,7 @@ export function MastheadSkeleton({ action = true }: { action?: boolean }) {
       <Bone className="h-4 w-32" />
       <Bone className="mt-3 h-8 w-3/4" />
       <Bone className="mt-3 h-5 w-2/3" />
-      {action ? <Bone className="mt-6 h-14 w-full rounded-2xl md:w-[200px]" /> : null}
+      {action ? <Bone className="mt-6 h-12 w-[160px] rounded-xl" /> : null}
     </div>
   );
 }

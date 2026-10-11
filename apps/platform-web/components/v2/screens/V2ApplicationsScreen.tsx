@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Chip, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, RowsSkeleton } from "../ui";
+import { Attention, Button, Chip, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, RowsSkeleton } from "../ui";
 import { daysUntil } from "../lib";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
@@ -189,7 +189,6 @@ function ApplicationItem({ t, a, onMessage, onSlot, onTimeline, onWithdraw }: { 
     return t("회사가 서류를 보고 있어요", "The company is reviewing", "公司正在审核", "Công ty đang xem hồ sơ", "会社が書類を確認中です", "Perusahaan sedang meninjau");
   })();
 
-  const btn = "rounded-xl bg-[color:var(--v2-band)] px-3.5 py-2 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]";
   return (
     <li className={`border-b border-[color:var(--v2-line)] py-5 last:border-b-0 ${dimmed ? "opacity-60" : ""}`}>
       <Link href={`/talent/jobs/${a.positionId}`} className="block transition hover:opacity-70">
@@ -202,19 +201,19 @@ function ApplicationItem({ t, a, onMessage, onSlot, onTimeline, onWithdraw }: { 
       {a.status !== "WITHDRAWN" ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {a.status === "INTERVIEW" && a.interviewPending ? (
-            <button type="button" onClick={onSlot} className="rounded-xl bg-[color:var(--v2-accent)] px-3.5 py-2 text-[14px] font-semibold text-white transition hover:opacity-90">
+            <Button size="sm" onClick={onSlot}>
               {t("면접 시간 고르기", "Pick a time", "选择时间", "Chọn giờ", "時間を選ぶ", "Pilih jadwal")}
-            </button>
+            </Button>
           ) : null}
-          <button type="button" onClick={onMessage} className={btn}>
+          <Button size="sm" variant="neutral" onClick={onMessage}>
             {t("메시지", "Messages", "消息", "Tin nhắn", "メッセージ", "Pesan")}
-            {a.unreadMessages ? <span className="ml-1 font-bold text-[color:var(--v2-attention)]">{a.unreadMessages}</span> : null}
-          </button>
-          <button type="button" onClick={onTimeline} className={btn}>
+            {a.unreadMessages ? <span className="font-bold text-[color:var(--v2-attention)]">{a.unreadMessages}</span> : null}
+          </Button>
+          <Button size="sm" variant="neutral" onClick={onTimeline}>
             {t("진행 내역", "Progress", "进度", "Tiến trình", "進捗", "Progres")}
-          </button>
+          </Button>
           {a.status === "SUBMITTED" || a.status === "INTERVIEW" ? (
-            <button type="button" onClick={onWithdraw} className="ml-auto px-1 py-2 text-[14px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-attention)]">
+            <button type="button" onClick={onWithdraw} className="ml-auto h-9 px-1 text-[14px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-attention)]">
               {t("지원 철회", "Withdraw", "撤回", "Rút đơn", "取り消し", "Tarik")}
             </button>
           ) : null}

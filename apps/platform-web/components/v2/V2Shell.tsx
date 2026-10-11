@@ -15,7 +15,7 @@ import { useServerNotificationSync } from "../../lib/talent/server-notification-
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
-import { Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
+import { Actions, Button, Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
 
 export const V2_ROUTES = {
   home: "/v2/home",
@@ -126,9 +126,11 @@ function Header() {
               </Link>
             </>
           ) : (
-            <Link href={`/talent/login?next=${encodeURIComponent(pathname)}`} className="mr-1 rounded-xl bg-[color:var(--v2-accent)] px-4 py-2 text-[15px] font-semibold text-white transition hover:opacity-90">
-              {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
-            </Link>
+            <span className="mr-1">
+              <Button size="sm" href={`/talent/login?next=${encodeURIComponent(pathname)}`}>
+                {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
+              </Button>
+            </span>
           )}
           <LanguageSwitcher size="lg" />
         </div>
@@ -155,10 +157,10 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
           title={t("내 정보로 채워지는 화면이에요", "This page is filled with your own information", "此页面会显示你的个人信息", "Trang này hiển thị thông tin của bạn", "あなたの情報で埋まる画面です", "Halaman ini berisi datamu")}
           lede={t("로그인하면 이어서 볼 수 있어요. 가입은 무료예요.", "Log in to continue. Signing up is free.", "登录后即可继续查看。注册免费。", "Đăng nhập để tiếp tục. Đăng ký miễn phí.", "ログインすると続きが見られます。登録は無料です。", "Masuk untuk melanjutkan. Daftar gratis.")}
           action={
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <Actions>
               <PrimaryButton href={`/talent/login?next=${encodeURIComponent(pathname)}`}>{t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}</PrimaryButton>
               <SecondaryButton href={`/talent/signup?next=${encodeURIComponent(pathname)}`}>{t("무료로 가입하기", "Sign up free", "免费注册", "Đăng ký miễn phí", "無料で登録", "Daftar gratis")}</SecondaryButton>
-            </div>
+            </Actions>
           }
         />
       </Page>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Heart } from "@phosphor-icons/react";
 import { V2Shell } from "../V2Shell";
-import { Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
+import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -229,9 +229,9 @@ function Jobs() {
       ) : null}
       {hasMore && !more ? (
         <div className="px-5 pt-4">
-          <button type="button" onClick={loadMore} disabled={more} className="h-12 w-full rounded-2xl bg-[color:var(--v2-band)] text-[15px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
+          <Button variant="neutral" full onClick={loadMore} disabled={more}>
             {t("더 보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lagi")}
-          </button>
+          </Button>
         </div>
       ) : null}
       {loginModal}
