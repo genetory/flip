@@ -1,7 +1,8 @@
 "use client";
 
-// v2 홈 — 맨 위에 '지금 가장 중요한 한 가지'를 큰 글로, 아래는 할 일·서류·지원·추천 공고를 글 목록으로.
-// 데이터는 기존 것(이력서·자소서·지원·공고)을 그대로 읽는다.
+// v2 홈 — 맨 위에 '지금 가장 중요한 한 가지'를 크게, 아래로 오늘 할 일·서류·지원·마감 임박·맞춤 공고·
+// 모의 면접·회사·가이드를 같은 목록 모양으로 쌓는다. 데이터는 전부 기존 것을 읽는다(새 API 없음).
+// 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
 import { Attention, Masthead, Page, PrimaryButton, Progress, Row, Section, TextLink } from "../ui";
@@ -10,7 +11,21 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
-import { getMyApplications, getPublicPositionsPage, type MyApplication, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import {
+  getMyApplications,
+  getMyFavoritePositions,
+  getMyMockInterviews,
+  getPublicPositionsPage,
+  getRecommendedPositions,
+  type MockInterviewRecord,
+  type MyApplication,
+  type PublicPositionListItem
+} from "../../../lib/member-profile-client";
+import { useJobInterests } from "../../../lib/talent/job-interest";
+import { useSelfMock } from "../../../lib/talent/self-mock";
+import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
+import { careerGuides } from "../../../lib/talent/home-content";
+import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
 const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
 
@@ -55,15 +70,66 @@ function Home() {
   const cover = useCoverDoc();
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
+  const interests = useJobInterests();
+  const selfMock = useSelfMock();
   const [apps, setApps] = useState<MyApplication[]>([]);
   const [jobs, setJobs] = useState<PublicPositionListItem[]>([]);
+  const [personalized, setPersonalized] = useState(false);
+  const [saved, setSaved] = useState<PublicPositionListItem[]>([]);
+  const [mocks, setMocks] = useState<MockInterviewRecord[]>([]);
+  const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; positionId: string }[]>([]);
 
   useEffect(() => {
     getMyApplications().then(setApps).catch(() => setApps([]));
-    getPublicPositionsPage({ limit: 3, locale })
-      .then((p) => setJobs(p.items))
-      .catch(() => setJobs([]));
-  }, [locale]);
+    getMyFavoritePositions().then(setSaved).catch(() => setSaved([]));
+    getMyMockInterviews().then(setMocks).catch(() => setMocks([]));
+    // 맞춤 공고 — 관심 직무·이력 기반 추천, 안 되면 최신 공고.
+    getRecommendedPositions({ limit: 4, locale })
+      .then((r) => {
+        if (r.items.length) {
+          setJobs(r.items);
+          setPersonalized(r.personalized);
+        } else throw new Error("empty");
+      })
+      .catch(() =>
+        getPublicPositionsPage({ limit: 4, locale })
+          .then((p) => setJobs(p.items))
+          .catch(() => setJobs([]))
+      );
+    // 이런 회사 — 직접 채용 중인 회사 중 셋(공고 수 많은 순).
+    getPublicPositionsPage({ limit: 60, sourceProviders: ["INTERNAL"], locale })
+      .then((p) => {
+        const map = new Map<string, { name: string; industry?: string; count: number; positionId: string }>();
+        for (const j of p.items) {
+          const org = j.partnerOrganization;
+          if (!org?.name) continue;
+          const e = map.get(org.name) ?? { name: org.name, industry: org.industry ? partnerIndustryLabel(org.industry) : undefined, count: 0, positionId: j.id };
+          e.count += 1;
+          map.set(org.name, e);
+        }
+        setCompanies([...map.values()].sort((a, b) => b.count - a.count).slice(0, 3));
+      })
+      .catch(() => setCompanies([]));
+  }, [locale, interests.length]);
+
+  // 저장한 공고 중 7일 안에 마감.
+  const closing = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return saved
+      .map((p) => {
+        if (p.sourceDeadlineRolling || !p.sourceDeadlineDate) return null;
+        const d = Math.ceil((new Date(p.sourceDeadlineDate.slice(0, 10)).getTime() - today.getTime()) / 86400000);
+        return d >= 0 && d <= 7 ? { p, d } : null;
+      })
+      .filter((x): x is { p: PublicPositionListItem; d: number } => x !== null)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, 3);
+  }, [saved]);
+
+  // 모의 면접 요약 — 가장 최근 기록과 가장 약한 영역 하나.
+  const weakest = useMemo(() => analyzeMockWeakness(selfMock).filter((r) => r.average !== null && r.average < WEAK_BELOW).sort((a, b) => (a.average ?? 0) - (b.average ?? 0))[0] ?? null, [selfMock]);
+  const lastMock = mocks[0] ?? null;
 
   const upcoming = useMemo(
     () =>
@@ -110,6 +176,17 @@ function Home() {
     };
   })();
 
+  // 오늘 할 일 — 맨 위 한 가지와 겹치지 않게, 급한 순으로 셋까지.
+  const todos: { key: string; title: string; meta?: string; href: string }[] = [];
+  const unread = apps.reduce((n, a) => n + (a.unreadMessages || 0), 0);
+  const pendingSlot = apps.find((a) => a.status === "INTERVIEW" && a.interviewPending);
+  if (pendingSlot) todos.push({ key: "slot", title: t("면접 시간을 골라 주세요", "Pick your interview time", "请选择面试时间", "Hãy chọn giờ phỏng vấn", "面接の時間を選んでください", "Pilih jadwal wawancara"), meta: pendingSlot.positionTitle, href: "/talent/applications" });
+  if (unread) todos.push({ key: "msg", title: t(`회사가 보낸 메시지 ${unread}개`, `${unread} message(s) from companies`, `公司发来 ${unread} 条消息`, `${unread} tin nhắn từ công ty`, `会社からのメッセージ ${unread}件`, `${unread} pesan dari perusahaan`), meta: t("확인하고 답해 보세요", "Read and reply", "查看并回复", "Đọc và trả lời", "確認して返信しましょう", "Baca dan balas"), href: "/talent/applications" });
+  if (closing[0] && lead.cta.href !== V2_ROUTES.jobs) todos.push({ key: "close", title: t(`저장한 공고가 ${closing[0].d === 0 ? "오늘" : `${closing[0].d}일 뒤`} 마감돼요`, `A saved job closes ${closing[0].d === 0 ? "today" : `in ${closing[0].d} days`}`, `收藏的职位${closing[0].d === 0 ? "今天" : `${closing[0].d}天后`}截止`, `Tin đã lưu đóng ${closing[0].d === 0 ? "hôm nay" : `sau ${closing[0].d} ngày`}`, `保存した求人が${closing[0].d === 0 ? "今日" : `${closing[0].d}日後に`}締切`, `Lowongan tersimpan tutup ${closing[0].d === 0 ? "hari ini" : `${closing[0].d} hari lagi`}`), meta: closing[0].p.title, href: `/talent/jobs/${closing[0].p.id}` });
+  if (lead.cta.href !== EDITOR.cover && rp >= 100 && cp < 100) todos.push({ key: "cover", title: t("자기소개서 마무리하기", "Finish your cover letter", "完成自我介绍", "Hoàn thành thư giới thiệu", "自己紹介書を仕上げる", "Selesaikan surat lamaran"), meta: t(`지금 ${cp}%`, `Now ${cp}%`, `目前 ${cp}%`, `Hiện ${cp}%`, `いま${cp}%`, `Sekarang ${cp}%`), href: EDITOR.cover });
+  if (!interests.length) todos.push({ key: "interest", title: t("관심 직무 고르기", "Choose job interests", "选择感兴趣的职位", "Chọn nghề quan tâm", "関心職種を選ぶ", "Pilih minat pekerjaan"), meta: t("고르면 맞춤 공고가 더 정확해져요", "Recommendations get sharper", "推荐会更精准", "Gợi ý sẽ chính xác hơn", "おすすめが正確になります", "Rekomendasi lebih tepat"), href: "/talent/career" });
+  if (weakest && lead.cta.href !== V2_ROUTES.interviews) todos.push({ key: "weak", title: t(`'${weakest.label}' 다시 연습하기`, `Practice '${weakest.label}' again`, `再次练习「${weakest.label}」`, `Luyện lại '${weakest.label}'`, `「${weakest.label}」をもう一度練習`, `Latih lagi '${weakest.label}'`), meta: t(`평균 ${weakest.average}점`, `Avg ${weakest.average}`, `平均 ${weakest.average} 分`, `TB ${weakest.average}`, `平均${weakest.average}点`, `Rata-rata ${weakest.average}`), href: V2_ROUTES.interviews });
+
   const today = new Date();
   const eyebrow = [
     t(`${today.getMonth() + 1}월 ${today.getDate()}일`, today.toLocaleDateString("en", { month: "long", day: "numeric" }), `${today.getMonth() + 1}月${today.getDate()}日`, `${today.getDate()}/${today.getMonth() + 1}`, `${today.getMonth() + 1}月${today.getDate()}日`, `${today.getDate()}/${today.getMonth() + 1}`),
@@ -121,6 +198,14 @@ function Home() {
   return (
     <Page>
       <Masthead eyebrow={eyebrow} title={lead.title} lede={lead.lede} action={<PrimaryButton href={lead.cta.href}>{lead.cta.label}</PrimaryButton>} />
+
+      {todos.length ? (
+        <Section title={t("오늘 할 일", "Today", "今日待办", "Việc hôm nay", "今日やること", "Hari ini")}>
+          {todos.slice(0, 3).map((x, i) => (
+            <Row key={x.key} href={x.href} lead={i + 1} title={x.title} meta={x.meta} />
+          ))}
+        </Section>
+      ) : null}
 
       <Section title={t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "私の書類", "Dokumen saya")}>
         {[
@@ -162,20 +247,92 @@ function Home() {
         )}
       </Section>
 
-      {jobs.length ? (
-        <Section title={t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")} aside={<TextLink href={V2_ROUTES.jobs}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
-          <div>
-            {jobs.map((j) => (
-              <Row
-                key={j.id}
-                href={`/talent/jobs/${j.id}`}
-                title={j.title}
-                meta={[j.partnerOrganization?.name || j.sourceCompanyName, j.workLocation].filter(Boolean).join(" · ") || undefined}
-              />
-            ))}
-          </div>
+      {closing.length ? (
+        <Section title={t("곧 마감되는 저장 공고", "Saved jobs closing soon", "即将截止的收藏职位", "Tin đã lưu sắp đóng", "まもなく締切の保存求人", "Lowongan tersimpan segera tutup")}>
+          {closing.map(({ p, d }) => (
+            <Row
+              key={p.id}
+              href={`/talent/jobs/${p.id}`}
+              title={p.title}
+              meta={p.partnerOrganization?.name || p.sourceCompanyName || undefined}
+              right={<Attention>{d === 0 ? t("오늘 마감", "Today", "今天截止", "Hôm nay", "今日締切", "Hari ini") : `D-${d}`}</Attention>}
+            />
+          ))}
         </Section>
       ) : null}
+
+      {jobs.length ? (
+        <Section
+          title={personalized ? t("나에게 맞는 공고", "Jobs for you", "适合你的职位", "Việc làm cho bạn", "あなたに合う求人", "Lowongan untukmu") : t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")}
+          aside={<TextLink href={V2_ROUTES.jobs}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}
+        >
+          {jobs.map((j) => (
+            <Row
+              key={j.id}
+              href={`/talent/jobs/${j.id}`}
+              title={j.title}
+              meta={[j.partnerOrganization?.name || j.sourceCompanyName, (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined}
+            />
+          ))}
+        </Section>
+      ) : null}
+
+      <Section
+        title={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
+        aside={<TextLink href={V2_ROUTES.interviews}>{t("연습하러 가기", "Practice", "去练习", "Luyện tập", "練習へ", "Latihan")}</TextLink>}
+      >
+        {lastMock || weakest ? (
+          <>
+            {lastMock ? (
+              <Row
+                href={V2_ROUTES.interviews}
+                title={lastMock.positionTitle}
+                meta={[lastMock.companyName, t(`답변 ${lastMock.answeredCount}개`, `${lastMock.answeredCount} answers`, `${lastMock.answeredCount} 个回答`, `${lastMock.answeredCount} câu`, `回答${lastMock.answeredCount}件`, `${lastMock.answeredCount} jawaban`)].filter(Boolean).join(" · ")}
+                right={lastMock.bestScore != null ? t(`최고 ${lastMock.bestScore}점`, `Best ${lastMock.bestScore}`, `最高 ${lastMock.bestScore}`, `Cao nhất ${lastMock.bestScore}`, `最高${lastMock.bestScore}点`, `Terbaik ${lastMock.bestScore}`) : undefined}
+              />
+            ) : null}
+            {weakest ? (
+              <Row
+                href={V2_ROUTES.interviews}
+                title={t(`가장 약한 곳: ${weakest.label}`, `Weakest: ${weakest.label}`, `最弱：${weakest.label}`, `Yếu nhất: ${weakest.label}`, `いちばん弱い所：${weakest.label}`, `Terlemah: ${weakest.label}`)}
+                meta={weakest.worst?.improvement || undefined}
+                right={<Attention>{weakest.average}</Attention>}
+              />
+            ) : null}
+          </>
+        ) : (
+          <Row
+            href={V2_ROUTES.interviews}
+            title={t("첫 모의 면접을 해 보세요", "Try your first mock interview", "试试第一次模拟面试", "Thử phỏng vấn thử đầu tiên", "初めての模擬面接をしてみましょう", "Coba wawancara simulasi pertama")}
+            meta={t("질문 하나만 답해도 AI 피드백을 받아요", "Answer just one question and get AI feedback", "回答一道题即可获得 AI 反馈", "Trả lời một câu là nhận phản hồi AI", "1問答えるだけでAIフィードバック", "Jawab satu pertanyaan, dapat masukan AI")}
+          />
+        )}
+      </Section>
+
+      {companies.length ? (
+        <Section title={t("이런 회사는 어때요", "Companies to check out", "这些公司怎么样", "Công ty đáng xem", "こんな会社はいかが", "Perusahaan untuk dilihat")}>
+          {companies.map((c) => (
+            <Row
+              key={c.name}
+              href={`/talent/company/${encodeURIComponent(c.name)}`}
+              lead={c.name.slice(0, 1)}
+              title={c.name}
+              meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}
+            />
+          ))}
+        </Section>
+      ) : null}
+
+      <Section
+        title={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
+        aside={<TextLink href={V2_ROUTES.guide}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}
+      >
+        {careerGuides(t)
+          .slice(0, 3)
+          .map((g) => (
+            <Row key={g.title} href={V2_ROUTES.guide} lead={g.emoji} title={g.title.replace(/\n/g, " ")} meta={g.desc} />
+          ))}
+      </Section>
     </Page>
   );
 }
