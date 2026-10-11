@@ -1531,7 +1531,8 @@ export async function aiInterviewQuestions(input: { resumeText: string; jobText?
   return Array.isArray(r.questions) ? r.questions : [];
 }
 
-export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
+// followUp — 면접관이 이 답을 듣고 이어서 물을 꼬리 질문(없으면 빈 문자열·예전 응답엔 없음).
+export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string; followUp?: string };
 export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewFeedback> {
   const result = await authedJsonFetch<never>("/members/me/ai/interview-feedback", { method: "POST", body: JSON.stringify(input) });
   const r = result as unknown as { feedback?: InterviewFeedback };
@@ -1547,6 +1548,11 @@ export async function recordMockInterviewPractice(positionId: string, data: { qu
 }
 
 export type MockInterviewAnswer = { question: string; answer: string; score: number | null };
+// 내 공고 모의 면접 답변(본인 것) — '면접 전날 볼 한 장'.
+export async function getMyMockInterviewAnswers(positionId: string): Promise<MockInterviewAnswer[]> {
+  const result = (await authedJsonFetch<never>(`/members/me/mock-interviews/${encodeURIComponent(positionId)}`, { method: "GET" })) as unknown as { item?: { answers?: MockInterviewAnswer[] } };
+  return result.item?.answers ?? [];
+}
 export type MockInterviewResult = { score: number | null; answeredCount: number; answers: MockInterviewAnswer[] };
 
 // 공고 모의 면접 참여자(회사용) + 제안.

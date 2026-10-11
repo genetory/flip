@@ -26650,8 +26650,9 @@ app.post(
         "2. strengths: 답변에서 좋았던 점 1~3개(짧게).\n" +
         "3. improvements: 더 좋게 만들 구체적 조언 1~3개(짧게, 실행 가능하게).\n" +
         "4. sampleAnswer: 지원자의 이력서 사실에 근거한 더 나은 모범답안(STAR 구조 권장, 2~5문장). 없는 경험·수치를 지어내지 마세요.\n" +
-        "5. 격려하는 코치 말투. 정중하게.\n\n" +
-        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string }' +
+        "5. 격려하는 코치 말투. 정중하게.\n" +
+        "6. followUp: 실제 면접관이 이 답변을 듣고 바로 이어서 물을 꼬리 질문 1개(한 문장). 답변에서 추상적인 부분, 본인 역할이 불분명한 부분, 숫자·근거가 없는 부분, 이력서와 맞지 않는 부분을 파고드세요. 인신공격이 아니라 근거를 확인하는 톤. 답변에 없는 사실을 전제하지 마세요. 답변이 이미 충분히 구체적이면 빈 문자열.\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string, "followUp": string }' +
         aiLangDirective(locale);
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
@@ -26667,7 +26668,7 @@ app.post(
         ]
       });
       const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown } = {};
+      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown; followUp?: unknown } = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
@@ -26678,7 +26679,9 @@ app.post(
           score,
           strengths: strArr(j.strengths, 3),
           improvements: strArr(j.improvements, 3),
-          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : ""
+          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : "",
+          // 꼬리 질문 — 같은 호출에서 받는다(추가 호출·티켓 없음). 없으면 빈 문자열.
+          followUp: typeof j.followUp === "string" ? j.followUp.trim().slice(0, 300) : ""
         }
       });
     } catch (err) {
@@ -26772,6 +26775,19 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
     return res.json({ ok: true, item: { answeredCount: row.answeredCount, bestScore: row.bestScore } });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to record practice" });
+  }
+});
+
+// 내 공고 모의 면접 답변(본인만) — '면접 전날 볼 한 장'이 최고 답변을 모아 보여 줄 때 쓴다.
+app.get("/members/me/mock-interviews/:positionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
+  if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
+  try {
+    const row = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
+    const answers: MockAnswer[] = Array.isArray(row?.answers) ? (row!.answers as unknown as MockAnswer[]) : [];
+    return res.json({ ok: true, item: { positionId, bestScore: row?.bestScore ?? null, answers } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load mock interview" });
   }
 });
 

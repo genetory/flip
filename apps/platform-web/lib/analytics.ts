@@ -534,3 +534,24 @@ export function trackEditor(event: EditorEvent, params: Record<string, string | 
   const extra = event === "editor_pdf_download" ? { minutes_since_first_open: minutesSinceFirstOpen(doc) } : {};
   safeSendEvent(event, { ...params, doc, ...extra });
 }
+
+// ---- 모의 면접 허브 — 어디서 연습을 시작하는지(면접 임박 공고·공고·내 서류). 화면 변화 없음. ----
+export type InterviewStartMode = "upcoming" | "job" | "self";
+export function trackInterviewHubViewed(params: { upcoming: number; candidates: number; records: number }) {
+  safeSendEvent("interview_hub_viewed", params);
+}
+export function trackInterviewStart(mode: InterviewStartMode) {
+  safeSendEvent("interview_start_clicked", { mode });
+}
+/** 같은 질문에 고쳐 다시 답한 뒤 점수 변화 — 연습이 실제로 답을 낫게 만드는지 본다. */
+export function trackInterviewRetryScored(delta: number) {
+  safeSendEvent("interview_retry_scored", { delta, improved: delta > 0 });
+}
+/** 꼬리 질문에 답하기 시작 — 첫 답에서 멈추지 않고 파고드는 연습을 하는지. */
+export function trackInterviewFollowUpStarted() {
+  safeSendEvent("interview_followup_started", {});
+}
+/** '면접 전날 볼 한 장'을 열었는지 — 연습이 결과물로 이어지는지. */
+export function trackInterviewPrepSheetOpened() {
+  safeSendEvent("interview_prep_sheet_opened", {});
+}

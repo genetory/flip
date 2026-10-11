@@ -10,7 +10,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
-import { ArrowRight, CalendarCheck, CaretRight, ChatCircleDots, Check, Lock, Plus, X } from "@phosphor-icons/react";
+import { ArrowRight, CalendarCheck, CaretRight, ChatCircleDots, Check, FileText, Lock, Plus, X } from "@phosphor-icons/react";
 import { TalentHeader } from "../TalentHeader";
 import { AplyFooter } from "../../AplyFooter";
 import { talentRoutes } from "../../../lib/talent/landing-content";
@@ -92,7 +92,7 @@ function kindFor(path: string): Kind {
 }
 
 // 실제 화면과 같은 머리말(제목·설명)을 목업이 직접 그리는 화면. 위에 공통 제목을 또 달지 않는다.
-const OWN_HEADER: Kind[] = ["home", "career", "applications"];
+const OWN_HEADER: Kind[] = ["home", "career", "applications", "interview"];
 
 const CARD = "rounded-2xl bg-white ring-1 ring-[#EEF1F5]";
 
@@ -378,20 +378,53 @@ function MockCover({ t }: { t: PlatformT }) {
   );
 }
 
+// 모의 면접 허브(InterviewsScreen) 마크업을 옮겨 값만 예시로 채웠다.
 function MockInterview({ t }: { t: PlatformT }) {
+  const jobs: [string, string][] = [
+    [t("해외영업 담당자", "Global sales associate", "海外销售专员", "Nhân viên kinh doanh quốc tế", "海外営業担当", "Staf penjualan global"), "Mint Commerce"],
+    [t("데이터 분석 인턴", "Data analyst intern", "数据分析实习", "Thực tập phân tích dữ liệu", "データ分析インターン", "Magang analis data"), "Orbit Mobility"]
+  ];
   return (
-    <div className="mx-auto max-w-[640px] space-y-3">
-      <div className={`${CARD} p-5`}>
-        <p className="text-[12px] font-bold text-[#0B46E8]">Blue Harbor · {t("마케팅 매니저", "Marketing manager", "市场经理", "Quản lý marketing", "マーケティングマネージャー", "Manajer pemasaran")}</p>
-        <p className="mt-2 text-[15px] font-black text-[#191F28]">{t("Q. 성과가 기대에 못 미쳤던 캠페인을 어떻게 다시 살렸나요?", "Q. Tell us about a campaign that underperformed and how you turned it around.", "Q. 请讲讲一次效果不佳的活动，你是如何扭转的？", "Q. Kể về một chiến dịch kém hiệu quả và cách bạn cứu nó.", "Q. 成果が振るわなかったキャンペーンをどう立て直しましたか？", "Q. Ceritakan kampanye yang kurang berhasil dan cara kamu memperbaikinya.")}</p>
-        <div className="mt-3 h-2 w-full rounded-full bg-[#E5E8EB]" />
-        <div className="mt-2 h-2 w-4/5 rounded-full bg-[#E5E8EB]" />
+    <div className="flex flex-col gap-8">
+      <div>
+        <p className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("모의 면접", "Mock interviews", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</p>
+        <p className="mt-1 break-keep text-[13.5px] text-[#8B95A1]">{t("면접 볼 공고나 내 서류로 연습하고 AI 피드백을 받아요.", "Practice with a job you're interviewing for or with your own documents, and get AI feedback.", "用要面试的职位或自己的材料练习，并获得 AI 反馈。", "Luyện với tin tuyển dụng sắp phỏng vấn hoặc hồ sơ của bạn, nhận phản hồi AI.", "面接を受ける求人や自分の書類で練習し、AIフィードバックを受けましょう。", "Latihan dengan lowongan yang akan diwawancara atau dokumenmu, dapat masukan AI.")}</p>
       </div>
-      <div className={`${CARD} flex items-center gap-4 p-5`}>
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">82</span>
+      <div className="flex items-center gap-3.5 rounded-2xl bg-[#FFF3E6] p-4">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#E8890C]">
+          <CalendarCheck className="h-5 w-5" weight="fill" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-bold text-[#191F28]">{t("구체적인 숫자로 답한 점이 좋아요", "Great use of concrete numbers", "用具体数字回答很好", "Dùng số liệu cụ thể rất tốt", "具体的な数字で答えた点が良いです", "Bagus, pakai angka yang konkret")}</p>
-          <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{t("다음엔 본인 역할을 더 분명히", "Next: make your own role clearer", "下次请更明确你的角色", "Lần sau: nêu rõ vai trò của bạn hơn", "次は自分の役割をより明確に", "Berikutnya: perjelas peranmu")}</p>
+          <p className="text-[12px] font-bold text-[#E8890C]">{t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")} D-3</p>
+          <p className="mt-0.5 truncate text-[14.5px] font-bold text-[#191F28]">{t("마케팅 매니저", "Marketing manager", "市场经理", "Quản lý marketing", "マーケティングマネージャー", "Manajer pemasaran")}</p>
+          <p className="truncate text-[12.5px] text-[#8B95A1]">Blue Harbor</p>
+        </div>
+        <span className="shrink-0 rounded-xl bg-[#E8890C] px-3.5 py-2.5 text-[13px] font-bold text-white">{t("연습하기", "Practice", "去练习", "Luyện", "練習する", "Latihan")}</span>
+      </div>
+      <div className="flex flex-col gap-3">
+        <p className="text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{t("연습 시작하기", "Start practicing", "开始练习", "Bắt đầu luyện", "練習を始める", "Mulai latihan")}</p>
+        <div className="flex items-center gap-3.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0B46E8] shadow-[0_2px_10px_rgba(11,70,232,0.1)]">
+            <FileText className="h-5 w-5" weight="fill" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[14.5px] font-bold text-[#191F28]">{t("내 서류로 연습", "Practice with my documents", "用我的材料练习", "Luyện từ hồ sơ của tôi", "自分の書類で練習", "Latihan dari dokumenku")}</p>
+            <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{t("이력서·자기소개서에서 나올 만한 질문을 풀어요.", "Answer questions likely to come from your resume and cover letter.", "回答可能来自简历和自我介绍的问题。", "Trả lời câu hỏi có thể đến từ CV và thư giới thiệu.", "履歴書・自己PRから出そうな質問に答えます。", "Jawab pertanyaan yang mungkin muncul dari CV dan surat lamaran.")}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
+          <p className="text-[14.5px] font-bold text-[#191F28]">{t("공고로 연습", "Practice for a job", "按职位练习", "Luyện theo tin tuyển dụng", "求人で練習", "Latihan untuk lowongan")}</p>
+          <ul className="mt-2 flex flex-col">
+            {jobs.map(([title, co]) => (
+              <li key={co} className="flex items-center gap-3 border-t border-[#F2F4F6] py-3 first:border-t-0">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-semibold text-[#191F28]">{title}</p>
+                  <p className="truncate text-[12.5px] text-[#8B95A1]">{co}</p>
+                </div>
+                <span className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8]">{t("연습", "Practice", "练习", "Luyện", "練習", "Latihan")}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
