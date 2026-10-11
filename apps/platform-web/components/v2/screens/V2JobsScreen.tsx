@@ -157,7 +157,8 @@ function Jobs() {
     ["interest", t("관심 직무", "My interests", "感兴趣", "Quan tâm", "関心職種", "Minatku")],
     ["saved", t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan")]
   ];
-  const foreignerLabel = t("외국인 채용 가능", "Open to foreigners", "可招外国人", "Nhận WNA", "外国人採用可", "Terbuka WNA");
+  // 스위치는 '켜면 이것만 본다'는 뜻이라 '만'을 붙인다(공고 위 칩은 공고의 특징이라 '가능'까지만).
+  const foreignerLabel = t("외국인 채용 가능만", "Foreigner-friendly only", "只看可招外国人", "Chỉ việc nhận WNA", "外国人採用可のみ", "Hanya terbuka WNA");
   const hasMore = !refreshing && tab !== "saved" && items !== null && total !== null && items.length < total;
 
   return (
