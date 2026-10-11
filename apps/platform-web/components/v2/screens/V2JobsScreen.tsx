@@ -151,7 +151,14 @@ function Jobs() {
       <Masthead
         eyebrow={t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan")}
         title={t("한국에서 일할 곳을 찾아보세요", "Find where you'll work in Korea", "寻找在韩国的工作", "Tìm nơi làm việc tại Hàn Quốc", "韓国で働く場所を探しましょう", "Temukan tempat kerja di Korea")}
-        lede={total != null && tab !== "saved" ? t(`지금 ${total.toLocaleString()}개 공고가 있어요`, `${total.toLocaleString()} jobs right now`, `目前有 ${total.toLocaleString()} 个职位`, `Hiện có ${total.toLocaleString()} việc làm`, `いま${total.toLocaleString()}件の求人`, `${total.toLocaleString()} lowongan saat ini`) : undefined}
+        lede={
+          total != null && tab !== "saved"
+            ? // 숫자만 굵은 먹색 — 문장은 언어마다 어순이 달라 {n} 자리에 끼워 넣는다.
+              t("지금 {n}개 공고가 있어요", "{n} jobs right now", "目前有 {n} 个职位", "Hiện có {n} việc làm", "いま{n}件の求人", "{n} lowongan saat ini")
+                .split("{n}")
+                .flatMap((part, i) => (i === 0 ? [part] : [<b key={i} className="font-bold text-[color:var(--v2-ink)]">{total.toLocaleString()}</b>, part]))
+            : undefined
+        }
       />
 
       <div className="px-5">
