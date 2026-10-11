@@ -197,7 +197,16 @@ function Jobs() {
         <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map(([k, label]) => (
             <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
-              {label}
+              {k === "aply" ? (
+                // 'Aply' 글자 대신 로고 — 고르면 칩이 먹색이라 로고를 흰색으로 바꿔 보이게.
+                <span className="inline-flex items-center gap-1.5" aria-label="Aply ONLY">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- 작은 로고 한 장, 크기 고정 */}
+                  <img src="/img_logo.webp" alt="" className={`h-4 w-auto ${tab === k ? "brightness-0 invert" : ""}`} />
+                  <span aria-hidden>ONLY</span>
+                </span>
+              ) : (
+                label
+              )}
             </Chip>
           ))}
         </div>
