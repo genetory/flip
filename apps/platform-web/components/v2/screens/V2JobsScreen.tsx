@@ -3,7 +3,7 @@
 // v2 포지션 탐색 — 검색칸 하나, 탭·필터는 칩 한 줄씩, 공고는 사진 달린 목록. 게스트도 본다.
 // 저장은 공고 상세에서 한다(목록엔 하트 없음 — 공고 이름이 주인공). 공고 상세는 아직 기존 화면.
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
 import { companyOf, hasMockInterview, jobPhotoOf, shortPlace } from "../lib";
@@ -135,25 +135,26 @@ function Jobs() {
       <div className="px-5">
         <SearchField value={query} onChange={setQuery} placeholder={t("직무, 회사 또는 역량 검색", "Search roles, companies, skills", "搜索职位、公司或技能", "Tìm vị trí, công ty, kỹ năng", "職種・会社・スキルで検索", "Cari peran, perusahaan, keahlian")} />
       </div>
-      {/* 탭 칩 줄 — 왼쪽 탭(넘치면 가로로 넘김), 오른쪽 끝에 '외국인 지원' 토글을 같은 높이로 고정. */}
-      <div className="mt-4 flex items-center gap-2 pl-5 pr-5">
-        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tabs.map(([k, label]) => (
-            <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
+      {/* 탭 칩 줄 — 전체 · Aply ONLY · [외국인 채용 토글] · 관심 직무 · 저장한 공고. 넘치면 가로로 넘긴다.
+          외국인 채용은 탭이 아니라 켜고 끄는 거름망 — 켜면 연파랑(고른 탭의 먹색과 구분). 저장한 공고 탭에선 숨김. */}
+      <div className="mt-4 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {tabs.map(([k, label]) => (
+          <Fragment key={k}>
+            <Chip active={tab === k} onClick={() => setTab(k)}>
               {label}
             </Chip>
-          ))}
-        </div>
-        {tab !== "saved" ? (
-          <button
-            type="button"
-            onClick={() => setForeigner((v) => !v)}
-            aria-pressed={foreigner}
-            className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-band)]"}`}
-          >
-            🌏 {t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển người nước ngoài", "外国人採用", "Terima WNA")}
-          </button>
-        ) : null}
+            {k === "aply" && tab !== "saved" ? (
+              <button
+                type="button"
+                onClick={() => setForeigner((v) => !v)}
+                aria-pressed={foreigner}
+                className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
+              >
+                {t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển người nước ngoài", "外国人採用", "Terima WNA")}
+              </button>
+            ) : null}
+          </Fragment>
+        ))}
       </div>
 
       {/* 목록 머리 — 왼쪽 개수, 오른쪽 정렬. 필터 바로 아래라 구분선 없이 여백만. */}
