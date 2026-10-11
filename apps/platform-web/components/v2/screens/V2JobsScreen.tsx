@@ -150,7 +150,7 @@ function Jobs() {
                 aria-pressed={foreigner}
                 className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
               >
-                {t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển người nước ngoài", "外国人採用", "Terima WNA")}
+                {t("외국인 채용 가능", "Open to foreigners", "可招外国人", "Nhận người nước ngoài", "外国人採用可", "Terbuka untuk WNA")}
               </button>
             ) : null}
           </Fragment>
@@ -206,7 +206,7 @@ function Jobs() {
                     return foreignerOk || aply || mock ? (
                       <span className="mb-1.5 flex flex-wrap gap-1.5">
                         {aply ? <Tag>Aply ONLY</Tag> : null}
-                        {foreignerOk ? <Tag>{t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển WNA", "外国人採用", "Terima WNA")}</Tag> : null}
+                        {foreignerOk ? <Tag>{t("외국인 채용 가능", "Open to foreigners", "可招外国人", "Nhận WNA", "外国人採用可", "Terbuka WNA")}</Tag> : null}
                         {mock ? <Tag tone="accent">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}</Tag> : null}
                       </span>
                     ) : null;
