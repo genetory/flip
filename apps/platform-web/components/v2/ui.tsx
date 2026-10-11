@@ -283,3 +283,15 @@ export function DocCard({ href, label, pct, note, previewHref, previewLabel }: {
     </div>
   );
 }
+
+/** 스위치 — 켜고 끄는 거름망(탭·칩과 구분). 글자 + 토글. 켜면 파랑. */
+export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: ReactNode }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex shrink-0 items-center gap-2 py-1 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">
+      {label}
+      <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${on ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-line)]"}`}>
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
+      </span>
+    </button>
+  );
+}
