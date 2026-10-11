@@ -8,6 +8,7 @@ import { useToast } from "../../toast/ToastProvider";
 import type { PlatformT } from "../../../lib/i18n";
 import type { VisualViewportRect } from "../../../lib/useVisualViewport";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
+import { markEditorFirstOpen, trackEditor, type EditorDoc } from "../../../lib/analytics";
 import type { AiReviewFinding } from "../../../lib/resume-maker-client";
 import {
   createSavedVersion,
@@ -288,6 +289,26 @@ export function useDropEmptyItems<T extends { id: string }>({
     latest.current.drop(ids);
     latest.current.deselect();
   }, [sheetOpen]);
+}
+
+/** 계측 — 에디터 진입(문서가 있었는지)과, 빈 상태에서 처음 내용이 생긴 순간을 한 번씩 보낸다.
+ *  화면에는 아무 영향이 없다. ready 가 될 때(불러오기 완료) 진입을 센다. */
+export function useEditorOpenedMetric(doc: EditorDoc, ready: boolean, hasDoc: boolean) {
+  const sent = useRef(false);
+  useEffect(() => {
+    if (!ready || sent.current) return;
+    sent.current = true;
+    markEditorFirstOpen(doc);
+    trackEditor("editor_opened", { doc, has_doc: hasDoc });
+  }, [doc, ready, hasDoc]);
+}
+
+export function useFirstContentMetric(doc: EditorDoc, filled: boolean) {
+  const prev = useRef(filled);
+  useEffect(() => {
+    if (!prev.current && filled) trackEditor("editor_first_content", { doc });
+    prev.current = filled;
+  }, [doc, filled]);
 }
 
 export const EDITOR_ROUTES = {
@@ -576,15 +597,18 @@ export function useAiReview(kind: "resume" | "cover", texts: Map<string, string>
       setRunning(true);
       setError(null);
       try {
-        setDone({ findings: await fetchFindings(), texts: [...texts] });
+        const findings = await fetchFindings();
+        setDone({ findings, texts: [...texts] });
+        trackEditor("editor_ai_check_run", { doc: kind, ok: true, findings: findings.length });
       } catch (err) {
+        trackEditor("editor_ai_check_run", { doc: kind, ok: false });
         // 포인트·한도 안내는 aiPost 가 따로 띄운다. 여기서는 점검이 실패했다는 것만.
         setError(err instanceof Error && err.message ? err.message : "점검하지 못했어요.");
       } finally {
         setRunning(false);
       }
     },
-    [texts, setDone]
+    [texts, setDone, kind]
   );
 
   // 점검한 뒤 그 항목의 글이 바뀌면 지적을 내린다. 새로고침 뒤에도 같은 판단이 서도록
@@ -612,7 +636,13 @@ export function useAiReview(kind: "resume" | "cover", texts: Map<string, string>
 export function useHiddenIssues(kind: "resume" | "cover") {
   const [list, setList] = useSessionState<string[]>(`aply.review-hidden.${kind}`, []);
   const hidden = useMemo(() => new Set(list), [list]);
-  const hide = useCallback((key: string) => setList([...new Set([...list, key])]), [list, setList]);
+  const hide = useCallback(
+    (key: string) => {
+      setList([...new Set([...list, key])]);
+      trackEditor("editor_ai_finding_dismissed", { doc: kind });
+    },
+    [list, setList, kind]
+  );
   const showAll = useCallback(() => setList([]), [setList]);
   return { hidden, hide, showAll, hiddenCount: list.length };
 }
@@ -690,7 +720,10 @@ export function sheetStyle(vp: VisualViewportRect | null): CSSProperties | undef
   return { top: Math.round(vp.offsetTop) + gap, bottom: "auto", height: Math.round(vp.height) - gap * 2, maxHeight: "none" };
 }
 
-/** 값이 바뀔 때 그 요소를 보이는 곳까지 굴려 준다(처음 그릴 때는 가만히 둔다). */
+/** 값이 바뀔 때 그 요소를 보이는 곳까지 굴려 준다(처음 그릴 때는 가만히 둔다).
+ *  모바일 시트에서만 그렇다 — 시트는 고른 항목의 입력란으로 바로 데려가야 쓸 수 있다.
+ *  데스크톱 오른쪽 패널은 반대로 늘 맨 위로 되돌린다. 항목으로 굴려 내려가면 위쪽의
+ *  파일에서 가져오기·최근 변경·전체 점검이 화면 밖으로 밀려 안 보인다. */
 export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
   const ref = useRef<T | null>(null);
   const first = useRef(true);
@@ -700,6 +733,10 @@ export function useRevealOnChange<T extends HTMLElement>(key: string | null) {
       return;
     }
     if (!key) return;
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      ref.current?.closest("aside")?.scrollTo({ top: 0 });
+      return;
+    }
     ref.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [key]);
   return ref;

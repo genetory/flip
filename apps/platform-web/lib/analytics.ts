@@ -479,3 +479,58 @@ export function trackInsightView(slug: string, category: string, locale: string)
 export function trackInsightCtaClick(slug: string, cta: string) {
   safeSendEvent("insight_cta_click", { slug, cta });
 }
+
+// ---- 이력서·자소서 에디터 — 쉽고 빠르게 원하는 결과가 나오는지 재는 계측(GA4) ----
+//
+// 화면에는 아무것도 더하지 않는다(보내기만 하고 기다리지 않는다, 실패해도 조용히 버린다).
+// 이력서·자소서 원문, 사람 이름 같은 개인정보는 넣지 않는다 — 개수·시간·종류만.
+//
+// 보는 법: 진입(opened) → 시작 방식(start_selected) → 첫 내용(first_content) → 점검(ai_check_run)
+//   → PDF(pdf_download, 처음 연 뒤 걸린 분). AI 결과 수용률 = polish_applied / polish_requested.
+
+export type EditorDoc = "resume" | "cover";
+export type EditorEvent =
+  | "editor_opened"
+  | "editor_start_selected"
+  | "editor_import_applied"
+  | "editor_first_content"
+  | "editor_ai_check_run"
+  | "editor_ai_finding_dismissed"
+  | "editor_polish_requested"
+  | "editor_polish_applied"
+  | "editor_pdf_download";
+
+/** 지금 화면 경로로 어느 문서인지 — 부르는 쪽마다 문서 종류를 넘기지 않아도 되게. */
+export function editorDocOfPath(path: string): EditorDoc | null {
+  if (path.includes("/career/resume")) return "resume";
+  if (path.includes("/career/cover")) return "cover";
+  return null;
+}
+
+const FIRST_OPEN_KEY = (doc: EditorDoc) => `aply.editor.firstOpen.${doc}`;
+
+/** 이 브라우저에서 이 문서 에디터를 처음 연 시각을 남긴다(이미 있으면 그대로). */
+export function markEditorFirstOpen(doc: EditorDoc) {
+  try {
+    if (!localStorage.getItem(FIRST_OPEN_KEY(doc))) localStorage.setItem(FIRST_OPEN_KEY(doc), String(Date.now()));
+  } catch {
+    // 저장소를 못 쓰는 환경 — 걸린 시간만 빠진다.
+  }
+}
+
+/** 처음 연 뒤 지난 분(없으면 undefined). */
+function minutesSinceFirstOpen(doc: EditorDoc): number | undefined {
+  try {
+    const at = Number(localStorage.getItem(FIRST_OPEN_KEY(doc)));
+    return at > 0 ? Math.round((Date.now() - at) / 60000) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function trackEditor(event: EditorEvent, params: Record<string, string | number | boolean> & { doc?: EditorDoc } = {}) {
+  const doc = params.doc ?? (typeof window === "undefined" ? null : editorDocOfPath(window.location.pathname));
+  if (!doc) return;
+  const extra = event === "editor_pdf_download" ? { minutes_since_first_open: minutesSinceFirstOpen(doc) } : {};
+  safeSendEvent(event, { ...params, doc, ...extra });
+}

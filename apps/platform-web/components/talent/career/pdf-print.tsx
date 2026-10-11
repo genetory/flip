@@ -4,6 +4,7 @@
 // 별도 PDF 라이브러리 없이 window.print() + 인쇄 격리 CSS로 A4만 깔끔히 출력한다.
 import { DownloadSimple } from "@phosphor-icons/react";
 import { usePlatformT } from "../../../lib/i18n";
+import { trackEditor } from "../../../lib/analytics";
 
 export const PDF_PRINT_AREA = "pdf-print-area";
 
@@ -45,7 +46,10 @@ export function PdfDownloadButton() {
   return (
     <button
       type="button"
-      onClick={() => window.print()}
+      onClick={() => {
+        trackEditor("editor_pdf_download", { source: window.location.pathname.endsWith("/preview") ? "preview" : "editor" });
+        window.print();
+      }}
       className="no-print inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 text-[13px] font-bold leading-none text-white transition hover:bg-[#0A3ECB]"
     >
       <DownloadSimple className="h-4 w-4 shrink-0" weight="bold" />
