@@ -57,13 +57,13 @@ function Chevron() {
   );
 }
 
-/** 목록 왼쪽 사진 — 공고 썸네일·회사 대표 사진. 없으면 이름 첫 글자. */
+/** 목록 왼쪽 사진 — 공고 썸네일·회사 대표 사진. 없으면 이름 첫 글자. 번호·아이콘(lead)과 같은 48px 칸. */
 function Thumb({ src, fallback }: { src?: string | null; fallback: string }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
-    <img src={src} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl bg-[color:var(--v2-band)] object-cover" />
+    <img src={src} alt="" loading="lazy" className="h-12 w-12 shrink-0 rounded-xl bg-[color:var(--v2-band)] object-cover" />
   ) : (
-    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[18px] font-bold text-[color:var(--v2-faint)]">{fallback.slice(0, 1)}</span>
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[17px] font-bold text-[color:var(--v2-faint)]">{fallback.slice(0, 1)}</span>
   );
 }
 
@@ -72,7 +72,7 @@ export function Row({ href, onClick, title, meta, right, lead, thumb }: { href?:
   const body = (
     <>
       {thumb ? <Thumb src={thumb.src} fallback={thumb.fallback} /> : null}
-      {lead ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-ink-3)]">{lead}</span> : null}
+      {lead ? <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[17px] font-bold text-[color:var(--v2-ink-3)]">{lead}</span> : null}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{title}</span>
         {meta ? <span className="mt-0.5 block truncate text-[14px] leading-[1.5] text-[color:var(--v2-faint)]">{meta}</span> : null}
@@ -131,4 +131,42 @@ export function Progress({ pct }: { pct: number }) {
 /** 주의 표시 — 마감·다시 볼 것에만. */
 export function Attention({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-[color:var(--v2-attention)]">{children}</span>;
+}
+
+/** 검색칸 — 연회색 둥근 칸. 모바일 확대를 막으려 글자 16px. */
+export function SearchField({ value, onChange, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean }) {
+  return (
+    <label className="flex h-12 items-center gap-2.5 rounded-2xl bg-[color:var(--v2-band)] px-4">
+      <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" className="shrink-0 text-[color:var(--v2-faint)]">
+        <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2.2" />
+        <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      </svg>
+      <input
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="min-w-0 flex-1 bg-transparent text-[16px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-faint)]"
+      />
+    </label>
+  );
+}
+
+/** 칩 — 필터·탭. 고르면 먹색. */
+export function Chip({ active, onClick, children }: { active?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${active ? "bg-[color:var(--v2-ink)] text-white" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 비어 있을 때 한 줄 안내. */
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="py-6 text-center text-[15px] leading-[1.6] text-[color:var(--v2-faint)]">{children}</p>;
 }
