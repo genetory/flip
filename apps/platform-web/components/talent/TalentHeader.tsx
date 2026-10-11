@@ -83,11 +83,11 @@ export function TalentHeader() {
             return (
               <Link
                 key={item.key}
-                href={gated ? `${talentRoutes.login}?next=${encodeURIComponent(item.href)}` : item.href}
+                href={item.href}
                 aria-current={active ? "page" : undefined}
                 title={gated ? t("로그인이 필요해요", "Login required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk") : undefined}
                 className={`inline-flex items-center gap-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
-                  gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
+                  active ? "bg-[#EDF1FD] text-[#0B46E8]" : gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
                 }`}
               >
                 {navLabel(item.key)}
@@ -142,7 +142,7 @@ export function TalentHeader() {
         )}
       </div>
 
-      {/* 모바일 메뉴(햄버거) — 로그아웃 시에도 노출, 로그인 필요 탭은 잠금 표시 + 로그인으로 유도 */}
+      {/* 모바일 메뉴(햄버거) — 로그아웃 시에도 노출, 로그인 필요 탭은 잠금 표시(누르면 잠긴 미리보기) */}
       {menuOpen ? (
         <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="border-t border-[#EEF1F5] bg-white px-3 py-2 md:hidden">
           <ul className="flex flex-col">
@@ -153,11 +153,11 @@ export function TalentHeader() {
               return (
                 <li key={item.key}>
                   <Link
-                    href={gated ? `${talentRoutes.login}?next=${encodeURIComponent(item.href)}` : item.href}
+                    href={item.href}
                     aria-current={active ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
                     className={`flex items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-semibold transition ${
-                      gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB]"
+                      active ? "bg-[#EDF1FD] text-[#0B46E8]" : gated ? "text-[#B0B8C1] hover:bg-[#F6F8FB]" : "text-[#4E5968] hover:bg-[#F6F8FB]"
                     }`}
                   >
                     <Icon className="h-5 w-5" weight={active ? "fill" : "regular"} />
