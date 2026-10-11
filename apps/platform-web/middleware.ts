@@ -37,6 +37,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(`${proto}://${baseHost}${port}/career-launch`, 308);
   }
 
+  // 리뉴얼 v2(/v2/*) — 기존 화면을 건드리지 않고 따로 만드는 새 화면 묶음. 스테이징·로컬에서만 연다.
+  // 프로덕션(aply.global 등 'staging' 이 없는 호스트)에선 404 — 새 화면 코드가 아예 돌지 않게 여기서 막는다.
+  if (req.nextUrl.pathname === "/v2" || req.nextUrl.pathname.startsWith("/v2/")) {
+    const previewHost = host.includes("staging") || host === "localhost" || host === "127.0.0.1";
+    if (!previewHost) return new NextResponse("Not Found", { status: 404, headers: { "X-Robots-Tag": "noindex" } });
+  }
+
   const user = process.env.BASIC_AUTH_USER?.trim();
   const pass = process.env.BASIC_AUTH_PASSWORD;
   if (!user || !pass) return NextResponse.next();

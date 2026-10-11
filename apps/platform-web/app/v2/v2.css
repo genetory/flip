@@ -1,0 +1,21 @@
+/* 리뉴얼 v2 — 에디토리얼 톤의 공통 색. .v2 아래에서만 쓴다(기존 화면엔 영향 없음).
+   원칙: 글과 여백으로 구분하고 상자는 최소로. 바탕은 따뜻한 종이색, 포인트 색은 브랜드 파랑 하나.
+   주의(갈색)는 '시간이 얼마 안 남음·다시 볼 것'에만 쓴다. */
+.v2 {
+  --v2-paper: #f6f4ef;
+  --v2-surface: #ffffff;
+  --v2-ink: #1c1b19;
+  --v2-ink-2: #45423c;
+  --v2-muted: #8a857c;
+  --v2-faint: #b4afa6;
+  --v2-line: #e4dfd6;
+  --v2-accent: #0b46e8;
+  --v2-attention: #a8581a;
+  --v2-good: #2f7d4f;
+
+  background: var(--v2-paper);
+  color: var(--v2-ink);
+  min-height: 100vh;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
