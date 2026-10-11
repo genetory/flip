@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Heart } from "@phosphor-icons/react";
 import { V2Shell } from "../V2Shell";
-import { Chip, Empty, Masthead, Page, SearchField } from "../ui";
+import { Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -46,8 +46,8 @@ function Jobs() {
   const [foreigner, setForeigner] = useState(false);
   const [emp, setEmp] = useState<Emp[]>([]);
   const [locs, setLocs] = useState<string[]>([]);
-  const [items, setItems] = useState<PublicPositionListItem[] | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
+  // 결과는 '어떤 조건으로 받은 것인지'와 함께 둔다 — 조건이 바뀌면 새 결과가 올 때까지 스켈레톤을 보이게.
+  const [result, setResult] = useState<{ for: unknown; items: PublicPositionListItem[]; total: number | null } | null>(null);
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(false);
   const [saved, setSaved] = useState<Set<string>>(new Set());
@@ -95,22 +95,25 @@ function Jobs() {
     fetchPage(1)
       .then((r) => {
         if (!alive) return;
-        setItems(r.items);
-        setTotal(r.total);
+        setResult({ for: fetchPage, items: r.items, total: r.total });
         setPage(1);
       })
-      .catch(() => alive && setItems([]));
+      .catch(() => alive && setResult({ for: fetchPage, items: [], total: 0 }));
     return () => {
       alive = false;
     };
   }, [fetchPage]);
 
+  const current = result && result.for === fetchPage ? result : null;
+  const items = current?.items ?? null;
+  const total = current?.total ?? null;
+
   const loadMore = () => {
-    if (more) return;
+    if (more || !current) return;
     setMore(true);
     fetchPage(page + 1)
       .then((r) => {
-        setItems((prev) => [...(prev ?? []), ...r.items]);
+        setResult((prev) => (prev && prev.for === fetchPage ? { ...prev, items: [...prev.items, ...r.items] } : prev));
         setPage(page + 1);
       })
       .finally(() => setMore(false));
@@ -175,7 +178,9 @@ function Jobs() {
       <div className="mt-4 h-3 bg-[color:var(--v2-band)] md:mx-5 md:h-px md:bg-[color:var(--v2-line)]" aria-hidden />
 
       <ul className="px-5">
-        {items === null ? null : items.length === 0 ? (
+        {items === null ? (
+          <RowsSkeleton count={6} />
+        ) : items.length === 0 ? (
           <Empty>
             {tab === "interest" && !interests.length
               ? t("관심 직무를 고르면 맞는 공고만 모아 볼 수 있어요.", "Pick job interests to see matching jobs.", "选择感兴趣的职位即可查看匹配职位。", "Chọn nghề quan tâm để xem việc phù hợp.", "関心職種を選ぶと合う求人だけ見られます。", "Pilih minat untuk melihat lowongan yang cocok.")
@@ -217,10 +222,15 @@ function Jobs() {
           ))
         )}
       </ul>
-      {hasMore ? (
+      {more ? (
+        <div className="px-5">
+          <RowsSkeleton count={3} />
+        </div>
+      ) : null}
+      {hasMore && !more ? (
         <div className="px-5 pt-4">
           <button type="button" onClick={loadMore} disabled={more} className="h-12 w-full rounded-2xl bg-[color:var(--v2-band)] text-[15px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
-            {more ? t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…") : t("더 보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lagi")}
+            {t("더 보기", "Load more", "加载更多", "Xem thêm", "もっと見る", "Muat lagi")}
           </button>
         </div>
       ) : null}

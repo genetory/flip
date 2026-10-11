@@ -15,7 +15,7 @@ import { useServerNotificationSync } from "../../lib/talent/server-notification-
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
-import { Masthead, Page, PrimaryButton, SecondaryButton } from "./ui";
+import { Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
 
 export const V2_ROUTES = {
   home: "/v2/home",
@@ -53,7 +53,7 @@ function useProfilePhoto(user: { id: string; profileImageUrl?: string | null } |
 function Header() {
   const t = usePlatformT();
   const pathname = usePathname() ?? "";
-  const { user, isAuthenticated } = useAuthSession();
+  const { user, isAuthenticated, isReady } = useAuthSession();
   const nav = useNav();
   const name = user?.realName || user?.name || "";
   const photo = useProfilePhoto(user ?? null);
@@ -91,7 +91,13 @@ function Header() {
 
         {/* 오른쪽 — 알림 · 프로필 사진 · 언어(맨 끝). 셋 다 40px 칸에 비슷한 크기로. */}
         <div className="ml-auto flex items-center gap-1">
-          {isAuthenticated ? (
+          {!isReady ? (
+            // 로그인 확인 중 — '로그인' 버튼이 잠깐 떴다 사라지지 않게 자리만.
+            <>
+              <span aria-hidden className="mx-2 block h-6 w-6 animate-pulse rounded-full bg-[color:var(--v2-band)]" />
+              <span aria-hidden className="mx-2 block h-7 w-7 animate-pulse rounded-full bg-[color:var(--v2-band)]" />
+            </>
+          ) : isAuthenticated ? (
             <>
               <Link
                 href="/talent/notifications"
@@ -140,7 +146,7 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
   const pathname = usePathname() ?? "";
   const { isReady, isAuthenticated } = useAuthSession();
   let body: ReactNode = children;
-  if (requireAuth && !isReady) body = <Page><p className="px-5 pt-10 text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p></Page>;
+  if (requireAuth && !isReady) body = <PageSkeleton />;
   else if (requireAuth && !isAuthenticated) {
     body = (
       <Page>

@@ -4,7 +4,7 @@
 // 실제 연습은 기존 팝업(MockGateModal → MockInterviewModal)과 '전날 볼 한 장'을 그대로 쓴다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
-import { Attention, Empty, Masthead, Page, PrimaryButton, Row, SearchField, Section, SecondaryButton } from "../ui";
+import { Attention, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT } from "../../../lib/i18n";
@@ -46,8 +46,8 @@ function Interviews() {
   const resume = useResumeDoc();
   const cover = useCoverDoc();
   const [records, setRecords] = useState<MockInterviewRecord[] | null>(null);
-  const [apps, setApps] = useState<MyApplication[]>([]);
-  const [positions, setPositions] = useState<PublicPositionListItem[]>([]);
+  const [apps, setApps] = useState<MyApplication[] | null>(null);
+  const [positions, setPositions] = useState<PublicPositionListItem[] | null>(null);
   const [gate, setGate] = useState<{ item: PublicPositionListItem | null } | null>(null);
   const [practice, setPractice] = useState<{ item: PublicPositionListItem | null } | null>(null);
   const [selfResult, setSelfResult] = useState(false);
@@ -67,14 +67,14 @@ function Interviews() {
 
   const upcoming = useMemo(
     () =>
-      apps
+      (apps ?? [])
         .filter((a) => a.status === "INTERVIEW" && a.interviewSelectedAt && daysUntil(a.interviewSelectedAt) !== null)
         .sort((a, b) => new Date(a.interviewSelectedAt!).getTime() - new Date(b.interviewSelectedAt!).getTime()),
     [apps]
   );
   const candidates = useMemo(() => {
     const top = new Set(upcoming.map((a) => a.positionId));
-    return positions.filter((p) => !top.has(p.id)).slice(0, 4);
+    return (positions ?? []).filter((p) => !top.has(p.id)).slice(0, 4);
   }, [positions, upcoming]);
   const selfAnswers = (selfMock?.answers ?? []).filter((a) => typeof a.score === "number");
   const selfBest = selfAnswers.length ? Math.max(...selfAnswers.map((a) => a.score as number)) : null;
@@ -105,7 +105,7 @@ function Interviews() {
     setGate({ item });
   };
   const startById = async (positionId: string, mode: InterviewStartMode) => {
-    const item = positions.find((p) => p.id === positionId) ?? (await getPublicPositionById(positionId, { locale }).catch(() => null));
+    const item = (positions ?? []).find((p) => p.id === positionId) ?? (await getPublicPositionById(positionId, { locale }).catch(() => null));
     if (item) startJob(item, mode);
   };
   const startSelf = () => {
@@ -115,6 +115,16 @@ function Interviews() {
   };
 
   const next = upcoming[0] ?? null;
+
+  // 맨 위 한 가지는 지원(면접 일정)을 읽어야 정해진다 — 그 전엔 화면 모양만.
+  if (apps === null)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton />
+        <SectionSkeleton thumb={false} />
+      </Page>
+    );
   const d = next ? daysUntil(next.interviewSelectedAt!) ?? 0 : 0;
 
   return (
@@ -158,6 +168,7 @@ function Interviews() {
 
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
         {next ? <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} /> : null}
+        {positions === null ? <RowsSkeleton count={2} /> : null}
         {candidates.map((p) => (
           <Row key={p.id} onClick={() => startJob(p, "job")} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={companyOf(p) || undefined} />
         ))}
@@ -177,7 +188,7 @@ function Interviews() {
       ) : null}
 
       <Section title={t("연습 기록", "History", "练习记录", "Lịch sử", "練習記録", "Riwayat")}>
-        {records === null ? null : !selfAnswers.length && !records.length ? (
+        {records === null ? <RowsSkeleton count={3} thumb={false} /> : !selfAnswers.length && !records.length ? (
           <Empty>{t("아직 연습 기록이 없어요.", "No practice yet.", "还没有练习记录。", "Chưa có lịch sử.", "まだ練習記録がありません。", "Belum ada riwayat.")}</Empty>
         ) : (
           <>
@@ -264,7 +275,7 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
     <div className="pt-2">
       <SearchField autoFocus value={q} onChange={setQ} placeholder={t("직무나 회사 이름으로 찾기", "Search by role or company", "按职位或公司搜索", "Tìm theo vị trí hoặc công ty", "職種や会社名で探す", "Cari peran atau perusahaan")} />
       <div className="mt-2">
-        {items === null ? null : items.length === 0 ? (
+        {items === null ? <RowsSkeleton count={3} /> : items.length === 0 ? (
           <Empty>{t("맞는 공고가 없어요.", "No matching jobs.", "没有匹配的职位。", "Không có tin phù hợp.", "該当する求人がありません。", "Tidak ada yang cocok.")}</Empty>
         ) : (
           items.map((p) => <Row key={p.id} onClick={() => onPick(p)} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={companyOf(p) || undefined} />)

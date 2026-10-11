@@ -170,3 +170,64 @@ export function Chip({ active, onClick, children }: { active?: boolean; onClick:
 export function Empty({ children }: { children: ReactNode }) {
   return <p className="py-6 text-center text-[15px] leading-[1.6] text-[color:var(--v2-faint)]">{children}</p>;
 }
+
+// ── 스켈레톤 — 불러오는 동안 실제 화면과 같은 모양의 회색 자리. 글자 대신 모양으로 '곧 뜬다'를 알린다. ──
+
+function Bone({ className }: { className: string }) {
+  return <span aria-hidden className={`block animate-pulse rounded-lg bg-[color:var(--v2-band)] ${className}`} />;
+}
+
+/** 머리말 자리 — 작은 머리글·큰 제목 두 줄·설명. */
+export function MastheadSkeleton({ action = true }: { action?: boolean }) {
+  return (
+    <div className="px-5 pb-8 pt-8 md:pt-12" aria-busy="true">
+      <Bone className="h-4 w-32" />
+      <Bone className="mt-3 h-8 w-3/4" />
+      <Bone className="mt-3 h-5 w-2/3" />
+      {action ? <Bone className="mt-6 h-14 w-full rounded-2xl md:w-[200px]" /> : null}
+    </div>
+  );
+}
+
+/** 목록 줄 자리 — 왼쪽 48px 칸 + 두 줄. */
+export function RowsSkeleton({ count = 3, thumb = true }: { count?: number; thumb?: boolean }) {
+  return (
+    <div aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3.5 py-3.5">
+          {thumb ? <Bone className="h-12 w-12 shrink-0 rounded-xl" /> : null}
+          <span className="min-w-0 flex-1">
+            <Bone className="h-[18px] w-3/5" />
+            <Bone className="mt-2 h-3.5 w-2/5" />
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 구획 자리 — 띠·제목·목록. */
+export function SectionSkeleton({ rows = 3, thumb = true }: { rows?: number; thumb?: boolean }) {
+  return (
+    <>
+      <Band />
+      <div className="px-5 pb-4 pt-7">
+        <Bone className="h-6 w-28" />
+        <div className="mt-3">
+          <RowsSkeleton count={rows} thumb={thumb} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** 화면 전체 자리 — 로그인 확인 중 등 아직 아무것도 모를 때. */
+export function PageSkeleton() {
+  return (
+    <Page>
+      <MastheadSkeleton />
+      <SectionSkeleton />
+      <SectionSkeleton rows={2} />
+    </Page>
+  );
+}

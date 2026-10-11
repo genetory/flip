@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Chip, Empty, Masthead, Page, PrimaryButton } from "../ui";
+import { Attention, Chip, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, RowsSkeleton } from "../ui";
 import { daysUntil } from "../lib";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
@@ -78,7 +78,15 @@ function Applications() {
       .finally(() => setWithdrawing(false));
   };
 
-  if (apps === null) return <Page>{null}</Page>;
+  if (apps === null)
+    return (
+      <Page>
+        <MastheadSkeleton action={false} />
+        <div className="px-5">
+          <RowsSkeleton count={4} thumb={false} />
+        </div>
+      </Page>
+    );
 
   const total = apps.length;
   const summary = [

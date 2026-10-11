@@ -5,11 +5,11 @@
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Masthead, Page, PrimaryButton, Progress, Row, Section, TextLink } from "../ui";
+import { Attention, Masthead, MastheadSkeleton, Page, PrimaryButton, Progress, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
-import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, resumeCompleteness, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import {
   getMyApplications,
@@ -72,12 +72,13 @@ function Home() {
   const cp = coverCompleteness(cover);
   const interests = useJobInterests();
   const selfMock = useSelfMock();
-  const [apps, setApps] = useState<MyApplication[]>([]);
-  const [jobs, setJobs] = useState<PublicPositionListItem[]>([]);
+  const docsStatus = useRenewalDocsStatus();
+  const [apps, setApps] = useState<MyApplication[] | null>(null);
+  const [jobs, setJobs] = useState<PublicPositionListItem[] | null>(null);
   const [personalized, setPersonalized] = useState(false);
   const [saved, setSaved] = useState<PublicPositionListItem[]>([]);
-  const [mocks, setMocks] = useState<MockInterviewRecord[]>([]);
-  const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; photo: string | null }[]>([]);
+  const [mocks, setMocks] = useState<MockInterviewRecord[] | null>(null);
+  const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; photo: string | null }[] | null>(null);
 
   useEffect(() => {
     getMyApplications().then(setApps).catch(() => setApps([]));
@@ -113,6 +114,8 @@ function Home() {
       .catch(() => setCompanies([]));
   }, [locale, interests.length]);
 
+  const appList = useMemo(() => apps ?? [], [apps]);
+
   // 저장한 공고 중 7일 안에 마감.
   const closing = useMemo(() => {
     const today = new Date();
@@ -130,16 +133,16 @@ function Home() {
 
   // 모의 면접 요약 — 가장 최근 기록과 가장 약한 영역 하나.
   const weakest = useMemo(() => analyzeMockWeakness(selfMock).filter((r) => r.average !== null && r.average < WEAK_BELOW).sort((a, b) => (a.average ?? 0) - (b.average ?? 0))[0] ?? null, [selfMock]);
-  const lastMock = mocks[0] ?? null;
+  const lastMock = mocks?.[0] ?? null;
 
   const upcoming = useMemo(
     () =>
-      apps
+      appList
         .filter((a) => a.status === "INTERVIEW" && a.interviewSelectedAt && daysUntil(a.interviewSelectedAt) !== null)
         .sort((a, b) => new Date(a.interviewSelectedAt!).getTime() - new Date(b.interviewSelectedAt!).getTime())[0] ?? null,
-    [apps]
+    [appList]
   );
-  const active = apps.filter((a) => a.status !== "WITHDRAWN" && a.status !== "REJECTED");
+  const active = appList.filter((a) => a.status !== "WITHDRAWN" && a.status !== "REJECTED");
 
   // 맨 위 한 가지 — 가장 급한 것부터.
   const lead = (() => {
@@ -179,8 +182,8 @@ function Home() {
 
   // 오늘 할 일 — 맨 위 한 가지와 겹치지 않게, 급한 순으로 셋까지.
   const todos: { key: string; title: string; meta?: string; href: string }[] = [];
-  const unread = apps.reduce((n, a) => n + (a.unreadMessages || 0), 0);
-  const pendingSlot = apps.find((a) => a.status === "INTERVIEW" && a.interviewPending);
+  const unread = appList.reduce((n, a) => n + (a.unreadMessages || 0), 0);
+  const pendingSlot = appList.find((a) => a.status === "INTERVIEW" && a.interviewPending);
   if (pendingSlot) todos.push({ key: "slot", title: t("면접 시간을 골라 주세요", "Pick your interview time", "请选择面试时间", "Hãy chọn giờ phỏng vấn", "面接の時間を選んでください", "Pilih jadwal wawancara"), meta: pendingSlot.positionTitle, href: "/talent/applications" });
   if (unread) todos.push({ key: "msg", title: t(`회사가 보낸 메시지 ${unread}개`, `${unread} message(s) from companies`, `公司发来 ${unread} 条消息`, `${unread} tin nhắn từ công ty`, `会社からのメッセージ ${unread}件`, `${unread} pesan dari perusahaan`), meta: t("확인하고 답해 보세요", "Read and reply", "查看并回复", "Đọc và trả lời", "確認して返信しましょう", "Baca dan balas"), href: "/talent/applications" });
   if (closing[0] && lead.cta.href !== V2_ROUTES.jobs) todos.push({ key: "close", title: t(`저장한 공고가 ${closing[0].d === 0 ? "오늘" : `${closing[0].d}일 뒤`} 마감돼요`, `A saved job closes ${closing[0].d === 0 ? "today" : `in ${closing[0].d} days`}`, `收藏的职位${closing[0].d === 0 ? "今天" : `${closing[0].d}天后`}截止`, `Tin đã lưu đóng ${closing[0].d === 0 ? "hôm nay" : `sau ${closing[0].d} ngày`}`, `保存した求人が${closing[0].d === 0 ? "今日" : `${closing[0].d}日後に`}締切`, `Lowongan tersimpan tutup ${closing[0].d === 0 ? "hari ini" : `${closing[0].d} hari lagi`}`), meta: closing[0].p.title, href: `/talent/jobs/${closing[0].p.id}` });
@@ -195,6 +198,17 @@ function Home() {
   ]
     .filter(Boolean)
     .join(" · ");
+
+  // 맨 위 한 가지는 서류·지원을 다 읽어야 정해진다 — 그 전엔 화면 모양만.
+  if (docsStatus !== "loaded" || apps === null)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton thumb={false} rows={2} />
+        <SectionSkeleton thumb={false} rows={2} />
+        <SectionSkeleton />
+      </Page>
+    );
 
   return (
     <Page>
@@ -262,7 +276,9 @@ function Home() {
         </Section>
       ) : null}
 
-      {jobs.length ? (
+      {jobs === null ? (
+        <SectionSkeleton />
+      ) : jobs.length ? (
         <Section
           title={personalized ? t("나에게 맞는 공고", "Jobs for you", "适合你的职位", "Việc làm cho bạn", "あなたに合う求人", "Lowongan untukmu") : t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")}
           aside={<TextLink href={V2_ROUTES.jobs}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}
@@ -279,6 +295,9 @@ function Home() {
         </Section>
       ) : null}
 
+      {mocks === null ? (
+        <SectionSkeleton thumb={false} rows={2} />
+      ) : (
       <Section
         title={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
         aside={<TextLink href={V2_ROUTES.interviews}>{t("연습하러 가기", "Practice", "去练习", "Luyện tập", "練習へ", "Latihan")}</TextLink>}
@@ -310,8 +329,11 @@ function Home() {
           />
         )}
       </Section>
+      )}
 
-      {companies.length ? (
+      {companies === null ? (
+        <SectionSkeleton />
+      ) : companies.length ? (
         <Section title={t("이런 회사는 어때요", "Companies to check out", "这些公司怎么样", "Công ty đáng xem", "こんな会社はいかが", "Perusahaan untuk dilihat")}>
           {companies.map((c) => (
             <Row

@@ -4,10 +4,10 @@
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
 import { useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Chip, Masthead, Page, PrimaryButton, Progress, Row, Section, TextLink } from "../ui";
+import { Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Progress, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, resumeCompleteness, displayMonth } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, resumeCompleteness, displayMonth, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
@@ -59,6 +59,18 @@ function Career() {
   const [interestOpen, setInterestOpen] = useState(false);
   const work = (resume?.items ?? []).filter((i) => i.section === "experience");
   const name = info.realName;
+  const docsStatus = useRenewalDocsStatus();
+
+  // 기본 정보·서류는 계정에서 불러온다 — 다 오기 전엔 화면 모양만(기본 정보 미입력 안내가 깜빡이지 않게).
+  if (docsStatus !== "loaded")
+    return (
+      <Page>
+        <MastheadSkeleton action={false} />
+        <SectionSkeleton thumb={false} rows={2} />
+        <SectionSkeleton thumb={false} rows={1} />
+        <SectionSkeleton />
+      </Page>
+    );
 
   return (
     <Page>
