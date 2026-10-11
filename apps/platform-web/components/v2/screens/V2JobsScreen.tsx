@@ -3,7 +3,7 @@
 // v2 포지션 탐색 — 검색칸 하나, 탭·필터는 칩 한 줄씩, 공고는 사진 달린 목록. 게스트도 본다.
 // 저장은 공고 상세에서 한다(목록엔 하트 없음 — 공고 이름이 주인공). 공고 상세는 아직 기존 화면.
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { V2Shell } from "../V2Shell";
 import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
 import { companyOf, hasMockInterview, jobPhotoOf, shortPlace } from "../lib";
@@ -13,9 +13,36 @@ import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { getMyFavoritePositions, getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { trackForeignerPrompt } from "../../../lib/analytics";
 
 type Tab = "all" | "aply" | "interest" | "saved";
 const PAGE = 20;
+const FOREIGNER_KEY = "aply.v2.jobs.foreigner";
+const FOREIGNER_EVENT = "aply:v2-foreigner";
+
+function readForeigner(): string | null {
+  try {
+    return localStorage.getItem(FOREIGNER_KEY);
+  } catch {
+    return "unavailable"; // 저장소를 못 쓰면 묻지 않는다(답을 기억 못 해 매번 뜨면 성가시다).
+  }
+}
+function writeForeigner(v: "yes" | "no") {
+  try {
+    localStorage.setItem(FOREIGNER_KEY, v);
+  } catch {
+    // 기억만 못 할 뿐 — 이번엔 그대로 적용된다.
+  }
+  window.dispatchEvent(new Event(FOREIGNER_EVENT));
+}
+function subscribeForeigner(cb: () => void) {
+  window.addEventListener(FOREIGNER_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(FOREIGNER_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
 
 function empLabel(t: PlatformT, e: PublicPositionListItem["employmentType"]): string {
   if (e === "FULL_TIME") return t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu");
@@ -39,7 +66,19 @@ function Jobs() {
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [foreigner, setForeigner] = useState(false);
+  // '혹시 외국인이세요?' — 한국인도 보는 화면이라 먼저 걸러 두지 않고 물어본다. 답은 이 브라우저에만 기억.
+  //   yes → 필터를 켜고 다음에도 켠 채로 시작 / no·닫기 → 다시 묻지 않음. 저장소를 못 써도 화면은 그대로 동작.
+  const stored = useSyncExternalStore(subscribeForeigner, readForeigner, () => "ssr");
+  const [answered, setAnswered] = useState(false);
+  const [foreignerToggle, setForeigner] = useState<boolean | null>(null);
+  const foreigner = foreignerToggle ?? stored === "yes";
+  const askForeigner = stored === null && !answered;
+  const answerForeigner = (answer: "yes" | "no" | "dismiss") => {
+    trackForeignerPrompt(answer);
+    writeForeigner(answer === "yes" ? "yes" : "no");
+    if (answer === "yes") setForeigner(true);
+    setAnswered(true);
+  };
   const [sort, setSort] = useState<"latest" | "deadline">("latest");
   // 결과는 '어떤 조건으로 받은 것인지'와 함께 둔다 — 조건이 바뀌면 새 결과가 올 때까지 스켈레톤을 보이게.
   const [result, setResult] = useState<{ for: unknown; items: PublicPositionListItem[]; total: number | null } | null>(null);
@@ -135,6 +174,21 @@ function Jobs() {
         }
       />
 
+      {askForeigner && !foreigner ? (
+        <div className="mx-5 mb-4 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] py-3 pl-4 pr-2">
+          <p className="min-w-0 flex-1 text-[14px] leading-[1.5] text-[color:var(--v2-ink-2)]">
+            <span className="font-bold text-[color:var(--v2-ink)]">{t("혹시 외국인이세요?", "Are you a foreigner?", "您是外国人吗？", "Bạn là người nước ngoài?", "外国の方ですか？", "Apakah Anda WNA?")}</span>{" "}
+            {/* 설명은 PC 에서만 — 모바일은 질문 한 줄로 얇게. */}
+            <span className="hidden md:inline">{t("외국인 채용 가능한 공고만 모아 볼 수 있어요.", "See only jobs open to foreigners.", "可以只看招外国人的职位。", "Xem riêng các việc nhận người nước ngoài.", "外国人採用可の求人だけ見られます。", "Lihat lowongan yang terbuka untuk WNA saja.")}</span>
+          </p>
+          <Button size="sm" onClick={() => answerForeigner("yes")}>{t("네", "Yes", "是", "Có", "はい", "Ya")}</Button>
+          <Button size="sm" variant="neutral" onClick={() => answerForeigner("no")}>{t("아니요", "No", "不是", "Không", "いいえ", "Tidak")}</Button>
+          <button type="button" onClick={() => answerForeigner("dismiss")} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-8 shrink-0 items-center justify-center text-[18px] leading-none text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
+            ×
+          </button>
+        </div>
+      ) : null}
+
       <div className="px-5">
         <SearchField value={query} onChange={setQuery} placeholder={t("직무, 회사 또는 역량 검색", "Search roles, companies, skills", "搜索职位、公司或技能", "Tìm vị trí, công ty, kỹ năng", "職種・会社・スキルで検索", "Cari peran, perusahaan, keahlian")} />
       </div>
@@ -149,7 +203,7 @@ function Jobs() {
             {k === "aply" && tab !== "saved" ? (
               <button
                 type="button"
-                onClick={() => setForeigner((v) => !v)}
+                onClick={() => setForeigner(!foreigner)}
                 aria-pressed={foreigner}
                 className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
               >

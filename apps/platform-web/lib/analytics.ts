@@ -555,3 +555,8 @@ export function trackInterviewFollowUpStarted() {
 export function trackInterviewPrepSheetOpened() {
   safeSendEvent("interview_prep_sheet_opened", {});
 }
+
+/** 포지션 탐색 '혹시 외국인이세요?' 카드 응답 — 외국인 비율·필터 사용 의향을 본다. */
+export function trackForeignerPrompt(answer: "yes" | "no" | "dismiss") {
+  safeSendEvent("jobs_foreigner_prompt", { answer });
+}
