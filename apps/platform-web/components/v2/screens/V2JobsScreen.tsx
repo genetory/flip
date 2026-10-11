@@ -94,9 +94,12 @@ function Jobs() {
     };
   }, [fetchPage]);
 
+  // 조건을 바꾸는 동안엔 이전 결과를 흐리게 둔 채 기다린다(스켈레톤으로 갈아끼우면 깜빡인다).
+  // 스켈레톤은 처음 들어올 때(아직 아무 결과도 없을 때)만.
   const current = result && result.for === fetchPage ? result : null;
-  const items = current?.items ?? null;
-  const total = current?.total ?? null;
+  const refreshing = !!result && !current;
+  const items = result?.items ?? null;
+  const total = result?.total ?? null;
 
   const loadMore = () => {
     if (more || !current) return;
@@ -115,7 +118,7 @@ function Jobs() {
     ["interest", t("관심 직무", "My interests", "感兴趣", "Quan tâm", "関心職種", "Minatku")],
     ["saved", t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan")]
   ];
-  const hasMore = tab !== "saved" && items !== null && total !== null && items.length < total;
+  const hasMore = !refreshing && tab !== "saved" && items !== null && total !== null && items.length < total;
 
   return (
     <Page>
@@ -176,7 +179,7 @@ function Jobs() {
         </div>
       </div>
 
-      <ul className="px-5">
+      <ul className={`px-5 transition-opacity duration-150 ${refreshing ? "pointer-events-none opacity-40" : ""}`} aria-busy={refreshing}>
         {items === null ? (
           <RowsSkeleton count={6} />
         ) : items.length === 0 ? (
