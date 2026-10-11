@@ -8,7 +8,7 @@
 //  - 다시 볼 점: 약점 분석(analyzeMockWeakness)의 개선 한 줄
 //  - 면접관에게 할 질문: 고정 문구(어느 회사에나 무난한 것)
 import { useEffect, useMemo, useState } from "react";
-import { X, CalendarCheck, CircleNotch } from "@phosphor-icons/react";
+import { X, CircleNotch } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { getMyMockInterviewAnswers, type MockInterviewAnswer } from "../../../lib/member-profile-client";
@@ -20,6 +20,8 @@ type Row = { question: string; answer: string; score: number | null };
 
 const INTRO = /자기\s*소개|소개해|introduce yourself|self-introduction/i;
 const TOP = 5;
+/** 처음에 보이는 질문 수 — 나머지는 '더 보기'. 한 장에 다 펼치면 길어서 전날 훑어보기 어렵다. */
+const FIRST = 3;
 
 function whenLabel(t: PlatformT, iso: string): string {
   const d = new Date(iso);
@@ -55,6 +57,7 @@ export function InterviewPrepSheet({
   const vp = useVisualViewport();
   const self = useSelfMock();
   const [jobAnswers, setJobAnswers] = useState<MockInterviewAnswer[] | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -116,26 +119,20 @@ export function InterviewPrepSheet({
         <div className="flex items-start justify-between gap-3 border-b border-[#F2F4F6] px-5 py-4">
           <div className="min-w-0">
             <p className="text-[15px] font-black tracking-[-0.02em] text-[#0B1227]">{t("면접 전날 볼 한 장", "Your night-before sheet", "面试前一晚速览", "Bản ôn trước buổi phỏng vấn", "面接前日に見る1枚", "Lembar malam sebelum wawancara")}</p>
-            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[company, title].filter(Boolean).join(" · ")}</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[company, title, interviewAt ? whenLabel(t, interviewAt) : null].filter(Boolean).join(" · ")}</p>
           </div>
           <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
-          {interviewAt ? (
-            <p className="mb-5 flex items-center gap-1.5 rounded-xl bg-[#FFF3E6] px-3.5 py-2.5 text-[13px] font-bold text-[#E8890C]">
-              <CalendarCheck className="h-4 w-4" weight="fill" /> {t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")} · {whenLabel(t, interviewAt)}
-            </p>
-          ) : null}
-
+        <div className="flex-1 overflow-y-auto bg-[#F5F6F8] px-4 py-5 sm:px-5">
           {loading ? (
             <div className="flex justify-center py-16">
               <CircleNotch className="h-7 w-7 animate-spin text-[#0B46E8]" weight="bold" />
             </div>
           ) : empty ? (
-            <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
+            <div className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5] text-center">
               <p className="text-[15px] font-bold text-[#191F28]">{t("아직 모을 답이 없어요", "Nothing to collect yet", "还没有可汇总的回答", "Chưa có câu trả lời để tổng hợp", "まだまとめる回答がありません", "Belum ada jawaban untuk dikumpulkan")}</p>
               <p className="mt-1 break-keep text-[13px] text-[#8B95A1]">{t("이 공고로 2~3문항만 연습하면, 가장 잘한 답이 여기 정리돼요.", "Practice 2–3 questions for this job and your best answers will be collected here.", "用此职位练习 2~3 道题，最好的回答会整理在这里。", "Luyện 2–3 câu cho tin này, câu trả lời tốt nhất sẽ được gom ở đây.", "この求人で2〜3問練習すると、いちばん良い回答がここにまとまります。", "Latih 2–3 pertanyaan untuk lowongan ini, jawaban terbaik akan dikumpulkan di sini.")}</p>
               <button type="button" onClick={onPractice} className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
@@ -143,40 +140,56 @@ export function InterviewPrepSheet({
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-7">
               <Block title={t("1분 자기소개", "1-minute introduction", "1分钟自我介绍", "Giới thiệu 1 phút", "1分自己紹介", "Perkenalan 1 menit")}>
                 {intro ? (
-                  <Answer t={t} row={intro} />
+                  <div className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5]">
+                    <Answer t={t} row={intro} lines={5} quote={false} />
+                  </div>
                 ) : (
-                  <p className="text-[13px] text-[#8B95A1]">
+                  <p className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5] break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">
                     {t("아직 자기소개를 연습하지 않았어요. 거의 모든 면접의 첫 질문이라 꼭 한 번 연습해 두세요.", "You haven't practiced an introduction yet. It's the first question in almost every interview, so practice it once.", "还没有练习自我介绍。这几乎是所有面试的第一个问题，务必练习一次。", "Bạn chưa luyện phần giới thiệu. Đây là câu đầu tiên của hầu hết buổi phỏng vấn, hãy luyện một lần.", "まだ自己紹介を練習していません。ほぼすべての面接の最初の質問なので、一度練習しておきましょう。", "Kamu belum latihan perkenalan. Ini pertanyaan pertama hampir di semua wawancara, latih sekali.")}
                   </p>
                 )}
               </Block>
 
               {top.length ? (
-                <Block title={t("예상 질문과 내 최고 답변", "Likely questions & my best answers", "预测问题与我的最佳回答", "Câu hỏi dự kiến & câu trả lời tốt nhất", "予想質問と自分のベスト回答", "Pertanyaan & jawaban terbaikku")}>
-                  <ol className="flex flex-col gap-4">
-                    {top.map((r, i) => (
-                      <li key={r.question}>
-                        <p className="break-keep text-[14px] font-bold leading-relaxed text-[#191F28]">
-                          {i + 1}. {r.question}
-                        </p>
-                        <div className="mt-1.5">
-                          <Answer t={t} row={r} />
+                <Block title={t("예상 질문과 내 답", "Likely questions & my answers", "预测问题与我的回答", "Câu hỏi dự kiến & câu trả lời", "予想質問と自分の回答", "Pertanyaan & jawabanku")}>
+                  <ol className="flex flex-col gap-3">
+                    {(showAll ? top : top.slice(0, FIRST)).map((r, i) => (
+                      <li key={r.question} className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5]">
+                        {/* 질문 — 번호는 앞에 따로 세워 질문끼리 구분되게. 다듬을 답이면 질문 줄에 작게 표시. */}
+                        <div className="flex gap-2.5">
+                          <span className="mt-[1px] w-5 shrink-0 text-[15px] font-black tabular-nums text-[#0B46E8]">Q{i + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="break-keep text-[15px] font-semibold leading-[1.6] text-[#191F28]">{r.question}</p>
+                            {r.score != null && r.score < WEAK_BELOW ? (
+                              <p className="mt-1 text-[12px] font-semibold text-[#C77700]">{t("이 답은 한 번 더 다듬어 보세요", "Polish this answer once more", "这个回答再打磨一下", "Nên trau chuốt câu này thêm", "この回答はもう一度磨きましょう", "Poles jawaban ini lagi")}</p>
+                            ) : null}
+                            <div className="mt-2.5">
+                              <Answer t={t} row={r} lines={3} quote />
+                            </div>
+                          </div>
                         </div>
                       </li>
                     ))}
                   </ol>
+                  {top.length > FIRST ? (
+                    <button type="button" onClick={() => setShowAll((v) => !v)} className="mt-3 w-full rounded-xl py-2.5 text-[13px] font-semibold text-[#6B7684] transition hover:bg-white">
+                      {showAll
+                        ? t("접기", "Show less", "收起", "Thu gọn", "閉じる", "Tutup")
+                        : t(`${top.length - FIRST}개 더 보기`, `Show ${top.length - FIRST} more`, `再看 ${top.length - FIRST} 个`, `Xem thêm ${top.length - FIRST}`, `あと${top.length - FIRST}件を見る`, `Lihat ${top.length - FIRST} lagi`)}
+                    </button>
+                  ) : null}
                 </Block>
               ) : null}
 
               {recheck.length ? (
                 <Block title={t("들어가기 전에 다시 볼 점", "Check before you walk in", "进门前再看一眼", "Xem lại trước khi vào", "入る前にもう一度見ること", "Cek sebelum masuk")}>
-                  <ul className="flex flex-col gap-1.5">
+                  <ul className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5] flex flex-col gap-2">
                     {recheck.map((r) => (
-                      <li key={r.label} className="break-keep text-[13px] leading-relaxed text-[#4E5968]">
-                        <span className="font-bold text-[#C77700]">{r.label}</span> · {r.tip}
+                      <li key={r.label} className="break-keep text-[14px] leading-[1.7] text-[#333D4B]">
+                        · {r.tip}
                       </li>
                     ))}
                   </ul>
@@ -184,9 +197,9 @@ export function InterviewPrepSheet({
               ) : null}
 
               <Block title={t("면접관에게 할 질문", "Questions to ask them", "向面试官提的问题", "Câu hỏi để hỏi lại", "面接官への逆質問", "Pertanyaan untuk pewawancara")}>
-                <ul className="flex flex-col gap-1.5">
+                <ul className="rounded-2xl bg-white p-5 shadow-[0_1px_3px_rgba(11,18,39,0.06)] ring-1 ring-[#EEF1F5] flex flex-col gap-2">
                   {askBack.map((q) => (
-                    <li key={q} className="break-keep text-[13px] leading-relaxed text-[#4E5968]">
+                    <li key={q} className="break-keep text-[14px] leading-[1.7] text-[#333D4B]">
                       · {q}
                     </li>
                   ))}
@@ -201,25 +214,26 @@ export function InterviewPrepSheet({
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
+  // 제목은 또렷하게 — 전날 훑어볼 때 어디가 무슨 칸인지 바로 보이게.
   return (
     <section>
-      <h3 className="text-[12.5px] font-black uppercase tracking-[0.04em] text-[#0B46E8]">{title}</h3>
-      <div className="mt-2">{children}</div>
+      <h3 className="px-1 text-[16px] font-black tracking-[-0.02em] text-[#191F28]">{title}</h3>
+      <div className="mt-2.5">{children}</div>
     </section>
   );
 }
 
-function Answer({ t, row }: { t: PlatformT; row: Row }) {
-  const weak = row.score != null && row.score < WEAK_BELOW;
+/** 답 — 처음엔 몇 줄만, 누르면 전부. quote 면 왼쪽 선으로 질문과 갈라 '내 답'임을 보이게. */
+function Answer({ t, row, lines, quote }: { t: PlatformT; row: Row; lines: 3 | 5; quote: boolean }) {
+  const [open, setOpen] = useState(false);
+  const long = row.answer.length > (lines === 3 ? 110 : 180);
   return (
-    <div className="rounded-xl bg-[#F8FAFB] px-3.5 py-3">
-      <p className="whitespace-pre-wrap break-keep text-[13px] leading-[1.7] text-[#333D4B]">{row.answer}</p>
-      {row.score != null ? (
-        <p className={`mt-1.5 text-[11.5px] font-bold ${weak ? "text-[#C77700]" : "text-[#0A9B59]"}`}>
-          {row.score}
-          {t("점", " pts", "分", " điểm", "点", " poin")}
-          {weak ? ` · ${t("한 번 더 다듬어 보세요", "worth polishing once more", "再打磨一下", "nên trau chuốt thêm", "もう一度磨きましょう", "perlu dipoles lagi")}` : ""}
-        </p>
+    <div className={quote ? "border-l-2 border-[#E5E8EB] pl-3.5" : ""}>
+      <p className={`whitespace-pre-wrap break-keep text-[14.5px] leading-[1.8] text-[#4E5968] ${!open && long ? (lines === 3 ? "line-clamp-3" : "line-clamp-5") : ""}`}>{row.answer}</p>
+      {long ? (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="mt-1 text-[12.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
+          {open ? t("접기", "Show less", "收起", "Thu gọn", "閉じる", "Tutup") : t("더 보기", "More", "展开", "Xem thêm", "もっと見る", "Selengkapnya")}
+        </button>
       ) : null}
     </div>
   );

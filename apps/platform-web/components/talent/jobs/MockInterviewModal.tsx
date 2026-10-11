@@ -210,6 +210,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
 
   const total = questions?.length ?? 0;
   const atLast = total > 0 && idx >= total - 1;
+  const currentFb = slots[idx]?.fb ?? null;
+  const currentAnswer = slots[idx]?.answer ?? "";
 
   // 평가받은 뒤 답을 고치기 시작하면 그 평가를 '직전 평가'로 넘긴다 — 다시 평가받으면 점수 변화를 보여 준다.
   function setAnswerText(i: number, v: string) {
@@ -369,40 +371,66 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
                 q={questions[idx]}
                 intentHint={item?.mockInterviewIntent && idx === 0 ? item.mockInterviewIntent : ""}
                 slot={slots[idx]}
-                busy={busy}
                 onChange={(v) => setAnswerText(idx, v)}
-                onFeedback={getFeedback}
                 onFollowUp={answerFollowUp}
               />
             </>
           )}
         </div>
 
-        {/* 하단 내비 — 이전 / 다음 질문(끝이면 새로 생성) */}
+        {/* 하단 — 지금 할 일 하나만 파란 버튼으로. 답하기 전엔 'AI 피드백 받기', 평가를 받았으면 '다음 질문'.
+            (예전엔 본문에도 파란·주황 버튼이 여럿이라 무엇을 누를지 헷갈렸다.) */}
         {category !== null && questions && total > 0 ? (
           <div className="flex items-center gap-2 border-t border-[#F2F4F6] px-5 py-3">
             <button
               type="button"
               onClick={() => setIdx((v) => Math.max(0, v - 1))}
               disabled={idx === 0}
-              className="flex h-[46px] items-center justify-center gap-1 rounded-2xl bg-[#F2F4F6] px-4 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40"
+              aria-label={t("이전 질문", "Previous question", "上一题", "Câu trước", "前の質問", "Pertanyaan sebelumnya")}
+              className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40"
             >
-              <CaretLeft className="h-4 w-4" weight="bold" /> {t("이전", "Prev", "上一个", "Trước", "前へ", "Sebelum")}
+              <CaretLeft className="h-4 w-4" weight="bold" />
             </button>
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={loadingMore || (atLast && !canGenerate)}
-              className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
-            >
-              {loadingMore ? (
-                <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("새 질문 생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…")}</>
-              ) : atLast && canGenerate ? (
-                <><Sparkle className="h-4 w-4" weight="fill" /> {t("새로운 질문 생성", "New question", "生成新问题", "Câu hỏi mới", "新しい質問を生成", "Pertanyaan baru")} <AiTicketCost feature="interview_questions" size="md" /></>
-              ) : (
-                <>{t("다음 질문", "Next", "下一题", "Tiếp", "次の質問", "Berikutnya")} <CaretRight className="h-4 w-4" weight="bold" /></>
-              )}
-            </button>
+            {currentFb ? (
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={loadingMore || (atLast && !canGenerate)}
+                className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("새 질문 생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…")}</>
+                ) : atLast && canGenerate ? (
+                  <>{t("다음 질문", "Next question", "下一题", "Câu tiếp theo", "次の質問", "Pertanyaan berikutnya")} <AiTicketCost feature="interview_questions" size="md" /></>
+                ) : (
+                  <>{t("다음 질문", "Next question", "下一题", "Câu tiếp theo", "次の質問", "Pertanyaan berikutnya")} <CaretRight className="h-4 w-4" weight="bold" /></>
+                )}
+              </button>
+            ) : (
+              <>
+                {/* 답하지 않고 넘어가기 — 보조 버튼. */}
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={busy || loadingMore || (atLast && !canGenerate)}
+                  className="flex h-[46px] shrink-0 items-center justify-center rounded-2xl px-3 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968] disabled:opacity-40"
+                >
+                  {t("건너뛰기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")}
+                </button>
+                <button
+                  type="button"
+                  onClick={getFeedback}
+                  disabled={!currentAnswer.trim() || busy}
+                  className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
+                >
+                  {busy ? (
+                    <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…")}</>
+                  ) : (
+                    <>{t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバックを受ける", "Dapatkan umpan balik AI")} <AiTicketCost feature="interview_feedback" size="md" /></>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         ) : null}
       </div>
@@ -425,18 +453,14 @@ function QuestionStep({
   q,
   intentHint,
   slot,
-  busy,
   onChange,
-  onFeedback,
   onFollowUp
 }: {
   index: number;
   q: Q;
   intentHint: string;
   slot: Slot | undefined;
-  busy: boolean;
   onChange: (v: string) => void;
-  onFeedback: () => void;
   onFollowUp: (question: string) => void;
 }) {
   const t = usePlatformT();
@@ -452,43 +476,28 @@ function QuestionStep({
   const fb = slot?.fb ?? null;
   const answer = slot?.answer ?? "";
   return (
-    <div className="flex flex-col gap-3">
-      {intentHint ? (
-        <div className="rounded-2xl bg-[#F5F8FF] px-4 py-3">
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("이 회사가 보려는 포인트", "What this company looks for", "该公司关注的重点", "Điều công ty này tìm kiếm", "この会社が見たいポイント", "Yang dicari perusahaan ini")}</p>
-          <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#4E5968]">{intentHint}</p>
-        </div>
-      ) : null}
-
-      {/* 카테고리 + 질문 */}
+    <div className="flex flex-col gap-4">
+      {/* 질문 — 번호·유형은 작은 회색 글씨로, 질문만 크게. 의도는 상자 없이 한 줄. */}
       <div>
-        {q.followUp ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF3E6] px-2.5 py-1 text-[11px] font-bold text-[#E8890C]">
-            ↳ {t("꼬리 질문", "Follow-up", "追问", "Câu hỏi nối tiếp", "深掘り質問", "Pertanyaan lanjutan")}
-          </span>
-        ) : (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}>
-            {meta.emoji} {mockCategoryLabelOf(t, q.category)}
-          </span>
-        )}
-        <p className="mt-2.5 flex items-start gap-2 break-keep text-[16px] font-bold leading-relaxed text-[#191F28]">
-          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[11px] font-black text-[#0B46E8]">{index + 1}</span>
-          <span>{q.question}</span>
+        <p className="text-[12px] font-semibold text-[#8B95A1]">
+          {index + 1} · {q.followUp ? `↳ ${t("꼬리 질문", "Follow-up", "追问", "Câu hỏi nối tiếp", "深掘り質問", "Pertanyaan lanjutan")}` : `${meta.emoji} ${mockCategoryLabelOf(t, q.category)}`}
         </p>
-        {q.intent ? (
-          <p className="mt-2 rounded-lg bg-[#F8FAFB] px-3 py-2 text-[12px] leading-relaxed text-[#8B95A1]">
-            <span className="font-bold text-[#0B46E8]">💡 {t("이 질문의 의도 · ", "Why this question · ", "此问题的意图 · ", "Ý đồ câu hỏi · ", "この質問の意図 · ", "Maksud pertanyaan · ")}</span>{q.intent}
+        <p className="mt-1.5 break-keep text-[17px] font-bold leading-relaxed text-[#191F28]">{q.question}</p>
+        {q.intent ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">💡 {q.intent}</p> : null}
+        {intentHint ? (
+          <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">
+            <span className="font-semibold text-[#6B7684]">{t("이 회사가 보려는 포인트", "What this company looks for", "该公司关注的重点", "Điều công ty này tìm kiếm", "この会社が見たいポイント", "Yang dicari perusahaan ini")}</span> · {intentHint}
           </p>
         ) : null}
       </div>
 
       {/* 고치는 중 — 지난 평가의 지적을 옆에 둔다(무엇을 고칠지 보면서 쓰게). */}
       {!fb && slot?.prev?.improvements.length ? (
-        <div className="rounded-xl bg-[#FFF8EE] px-3.5 py-3">
-          <p className="text-[11.5px] font-bold text-[#E8890C]">
+        <div className="rounded-xl bg-[#F8FAFB] px-3.5 py-3">
+          <p className="text-[12px] font-bold text-[#4E5968]">
             {t(`지난 답변 ${slot.prev.score}점 · 이걸 고쳐 보세요`, `Last answer ${slot.prev.score} · Fix these`, `上次回答 ${slot.prev.score}分 · 试着改进这些`, `Lần trước ${slot.prev.score} điểm · Hãy sửa những điểm này`, `前回 ${slot.prev.score}点 · ここを直してみましょう`, `Jawaban lalu ${slot.prev.score} · Perbaiki ini`)}
           </p>
-          <ul className="mt-1 flex flex-col gap-0.5">{slot.prev.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
+          <ul className="mt-1 flex flex-col gap-0.5">{slot.prev.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#6B7684]">· {s}</li>)}</ul>
         </div>
       ) : null}
 
@@ -500,46 +509,35 @@ function QuestionStep({
         placeholder={t("답변을 적어보세요. (STAR: 상황·과제·행동·결과)", "Write your answer. (STAR: Situation, Task, Action, Result)", "写下你的回答。（STAR：情境·任务·行动·结果）", "Viết câu trả lời. (STAR: Tình huống·Nhiệm vụ·Hành động·Kết quả)", "回答を書いてください。（STAR：状況・課題・行動・結果）", "Tulis jawaban Anda. (STAR: Situasi·Tugas·Aksi·Hasil)")}
         className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
       />
-      <button
-        type="button"
-        onClick={onFeedback}
-        disabled={!answer.trim() || busy}
-        className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
-      >
-        <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…") : fb ? t("다시 평가받기", "Re-evaluate", "重新评估", "Đánh giá lại", "再評価する", "Nilai ulang") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバックを受ける", "Dapatkan umpan balik AI")}
-        {!busy ? <AiTicketCost feature="interview_feedback" size="md" /> : null}
-      </button>
 
       {fb ? (
         <div ref={feedbackRef} className="scroll-mt-3">
           <FeedbackCard fb={fb} prev={slot?.prev ?? null} />
+          <button
+            type="button"
+            onClick={() => {
+              const el = answerRef.current;
+              if (!el) return;
+              el.focus();
+              el.setSelectionRange(el.value.length, el.value.length);
+              el.scrollIntoView({ block: "center", behavior: "smooth" });
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-1 py-1.5 text-[13px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]"
+          >
+            <PencilSimple className="h-3.5 w-3.5" weight="bold" /> {t("고쳐서 다시 답하기", "Revise and answer again", "修改后再回答", "Sửa và trả lời lại", "直してもう一度答える", "Perbaiki dan jawab lagi")}
+          </button>
         </div>
-      ) : null}
-      {fb ? (
-        <button
-          type="button"
-          onClick={() => {
-            const el = answerRef.current;
-            if (!el) return;
-            el.focus();
-            el.setSelectionRange(el.value.length, el.value.length);
-            el.scrollIntoView({ block: "center", behavior: "smooth" });
-          }}
-          className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB]"
-        >
-          <PencilSimple className="h-3.5 w-3.5" weight="bold" /> {t("고쳐서 다시 답하기", "Revise and answer again", "修改后再回答", "Sửa và trả lời lại", "直してもう一度答える", "Perbaiki dan jawab lagi")}
-        </button>
       ) : null}
 
       {/* 꼬리 질문 — 실제 면접은 첫 답에서 끝나지 않는다. 이어서 파고드는 질문에 바로 답해 보게 한다. */}
       {fb?.followUp ? (
-        <div className="rounded-2xl border border-[#FFE2BF] bg-[#FFFAF3] p-4">
-          <p className="text-[11.5px] font-bold text-[#E8890C]">{t("면접관이 이어서 이렇게 물어볼 수 있어요", "The interviewer might follow up with", "面试官可能会接着这样问", "Người phỏng vấn có thể hỏi tiếp", "面接官はこう続けて聞くかもしれません", "Pewawancara mungkin bertanya lanjut")}</p>
-          <p className="mt-1.5 break-keep text-[14px] font-bold leading-relaxed text-[#191F28]">{fb.followUp}</p>
+        <div className="rounded-2xl border border-[#EEF1F5] p-4">
+          <p className="text-[12px] font-semibold text-[#8B95A1]">{t("면접관이 이어서 이렇게 물어볼 수 있어요", "The interviewer might follow up with", "面试官可能会接着这样问", "Người phỏng vấn có thể hỏi tiếp", "面接官はこう続けて聞くかもしれません", "Pewawancara mungkin bertanya lanjut")}</p>
+          <p className="mt-1 break-keep text-[14.5px] font-bold leading-relaxed text-[#191F28]">{fb.followUp}</p>
           <button
             type="button"
             onClick={() => onFollowUp(fb.followUp!)}
-            className="mt-3 inline-flex items-center gap-1 rounded-xl bg-[#E8890C] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#D07A08]"
+            className="mt-3 inline-flex items-center gap-1 rounded-xl border border-[#D6E0FA] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#F5F8FF]"
           >
             {t("이 질문에 답하기", "Answer this", "回答这个问题", "Trả lời câu này", "この質問に答える", "Jawab ini")} <CaretRight className="h-3.5 w-3.5" weight="bold" />
           </button>
@@ -552,6 +550,8 @@ function QuestionStep({
 function FeedbackCard({ fb, prev }: { fb: InterviewFeedback; prev: InterviewFeedback | null }) {
   const t = usePlatformT();
   const delta = prev ? fb.score - prev.score : null;
+  // 모범 답안은 길어서 접어 둔다 — 먼저 내 답을 고쳐 보게.
+  const [showSample, setShowSample] = useState(false);
   return (
     <div className="mt-1 flex flex-col gap-2.5 rounded-2xl bg-[#F8FAFB] p-4">
       {/* 점수 — 다시 답했으면 직전 점수와 나란히. 고친 만큼 오르는 걸 봐야 연습이 도움된다고 느낀다. */}
@@ -567,20 +567,23 @@ function FeedbackCard({ fb, prev }: { fb: InterviewFeedback; prev: InterviewFeed
       </div>
       {fb.strengths.length ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#0A9B59]">{t("잘한 점", "What went well", "做得好的地方", "Điểm tốt", "良かった点", "Yang sudah baik")}</p>
+          <p className="text-[12px] font-bold text-[#4E5968]">{t("잘한 점", "What went well", "做得好的地方", "Điểm tốt", "良かった点", "Yang sudah baik")}</p>
           <ul className="mt-1 flex flex-col gap-0.5">{fb.strengths.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
         </div>
       ) : null}
       {fb.improvements.length ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#E8890C]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
+          <p className="text-[12px] font-bold text-[#4E5968]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
           <ul className="mt-1 flex flex-col gap-0.5">{fb.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
         </div>
       ) : null}
       {fb.sampleAnswer ? (
-        <div>
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("모범답안(내 이력서 기반)", "Model answer (based on my resume)", "范例答案（基于我的简历）", "Câu trả lời mẫu (dựa trên CV của tôi)", "模範回答（私の履歴書に基づく）", "Jawaban model (berdasarkan resume saya)")}</p>
-          <p className="mt-1 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{fb.sampleAnswer}</p>
+        <div className="border-t border-[#EEF1F5] pt-2.5">
+          <button type="button" onClick={() => setShowSample((v) => !v)} aria-expanded={showSample} className="flex w-full items-center justify-between text-[12px] font-bold text-[#4E5968]">
+            {t("모범 답안 보기", "See a model answer", "查看范例答案", "Xem câu trả lời mẫu", "模範回答を見る", "Lihat jawaban model")}
+            <CaretRight className={`h-3.5 w-3.5 text-[#B0B8C1] transition ${showSample ? "rotate-90" : ""}`} weight="bold" />
+          </button>
+          {showSample ? <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{fb.sampleAnswer}</p> : null}
         </div>
       ) : null}
     </div>
