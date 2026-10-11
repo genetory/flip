@@ -180,15 +180,13 @@ function Jobs() {
             aria-pressed={foreigner}
             className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-band)]"}`}
           >
-            🌏 {t("외국인 지원", "Foreigners", "外国人可", "Nhận WNA", "外国人可", "WNA")}
+            🌏 {t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển người nước ngoài", "外国人採用", "Terima WNA")}
           </button>
         ) : null}
       </div>
 
-      <div className="mt-4 h-3 bg-[color:var(--v2-band)] md:mx-5 md:h-px md:bg-[color:var(--v2-line)]" aria-hidden />
-
-      {/* 목록 머리 — 왼쪽 개수, 오른쪽 정렬. */}
-      <div className="flex items-center justify-between px-5 pt-4">
+      {/* 목록 머리 — 왼쪽 개수, 오른쪽 정렬. 필터 바로 아래라 구분선 없이 여백만. */}
+      <div className="mt-5 flex items-center justify-between px-5">
         <p className="text-[14px] font-medium text-[color:var(--v2-faint)]">
           {items ? t(`${(total ?? items.length).toLocaleString()}개`, `${(total ?? items.length).toLocaleString()} jobs`, `${(total ?? items.length).toLocaleString()} 个`, `${(total ?? items.length).toLocaleString()} tin`, `${(total ?? items.length).toLocaleString()}件`, `${(total ?? items.length).toLocaleString()} lowongan`) : ""}
         </p>
@@ -236,7 +234,7 @@ function Jobs() {
                     return foreignerOk || aply || mock ? (
                       <span className="mb-1.5 flex flex-wrap gap-1.5">
                         {aply ? <Tag>Aply ONLY</Tag> : null}
-                        {foreignerOk ? <Tag>{t("외국인 지원", "Foreigners OK", "外国人可", "Nhận WNA", "外国人可", "Terbuka WNA")}</Tag> : null}
+                        {foreignerOk ? <Tag>{t("외국인 채용", "Hires foreigners", "招外国人", "Tuyển WNA", "外国人採用", "Terima WNA")}</Tag> : null}
                         {mock ? <Tag tone="accent">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}</Tag> : null}
                       </span>
                     ) : null;
