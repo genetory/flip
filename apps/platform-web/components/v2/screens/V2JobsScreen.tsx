@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Heart } from "@phosphor-icons/react";
 import { V2Shell } from "../V2Shell";
 import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
-import { companyOf, jobPhotoOf, shortPlace } from "../lib";
+import { companyOf, hasMockInterview, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -228,14 +228,21 @@ function Jobs() {
                   <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[18px] font-bold text-[color:var(--v2-faint)]">{(companyOf(j) || j.title).slice(0, 1)}</span>
                 )}
                 <span className="min-w-0 flex-1">
+                  {/* 표시 칩 — 공고 이름 위에. 모의 면접은 바로 해 볼 수 있다는 뜻이라 파란 칩으로. */}
+                  {(() => {
+                    const foreignerOk = (j.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY");
+                    const aply = j.sourceProvider === "INTERNAL";
+                    const mock = hasMockInterview(j);
+                    return foreignerOk || aply || mock ? (
+                      <span className="mb-1.5 flex flex-wrap gap-1.5">
+                        {aply ? <Tag>Aply ONLY</Tag> : null}
+                        {foreignerOk ? <Tag>{t("외국인 지원", "Foreigners OK", "外国人可", "Nhận WNA", "外国人可", "Terbuka WNA")}</Tag> : null}
+                        {mock ? <Tag tone="accent">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}</Tag> : null}
+                      </span>
+                    ) : null;
+                  })()}
                   <span className="line-clamp-2 text-[16px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{j.title}</span>
                   <span className="mt-0.5 block truncate text-[14px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation), empLabel(t, j.employmentType)].filter(Boolean).join(" · ")}</span>
-                  {(j.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY") || j.sourceProvider === "INTERNAL" ? (
-                    <span className="mt-1.5 flex gap-1.5">
-                      {j.sourceProvider === "INTERNAL" ? <Tag>Aply ONLY</Tag> : null}
-                      {(j.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY") ? <Tag>{t("외국인 지원", "Foreigners OK", "外国人可", "Nhận WNA", "外国人可", "Terbuka WNA")}</Tag> : null}
-                    </span>
-                  ) : null}
                 </span>
               </Link>
               <button
@@ -268,6 +275,6 @@ function Jobs() {
   );
 }
 
-function Tag({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-md bg-[color:var(--v2-band)] px-1.5 py-0.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)]">{children}</span>;
+function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "accent" }) {
+  return <span className={`rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${tone === "accent" ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]"}`}>{children}</span>;
 }

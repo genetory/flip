@@ -19,3 +19,9 @@ export const jobPhotoOf = (p: PublicPositionListItem): string | null =>
 
 /** 근무지 앞 두 마디(시·구)만. */
 export const shortPlace = (s?: string | null): string => (s || "").split(" ").slice(0, 2).join(" ");
+
+/** 모의 면접 가능 — 기존 목록과 같은 규칙: 회사가 등록한 내부 공고이거나, JD(주요 업무·자격 요건)가 있으면. */
+export function hasMockInterview(p: PublicPositionListItem): boolean {
+  const internal = p.sourceProvider === "INTERNAL" && p.sourceKind !== "EXTERNAL";
+  return (internal && (!!p.mockInterviewIntent?.trim() || (p.mockInterviewQuestions?.length ?? 0) > 0)) || !!p.mainResponsibilities?.trim() || !!p.requiredQualifications?.trim();
+}
