@@ -190,7 +190,7 @@ function Jobs() {
         ) : (
           items.map((j) => (
             <li key={j.id} className="flex items-center gap-3.5 border-b border-[color:var(--v2-line)] last:border-b-0">
-              <Link href={`/talent/jobs/${j.id}`} className="flex min-w-0 flex-1 items-center gap-3.5 py-4 transition hover:opacity-70">
+              <Link href={`/talent/jobs/${j.id}`} className="flex min-w-0 flex-1 items-start gap-3.5 py-4 transition hover:opacity-70">
                 {jobPhotoOf(j) ? (
                   // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
                   <img src={jobPhotoOf(j)!} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl bg-[color:var(--v2-band)] object-cover" />
