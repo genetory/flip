@@ -77,7 +77,7 @@ function Home() {
   const [personalized, setPersonalized] = useState(false);
   const [saved, setSaved] = useState<PublicPositionListItem[]>([]);
   const [mocks, setMocks] = useState<MockInterviewRecord[]>([]);
-  const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; positionId: string }[]>([]);
+  const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; photo: string | null }[]>([]);
 
   useEffect(() => {
     getMyApplications().then(setApps).catch(() => setApps([]));
@@ -99,11 +99,12 @@ function Home() {
     // 이런 회사 — 직접 채용 중인 회사 중 셋(공고 수 많은 순).
     getPublicPositionsPage({ limit: 60, sourceProviders: ["INTERNAL"], locale })
       .then((p) => {
-        const map = new Map<string, { name: string; industry?: string; count: number; positionId: string }>();
+        const map = new Map<string, { name: string; industry?: string; count: number; photo: string | null }>();
         for (const j of p.items) {
           const org = j.partnerOrganization;
           if (!org?.name) continue;
-          const e = map.get(org.name) ?? { name: org.name, industry: org.industry ? partnerIndustryLabel(org.industry) : undefined, count: 0, positionId: j.id };
+          // 대표 사진 — 사무실 사진이 있으면 그걸, 없으면 로고.
+          const e = map.get(org.name) ?? { name: org.name, industry: org.industry ? partnerIndustryLabel(org.industry) : undefined, count: 0, photo: org.officePhotoImageData || org.companyLogoImageData || null };
           e.count += 1;
           map.set(org.name, e);
         }
@@ -270,6 +271,7 @@ function Home() {
             <Row
               key={j.id}
               href={`/talent/jobs/${j.id}`}
+              thumb={{ src: j.thumbnailImages?.[0] || j.partnerOrganization?.officePhotoImageData || j.partnerOrganization?.companyLogoImageData, fallback: j.partnerOrganization?.name || j.sourceCompanyName || j.title }}
               title={j.title}
               meta={[j.partnerOrganization?.name || j.sourceCompanyName, (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined}
             />
@@ -315,7 +317,7 @@ function Home() {
             <Row
               key={c.name}
               href={`/talent/company/${encodeURIComponent(c.name)}`}
-              lead={c.name.slice(0, 1)}
+              thumb={{ src: c.photo, fallback: c.name }}
               title={c.name}
               meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}
             />

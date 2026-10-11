@@ -57,10 +57,21 @@ function Chevron() {
   );
 }
 
-/** 목록 한 줄 — 왼쪽(선택) 표시, 제목·설명, 오른쪽 보조 정보, '>'. */
-export function Row({ href, onClick, title, meta, right, lead }: { href?: string; onClick?: () => void; title: ReactNode; meta?: ReactNode; right?: ReactNode; lead?: ReactNode }) {
+/** 목록 왼쪽 사진 — 공고 썸네일·회사 대표 사진. 없으면 이름 첫 글자. */
+function Thumb({ src, fallback }: { src?: string | null; fallback: string }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
+    <img src={src} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl bg-[color:var(--v2-band)] object-cover" />
+  ) : (
+    <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[18px] font-bold text-[color:var(--v2-faint)]">{fallback.slice(0, 1)}</span>
+  );
+}
+
+/** 목록 한 줄 — 왼쪽(선택) 사진 또는 표시, 제목·설명, 오른쪽 보조 정보, '>'. */
+export function Row({ href, onClick, title, meta, right, lead, thumb }: { href?: string; onClick?: () => void; title: ReactNode; meta?: ReactNode; right?: ReactNode; lead?: ReactNode; thumb?: { src?: string | null; fallback: string } }) {
   const body = (
     <>
+      {thumb ? <Thumb src={thumb.src} fallback={thumb.fallback} /> : null}
       {lead ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-ink-3)]">{lead}</span> : null}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{title}</span>
