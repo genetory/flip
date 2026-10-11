@@ -263,3 +263,23 @@ export function PageSkeleton() {
     </Page>
   );
 }
+
+/** 서류 카드 — 이력서·자기소개서를 2단으로 나란히. 카드 전체가 편집으로, 아래 '미리보기'는 선택. */
+export function DocCard({ href, label, pct, note, previewHref, previewLabel }: { href: string; label: string; pct: number; note: string; previewHref?: string | null; previewLabel?: string }) {
+  return (
+    <div className="relative flex flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)] md:p-5">
+      <Link href={href} aria-label={label} className="absolute inset-0 rounded-2xl" />
+      <p className="text-[15px] font-semibold text-[color:var(--v2-ink-3)]">{label}</p>
+      <p className="mt-1 text-[26px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{pct}%</p>
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white" aria-hidden>
+        <div className="h-full rounded-full bg-[color:var(--v2-accent)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+      </div>
+      <p className="mt-2.5 text-[14px] text-[color:var(--v2-muted)]">{note}</p>
+      {previewHref ? (
+        <Link href={previewHref} className="relative mt-3 self-start text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
+          {previewLabel}
+        </Link>
+      ) : null}
+    </div>
+  );
+}

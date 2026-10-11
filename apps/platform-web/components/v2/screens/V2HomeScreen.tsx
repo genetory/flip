@@ -5,7 +5,7 @@
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Masthead, MastheadSkeleton, Page, PrimaryButton, Progress, Row, Section, SectionSkeleton, TextLink } from "../ui";
+import { Attention, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -223,17 +223,10 @@ function Home() {
       ) : null}
 
       <Section title={t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "私の書類", "Dokumen saya")}>
-        {[
-          { label: t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), pct: rp, href: EDITOR.resume },
-          { label: t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), pct: cp, href: EDITOR.cover }
-        ].map((d) => (
-          <div key={d.href} className="py-1">
-            <Row href={d.href} title={d.label} meta={docNote(t, d.pct)} right={`${d.pct}%`} />
-            <div className="-mt-1 mb-2">
-              <Progress pct={d.pct} />
-            </div>
-          </div>
-        ))}
+        <div className="grid grid-cols-2 gap-3 pb-2">
+          <DocCard href={EDITOR.resume} label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")} pct={rp} note={docNote(t, rp)} />
+          <DocCard href={EDITOR.cover} label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} pct={cp} note={docNote(t, cp)} />
+        </div>
       </Section>
 
       <Section

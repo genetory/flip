@@ -4,7 +4,7 @@
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
 import { useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Progress, Row, Section, SectionSkeleton, TextLink } from "../ui";
+import { Chip, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, resumeCompleteness, displayMonth, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
@@ -94,22 +94,10 @@ function Career() {
       )}
 
       <Section title={t("지원 서류", "Documents", "申请材料", "Hồ sơ ứng tuyển", "応募書類", "Dokumen lamaran")}>
-        {[
-          { key: "resume", label: t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), pct: rp, href: R.resume, preview: resume ? R.resumePreview : null },
-          { key: "cover", label: t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), pct: cp, href: R.cover, preview: cover ? R.coverPreview : null }
-        ].map((d) => (
-          <div key={d.key} className="py-1">
-            <Row href={d.href} title={d.label} meta={docNote(t, d.pct)} right={`${d.pct}%`} />
-            <div className="-mt-1">
-              <Progress pct={d.pct} />
-            </div>
-            {d.preview ? (
-              <div className="mb-2 mt-2.5">
-                <TextLink href={d.preview}>{t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} ›</TextLink>
-              </div>
-            ) : null}
-          </div>
-        ))}
+        <div className="grid grid-cols-2 gap-3 pb-2">
+          <DocCard href={R.resume} label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")} pct={rp} note={docNote(t, rp)} previewHref={resume ? R.resumePreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} />
+          <DocCard href={R.cover} label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} pct={cp} note={docNote(t, cp)} previewHref={cover ? R.coverPreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} />
+        </div>
       </Section>
 
       <Section
