@@ -17,7 +17,6 @@ import { useLoginGate } from "../../talent/app/LoginRequiredModal";
 import { addMyFavoritePosition, getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
 
 type Tab = "all" | "aply" | "interest" | "saved";
-type Emp = "FULL_TIME" | "INTERN";
 const PAGE = 20;
 
 function empLabel(t: PlatformT, e: PublicPositionListItem["employmentType"]): string {
@@ -44,8 +43,7 @@ function Jobs() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [foreigner, setForeigner] = useState(false);
-  const [emp, setEmp] = useState<Emp[]>([]);
-  const [locs, setLocs] = useState<string[]>([]);
+  const [sort, setSort] = useState<"latest" | "deadline">("latest");
   // 결과는 '어떤 조건으로 받은 것인지'와 함께 둔다 — 조건이 바뀌면 새 결과가 올 때까지 스켈레톤을 보이게.
   const [result, setResult] = useState<{ for: unknown; items: PublicPositionListItem[]; total: number | null } | null>(null);
   const [page, setPage] = useState(1);
@@ -70,7 +68,10 @@ function Jobs() {
       if (tab === "saved") {
         const list = isAuthenticated ? await getMyFavoritePositions() : [];
         const q = search.toLowerCase();
-        const filtered = q ? list.filter((j) => `${j.title} ${companyOf(j)}`.toLowerCase().includes(q)) : list;
+        const matched = q ? list.filter((j) => `${j.title} ${companyOf(j)}`.toLowerCase().includes(q)) : list;
+        // 저장한 공고는 서버 정렬이 없어 여기서 — 마감 임박순이면 마감일 빠른 것부터(상시 채용은 뒤로).
+        const due = (j: PublicPositionListItem) => (j.sourceDeadlineDate && !j.sourceDeadlineRolling ? new Date(j.sourceDeadlineDate).getTime() : Infinity);
+        const filtered = sort === "deadline" ? [...matched].sort((a, b) => due(a) - due(b)) : matched;
         return { items: filtered, total: filtered.length };
       }
       if (tab === "interest" && !interests.length) return { items: [], total: 0 };
@@ -80,14 +81,13 @@ function Jobs() {
         search: search || undefined,
         sourceProviders: tab === "aply" ? ["INTERNAL"] : undefined,
         jobRoles: tab === "interest" ? jobCategoriesForInterests(interests) : undefined,
-        employmentTypes: emp.length ? (emp.flatMap((e) => (e === "INTERN" ? ["INTERN", "UNPAID_INTERN"] : [e])) as PublicPositionListItem["employmentType"][]) : undefined,
-        locations: locs.length ? locs : undefined,
+        sort,
         foreignerEligible: foreigner || undefined,
         locale
       });
       return { items: res.items, total: res.total ?? null };
     },
-    [tab, search, interests, emp, locs, foreigner, locale, isAuthenticated]
+    [tab, search, interests, sort, foreigner, locale, isAuthenticated]
   );
 
   useEffect(() => {
@@ -138,7 +138,6 @@ function Jobs() {
       );
     });
 
-  const toggle = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const tabs: [Tab, string][] = [
     ["all", t("전체", "All", "全部", "Tất cả", "すべて", "Semua")],
     ["aply", "Aply ONLY"],
@@ -158,24 +157,47 @@ function Jobs() {
       <div className="px-5">
         <SearchField value={query} onChange={setQuery} placeholder={t("직무, 회사 또는 역량 검색", "Search roles, companies, skills", "搜索职位、公司或技能", "Tìm vị trí, công ty, kỹ năng", "職種・会社・スキルで検索", "Cari peran, perusahaan, keahlian")} />
       </div>
-      <div className="mt-4 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {tabs.map(([k, label]) => (
-          <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
-            {label}
-          </Chip>
-        ))}
-      </div>
-      {tab !== "saved" ? (
-        <div className="mt-2 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <FilterChip on={foreigner} onClick={() => setForeigner((v) => !v)}>🌏 {t("외국인 지원", "Foreigners OK", "外国人可", "Nhận người nước ngoài", "外国人可", "Terbuka WNA")}</FilterChip>
-          <FilterChip on={emp.includes("FULL_TIME")} onClick={() => setEmp((l) => toggle(l, "FULL_TIME"))}>{t("정규직", "Full-time", "全职", "Toàn thời gian", "正社員", "Penuh waktu")}</FilterChip>
-          <FilterChip on={emp.includes("INTERN")} onClick={() => setEmp((l) => toggle(l, "INTERN"))}>{t("인턴", "Intern", "实习", "Thực tập", "インターン", "Magang")}</FilterChip>
-          <FilterChip on={locs.includes("서울")} onClick={() => setLocs((l) => toggle(l, "서울"))}>{t("서울", "Seoul", "首尔", "Seoul", "ソウル", "Seoul")}</FilterChip>
-          <FilterChip on={locs.includes("경기")} onClick={() => setLocs((l) => toggle(l, "경기"))}>{t("경기", "Gyeonggi", "京畿", "Gyeonggi", "京畿", "Gyeonggi")}</FilterChip>
+      {/* 탭 칩 줄 — 왼쪽 탭(넘치면 가로로 넘김), 오른쪽 끝에 '외국인 지원' 토글을 같은 높이로 고정. */}
+      <div className="mt-4 flex items-center gap-2 pl-5 pr-5">
+        <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {tabs.map(([k, label]) => (
+            <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
+              {label}
+            </Chip>
+          ))}
         </div>
-      ) : null}
+        {tab !== "saved" ? (
+          <button
+            type="button"
+            onClick={() => setForeigner((v) => !v)}
+            aria-pressed={foreigner}
+            className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${foreigner ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-band)]"}`}
+          >
+            🌏 {t("외국인 지원", "Foreigners", "外国人可", "Nhận WNA", "外国人可", "WNA")}
+          </button>
+        ) : null}
+      </div>
 
       <div className="mt-4 h-3 bg-[color:var(--v2-band)] md:mx-5 md:h-px md:bg-[color:var(--v2-line)]" aria-hidden />
+
+      {/* 목록 머리 — 왼쪽 개수, 오른쪽 정렬. */}
+      <div className="flex items-center justify-between px-5 pt-4">
+        <p className="text-[14px] font-medium text-[color:var(--v2-faint)]">
+          {items ? t(`${(total ?? items.length).toLocaleString()}개`, `${(total ?? items.length).toLocaleString()} jobs`, `${(total ?? items.length).toLocaleString()} 个`, `${(total ?? items.length).toLocaleString()} tin`, `${(total ?? items.length).toLocaleString()}件`, `${(total ?? items.length).toLocaleString()} lowongan`) : ""}
+        </p>
+        <div className="flex items-center gap-3 text-[14px]">
+          {(
+            [
+              ["latest", t("최신순", "Newest", "最新", "Mới nhất", "新着順", "Terbaru")],
+              ["deadline", t("마감 임박순", "Closing soon", "即将截止", "Sắp hết hạn", "締切が近い順", "Segera tutup")]
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} type="button" onClick={() => setSort(k)} aria-pressed={sort === k} className={sort === k ? "font-bold text-[color:var(--v2-ink)]" : "font-medium text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]"}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <ul className="px-5">
         {items === null ? (
@@ -236,19 +258,6 @@ function Jobs() {
       ) : null}
       {loginModal}
     </Page>
-  );
-}
-
-function FilterChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-[14px] font-semibold transition ${on ? "border-[color:var(--v2-accent)] bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "border-[color:var(--v2-line)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-band)]"}`}
-    >
-      {children}
-    </button>
   );
 }
 
