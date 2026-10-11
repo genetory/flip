@@ -2,86 +2,117 @@
 
 // 리뉴얼 v2 공통 조각 — 모든 v2 화면이 이것만으로 짜이게 한다(화면마다 따로 꾸며 정신없어지는 것을 막는다).
 //
-// 규칙
-//  - 구분은 상자 대신 '여백 + 가는 선(hairline)'. 카드는 정말 따로 떼어 볼 것에만.
-//  - 제목은 Paperlogy(display), 본문은 Pretendard. 본문 16px·줄간격 넉넉히.
-//  - 포인트 색은 파랑 하나 — 누를 수 있는 것에만. 주의 색(갈색)은 '마감·다시 볼 것'에만.
-//  - 한 화면의 주 행동은 하나(PrimaryButton). 나머지는 글자 링크(TextLink).
+// 규칙(흰 바탕 토스 스타일)
+//  - 글의 위계는 크기·굵기·회색 단계로. 색은 쓰지 않는다.
+//  - 구획은 두꺼운 연회색 띠(Band)로 나눈다. 구획 안에선 상자 없이 목록(Row).
+//  - 목록 한 줄은 오른쪽 '>' — 누르면 들어간다는 걸 늘 같은 모양으로.
+//  - 한 화면의 주 행동은 하나(PrimaryButton, 큰 파란 둥근 버튼). 나머지는 SecondaryButton·TextLink.
+//  - 주황(attention)은 마감·다시 볼 것에만.
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { paperlogy } from "../../lib/fonts";
 
-const display = paperlogy.className;
-
-/** 본문 폭 — 읽기 좋은 한 단(약 34자). */
+/** 본문 폭 — 모바일은 꽉 차게, PC 는 가운데 한 단. */
 export function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto w-full max-w-[720px] px-5 pb-24 pt-10 md:pt-14">{children}</main>;
+  return <main className="mx-auto w-full max-w-[640px] pb-24">{children}</main>;
 }
 
-/** 머리말 — 작은 머리글 · 큰 제목 · 한 줄 설명. 화면의 첫인상은 이것 하나로. */
-export function Masthead({ eyebrow, title, lede, action }: { eyebrow?: string; title: ReactNode; lede?: ReactNode; action?: ReactNode }) {
+/** 머리말 — 작은 머리글 · 굵은 큰 제목 · 한두 줄 설명 · 주 행동. */
+export function Masthead({ eyebrow, title, lede, action }: { eyebrow?: ReactNode; title: ReactNode; lede?: ReactNode; action?: ReactNode }) {
   return (
-    <header>
-      {eyebrow ? <p className="text-[13px] font-semibold tracking-[0.02em] text-[color:var(--v2-muted)]">{eyebrow}</p> : null}
-      <h1 className={`${display} mt-2 text-[28px] font-extrabold leading-[1.3] tracking-[-0.03em] text-[color:var(--v2-ink)] md:text-[36px]`}>{title}</h1>
-      {lede ? <p className="mt-3 max-w-[560px] text-[16px] leading-[1.75] text-[color:var(--v2-ink-2)]">{lede}</p> : null}
+    <header className="px-5 pb-8 pt-8 md:pt-12">
+      {eyebrow ? <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">{eyebrow}</p> : null}
+      <h1 className="mt-1.5 text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{title}</h1>
+      {lede ? <p className="mt-2.5 text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">{lede}</p> : null}
       {action ? <div className="mt-6">{action}</div> : null}
     </header>
   );
 }
 
-/** 구획 — 위에 가는 선, 제목, 내용. 화면은 이것을 쌓아서 만든다. */
+/** 구획 사이 두꺼운 연회색 띠. */
+export function Band() {
+  return <div aria-hidden className="h-3 bg-[color:var(--v2-band)] md:mx-5 md:h-px md:bg-[color:var(--v2-line)]" />;
+}
+
+/** 구획 — 띠 위에 제목과 내용. */
 export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="mt-14 border-t border-[color:var(--v2-line)] pt-6">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className={`${display} text-[19px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]`}>{title}</h2>
-        {aside}
-      </div>
-      <div className="mt-4">{children}</div>
-    </section>
+    <>
+      <Band />
+      <section className="px-5 pb-4 pt-7">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>
+          {aside}
+        </div>
+        <div className="mt-3">{children}</div>
+      </section>
+    </>
   );
 }
 
-/** 목록 한 줄 — 글 중심. 왼쪽 큰 글, 아래 작은 설명, 오른쪽 보조 정보. 줄 사이는 가는 선. */
+function Chevron() {
+  return (
+    <svg aria-hidden width="16" height="16" viewBox="0 0 16 16" className="shrink-0 text-[color:var(--v2-faint)]">
+      <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** 목록 한 줄 — 왼쪽(선택) 표시, 제목·설명, 오른쪽 보조 정보, '>'. */
 export function Row({ href, onClick, title, meta, right, lead }: { href?: string; onClick?: () => void; title: ReactNode; meta?: ReactNode; right?: ReactNode; lead?: ReactNode }) {
   const body = (
     <>
-      {lead ? <span className="w-8 shrink-0 pt-[2px] text-[15px] font-bold tabular-nums text-[color:var(--v2-faint)]">{lead}</span> : null}
+      {lead ? <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-ink-3)]">{lead}</span> : null}
       <span className="min-w-0 flex-1">
-        <span className="block text-[16px] font-semibold leading-[1.5] text-[color:var(--v2-ink)]">{title}</span>
-        {meta ? <span className="mt-0.5 block text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{meta}</span> : null}
+        <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{title}</span>
+        {meta ? <span className="mt-0.5 block truncate text-[14px] leading-[1.5] text-[color:var(--v2-faint)]">{meta}</span> : null}
       </span>
-      {right ? <span className="shrink-0 pt-[2px] text-[14px] font-semibold text-[color:var(--v2-ink-2)]">{right}</span> : null}
+      {right ? <span className="shrink-0 text-[15px] font-semibold text-[color:var(--v2-ink-3)]">{right}</span> : null}
+      {href || onClick ? <Chevron /> : null}
     </>
   );
-  const cls = "flex w-full items-start gap-3 border-b border-[color:var(--v2-line)] py-4 text-left transition last:border-b-0 hover:opacity-70";
+  const cls = "-mx-2 flex w-[calc(100%+16px)] items-center gap-3.5 rounded-2xl px-2 py-3.5 text-left transition active:bg-[color:var(--v2-band)] md:hover:bg-[color:var(--v2-fill)]";
   if (href) return <Link href={href} className={cls}>{body}</Link>;
   if (onClick) return <button type="button" onClick={onClick} className={cls}>{body}</button>;
-  return <div className={cls.replace(" hover:opacity-70", "")}>{body}</div>;
+  return <div className={cls}>{body}</div>;
 }
 
-/** 주 행동 — 화면에 하나. 먹색 바탕. */
-export function PrimaryButton({ href, onClick, children }: { href?: string; onClick?: () => void; children: ReactNode }) {
-  const cls = "inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[color:var(--v2-ink)] px-6 text-[15px] font-semibold text-white transition hover:opacity-85";
+/** 주 행동 — 화면에 하나. 큰 파란 둥근 버튼(모바일은 꽉 차게). */
+export function PrimaryButton({ href, onClick, children, disabled }: { href?: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
+  const cls = "inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-accent)] px-6 text-[17px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40 md:w-auto md:min-w-[200px]";
+  if (href) return <Link href={href} className={cls}>{children}</Link>;
+  return <button type="button" onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
+}
+
+/** 보조 행동 — 연파랑 바탕. */
+export function SecondaryButton({ href, onClick, children }: { href?: string; onClick?: () => void; children: ReactNode }) {
+  const cls = "inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent-weak)] px-4 text-[15px] font-semibold text-[color:var(--v2-accent)] transition active:scale-[0.98]";
   if (href) return <Link href={href} className={cls}>{children}</Link>;
   return <button type="button" onClick={onClick} className={cls}>{children}</button>;
 }
 
-/** 보조 행동 — 파란 글자 + 화살표. */
+/** 글자 링크 — 회색, 구획 오른쪽 '전체' 같은 곳. */
 export function TextLink({ href, onClick, children }: { href?: string; onClick?: () => void; children: ReactNode }) {
-  const cls = "inline-flex items-center gap-1 text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-70";
-  if (href) return <Link href={href} className={cls}>{children} <span aria-hidden>→</span></Link>;
-  return <button type="button" onClick={onClick} className={cls}>{children} <span aria-hidden>→</span></button>;
+  const cls = "inline-flex items-center gap-0.5 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]";
+  if (href) return <Link href={href} className={cls}>{children}</Link>;
+  return <button type="button" onClick={onClick} className={cls}>{children}</button>;
 }
 
-/** 숫자 하나를 크게 — 진행률·개수. 막대 대신 숫자로 읽게. */
+/** 큰 숫자 하나 — 진행률·개수. */
 export function Figure({ value, label, note }: { value: ReactNode; label: string; note?: ReactNode }) {
   return (
     <div>
-      <p className={`${display} text-[30px] font-extrabold leading-none tracking-[-0.03em] text-[color:var(--v2-ink)]`}>{value}</p>
-      <p className="mt-2 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">{label}</p>
-      {note ? <p className="mt-0.5 text-[13px] text-[color:var(--v2-muted)]">{note}</p> : null}
+      <p className="text-[15px] font-medium text-[color:var(--v2-muted)]">{label}</p>
+      <p className="mt-1 text-[26px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{value}</p>
+      {note ? <p className="mt-0.5 text-[14px] text-[color:var(--v2-faint)]">{note}</p> : null}
+    </div>
+  );
+}
+
+/** 진행 막대 — 토스처럼 얇고 둥글게. */
+export function Progress({ pct }: { pct: number }) {
+  return (
+    <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
+      <div className="h-full rounded-full bg-[color:var(--v2-accent)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
     </div>
   );
 }
@@ -90,5 +121,3 @@ export function Figure({ value, label, note }: { value: ReactNode; label: string
 export function Attention({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-[color:var(--v2-attention)]">{children}</span>;
 }
-
-export const v2Display = display;

@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
-import { Masthead, Page, PrimaryButton, TextLink } from "./ui";
+import { Masthead, Page, PrimaryButton, SecondaryButton } from "./ui";
 
 export const V2_ROUTES = {
   home: "/v2/home",
@@ -46,8 +46,8 @@ function Header() {
         key={n.href}
         href={n.href}
         aria-current={active ? "page" : undefined}
-        className={`shrink-0 border-b-2 py-3 text-[15px] transition md:py-5 ${
-          active ? "border-[color:var(--v2-ink)] font-bold text-[color:var(--v2-ink)]" : "border-transparent font-medium text-[color:var(--v2-muted)] hover:text-[color:var(--v2-ink)]"
+        className={`shrink-0 py-3 text-[16px] transition md:py-5 ${
+          active ? "font-bold text-[color:var(--v2-ink)]" : "font-medium text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]"
         }`}
       >
         {n.label}
@@ -55,7 +55,7 @@ function Header() {
     );
   });
   return (
-    <header className="sticky top-0 z-40 border-b border-[color:var(--v2-line)] bg-[color:var(--v2-paper)]/95 backdrop-blur">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-[1040px] items-center gap-8 px-5">
         <Link href={V2_ROUTES.home} aria-label="Aply" className="flex h-14 shrink-0 items-center md:h-auto">
           <Image src="/img_logo.webp" alt="Aply" width={64} height={20} className="h-[18px] w-auto" priority />
@@ -88,7 +88,7 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
   const pathname = usePathname() ?? "";
   const { isReady, isAuthenticated } = useAuthSession();
   let body: ReactNode = children;
-  if (requireAuth && !isReady) body = <Page><p className="text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p></Page>;
+  if (requireAuth && !isReady) body = <Page><p className="px-5 pt-10 text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p></Page>;
   else if (requireAuth && !isAuthenticated) {
     body = (
       <Page>
@@ -97,9 +97,9 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
           title={t("내 정보로 채워지는 화면이에요", "This page is filled with your own information", "此页面会显示你的个人信息", "Trang này hiển thị thông tin của bạn", "あなたの情報で埋まる画面です", "Halaman ini berisi datamu")}
           lede={t("로그인하면 이어서 볼 수 있어요. 가입은 무료예요.", "Log in to continue. Signing up is free.", "登录后即可继续查看。注册免费。", "Đăng nhập để tiếp tục. Đăng ký miễn phí.", "ログインすると続きが見られます。登録は無料です。", "Masuk untuk melanjutkan. Daftar gratis.")}
           action={
-            <div className="flex flex-wrap items-center gap-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
               <PrimaryButton href={`/talent/login?next=${encodeURIComponent(pathname)}`}>{t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}</PrimaryButton>
-              <TextLink href={`/talent/signup?next=${encodeURIComponent(pathname)}`}>{t("무료로 가입하기", "Sign up free", "免费注册", "Đăng ký miễn phí", "無料で登録", "Daftar gratis")}</TextLink>
+              <SecondaryButton href={`/talent/signup?next=${encodeURIComponent(pathname)}`}>{t("무료로 가입하기", "Sign up free", "免费注册", "Đăng ký miễn phí", "無料で登録", "Daftar gratis")}</SecondaryButton>
             </div>
           }
         />

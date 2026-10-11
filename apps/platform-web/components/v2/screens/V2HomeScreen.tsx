@@ -4,7 +4,7 @@
 // 데이터는 기존 것(이력서·자소서·지원·공고)을 그대로 읽는다.
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Figure, Masthead, Page, PrimaryButton, Row, Section, TextLink } from "../ui";
+import { Attention, Masthead, Page, PrimaryButton, Progress, Row, Section, TextLink } from "../ui";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -123,20 +123,17 @@ function Home() {
       <Masthead eyebrow={eyebrow} title={lead.title} lede={lead.lede} action={<PrimaryButton href={lead.cta.href}>{lead.cta.label}</PrimaryButton>} />
 
       <Section title={t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "私の書類", "Dokumen saya")}>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <Figure value={`${rp}%`} label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")} note={docNote(t, rp)} />
-            <div className="mt-3">
-              <TextLink href={EDITOR.resume}>{rp ? t("이어 쓰기", "Continue", "继续", "Viết tiếp", "続ける", "Lanjut") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}</TextLink>
+        {[
+          { label: t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), pct: rp, href: EDITOR.resume },
+          { label: t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), pct: cp, href: EDITOR.cover }
+        ].map((d) => (
+          <div key={d.href} className="py-1">
+            <Row href={d.href} title={d.label} meta={docNote(t, d.pct)} right={`${d.pct}%`} />
+            <div className="-mt-1 mb-2">
+              <Progress pct={d.pct} />
             </div>
           </div>
-          <div>
-            <Figure value={`${cp}%`} label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} note={docNote(t, cp)} />
-            <div className="mt-3">
-              <TextLink href={EDITOR.cover}>{cp ? t("이어 쓰기", "Continue", "继续", "Viết tiếp", "続ける", "Lanjut") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}</TextLink>
-            </div>
-          </div>
-        </div>
+        ))}
       </Section>
 
       <Section
@@ -166,7 +163,7 @@ function Home() {
       </Section>
 
       {jobs.length ? (
-        <Section title={t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")} aside={<TextLink href={V2_ROUTES.jobs}>{t("전체", "All", "全部", "Tất cả", "すべて", "Semua")}</TextLink>}>
+        <Section title={t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")} aside={<TextLink href={V2_ROUTES.jobs}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
           <div>
             {jobs.map((j) => (
               <Row
