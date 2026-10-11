@@ -1,10 +1,9 @@
 "use client";
 
 // v2 포지션 탐색 — 검색칸 하나, 탭·필터는 칩 한 줄씩, 공고는 사진 달린 목록. 게스트도 본다.
-// 저장(하트)은 로그인 필요 — 기존 로그인 유도 팝업(useLoginGate)을 쓴다. 공고 상세는 아직 기존 화면.
+// 저장은 공고 상세에서 한다(목록엔 하트 없음 — 공고 이름이 주인공). 공고 상세는 아직 기존 화면.
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Heart } from "@phosphor-icons/react";
 import { V2Shell } from "../V2Shell";
 import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField } from "../ui";
 import { companyOf, hasMockInterview, jobPhotoOf, shortPlace } from "../lib";
@@ -13,8 +12,7 @@ import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
-import { useLoginGate } from "../../talent/app/LoginRequiredModal";
-import { addMyFavoritePosition, getMyFavoritePositions, getPublicPositionsPage, removeMyFavoritePosition, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getMyFavoritePositions, getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 
 type Tab = "all" | "aply" | "interest" | "saved";
 const PAGE = 20;
@@ -37,7 +35,6 @@ function Jobs() {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const { isAuthenticated } = useAuthSession();
-  const { ensure, modal: loginModal } = useLoginGate();
   const interests = useJobInterests();
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
@@ -48,7 +45,6 @@ function Jobs() {
   const [result, setResult] = useState<{ for: unknown; items: PublicPositionListItem[]; total: number | null } | null>(null);
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(false);
-  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   // 입력이 멈추면 검색(0.35초).
   useEffect(() => {
@@ -56,12 +52,6 @@ function Jobs() {
     return () => clearTimeout(id);
   }, [query]);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    getMyFavoritePositions()
-      .then((l) => setSaved(new Set(l.map((p) => p.id))))
-      .catch(() => {});
-  }, [isAuthenticated]);
 
   const fetchPage = useCallback(
     async (p: number): Promise<{ items: PublicPositionListItem[]; total: number | null }> => {
@@ -118,25 +108,6 @@ function Jobs() {
       })
       .finally(() => setMore(false));
   };
-
-  const toggleSave = (id: string) =>
-    ensure(() => {
-      const on = !saved.has(id);
-      setSaved((s) => {
-        const n = new Set(s);
-        if (on) n.add(id);
-        else n.delete(id);
-        return n;
-      });
-      (on ? addMyFavoritePosition(id) : removeMyFavoritePosition(id)).catch(() =>
-        setSaved((s) => {
-          const n = new Set(s);
-          if (on) n.delete(id);
-          else n.add(id);
-          return n;
-        })
-      );
-    });
 
   const tabs: [Tab, string][] = [
     ["all", t("전체", "All", "全部", "Tất cả", "すべて", "Semua")],
@@ -212,7 +183,7 @@ function Jobs() {
             {tab === "interest" && !interests.length
               ? t("관심 직무를 고르면 맞는 공고만 모아 볼 수 있어요.", "Pick job interests to see matching jobs.", "选择感兴趣的职位即可查看匹配职位。", "Chọn nghề quan tâm để xem việc phù hợp.", "関心職種を選ぶと合う求人だけ見られます。", "Pilih minat untuk melihat lowongan yang cocok.")
               : tab === "saved"
-                ? t("저장한 공고가 없어요. 마음에 드는 공고에 하트를 눌러 보세요.", "No saved jobs. Tap the heart on a job you like.", "没有收藏的职位。为喜欢的职位点亮爱心吧。", "Chưa lưu tin nào. Nhấn tim ở tin bạn thích.", "保存した求人はありません。気になる求人のハートを押しましょう。", "Belum ada yang disimpan. Ketuk hati di lowongan yang disukai.")
+                ? t("저장한 공고가 없어요. 공고 상세에서 저장할 수 있어요.", "No saved jobs. You can save one from its detail page.", "没有收藏的职位。可在职位详情中收藏。", "Chưa lưu tin nào. Có thể lưu ở trang chi tiết.", "保存した求人はありません。求人詳細から保存できます。", "Belum ada yang disimpan. Simpan dari halaman detail.")
                 : t("조건에 맞는 공고가 없어요. 필터를 줄여 보세요.", "No jobs match. Try fewer filters.", "没有符合条件的职位，试着减少筛选。", "Không có việc phù hợp. Hãy bớt bộ lọc.", "条件に合う求人がありません。絞り込みを減らしてみてください。", "Tidak ada yang cocok. Kurangi filter.")}
           </Empty>
         ) : (
@@ -239,19 +210,10 @@ function Jobs() {
                       </span>
                     ) : null;
                   })()}
-                  <span className="line-clamp-2 text-[16px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{j.title}</span>
-                  <span className="mt-0.5 block truncate text-[14px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation), empLabel(t, j.employmentType)].filter(Boolean).join(" · ")}</span>
+                  <span className="line-clamp-2 text-[17px] font-bold leading-[1.4] tracking-[-0.01em] text-[color:var(--v2-ink)]">{j.title}</span>
+                  <span className="mt-1 block truncate text-[13px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation), empLabel(t, j.employmentType)].filter(Boolean).join(" · ")}</span>
                 </span>
               </Link>
-              <button
-                type="button"
-                onClick={() => toggleSave(j.id)}
-                aria-pressed={saved.has(j.id)}
-                aria-label={saved.has(j.id) ? t("저장 취소", "Unsave", "取消收藏", "Bỏ lưu", "保存を解除", "Batal simpan") : t("저장", "Save", "收藏", "Lưu", "保存", "Simpan")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-[color:var(--v2-band)]"
-              >
-                <Heart className={`h-[22px] w-[22px] ${saved.has(j.id) ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-faint)]"}`} weight={saved.has(j.id) ? "fill" : "regular"} />
-              </button>
             </li>
           ))
         )}
@@ -268,11 +230,10 @@ function Jobs() {
           </Button>
         </div>
       ) : null}
-      {loginModal}
     </Page>
   );
 }
 
 function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "accent" }) {
-  return <span className={`rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${tone === "accent" ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]"}`}>{children}</span>;
+  return <span className={`rounded-md px-2.5 py-0.5 text-[12px] font-semibold ${tone === "accent" ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]"}`}>{children}</span>;
 }
