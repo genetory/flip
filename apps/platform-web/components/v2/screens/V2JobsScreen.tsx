@@ -168,30 +168,30 @@ function Jobs() {
     const f = foreigner && tab !== "saved";
     if (search)
       return {
-        title: t(`'${search}' 검색 결과`, `Results for '${search}'`, `“${search}” 的搜索结果`, `Kết quả cho '${search}'`, `「${search}」の検索結果`, `Hasil untuk '${search}'`),
+        title: t(`'${search}' 공고를 찾아봤어요`, `Here's what we found for '${search}'`, `为你找到了“${search}”相关职位`, `Đây là kết quả cho '${search}'`, `「${search}」の求人を探しました`, `Ini hasil untuk '${search}'`),
         lede: countLede
       };
-    if (tab === "saved") return { title: t("저장한 공고", "Saved jobs", "已收藏的职位", "Tin đã lưu", "保存した求人", "Lowongan tersimpan"), lede: countLede };
+    if (tab === "saved") return { title: t("저장해 둔 공고예요", "Jobs you saved", "这是你收藏的职位", "Những tin bạn đã lưu", "保存しておいた求人です", "Lowongan yang kamu simpan"), lede: countLede };
     if (tab === "aply")
       return {
         title: f
-          ? t("외국인을 채용하는 Aply 공고", "Aply jobs open to foreigners", "招外国人的 Aply 职位", "Việc Aply nhận người nước ngoài", "外国人を採用するAply求人", "Lowongan Aply untuk WNA")
-          : t("Aply로 바로 지원하는 공고", "Apply directly on Aply", "可在 Aply 直接投递的职位", "Ứng tuyển trực tiếp trên Aply", "Aplyで直接応募できる求人", "Lamar langsung di Aply"),
+          ? t("외국인도 Aply에서 바로 지원할 수 있어요", "Foreigners can apply right here on Aply", "外国人也能在 Aply 直接投递", "Người nước ngoài cũng ứng tuyển ngay trên Aply", "外国の方もAplyですぐ応募できます", "WNA juga bisa langsung melamar di Aply")
+          : t("Aply에서 바로 지원할 수 있어요", "Apply right here on Aply", "在 Aply 就能直接投递", "Ứng tuyển ngay trên Aply", "Aplyですぐ応募できます", "Langsung lamar di Aply"),
         lede: countLede
       };
     if (tab === "interest") {
       const names = interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ");
       return {
         title: f
-          ? t("외국인을 채용하는 관심 직무 공고", "Jobs in your interests open to foreigners", "招外国人的感兴趣职位", "Việc theo sở thích nhận WNA", "外国人を採用する関心職種の求人", "Lowongan minatmu untuk WNA")
-          : t("관심 직무 공고", "Jobs in your interests", "感兴趣的职位", "Việc theo nghề quan tâm", "関心職種の求人", "Lowongan sesuai minat"),
+          ? t("외국인도 지원할 수 있는 관심 직무 공고예요", "Jobs in your interests that welcome foreigners", "外国人也能申请的感兴趣职位", "Việc bạn quan tâm, người nước ngoài cũng ứng tuyển được", "外国の方も応募できる関心職種の求人です", "Lowongan minatmu yang terbuka untuk WNA")
+          : t("관심 직무에 맞는 공고예요", "Jobs that match your interests", "这些职位符合你的兴趣", "Việc hợp với nghề bạn quan tâm", "関心職種に合う求人です", "Lowongan yang cocok dengan minatmu"),
         lede: names ? <>{names} · {countLede}</> : countLede
       };
     }
     return {
       title: f
-        ? t("외국인을 채용하는 공고", "Jobs open to foreigners", "招外国人的职位", "Việc nhận người nước ngoài", "外国人を採用する求人", "Lowongan untuk WNA")
-        : t("지금 채용 중인 공고", "Jobs hiring now", "正在招聘的职位", "Việc đang tuyển", "いま募集中の求人", "Lowongan yang sedang dibuka"),
+        ? t("외국인도 지원할 수 있는 공고예요", "Jobs that welcome foreigners", "这些职位外国人也能申请", "Việc người nước ngoài cũng ứng tuyển được", "外国の方も応募できる求人です", "Lowongan yang terbuka untuk WNA")
+        : t("지금 채용 중인 공고를 모았어요", "Here are the jobs hiring now", "为你整理了正在招聘的职位", "Tổng hợp việc đang tuyển cho bạn", "いま募集中の求人を集めました", "Ini lowongan yang sedang dibuka"),
       lede: countLede
     };
   })();
