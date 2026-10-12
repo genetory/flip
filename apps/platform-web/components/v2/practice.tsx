@@ -11,7 +11,8 @@ import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { aiInterviewFeedback, getAnswerExamples, shareAnswerExample, type InterviewFeedback } from "../../lib/member-profile-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
-import { saveSelfMockAnswer } from "../../lib/talent/self-mock";
+import { saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
+import { formatRelativeTime } from "../../lib/talent/career-feed";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
 
 export type PracticeQuestion = { ko: string; shown: string; category: string };
@@ -78,6 +79,10 @@ export function PracticeSheet({
   const resume = useResumeDoc();
   const info = useBasicInfo();
   const [answer, setAnswer] = useState(initialAnswer);
+  const selfMock = useSelfMock();
+  // 예전에 이 질문에 답한 적 있으면(내 서류·오늘의 질문 연습) — 지난 답과 평가를 보여 주고 거기서 고쳐 쓸 수 있게.
+  const prev = !onSave ? (selfMock?.answers ?? []).find((a) => a.question === question.ko && a.answer.trim()) : undefined;
+  const [showPrev, setShowPrev] = useState(false);
   const [timed, setTimed] = useState(false);
   const [left, setLeft] = useState(60);
   const [running, setRunning] = useState(false);
@@ -180,6 +185,35 @@ export function PracticeSheet({
     >
       <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
       {locale !== "ko" && question.shown !== question.ko ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
+      {prev && !feedback ? (
+        <div className="mt-3 rounded-2xl bg-[color:var(--v2-fill)] p-4">
+          <button type="button" onClick={() => setShowPrev((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left">
+            <span className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">
+              {t("지난번 내 답", "My last answer", "上次的回答", "Câu trả lời trước", "前回の回答", "Jawaban terakhir")} <span className="font-medium text-[color:var(--v2-faint)]">· {formatRelativeTime(prev.updatedAt, undefined, t)}</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <LevelChip t={t} score={prev.score} />
+              <svg viewBox="0 0 24 24" className={`h-4 w-4 text-[color:var(--v2-faint)] transition ${showPrev ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </button>
+          {showPrev ? (
+            <div className="mt-3 text-[14px] leading-[1.6]">
+              <p className="whitespace-pre-wrap text-[color:var(--v2-ink-3)]">{prev.answer}</p>
+              {prev.feedback?.strengths?.length ? <p className="mt-2 text-[color:var(--v2-good)]"><b>{t("잘한 점", "Good", "优点", "Tốt", "良い点", "Bagus")}</b> · {prev.feedback.strengths.slice(0, 2).join(" / ")}</p> : null}
+              {prev.feedback?.improvements?.length ? <p className="mt-1 text-[color:var(--v2-attention)]"><b>{t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")}</b> · {prev.feedback.improvements.slice(0, 2).join(" / ")}</p> : null}
+              <div className="mt-3">
+                <Button size="sm" variant="white" onClick={() => setAnswer(prev.answer)}>
+                  {t("이 답에서 고쳐 쓰기", "Edit from this", "在此基础上修改", "Sửa từ bản này", "これを直して書く", "Perbaiki dari ini")}
+                </Button>
+              </div>
+            </div>
+          ) : prev.feedback?.improvements?.[0] ? (
+            <p className="mt-1.5 line-clamp-2 text-[13px] text-[color:var(--v2-attention)]">{t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")} · {prev.feedback.improvements[0]}</p>
+          ) : null}
+        </div>
+      ) : null}
       {intent && !feedback ? <p className="mt-2 rounded-xl bg-[color:var(--v2-fill)] px-3 py-2 text-[13px] leading-[1.55] text-[color:var(--v2-muted)]">💡 {t("면접관이 보려는 것", "What they look for", "面试官想看的", "Người PV muốn thấy", "面接官が見たいこと", "Yang dicari")} · {intent}</p> : null}
 
       {!feedback ? (

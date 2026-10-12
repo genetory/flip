@@ -33,8 +33,10 @@ import {
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
 import { useSelfMock, practiceStreak } from "../../../lib/talent/self-mock";
-import { pickDailyQuestion, questionText, pickDailyExpression, expressionMeaning, kstDay, DAILY_QUESTIONS } from "../../../lib/talent/interview-daily";
+import { pickDailyQuestion, questionText, pickDailyExpression, expressionMeaning, kstDay, ALL_QUESTIONS } from "../../../lib/talent/interview-daily";
 import { isForeignNationality } from "../../../lib/nationality";
+import { useJobInterests } from "../../../lib/talent/job-interest";
+import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
@@ -68,6 +70,7 @@ function Interviews() {
   const [picker, setPicker] = useState<"mine" | "imported" | "search" | null>(null);
   const [tool, setTool] = useState<"set" | "intro" | "quiz" | null>(null);
   const imported = useImportedJobs();
+  const interests = useJobInterests();
   // 연습 기록 = 서버 기록(Aply·원티드 공고) + 가져온 공고 기록(계정) — 최근 연습순.
   const history: MockInterviewRecord[] | null =
     records === null
@@ -109,15 +112,16 @@ function Interviews() {
   const tried = areas.filter((r) => r.average !== null);
   const untried = areas.filter((r) => r.average === null && r.category !== "other");
   // 오늘의 질문 · 연속 기록 · 다시 볼 답(‘더 연습’ 받고 3일 지난 답 2개).
-  const daily = pickDailyQuestion(user?.id, kstDay(now));
+  const daily = pickDailyQuestion(user?.id, kstDay(now), jobCategoriesForInterests(interests));
   const { streak, doneToday } = practiceStreak(selfMock, now);
-  const todayAnswer = (selfMock?.answers ?? []).find((a) => a.question === daily.ko && kstDay(a.updatedAt) === kstDay(now));
+  const prevDaily = (selfMock?.answers ?? []).find((a) => a.question === daily.ko && a.answer.trim()); // 언제든 이 질문에 답한 적이 있으면
+  const todayAnswer = prevDaily && kstDay(prevDaily.updatedAt) === kstDay(now) ? prevDaily : undefined;
   const revisit = (selfMock?.answers ?? [])
     .filter((a) => typeof a.score === "number" && (a.score as number) < WEAK_BELOW && now - a.updatedAt >= 3 * 86_400_000)
     .sort((a, b) => a.updatedAt - b.updatedAt)
     .slice(0, 2);
   const openQuestion = (ko: string, category: string) => {
-    const q = DAILY_QUESTIONS.find((x) => x.ko === ko);
+    const q = ALL_QUESTIONS.find((x) => x.ko === ko);
     setPracticeQ({ ko, shown: q ? questionText(t, q) : ko, category });
   };
 
@@ -226,21 +230,42 @@ function Interviews() {
           aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
         >
           <div className="flex flex-col gap-3">
-        <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-[#edf1fd] p-5 text-left transition hover:opacity-90">
+        <div className="rounded-3xl bg-[#edf1fd] p-5">
           <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
-          <span className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</span>
-          {locale !== "ko" ? <span className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</span> : null}
-          <span className="mt-4 flex w-full items-center justify-between gap-3">
-            {todayAnswer ? (
-              <span className="flex items-center gap-2 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">
-                {t("오늘 연습 완료", "Done for today", "今日已完成", "Hôm nay xong", "今日は完了", "Selesai hari ini")} <LevelChip t={t} score={todayAnswer.score} />
-              </span>
-            ) : (
-              <span className="text-[14px] text-[color:var(--v2-ink-3)]">{doneToday ? t("오늘 연습했어요. 이 질문도 해 볼까요?", "You practiced today — try this one too?", "今天已练习，再试试这题？", "Hôm nay đã luyện — thử câu này nhé?", "今日は練習済み。この質問も？", "Sudah latihan hari ini — coba ini juga?") : t("2분이면 돼요. 매일 하나씩 답해 보세요.", "Takes 2 minutes. One a day.", "只需 2 分钟，每天一题。", "Chỉ 2 phút. Mỗi ngày một câu.", "2分でOK。毎日1問。", "Hanya 2 menit. Satu per hari.")}</span>
-            )}
-            <span className="inline-flex h-9 shrink-0 items-center rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white">{todayAnswer ? t("다시 답하기", "Answer again", "再答一次", "Trả lời lại", "もう一度", "Jawab lagi") : t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab")}</span>
-          </span>
-        </button>
+          <p className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</p>
+          {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</p> : null}
+          {/* 예전에 이 질문에 답했다면 — 내 답과 평가를 함께 */}
+          {prevDaily ? (
+            <div className="mt-4 rounded-2xl bg-white p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] font-bold text-[color:var(--v2-ink-2)]">
+                  {t("내 답", "My answer", "我的回答", "Câu trả lời", "自分の回答", "Jawabanku")} <span className="font-medium text-[color:var(--v2-faint)]">· {formatRelativeTime(prevDaily.updatedAt, undefined, t)}</span>
+                </span>
+                <LevelChip t={t} score={prevDaily.score} />
+              </div>
+              <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{prevDaily.answer}</p>
+              {prevDaily.feedback?.improvements?.[0] || prevDaily.feedback?.strengths?.[0] ? (
+                <p className={`mt-2 text-[13px] leading-[1.55] ${(prevDaily.score ?? 0) >= 80 ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-attention)]"}`}>
+                  <b>{(prevDaily.score ?? 0) >= 80 ? t("잘한 점", "Good", "优点", "Tốt", "良い点", "Bagus") : t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")}</b> · {(prevDaily.score ?? 0) >= 80 ? prevDaily.feedback?.strengths?.[0] : prevDaily.feedback?.improvements?.[0] ?? prevDaily.feedback?.strengths?.[0]}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="text-[14px] text-[color:var(--v2-ink-3)]">
+              {todayAnswer
+                ? t("오늘 연습 완료 — 고쳐서 한 번 더 해도 좋아요", "Done today — try again to improve", "今日已完成——可以改进后再答", "Hôm nay xong — có thể trả lời lại", "今日は完了 — 直してもう一度も◎", "Selesai — boleh coba lagi")
+                : prevDaily
+                  ? t("지난 평가를 보고 더 낫게 다시 답해 보세요", "Use the last feedback to answer better", "参考上次评价再答得更好", "Dựa vào nhận xét trước để trả lời tốt hơn", "前回の評価を見てより良く答えよう", "Gunakan umpan balik terakhir")
+                  : doneToday
+                    ? t("오늘 연습했어요. 이 질문도 해 볼까요?", "You practiced today — try this one too?", "今天已练习，再试试这题？", "Hôm nay đã luyện — thử câu này nhé?", "今日は練習済み。この質問も？", "Sudah latihan hari ini — coba ini juga?")
+                    : t("2분이면 돼요. 매일 하나씩 답해 보세요.", "Takes 2 minutes. One a day.", "只需 2 分钟，每天一题。", "Chỉ 2 phút. Mỗi ngày một câu.", "2分でOK。毎日1問。", "Hanya 2 menit. Satu per hari.")}
+            </span>
+            <Button size="sm" onClick={() => openQuestion(daily.ko, daily.category)}>
+              {prevDaily ? t("다시 답하기", "Answer again", "再答一次", "Trả lời lại", "もう一度", "Jawab lagi") : t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab")}
+            </Button>
+          </div>
+        </div>
           </div>
         </Section>
       {isForeignNationality(user?.nationality) || locale !== "ko" ? (

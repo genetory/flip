@@ -28,8 +28,85 @@ export const DAILY_QUESTIONS: DailyQuestion[] = [
   { category: "weakness", ko: "마감이 촉박한데 일이 끝나지 않았다면 어떻게 하나요?", en: "What do you do when a deadline is near and the work isn't done?", zh: "截止日期临近但工作没完成时你会怎么做？", vi: "Sắp đến hạn mà việc chưa xong thì bạn làm gì?", ja: "締切が迫っているのに終わらないとき、どうしますか？", id: "Apa yang Anda lakukan jika tenggat dekat dan pekerjaan belum selesai?" },
   { category: "weakness", ko: "스트레스를 받을 때 어떻게 관리하나요?", en: "How do you manage stress?", zh: "你如何应对压力？", vi: "Bạn quản lý căng thẳng thế nào?", ja: "ストレスをどう管理していますか？", id: "Bagaimana Anda mengelola stres?" },
   { category: "weakness", ko: "문화가 다른 동료와 일할 때 무엇을 신경 쓰나요?", en: "What do you pay attention to when working with colleagues from other cultures?", zh: "和不同文化的同事共事时你会注意什么？", vi: "Khi làm việc với đồng nghiệp khác văn hóa, bạn chú ý điều gì?", ja: "文化の違う同僚と働くとき、何に気をつけますか？", id: "Apa yang Anda perhatikan saat bekerja dengan rekan beda budaya?" },
+  { category: "intro", ko: "자신을 한 단어로 표현한다면 무엇인가요?", en: "If you described yourself in one word, what would it be?", zh: "如果用一个词形容自己，会是什么？", vi: "Nếu mô tả bản thân bằng một từ, đó là gì?", ja: "自分を一言で表すと何ですか？", id: "Jika menggambarkan diri dengan satu kata, apa itu?" },
+  { category: "intro", ko: "우리 회사에 대해 알고 있는 것을 말해 주세요.", en: "What do you know about our company?", zh: "请谈谈你对我们公司的了解。", vi: "Bạn biết gì về công ty chúng tôi?", ja: "当社について知っていることを教えてください。", id: "Apa yang Anda ketahui tentang perusahaan kami?" },
+  { category: "intro", ko: "전공이 이 직무와 어떻게 연결되나요?", en: "How does your major connect to this role?", zh: "你的专业和这个职位有什么联系？", vi: "Chuyên ngành của bạn liên quan thế nào đến vị trí này?", ja: "専攻はこの職種とどうつながりますか？", id: "Bagaimana jurusan Anda terhubung dengan peran ini?" },
+  { category: "intro", ko: "다른 지원자와 비교해 본인을 뽑아야 하는 이유는 무엇인가요?", en: "Why should we hire you over other candidates?", zh: "和其他应聘者相比，我们为什么要录用你？", vi: "Vì sao chúng tôi nên chọn bạn thay vì người khác?", ja: "他の応募者ではなくあなたを採用すべき理由は？", id: "Mengapa kami harus memilih Anda dibanding kandidat lain?" },
+  { category: "intro", ko: "이 일을 하면서 이루고 싶은 목표는 무엇인가요?", en: "What do you want to achieve in this job?", zh: "做这份工作你想实现什么目标？", vi: "Bạn muốn đạt được gì trong công việc này?", ja: "この仕事で達成したい目標は何ですか？", id: "Apa yang ingin Anda capai di pekerjaan ini?" },
+  { category: "intro", ko: "최근에 관심 있게 본 업계 소식이 있나요?", en: "Any industry news that caught your attention recently?", zh: "最近有关注的行业新闻吗？", vi: "Gần đây bạn chú ý tin tức ngành nào?", ja: "最近気になった業界ニュースはありますか？", id: "Ada berita industri yang menarik perhatian Anda baru-baru ini?" },
+  { category: "intro", ko: "한국어는 어느 정도 할 수 있나요? 업무에서 어떻게 쓸 수 있나요?", en: "How good is your Korean, and how would you use it at work?", zh: "你的韩语水平如何？工作中能怎样使用？", vi: "Tiếng Hàn của bạn ở mức nào và dùng trong công việc ra sao?", ja: "韓国語はどのくらいできますか？仕事でどう使えますか？", id: "Seberapa baik bahasa Korea Anda dan bagaimana menggunakannya di kerja?" },
+  { category: "competency", ko: "이 직무를 위해 지금까지 어떤 준비를 했나요?", en: "What have you done to prepare for this role?", zh: "为了这个职位你做了哪些准备？", vi: "Bạn đã chuẩn bị gì cho vị trí này?", ja: "この職種のためにどんな準備をしてきましたか？", id: "Apa yang sudah Anda siapkan untuk peran ini?" },
+  { category: "competency", ko: "처음 맡는 일을 할 때 어떻게 시작하나요?", en: "How do you start on a task you've never done before?", zh: "第一次接手一项工作时你会怎么开始？", vi: "Bạn bắt đầu thế nào với việc chưa từng làm?", ja: "初めての仕事にどう取りかかりますか？", id: "Bagaimana Anda memulai tugas yang belum pernah dilakukan?" },
+  { category: "competency", ko: "본인이 일하는 방식을 소개해 주세요.", en: "Describe how you like to work.", zh: "请介绍一下你的工作方式。", vi: "Hãy giới thiệu cách làm việc của bạn.", ja: "あなたの仕事の進め方を教えてください。", id: "Jelaskan cara kerja Anda." },
+  { category: "competency", ko: "피드백을 받았을 때 어떻게 반영했는지 예를 들어 주세요.", en: "Give an example of how you acted on feedback.", zh: "请举例说明你如何采纳反馈。", vi: "Ví dụ về lần bạn tiếp thu góp ý.", ja: "フィードバックをどう反映したか例を挙げてください。", id: "Beri contoh bagaimana Anda menindaklanjuti masukan." },
+  { category: "competency", ko: "업무에 자주 쓰는 도구나 프로그램은 무엇인가요?", en: "Which tools or software do you use often?", zh: "你常用哪些工具或软件？", vi: "Bạn hay dùng công cụ hay phần mềm nào?", ja: "よく使うツールやソフトは何ですか？", id: "Alat atau perangkat lunak apa yang sering Anda pakai?" },
+  { category: "competency", ko: "목표를 세우고 끝까지 달성했던 경험이 있나요?", en: "Tell me about a goal you set and achieved.", zh: "请讲一次你设定目标并最终达成的经历。", vi: "Kể về mục tiêu bạn đặt ra và đạt được.", ja: "目標を立てて最後まで達成した経験は？", id: "Ceritakan target yang Anda tetapkan dan capai." },
+  { category: "experience", ko: "리더 역할을 맡았던 경험이 있나요?", en: "Have you ever taken a leadership role?", zh: "你有担任领导角色的经历吗？", vi: "Bạn từng đảm nhận vai trò lãnh đạo chưa?", ja: "リーダーを務めた経験はありますか？", id: "Pernahkah Anda memegang peran pemimpin?" },
+  { category: "experience", ko: "주어진 일보다 더 해서 성과를 낸 경험이 있나요?", en: "Have you gone beyond your role to get results?", zh: "你有超出职责范围取得成果的经历吗？", vi: "Bạn từng làm vượt nhiệm vụ để đạt kết quả chưa?", ja: "与えられた以上のことをして成果を出した経験は？", id: "Pernahkah Anda melampaui tugas untuk mencapai hasil?" },
+  { category: "experience", ko: "실수를 했을 때 어떻게 수습했나요?", en: "How did you handle a mistake you made?", zh: "犯错时你是怎么补救的？", vi: "Khi mắc lỗi bạn đã khắc phục thế nào?", ja: "ミスをした時、どう対処しましたか？", id: "Bagaimana Anda menangani kesalahan yang Anda buat?" },
+  { category: "experience", ko: "새로운 방식을 제안해서 바꾼 경험이 있나요?", en: "Have you proposed a new way of doing things that was adopted?", zh: "你有提出新方法并被采纳的经历吗？", vi: "Bạn từng đề xuất cách mới và được áp dụng chưa?", ja: "新しいやり方を提案して変えた経験は？", id: "Pernahkah Anda mengusulkan cara baru yang diterapkan?" },
+  { category: "experience", ko: "짧은 시간 안에 많은 일을 끝냈던 경험을 말해 주세요.", en: "Tell me about finishing a lot of work in a short time.", zh: "请讲一次在短时间内完成大量工作的经历。", vi: "Kể về lần bạn hoàn thành nhiều việc trong thời gian ngắn.", ja: "短期間で多くの仕事を終えた経験を教えてください。", id: "Ceritakan saat Anda menyelesaikan banyak pekerjaan dalam waktu singkat." },
+  { category: "experience", ko: "외국어나 다른 문화가 도움이 됐던 경험이 있나요?", en: "When did a foreign language or another culture help you?", zh: "外语或其他文化对你有帮助的经历？", vi: "Ngoại ngữ hay văn hóa khác từng giúp bạn khi nào?", ja: "外国語や異文化が役立った経験は？", id: "Kapan bahasa asing atau budaya lain membantu Anda?" },
+  { category: "experience", ko: "팀 프로젝트에서 무임승차하는 팀원이 있었다면 어떻게 했나요?", en: "What did you do about a teammate who wasn't contributing?", zh: "团队项目中有人不出力时你怎么做？", vi: "Bạn làm gì khi có thành viên không đóng góp?", ja: "チームで貢献しないメンバーがいた時どうしましたか？", id: "Apa yang Anda lakukan pada rekan tim yang tidak berkontribusi?" },
+  { category: "weakness", ko: "가장 힘들었던 순간과 버틴 방법은 무엇인가요?", en: "What was your toughest moment, and how did you get through it?", zh: "你最艰难的时刻是什么？是怎么撑过来的？", vi: "Lúc khó khăn nhất là gì và bạn vượt qua thế nào?", ja: "一番つらかった時と乗り越えた方法は？", id: "Momen tersulit Anda dan cara melewatinya?" },
+  { category: "weakness", ko: "원하지 않는 업무를 맡게 되면 어떻게 하겠어요?", en: "What would you do if given work you don't want?", zh: "如果被安排不想做的工作你会怎么办？", vi: "Nếu được giao việc không muốn, bạn sẽ làm gì?", ja: "やりたくない業務を任されたらどうしますか？", id: "Apa yang Anda lakukan jika diberi tugas yang tidak diinginkan?" },
+  { category: "weakness", ko: "동료와 갈등이 생기면 어떻게 풀어 가나요?", en: "How do you resolve conflict with a coworker?", zh: "和同事产生矛盾时你如何解决？", vi: "Bạn giải quyết mâu thuẫn với đồng nghiệp thế nào?", ja: "同僚と対立した時どう解決しますか？", id: "Bagaimana Anda menyelesaikan konflik dengan rekan kerja?" },
+  { category: "weakness", ko: "야근이나 주말 근무가 필요하다면 어떻게 생각하나요?", en: "How do you feel about overtime or weekend work when needed?", zh: "如果需要加班或周末工作你怎么看？", vi: "Bạn nghĩ sao nếu cần làm thêm giờ hoặc cuối tuần?", ja: "残業や休日出勤が必要ならどう考えますか？", id: "Bagaimana pendapat Anda tentang lembur bila diperlukan?" },
+  { category: "weakness", ko: "회사를 고를 때 가장 중요하게 보는 것은 무엇인가요?", en: "What matters most to you when choosing a company?", zh: "选择公司时你最看重什么？", vi: "Điều bạn coi trọng nhất khi chọn công ty là gì?", ja: "会社選びで一番重視することは？", id: "Apa yang paling penting bagi Anda saat memilih perusahaan?" },
+  { category: "weakness", ko: "일과 삶의 균형을 어떻게 지키나요?", en: "How do you keep work-life balance?", zh: "你如何保持工作与生活的平衡？", vi: "Bạn giữ cân bằng công việc và cuộc sống thế nào?", ja: "仕事と生活のバランスをどう保っていますか？", id: "Bagaimana Anda menjaga keseimbangan kerja dan hidup?" },
+  { category: "weakness", ko: "비자나 체류 계획은 어떻게 되나요?", en: "What is your visa or stay plan?", zh: "你的签证或居留计划是怎样的？", vi: "Kế hoạch visa hay lưu trú của bạn thế nào?", ja: "ビザや滞在の計画はどうなっていますか？", id: "Bagaimana rencana visa atau tinggal Anda?" },
   { category: "weakness", ko: "마지막으로 하고 싶은 말이 있나요?", en: "Is there anything else you'd like to say?", zh: "最后还有什么想说的吗？", vi: "Bạn còn điều gì muốn nói không?", ja: "最後に言いたいことはありますか？", id: "Ada hal lain yang ingin Anda sampaikan?" }
 ];
+
+
+// ── 직무별 질문 — 관심 직무가 있으면 공통 질문과 섞어서 나온다(대분류 JobCategory 기준).
+export const ROLE_QUESTIONS: Record<string, DailyQuestion[]> = {
+  "개발": [
+    { category: "competency", ko: "최근에 새로 배운 기술과 그 기술을 고른 이유를 말해 주세요.", en: "What technology did you learn recently, and why?", zh: "最近学了什么新技术？为什么选择它？", vi: "Gần đây bạn học công nghệ gì và vì sao?", ja: "最近学んだ技術とそれを選んだ理由は？", id: "Teknologi apa yang baru Anda pelajari dan mengapa?" },
+    { category: "experience", ko: "가장 어려웠던 버그를 어떻게 찾아서 고쳤나요?", en: "How did you find and fix your hardest bug?", zh: "你是如何找到并修复最难的 bug 的？", vi: "Bạn tìm và sửa lỗi khó nhất thế nào?", ja: "一番難しかったバグをどう見つけて直しましたか？", id: "Bagaimana Anda menemukan dan memperbaiki bug tersulit?" },
+    { category: "competency", ko: "코드 리뷰에서 무엇을 중요하게 보나요?", en: "What do you focus on in code reviews?", zh: "代码评审时你看重什么？", vi: "Bạn chú trọng gì khi review code?", ja: "コードレビューで重視することは？", id: "Apa yang Anda perhatikan saat code review?" },
+    { category: "experience", ko: "성능이나 구조를 개선했던 경험을 숫자와 함께 말해 주세요.", en: "Describe a performance or design improvement you made, with numbers.", zh: "请结合数字讲一次你改进性能或结构的经历。", vi: "Kể về lần cải thiện hiệu năng/cấu trúc, kèm số liệu.", ja: "性能や構造を改善した経験を数字と一緒に。", id: "Ceritakan perbaikan performa/struktur, dengan angka." },
+    { category: "competency", ko: "기획자나 디자이너와 의견이 다를 때 어떻게 맞추나요?", en: "How do you align when you disagree with a PM or designer?", zh: "和策划或设计意见不同时你如何协调？", vi: "Bất đồng với PM/designer thì bạn làm thế nào?", ja: "企画者やデザイナーと意見が違う時どう合わせますか？", id: "Bagaimana Anda menyelaraskan saat beda pendapat dengan PM/desainer?" }
+  ],
+  "디자인": [
+    { category: "competency", ko: "포트폴리오에서 가장 자신 있는 작업과 그 과정을 설명해 주세요.", en: "Walk me through your best portfolio piece and its process.", zh: "请介绍作品集中最有把握的作品及其过程。", vi: "Giới thiệu tác phẩm tự tin nhất và quá trình làm.", ja: "ポートフォリオで一番自信のある作品と過程は？", id: "Jelaskan karya terbaik di portofolio dan prosesnya." },
+    { category: "experience", ko: "사용자 피드백으로 디자인을 바꾼 경험이 있나요?", en: "Have you changed a design based on user feedback?", zh: "你有根据用户反馈修改设计的经历吗？", vi: "Bạn từng đổi thiết kế theo phản hồi người dùng chưa?", ja: "ユーザーの声でデザインを変えた経験は？", id: "Pernahkah Anda mengubah desain dari masukan pengguna?" },
+    { category: "competency", ko: "좋은 디자인이란 무엇이라고 생각하나요?", en: "What makes a design good, in your view?", zh: "你认为什么是好的设计？", vi: "Theo bạn thiết kế tốt là gì?", ja: "良いデザインとは何だと思いますか？", id: "Menurut Anda desain yang baik itu apa?" },
+    { category: "experience", ko: "개발자와 협업하면서 생긴 문제를 어떻게 풀었나요?", en: "How did you solve a problem while working with developers?", zh: "和开发协作时遇到的问题你是怎么解决的？", vi: "Bạn giải quyết vấn đề khi làm với developer thế nào?", ja: "開発者との協業で起きた問題をどう解決しましたか？", id: "Bagaimana Anda menyelesaikan masalah saat bekerja dengan developer?" },
+    { category: "competency", ko: "최근 인상 깊게 본 서비스의 디자인은 무엇이고 왜인가요?", en: "Which product's design impressed you recently, and why?", zh: "最近印象深刻的产品设计是什么？为什么？", vi: "Thiết kế sản phẩm nào gần đây gây ấn tượng và vì sao?", ja: "最近印象に残ったサービスのデザインとその理由は？", id: "Desain produk apa yang mengesankan Anda baru-baru ini?" }
+  ],
+  "마케팅·광고": [
+    { category: "competency", ko: "최근 인상 깊었던 마케팅 캠페인과 그 이유를 말해 주세요.", en: "Which recent campaign impressed you, and why?", zh: "最近印象深刻的营销活动是什么？为什么？", vi: "Chiến dịch marketing gần đây ấn tượng và vì sao?", ja: "最近印象に残ったキャンペーンとその理由は？", id: "Kampanye pemasaran apa yang mengesankan dan mengapa?" },
+    { category: "experience", ko: "성과 지표를 정하고 개선했던 경험이 있나요?", en: "Have you set a KPI and improved it?", zh: "你有设定指标并改进的经历吗？", vi: "Bạn từng đặt KPI và cải thiện chưa?", ja: "指標を決めて改善した経験は？", id: "Pernahkah Anda menetapkan KPI dan meningkatkannya?" },
+    { category: "competency", ko: "우리 제품을 외국인 고객에게 어떻게 알리겠어요?", en: "How would you market our product to international customers?", zh: "你会如何向外国客户推广我们的产品？", vi: "Bạn sẽ quảng bá sản phẩm tới khách nước ngoài thế nào?", ja: "当社製品を外国人顧客にどう広めますか？", id: "Bagaimana Anda memasarkan produk kami ke pelanggan asing?" },
+    { category: "experience", ko: "SNS나 콘텐츠를 운영하며 반응을 높였던 방법은요?", en: "How did you grow engagement on social media or content?", zh: "运营社媒或内容时你是如何提高互动的？", vi: "Bạn tăng tương tác mạng xã hội/nội dung thế nào?", ja: "SNSやコンテンツで反応を高めた方法は？", id: "Bagaimana Anda meningkatkan interaksi di media sosial?" },
+    { category: "competency", ko: "예산이 적을 때 마케팅 효과를 어떻게 높이겠어요?", en: "How would you maximize impact on a small budget?", zh: "预算有限时你会如何提升营销效果？", vi: "Ngân sách ít thì bạn tăng hiệu quả thế nào?", ja: "予算が少ない時、効果をどう高めますか？", id: "Bagaimana memaksimalkan dampak dengan anggaran kecil?" }
+  ],
+  "경영·비즈니스": [
+    { category: "competency", ko: "우선순위가 다른 여러 요청을 어떻게 정리하나요?", en: "How do you sort requests with competing priorities?", zh: "面对优先级不同的多个需求你如何整理？", vi: "Bạn sắp xếp nhiều yêu cầu khác ưu tiên thế nào?", ja: "優先度の違う複数の依頼をどう整理しますか？", id: "Bagaimana Anda mengatur permintaan dengan prioritas berbeda?" },
+    { category: "experience", ko: "데이터를 보고 문제를 찾아 개선한 경험이 있나요?", en: "Have you found and fixed a problem by looking at data?", zh: "你有通过数据发现问题并改进的经历吗？", vi: "Bạn từng nhìn dữ liệu để tìm và cải thiện vấn đề chưa?", ja: "データから問題を見つけて改善した経験は？", id: "Pernahkah Anda menemukan masalah lewat data dan memperbaikinya?" },
+    { category: "competency", ko: "우리 회사의 경쟁사와 차별점은 무엇이라고 보나요?", en: "Who are our competitors, and what sets us apart?", zh: "你认为我们的竞争对手是谁？我们有何不同？", vi: "Đối thủ của chúng tôi là ai và điểm khác biệt là gì?", ja: "当社の競合と差別化ポイントは？", id: "Siapa pesaing kami dan apa pembedanya?" },
+    { category: "experience", ko: "여러 부서와 함께 일을 진행했던 경험을 말해 주세요.", en: "Tell me about running a project across teams.", zh: "请讲一次跨部门推进工作的经历。", vi: "Kể về lần làm dự án với nhiều phòng ban.", ja: "複数部署と進めた経験を教えてください。", id: "Ceritakan proyek lintas tim yang Anda jalankan." },
+    { category: "competency", ko: "새 서비스를 기획한다면 무엇부터 확인하겠어요?", en: "If planning a new service, what would you check first?", zh: "如果策划新服务，你会先确认什么？", vi: "Nếu lên kế hoạch dịch vụ mới, bạn kiểm tra gì trước?", ja: "新サービスを企画するなら何から確認しますか？", id: "Jika merencanakan layanan baru, apa yang dicek dulu?" }
+  ],
+  "영업": [
+    { category: "experience", ko: "고객을 설득해서 결과를 냈던 경험이 있나요?", en: "Have you persuaded a customer and closed a result?", zh: "你有说服客户并取得成果的经历吗？", vi: "Bạn từng thuyết phục khách hàng thành công chưa?", ja: "顧客を説得して成果を出した経験は？", id: "Pernahkah Anda meyakinkan pelanggan hingga berhasil?" },
+    { category: "competency", ko: "거절당했을 때 어떻게 다시 시도하나요?", en: "How do you try again after a rejection?", zh: "被拒绝后你如何再次尝试？", vi: "Bị từ chối thì bạn thử lại thế nào?", ja: "断られた時どう再挑戦しますか？", id: "Bagaimana Anda mencoba lagi setelah ditolak?" },
+    { category: "competency", ko: "처음 만나는 고객과 어떻게 신뢰를 쌓나요?", en: "How do you build trust with a new customer?", zh: "你如何与初次见面的客户建立信任？", vi: "Bạn xây dựng niềm tin với khách mới thế nào?", ja: "初対面の顧客とどう信頼を築きますか？", id: "Bagaimana membangun kepercayaan dengan pelanggan baru?" },
+    { category: "experience", ko: "목표 숫자를 넘겼던 경험과 방법을 말해 주세요.", en: "Tell me how you beat a target number.", zh: "请讲一次超额完成目标的经历和方法。", vi: "Kể về lần vượt chỉ tiêu và cách làm.", ja: "目標数字を超えた経験と方法は？", id: "Ceritakan saat Anda melampaui target dan caranya." },
+    { category: "competency", ko: "외국어를 영업에 어떻게 활용할 수 있나요?", en: "How could you use foreign languages in sales?", zh: "你能如何在销售中运用外语？", vi: "Bạn dùng ngoại ngữ trong bán hàng thế nào?", ja: "外国語を営業にどう活かせますか？", id: "Bagaimana memanfaatkan bahasa asing dalam penjualan?" }
+  ],
+  "고객 서비스": [
+    { category: "experience", ko: "화가 난 고객을 응대했던 경험이 있나요?", en: "Tell me about handling an angry customer.", zh: "你有接待愤怒顾客的经历吗？", vi: "Kể về lần xử lý khách hàng tức giận.", ja: "怒った顧客に対応した経験は？", id: "Ceritakan saat menangani pelanggan yang marah." },
+    { category: "competency", ko: "같은 문의가 반복되면 어떻게 줄이겠어요?", en: "How would you reduce repeated inquiries?", zh: "同样的咨询反复出现，你会如何减少？", vi: "Câu hỏi lặp lại nhiều thì bạn giảm thế nào?", ja: "同じ問い合わせが続いたらどう減らしますか？", id: "Bagaimana mengurangi pertanyaan yang berulang?" },
+    { category: "competency", ko: "규정상 들어줄 수 없는 요청은 어떻게 안내하나요?", en: "How do you respond to a request policy doesn't allow?", zh: "按规定无法满足的请求你如何说明？", vi: "Yêu cầu không được phép thì bạn hướng dẫn thế nào?", ja: "規定上応じられない要望をどう案内しますか？", id: "Bagaimana menanggapi permintaan yang tidak diizinkan?" },
+    { category: "experience", ko: "고객 의견으로 서비스를 개선했던 경험이 있나요?", en: "Have you improved a service from customer feedback?", zh: "你有根据顾客意见改进服务的经历吗？", vi: "Bạn từng cải thiện dịch vụ từ ý kiến khách chưa?", ja: "顧客の声でサービスを改善した経験は？", id: "Pernahkah Anda memperbaiki layanan dari masukan pelanggan?" },
+    { category: "competency", ko: "여러 언어로 응대해야 할 때 무엇을 신경 쓰나요?", en: "What do you watch for when supporting in several languages?", zh: "需要用多种语言服务时你会注意什么？", vi: "Hỗ trợ bằng nhiều ngôn ngữ thì bạn chú ý gì?", ja: "多言語で対応する時、何に気をつけますか？", id: "Apa yang Anda perhatikan saat melayani dalam banyak bahasa?" }
+  ]
+};
+
+/** 모든 질문(공통 + 직무별) — 질문 글로 찾을 때. */
+export const ALL_QUESTIONS: DailyQuestion[] = [...DAILY_QUESTIONS, ...Object.values(ROLE_QUESTIONS).flat()];
 
 /** 한국 시간 기준 오늘(YYYY-MM-DD). */
 export function kstDay(ts = Date.now()): string {
@@ -42,9 +119,13 @@ function hash(s: string): number {
   return h;
 }
 
-/** 오늘의 질문 — 날짜(+사용자)로 고른다. 같은 날엔 같은 질문, 사람마다 순서가 다르다. */
-export function pickDailyQuestion(userId: string | null | undefined, day = kstDay()): DailyQuestion {
-  return DAILY_QUESTIONS[hash(`${day}:${userId ?? ""}`) % DAILY_QUESTIONS.length];
+/** 오늘의 질문 — 날짜(+사용자)로 고른다. 같은 날엔 같은 질문, 사람마다 순서가 다르다.
+ *  관심 직무(대분류 JobCategory)가 있으면 그 직무 질문을 공통 질문과 섞는다(사흘에 한 번꼴로 직무 질문). */
+export function pickDailyQuestion(userId: string | null | undefined, day = kstDay(), roleCategories: string[] = []): DailyQuestion {
+  const h = hash(`${day}:${userId ?? ""}`);
+  const role = roleCategories.flatMap((c) => ROLE_QUESTIONS[c] ?? []);
+  if (role.length && h % 3 === 0) return role[Math.floor(h / 3) % role.length];
+  return DAILY_QUESTIONS[h % DAILY_QUESTIONS.length];
 }
 
 export function questionText(t: PlatformT, q: DailyQuestion): string {
