@@ -12,7 +12,6 @@ import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
-import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { getMyFavoritePositions, getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { trackForeignerPrompt } from "../../../lib/analytics";
 
@@ -180,12 +179,11 @@ function Jobs() {
         lede: countLede
       };
     if (tab === "interest") {
-      const names = interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ");
       return {
         title: f
           ? t("외국인도 지원할 수 있는 관심 직무 공고예요", "Jobs in your interests that welcome foreigners", "外国人也能申请的感兴趣职位", "Việc bạn quan tâm, người nước ngoài cũng ứng tuyển được", "外国の方も応募できる関心職種の求人です", "Lowongan minatmu yang terbuka untuk WNA")
           : t("관심 직무에 맞는 공고예요", "Jobs that match your interests", "这些职位符合你的兴趣", "Việc hợp với nghề bạn quan tâm", "関心職種に合う求人です", "Lowongan yang cocok dengan minatmu"),
-        lede: names ? <>{names} · {countLede}</> : countLede
+        lede: countLede
       };
     }
     return {
