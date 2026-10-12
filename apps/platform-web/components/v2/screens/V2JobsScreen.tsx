@@ -90,11 +90,6 @@ function Jobs() {
   const [page, setPage] = useState(1);
   const [more, setMore] = useState(false);
 
-  // 입력이 멈추면 검색(0.35초).
-  useEffect(() => {
-    const id = setTimeout(() => setSearch(query.trim()), 350);
-    return () => clearTimeout(id);
-  }, [query]);
 
 
   const fetchPage = useCallback(
@@ -252,7 +247,17 @@ function Jobs() {
       ) : null}
 
       <div className="px-5">
-        <SearchField value={query} onChange={setQuery} placeholder={t("찾는 일을 편하게 적어 보세요", "Tell us what job you're looking for", "说说你想找什么工作", "Bạn muốn tìm việc gì? Cứ gõ thoải mái", "探している仕事を気軽に書いてください", "Ceritakan pekerjaan yang kamu cari")} />
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          onSubmit={() => setSearch(query.trim())}
+          onClear={() => {
+            setQuery("");
+            setSearch("");
+          }}
+          submitLabel={t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
+          clearLabel={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")}
+          placeholder={t("찾는 일을 편하게 적어 보세요", "Tell us what job you're looking for", "说说你想找什么工作", "Bạn muốn tìm việc gì? Cứ gõ thoải mái", "探している仕事を気軽に書いてください", "Ceritakan pekerjaan yang kamu cari")} />
       </div>
       {/* 탭 칩 줄 — 왼쪽 탭(넘치면 가로로 넘김), 오른쪽 끝에 '외국인 채용 가능' 스위치.
           스위치는 탭이 아니라 켜고 끄는 거름망이라 모양을 다르게 해 구분한다. 저장한 공고 탭에선 숨김. */}

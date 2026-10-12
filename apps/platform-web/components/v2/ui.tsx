@@ -165,22 +165,59 @@ export function Attention({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-[color:var(--v2-attention)]">{children}</span>;
 }
 
-/** 검색칸 — 연회색 둥근 칸. 모바일 확대를 막으려 글자 16px. */
-export function SearchField({ value, onChange, placeholder, autoFocus }: { value: string; onChange: (v: string) => void; placeholder: string; autoFocus?: boolean }) {
+/** 검색칸 — 연회색 둥근 칸. 엔터나 [검색]을 누를 때만 찾는다(글자마다 찾으면 한글 조합 중 결과가 출렁이고,
+ *  뜻 기반 검색은 매번 AI 를 불러 비싸다). 글자가 있으면 지우기(×) — 지우면 바로 전체로 돌아간다.
+ *  모바일 확대를 막으려 글자 16px. */
+export function SearchField({
+  value,
+  onChange,
+  onSubmit,
+  onClear,
+  placeholder,
+  submitLabel,
+  clearLabel,
+  autoFocus
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  onClear: () => void;
+  placeholder: string;
+  submitLabel: string;
+  clearLabel: string;
+  autoFocus?: boolean;
+}) {
   return (
-    <label className="flex h-12 items-center gap-2.5 rounded-2xl bg-[color:var(--v2-band)] px-4">
+    <form
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="flex h-12 items-center gap-2 rounded-2xl bg-[color:var(--v2-band)] pl-4 pr-1.5"
+    >
       <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" className="shrink-0 text-[color:var(--v2-faint)]">
         <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2.2" />
         <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
       </svg>
       <input
+        type="search"
+        enterKeyHint="search"
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent text-[16px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-faint)]"
+        className="min-w-0 flex-1 bg-transparent text-[16px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-faint)] [&::-webkit-search-cancel-button]:hidden"
       />
-    </label>
+      {value ? (
+        <button type="button" onClick={onClear} aria-label={clearLabel} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[18px] leading-none text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
+          ×
+        </button>
+      ) : null}
+      <button type="submit" className="h-9 shrink-0 rounded-xl bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90">
+        {submitLabel}
+      </button>
+    </form>
   );
 }
 

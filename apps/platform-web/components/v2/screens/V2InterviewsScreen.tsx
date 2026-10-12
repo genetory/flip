@@ -258,22 +258,34 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
   const t = usePlatformT();
   const { locale } = useLanguage();
   const [q, setQ] = useState("");
-  const [items, setItems] = useState<PublicPositionListItem[] | null>(null);
+  // 엔터·[검색]을 눌렀을 때만 찾는다(포지션 탐색과 같은 규칙). 비어 있으면 최신 공고 몇 개.
+  const [term, setTerm] = useState("");
+  const [result, setResult] = useState<{ for: string; items: PublicPositionListItem[] } | null>(null);
   useEffect(() => {
     let alive = true;
-    const timer = setTimeout(() => {
-      getPublicPositionsPage({ search: q.trim() || undefined, limit: q.trim() ? 8 : 4, locale })
-        .then((p) => alive && setItems(p.items))
-        .catch(() => alive && setItems([]));
-    }, 300);
+    getPublicPositionsPage({ search: term || undefined, limit: term ? 8 : 4, locale })
+      .then((p) => alive && setResult({ for: term, items: p.items }))
+      .catch(() => alive && setResult({ for: term, items: [] }));
     return () => {
       alive = false;
-      clearTimeout(timer);
     };
-  }, [q, locale]);
+  }, [term, locale]);
+  const items = result && result.for === term ? result.items : null;
   return (
     <div className="pt-2">
-      <SearchField autoFocus value={q} onChange={setQ} placeholder={t("직무나 회사 이름으로 찾기", "Search by role or company", "按职位或公司搜索", "Tìm theo vị trí hoặc công ty", "職種や会社名で探す", "Cari peran atau perusahaan")} />
+      <SearchField
+        autoFocus
+        value={q}
+        onChange={setQ}
+        onSubmit={() => setTerm(q.trim())}
+        onClear={() => {
+          setQ("");
+          setTerm("");
+        }}
+        submitLabel={t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
+        clearLabel={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")}
+        placeholder={t("직무나 회사 이름으로 찾기", "Search by role or company", "按职位或公司搜索", "Tìm theo vị trí hoặc công ty", "職種や会社名で探す", "Cari peran atau perusahaan")}
+      />
       <div className="mt-2">
         {items === null ? <RowsSkeleton count={3} /> : items.length === 0 ? (
           <Empty>{t("맞는 공고가 없어요.", "No matching jobs.", "没有匹配的职位。", "Không có tin phù hợp.", "該当する求人がありません。", "Tidak ada yang cocok.")}</Empty>
