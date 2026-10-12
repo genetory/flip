@@ -100,7 +100,7 @@ function Header() {
           ) : isAuthenticated ? (
             <>
               <Link
-                href="/talent/notifications"
+                href="/v2/notifications"
                 aria-label={unread > 0 ? t(`알림 ${unread}개`, `${unread} notifications`, `${unread} 条通知`, `${unread} thông báo`, `通知 ${unread}件`, `${unread} notifikasi`) : t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]"
               >
