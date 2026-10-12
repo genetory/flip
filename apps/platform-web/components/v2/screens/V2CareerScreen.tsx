@@ -793,10 +793,10 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button size="sm" variant="neutral" full href={previewHref ?? undefined} disabled={!previewHref}>
+        <Button variant="neutral" full href={previewHref ?? undefined} disabled={!previewHref}>
           {t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Lihat")}
         </Button>
-        <Button size="sm" variant="secondary" full href={editHref}>
+        <Button variant="secondary" full href={editHref}>
           {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}
         </Button>
       </div>
