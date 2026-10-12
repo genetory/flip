@@ -191,7 +191,7 @@ export function Chip({ active, onClick, children }: { active?: boolean; onClick:
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`shrink-0 rounded-full px-4 py-2 text-[15px] font-semibold transition ${active ? "bg-[color:var(--v2-ink)] text-white" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
+      className={`inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-[15px] font-semibold transition ${active ? "bg-[color:var(--v2-ink)] text-white" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"}`}
     >
       {children}
     </button>
