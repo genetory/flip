@@ -5,13 +5,19 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Attention, Button, Chip, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, RowsSkeleton } from "../ui";
-import { daysUntil } from "../lib";
+import { Attention, Button, Chip, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton } from "../ui";
+import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { getMyApplications, withdrawMyApplication, type MyApplication } from "../../../lib/member-profile-client";
+import { getMyApplications, getMyMockInterviewUsage, getPublicPositionById, getPublicPositionsPage, withdrawMyApplication, type MyApplication, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
-import { InterviewSlotModal, MessageModal, ProgressModal, WithdrawModal } from "../../talent/screens/ApplicationsScreen";
+import { InterviewSlotModal, WithdrawModal } from "../../talent/screens/ApplicationsScreen";
+import { DocumentsSheet, MessageSheet, ProgressSheet } from "../sheets";
+import { MockGateModal } from "../../talent/jobs/MockGateModal";
+import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
+import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
+import { useLanguage } from "../../i18n/LanguageProvider";
+import { trackInterviewPrepSheetOpened, trackInterviewStart } from "../../../lib/analytics";
 
 type Filter = "all" | "active" | "interview" | "done" | "withdrawn";
 const MATCH: Record<Filter, (a: MyApplication) => boolean> = {
@@ -49,6 +55,22 @@ function Applications() {
   const [timeline, setTimeline] = useState<MyApplication | null>(null);
   const [withdraw, setWithdraw] = useState<MyApplication | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [docs, setDocs] = useState<MyApplication | null>(null);
+  const [sheetApp, setSheetApp] = useState<MyApplication | null>(null);
+  // 면접 준비 — 지원 현황에서 바로 그 공고로 모의 면접(게이트 → 연습). 모의 면접 탭과 같은 규칙.
+  const { locale } = useLanguage();
+  const [gate, setGate] = useState<PublicPositionListItem | null>(null);
+  const [practice, setPractice] = useState<PublicPositionListItem | null>(null);
+  const [limit, setLimit] = useState({ reached: false, limit: 3 });
+  const practiceFor = async (a: MyApplication) => {
+    const item = await getPublicPositionById(a.positionId, { locale }).catch(() => null);
+    if (!item) return;
+    trackInterviewStart("upcoming");
+    getMyMockInterviewUsage()
+      .then((u) => setLimit({ reached: u.companiesUsedToday >= u.dailyCompanyLimit && !u.practicedTodayPositionIds.includes(item.id), limit: u.dailyCompanyLimit }))
+      .catch(() => setLimit({ reached: false, limit: 3 }));
+    setGate(item);
+  };
 
   const load = () => getMyApplications().then(setApps).catch(() => setApps([]));
   useEffect(() => {
@@ -135,7 +157,21 @@ function Applications() {
           <ul className="px-5">
             {list.length ? (
               list.map((a) => (
-                <ApplicationItem key={a.id} t={t} a={a} onMessage={() => setMsg(a)} onSlot={() => setSlot(a)} onTimeline={() => setTimeline(a)} onWithdraw={() => setWithdraw(a)} />
+                <ApplicationItem
+                  key={a.id}
+                  t={t}
+                  a={a}
+                  onMessage={() => setMsg(a)}
+                  onSlot={() => setSlot(a)}
+                  onTimeline={() => setTimeline(a)}
+                  onWithdraw={() => setWithdraw(a)}
+                  onDocs={() => setDocs(a)}
+                  onPractice={() => void practiceFor(a)}
+                  onSheet={() => {
+                    trackInterviewPrepSheetOpened();
+                    setSheetApp(a);
+                  }}
+                />
               ))
             ) : (
               <Empty>{t("이 상태의 지원이 없어요.", "Nothing here.", "没有该状态的申请。", "Không có đơn ở trạng thái này.", "この状態の応募はありません。", "Tidak ada lamaran di sini.")}</Empty>
@@ -145,7 +181,7 @@ function Applications() {
       ) : null}
 
       {msg ? (
-        <MessageModal
+        <MessageSheet
           app={msg}
           onClose={() => {
             setMsg(null);
@@ -162,16 +198,64 @@ function Applications() {
           }}
         />
       ) : null}
-      {timeline ? <ProgressModal app={timeline} onClose={() => setTimeline(null)} /> : null}
+      {timeline ? <ProgressSheet app={timeline} onClose={() => setTimeline(null)} /> : null}
+      {docs ? <DocumentsSheet app={docs} onClose={() => setDocs(null)} /> : null}
+      {sheetApp ? (
+        <InterviewPrepSheet
+          positionId={sheetApp.positionId}
+          title={sheetApp.positionTitle}
+          company={sheetApp.partnerOrganizationName}
+          interviewAt={sheetApp.interviewSelectedAt}
+          onPractice={() => {
+            const a = sheetApp;
+            setSheetApp(null);
+            void practiceFor(a);
+          }}
+          onClose={() => setSheetApp(null)}
+        />
+      ) : null}
+      {gate ? (
+        <MockGateModal
+          allowWithoutDocs
+          dailyLimitReached={limit.reached}
+          dailyLimit={limit.limit}
+          onClose={() => setGate(null)}
+          onConfirm={() => {
+            setPractice(gate);
+            setGate(null);
+          }}
+        />
+      ) : null}
+      {practice ? <MockInterviewModal item={practice} onClose={() => setPractice(null)} /> : null}
       {withdraw ? <WithdrawModal app={withdraw} withdrawing={withdrawing} onClose={() => setWithdraw(null)} onConfirm={confirmWithdraw} /> : null}
     </Page>
   );
 }
 
 /** 지원 하나 — 제목·회사, 지금 상태 한 줄, 그 상태에서 필요한 행동만 작은 버튼으로. */
-function ApplicationItem({ t, a, onMessage, onSlot, onTimeline, onWithdraw }: { t: PlatformT; a: MyApplication; onMessage: () => void; onSlot: () => void; onTimeline: () => void; onWithdraw: () => void }) {
+function ApplicationItem({
+  t,
+  a,
+  onMessage,
+  onSlot,
+  onTimeline,
+  onWithdraw,
+  onDocs,
+  onPractice,
+  onSheet
+}: {
+  t: PlatformT;
+  a: MyApplication;
+  onMessage: () => void;
+  onSlot: () => void;
+  onTimeline: () => void;
+  onWithdraw: () => void;
+  onDocs: () => void;
+  onPractice: () => void;
+  onSheet: () => void;
+}) {
   const d = a.interviewSelectedAt ? daysUntil(a.interviewSelectedAt) : null;
-  const dimmed = a.status === "WITHDRAWN" || a.status === "REJECTED";
+  const dimmed = a.status === "WITHDRAWN";
 
   const status = (() => {
     if (a.status === "INTERVIEW" && a.interviewSelectedAt)
@@ -190,35 +274,99 @@ function ApplicationItem({ t, a, onMessage, onSlot, onTimeline, onWithdraw }: { 
   })();
 
   return (
-    <li className={`border-b border-[color:var(--v2-line)] py-5 last:border-b-0 ${dimmed ? "opacity-60" : ""}`}>
-      <Link href={`/talent/jobs/${a.positionId}`} className="block transition hover:opacity-70">
+    <li className="border-b border-[color:var(--v2-line)] py-5 last:border-b-0">
+      <Link href={`/talent/jobs/${a.positionId}`} className={`block transition hover:opacity-70 ${dimmed ? "opacity-60" : ""}`}>
         <p className="text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{a.positionTitle}</p>
         <p className="mt-0.5 text-[14px] text-[color:var(--v2-faint)]">
           {[a.partnerOrganizationName, `${t("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} ${formatRelativeTime(new Date(a.submittedAt).getTime(), undefined, t)}`].filter(Boolean).join(" · ")}
         </p>
       </Link>
-      <p className="mt-2.5 text-[15px] text-[color:var(--v2-ink-2)]">{status}</p>
-      {a.status !== "WITHDRAWN" ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {a.status === "INTERVIEW" && a.interviewPending ? (
-            <Button size="sm" onClick={onSlot}>
-              {t("면접 시간 고르기", "Pick a time", "选择时间", "Chọn giờ", "時間を選ぶ", "Pilih jadwal")}
+      <p className={`mt-2.5 text-[15px] text-[color:var(--v2-ink-2)] ${dimmed ? "opacity-60" : ""}`}>{status}</p>
+
+      {/* 상태별 다음 할 일 — 면접 시간 고르기 / 면접 준비 / 합격 후 체크 / 비슷한 공고 */}
+      {a.status === "INTERVIEW" && a.interviewPending ? (
+        <div className="mt-3">
+          <Button size="sm" onClick={onSlot}>
+            {t("면접 시간 고르기", "Pick a time", "选择时间", "Chọn giờ", "時間を選ぶ", "Pilih jadwal")}
+          </Button>
+        </div>
+      ) : null}
+      {a.status === "INTERVIEW" && a.interviewSelectedAt && d !== null ? (
+        <div className="mt-3 rounded-2xl bg-[color:var(--v2-accent-weak)] p-4">
+          <p className="text-[14px] font-semibold text-[color:var(--v2-ink-2)]">{t("면접 전에 준비해 두세요", "Get ready before the interview", "面试前做好准备", "Chuẩn bị trước buổi phỏng vấn", "面接の前に準備しましょう", "Bersiap sebelum wawancara")}</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Button size="sm" onClick={onPractice}>{t("모의 면접으로 준비", "Practice with a mock interview", "用模拟面试准备", "Luyện phỏng vấn thử", "模擬面接で準備", "Latihan wawancara")}</Button>
+            <Button size="sm" variant="neutral" onClick={onSheet}>{t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}</Button>
+          </div>
+        </div>
+      ) : null}
+      {a.status === "ACCEPTED" ? (
+        <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-4">
+          <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">🎉 {t("합격을 축하해요!", "Congratulations!", "恭喜录取！", "Chúc mừng bạn!", "合格おめでとうございます！", "Selamat!")}</p>
+          <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("입사 전에 비자와 서류를 확인해 두세요.", "Check your visa and paperwork before you start.", "入职前请确认签证和材料。", "Hãy kiểm tra visa và giấy tờ trước khi đi làm.", "入社前にビザと書類を確認しましょう。", "Cek visa dan dokumen sebelum mulai bekerja.")}</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" href="/talent/visa/E-7">{t("E-7 취업 비자 안내", "E-7 work visa guide", "E-7 工作签证指南", "Hướng dẫn visa E-7", "E-7 就労ビザ案内", "Panduan visa E-7")}</Button>
+            <Button size="sm" variant="neutral" onClick={onMessage}>{t("회사에 입사 일정 묻기", "Ask about the start date", "询问入职日期", "Hỏi ngày bắt đầu", "入社日を聞く", "Tanya tanggal mulai")}</Button>
+          </div>
+        </div>
+      ) : null}
+      {a.status === "REJECTED" ? <SimilarJobs t={t} title={a.positionTitle} excludeId={a.positionId} /> : null}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+          {a.status !== "WITHDRAWN" ? (
+            <Button size="sm" variant="neutral" onClick={onMessage}>
+              {t("메시지", "Messages", "消息", "Tin nhắn", "メッセージ", "Pesan")}
+              {a.unreadMessages ? <span className="font-bold text-[color:var(--v2-attention)]">{a.unreadMessages}</span> : null}
             </Button>
           ) : null}
-          <Button size="sm" variant="neutral" onClick={onMessage}>
-            {t("메시지", "Messages", "消息", "Tin nhắn", "メッセージ", "Pesan")}
-            {a.unreadMessages ? <span className="font-bold text-[color:var(--v2-attention)]">{a.unreadMessages}</span> : null}
-          </Button>
           <Button size="sm" variant="neutral" onClick={onTimeline}>
             {t("진행 내역", "Progress", "进度", "Tiến trình", "進捗", "Progres")}
+          </Button>
+          <Button size="sm" variant="neutral" onClick={onDocs}>
+            {t("제출한 서류", "Sent documents", "已交材料", "Hồ sơ đã gửi", "提出書類", "Dokumen terkirim")}
           </Button>
           {a.status === "SUBMITTED" || a.status === "INTERVIEW" ? (
             <button type="button" onClick={onWithdraw} className="ml-auto h-9 px-1 text-[14px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-attention)]">
               {t("지원 철회", "Withdraw", "撤回", "Rút đơn", "取り消し", "Tarik")}
             </button>
           ) : null}
-        </div>
-      ) : null}
+      </div>
     </li>
+  );
+}
+
+/** 불합격 뒤 — 비슷한 공고(같은 직무 이름으로 뜻 기반 검색). 눌렀을 때만 불러온다(지원마다 미리 부르지 않게). */
+function SimilarJobs({ t, title, excludeId }: { t: PlatformT; title: string; excludeId: string }) {
+  const { locale } = useLanguage();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<PublicPositionListItem[] | null>(null);
+  const load = () => {
+    setOpen(true);
+    if (items) return;
+    getPublicPositionsPage({ search: title, sort: "relevance", limit: 4, locale })
+      .then((p) => setItems(p.items.filter((j) => j.id !== excludeId).slice(0, 3)))
+      .catch(() => setItems([]));
+  };
+  return (
+    <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-4">
+      <p className="text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("아쉽지만, 비슷한 자리가 또 있어요.", "Not this time, but there are similar roles.", "很遗憾，不过还有类似的职位。", "Tiếc quá, nhưng vẫn còn vị trí tương tự.", "残念ですが、似たポジションがあります。", "Sayang sekali, tapi ada posisi serupa.")}</p>
+      {!open ? (
+        <div className="mt-2.5">
+          <Button size="sm" variant="secondary" onClick={load}>{t("비슷한 공고 보기", "See similar jobs", "查看类似职位", "Xem việc tương tự", "似た求人を見る", "Lihat yang serupa")}</Button>
+        </div>
+      ) : items === null ? (
+        <div className="mt-1">
+          <RowsSkeleton count={2} />
+        </div>
+      ) : items.length === 0 ? (
+        <p className="mt-2 text-[14px] text-[color:var(--v2-faint)]">{t("지금은 비슷한 공고가 없어요.", "No similar jobs right now.", "目前没有类似职位。", "Hiện chưa có việc tương tự.", "今は似た求人がありません。", "Belum ada yang serupa.")}</p>
+      ) : (
+        <div className="mt-1">
+          {items.map((j) => (
+            <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={companyOf(j) || undefined} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

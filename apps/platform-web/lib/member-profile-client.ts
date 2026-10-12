@@ -926,6 +926,13 @@ export type MyApplication = {
   unreadMessages: number;
 };
 
+// 내 지원에 낸 서류(제출 시점 스냅샷). resume 은 이력서 content(리뉴얼·옛 형식이 섞여 있다), coverLetter 는 {title, company, items}.
+export type MyApplicationDocuments = { id: string; submittedAt: string; resume: Record<string, unknown> | null; coverLetter: { title?: string; company?: string | null; items?: unknown[] } | null };
+export async function getMyApplicationDocuments(applicationId: string): Promise<MyApplicationDocuments> {
+  const r = (await authedJsonFetch<never>(`/members/me/applications/${encodeURIComponent(applicationId)}/documents`, { method: "GET" })) as unknown as { item: MyApplicationDocuments };
+  return r.item;
+}
+
 export async function getMyApplications() {
   const result = await authedJsonFetch<MyApplication>("/members/me/applications", {
     method: "GET"

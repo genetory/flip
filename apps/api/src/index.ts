@@ -29986,6 +29986,35 @@ const applicationStatusUpdateSchema = z.object({
   memo: z.string().max(2000).optional()
 });
 
+// 내 지원에 낸 서류(제출 시점 스냅샷) — 면접 전에 '내가 뭐라고 썼더라'를 다시 보게. 본인 지원만.
+// 사진(data URL)·편집기 설정처럼 크고 읽을 필요 없는 값은 빼고 보낸다.
+app.get("/members/me/applications/:id/documents", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  try {
+    const app = await prisma.application.findFirst({
+      where: { id, candidateUserId: req.auth!.userId },
+      select: { id: true, submittedAt: true, resumeSnapshot: true, coverLetterSnapshot: true }
+    });
+    if (!app) return res.status(404).json({ ok: false, message: "application not found" });
+    const strip = (v: unknown): unknown => {
+      if (!v || typeof v !== "object" || Array.isArray(v)) return v ?? null;
+      const o = { ...(v as Record<string, unknown>) };
+      delete o.basicPhotoUrl;
+      delete o.builder;
+      delete o.poolOptIn;
+      if (o.renewalBasicInfo && typeof o.renewalBasicInfo === "object") {
+        const b = { ...(o.renewalBasicInfo as Record<string, unknown>) };
+        delete b.photoUrl;
+        o.renewalBasicInfo = b;
+      }
+      return o;
+    };
+    return res.json({ ok: true, item: { id: app.id, submittedAt: app.submittedAt, resume: strip(app.resumeSnapshot), coverLetter: app.coverLetterSnapshot ?? null } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load application documents" });
+  }
+});
+
 app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
     const items = await prisma.application.findMany({
