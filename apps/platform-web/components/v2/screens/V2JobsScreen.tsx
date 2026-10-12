@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { V2Shell } from "../V2Shell";
-import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField, Switch } from "../ui";
+import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField, Spinner, Switch } from "../ui";
 import { companyOf, hasMockInterview, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -185,7 +185,14 @@ function Jobs() {
     n == null ? undefined : tpl.split("{n}").flatMap((part, i) => (i === 0 ? [part] : [<b key={i} className="font-bold text-[color:var(--v2-ink)]">{n.toLocaleString()}</b>, part]));
   const shownCount = tab === "saved" ? items?.length ?? null : total;
   const countLede = bold(t("{n}개 공고가 있어요", "{n} jobs", "共 {n} 个职位", "{n} việc làm", "{n}件の求人", "{n} lowongan"), shownCount);
-  const heading: { title: string; lede: React.ReactNode } = (() => {
+  // 찾는 중 — 개수 대신 '찾고 있어요…'(옛 결과는 살짝 흐리게 둔 채). 결과가 오면 바로 바뀐다.
+  const searchingLede = (
+    <span className="inline-flex items-center gap-1.5 text-[color:var(--v2-muted)]">
+      <Spinner className="h-3.5 w-3.5" />
+      {t("찾고 있어요…", "Searching…", "正在搜索…", "Đang tìm…", "探しています…", "Mencari…")}
+    </span>
+  );
+  const headingBase: { title: string; lede: React.ReactNode } = (() => {
     const f = foreigner && tab !== "saved";
     // 문장으로 찾으면 제목이 길어져 — 12자 넘으면 제목은 짧게, 검색한 문장은 설명 줄에.
     if (search && search.length > 12)
@@ -225,6 +232,12 @@ function Jobs() {
       lede: countLede
     };
   })();
+  // 검색 결과를 기다리는 동안 제목이 '찾았어요'로 먼저 바뀌면 어색하다 — 검색이면 '찾고 있어요', 필터 변경이면 제목 그대로.
+  const heading = refreshing
+    ? search
+      ? { title: t("공고를 찾고 있어요", "Looking for jobs…", "正在为你找职位", "Đang tìm việc cho bạn", "求人を探しています", "Sedang mencari lowongan"), lede: searchingLede }
+      : { ...headingBase, lede: searchingLede }
+    : headingBase;
 
   // 스위치는 '켜면 이것만 본다'는 뜻이라 '만'을 붙인다(공고 위 칩은 공고의 특징이라 '가능'까지만).
   const foreignerLabel = t("외국인 채용 가능만", "Foreigner-friendly only", "只看可招外国人", "Chỉ việc nhận WNA", "外国人採用可のみ", "Hanya terbuka WNA");
@@ -255,6 +268,7 @@ function Jobs() {
             setQuery("");
             setSearch("");
           }}
+          busy={refreshing}
           submitLabel={t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
           clearLabel={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")}
           placeholder={t("찾는 일을 편하게 적어 보세요", "Tell us what job you're looking for", "说说你想找什么工作", "Bạn muốn tìm việc gì? Cứ gõ thoải mái", "探している仕事を気軽に書いてください", "Ceritakan pekerjaan yang kamu cari")} />
@@ -325,7 +339,7 @@ function Jobs() {
           </span>
         ) : null}
         <p className={`text-[14px] font-medium text-[color:var(--v2-faint)] ${tab !== "saved" ? "hidden md:block" : ""}`}>
-          {items ? t(`${(total ?? items.length).toLocaleString()}개`, `${(total ?? items.length).toLocaleString()} jobs`, `${(total ?? items.length).toLocaleString()} 个`, `${(total ?? items.length).toLocaleString()} tin`, `${(total ?? items.length).toLocaleString()}件`, `${(total ?? items.length).toLocaleString()} lowongan`) : ""}
+          {refreshing ? t("찾는 중…", "Searching…", "搜索中…", "Đang tìm…", "検索中…", "Mencari…") : items ? t(`${(total ?? items.length).toLocaleString()}개`, `${(total ?? items.length).toLocaleString()} jobs`, `${(total ?? items.length).toLocaleString()} 个`, `${(total ?? items.length).toLocaleString()} tin`, `${(total ?? items.length).toLocaleString()}件`, `${(total ?? items.length).toLocaleString()} lowongan`) : ""}
         </p>
         <div className="flex items-center gap-3 text-[14px]">
           {(
@@ -342,7 +356,7 @@ function Jobs() {
         </div>
       </div>
 
-      <ul className={`px-5 transition-opacity duration-150 ${refreshing ? "pointer-events-none opacity-40" : ""}`} aria-busy={refreshing}>
+      <ul className={`px-5 transition-opacity duration-200 ${refreshing ? "pointer-events-none opacity-60" : ""}`} aria-busy={refreshing}>
         {items === null ? (
           <RowsSkeleton count={6} />
         ) : items.length === 0 ? (

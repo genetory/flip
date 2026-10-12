@@ -270,7 +270,9 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
       alive = false;
     };
   }, [term, locale]);
-  const items = result && result.for === term ? result.items : null;
+  // 찾는 동안엔 옛 결과를 흐리게 둔다(스켈레톤으로 갈아끼우면 깜빡인다). 처음에만 스켈레톤.
+  const searching = result !== null && result.for !== term;
+  const items = result?.items ?? null;
   return (
     <div className="pt-2">
       <SearchField
@@ -282,11 +284,12 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
           setQ("");
           setTerm("");
         }}
+        busy={searching}
         submitLabel={t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
         clearLabel={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")}
         placeholder={t("직무나 회사 이름으로 찾기", "Search by role or company", "按职位或公司搜索", "Tìm theo vị trí hoặc công ty", "職種や会社名で探す", "Cari peran atau perusahaan")}
       />
-      <div className="mt-2">
+      <div className={`mt-2 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-60" : ""}`} aria-busy={searching}>
         {items === null ? <RowsSkeleton count={3} /> : items.length === 0 ? (
           <Empty>{t("맞는 공고가 없어요.", "No matching jobs.", "没有匹配的职位。", "Không có tin phù hợp.", "該当する求人がありません。", "Tidak ada yang cocok.")}</Empty>
         ) : (

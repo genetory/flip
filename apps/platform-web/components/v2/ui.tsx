@@ -176,7 +176,8 @@ export function SearchField({
   placeholder,
   submitLabel,
   clearLabel,
-  autoFocus
+  autoFocus,
+  busy = false
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -186,6 +187,8 @@ export function SearchField({
   submitLabel: string;
   clearLabel: string;
   autoFocus?: boolean;
+  /** 찾는 중 — [검색]에 도는 표시, 다시 누르지 못하게. */
+  busy?: boolean;
 }) {
   return (
     <form
@@ -214,8 +217,8 @@ export function SearchField({
           ×
         </button>
       ) : null}
-      <button type="submit" className="h-9 shrink-0 rounded-xl bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90">
-        {submitLabel}
+      <button type="submit" disabled={busy} aria-busy={busy} className="inline-flex h-9 min-w-[56px] shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-80">
+        {busy ? <Spinner /> : submitLabel}
       </button>
     </form>
   );
@@ -330,5 +333,15 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
         <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.2)] transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>
     </button>
+  );
+}
+
+/** 도는 표시 — 찾는 중·보내는 중. 글자 색을 따른다. */
+export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 24 24" className={`animate-spin ${className}`}>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeOpacity="0.3" strokeWidth="3" />
+      <path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
   );
 }
