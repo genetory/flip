@@ -503,7 +503,7 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
   );
 }
 
-// ── 이 직무 지원자들이 갖춘 것 ────────────────────────────
+// ── 이 직무에 필요한 것 ────────────────────────────
 // 관심 직무 공고 20곳의 자격 요건 + 그 직무에서 흔히 갖춘 것을 자격증·스킬·경험·어학 체크리스트로 — 내 서류에 없는 것부터.
 // 강점과 같이 누를 때만 AI 를 부르고, 직무별로 서류 수정 시각과 함께 이 브라우저에 기억한다.
 const CHECKLIST_KEY = "aply.v2.career.checklist";
@@ -571,7 +571,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
 
   return (
     <Section
-      title={t("지원자들이 갖춘 것", "What applicants have", "求职者具备的条件", "Ứng viên thường có", "応募者が持つもの", "Yang dimiliki pelamar")}
+      title={t("이 직무에 필요한 것", "What this role needs", "这个职位需要的", "Vị trí này cần gì", "この職種に必要なもの", "Yang dibutuhkan peran ini")}
       aside={
         stale ? (
           <TextLink onClick={busy ? undefined : run}>
