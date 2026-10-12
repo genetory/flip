@@ -10,7 +10,7 @@ import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet, StartSheet } from "../interview-content";
 import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
-import { Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
+import { Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -26,7 +26,6 @@ import {
   getMyMockInterviewUsage,
   getMyMockInterviews,
   getPublicPositionById,
-  getPublicPositionsPage,
   type MockInterviewAnswer,
   type MockInterviewRecord,
   type MyApplication,
@@ -42,6 +41,8 @@ import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { PrepSheetV2 } from "../prep-sheet";
+import { JobSearch, RegisterInterviewSheet } from "../register-interview";
+import { useMyInterviews, type MyInterview } from "../../../lib/talent/my-interviews";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
 export function V2InterviewsScreen() {
@@ -61,7 +62,8 @@ function Interviews() {
   const [positions, setPositions] = useState<PublicPositionListItem[] | null>(null);
   const [gate, setGate] = useState<{ item: PublicPositionListItem | null } | null>(null);
   const [practice, setPractice] = useState<{ item: PublicPositionListItem | null } | null>(null);
-  const [sheetApp, setSheetApp] = useState<MyApplication | null>(null);
+  const [sheetApp, setSheetApp] = useState<Upcoming | null>(null);
+  const [register, setRegister] = useState<{ initial: MyInterview | null } | null>(null);
   const [limit, setLimit] = useState({ reached: false, limit: 3 });
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [review, setReview] = useState<MockInterviewRecord | "self" | null>(null);
@@ -70,6 +72,7 @@ function Interviews() {
   const [picker, setPicker] = useState<"mine" | "imported" | "search" | null>(null);
   const [tool, setTool] = useState<"set" | "intro" | "quiz" | null>(null);
   const imported = useImportedJobs();
+  const mine = useMyInterviews();
   const interests = useJobInterests();
   // 연습 기록 = 서버 기록(Aply·원티드 공고) + 가져온 공고 기록(계정) — 최근 연습순.
   const history: MockInterviewRecord[] | null =
@@ -95,13 +98,18 @@ function Interviews() {
     });
   }, []);
 
-  const upcoming = useMemo(
-    () =>
-      (apps ?? [])
-        .filter((a) => a.status === "INTERVIEW" && a.interviewSelectedAt && daysUntil(a.interviewSelectedAt) !== null)
-        .sort((a, b) => new Date(a.interviewSelectedAt!).getTime() - new Date(b.interviewSelectedAt!).getTime()),
-    [apps]
-  );
+  // 다가오는 면접 = Aply 지원의 면접 일정 + 내가 직접 등록한 면접(날짜 미정 포함, 지난 건 숨김). 날짜순, 미정은 뒤로.
+  const upcoming = useMemo(() => {
+    const fromApps: Upcoming[] = (apps ?? [])
+      .filter((a) => a.status === "INTERVIEW" && a.interviewSelectedAt && daysUntil(a.interviewSelectedAt) !== null)
+      .map((a) => ({ key: a.id, positionId: a.positionId, title: a.positionTitle, company: a.partnerOrganizationName ?? null, at: a.interviewSelectedAt! }));
+    const taken = new Set(fromApps.map((u) => u.positionId));
+    const fromMine: Upcoming[] = mine
+      .filter((m) => !taken.has(m.positionId) && (!m.interviewAt || daysUntil(m.interviewAt) !== null))
+      .map((m) => ({ key: m.id, positionId: m.positionId, title: m.title, company: m.company || null, at: m.interviewAt, mine: m }));
+    const time = (u: Upcoming) => (u.at ? new Date(u.at).getTime() : Number.MAX_SAFE_INTEGER);
+    return [...fromApps, ...fromMine].sort((a, b) => time(a) - time(b));
+  }, [apps, mine]);
   const candidates = useMemo(() => {
     const top = new Set(upcoming.map((a) => a.positionId));
     return (positions ?? []).filter((p) => !top.has(p.id)).slice(0, 4);
@@ -183,46 +191,75 @@ function Interviews() {
         lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
       />
 
-      {/* 다가오는 면접 — 면접이 잡혔을 때만 */}
-      {next ? (
-        <Section title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
-          {/* 가로로 넘기는 캐러셀 — 하나면 꽉 차게 */}
+      {/* 다가오는 면접 — Aply 지원 + 직접 등록한 면접. 없으면 등록 안내 한 줄 */}
+      <Section
+        title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}
+        aside={
+          next ? (
+            <button type="button" onClick={() => setRegister({ initial: null })} className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
+              {t("+ 등록", "+ Add", "+ 登记", "+ Thêm", "+ 登録", "+ Tambah")}
+            </button>
+          ) : undefined
+        }
+      >
+        {next ? (
+          /* 가로로 넘기는 캐러셀 — 하나면 꽉 차게 */
           <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
-          {upcoming.map((a) => {
-            const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
-            const rec = (records ?? []).find((m) => m.positionId === a.positionId);
-            return (
-              <div key={a.id} className={`shrink-0 snap-start rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 ${upcoming.length > 1 ? "w-[290px] md:w-[340px]" : "w-full"}`}>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex h-6 items-center rounded-full px-2 text-[12px] font-bold text-white ${dd <= 3 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</span>
-                  <span className="text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{whenText(t, a.interviewSelectedAt!)}</span>
+            {upcoming.map((a) => {
+              const dd = a.at ? daysUntil(a.at) ?? 0 : null;
+              const ext = a.positionId.startsWith("ext-") ? imported.find((j) => j.id === a.positionId) : undefined;
+              const done = ext ? ext.answers?.length ?? 0 : (records ?? []).find((m) => m.positionId === a.positionId)?.answeredCount ?? 0;
+              return (
+                <div key={a.key} className={`shrink-0 snap-start rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 ${upcoming.length > 1 ? "w-[290px] md:w-[340px]" : "w-full"}`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-[12px] font-bold ${dd === null ? "bg-white text-[color:var(--v2-muted)]" : dd <= 3 ? "bg-[color:var(--v2-attention)] text-white" : "bg-[color:var(--v2-accent)] text-white"}`}>
+                      {dd === null ? t("일정 미정", "No date", "日期未定", "Chưa có ngày", "日程未定", "Belum ada") : dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{a.at ? whenText(t, a.at) : ""}</span>
+                    {a.mine ? (
+                      <button type="button" onClick={() => setRegister({ initial: a.mine! })} className="shrink-0 text-[13px] font-semibold text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
+                        {t("수정", "Edit", "编辑", "Sửa", "編集", "Ubah")}
+                      </button>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 truncate text-[17px] font-bold text-[color:var(--v2-ink)]">{a.title}</p>
+                  <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-muted)]">
+                    {[a.company, done ? t(`${done}문항 연습함`, `${done} practiced`, `已练 ${done} 题`, `Đã luyện ${done}`, `${done}問練習済み`, `${done} dilatih`) : t("아직 연습 전", "Not practiced yet", "尚未练习", "Chưa luyện", "まだ練習していません", "Belum latihan")].filter(Boolean).join(" · ")}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" onClick={() => void startById(a.positionId, "upcoming")}>
+                      {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="white"
+                      onClick={() => {
+                        trackInterviewPrepSheetOpened();
+                        setSheetApp(a);
+                      }}
+                    >
+                      {t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}
+                    </Button>
+                  </div>
                 </div>
-                <p className="mt-2 truncate text-[17px] font-bold text-[color:var(--v2-ink)]">{a.positionTitle}</p>
-                <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-muted)]">
-                  {[a.partnerOrganizationName, rec ? t(`${rec.answeredCount}문항 연습함`, `${rec.answeredCount} practiced`, `已练 ${rec.answeredCount} 题`, `Đã luyện ${rec.answeredCount}`, `${rec.answeredCount}問練習済み`, `${rec.answeredCount} dilatih`) : t("아직 연습 전", "Not practiced yet", "尚未练习", "Chưa luyện", "まだ練習していません", "Belum latihan")].filter(Boolean).join(" · ")}
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" onClick={() => void startById(a.positionId, "upcoming")}>
-                    {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="white"
-                    onClick={() => {
-                      trackInterviewPrepSheetOpened();
-                      setSheetApp(a);
-                    }}
-                  >
-                    {t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
-        </Section>
-      ) : null}
-
+        ) : (
+          <button type="button" onClick={() => setRegister({ initial: null })} className="flex w-full items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 text-left transition hover:-translate-y-0.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[18px]" aria-hidden>
+              🗓️
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{t("면접이 잡혔나요? 등록해 두세요", "Got an interview? Add it", "有面试了吗？登记一下", "Có lịch phỏng vấn? Thêm vào", "面接が決まりましたか？登録を", "Ada wawancara? Tambahkan")}</span>
+              <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("Aply 밖에서 지원한 곳도 링크·본문으로 등록하고 맞춤 연습해요", "Even outside Aply — add by link or text and practice", "Aply 以外的也可用链接或内容登记并练习", "Cả ngoài Aply — thêm bằng link/nội dung", "Aply以外もリンク・本文で登録して練習", "Di luar Aply juga — lewat tautan/teks")}</span>
+            </span>
+            <span className="shrink-0 text-[20px] text-[color:var(--v2-faint)]" aria-hidden>
+              ›
+            </span>
+          </button>
+        )}
+      </Section>
 
       {/* 오늘의 질문 */}
         <Section
@@ -439,12 +476,20 @@ function Interviews() {
           }}
         />
       ) : null}
+      {register ? (
+        <RegisterInterviewSheet
+          initial={register.initial}
+          positions={positions}
+          onClose={() => setRegister(null)}
+          onSaved={() => setRegister(null)}
+        />
+      ) : null}
       {sheetApp ? (
         <PrepSheetV2
           positionId={sheetApp.positionId}
-          title={sheetApp.positionTitle}
-          company={sheetApp.partnerOrganizationName}
-          interviewAt={sheetApp.interviewSelectedAt}
+          title={sheetApp.title}
+          company={sheetApp.company}
+          interviewAt={sheetApp.at}
           onPractice={() => {
             const a = sheetApp;
             setSheetApp(null);
@@ -457,52 +502,7 @@ function Interviews() {
   );
 }
 
-/** 이 화면 안에서 공고 검색 — 포지션 탐색으로 넘어가지 않는다. */
-function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) {
-  const t = usePlatformT();
-  const { locale } = useLanguage();
-  const [q, setQ] = useState("");
-  // 엔터·[검색]을 눌렀을 때만 찾는다(포지션 탐색과 같은 규칙). 비어 있으면 최신 공고 몇 개.
-  const [term, setTerm] = useState("");
-  const [result, setResult] = useState<{ for: string; items: PublicPositionListItem[] } | null>(null);
-  useEffect(() => {
-    let alive = true;
-    getPublicPositionsPage({ search: term || undefined, limit: term ? 8 : 4, locale })
-      .then((p) => alive && setResult({ for: term, items: p.items }))
-      .catch(() => alive && setResult({ for: term, items: [] }));
-    return () => {
-      alive = false;
-    };
-  }, [term, locale]);
-  // 찾는 동안엔 옛 결과를 흐리게 둔다(스켈레톤으로 갈아끼우면 깜빡인다). 처음에만 스켈레톤.
-  const searching = result !== null && result.for !== term;
-  const items = result?.items ?? null;
-  return (
-    <div className="pt-2">
-      <SearchField
-        autoFocus
-        value={q}
-        onChange={setQ}
-        onSubmit={() => setTerm(q.trim())}
-        onClear={() => {
-          setQ("");
-          setTerm("");
-        }}
-        busy={searching}
-        submitLabel={t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
-        clearLabel={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")}
-        placeholder={t("직무나 회사 이름으로 찾기", "Search by role or company", "按职位或公司搜索", "Tìm theo vị trí hoặc công ty", "職種や会社名で探す", "Cari peran atau perusahaan")}
-      />
-      <div className={`mt-2 transition-opacity duration-200 ${searching ? "pointer-events-none opacity-60" : ""}`} aria-busy={searching}>
-        {items === null ? <RowsSkeleton count={3} /> : items.length === 0 ? (
-          <Empty>{t("맞는 공고가 없어요.", "No matching jobs.", "没有匹配的职位。", "Không có tin phù hợp.", "該当する求人がありません。", "Tidak ada yang cocok.")}</Empty>
-        ) : (
-          items.map((p) => <Row key={p.id} onClick={() => onPick(p)} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={companyOf(p) || undefined} />)
-        )}
-      </div>
-    </div>
-  );
-}
+type Upcoming = { key: string; positionId: string; title: string; company: string | null; at: string | null; mine?: MyInterview };
 
 type SelfAnswer = { question: string; category: string; answer: string; score: number | null; feedback?: { strengths: string[]; improvements: string[] } | null };
 

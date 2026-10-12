@@ -438,10 +438,10 @@ export function QuizSheet({ onClose }: { onClose: () => void }) {
 // ── 공고 가져오기 ─────────────────────────────────────
 // 가고 싶은 회사·다른 서비스의 공고를 링크(또는 공고 글 붙여넣기)로 가져와 그 공고로 모의 면접.
 // Aply·원티드(수집된) 공고는 그 공고를 그대로 열고, 그 밖은 정리해서 '가져온 공고'로 계정에 남긴다.
-export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onStart: (item: PublicPositionListItem) => void }) {
+export function ImportJobSheet({ onClose, onStart, initialMode = "url", title, subtitle, ctaLabel }: { onClose: () => void; onStart: (item: PublicPositionListItem) => void; initialMode?: "url" | "text"; title?: string; subtitle?: string; ctaLabel?: string }) {
   const t = usePlatformT();
   const { locale } = useLanguage();
-  const [mode, setMode] = useState<"url" | "text">("url");
+  const [mode, setMode] = useState<"url" | "text">(initialMode);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -482,8 +482,8 @@ export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onSt
   return (
     <Sheet
       tall
-      title={t("공고 가져오기", "Import a job", "导入职位", "Nhập tin tuyển dụng", "求人を取り込む", "Impor lowongan")}
-      subtitle={t("가고 싶은 회사 공고로 맞춤 모의 면접을 봐요", "Practice a mock interview for the job you want", "用想去公司的职位进行定制模拟面试", "Phỏng vấn thử theo tin bạn muốn", "行きたい会社の求人で模擬面接", "Simulasi untuk lowongan incaran")}
+      title={title ?? t("공고 가져오기", "Import a job", "导入职位", "Nhập tin tuyển dụng", "求人を取り込む", "Impor lowongan")}
+      subtitle={subtitle ?? t("가고 싶은 회사 공고로 맞춤 모의 면접을 봐요", "Practice a mock interview for the job you want", "用想去公司的职位进行定制模拟面试", "Phỏng vấn thử theo tin bạn muốn", "行きたい会社の求人で模擬面接", "Simulasi untuk lowongan incaran")}
       onClose={onClose}
       footer={
         draft ? (
@@ -492,7 +492,7 @@ export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onSt
               {t("다시 가져오기", "Import another", "重新导入", "Nhập lại", "取り込み直す", "Impor lagi")}
             </Button>
             <Button full onClick={start}>
-              {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
+              {ctaLabel ?? t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
             </Button>
           </div>
         ) : (
