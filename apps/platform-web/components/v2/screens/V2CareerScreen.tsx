@@ -636,7 +636,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
           </div>
           {!sorted.length ? <p className="mt-4 text-[14px] text-[color:var(--v2-muted)]">{t("공고마다 요구가 달라 자주 나오는 요건을 찾지 못했어요.", "No requirement came up often enough.", "各职位要求不同，未找到常见要求。", "Không có yêu cầu nào lặp lại đủ nhiều.", "よく出る要件は見つかりませんでした。", "Tidak ada syarat yang sering muncul.")}</p> : null}
           <ul className="mt-3">
-            {(all ? sorted : sorted.slice(0, 5)).map((x) => (
+            {(all ? sorted : sorted.slice(0, 3)).map((x) => (
               <li key={x.name} className="flex items-start gap-3 border-b border-[color:var(--v2-band)] py-3.5 last:border-b-0">
                 <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${x.have ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)]"}`} aria-label={x.have ? t("갖춤", "Have", "具备", "Có", "あり", "Ada") : t("없음", "Missing", "缺少", "Chưa có", "なし", "Belum")}>
                   {x.have ? (
@@ -658,9 +658,9 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
               </li>
             ))}
           </ul>
-          {sorted.length > 5 ? (
+          {sorted.length > 3 ? (
             <button type="button" onClick={() => setAll((v) => !v)} className="mt-1 h-10 text-[14px] font-semibold text-[color:var(--v2-muted)] transition hover:text-[color:var(--v2-ink-2)]">
-              {all ? t("접기", "Show less", "收起", "Thu gọn", "閉じる", "Tutup") : t(`${sorted.length - 5}개 더 보기`, `Show ${sorted.length - 5} more`, `再看 ${sorted.length - 5} 项`, `Xem thêm ${sorted.length - 5}`, `あと${sorted.length - 5}件`, `${sorted.length - 5} lagi`)}
+              {all ? t("접기", "Show less", "收起", "Thu gọn", "閉じる", "Tutup") : t(`${sorted.length - 3}개 더 보기`, `Show ${sorted.length - 3} more`, `再看 ${sorted.length - 3} 项`, `Xem thêm ${sorted.length - 3}`, `あと${sorted.length - 3}件`, `${sorted.length - 3} lagi`)}
             </button>
           ) : null}
           <p className="mt-2 text-[13px] text-[color:var(--v2-faint)]">{t("이미 있는데 없다고 나오면, 이력서에 적어 두면 다음 비교부터 반영돼요.", "Already have one marked missing? Add it to your resume.", "已具备却显示缺少？写进简历，下次比较即可反映。", "Đã có mà báo thiếu? Hãy thêm vào CV.", "持っているのに「なし」なら、履歴書に書いてください。", "Sudah punya tapi tertulis belum? Tambahkan ke CV.")}</p>
