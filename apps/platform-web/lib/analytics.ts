@@ -540,13 +540,6 @@ export type InterviewStartMode = "upcoming" | "job" | "self";
 export function trackInterviewHubViewed(params: { upcoming: number; candidates: number; records: number }) {
   safeSendEvent("interview_hub_viewed", params);
 }
-/** 모의 면접 '면접 준비 4단계' — 효과 측정. 볼 때 몇 단계를 끝냈는지(pattern 예: "1010"), 단계를 눌렀는지. */
-export function trackInterviewPrepViewed(params: { stepsDone: number; pattern: string }) {
-  safeSendEvent("interview_prep_viewed", params);
-}
-export function trackInterviewPrepStepClicked(params: { step: number; done: boolean; stepsDone: number }) {
-  safeSendEvent("interview_prep_step_clicked", params);
-}
 export function trackInterviewStart(mode: InterviewStartMode) {
   safeSendEvent("interview_start_clicked", { mode });
 }
