@@ -40,7 +40,7 @@ import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
-import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
+import { trackInterviewHubViewed, trackInterviewPrepStepClicked, trackInterviewPrepViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
 export function V2InterviewsScreen() {
   return (
@@ -172,6 +172,14 @@ function Interviews() {
     { done: (selfMock?.setsCompleted ?? 0) > 0, title: t("10분 모의 면접 끝까지 해 보기", "Finish a 10-min mock interview", "完成一次10分钟模拟面试", "Hoàn thành phỏng vấn 10 phút", "10分模擬面接をやり切る", "Selesaikan simulasi 10 menit"), meta: t("실전처럼 5문항 이어서", "5 questions in a row, like the real thing", "像实战一样连续5题", "5 câu liên tiếp như thật", "本番のように5問連続", "5 soal berturut-turut"), action: () => setTool("set") }
   ];
   const stepsDone = steps.filter((x) => x.done).length;
+  // 효과 측정 — 기록을 다 불러온 뒤 한 번만(몇 단계 끝낸 사람이 보는지).
+  const prepPattern = steps.map((x) => (x.done ? "1" : "0")).join("");
+  const prepSent = useRef(false);
+  useEffect(() => {
+    if (records === null || selfMock === null || prepSent.current) return;
+    prepSent.current = true;
+    trackInterviewPrepViewed({ stepsDone, pattern: prepPattern });
+  }, [records, selfMock, stepsDone, prepPattern]);
 
   // 맨 위 한 가지는 지원(면접 일정)을 읽어야 정해진다 — 그 전엔 화면 모양만.
   if (apps === null)
@@ -231,7 +239,12 @@ function Interviews() {
         </Section>
       ) : null}
 
-      {/* ② 면접 준비 단계 — 무엇부터 할지 순서 */}
+      {/* 면접 준비 4단계 — 처음 쓰는 사람의 출발점. 다 끝내면 한 줄로 접는다(다시 오는 사람에겐 정보가 없어서). */}
+      {stepsDone === 4 ? (
+        <div className="px-5 pt-6">
+          <p className="rounded-2xl bg-[#e8f8f1] px-4 py-3 text-[14px] font-semibold text-[color:var(--v2-good)]">✓ {t("면접 준비 4단계를 모두 끝냈어요. 이제 공고별로 연습하며 다듬어 보세요.", "All 4 prep steps done — keep polishing job by job.", "已完成全部4个准备步骤，接下来按职位继续打磨。", "Đã xong 4 bước — tiếp tục luyện theo từng tin.", "準備4ステップ完了。求人ごとに磨いていきましょう。", "4 langkah selesai — lanjutkan per lowongan.")}</p>
+        </div>
+      ) : (
       <Section title={t("면접 준비 단계", "Interview prep steps", "面试准备步骤", "Các bước chuẩn bị", "面接準備ステップ", "Langkah persiapan")} aside={<span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t(`${stepsDone}/4 완료`, `${stepsDone}/4 done`, `已完成 ${stepsDone}/4`, `Xong ${stepsDone}/4`, `${stepsDone}/4 完了`, `${stepsDone}/4 selesai`)}</span>}>
         <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
           <div className="h-full rounded-full bg-[color:var(--v2-good)] transition-all" style={{ width: `${(stepsDone / 4) * 100}%` }} />
@@ -239,7 +252,12 @@ function Interviews() {
         <ol className="mt-3">
           {steps.map((st, i) => (
             <li key={i}>
-              <button type="button" onClick={st.action} className="-mx-2 flex w-[calc(100%+16px)] items-center gap-3 rounded-2xl px-2 py-3 text-left transition hover:bg-[color:var(--v2-fill)]">
+              <button
+                type="button"
+                onClick={() => {
+                  trackInterviewPrepStepClicked({ step: i + 1, done: st.done, stepsDone });
+                  st.action();
+                }} className="-mx-2 flex w-[calc(100%+16px)] items-center gap-3 rounded-2xl px-2 py-3 text-left transition hover:bg-[color:var(--v2-fill)]">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${st.done ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)] text-[color:var(--v2-muted)]"}`} aria-hidden>
                   {st.done ? "✓" : i + 1}
                 </span>
@@ -255,6 +273,7 @@ function Interviews() {
           ))}
         </ol>
       </Section>
+      )}
 
       {/* 오늘의 질문 */}
         <Section
