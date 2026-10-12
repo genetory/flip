@@ -13,7 +13,7 @@ import { getMyApplications, getMyMockInterviewUsage, getPublicPositionById, getP
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { InterviewSlotModal, WithdrawModal } from "../../talent/screens/ApplicationsScreen";
 import { DocumentsSheet, MessageSheet, ProgressSheet } from "../sheets";
-import { MockGateModal } from "../../talent/jobs/MockGateModal";
+import { StartSheet } from "../interview-content";
 import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -215,7 +215,7 @@ function Applications() {
         />
       ) : null}
       {gate ? (
-        <MockGateModal
+        <StartSheet
           allowWithoutDocs
           dailyLimitReached={limit.reached}
           dailyLimit={limit.limit}

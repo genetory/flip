@@ -10,7 +10,7 @@ import { V2Shell, V2_ROUTES } from "../V2Shell";
 import { Button, Page, Row, RowsSkeleton } from "../ui";
 import { Sheet } from "../sheets";
 import { PracticeSheet, type PracticeQuestion } from "../practice";
-import { companyOf, daysUntil, jobPhotoOf, shortPlace } from "../lib";
+import { companyOf, daysUntil, docsReady, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -30,12 +30,12 @@ import {
 import { toPositionView } from "../../../lib/talent/positions-adapter";
 import { deriveForeignerEligibility } from "../../../lib/talent/foreigner-eligibility";
 import { useResumeDoc, type ResumeDoc } from "../../../lib/talent/resume-doc";
-import { useCoverDoc, saveCoverDoc, generateCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { useCoverDoc, saveCoverDoc, generateCoverDoc } from "../../../lib/talent/cover-doc";
 import { notifyApplied, notifySavedPosition } from "../../../lib/talent/activity-log";
 import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { parseOfficePhotos } from "../../../lib/image-upload";
 import { trackInterviewStart } from "../../../lib/analytics";
-import { MockGateModal } from "../../talent/jobs/MockGateModal";
+import { StartSheet } from "../interview-content";
 import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
 
 const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
@@ -74,15 +74,6 @@ function mySkills(resume: ResumeDoc | null): string[] {
     .map((x) => x.trim())
     .filter(Boolean);
   return [...new Set(out)];
-}
-
-/** 지원 서류 준비 — 이력서: 학력·경력/프로젝트·스킬·어학·한 줄 소개 / 자기소개서: 20자 이상 쓴 문항 1개 이상. */
-function docsReady(resume: ResumeDoc | null, cover: CoverDoc | null): { resume: boolean; cover: boolean } {
-  const has = (secs: string[]) => !!resume?.items.some((i) => secs.includes(i.section) && (i.text.trim() || (i.company ?? "").trim()));
-  const resumeOk = !!resume && has(["education"]) && has(["experience", "project"]) && has(["skill"]) && has(["language"]) && !!resume.summary?.trim();
-  const byQ = new Map<string, number>();
-  for (const it of cover?.items ?? []) byQ.set(it.question, (byQ.get(it.question) ?? 0) + it.text.trim().length);
-  return { resume: resumeOk, cover: [...byQ.values()].some((n) => n >= 20) };
 }
 
 function sizeLabel(t: PlatformT, s: string | null | undefined): string | null {
@@ -484,7 +475,7 @@ function JobDetail({ id }: { id: string }) {
       ) : null}
 
       {gate ? (
-        <MockGateModal
+        <StartSheet
           allowWithoutDocs
           dailyLimitReached={limit.reached}
           dailyLimit={limit.limit}

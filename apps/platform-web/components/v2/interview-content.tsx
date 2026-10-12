@@ -6,8 +6,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, Spinner } from "./ui";
 import { DictationControls, LevelChip, PracticeSheet, useDictation } from "./practice";
+import { docsReady } from "./lib";
+import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useLanguage } from "../i18n/LanguageProvider";
-import { usePlatformT, type PlatformT } from "../../lib/i18n";
+import { usePlatformT } from "../../lib/i18n";
 import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
@@ -19,62 +21,6 @@ import { DAILY_QUESTIONS, kstDay, pickDailyQuiz, pickInterviewSet, questionText,
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
 
 const INTRO_Q = DAILY_QUESTIONS[0];
-
-/** 연습 도구 타일 — 색이 다른 큰 카드 셋(매너 퀴즈는 외국인 지원자에게만). */
-export function PracticeTools({ t, showQuiz }: { t: PlatformT; showQuiz: boolean }) {
-  const [open, setOpen] = useState<"set" | "intro" | "quiz" | null>(null);
-  const quizDone = useQuizResult();
-  const selfMock = useSelfMock();
-  const intro = (selfMock?.answers ?? []).find((a) => a.question === INTRO_Q.ko);
-  return (
-    <>
-      <div className={`grid gap-3 ${showQuiz ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
-        {/* 10분 모의 면접 — 진한 남색 그라데이션 */}
-        <button type="button" onClick={() => setOpen("set")} className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b2b6b] via-[#2441b8] to-[#3d6bff] p-5 text-left text-white transition hover:shadow-[0_10px_30px_rgba(36,65,184,0.35)]">
-          <span aria-hidden className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-white/10" />
-          <span aria-hidden className="absolute -bottom-10 right-10 h-24 w-24 rounded-full bg-white/5" />
-          <span className="relative inline-flex h-7 items-center rounded-full bg-white/15 px-2.5 text-[12px] font-bold">⏱ {t("10분", "10 min", "10分钟", "10 phút", "10分", "10 mnt")}</span>
-          <p className="relative mt-3 text-[20px] font-bold leading-[1.35]">{t("실전처럼 모의 면접", "A full mock interview", "像实战一样模拟面试", "Phỏng vấn thử như thật", "本番さながらの模擬面接", "Simulasi seperti nyata")}</p>
-          <p className="relative mt-1 text-[14px] leading-[1.55] text-white/80">{t("자기소개부터 마지막 말까지 5문항, 끝나면 결과 카드", "5 questions, intro to closing — then a report card", "从自我介绍到最后陈述 5 题，结束后出结果卡", "5 câu từ giới thiệu đến kết — rồi thẻ kết quả", "自己紹介から最後の一言まで5問、終わると結果カード", "5 soal, dari perkenalan sampai penutup")}</p>
-          <span className="relative mt-4 inline-flex items-center gap-1 text-[14px] font-bold">
-            {t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")} <span className="transition group-hover:translate-x-0.5">→</span>
-          </span>
-        </button>
-
-        {/* 1분 자기소개 — 따뜻한 주황 */}
-        <button type="button" onClick={() => setOpen("intro")} className="group relative overflow-hidden rounded-3xl bg-[#fff4e8] p-5 text-left transition hover:bg-[#ffecd6]">
-          <span aria-hidden className="absolute right-4 top-4 text-[40px] leading-none opacity-90">🎤</span>
-          <span className="inline-flex h-7 items-center rounded-full bg-white px-2.5 text-[12px] font-bold text-[#e8590c]">{t("가장 먼저 받는 질문", "Always asked first", "必问第一题", "Luôn hỏi đầu tiên", "最初に必ず聞かれる", "Selalu ditanya pertama")}</span>
-          <p className="mt-3 text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("1분 자기소개", "1-minute self-intro", "1分钟自我介绍", "Tự giới thiệu 1 phút", "1分自己紹介", "Perkenalan 1 menit")}</p>
-          <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">
-            {intro ? t(`저장된 자기소개 ${intro.answer.trim().length}자 · 다듬고 소리 내어 연습`, `Saved (${intro.answer.trim().length} chars) — polish & rehearse`, `已保存 ${intro.answer.trim().length} 字 · 打磨并朗读练习`, `Đã lưu ${intro.answer.trim().length} ký tự — chỉnh & tập nói`, `保存済み${intro.answer.trim().length}字・磨いて声に出して練習`, `Tersimpan ${intro.answer.trim().length} karakter`) : t("이력서로 초안을 만들고, 시간 재며 소리 내어 연습", "Draft from your resume, rehearse with a timer", "用简历生成初稿，计时朗读练习", "Tạo bản nháp từ CV, tập nói có hẹn giờ", "履歴書から下書き、時間を計って声に出して練習", "Buat draf dari CV, latihan dengan timer")}
-          </p>
-          <span className="mt-4 inline-flex items-center gap-1 text-[14px] font-bold text-[#e8590c]">
-            {intro ? t("다듬기", "Polish", "打磨", "Chỉnh sửa", "磨く", "Perbaiki") : t("만들기", "Create", "制作", "Tạo", "作る", "Buat")} <span className="transition group-hover:translate-x-0.5">→</span>
-          </span>
-        </button>
-
-        {/* 매너 퀴즈 — 민트 */}
-        {showQuiz ? (
-          <button type="button" onClick={() => setOpen("quiz")} className="group relative overflow-hidden rounded-3xl bg-[#e8f8f1] p-5 text-left transition hover:bg-[#d9f3e7]">
-            <span aria-hidden className="absolute right-4 top-4 text-[40px] leading-none">🙇</span>
-            <span className="inline-flex h-7 items-center rounded-full bg-white px-2.5 text-[12px] font-bold text-[color:var(--v2-good)]">{t("오늘의 3문제", "3 a day", "今日3题", "3 câu hôm nay", "今日の3問", "3 soal hari ini")}</span>
-            <p className="mt-3 text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("한국 면접 매너 퀴즈", "Korean interview etiquette", "韩国面试礼仪测验", "Quiz phép lịch sự PV Hàn", "韓国面接マナークイズ", "Kuis etiket wawancara Korea")}</p>
-            <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">
-              {quizDone !== null ? t(`오늘 3문제 중 ${quizDone}개 맞혔어요`, `You got ${quizDone}/3 today`, `今天3题答对${quizDone}题`, `Hôm nay đúng ${quizDone}/3`, `今日は3問中${quizDone}問正解`, `Benar ${quizDone}/3 hari ini`) : t("인사·호칭·연봉 질문… 헷갈리는 것만 모았어요", "Greetings, titles, salary questions…", "问候、称呼、薪资问题……", "Chào hỏi, xưng hô, câu hỏi lương…", "挨拶・呼び方・年収の質問…", "Salam, sapaan, pertanyaan gaji…")}
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1 text-[14px] font-bold text-[color:var(--v2-good)]">
-              {quizDone !== null ? t("다시 보기", "Review", "再看", "Xem lại", "見直す", "Tinjau") : t("풀어 보기", "Play", "开始答题", "Làm thử", "解いてみる", "Main")} <span className="transition group-hover:translate-x-0.5">→</span>
-            </span>
-          </button>
-        ) : null}
-      </div>
-      {open === "set" ? <InterviewSetSheet onClose={() => setOpen(null)} /> : null}
-      {open === "intro" ? <SelfIntroSheet onClose={() => setOpen(null)} /> : null}
-      {open === "quiz" ? <QuizSheet onClose={() => setOpen(null)} /> : null}
-    </>
-  );
-}
 
 // ── 10분 모의 면접 세트 ─────────────────────────────────
 type SetAnswer = { q: DailyQuestion; answer: string; ms: number };
@@ -171,13 +117,13 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
     >
       {step === "intro" ? (
         <div>
-          <div className="rounded-3xl bg-gradient-to-br from-[#1b2b6b] to-[#3d6bff] p-6 text-white">
-            <p className="text-[13px] font-bold text-white/70">{t("실제 면접 순서 그대로", "Same order as a real interview", "与真实面试顺序相同", "Đúng thứ tự phỏng vấn thật", "本番と同じ順番", "Urutan seperti wawancara nyata")}</p>
+          <div className="rounded-3xl bg-[#fff0f3] p-6 text-[color:var(--v2-ink)]">
+            <p className="text-[13px] font-bold text-[#e5484d]">{t("실제 면접 순서 그대로", "Same order as a real interview", "与真实面试顺序相同", "Đúng thứ tự phỏng vấn thật", "本番と同じ順番", "Urutan seperti wawancara nyata")}</p>
             <p className="mt-1 text-[22px] font-bold leading-[1.35]">{t("5문항 · 약 10분", "5 questions · ~10 min", "5题 · 约10分钟", "5 câu · ~10 phút", "5問・約10分", "5 soal · ~10 menit")}</p>
             <ol className="mt-4 flex flex-col gap-2">
               {questions.map((q, i) => (
-                <li key={i} className="flex items-center gap-2.5 text-[14px] text-white/90">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-[12px] font-bold">{i + 1}</span>
+                <li key={i} className="flex items-center gap-2.5 text-[14px] text-[color:var(--v2-ink-2)]">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold text-[#e5484d]">{i + 1}</span>
                   {i === questions.length - 1 ? t("마지막 한마디", "Closing words", "最后陈述", "Lời kết", "最後の一言", "Penutup") : mockCategoryLabelOf(t, q.category)}
                 </li>
               ))}
@@ -213,9 +159,8 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
       ) : (
         <div>
           {/* 결과 카드 */}
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1b2b6b] to-[#3d6bff] p-6 text-white">
-            <span aria-hidden className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
-            <p className="relative text-[13px] font-bold text-white/70">{t("모의 면접 결과", "Mock interview result", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接の結果", "Hasil simulasi")}</p>
+          <div className="relative overflow-hidden rounded-3xl bg-[#fff0f3] p-6 text-[color:var(--v2-ink)]">
+            <p className="relative text-[13px] font-bold text-[#e5484d]">{t("모의 면접 결과", "Mock interview result", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接の結果", "Hasil simulasi")}</p>
             <p className="relative mt-1 text-[26px] font-bold">
               {avg == null ? "—" : avg >= 80 ? t("잘 해냈어요 🎉", "Well done 🎉", "表现很好 🎉", "Làm tốt lắm 🎉", "よくできました 🎉", "Bagus sekali 🎉") : avg >= 70 ? t("괜찮았어요 👍", "Not bad 👍", "还不错 👍", "Khá ổn 👍", "まずまず 👍", "Lumayan 👍") : t("조금 더 연습해요 💪", "Keep practicing 💪", "再多练练 💪", "Luyện thêm nhé 💪", "もう少し練習 💪", "Latih lagi 💪")}
             </p>
@@ -265,9 +210,9 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white/12 px-2 py-3" style={{ backgroundColor: "rgba(255,255,255,0.12)" }}>
-      <p className="text-[19px] font-bold tabular-nums">{value}</p>
-      <p className="mt-0.5 text-[12px] text-white/75">{label}</p>
+    <div className="rounded-2xl bg-white px-2 py-3">
+      <p className="text-[19px] font-bold tabular-nums text-[color:var(--v2-ink)]">{value}</p>
+      <p className="mt-0.5 text-[12px] text-[color:var(--v2-muted)]">{label}</p>
     </div>
   );
 }
@@ -429,6 +374,7 @@ export function QuizSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet
+      tall
       title={t("한국 면접 매너 퀴즈", "Korean interview etiquette", "韩国面试礼仪测验", "Quiz phép lịch sự PV Hàn", "韓国面接マナークイズ", "Kuis etiket wawancara Korea")}
       onClose={onClose}
       footer={
@@ -558,7 +504,7 @@ export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onSt
     >
       {draft ? (
         <div className="flex flex-col gap-3">
-          <div className="rounded-3xl bg-gradient-to-br from-[#eef3ff] to-[#f6f0ff] p-5">
+          <div className="rounded-3xl bg-[#f3eeff] p-5">
             <p className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{draft.company || t("회사 이름 없음", "Company unknown", "未知公司", "Không rõ công ty", "会社名なし", "Perusahaan tidak diketahui")}</p>
             <p className="mt-1 text-[20px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{draft.title}</p>
             {draft.sourceUrl ? <p className="mt-1 truncate text-[12px] text-[color:var(--v2-faint)]">{draft.sourceUrl}</p> : null}
@@ -605,6 +551,67 @@ export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onSt
           {error ? <p className="mt-3 rounded-2xl bg-[#fff4e8] px-4 py-3 text-[14px] leading-[1.55] text-[#c2410c]">{error}</p> : null}
         </div>
       )}
+    </Sheet>
+  );
+}
+
+// ── 모의 면접 시작 — 예전 팝업(MockGateModal)의 v2 모양. 다른 카드 팝업과 같은 크기(tall 시트).
+// 공고 연습은 서류 없이도 시작(공고 기반 일반 질문), 내 서류 연습은 서류가 준비돼야 시작. 회사 하루 제한에 걸리면 막는다.
+export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLimit, onClose, onConfirm }: { title?: string; allowWithoutDocs: boolean; dailyLimitReached: boolean; dailyLimit: number; onClose: () => void; onConfirm: () => void }) {
+  const t = usePlatformT();
+  const resume = useResumeDoc();
+  const cover = useCoverDoc();
+  const ready = docsReady(resume, cover);
+  const both = ready.resume && ready.cover;
+  const blocked = dailyLimitReached || (!allowWithoutDocs && !both);
+  const row = (label: string, ok: boolean, href: string) => (
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3.5">
+      <div className="flex items-center gap-2.5">
+        <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-bold ${ok ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)] bg-white text-transparent"}`} aria-hidden>✓</span>
+        <span className="text-[16px] font-semibold text-[color:var(--v2-ink)]">{label}</span>
+        <span className={`text-[13px] ${ok ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-muted)]"}`}>{ok ? t("준비됐어요", "Ready", "已就绪", "Sẵn sàng", "準備OK", "Siap") : t("덜 채웠어요", "Not ready", "未完成", "Chưa xong", "未完成", "Belum")}</span>
+      </div>
+      {!ok ? (
+        <a href={href} className="text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
+          {t("채우기", "Fill in", "去填写", "Điền", "書く", "Isi")}
+        </a>
+      ) : null}
+    </div>
+  );
+  return (
+    <Sheet
+      tall
+      title={t("모의 면접을 시작할까요?", "Start the mock interview?", "开始模拟面试？", "Bắt đầu phỏng vấn thử?", "模擬面接を始めますか？", "Mulai simulasi?")}
+      subtitle={title}
+      onClose={onClose}
+      footer={
+        <Button full onClick={onConfirm} disabled={blocked}>
+          {t("모의 면접 시작하기", "Start", "开始模拟面试", "Bắt đầu", "模擬面接を始める", "Mulai")}
+        </Button>
+      }
+    >
+      <div className="rounded-3xl bg-[#edf1fd] p-5">
+        <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("이렇게 진행돼요", "How it works", "流程", "Cách diễn ra", "進め方", "Cara kerja")}</p>
+        <ol className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-[color:var(--v2-ink-2)]">
+          <li>① {t("질문 유형을 고르면 AI가 질문을 만들어요", "Pick a type — AI writes the questions", "选择类型，AI 生成问题", "Chọn loại — AI tạo câu hỏi", "タイプを選ぶとAIが質問を作ります", "Pilih tipe — AI membuat pertanyaan")}</li>
+          <li>② {t("한 문항씩 답하면 바로 피드백", "Answer one by one, get instant feedback", "逐题回答，立即反馈", "Trả lời từng câu, phản hồi ngay", "1問ずつ答えるとすぐフィードバック", "Jawab satu per satu, umpan balik langsung")}</li>
+          <li>③ {t("답은 연습 기록에 남아요", "Answers stay in your history", "回答保存在练习记录中", "Câu trả lời lưu trong lịch sử", "回答は練習記録に残ります", "Jawaban tersimpan di riwayat")}</li>
+        </ol>
+      </div>
+      <p className="mt-5 text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "自分の書類", "Dokumenku")}</p>
+      <div className="mt-2 flex flex-col gap-2">
+        {row(t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), ready.resume, "/talent/career/resume/editor")}
+        {row(t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), ready.cover, "/talent/career/cover/editor")}
+      </div>
+      <p className="mt-3 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">
+        {dailyLimitReached
+          ? t(`오늘은 회사 ${dailyLimit}곳까지 연습할 수 있어요. 내일 다시 해 주세요.`, `You can practice up to ${dailyLimit} companies a day. Try tomorrow.`, `每天最多可练习 ${dailyLimit} 家公司，明天再来吧。`, `Mỗi ngày tối đa ${dailyLimit} công ty. Hãy thử lại ngày mai.`, `1日${dailyLimit}社まで練習できます。明日また。`, `Maks ${dailyLimit} perusahaan per hari.`)
+          : both
+            ? t("서류를 바탕으로 내 경험에 맞춘 질문이 나와요.", "Questions will be tailored to your documents.", "问题会根据你的材料定制。", "Câu hỏi được điều chỉnh theo hồ sơ.", "書類に合わせた質問が出ます。", "Pertanyaan disesuaikan dengan dokumenmu.")
+            : allowWithoutDocs
+              ? t("서류가 덜 채워져도 시작할 수 있어요. 공고 기반 질문이 나오고, 서류를 채우면 내 경험에 맞춘 질문으로 더 정확해져요.", "You can start anyway — questions come from the job; fuller documents make them more personal.", "材料不完整也能开始，会基于职位出题；完善材料后会更贴合你的经历。", "Vẫn bắt đầu được — câu hỏi dựa trên tin; hồ sơ đầy đủ sẽ sát hơn.", "書類が未完成でも始められます。求人ベースの質問になり、書類を埋めるとより個別化されます。", "Tetap bisa mulai — pertanyaan dari lowongan.")
+              : t("내 서류로 연습하려면 이력서와 자기소개서를 먼저 채워 주세요.", "Fill in your resume and cover letter first to practice with them.", "要用材料练习，请先完善简历和自我介绍。", "Hãy hoàn thiện CV và thư trước.", "書類で練習するには先に履歴書と自己PRを。", "Lengkapi CV dan surat lamaran dulu.")}
+      </p>
     </Sheet>
   );
 }

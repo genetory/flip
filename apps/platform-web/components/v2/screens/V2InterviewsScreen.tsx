@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
-import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet } from "../interview-content";
+import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet, StartSheet } from "../interview-content";
 import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { Attention, Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
@@ -35,12 +35,9 @@ import {
 import { useSelfMock, practiceStreak } from "../../../lib/talent/self-mock";
 import { pickDailyQuestion, questionText, pickDailyExpression, expressionMeaning, kstDay, DAILY_QUESTIONS } from "../../../lib/talent/interview-daily";
 import { isForeignNationality } from "../../../lib/nationality";
-import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
-import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { MockGateModal } from "../../talent/jobs/MockGateModal";
 import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
@@ -57,8 +54,6 @@ function Interviews() {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const selfMock = useSelfMock();
-  const resume = useResumeDoc();
-  const cover = useCoverDoc();
   const [records, setRecords] = useState<MockInterviewRecord[] | null>(null);
   const [apps, setApps] = useState<MyApplication[] | null>(null);
   const [positions, setPositions] = useState<PublicPositionListItem[] | null>(null);
@@ -160,8 +155,7 @@ function Interviews() {
   };
   const startSelf = () => {
     trackInterviewStart("self");
-    if (resumeCompleteness(resume) >= 100 && coverCompleteness(cover) >= 100) setPractice({ item: null });
-    else setGate({ item: null });
+    setGate({ item: null }); // 모든 시작은 같은 시작 시트로(팝업 크기를 맞춘다)
   };
 
   const next = upcoming[0] ?? null;
@@ -235,7 +229,7 @@ function Interviews() {
           })}
             </div>
           ) : null}
-        <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-gradient-to-br from-[#edf1fd] via-[#eef0ff] to-[#f4ecff] p-5 text-left transition hover:opacity-90">
+        <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-[#edf1fd] p-5 text-left transition hover:opacity-90">
           <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
           <span className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</span>
           {locale !== "ko" ? <span className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</span> : null}
@@ -335,7 +329,8 @@ function Interviews() {
       </Section>
 
       {gate ? (
-        <MockGateModal
+        <StartSheet
+          title={gate.item ? [companyOf(gate.item), gate.item.title].filter(Boolean).join(" · ") : t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")}
           allowWithoutDocs={!!gate.item}
           dailyLimitReached={!!gate.item && !gate.item.id.startsWith("ext-") && limit.reached}
           dailyLimit={limit.limit}
