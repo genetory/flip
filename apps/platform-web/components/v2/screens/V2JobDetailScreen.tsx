@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
-import { Button, Page } from "../ui";
+import { Button, Page, Row, RowsSkeleton } from "../ui";
 import { Sheet } from "../sheets";
 import { companyOf, daysUntil, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -20,6 +20,7 @@ import {
   getMyFavoritePositions,
   getMyMockInterviewUsage,
   getPublicPositionById,
+  getPublicPositionsPage,
   removeMyFavoritePosition,
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
@@ -286,7 +287,8 @@ function JobDetail({ id }: { id: string }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={org.companyLogoImageData} alt="" className="h-7 w-7 rounded-lg object-cover" />
           ) : null}
-          <p className="truncate text-[15px] font-semibold text-[color:var(--v2-ink-3)]">{company}</p>
+          <p className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[color:var(--v2-ink-3)]">{company}</p>
+          <ShareButton t={t} id={id} title={`${company} · ${item.title}`} />
         </div>
         <h1 className="mt-2 text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">{item.title}</h1>
         <p className="mt-2 text-[15px] text-[color:var(--v2-muted)]">
@@ -416,6 +418,8 @@ function JobDetail({ id }: { id: string }) {
           ) : null}
         </Block>
       ) : null}
+
+      <SimilarJobs t={t} item={item} />
 
       {/* 모바일 하단 고정 — 저장 · 지원 */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--v2-line)] bg-white px-4 pt-3 md:hidden" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
@@ -570,5 +574,63 @@ function DetailSkeleton() {
         <div className="mt-10 h-24 w-full rounded-2xl bg-[color:var(--v2-band)]" />
       </div>
     </Page>
+  );
+}
+
+/** 공유 — 휴대폰은 공유 시트, 아니면 링크 복사. 링크는 누구나 열리는 공개 공고 주소(/talent/jobs/…)로 — v2 는 프로덕션에서 숨겨져 있다. */
+function ShareButton({ t, id, title }: { t: PlatformT; id: string; title: string }) {
+  const [copied, setCopied] = useState(false);
+  const share = async () => {
+    const url = `${window.location.origin}/talent/jobs/${id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* 공유를 취소했거나 막혀 있으면 아무것도 하지 않는다 */
+    }
+  };
+  return (
+    <button type="button" onClick={() => void share()} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg px-2 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]">
+      {copied ? (
+        t("링크를 복사했어요", "Link copied", "已复制链接", "Đã sao chép", "コピーしました", "Tautan disalin")
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+          </svg>
+          {t("공유", "Share", "分享", "Chia sẻ", "共有", "Bagikan")}
+        </>
+      )}
+    </button>
+  );
+}
+
+/** 비슷한 공고 — 공고 이름으로 뜻 기반 검색(포지션 탐색의 관련도순) 3개. 지금 공고는 뺀다. */
+function SimilarJobs({ t, item }: { t: PlatformT; item: PublicPositionListItem }) {
+  const { locale } = useLanguage();
+  const [list, setList] = useState<PublicPositionListItem[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getPublicPositionsPage({ search: item.title, sort: "relevance", limit: 6, locale })
+      .then((p) => alive && setList(p.items.filter((x) => x.id !== item.id).slice(0, 3)))
+      .catch(() => alive && setList([]));
+    return () => {
+      alive = false;
+    };
+  }, [item.id, item.title, locale]);
+  if (list && !list.length) return null;
+  return (
+    <Block title={t("비슷한 공고", "Similar jobs", "相似职位", "Tin tương tự", "似た求人", "Lowongan serupa")}>
+      {list === null ? (
+        <RowsSkeleton count={3} />
+      ) : (
+        list.map((j) => <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />)
+      )}
+    </Block>
   );
 }
