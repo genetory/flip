@@ -3,6 +3,7 @@
 // v2 포지션 탐색 — 검색칸 하나, 탭·필터는 칩 한 줄씩, 공고는 사진 달린 목록. 게스트도 본다.
 // 저장은 공고 상세에서 한다(목록엔 하트 없음 — 공고 이름이 주인공). 공고 상세는 아직 기존 화면.
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { V2Shell } from "../V2Shell";
 import { Button, Chip, Empty, Masthead, Page, RowsSkeleton, SearchField, Spinner, Switch } from "../ui";
@@ -63,7 +64,9 @@ function Jobs() {
   const { locale } = useLanguage();
   const { isAuthenticated } = useAuthSession();
   const interests = useJobInterests();
-  const [tab, setTab] = useState<Tab>("all");
+  // ?tab=interest 처럼 다른 화면(내 커리어 '내 스펙에 맞는 공고')에서 탭을 골라 들어올 수 있다.
+  const tabParam = useSearchParams()?.get("tab");
+  const [tab, setTab] = useState<Tab>(tabParam === "aply" || tabParam === "interest" || tabParam === "saved" ? tabParam : "all");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   // '혹시 외국인이세요?' — 한국인도 보는 화면이라 먼저 걸러 두지 않고 물어본다. 답은 이 브라우저에만 기억.

@@ -1,11 +1,16 @@
 "use client";
 
-// v2 내 커리어 — 나에 관한 것을 한곳에: 프로필 · 지원 서류(다음 할 일) · 관심 직무 · 경력 · 내 스펙 · 더 정리할 것.
+// v2 내 커리어 — 나에 관한 것을 한곳에: 프로필(링크) · 지원 서류(다음 할 일) · 기업이 보는 내 강점 · 관심 직무 · 내 스펙에 맞는 공고 · 경력 · 내 스펙 · 더 정리할 것.
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { V2Shell, useProfilePhoto } from "../V2Shell";
-import { Chip, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
-import { shortPlace } from "../lib";
+import { Button, Chip, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, Section, SectionSkeleton, Spinner, TextLink } from "../ui";
+import { companyOf, jobPhotoOf, shortPlace } from "../lib";
+import { useLanguage } from "../../i18n/LanguageProvider";
+import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
+import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getCareerStrengths, AiQuotaError, type CareerStrength } from "../../../lib/resume-maker-client";
+import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
@@ -150,6 +155,7 @@ function Career() {
           photo={info.photoUrl || photo}
           intro={(resume?.summary || "").split("\n")[0].trim() || resume?.targetRole || ""}
           meta={[months ? durationText(t, months) : null, shortPlace(info.address) || null].filter(Boolean).join(" · ")}
+          links={(resume?.links ?? []).filter((l) => l.url.trim())}
         />
       ) : (
         <Masthead
@@ -167,6 +173,8 @@ function Career() {
         </div>
       </Section>
 
+      {ready && items.length >= 2 ? <Strengths t={t} resume={resume} cover={cover} interests={interests.map((r) => jobTaxonomyLabelOf(t, r))} /> : null}
+
       <Section
         title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
         aside={<TextLink onClick={() => setInterestOpen(true)}>{interests.length ? t("수정", "Edit", "修改", "Sửa", "編集", "Ubah") : t("고르기", "Choose", "选择", "Chọn", "選ぶ", "Pilih")}</TextLink>}
@@ -183,6 +191,8 @@ function Career() {
           <Row onClick={() => setInterestOpen(true)} lead="🎯" title={t("관심 직무를 골라 주세요", "Pick your job interests", "请选择感兴趣的职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan")} meta={t("고르면 맞춤 공고와 모의 면접이 더 정확해져요", "Recommendations and mock interviews get sharper", "推荐职位和模拟面试会更精准", "Gợi ý và phỏng vấn thử sẽ chính xác hơn", "おすすめと模擬面接が正確になります", "Rekomendasi dan wawancara lebih tepat")} />
         )}
       </Section>
+
+      {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
 
       <Section title={t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")} aside={work.length ? <TextLink href={R.resume}>{t("편집", "Edit", "编辑", "Sửa", "編集", "Ubah")}</TextLink> : undefined}>
         {work.length ? (
@@ -261,7 +271,7 @@ function Career() {
 }
 
 /** 맨 위 프로필 — 사진 · 이름 · 한 줄 소개 · 경력/지역. */
-function Profile({ t, name, photo, intro, meta }: { t: PlatformT; name: string; photo: string | null; intro: string; meta: string }) {
+function Profile({ t, name, photo, intro, meta, links }: { t: PlatformT; name: string; photo: string | null; intro: string; meta: string; links: { label: string; url: string }[] }) {
   return (
     <header className="flex items-start gap-4 px-5 pb-8 pt-8 md:gap-5 md:pt-12">
       <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[24px] font-bold text-[color:var(--v2-muted)] md:h-[72px] md:w-[72px]">
@@ -279,6 +289,18 @@ function Profile({ t, name, photo, intro, meta }: { t: PlatformT; name: string; 
         </div>
         {intro ? <p className="mt-0.5 line-clamp-2 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{intro}</p> : null}
         {meta ? <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{meta}</p> : null}
+        {links.length ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {links.map((l) => (
+              <a key={l.url} href={normalizeUrl(l.url)} target="_blank" rel="noopener noreferrer" className="inline-flex h-8 max-w-full items-center gap-1 rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[14px] font-medium text-[color:var(--v2-ink-2)] transition hover:bg-[color:var(--v2-line)]">
+                <span className="truncate">{l.label || hostOf(l.url)}</span>
+                <svg aria-hidden viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[color:var(--v2-faint)]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 17 17 7M9 7h8v8" />
+                </svg>
+              </a>
+            ))}
+          </div>
+        ) : null}
       </div>
     </header>
   );
@@ -302,5 +324,158 @@ function SpecLine({ head, sub, right }: { head: string; sub?: string; right?: st
       </div>
       {right ? <span className="shrink-0 pt-0.5 text-[13px] text-[color:var(--v2-faint)]">{right}</span> : null}
     </div>
+  );
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(normalizeUrl(url)).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+// ── 기업이 보는 내 강점 3가지 ────────────────────────────
+// 누를 때만 AI 를 부른다. 결과는 이 브라우저에 서류 수정 시각과 함께 기억 — 서류가 바뀌면 '다시 찾기'를 권한다.
+const STRENGTHS_KEY = "aply.v2.career.strengths";
+type StrengthsCache = { sig: string; list: CareerStrength[] };
+
+function readStrengths(): StrengthsCache | null {
+  try {
+    const raw = window.localStorage.getItem(STRENGTHS_KEY);
+    const v = raw ? (JSON.parse(raw) as StrengthsCache) : null;
+    return v && Array.isArray(v.list) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+/** AI 에 보낼 서류 글 — 요약 · 경력 · 프로젝트 · 학력 · 스킬 · 어학 · 자격증 · 활동 · 자소서 답(8000자 안). */
+function profileText(t: PlatformT, resume: ResumeDoc | null, cover: CoverDoc | null): string {
+  const lines: string[] = [];
+  if (resume?.summary?.trim()) lines.push(`[요약] ${resume.summary.trim()}`);
+  for (const i of resume?.items ?? []) {
+    const period = [displayMonth(i.startDate ?? ""), displayMonth(i.endDate ?? "")].filter(Boolean).join("~");
+    lines.push(`[${sectionLabelOf(t, i.section)}] ${[i.company, period, i.text].filter(Boolean).join(" / ")}`);
+  }
+  for (const c of cover?.items ?? []) if (c.text.trim()) lines.push(`[자기소개서 · ${c.question}] ${c.text.trim()}`);
+  return lines.join("\n").slice(0, 8000);
+}
+
+function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: ResumeDoc | null; cover: CoverDoc | null; interests: string[] }) {
+  const sig = `${resume?.updatedAt ?? 0}:${cover?.updatedAt ?? 0}`;
+  // 이 구획은 서류를 다 불러온 뒤(브라우저에서만) 그려지므로 첫 값에서 바로 읽어도 된다.
+  const [cache, setCache] = useState<StrengthsCache | null>(() => readStrengths());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const stale = !!cache && cache.sig !== sig;
+
+  const run = async () => {
+    const profile = profileText(t, resume, cover);
+    if (profile.length < 30) {
+      setError(t("서류 내용이 조금 더 있어야 찾을 수 있어요.", "Add a bit more to your documents first.", "材料内容再多一点才能分析。", "Cần thêm nội dung hồ sơ.", "書類の内容がもう少し必要です。", "Tambahkan isi dokumen dulu."));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const list = await getCareerStrengths({ profile, targetRoles: interests });
+      const next = { sig, list };
+      setCache(next);
+      try {
+        window.localStorage.setItem(STRENGTHS_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 못 해도 화면엔 보인다 */
+      }
+    } catch (e) {
+      setError(
+        e instanceof AiQuotaError
+          ? t("오늘은 더 찾을 수 없어요. 내일 다시 해 보세요.", "Daily limit reached. Try again tomorrow.", "今天已达上限，明天再试。", "Đã hết lượt hôm nay.", "本日の上限です。明日お試しください。", "Batas harian tercapai.")
+          : t("강점을 찾지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't find strengths. Try again soon.", "未能分析，请稍后再试。", "Không tìm được. Thử lại sau.", "見つけられませんでした。後でもう一度。", "Gagal. Coba lagi nanti.")
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const again = (
+    <TextLink onClick={busy ? undefined : run}>
+      {busy ? t("찾는 중…", "Finding…", "分析中…", "Đang tìm…", "分析中…", "Mencari…") : t("다시 찾기", "Refresh", "重新分析", "Tìm lại", "もう一度", "Ulangi")}
+    </TextLink>
+  );
+
+  return (
+    <Section title={t("기업이 보는 내 강점", "Strengths employers see", "企业眼中的我的优势", "Điểm mạnh trong mắt NTD", "企業から見た強み", "Kekuatan di mata perusahaan")} aside={cache ? again : undefined}>
+      {cache ? (
+        <div className={`pb-3 pt-1 transition-opacity ${busy ? "opacity-60" : ""}`}>
+          {stale ? (
+            <p className="mb-3 text-[14px] font-medium text-[color:var(--v2-accent)]">{t("서류가 바뀌었어요. 다시 찾으면 지금 서류로 뽑아 드려요.", "Your documents changed — refresh to update.", "材料已更新，重新分析即可更新。", "Hồ sơ đã đổi — tìm lại để cập nhật.", "書類が変わりました。もう一度で更新します。", "Dokumen berubah — ulangi untuk memperbarui.")}</p>
+          ) : null}
+          <ol className="grid gap-2.5 md:grid-cols-3">
+            {cache.list.map((s, i) => (
+              <li key={i} className="rounded-2xl bg-[color:var(--v2-band)] p-4 md:p-5">
+                <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{i + 1}</p>
+                <p className="mt-1 text-[17px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{s.keyword}</p>
+                {s.evidence ? <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{s.evidence}</p> : null}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-[13px] text-[color:var(--v2-faint)]">{t("AI가 내 이력서·자기소개서를 읽고 뽑았어요. 자기소개서와 면접 답의 중심으로 써 보세요.", "Picked by AI from your resume and cover letter. Build your answers around these.", "AI 阅读简历和自我介绍后选出，可作为自我介绍和面试回答的核心。", "AI chọn từ CV và thư. Hãy xoay câu trả lời quanh các điểm này.", "AIが書類から選びました。自己PRや面接の軸にしてみてください。", "Dipilih AI dari dokumenmu. Jadikan inti jawabanmu.")}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-start gap-3 pb-3 pt-1 md:flex-row md:items-center md:justify-between">
+          <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("AI가 내 서류를 읽고, 채용 담당자 눈에 띄는 강점 3가지를 뽑아 드려요.", "AI reads your documents and picks 3 strengths recruiters notice.", "AI 阅读你的材料，选出招聘方会注意的 3 个优势。", "AI đọc hồ sơ và chọn 3 điểm mạnh nhà tuyển dụng chú ý.", "AIが書類を読み、採用担当の目に留まる強みを3つ選びます。", "AI membaca dokumenmu dan memilih 3 kekuatan.")}</p>
+          <Button size="sm" onClick={run} disabled={busy}>
+            {busy ? <Spinner /> : null}
+            {busy ? t("읽고 있어요", "Reading…", "读取中", "Đang đọc", "読んでいます", "Membaca") : t("내 강점 찾기", "Find strengths", "找优势", "Tìm điểm mạnh", "強みを探す", "Cari kekuatan")}
+          </Button>
+        </div>
+      )}
+      {error ? <p className="pb-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
+    </Section>
+  );
+}
+
+// ── 내 스펙에 맞는 공고 ───────────────────────────────
+// 관심 직무 공고 수 + 그 안에서 내 스킬과 뜻이 가까운 순 셋(포지션 탐색의 문장 검색과 같은 관련도).
+function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string[]; skills: string[] }) {
+  const { locale } = useLanguage();
+  const [state, setState] = useState<{ key: string; total: number; items: PublicPositionListItem[] } | null>(null);
+  const key = `${interests.join(",")}|${skills.slice(0, 6).join(",")}|${locale}`;
+  useEffect(() => {
+    let alive = true;
+    const jobRoles = jobCategoriesForInterests(interests);
+    const q = skills.slice(0, 6).join(" ");
+    Promise.all([
+      getPublicPositionsPage({ jobRoles, page: 1, limit: 1, locale }),
+      getPublicPositionsPage({ jobRoles, limit: 3, locale, ...(q ? { search: q, sort: "relevance" as const } : { sort: "latest" as const }) })
+    ])
+      .then(([all, top]) => alive && setState({ key, total: all.total ?? all.items.length, items: top.items }))
+      .catch(() => alive && setState({ key, total: 0, items: [] }));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  const loading = !state || state.key !== key;
+  if (!loading && !state.items.length) return null;
+  return (
+    <Section title={t("내 스펙에 맞는 공고", "Jobs that fit you", "适合我的职位", "Việc hợp với bạn", "自分に合う求人", "Lowongan yang cocok")} aside={<TextLink href="/v2/jobs?tab=interest">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
+      {loading ? (
+        <RowsSkeleton count={3} />
+      ) : (
+        <>
+          <p className="pb-1 text-[15px] text-[color:var(--v2-ink-3)]">
+            {skills.length
+              ? t(`관심 직무 공고 ${state.total.toLocaleString()}개 중, 내 스킬과 잘 맞는 순서예요.`, `${state.total.toLocaleString()} jobs in your interests, best skill match first.`, `感兴趣职位共 ${state.total.toLocaleString()} 个，按技能匹配排序。`, `${state.total.toLocaleString()} việc quan tâm, hợp kỹ năng nhất trước.`, `関心職種の求人${state.total.toLocaleString()}件、スキルが合う順です。`, `${state.total.toLocaleString()} lowongan minatmu, paling cocok dulu.`)
+              : t(`관심 직무 공고가 ${state.total.toLocaleString()}개 있어요.`, `${state.total.toLocaleString()} jobs in your interests.`, `感兴趣职位共 ${state.total.toLocaleString()} 个。`, `${state.total.toLocaleString()} việc bạn quan tâm.`, `関心職種の求人が${state.total.toLocaleString()}件あります。`, `${state.total.toLocaleString()} lowongan minatmu.`)}
+          </p>
+          {state.items.map((j) => (
+            <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />
+          ))}
+        </>
+      )}
+    </Section>
   );
 }

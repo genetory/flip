@@ -87,6 +87,8 @@ import {
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
   DRAFT_TEXT_SCHEMA,
+  CAREER_STRENGTHS_SCHEMA,
+  buildCareerStrengthsMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
@@ -15888,6 +15890,43 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
   } catch (err) {
     console.error("[ai/draft-resume-text] failed", err);
     return res.status(500).json({ ok: false, message: "failed to draft" });
+  }
+});
+
+// POST /members/me/ai/career-strengths — 내 커리어 '기업이 보는 내 강점 3가지'.
+// 화면이 이력서·자소서 내용을 글로 묶어 보낸다(본인 서류, 8000자 상한). 결과는 화면이 서류가 바뀔 때까지 기억한다.
+const careerStrengthsSchema = z.object({
+  profile: z.string().min(30).max(8000),
+  targetRoles: z.array(z.string().max(60)).max(10).optional()
+});
+
+app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("career_strengths"), async (req, res) => {
+  const parsed = careerStrengthsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const { system, user } = buildCareerStrengthsMessages(parsed.data);
+    const { data } = await generateJson<{ strengths?: unknown }>({
+      openai,
+      model: openaiTranslationModel,
+      temperature: 0.3,
+      system,
+      user,
+      schema: CAREER_STRENGTHS_SCHEMA,
+      schemaName: "career_strengths"
+    });
+    const strengths = (Array.isArray(data?.strengths) ? data.strengths : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { keyword: typeof o.keyword === "string" ? o.keyword.trim() : "", evidence: typeof o.evidence === "string" ? stripCliches(o.evidence.trim()) : "" };
+      })
+      .filter((x) => x.keyword)
+      .slice(0, 3);
+    if (!strengths.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, strengths });
+  } catch (err) {
+    console.error("[ai/career-strengths] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
   }
 });
 

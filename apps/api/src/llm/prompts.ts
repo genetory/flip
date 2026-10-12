@@ -391,3 +391,35 @@ export function buildPolishExperienceMessages(input: PolishExperienceInput): Llm
   const user = `${type ? `경험 유형: ${type}\n` : ""}경험 설명:\n${text}`;
   return { system, user };
 }
+
+// ── 내 커리어 '기업이 보는 내 강점 3가지' — 이력서·자소서를 읽고 강점 키워드 3개 + 근거 한 줄.
+export const CAREER_STRENGTHS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    strengths: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { keyword: { type: "string" }, evidence: { type: "string" } },
+        required: ["keyword", "evidence"]
+      }
+    }
+  },
+  required: ["strengths"]
+} as const;
+
+export function buildCareerStrengthsMessages(input: { profile: string; targetRoles?: string[] }): LlmMessages {
+  const system =
+    "당신은 한국 기업의 채용 담당자입니다. 지원자의 이력서·자기소개서를 읽고, 채용 담당자 눈에 띄는 이 지원자의 강점 3가지를 뽑아 주세요.\n" +
+    "[규칙]\n" +
+    "- 강점마다 keyword 는 2~12자의 짧은 명사구(예: '대용량 트래픽 처리', '고객 응대 경험', '데이터 기반 개선'). '성실함'·'열정' 같은 누구에게나 붙는 말은 피하세요.\n" +
+    "- evidence 는 그 강점을 보여주는 근거를 입력에서 찾아 한 문장(40자 안팎)으로. 입력에 없는 회사·수치·성과를 지어내지 마세요.\n" +
+    "- 서로 겹치지 않게 3개. 근거가 부족하면 있는 내용 안에서 가장 설득력 있는 것을 고르세요.\n" +
+    "- 관심 직무가 주어지면 그 직무에서 중요하게 보는 강점을 우선하세요." +
+    aiLangDirective();
+  const roles = input.targetRoles?.filter(Boolean).length ? `관심 직무: ${input.targetRoles!.filter(Boolean).join(", ")}\n\n` : "";
+  const user = `${roles}[지원자 서류]\n${input.profile}`;
+  return { system, user };
+}

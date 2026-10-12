@@ -726,3 +726,15 @@ export function builderContinuePath(resumeId: string, _resume: Pick<Resume, "con
   // 2컬럼 편집기(폼 + 실시간 미리보기)가 기본 진입점.
   return `/resume-maker/${resumeId}/edit`;
 }
+
+// 내 커리어 '기업이 보는 내 강점 3가지' (POST /members/me/ai/career-strengths).
+export type CareerStrength = { keyword: string; evidence: string };
+export async function getCareerStrengths(input: { profile: string; targetRoles?: string[] }): Promise<CareerStrength[]> {
+  const payload = (await aiPost<unknown>("/members/me/ai/career-strengths", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { strengths?: CareerStrength[] };
+  const list = (payload.strengths ?? []).filter((s) => s && s.keyword);
+  if (!list.length) throw new Error("강점을 찾지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return list;
+}
