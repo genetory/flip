@@ -15,7 +15,7 @@ import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jo
 import { draftResumeText } from "../../lib/resume-maker-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
-import { saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
+import { markInterviewSetCompleted, saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
 import { mockCategoryLabelOf } from "../../lib/talent/career-labels";
 import { DAILY_QUESTIONS, kstDay, pickDailyQuiz, pickInterviewSet, questionText, type DailyQuestion } from "../../lib/talent/interview-daily";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
@@ -67,6 +67,7 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
       if (f) saveSelfMockAnswer({ question: all[i].q.ko, category: all[i].q.category, answer: all[i].answer.trim(), score: f.score, feedback: { score: f.score, strengths: f.strengths, improvements: f.improvements, sampleAnswer: f.sampleAnswer } });
     });
     setResults(fb);
+    markInterviewSetCompleted();
     setStep("result");
   };
   const next = () => {

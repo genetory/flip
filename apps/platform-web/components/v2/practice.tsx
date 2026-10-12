@@ -46,7 +46,32 @@ function getRecognition(): (new () => Recognition) | null {
 }
 const FILLERS = /(^|\s)(음+|어+|그+|저기|뭐랄까|약간|좀)(?=\s|$|[,.])/g;
 
-export function PracticeSheet({ question: initial, initialAnswer = "", onClose, onSaved }: { question: PracticeQuestion; initialAnswer?: string; onClose: () => void; onSaved?: () => void }) {
+export function PracticeSheet({
+  question: initial,
+  initialAnswer = "",
+  onClose,
+  onSaved,
+  heading,
+  progress,
+  intent,
+  onSave,
+  onNext,
+  nextBusy
+}: {
+  question: PracticeQuestion;
+  initialAnswer?: string;
+  onClose: () => void;
+  onSaved?: () => void;
+  /** 모의 면접 세션에서 쓸 때 — 제목·진행(Q2 · 이 공고 맞춤)·질문 의도 */
+  heading?: string;
+  progress?: string;
+  intent?: string;
+  /** 답을 어디에 남길지(기본: 내 연습 기록 self-mock). 공고 연습은 공고 기록에. */
+  onSave?: (q: PracticeQuestion, answer: string, fb: InterviewFeedback) => void;
+  /** 피드백 뒤 [다음 질문] — 있으면 [완료] 대신 */
+  onNext?: () => void;
+  nextBusy?: boolean;
+}) {
   const t = usePlatformT();
   const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
   const { locale } = useLanguage();
@@ -99,7 +124,8 @@ export function PracticeSheet({ question: initial, initialAnswer = "", onClose, 
     try {
       const fb = await aiInterviewFeedback({ question: question.ko, answer: a, resumeText: resumeToText(resume, info) || undefined, desiredJobRole: resume?.targetRole || undefined, locale });
       setFeedback(fb);
-      saveSelfMockAnswer({ question: question.ko, category: question.category, answer: a, score: fb.score, feedback: { score: fb.score, strengths: fb.strengths, improvements: fb.improvements, sampleAnswer: fb.sampleAnswer } });
+      if (onSave) onSave(question, a, fb);
+      else saveSelfMockAnswer({ question: question.ko, category: question.category, answer: a, score: fb.score, feedback: { score: fb.score, strengths: fb.strengths, improvements: fb.improvements, sampleAnswer: fb.sampleAnswer } });
       onSaved?.();
       getAnswerExamples(question.ko)
         .then(setExamples)
@@ -124,7 +150,8 @@ export function PracticeSheet({ question: initial, initialAnswer = "", onClose, 
   return (
     <Sheet
       tall
-      title={t("한 문항 연습", "Practice one question", "单题练习", "Luyện một câu", "1問練習", "Latihan satu soal")}
+      title={heading ?? t("한 문항 연습", "Practice one question", "单题练习", "Luyện một câu", "1問練習", "Latihan satu soal")}
+      subtitle={progress}
       onClose={onClose}
       footer={
         feedback ? (
@@ -132,9 +159,16 @@ export function PracticeSheet({ question: initial, initialAnswer = "", onClose, 
             <Button variant="neutral" full onClick={() => retry(answer)}>
               {t("고쳐서 다시 답하기", "Revise & retry", "修改后重答", "Sửa & trả lời lại", "直して再回答", "Perbaiki & ulangi")}
             </Button>
-            <Button full onClick={onClose}>
-              {t("완료", "Done", "完成", "Xong", "完了", "Selesai")}
-            </Button>
+            {onNext ? (
+              <Button full onClick={onNext} disabled={nextBusy}>
+                {nextBusy ? <Spinner /> : null}
+                {t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Berikutnya")}
+              </Button>
+            ) : (
+              <Button full onClick={onClose}>
+                {t("완료", "Done", "完成", "Xong", "完了", "Selesai")}
+              </Button>
+            )}
           </div>
         ) : (
           <Button full onClick={() => void submit()} disabled={busy}>
@@ -146,6 +180,7 @@ export function PracticeSheet({ question: initial, initialAnswer = "", onClose, 
     >
       <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
       {locale !== "ko" && question.shown !== question.ko ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
+      {intent && !feedback ? <p className="mt-2 rounded-xl bg-[color:var(--v2-fill)] px-3 py-2 text-[13px] leading-[1.55] text-[color:var(--v2-muted)]">💡 {t("면접관이 보려는 것", "What they look for", "面试官想看的", "Người PV muốn thấy", "面接官が見たいこと", "Yang dicari")} · {intent}</p> : null}
 
       {!feedback ? (
         <>

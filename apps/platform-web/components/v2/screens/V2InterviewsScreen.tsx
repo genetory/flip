@@ -2,7 +2,7 @@
 
 // v2 모의 면접 — 맨 위에 '지금 연습할 것' 하나(면접 잡힌 공고 우선), 아래로 연습 시작·강점과 약점·기록.
 // 점수는 숫자 대신 단계(잘해요·괜찮아요·더 연습)로 — 몇 점이 좋은지 알 수 없어서. 기록은 누르면 지난 답을 다시 본다.
-// 실제 연습은 기존 팝업(MockGateModal → MockInterviewModal)과 '전날 볼 한 장'을 그대로 쓴다.
+// 실제 연습은 v2 시작 시트(StartSheet) → 모의 면접 세션(InterviewSession), '전날 볼 한 장'은 기존 것을 쓴다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
@@ -10,7 +10,7 @@ import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet, StartSheet } from "../interview-content";
 import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
-import { Attention, Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
+import { Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -38,7 +38,7 @@ import { isForeignNationality } from "../../../lib/nationality";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
-import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
+import { InterviewSession } from "../interview-session";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
@@ -121,6 +121,7 @@ function Interviews() {
     setPracticeQ({ ko, shown: q ? questionText(t, q) : ko, category });
   };
 
+
   const sent = useRef(false);
   useEffect(() => {
     if (records === null || sent.current) return;
@@ -159,6 +160,39 @@ function Interviews() {
   };
 
   const next = upcoming[0] ?? null;
+  // 면접 준비 4단계 — ① 1분 자기소개 ② 자주 나오는 질문 5개 ③ 지원할 공고로 연습 ④ 10분 모의 면접.
+  const answeredKo = new Set((selfMock?.answers ?? []).filter((a) => a.answer.trim()).map((a) => a.question));
+  const commonDone = DAILY_QUESTIONS.filter((q) => answeredKo.has(q.ko)).length;
+  const nextCommon = DAILY_QUESTIONS.find((q) => !answeredKo.has(q.ko));
+  const jobPracticed = (records?.length ?? 0) > 0 || imported.some((j) => j.answers?.length);
+  const steps = [
+    { done: answeredKo.has(DAILY_QUESTIONS[0].ko), title: t("1분 자기소개 준비하기", "Prepare a 1-min self-intro", "准备1分钟自我介绍", "Chuẩn bị tự giới thiệu 1 phút", "1分自己紹介を準備", "Siapkan perkenalan 1 menit"), meta: t("거의 모든 면접의 첫 질문", "The first question in almost every interview", "几乎所有面试的第一题", "Câu đầu tiên hầu như mọi buổi PV", "ほぼ全ての面接の最初の質問", "Pertanyaan pertama hampir setiap wawancara"), action: () => setTool("intro") },
+    { done: commonDone >= 5, title: t("자주 나오는 질문 5개 답해 보기", "Answer 5 common questions", "回答5个常见问题", "Trả lời 5 câu hỏi thường gặp", "よく出る質問に5つ答える", "Jawab 5 pertanyaan umum"), meta: t(`${Math.min(commonDone, 5)}/5 · 강점·실패 경험·지원 동기…`, `${Math.min(commonDone, 5)}/5 · strengths, failure, motivation…`, `${Math.min(commonDone, 5)}/5 · 优点、失败经历、动机…`, `${Math.min(commonDone, 5)}/5 · điểm mạnh, thất bại, động lực…`, `${Math.min(commonDone, 5)}/5・強み・失敗・志望動機…`, `${Math.min(commonDone, 5)}/5 · kekuatan, kegagalan, motivasi…`), action: () => (nextCommon ? openQuestion(nextCommon.ko, nextCommon.category) : openQuestion(daily.ko, daily.category)) },
+    { done: jobPracticed, title: t("지원할 공고로 연습하기", "Practice for a job you'll apply to", "用要投递的职位练习", "Luyện theo tin sẽ ứng tuyển", "応募する求人で練習", "Latihan untuk lowongan tujuan"), meta: t("내 공고·가고 싶은 회사 공고로", "Your jobs or one you import", "我的职位或导入的职位", "Tin của bạn hoặc tin nhập", "自分の求人か取り込んだ求人", "Lowonganmu atau yang diimpor"), action: () => (candidates.length ? setPicker("mine") : imported.length ? setPicker("imported") : setImporting(true)) },
+    { done: (selfMock?.setsCompleted ?? 0) > 0, title: t("10분 모의 면접 끝까지 해 보기", "Finish a 10-min mock interview", "完成一次10分钟模拟面试", "Hoàn thành phỏng vấn 10 phút", "10分模擬面接をやり切る", "Selesaikan simulasi 10 menit"), meta: t("실전처럼 5문항 이어서", "5 questions in a row, like the real thing", "像实战一样连续5题", "5 câu liên tiếp như thật", "本番のように5問連続", "5 soal berturut-turut"), action: () => setTool("set") }
+  ];
+  const stepsDone = steps.filter((x) => x.done).length;
+  const firstTodo = steps.find((x) => !x.done);
+  // 지금 할 일 — 면접 임박(연습 3문항 미만) → 오늘의 질문 → 다음 준비 단계 → 다시 볼 답 → 가고 싶은 회사 공고
+  const nextRec = next ? (records ?? []).find((m) => m.positionId === next.positionId) : undefined;
+  const dNext = next ? daysUntil(next.interviewSelectedAt!) ?? 0 : 99;
+  const hero: { kind: string; title: string; desc: string; cta: string; action: () => void; secondary?: { label: string; action: () => void } } =
+    next && dNext <= 7 && (nextRec?.answeredCount ?? 0) < 3
+      ? {
+          kind: "interview",
+          title: t(`${next.partnerOrganizationName ?? ""} 면접이 ${dNext === 0 ? "오늘" : `${dNext}일 뒤`}예요`, `${next.partnerOrganizationName ?? ""} interview ${dNext === 0 ? "today" : `in ${dNext} days`}`, `${next.partnerOrganizationName ?? ""} 面试${dNext === 0 ? "就在今天" : `还有 ${dNext} 天`}`, `Phỏng vấn ${next.partnerOrganizationName ?? ""} ${dNext === 0 ? "hôm nay" : `sau ${dNext} ngày`}`, `${next.partnerOrganizationName ?? ""}の面接は${dNext === 0 ? "今日" : `${dNext}日後`}`, `Wawancara ${next.partnerOrganizationName ?? ""} ${dNext === 0 ? "hari ini" : `${dNext} hari lagi`}`),
+          desc: t(`${next.positionTitle} · ${whenText(t, next.interviewSelectedAt!)} — 이 공고로 3문항만 연습해 두세요.`, `${next.positionTitle} · ${whenText(t, next.interviewSelectedAt!)} — practice 3 questions for it.`, `${next.positionTitle} · ${whenText(t, next.interviewSelectedAt!)} — 先用此职位练3题。`, `${next.positionTitle} · ${whenText(t, next.interviewSelectedAt!)} — luyện 3 câu cho tin này.`, `${next.positionTitle}・${whenText(t, next.interviewSelectedAt!)} — この求人で3問練習を。`, `${next.positionTitle} · ${whenText(t, next.interviewSelectedAt!)} — latih 3 soal.`),
+          cta: t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan"),
+          action: () => void startById(next.positionId, "upcoming"),
+          secondary: { label: t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas"), action: () => { trackInterviewPrepSheetOpened(); setSheetApp(next); } }
+        }
+      : !todayAnswer
+        ? { kind: "daily", title: questionText(t, daily), desc: t(`오늘의 질문 · ${mockCategoryLabelOf(t, daily.category)} — 2분이면 돼요.`, `Today's question · ${mockCategoryLabelOf(t, daily.category)} — takes 2 minutes.`, `今日问题 · ${mockCategoryLabelOf(t, daily.category)} — 只需2分钟。`, `Câu hỏi hôm nay · ${mockCategoryLabelOf(t, daily.category)} — 2 phút.`, `今日の質問・${mockCategoryLabelOf(t, daily.category)} — 2分でOK。`, `Pertanyaan hari ini · ${mockCategoryLabelOf(t, daily.category)} — 2 menit.`), cta: t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab"), action: () => openQuestion(daily.ko, daily.category) }
+        : firstTodo
+          ? { kind: "step", title: firstTodo.title, desc: t(`오늘의 질문은 했어요. 다음 준비 단계예요 — ${firstTodo.meta}`, `Today's question done. Next prep step — ${firstTodo.meta}`, `今日问题已完成。下一步——${firstTodo.meta}`, `Đã xong câu hôm nay. Bước tiếp — ${firstTodo.meta}`, `今日の質問は完了。次のステップ — ${firstTodo.meta}`, `Pertanyaan hari ini selesai. Berikutnya — ${firstTodo.meta}`), cta: t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai"), action: firstTodo.action }
+          : revisit[0]
+            ? { kind: "revisit", title: revisit[0].question, desc: t("며칠 전 '더 연습'이 나온 답이에요. 다시 답해서 얼마나 늘었는지 봐요.", "Marked 'practice more' days ago — answer again to see your progress.", "几天前被标为'多练习'，再答一次看看进步。", "'Luyện thêm' vài ngày trước — trả lời lại để thấy tiến bộ.", "数日前『要練習』でした。もう一度答えて成長を確認。", "'Latih lagi' beberapa hari lalu — jawab lagi."), cta: t("다시 답하기", "Answer again", "再答一次", "Trả lời lại", "もう一度", "Jawab lagi"), action: () => openQuestion(revisit[0].question, revisit[0].category) }
+            : { kind: "import", title: t("가고 싶은 회사 공고로 연습해 볼까요?", "Practice for a company you want?", "用想去公司的职位练习吧？", "Luyện theo công ty bạn muốn?", "行きたい会社の求人で練習しませんか？", "Latihan untuk perusahaan incaran?"), desc: t("링크나 공고 내용만 있으면 그 공고에 맞춘 질문으로 연습해요.", "Paste a link or the posting — get questions tailored to it.", "只需链接或内容，即可按该职位练习。", "Chỉ cần link hoặc nội dung tin.", "リンクか本文があれば、その求人向けの質問で練習。", "Cukup tautan atau isi lowongan."), cta: t("공고 가져오기", "Import a job", "导入职位", "Nhập tin", "求人を取り込む", "Impor lowongan"), action: () => setImporting(true) };
 
   // 맨 위 한 가지는 지원(면접 일정)을 읽어야 정해진다 — 그 전엔 화면 모양만.
   if (apps === null)
@@ -169,7 +203,6 @@ function Interviews() {
         <SectionSkeleton thumb={false} />
       </Page>
     );
-  const d = next ? daysUntil(next.interviewSelectedAt!) ?? 0 : 0;
 
   return (
     <Page>
@@ -179,56 +212,70 @@ function Interviews() {
         lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
       />
 
-      {/* ① 오늘 할 것 — 다가오는 면접(있을 때) · 오늘의 질문 */}
-      <Section
-        title={t("오늘 할 것", "For today", "今天要做的", "Việc hôm nay", "今日やること", "Untuk hari ini")}
-        aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
-      >
-        <div className="flex flex-col gap-3">
-          {next ? (
-            <div>
-          {/* 다가오는 면접 — 날짜·공고 · 이 공고로 연습한 정도 · 준비 버튼 */}
-          {(() => {
-            const rec = (records ?? []).find((m) => m.positionId === next.positionId);
-            return (
-              <div className="rounded-2xl bg-[color:var(--v2-band)] px-5 py-5 md:px-6">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex h-6 items-center rounded-full px-2 text-[12px] font-bold text-white ${d <= 3 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
-                      <span className="text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{whenText(t, next.interviewSelectedAt!)}</span>
-                    </div>
-                    <p className="mt-2 truncate text-[17px] font-bold text-[color:var(--v2-ink)]">{next.positionTitle}</p>
-                    <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-muted)]">
-                      {[next.partnerOrganizationName, rec ? t(`${rec.answeredCount}문항 연습함`, `${rec.answeredCount} practiced`, `已练 ${rec.answeredCount} 题`, `Đã luyện ${rec.answeredCount}`, `${rec.answeredCount}問練習済み`, `${rec.answeredCount} dilatih`) : t("아직 연습 전", "Not practiced yet", "尚未练习", "Chưa luyện", "まだ練習していません", "Belum latihan")].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  {rec?.bestScore != null ? <LevelChip t={t} score={rec.bestScore} /> : null}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Button size="sm" onClick={() => void startById(next.positionId, "upcoming")}>
-                    {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="white"
-                    onClick={() => {
-                      trackInterviewPrepSheetOpened();
-                      setSheetApp(next);
-                    }}
-                  >
-                    {t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
-          {upcoming.slice(1).map((a) => {
-            const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
-            return <Row key={a.id} onClick={() => void startById(a.positionId, "upcoming")} title={a.positionTitle} meta={[a.partnerOrganizationName, whenText(t, a.interviewSelectedAt!)].filter(Boolean).join(" · ")} right={<Attention>{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</Attention>} />;
-          })}
+      {/* ① 지금 할 일 — 상황을 보고 가장 좋은 한 가지만 크게 */}
+      <div className="px-5 pb-2">
+        <div className="rounded-3xl bg-[#edf1fd] p-5 md:p-6">
+          <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{t("지금 할 일", "Do this now", "现在要做的", "Việc nên làm", "今やること", "Lakukan sekarang")}</p>
+          <p className="mt-1.5 text-[20px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{hero.title}</p>
+          <p className="mt-1 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{hero.desc}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={hero.action}>{hero.cta}</Button>
+            {hero.secondary ? (
+              <Button variant="white" onClick={hero.secondary.action}>
+                {hero.secondary.label}
+              </Button>
+            ) : null}
+          </div>
+          {upcoming.length > (hero.kind === "interview" ? 1 : 0) ? (
+            <div className="mt-4 border-t border-white/70 pt-3">
+              {upcoming.slice(hero.kind === "interview" ? 1 : 0).map((a) => {
+                const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
+                return (
+                  <button key={a.id} type="button" onClick={() => void startById(a.positionId, "upcoming")} className="flex w-full items-center justify-between gap-3 py-1.5 text-left">
+                    <span className="min-w-0 truncate text-[14px] text-[color:var(--v2-ink-2)]">
+                      📅 {a.partnerOrganizationName} · {a.positionTitle}
+                    </span>
+                    <span className="shrink-0 text-[13px] font-bold text-[color:var(--v2-attention)]">{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</span>
+                  </button>
+                );
+              })}
             </div>
           ) : null}
+        </div>
+      </div>
+
+      {/* ② 면접 준비 단계 — 무엇부터 할지 순서 */}
+      <Section title={t("면접 준비 단계", "Interview prep steps", "面试准备步骤", "Các bước chuẩn bị", "面接準備ステップ", "Langkah persiapan")} aside={<span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t(`${stepsDone}/4 완료`, `${stepsDone}/4 done`, `已完成 ${stepsDone}/4`, `Xong ${stepsDone}/4`, `${stepsDone}/4 完了`, `${stepsDone}/4 selesai`)}</span>}>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
+          <div className="h-full rounded-full bg-[color:var(--v2-good)] transition-all" style={{ width: `${(stepsDone / 4) * 100}%` }} />
+        </div>
+        <ol className="mt-3">
+          {steps.map((st, i) => (
+            <li key={i}>
+              <button type="button" onClick={st.action} className="-mx-2 flex w-[calc(100%+16px)] items-center gap-3 rounded-2xl px-2 py-3 text-left transition hover:bg-[color:var(--v2-fill)]">
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold ${st.done ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)] text-[color:var(--v2-muted)]"}`} aria-hidden>
+                  {st.done ? "✓" : i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={`block text-[16px] font-semibold ${st.done ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{st.title}</span>
+                  <span className="mt-0.5 block text-[13px] text-[color:var(--v2-faint)]">{st.meta}</span>
+                </span>
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[color:var(--v2-faint)]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </Section>
+
+      {/* ③ 오늘의 질문 — '지금 할 일'이 오늘의 질문이면 겹치지 않게 뺀다 */}
+      {hero.kind !== "daily" ? (
+        <Section
+          title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}
+          aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
+        >
+          <div className="flex flex-col gap-3">
         <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-[#edf1fd] p-5 text-left transition hover:opacity-90">
           <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
           <span className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</span>
@@ -244,9 +291,14 @@ function Interviews() {
             <span className="inline-flex h-9 shrink-0 items-center rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white">{todayAnswer ? t("다시 답하기", "Answer again", "再答一次", "Trả lời lại", "もう一度", "Jawab lagi") : t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab")}</span>
           </span>
         </button>
-          {isForeignNationality(user?.nationality) || locale !== "ko" ? <ExpressionCard t={t} /> : null}
+          </div>
+        </Section>
+      ) : null}
+      {isForeignNationality(user?.nationality) || locale !== "ko" ? (
+        <div className="px-5 pt-2">
+          <ExpressionCard t={t} />
         </div>
-      </Section>
+      ) : null}
 
       <InterviewReportPrompt t={t} apps={apps} />
 
@@ -342,7 +394,7 @@ function Interviews() {
         />
       ) : null}
       {practice ? (
-        <MockInterviewModal
+        <InterviewSession
           item={practice.item ?? undefined}
           onClose={() => {
             setPractice(null);

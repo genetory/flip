@@ -1,7 +1,7 @@
 "use client";
 
 // v2 공고 상세 — 무엇을 하는 자리인지 → 나와 맞는 점 → 할 일(저장·지원·모의 면접·맞춤 자소서) → 회사. 게스트도 본다.
-// 기존 화면(JobDetailScreen)의 데이터·흐름을 그대로 쓰되 v2 모양으로. 모의 면접은 기존 팝업(MockGateModal → MockInterviewModal).
+// 기존 화면(JobDetailScreen)의 데이터·흐름을 그대로 쓰되 v2 모양으로. 모의 면접은 v2 시작 시트 → 모의 면접 세션(InterviewSession).
 // 지원 서류 준비 기준은 v2 내 커리어와 같다 — 이력서는 필수 항목, 자기소개서는 문항 1개 이상.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -36,7 +36,7 @@ import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { parseOfficePhotos } from "../../../lib/image-upload";
 import { trackInterviewStart } from "../../../lib/analytics";
 import { StartSheet } from "../interview-content";
-import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
+import { InterviewSession } from "../interview-session";
 
 const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
 
@@ -486,7 +486,7 @@ function JobDetail({ id }: { id: string }) {
           }}
         />
       ) : null}
-      {practice ? <MockInterviewModal item={item} onClose={() => setPractice(false)} /> : null}
+      {practice ? <InterviewSession item={item} onClose={() => setPractice(false)} /> : null}
     </Page>
   );
 }

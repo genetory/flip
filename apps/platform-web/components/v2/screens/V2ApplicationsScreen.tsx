@@ -14,7 +14,7 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { InterviewSlotModal, WithdrawModal } from "../../talent/screens/ApplicationsScreen";
 import { DocumentsSheet, MessageSheet, ProgressSheet } from "../sheets";
 import { StartSheet } from "../interview-content";
-import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
+import { InterviewSession } from "../interview-session";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { trackInterviewPrepSheetOpened, trackInterviewStart } from "../../../lib/analytics";
@@ -226,7 +226,7 @@ function Applications() {
           }}
         />
       ) : null}
-      {practice ? <MockInterviewModal item={practice} onClose={() => setPractice(null)} /> : null}
+      {practice ? <InterviewSession item={practice} onClose={() => setPractice(null)} /> : null}
       {withdraw ? <WithdrawModal app={withdraw} withdrawing={withdrawing} onClose={() => setWithdraw(null)} onConfirm={confirmWithdraw} /> : null}
     </Page>
   );
