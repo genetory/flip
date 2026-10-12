@@ -2,23 +2,27 @@
 
 // v2 내 커리어 — 나에 관한 것을 한곳에: 프로필(링크) · 지원 서류(다음 할 일) · 기업이 보는 내 강점 · 관심 직무 · 내 스펙에 맞는 공고 · 경력 · 내 스펙 · 더 정리할 것.
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { V2Shell, useProfilePhoto } from "../V2Shell";
 import { Band, Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, Section, SectionSkeleton, Spinner, TextLink } from "../ui";
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
-import { getPublicPositionsPage, getMyCandidateProfile, updateMyCandidateProfile, updateMyBasicInfo, type CandidateVisaType, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getPublicPositionsPage, getInterestedCompanies, getMyCandidateProfile, updateMyCandidateProfile, updateMyBasicInfo, type CandidateVisaType, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { isForeignNationality } from "../../../lib/nationality";
 import { NationalityField } from "../../talent/career/NationalityField";
 import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
+import { listMyConnections, type MyConnection } from "../../../lib/candidate-connect-client";
+import { V2_ROUTES } from "../V2Shell";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, displayMonth, useRenewalDocsStatus, saveResumeDoc, addResumeItem, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
-import { useCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { useCoverDoc, saveCoverDoc, generateCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
@@ -191,8 +195,10 @@ function Career() {
 
         <VisaCard t={t} slot="card" />
 
-        {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
+        {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} cover={cover} /> : null}
         {ready && interests.length && items.length >= 2 ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
+
+        <CompanyLinks t={t} />
 
         <Section title={t("더 정리하기", "More", "更多整理", "Sắp xếp thêm", "さらに整理", "Lainnya")}>
           <Row href={R.profile} lead="🙋" title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} meta={[info.realName, info.email].filter(Boolean).join(" · ") || t("이름·연락처", "Name & contact", "姓名·联系方式", "Tên & liên hệ", "名前・連絡先", "Nama & kontak")} />
@@ -387,6 +393,12 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stale = !!cache && cache.sig !== sig;
+  const coverKeywords = cover?.keywords ?? [];
+  // 자기소개서 '필수 소재'(CoverDoc.keywords, 최대 10개)에 강점을 더한다 — 에디터의 AI 자소서가 반드시 녹여 쓰는 소재.
+  const addKeyword = (k: string) => {
+    const base = cover ?? generateCoverDoc();
+    saveCoverDoc({ ...base, keywords: [...new Set([...(base.keywords ?? []), k])].slice(0, 10) }, { label: t("강점을 소재로 추가", "Added strength", "添加优势素材", "Thêm điểm mạnh", "強みを追加", "Tambah kekuatan") });
+  };
 
   const run = async () => {
     const profile = profileText(t, resume, cover);
@@ -431,10 +443,25 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
           ) : null}
           <ol className="grid gap-2.5 md:grid-cols-3">
             {cache.list.map((s, i) => (
-              <li key={i} className="rounded-2xl bg-[color:var(--v2-band)] p-4 md:p-5">
+              <li key={i} className="flex flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 md:p-5">
                 <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{i + 1}</p>
                 <p className="mt-1 text-[17px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{s.keyword}</p>
-                {s.evidence ? <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{s.evidence}</p> : null}
+                {s.evidence ? <p className="mt-1.5 flex-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{s.evidence}</p> : <span className="flex-1" />}
+                {/* 강점을 행동으로 — 자기소개서 '필수 소재'에 넣거나(에디터의 AI 자소서가 꼭 녹여 쓴다), 모의 면접으로. */}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {coverKeywords.includes(s.keyword) ? (
+                    <Button size="sm" variant="white" href={R.cover}>
+                      {t("✓ 자소서에 넣음", "✓ In cover letter", "✓ 已加入", "✓ Đã thêm", "✓ 追加済み", "✓ Ditambahkan")}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="white" onClick={() => addKeyword(s.keyword)}>
+                      {t("자소서 소재로", "Use in cover", "用于自我介绍", "Dùng cho thư", "自己PRに使う", "Pakai di surat")}
+                    </Button>
+                  )}
+                  <Button size="sm" variant="white" href={V2_ROUTES.interviews}>
+                    {t("면접 연습", "Practice", "面试练习", "Luyện PV", "面接練習", "Latihan")}
+                  </Button>
+                </div>
               </li>
             ))}
           </ol>
@@ -456,8 +483,19 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
 
 // ── 내 스펙에 맞는 공고 ───────────────────────────────
 // 관심 직무 공고 수 + 그 안에서 내 스킬과 뜻이 가까운 순 셋(포지션 탐색의 문장 검색과 같은 관련도).
-function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string[]; skills: string[] }) {
+function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests: string[]; skills: string[]; cover: CoverDoc | null }) {
   const { locale } = useLanguage();
+  const router = useRouter();
+  // [자소서 맞추기] — 자기소개서의 지원 회사·공고 본문을 이 공고로 채우고 에디터로 간다(에디터의 AI 자소서가 공고에 1:1로 맞춰 쓴다).
+  // 이미 다른 회사로 맞춰 둔 게 있으면 한 번 묻는다.
+  const tailor = (j: PublicPositionListItem) => {
+    const company = companyOf(j);
+    const base = cover ?? generateCoverDoc();
+    if (base.companyName?.trim() && base.companyName.trim() !== company && !window.confirm(t(`지금 자기소개서는 '${base.companyName}'에 맞춰져 있어요. '${company}'로 바꿀까요?`, `Your cover letter targets '${base.companyName}'. Switch to '${company}'?`, `当前自我介绍针对'${base.companyName}'，要改为'${company}'吗？`, `Thư đang nhắm '${base.companyName}'. Đổi sang '${company}'?`, `今の自己PRは「${base.companyName}」向けです。「${company}」に変えますか？`, `Surat ditujukan ke '${base.companyName}'. Ganti ke '${company}'?`))) return;
+    const jd = [j.title, j.requiredQualifications ? `[자격 요건]\n${j.requiredQualifications}` : "", j.preferredQualifications ? `[우대 사항]\n${j.preferredQualifications}` : ""].filter(Boolean).join("\n\n").slice(0, 4000);
+    saveCoverDoc({ ...base, companyName: company, jobText: jd }, { label: t(`${company} 공고에 맞춤`, `Tailored to ${company}`, `针对${company}`, `Theo ${company}`, `${company}向け`, `Untuk ${company}`) });
+    router.push(R.cover);
+  };
   const [state, setState] = useState<{ key: string; total: number; items: PublicPositionListItem[] } | null>(null);
   const key = `${interests.join(",")}|${skills.slice(0, 6).join(",")}|${locale}`;
   useEffect(() => {
@@ -493,23 +531,35 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
             // 왜 맞는지 — 공고 제목·자격 요건에 그대로 나오는 내 스킬(최대 3개 — 넘치면 '일치'가 잘린다).
             const text = `${j.title}\n${j.requiredQualifications ?? ""}\n${j.preferredQualifications ?? ""}`;
             const hits = skills.filter((k) => termIn(text, k)).slice(0, 3);
+            const photo = jobPhotoOf(j);
             return (
-              <Row
-                key={j.id}
-                href={`/talent/jobs/${j.id}`}
-                thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }}
-                title={j.title}
-                meta={
-                  <>
-                    {[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ")}
+              <div key={j.id} className="flex items-start gap-3.5 py-3">
+                <Link href={`/talent/jobs/${j.id}`} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-muted)]">
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photo} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (companyOf(j) || j.title).slice(0, 1)
+                  )}
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <Link href={`/talent/jobs/${j.id}`} className="block transition hover:opacity-70">
+                    <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{j.title}</span>
+                    <span className="mt-0.5 block truncate text-[14px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ")}</span>
                     {hits.length ? (
                       <span className="mt-0.5 block truncate text-[13px] font-semibold text-[color:var(--v2-accent)]">
                         {t(`${hits.join(" · ")} 일치`, `Matches ${hits.join(" · ")}`, `${hits.join(" · ")} 匹配`, `Khớp ${hits.join(" · ")}`, `${hits.join("・")} 一致`, `Cocok ${hits.join(" · ")}`)}
                       </span>
                     ) : null}
-                  </>
-                }
-              />
+                  </Link>
+                  <button type="button" onClick={() => tailor(j)} className="mt-1.5 inline-flex items-center gap-0.5 text-[13px] font-semibold text-[color:var(--v2-ink-3)] underline-offset-2 transition hover:text-[color:var(--v2-accent)] hover:underline">
+                    {t("이 공고에 맞춰 자소서 쓰기", "Tailor my cover letter", "按此职位写自我介绍", "Viết thư theo tin này", "この求人に合わせて自己PR", "Sesuaikan surat lamaran")}
+                    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m9 6 6 6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             );
           })}
         </>
@@ -1119,6 +1169,54 @@ function VisaCard({ t, slot }: { t: PlatformT; slot: "ask" | "card" }) {
           {visa === "D2_STUDENT" ? <TextLink href="/talent/visa/D-10">{t("D-10 자세히 보기", "D-10 details", "D-10 详情", "Chi tiết D-10", "D-10の詳細", "Detail D-10")}</TextLink> : null}
         </div>
       </div>
+    </Section>
+  );
+}
+
+// ── 기업과의 연결 ─────────────────────────────────────────
+// 기업이 나를 찾아오는 쪽 — 받은 연결 요청(수락하면 연락처가 열린다)과 나를 관심 목록에 담은 회사.
+// 인재풀 노출은 '가입 + 완성된 대표 이력서' 기준이라 따로 켜고 끄는 스위치가 없다 — 이력서를 채우라고만 안내한다.
+// 수락·거절과 목록은 기존 화면(/talent/connections, /talent/feed)에서.
+function CompanyLinks({ t }: { t: PlatformT }) {
+  const [data, setData] = useState<{ conns: MyConnection[]; interested: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.all([listMyConnections().catch(() => [] as MyConnection[]), getInterestedCompanies().catch(() => [])]).then(([conns, list]) => alive && setData({ conns, interested: list.length }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!data) return null;
+  const pending = data.conns.filter((c) => c.status === "PENDING");
+  const latest = pending[0];
+
+  return (
+    <Section title={t("기업과의 연결", "Companies", "与企业的联系", "Kết nối doanh nghiệp", "企業とのつながり", "Koneksi perusahaan")}>
+      <p className="pb-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">
+        {t("이력서를 완성하면 기업이 인재 검색에서 나를 찾을 수 있어요. 연락처는 내가 연결을 수락하기 전까지 가려져요.", "With a complete resume, companies can find you in talent search. Your contact stays hidden until you accept.", "完善简历后，企业可在人才搜索中找到你。在你接受联系前，联系方式保持隐藏。", "Khi CV hoàn chỉnh, doanh nghiệp có thể tìm thấy bạn. Liên hệ được ẩn cho đến khi bạn chấp nhận.", "履歴書を完成させると企業が人材検索であなたを見つけられます。連絡先は承諾するまで非公開です。", "Dengan CV lengkap, perusahaan bisa menemukanmu. Kontak tersembunyi sampai kamu menerima.")}
+      </p>
+      <Row
+        href="/talent/connections"
+        lead="✉️"
+        title={t("받은 연결 요청", "Connection requests", "收到的联系请求", "Yêu cầu kết nối", "届いたリクエスト", "Permintaan koneksi")}
+        meta={
+          latest
+            ? t(`${latest.orgName}에서 연결을 요청했어요`, `${latest.orgName} wants to connect`, `${latest.orgName} 请求联系`, `${latest.orgName} muốn kết nối`, `${latest.orgName}からリクエスト`, `${latest.orgName} ingin terhubung`)
+            : t("아직 새 요청이 없어요", "No new requests", "暂无新请求", "Chưa có yêu cầu mới", "新しいリクエストはありません", "Belum ada permintaan baru")
+        }
+        right={pending.length ? <span className="rounded-full bg-[color:var(--v2-attention)] px-2 py-0.5 text-[12px] font-bold text-white">{pending.length}</span> : undefined}
+      />
+      <Row
+        href="/talent/feed"
+        lead="🏢"
+        title={t("관심 보인 회사", "Interested companies", "感兴趣的公司", "Công ty quan tâm", "関心を持った会社", "Perusahaan tertarik")}
+        meta={
+          data.interested
+            ? t(`${data.interested}곳이 나를 관심 목록에 담았어요`, `${data.interested} saved you`, `${data.interested} 家公司收藏了你`, `${data.interested} công ty đã lưu bạn`, `${data.interested}社が保存しました`, `${data.interested} menyimpanmu`)
+            : t("이력서를 채울수록 관심받기 쉬워요", "A fuller resume gets more interest", "简历越完整越容易被关注", "CV đầy đủ dễ được chú ý", "履歴書を充実させると注目されやすい", "CV lengkap lebih dilirik")
+        }
+        right={data.interested ? <span className="text-[15px] font-bold text-[color:var(--v2-ink-2)]">{data.interested}</span> : undefined}
+      />
     </Section>
   );
 }
