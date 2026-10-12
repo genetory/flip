@@ -504,10 +504,38 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
 }
 
 // ── 이 직무에 필요한 것 ────────────────────────────
-// 관심 직무 공고 20곳의 자격 요건 + 그 직무에서 흔히 갖춘 것을 자격증·스킬·경험·어학 체크리스트로 — 내 서류에 없는 것부터.
+// 관심 직무 '신입' 공고(경력 3년 이상·시니어 공고는 뺀다)의 자격 요건에 실제로 자주 나온 기술·경험·자격증·어학을
+// 체크리스트로 — 내 서류에 없는 것부터. AI 상식으로 채우지 않고 공고에 적힌 것만 센다(서버 role-checklist).
 // 강점과 같이 누를 때만 AI 를 부르고, 직무별로 서류 수정 시각과 함께 이 브라우저에 기억한다.
 const CHECKLIST_KEY = "aply.v2.career.checklist";
-type ChecklistResult = { sig: string; total: number; items: RoleChecklistItem[] };
+type ChecklistResult = { sig: string; total: number; items: RoleChecklistItem[]; scope?: "junior" | "early" | "all" };
+
+/** 공고가 요구하는 최소 연차(못 찾으면 0). "3년 이상", "3~5년", "3년차", "경력 3년". */
+function minYears(j: PublicPositionListItem): number {
+  const text = `${j.title}\n${j.requiredQualifications ?? ""}`;
+  const years = [...text.matchAll(/(\d{1,2})\s*(?:년|years?)\s*(?:이상|↑|\+|or more)|(\d{1,2})\s*[~\-]\s*\d{1,2}\s*(?:년|years?)|(\d{1,2})\s*년차|경력\s*(\d{1,2})\s*년/gi)].map((m) => Number(m[1] ?? m[2] ?? m[3] ?? m[4]));
+  return years.length ? Math.min(...years) : 0;
+}
+const SENIOR_TITLE = /시니어|senior|리드|lead|팀장|head\b|principal|책임|수석|staff/i;
+const JUNIOR_TITLE = /신입|경력\s*무관|주니어|junior|new\s*grad|인턴|intern/i;
+
+/** 신입이 지원할 만한 공고인가 — 제목에 신입·인턴 표시가 있거나, 시니어 제목이 아니고 경력 3년 이상을 요구하지 않는 공고.
+ *  employmentType 은 보지 않는다 — 외부 수집 공고는 '무급 인턴'으로 잘못 들어간 경우가 많다(시니어 공고 포함). */
+function isJuniorJob(j: PublicPositionListItem): boolean {
+  if (JUNIOR_TITLE.test(j.title)) return true;
+  return !SENIOR_TITLE.test(j.title) && minYears(j) < 3;
+}
+
+/** 직무 이름이 공고에 들어 있나 — 한글·영문 직무 이름의 낱말로(개발·Development 같은 흔한 말은 빼고). */
+function roleMatcher(t: PlatformT, role: string): (text: string) => boolean {
+  const en = jobTaxonomyLabelOf(((_ko: string, e: string) => e) as PlatformT, role);
+  const keys = [...new Set([jobTaxonomyLabelOf(t, role), role, en].flatMap((l) => l.split(/[\/·&,()\s]+/)))]
+    .map((k) => k.trim())
+    .filter((k) => k.length >= 2 && !/^(개발|개발자|development|developer|and|engineer|엔지니어|직무|기타)$/i.test(k));
+  const norm = (x: string) => x.toLowerCase().replace(/[\s\-_.]/g, "");
+  return (text) =>
+    keys.some((k) => (/^[A-Za-z]{1,3}$/.test(k) ? new RegExp(`(^|[^A-Za-z])${k}(?![A-Za-z])`, "i").test(text) : norm(text).includes(norm(k))));
+}
 
 function readChecklists(): Record<string, ChecklistResult> {
   try {
@@ -543,13 +571,25 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
     setBusy(true);
     setError(null);
     try {
-      const page = await getPublicPositionsPage({ jobRoles: jobCategoriesForInterests([current]), limit: 20 }); // 원문(한국어) 자격 요건으로 비교
-      const jobs = page.items
-        .map((j) => ({ title: j.title.slice(0, 200), required: (j.requiredQualifications ?? "").slice(0, 1500) || undefined, preferred: (j.preferredQualifications ?? "").slice(0, 1500) || undefined }))
-        .filter((j) => j.required || j.preferred);
-      if (!jobs.length) throw new Error("no jobs");
+      // 같은 분류(예: 개발)에 백엔드·프론트엔드가 함께 묶여 있어서, 직무 이름으로 관련도순 검색해 그 직무 공고를 앞에 세운다.
+      // locale 은 넘기지 않는다 — 원문(한국어) 자격 요건으로 비교.
+      const page = await getPublicPositionsPage({ jobRoles: jobCategoriesForInterests([current]), search: roleLabel, sort: "relevance", limit: 100 });
+      const withReq = page.items.filter((j) => (j.requiredQualifications ?? "").trim() || (j.preferredQualifications ?? "").trim());
+      // 그 직무 공고만 — 제목에 직무 이름이 든 것, 모자라면(8곳 미만) 자격 요건에 든 것까지.
+      const isRole = roleMatcher(t, current);
+      const byTitle = withReq.filter((j) => isRole(j.title));
+      const roleJobs = byTitle.length >= 8 ? byTitle : withReq.filter((j) => isRole(`${j.title}\n${j.requiredQualifications ?? ""}`));
+      if (roleJobs.length < 3) throw new Error("few jobs");
+      // 신입 공고가 충분하면(15곳 이상) 신입만, 아니면 신입~5년 차(시니어·리드 제외) — 기술 스택은 연차로 크게 갈리지 않고,
+      // 표본이 너무 작으면 한두 공고의 요건이 '자주 나온 것'처럼 보인다. 그래도 모자라면 전부. 화면에 범위를 알린다.
+      const juniors = roleJobs.filter(isJuniorJob);
+      const early = roleJobs.filter((j) => JUNIOR_TITLE.test(j.title) || (!SENIOR_TITLE.test(j.title) && minYears(j) <= 5));
+      const scope: "junior" | "early" | "all" = juniors.length >= 15 ? "junior" : early.length >= 3 ? "early" : "all";
+      const pool = scope === "junior" ? juniors : scope === "early" ? early : roleJobs;
+      const jobs = pool.slice(0, 40).map((j) => ({ title: j.title.slice(0, 200), required: (j.requiredQualifications ?? "").slice(0, 800) || undefined, preferred: (j.preferredQualifications ?? "").slice(0, 600) || undefined }));
+      if (jobs.length < 3) throw new Error("no jobs");
       const r = await getRoleChecklist({ role: roleLabel, profile, jobs });
-      const next = { ...readChecklists(), [current]: { sig, total: r.total, items: r.items } };
+      const next = { ...readChecklists(), [current]: { sig, total: r.total, items: r.items, scope } };
       setSaved(next);
       try {
         window.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next));
@@ -558,7 +598,9 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
       }
     } catch (e) {
       setError(
-        e instanceof AiQuotaError
+        e instanceof Error && e.message === "few jobs"
+          ? t("이 직무 공고가 아직 적어서 비교하기 어려워요.", "Too few jobs in this role to compare yet.", "该职位的招聘还太少，暂时无法比较。", "Chưa đủ tin của vị trí này để so sánh.", "この職種の求人がまだ少なく比較できません。", "Lowongan peran ini masih terlalu sedikit.")
+          : e instanceof AiQuotaError
           ? t("오늘은 더 비교할 수 없어요. 내일 다시 해 보세요.", "Daily limit reached. Try again tomorrow.", "今天已达上限，明天再试。", "Đã hết lượt hôm nay.", "本日の上限です。明日お試しください。", "Batas harian tercapai.")
           : t("비교하지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't compare. Try again soon.", "未能比较，请稍后再试。", "Không so sánh được. Thử lại sau.", "比較できませんでした。後でもう一度。", "Gagal. Coba lagi nanti.")
       );
@@ -604,14 +646,11 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
             <p className="mb-3 text-[14px] font-medium text-[color:var(--v2-accent)]">{t("서류가 바뀌었어요. 다시 비교하면 지금 서류로 맞춰 봐요.", "Your documents changed — refresh to update.", "材料已更新，重新比较即可更新。", "Hồ sơ đã đổi — so sánh lại để cập nhật.", "書類が変わりました。もう一度で更新します。", "Dokumen berubah — ulangi untuk memperbarui.")}</p>
           ) : null}
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
-            {t(
-              `${roleLabel} 공고 ${result.total}곳과 이 직무 지원자들이 보통 갖춘 것을 내 서류와 비교했어요.`,
-              `Compared ${result.total} ${roleLabel} jobs and what applicants usually have with your documents.`,
-              `将 ${result.total} 个${roleLabel}职位及求职者常见条件与你的材料作了比较。`,
-              `Đã so ${result.total} tin ${roleLabel} và điều ứng viên thường có với hồ sơ của bạn.`,
-              `${roleLabel}の求人${result.total}件と応募者がよく持つものを書類と比べました。`,
-              `Membandingkan ${result.total} lowongan ${roleLabel} dengan dokumenmu.`
-            )}
+            {result.scope === "all"
+              ? t(`${roleLabel} 공고 ${result.total}곳(경력 공고 포함)에 자주 나온 요건을 내 서류와 비교했어요.`, `Compared common requirements in ${result.total} ${roleLabel} jobs (incl. experienced) with your documents.`, `将 ${result.total} 个${roleLabel}职位（含经验职位）的常见要求与你的材料比较。`, `Đã so yêu cầu thường gặp trong ${result.total} tin ${roleLabel} (gồm tin có kinh nghiệm).`, `${roleLabel}の求人${result.total}件（経験者含む）によく出る要件を比べました。`, `Membandingkan syarat umum dari ${result.total} lowongan ${roleLabel} (termasuk berpengalaman).`)
+              : result.scope === "early"
+                ? t(`${roleLabel} 신입~5년 차 공고 ${result.total}곳에 자주 나온 요건을 내 서류와 비교했어요.`, `Compared common requirements in ${result.total} entry-to-mid ${roleLabel} jobs with your documents.`, `将 ${result.total} 个${roleLabel}新人~5年职位的常见要求与你的材料比较。`, `Đã so yêu cầu thường gặp trong ${result.total} tin ${roleLabel} từ mới đến 5 năm.`, `${roleLabel}の新卒〜5年目求人${result.total}件によく出る要件を比べました。`, `Membandingkan syarat umum dari ${result.total} lowongan ${roleLabel} pemula–5 tahun.`)
+                : t(`${roleLabel} 신입·경력무관 공고 ${result.total}곳에 자주 나온 요건을 내 서류와 비교했어요.`, `Compared what ${result.total} entry-level ${roleLabel} jobs commonly ask for with your documents.`, `将 ${result.total} 个${roleLabel}新人职位中常见的要求与你的材料作了比较。`, `Đã so yêu cầu thường gặp trong ${result.total} tin ${roleLabel} cho người mới.`, `${roleLabel}の新卒・経験不問求人${result.total}件によく出る要件を比べました。`, `Membandingkan syarat umum dari ${result.total} lowongan pemula ${roleLabel}.`)}
           </p>
           <div className="mt-4 flex items-center gap-3">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
@@ -621,6 +660,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
               {t(`${sorted.length}개 중 ${haveCount}개 갖춤`, `${haveCount} of ${sorted.length}`, `${sorted.length} 项中具备 ${haveCount} 项`, `${haveCount}/${sorted.length}`, `${sorted.length}件中${haveCount}件`, `${haveCount} dari ${sorted.length}`)}
             </span>
           </div>
+          {!sorted.length ? <p className="mt-4 text-[14px] text-[color:var(--v2-muted)]">{t("공고마다 요구가 달라 자주 나오는 요건을 찾지 못했어요.", "No requirement came up often enough.", "各职位要求不同，未找到常见要求。", "Không có yêu cầu nào lặp lại đủ nhiều.", "よく出る要件は見つかりませんでした。", "Tidak ada syarat yang sering muncul.")}</p> : null}
           <ul className="mt-3">
             {(all ? sorted : sorted.slice(0, 5)).map((x) => (
               <li key={x.name} className="flex items-start gap-3 border-b border-[color:var(--v2-band)] py-3.5 last:border-b-0">
@@ -635,9 +675,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
                   <p className={`text-[16px] font-semibold leading-[1.45] ${x.have ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{x.name}</p>
                   <p className="mt-0.5 text-[13px] text-[color:var(--v2-faint)]">
                     {categoryLabel(t, x.category)} ·{" "}
-                    {x.count
-                      ? t(`공고 ${result.total}곳 중 ${x.count}곳`, `${x.count} of ${result.total} jobs`, `${result.total} 个职位中 ${x.count} 个`, `${x.count}/${result.total} tin`, `${result.total}件中${x.count}件`, `${x.count} dari ${result.total} lowongan`)
-                      : t("이 직무에서 흔히 갖춰요", "Common in this role", "该职位常见", "Phổ biến ở vị trí này", "この職種でよくある", "Umum di peran ini")}
+                    {t(`공고 ${result.total}곳 중 ${x.count}곳`, `${x.count} of ${result.total} jobs`, `${result.total} 个职位中 ${x.count} 个`, `${x.count}/${result.total} tin`, `${result.total}件中${x.count}件`, `${x.count} dari ${result.total} lowongan`)}
                   </p>
                   {!x.have && x.tip ? <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">{x.tip}</p> : null}
                 </div>
@@ -655,12 +693,12 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
         <div className="flex flex-col items-start gap-3 pb-3 md:flex-row md:items-center md:justify-between">
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {t(
-              `${roleLabel} 지원자들이 보통 갖춘 자격증·스킬·경험을 공고와 함께 모아, 내 서류에 없는 것부터 짚어 드려요.`,
-              `See the certs, skills, and experience ${roleLabel} applicants usually have — and what you're missing.`,
-              `汇总${roleLabel}求职者常见的证书、技能、经验，先指出你缺少的。`,
-              `Xem chứng chỉ, kỹ năng, kinh nghiệm ứng viên ${roleLabel} thường có — và bạn còn thiếu gì.`,
-              `${roleLabel}の応募者がよく持つ資格・スキル・経験を集め、足りないものから示します。`,
-              `Lihat sertifikat, keahlian, dan pengalaman pelamar ${roleLabel} — dan yang belum kamu punya.`
+              `${roleLabel} 신입 공고에 실제로 자주 나오는 기술·경험·자격증·어학을 모아, 내 서류에 없는 것부터 짚어 드려요.`,
+              `See the skills, experience, certs, and languages entry-level ${roleLabel} jobs actually ask for — missing ones first.`,
+              `汇总${roleLabel}新人职位中常见的技术、经验、证书、语言，先指出你缺少的。`,
+              `Xem kỹ năng, kinh nghiệm, chứng chỉ, ngoại ngữ mà tin ${roleLabel} cho người mới hay yêu cầu — thiếu gì trước.`,
+              `${roleLabel}の新卒求人によく出る技術・経験・資格・語学を集め、足りないものから示します。`,
+              `Lihat keahlian, pengalaman, sertifikat, dan bahasa yang diminta lowongan pemula ${roleLabel}.`
             )}
           </p>
           <Button size="sm" onClick={run} disabled={busy}>

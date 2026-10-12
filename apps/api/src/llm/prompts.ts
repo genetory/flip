@@ -424,10 +424,11 @@ export function buildCareerStrengthsMessages(input: { profile: string; targetRol
   return { system, user };
 }
 
-// ── 내 커리어 '이 직무 지원자들이 갖춘 것' — 관심 직무 공고 자격 요건 + 그 직무 지원자들이 보통 갖춘 것을
-// 자격증·스킬·경험·어학 체크리스트로 만들고, 지원자 서류에 있는지(have) 표시한다.
-// jobs 는 공고 번호(1부터) — 서버가 유효한 번호만 세어 '공고 N곳 중 M곳'을 만든다(모델이 센 숫자를 믿지 않음).
-export const ROLE_CHECKLIST_SCHEMA = {
+// ── 내 커리어 '이 직무에 필요한 것'.
+// ① 추출(공고 묶음별): 자격 요건에 실제로 적힌 기술·경험·자격증·어학의 이름 + 공고에 쓰인 표기(aliases).
+//    몇 곳에 나왔는지는 서버가 aliases 를 공고 글에 직접 대조해 센다 — 모델이 센 숫자·번호는 믿지 않는다.
+// ② 판정: 기술·자격증·어학은 서버가 서류 글에서 aliases 를 찾아 판정, '경험'만 모델이 판단(+ 없을 때 팁).
+export const ROLE_REQUIREMENTS_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -437,35 +438,65 @@ export const ROLE_CHECKLIST_SCHEMA = {
         type: "object",
         additionalProperties: false,
         properties: {
-          category: { type: "string", enum: ["certificate", "skill", "experience", "language"] },
+          category: { type: "string", enum: ["skill", "experience", "certificate", "language"] },
           name: { type: "string" },
-          have: { type: "boolean" },
-          jobs: { type: "array", items: { type: "integer" } },
-          tip: { type: "string" }
+          aliases: { type: "array", items: { type: "string" } }
         },
-        required: ["category", "name", "have", "jobs", "tip"]
+        required: ["category", "name", "aliases"]
       }
     }
   },
   required: ["items"]
 } as const;
 
-export function buildRoleChecklistMessages(input: { role: string; profile: string; jobs: { title: string; required?: string; preferred?: string }[] }): LlmMessages {
+export function buildRoleRequirementsMessages(input: { role: string; jobs: { title: string; required?: string; preferred?: string }[] }): LlmMessages {
   const system =
-    "당신은 한국 기업 채용을 잘 아는 커리어 코치입니다. 주어진 직무에 지원하는 사람들이 보통 갖추고 있는 자격증·스킬(능력)·경험·어학을 체크리스트로 정리하고, 지원자 서류에 그것이 있는지 판단해 주세요.\n" +
+    "당신은 채용 공고 분석가입니다. 같은 직무 공고들의 자격 요건(필수·우대)에 실제로 적힌 요구 사항을 빠짐없이 뽑아 주세요.\n" +
+    "[뽑는 것 — 구체적인 것만]\n" +
+    "- skill: 기술·도구·프로그래밍 언어·프레임워크·소프트웨어(예: Java, Spring, React, Figma, Excel, SQL, GA4, Photoshop).\n" +
+    "- experience: 구체적인 업무·프로젝트·도메인 경험(예: REST API 설계, 대용량 트래픽 처리, B2B 영업, 퍼포먼스 마케팅 집행). '관련 경력 N년'은 빼세요.\n" +
+    "- certificate: 자격증·시험(예: 정보처리기사, 컴활 1급, AWS 자격증).\n" +
+    "- language: 어학(예: 영어, 일본어, 중국어, TOEIC, 한국어·TOPIK).\n" +
+    "[뽑지 않는 것] 커뮤니케이션·책임감·성실·열정·협업 같은 태도·성향, '관련 전공' 같은 학위 일반, 근무 조건.\n" +
     "[규칙]\n" +
-    "- 항목은 8~12개. 공고 자격 요건에 자주 나오는 것을 우선하고, 공고에 없더라도 이 직무 지원자들이 흔히 갖춘 것(대표 자격증·필수 도구 등)을 2~3개 더하세요.\n" +
-    "- category: certificate(자격증·시험), skill(도구·기술·능력), experience(경력·프로젝트·업무 경험), language(어학).\n" +
-    "- name 은 2~20자의 짧은 이름(예: 'Spring Boot', 'MSA 설계 경험', '정보처리기사', 'TOPIK 5급 이상', '비즈니스 영어').\n" +
-    "- jobs 는 그 항목을 요구·우대하는 공고 번호들(입력의 [공고 n]). 공고에 없으면 빈 배열.\n" +
-    "- have 판정: 먼저 지원자 서류의 [스킬]·[자격증]·[어학] 줄과 경력·프로젝트 내용을 꼼꼼히 읽으세요. 항목에 든 도구·기술 중 하나라도 서류에 그대로(대소문자·띄어쓰기 무시) 있거나, 경력·프로젝트에 같은 일을 한 내용(예: 결제 회사에서 결제 API 운영 → '결제 서비스 운영 경험')이 있으면 true. 서류 어디에도 근거가 없을 때만 false.\n" +
-    "- 'A 및 B'처럼 둘을 묶지 말고 한 항목엔 하나만(예: 'Docker', 'Kubernetes' 따로).\n" +
-    "- tip 은 have=false 일 때만, 어떻게 채우면 좋은지 한 문장(35자 안팎). 이미 경험이 있을 수도 있으니 '있다면 이력서에 적어 보세요' 같은 안내도 좋아요. have=true 면 빈 문자열.\n" +
-    "- 같은 뜻의 항목을 두 번 쓰지 마세요." +
+    "- 공고에 실제로 적힌 것만. 상식으로 덧붙이지 마세요.\n" +
+    "- 같은 뜻은 하나로 묶고 대표 이름을 name 에(예: Spring / Spring Boot / 스프링 → name 'Spring'). 'A 및 B'·'A/B'는 나눠서 한 항목에 하나만.\n" +
+    "- name 은 2~20자, 기술명은 공식 표기, 나머지는 한국어.\n" +
+    "- aliases: 공고 글에 실제로 쓰인 표기들(대표 이름 포함, 1~6개). 공고 글에서 그대로 찾을 수 있는 짧은 키워드로(예: ['Spring', 'Spring Boot', '스프링'], ['REST API', 'RESTful'], ['대용량 트래픽', '대규모 트래픽']).\n" +
+    "  '개발', '서비스', '운영', '경험', '프로젝트', '협업' 같은 흔한 단어 하나만으로 된 표기는 넣지 마세요 — 그 항목만 가리키는 구체적인 표기여야 해요.\n" +
+    "- experience 는 다른 공고에서도 같은 이름으로 다시 찾을 수 있는 구체적인 일로(예: '결제 시스템', '대용량 트래픽 처리', 'MSA'). '서비스 개발 및 운영 경험', '코드 품질 향상' 같은 막연한 말은 빼세요.\n" +
+    "- 한 번만 나온 것도 뽑으세요. 최대 40개.";
+  const jobs = input.jobs.map((j, i) => `[공고 ${i + 1}] ${j.title}\n필수: ${j.required ?? ""}\n우대: ${j.preferred ?? ""}`).join("\n\n");
+  return { system, user: `직무: ${input.role}\n\n${jobs}` };
+}
+
+export const ROLE_HAVE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { index: { type: "integer" }, have: { type: "boolean" }, tip: { type: "string" } },
+        required: ["index", "have", "tip"]
+      }
+    }
+  },
+  required: ["items"]
+} as const;
+
+export function buildRoleHaveMessages(input: { role: string; profile: string; items: { category: string; name: string }[] }): LlmMessages {
+  const system =
+    "당신은 커리어 코치입니다. 직무 요구 항목 목록과 지원자 서류를 보고, 항목마다 서류에 있는지 판단해 주세요.\n" +
+    "[판정]\n" +
+    "- 서류의 경력·프로젝트·활동·자기소개서 내용을 꼼꼼히 읽으세요.\n" +
+    "- 그 일을 직접 한 내용이 있으면 have=true(예: 결제 회사에서 결제 API 운영 → '결제 시스템 경험' true). 비슷한 단어만 있고 실제로 한 일이 아니면 false.\n" +
+    "- 서류 어디에도 근거가 없을 때만 false.\n" +
+    "- tip: have=false 일 때만 한 문장(35자 안팎) — 어떻게 채우면 좋을지(이미 해 봤다면 이력서에 적으라는 안내도 좋아요). have=true 면 빈 문자열.\n" +
+    "- index 는 입력 항목 번호 그대로, 모든 항목에 대해 답하세요." +
     aiLangDirective();
-  const jobs = input.jobs
-    .map((j, i) => `[공고 ${i + 1}] ${j.title}\n필수: ${j.required ?? ""}\n우대: ${j.preferred ?? ""}`)
-    .join("\n\n");
-  const user = `직무: ${input.role}\n\n[관심 직무 공고 ${input.jobs.length}곳의 자격 요건]\n${jobs}\n\n[지원자 서류]\n${input.profile}`;
-  return { system, user };
+  const list = input.items.map((x, i) => `${i + 1}. [${x.category}] ${x.name}`).join("\n");
+  return { system, user: `직무: ${input.role}\n\n[요구 항목]\n${list}\n\n[지원자 서류]\n${input.profile}` };
 }

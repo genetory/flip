@@ -89,8 +89,10 @@ import {
   DRAFT_TEXT_SCHEMA,
   CAREER_STRENGTHS_SCHEMA,
   buildCareerStrengthsMessages,
-  ROLE_CHECKLIST_SCHEMA,
-  buildRoleChecklistMessages,
+  ROLE_REQUIREMENTS_SCHEMA,
+  buildRoleRequirementsMessages,
+  ROLE_HAVE_SCHEMA,
+  buildRoleHaveMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
@@ -15932,48 +15934,111 @@ app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRo
   }
 });
 
-// POST /members/me/ai/role-checklist — 내 커리어 '이 직무 지원자들이 갖춘 것'.
-// 화면이 관심 직무 공고(최대 20곳)의 자격 요건과 내 서류 글을 보낸다. '공고 N곳 중 M곳'은 서버가 공고 번호로 센다.
-// 고비용 모델(docReviewModel)이라 AI_PREMIUM_FEATURES 일일 캡에 포함.
+// POST /members/me/ai/role-checklist — 내 커리어 '이 직무에 필요한 것'.
+// 화면이 관심 직무 '신입' 공고(최대 60곳)의 자격 요건과 내 서류 글을 보낸다.
+//  ① 추출(mini, 공고 12곳씩 나눠 병렬): 공고에 적힌 기술·경험·자격증·어학 + 공고 표기(aliases)
+//  ② 서버가 aliases 를 공고 글에 직접 대조해 '공고 N곳 중 M곳'을 센다(모델이 센 숫자는 쓰지 않음) → 자주 나온 것만
+//  ③ 기술·자격증·어학은 서버가 서류 글에서 aliases 를 찾아 판정, '경험'만 docReviewModel 이 판단(+ 없을 때 팁).
+//     고비용 모델이라 프리미엄 캡에 포함.
 const roleChecklistSchema = z.object({
   role: z.string().min(1).max(60),
   profile: z.string().min(30).max(8000),
   jobs: z
-    .array(z.object({ title: z.string().max(200), required: z.string().max(1500).optional(), preferred: z.string().max(1500).optional() }))
-    .min(1)
-    .max(20)
+    .array(z.object({ title: z.string().max(200), required: z.string().max(800).optional(), preferred: z.string().max(600).optional() }))
+    .min(3)
+    .max(60)
 });
+
+/** 글에 표기가 있는가 — 영문·숫자 표기는 단어 경계로(Go 가 Google 에 걸리지 않게), 한글은 띄어쓰기 무시. */
+function hasTerm(text: string, alias: string): boolean {
+  const a = alias.trim();
+  if (a.length < 1) return false;
+  if (/^[\x00-\x7F]+$/.test(a)) {
+    const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+    return new RegExp(`(^|[^A-Za-z0-9+#])${esc}(?![A-Za-z0-9+#])`, "i").test(text);
+  }
+  return text.replace(/\s+/g, "").toLowerCase().includes(a.replace(/\s+/g, "").toLowerCase());
+}
 
 app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("role_checklist"), async (req, res) => {
   const parsed = roleChecklistSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-  const total = parsed.data.jobs.length;
+  const { role, profile, jobs } = parsed.data;
+  const total = jobs.length;
   try {
-    const { system, user } = buildRoleChecklistMessages(parsed.data);
-    const { data } = await generateJson<{ items?: unknown }>({
-      openai,
-      model: docReviewModel, // 서류에 있는지(have) 판정 — mini 는 있는 스킬도 없다고 하는 오판이 잦아 문서 점검과 같은 모델
-      temperature: 0.2,
-      system,
-      user,
-      schema: ROLE_CHECKLIST_SCHEMA,
-      schemaName: "role_checklist"
-    });
-    const cats = new Set(["certificate", "skill", "experience", "language"]);
-    const seen = new Set<string>();
-    const items = (Array.isArray(data?.items) ? data.items : [])
-      .map((x) => {
+    const chunks: (typeof jobs)[] = [];
+    for (let k = 0; k < jobs.length; k += 12) chunks.push(jobs.slice(k, k + 12));
+    const results = await Promise.all(
+      chunks.map((chunk) => {
+        const m = buildRoleRequirementsMessages({ role, jobs: chunk });
+        return generateJson<{ items?: unknown }>({ openai: openai!, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: ROLE_REQUIREMENTS_SCHEMA, schemaName: "role_requirements" }).catch(() => ({ data: null }));
+      })
+    );
+    const cats = new Set(["skill", "experience", "certificate", "language"]);
+    const merged = new Map<string, { category: string; name: string; aliases: Set<string> }>();
+    for (const r of results) {
+      for (const x of Array.isArray(r.data?.items) ? r.data.items : []) {
         const o = (x ?? {}) as Record<string, unknown>;
         const name = typeof o.name === "string" ? o.name.trim() : "";
-        const category = typeof o.category === "string" && cats.has(o.category) ? o.category : "skill";
-        const jobs = new Set((Array.isArray(o.jobs) ? o.jobs : []).filter((n): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= total));
-        const have = o.have === true;
-        return { category, name, have, count: jobs.size, tip: !have && typeof o.tip === "string" ? stripCliches(o.tip.trim()) : "" };
-      })
-      .filter((x) => x.name && !seen.has(x.name.toLowerCase()) && (seen.add(x.name.toLowerCase()), true))
-      .slice(0, 12);
-    if (!items.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+        if (!name || name.length > 30) continue;
+        const key = name.toLowerCase().replace(/\s+/g, "");
+        const cur = merged.get(key) ?? { category: typeof o.category === "string" && cats.has(o.category) ? o.category : "skill", name, aliases: new Set<string>([name]) };
+        for (const a of Array.isArray(o.aliases) ? o.aliases : []) if (typeof a === "string" && a.trim() && a.trim().length <= 30) cur.aliases.add(a.trim());
+        merged.set(key, cur);
+      }
+    }
+    // 표기 정리 — 흔한 단어 하나뿐인 표기·너무 짧은 한글 표기는 세는 데 쓰지 않는다(아무 공고에나 걸려 숫자가 부푼다).
+    const GENERIC = new Set(["개발", "서비스", "운영", "경험", "프로젝트", "협업", "업무", "관리", "기획", "개발경험", "서비스개발", "서비스운영", "이해", "능력", "역량", "활용", "사용"]);
+    const usable = (a: string, category: string) => {
+      const n = a.replace(/\s+/g, "").toLowerCase();
+      if (GENERIC.has(n)) return false;
+      if (/^[\x00-\x7F]+$/.test(a)) return n.length >= 1;
+      return n.length >= (category === "experience" ? 4 : 2);
+    };
+    const groups = [...merged.values()]
+      .filter((x) => !/\d+\s*년|경력/.test(x.name)) // '경력 N년'은 요건이 아니라 연차
+      .map((x) => ({ ...x, aliases: new Set([...x.aliases].filter((a) => usable(a, x.category))) }))
+      .filter((x) => x.aliases.size);
+    // 같은 표기를 공유하는 항목은 하나로(예: 'REST API' / 'RESTful API' / 'REST API 기반 서비스 개발') — 이름은 짧은 쪽.
+    const dedup: typeof groups = [];
+    for (const g of groups) {
+      const keys = new Set([...g.aliases].map((a) => a.replace(/\s+/g, "").toLowerCase()));
+      const hit = dedup.find((d) => [...d.aliases].some((a) => keys.has(a.replace(/\s+/g, "").toLowerCase())));
+      if (hit) {
+        for (const a of g.aliases) hit.aliases.add(a);
+        if (g.name.length < hit.name.length) hit.name = g.name;
+      } else dedup.push(g);
+    }
+    const texts = jobs.map((j) => `${j.title}\n${j.required ?? ""}\n${j.preferred ?? ""}`);
+    const counted = dedup.map((x) => ({ ...x, count: texts.filter((txt) => [...x.aliases].some((a) => hasTerm(txt, a))).length }));
+    // 자주 나온 것만 — 최소 2곳이자 표본의 10% 이상. 많이 나온 순 12개.
+    const min = Math.max(2, Math.ceil(total * 0.1));
+    const top = counted.filter((x) => x.count >= min).sort((a, b) => b.count - a.count).slice(0, 12);
+    if (!top.length) return res.json({ ok: true, total, items: [] });
+
+    const literal = top.map((x) => [...x.aliases].some((a) => hasTerm(profile, a)));
+    const needJudge = top.map((x, i) => ({ x, i })).filter(({ x, i }) => x.category === "experience" && !literal[i]);
+    const verdicts = new Map<number, { have: boolean; tip: string }>();
+    const missingTips = top.map((x, i) => ({ x, i })).filter(({ x, i }) => x.category !== "experience" && !literal[i]);
+    const judgeList = [...needJudge, ...missingTips];
+    if (judgeList.length) {
+      const judge = buildRoleHaveMessages({ role, profile, items: judgeList.map(({ x }) => ({ category: x.category, name: x.name })) });
+      const { data: verdict } = await generateJson<{ items?: unknown }>({ openai, model: docReviewModel, temperature: 0, system: judge.system, user: judge.user, schema: ROLE_HAVE_SCHEMA, schemaName: "role_have" });
+      for (const v of Array.isArray(verdict?.items) ? verdict.items : []) {
+        const o = (v ?? {}) as Record<string, unknown>;
+        const at = Number.isInteger(o.index) ? judgeList[(o.index as number) - 1] : undefined;
+        if (at) verdicts.set(at.i, { have: o.have === true, tip: typeof o.tip === "string" ? stripCliches(o.tip.trim()) : "" });
+      }
+    }
+    const items = top.map((x, i) => {
+      // 기술·자격증·어학: 서류에 표기가 있어야 갖춤(모델 판단은 팁만 씀). 경험: 표기가 있거나 모델이 갖췄다고 판단.
+      const v = verdicts.get(i);
+      const have = literal[i] || (x.category === "experience" && v?.have === true);
+      // 기술·자격증·어학인데 표기는 없고 모델은 해 본 것 같다고 본 경우 — 서류 검색·필터에 걸리도록 이름을 직접 적으라고 안내.
+      const tip = have ? "" : v?.have ? `경험이 있다면 서류에 '${x.name}'을 직접 적어 두세요. 기업이 그 말로 찾아요.` : (v?.tip ?? "");
+      return { category: x.category, name: x.name, count: x.count, have, tip };
+    });
     return res.json({ ok: true, total, items });
   } catch (err) {
     console.error("[ai/role-checklist] failed", err);
