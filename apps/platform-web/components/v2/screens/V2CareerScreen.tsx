@@ -336,7 +336,8 @@ function hostOf(url: string): string {
 }
 
 // ── 기업이 보는 내 강점 3가지 ────────────────────────────
-// 누를 때만 AI 를 부른다. 결과는 이 브라우저에 서류 수정 시각과 함께 기억 — 서류가 바뀌면 '다시 찾기'를 권한다.
+// 누를 때만 AI 를 부른다. 결과는 이 브라우저에 서류 수정 시각과 함께 기억 — 서류가 바뀌었을 때만 '다시 찾기'가 보인다
+// (같은 서류로 다시 뽑아도 결과가 달라질 이유가 없어서).
 const STRENGTHS_KEY = "aply.v2.career.strengths";
 type StrengthsCache = { sig: string; list: CareerStrength[] };
 
@@ -405,7 +406,7 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
   );
 
   return (
-    <Section title={t("기업이 보는 내 강점", "Strengths employers see", "企业眼中的我的优势", "Điểm mạnh trong mắt NTD", "企業から見た強み", "Kekuatan di mata perusahaan")} aside={cache ? again : undefined}>
+    <Section title={t("기업이 보는 내 강점", "Strengths employers see", "企业眼中的我的优势", "Điểm mạnh trong mắt NTD", "企業から見た強み", "Kekuatan di mata perusahaan")} aside={stale ? again : undefined}>
       {cache ? (
         <div className={`pb-3 pt-1 transition-opacity ${busy ? "opacity-60" : ""}`}>
           {stale ? (
