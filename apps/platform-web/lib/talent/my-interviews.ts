@@ -17,11 +17,12 @@ export function useMyInterviews(): MyInterview[] {
   return useSyncExternalStore(subscribeDocs, snapshotMyInterviews, () => null) ?? [];
 }
 
-/** 같은 공고를 다시 등록하면 일정만 바꾼다. */
-export function saveMyInterview(data: Omit<MyInterview, "id" | "createdAt">): MyInterview {
+/** 같은 공고를 다시 등록하면 새로 만들지 않는다. 일정(interviewAt)을 안 넘기면 있던 일정을 그대로 둔다. */
+export function saveMyInterview(data: Omit<MyInterview, "id" | "createdAt" | "interviewAt"> & { interviewAt?: string | null }): MyInterview {
   const cur = snapshotMyInterviews() ?? [];
   const same = cur.find((m) => m.positionId === data.positionId);
-  const item: MyInterview = same ? { ...same, ...data } : { id: `mi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, createdAt: Date.now(), ...data };
+  const interviewAt = data.interviewAt !== undefined ? data.interviewAt : same?.interviewAt ?? null;
+  const item: MyInterview = same ? { ...same, ...data, interviewAt } : { id: `mi-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, createdAt: Date.now(), ...data, interviewAt };
   setMyInterviews([item, ...cur.filter((m) => m !== same)].slice(0, 30));
   return item;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 // 모의 면접 등록하기 — Aply에서 지원하지 않은 면접도 등록해 두고 일정에 맞춰 연습한다.
-// 공고 고르기(링크 / 본문 붙여넣기 / Aply 공고 검색) → 면접 일정(몰라도 됨) → 등록.
+// 공고 고르기(Aply 공고 검색 / 링크 / 본문 붙여넣기) → 바로 등록. 면접 일정은 카드의 [수정]에서(이 시트의 일정 단계).
 import { useEffect, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, Empty, Row, RowsSkeleton, SearchField } from "./ui";
@@ -26,15 +26,13 @@ function splitLocal(iso: string | null): { date: string; time: string } {
 export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?: MyInterview | null; onClose: () => void; onSaved: (m: MyInterview) => void }) {
   const t = usePlatformT();
   const [step, setStep] = useState<"pick" | "search" | "url" | "text" | "when">(initial ? "when" : "pick");
-  const [job, setJob] = useState<Job | null>(initial ? { positionId: initial.positionId, title: initial.title, company: initial.company } : null);
+  const [job] = useState<Job | null>(initial ? { positionId: initial.positionId, title: initial.title, company: initial.company } : null);
   const init = splitLocal(initial?.interviewAt ?? null);
   const [date, setDate] = useState(init.date);
   const [time, setTime] = useState(init.time);
   const [unknown, setUnknown] = useState(initial ? !initial.interviewAt : false);
-  const choose = (p: PublicPositionListItem) => {
-    setJob({ positionId: p.id, title: p.title, company: companyOf(p) });
-    setStep("when");
-  };
+  // 공고를 고르면 바로 등록 — 면접 일정은 나중에 카드의 [수정]에서.
+  const choose = (p: PublicPositionListItem) => onSaved(saveMyInterview({ positionId: p.id, title: p.title, company: companyOf(p) }));
   const canSave = !!job && (unknown || !!date);
   const save = () => {
     if (!job || !canSave) return;
@@ -49,7 +47,7 @@ export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?
         initialMode={step}
         title={t("면접 볼 공고 가져오기", "Import the job", "导入面试职位", "Nhập tin phỏng vấn", "面接の求人を取り込む", "Impor lowongan")}
         subtitle={t("AI가 공고를 정리해 면접 연습에 써요", "AI summarizes it for practice", "AI 整理后用于练习", "AI tóm tắt để luyện tập", "AIが整理して練習に使います", "AI merangkum untuk latihan")}
-        ctaLabel={t("다음", "Next", "下一步", "Tiếp", "次へ", "Lanjut")}
+        ctaLabel={t("등록하기", "Add", "登记", "Thêm", "登録する", "Tambah")}
         onClose={() => setStep("pick")}
         onStart={choose}
       />
@@ -57,7 +55,7 @@ export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?
 
   const pickTitle = t("어떤 공고의 면접인가요?", "Which job is the interview for?", "是哪个职位的面试？", "Phỏng vấn cho tin nào?", "どの求人の面接ですか？", "Wawancara untuk lowongan apa?");
   const pickSub = t("이 공고에 맞춘 질문으로 연습해요", "Practice with questions tailored to it", "用定制问题练习", "Luyện câu hỏi theo tin", "求人に合わせて練習", "Latihan sesuai lowongan");
-  const title = initial ? t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接日程", "Jadwal wawancara") : t("모의 면접 등록하기", "Add a mock interview", "登记模拟面试", "Thêm phỏng vấn thử", "模擬面接を登録", "Tambah simulasi");
+  const title = step === "search" ? t("Aply 공고에서 찾기", "Find on Aply", "在 Aply 找职位", "Tìm trên Aply", "Aplyで探す", "Cari di Aply") : t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接日程", "Jadwal wawancara");
   return (
     <Sheet
       tall
@@ -103,11 +101,6 @@ export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?
           <div className="rounded-3xl bg-[#f3eeff] p-5">
             <p className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{job.company || t("회사 이름 없음", "Company unknown", "未知公司", "Không rõ công ty", "会社名なし", "Perusahaan tidak diketahui")}</p>
             <p className="mt-1 text-[19px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{job.title}</p>
-            {!initial ? (
-              <button type="button" onClick={() => setStep("pick")} className="mt-2 text-[13px] font-semibold text-[color:var(--v2-accent)]">
-                {t("다른 공고 고르기", "Pick another job", "选择其他职位", "Chọn tin khác", "別の求人を選ぶ", "Pilih lowongan lain")}
-              </button>
-            ) : null}
           </div>
           <p className="mt-6 text-[16px] font-bold text-[color:var(--v2-ink)]">{t("면접은 언제예요?", "When is the interview?", "面试是什么时候？", "Phỏng vấn khi nào?", "面接はいつですか？", "Kapan wawancaranya?")}</p>
           <div className={`mt-3 grid grid-cols-1 gap-2 transition-opacity sm:grid-cols-[1fr_168px] ${unknown ? "pointer-events-none opacity-40" : ""}`}>
