@@ -463,7 +463,8 @@ export function buildRoleRequirementsMessages(input: { role: string; jobs: { tit
     "- 같은 뜻은 하나로 묶고 대표 이름을 name 에(예: Spring / Spring Boot / 스프링 → name 'Spring'). 'A 및 B'·'A/B'는 나눠서 한 항목에 하나만.\n" +
     "- name 은 2~20자, 기술명은 공식 표기, 나머지는 한국어.\n" +
     "- aliases: 공고 글에 실제로 쓰인 표기들(대표 이름 포함, 1~6개). 공고 글에서 그대로 찾을 수 있는 짧은 키워드로(예: ['Spring', 'Spring Boot', '스프링'], ['REST API', 'RESTful'], ['대용량 트래픽', '대규모 트래픽']).\n" +
-    "  '개발', '서비스', '운영', '경험', '프로젝트', '협업' 같은 흔한 단어 하나만으로 된 표기는 넣지 마세요 — 그 항목만 가리키는 구체적인 표기여야 해요.\n" +
+    "  '개발', '서비스', '운영', '경험', '프로젝트', '협업' 같은 흔한 단어 하나만으로 된 표기는 넣지 마세요 — 그 항목만 가리키는 구체적인 표기여야 해요.\n" +    "  aliases 는 '같은 것의 다른 표기'만이에요. 상위 개념이나 비슷한 다른 기술은 넣지 마세요(예: MySQL 의 aliases 에 SQL·RDBMS·PostgreSQL 금지).\n" +
+    "- 직무 이름 자체(예: '백엔드 개발', '프론트엔드 경험')는 항목으로 뽑지 마세요.\n" +
     "- experience 는 다른 공고에서도 같은 이름으로 다시 찾을 수 있는 구체적인 일로(예: '결제 시스템', '대용량 트래픽 처리', 'MSA'). '서비스 개발 및 운영 경험', '코드 품질 향상' 같은 막연한 말은 빼세요.\n" +
     "- 한 번만 나온 것도 뽑으세요. 최대 40개.";
   const jobs = input.jobs.map((j, i) => `[공고 ${i + 1}] ${j.title}\n필수: ${j.required ?? ""}\n우대: ${j.preferred ?? ""}`).join("\n\n");
@@ -499,4 +500,23 @@ export function buildRoleHaveMessages(input: { role: string; profile: string; it
     aiLangDirective();
   const list = input.items.map((x, i) => `${i + 1}. [${x.category}] ${x.name}`).join("\n");
   return { system, user: `직무: ${input.role}\n\n[요구 항목]\n${list}\n\n[지원자 서류]\n${input.profile}` };
+}
+
+// ── '이 직무에 필요한 것' 보강 — 공고 표본이 작거나 공고에 잘 안 적히는 것(대표 자격증·어학 등)을
+// 모델이 아는 '한국에서 이 직무 신입이 흔히 준비하는 것'으로 채운다. 공고 항목과 표기로 합치고, 공고에 나오면 그 수를 쓴다.
+export const ROLE_COMMON_SCHEMA = ROLE_REQUIREMENTS_SCHEMA;
+
+export function buildRoleCommonMessages(input: { role: string }): LlmMessages {
+  const system =
+    "당신은 한국 채용 시장을 잘 아는 커리어 코치입니다. 한국에서 주어진 직무에 지원하는 신입·주니어(외국인 유학생 포함)가 보통 갖추거나 준비하는 것을 알려 주세요.\n" +
+    "[규칙]\n" +
+    "- 8개 안팎. 실제로 그 직무 신입 채용에서 흔히 보거나 준비하는 것만. 확실하지 않으면 넣지 마세요.\n" +
+    "- skill: 그 직무의 대표 기술·도구(예: 백엔드 → Java, Spring, SQL / 마케팅 → GA4, Meta 광고, 엑셀).\n" +
+    "- experience: 신입이 준비하는 경험 유형(예: 개인·팀 프로젝트 배포 경험, 직무 인턴, 공모전, 포트폴리오).\n" +
+    "- certificate: 그 직무에서 실제로 흔한 자격증만(예: 개발 → 정보처리기사, 회계 → 전산회계). 그 직무에 흔한 자격증이 없으면 넣지 마세요.\n" +
+    "- language: 외국인 지원자에게 흔히 요구되는 한국어 수준(TOPIK 급수)과 그 직무에서 흔한 외국어.\n" +
+    "- name 은 2~20자, 기술명은 공식 표기, 나머지는 한국어. aliases 는 같은 것의 흔한 표기 1~6개(대표 이름 포함, 예: ['Spring', 'Spring Boot', '스프링']). 상위 개념·비슷한 다른 기술은 넣지 마세요(MySQL 에 SQL 금지).\n" +
+    "- 직무 이름 자체(예: '백엔드 개발')는 항목으로 넣지 마세요.\n" +
+    "- '커뮤니케이션 능력' 같은 태도·성향과 학위·전공 일반은 빼세요.";
+  return { system, user: `직무: ${input.role}` };
 }

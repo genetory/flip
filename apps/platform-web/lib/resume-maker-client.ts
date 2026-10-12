@@ -740,7 +740,7 @@ export async function getCareerStrengths(input: { profile: string; targetRoles?:
 }
 
 // 내 커리어 '이 직무에 필요한 것' (POST /members/me/ai/role-checklist).
-export type RoleChecklistItem = { category: "certificate" | "skill" | "experience" | "language"; name: string; have: boolean; count: number; tip: string };
+export type RoleChecklistItem = { category: "certificate" | "skill" | "experience" | "language"; name: string; have: boolean; count: number; common?: boolean; tip: string };
 export async function getRoleChecklist(input: { role: string; profile: string; jobs: { title: string; required?: string; preferred?: string }[] }): Promise<{ total: number; items: RoleChecklistItem[] }> {
   const payload = (await aiPost<unknown>("/members/me/ai/role-checklist", {
     method: "POST",
