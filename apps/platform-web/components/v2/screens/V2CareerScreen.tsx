@@ -263,7 +263,7 @@ function Career() {
 /** 맨 위 프로필 — 사진 · 이름 · 한 줄 소개 · 경력/지역. */
 function Profile({ t, name, photo, intro, meta }: { t: PlatformT; name: string; photo: string | null; intro: string; meta: string }) {
   return (
-    <header className="flex items-center gap-4 px-5 pb-8 pt-8 md:gap-5 md:pt-12">
+    <header className="flex items-start gap-4 px-5 pb-8 pt-8 md:gap-5 md:pt-12">
       <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[24px] font-bold text-[color:var(--v2-muted)] md:h-[72px] md:w-[72px]">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
