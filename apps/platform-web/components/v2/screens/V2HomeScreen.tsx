@@ -187,7 +187,7 @@ function Home() {
   const pendingSlot = appList.find((a) => a.status === "INTERVIEW" && a.interviewPending);
   if (pendingSlot) todos.push({ key: "slot", title: t("면접 시간을 골라 주세요", "Pick your interview time", "请选择面试时间", "Hãy chọn giờ phỏng vấn", "面接の時間を選んでください", "Pilih jadwal wawancara"), meta: pendingSlot.positionTitle, href: "/talent/applications" });
   if (unread) todos.push({ key: "msg", title: t(`회사가 보낸 메시지 ${unread}개`, `${unread} message(s) from companies`, `公司发来 ${unread} 条消息`, `${unread} tin nhắn từ công ty`, `会社からのメッセージ ${unread}件`, `${unread} pesan dari perusahaan`), meta: t("확인하고 답해 보세요", "Read and reply", "查看并回复", "Đọc và trả lời", "確認して返信しましょう", "Baca dan balas"), href: "/talent/applications" });
-  if (closing[0] && lead.cta.href !== V2_ROUTES.jobs) todos.push({ key: "close", title: t(`저장한 공고가 ${closing[0].d === 0 ? "오늘" : `${closing[0].d}일 뒤`} 마감돼요`, `A saved job closes ${closing[0].d === 0 ? "today" : `in ${closing[0].d} days`}`, `收藏的职位${closing[0].d === 0 ? "今天" : `${closing[0].d}天后`}截止`, `Tin đã lưu đóng ${closing[0].d === 0 ? "hôm nay" : `sau ${closing[0].d} ngày`}`, `保存した求人が${closing[0].d === 0 ? "今日" : `${closing[0].d}日後に`}締切`, `Lowongan tersimpan tutup ${closing[0].d === 0 ? "hari ini" : `${closing[0].d} hari lagi`}`), meta: closing[0].p.title, href: `/talent/jobs/${closing[0].p.id}` });
+  if (closing[0] && lead.cta.href !== V2_ROUTES.jobs) todos.push({ key: "close", title: t(`저장한 공고가 ${closing[0].d === 0 ? "오늘" : `${closing[0].d}일 뒤`} 마감돼요`, `A saved job closes ${closing[0].d === 0 ? "today" : `in ${closing[0].d} days`}`, `收藏的职位${closing[0].d === 0 ? "今天" : `${closing[0].d}天后`}截止`, `Tin đã lưu đóng ${closing[0].d === 0 ? "hôm nay" : `sau ${closing[0].d} ngày`}`, `保存した求人が${closing[0].d === 0 ? "今日" : `${closing[0].d}日後に`}締切`, `Lowongan tersimpan tutup ${closing[0].d === 0 ? "hari ini" : `${closing[0].d} hari lagi`}`), meta: closing[0].p.title, href: `/v2/jobs/${closing[0].p.id}` });
   if (lead.cta.href !== EDITOR.cover && rp >= 100 && cp < 100) todos.push({ key: "cover", title: t("자기소개서 마무리하기", "Finish your cover letter", "完成自我介绍", "Hoàn thành thư giới thiệu", "自己紹介書を仕上げる", "Selesaikan surat lamaran"), meta: t(`지금 ${cp}%`, `Now ${cp}%`, `目前 ${cp}%`, `Hiện ${cp}%`, `いま${cp}%`, `Sekarang ${cp}%`), href: EDITOR.cover });
   if (!interests.length) todos.push({ key: "interest", title: t("관심 직무 고르기", "Choose job interests", "选择感兴趣的职位", "Chọn nghề quan tâm", "関心職種を選ぶ", "Pilih minat pekerjaan"), meta: t("고르면 맞춤 공고가 더 정확해져요", "Recommendations get sharper", "推荐会更精准", "Gợi ý sẽ chính xác hơn", "おすすめが正確になります", "Rekomendasi lebih tepat"), href: "/talent/career" });
   if (weakest && lead.cta.href !== V2_ROUTES.interviews) todos.push({ key: "weak", title: t(`'${weakest.label}' 다시 연습하기`, `Practice '${weakest.label}' again`, `再次练习「${weakest.label}」`, `Luyện lại '${weakest.label}'`, `「${weakest.label}」をもう一度練習`, `Latih lagi '${weakest.label}'`), meta: t(`평균 ${weakest.average}점`, `Avg ${weakest.average}`, `平均 ${weakest.average} 分`, `TB ${weakest.average}`, `平均${weakest.average}点`, `Rata-rata ${weakest.average}`), href: V2_ROUTES.interviews });
@@ -271,7 +271,7 @@ function Home() {
           {closing.map(({ p, d }) => (
             <Row
               key={p.id}
-              href={`/talent/jobs/${p.id}`}
+              href={`/v2/jobs/${p.id}`}
               title={p.title}
               meta={p.partnerOrganization?.name || p.sourceCompanyName || undefined}
               right={<Attention>{d === 0 ? t("오늘 마감", "Today", "今天截止", "Hôm nay", "今日締切", "Hari ini") : `D-${d}`}</Attention>}
@@ -290,7 +290,7 @@ function Home() {
           {jobs.map((j) => (
             <Row
               key={j.id}
-              href={`/talent/jobs/${j.id}`}
+              href={`/v2/jobs/${j.id}`}
               thumb={{ src: j.thumbnailImages?.[0] || j.partnerOrganization?.officePhotoImageData || j.partnerOrganization?.companyLogoImageData, fallback: j.partnerOrganization?.name || j.sourceCompanyName || j.title }}
               title={j.title}
               meta={[j.partnerOrganization?.name || j.sourceCompanyName, (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined}

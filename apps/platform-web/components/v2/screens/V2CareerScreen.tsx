@@ -540,7 +540,7 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
             const photo = jobPhotoOf(j);
             return (
               <div key={j.id} className="flex items-start gap-3.5 py-3">
-                <Link href={`/talent/jobs/${j.id}`} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-muted)]">
+                <Link href={`/v2/jobs/${j.id}`} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-muted)]">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -549,7 +549,7 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
                   )}
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/talent/jobs/${j.id}`} className="block transition hover:opacity-70">
+                  <Link href={`/v2/jobs/${j.id}`} className="block transition hover:opacity-70">
                     <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{j.title}</span>
                     <span className="mt-0.5 block truncate text-[14px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ")}</span>
                     {hits.length ? (

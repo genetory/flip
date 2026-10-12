@@ -316,7 +316,7 @@ function Jobs() {
             {closing.map((j) => {
               const due = deadlineOf(j)!;
               return (
-                <Link key={j.id} href={`/talent/jobs/${j.id}`} className="flex w-[230px] shrink-0 snap-start flex-col rounded-2xl bg-[color:var(--v2-band)] p-3 transition hover:bg-[color:var(--v2-line)]">
+                <Link key={j.id} href={`/v2/jobs/${j.id}`} className="flex w-[230px] shrink-0 snap-start flex-col rounded-2xl bg-[color:var(--v2-band)] p-3 transition hover:bg-[color:var(--v2-line)]">
                   {/* 썸네일 — 목록과 같은 사진(썸네일 → 사무실 사진 → 로고), 없으면 회사 첫 글자. */}
                   {jobPhotoOf(j) ? (
                     // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
@@ -375,7 +375,7 @@ function Jobs() {
         ) : (
           items.map((j) => (
             <li key={j.id} className="flex items-center gap-3.5 border-b border-[color:var(--v2-line)] last:border-b-0">
-              <Link href={`/talent/jobs/${j.id}`} className="flex min-w-0 flex-1 items-start gap-3.5 py-4 transition hover:opacity-70">
+              <Link href={`/v2/jobs/${j.id}`} className="flex min-w-0 flex-1 items-start gap-3.5 py-4 transition hover:opacity-70">
                 {jobPhotoOf(j) ? (
                   // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
                   <img src={jobPhotoOf(j)!} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl bg-[color:var(--v2-band)] object-cover" />
