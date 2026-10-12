@@ -507,7 +507,8 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
 // 관심 직무 '신입' 공고(경력 3년 이상·시니어 공고는 뺀다)의 자격 요건에 자주 나온 기술·경험·자격증·어학 +
 // 한국에서 이 직무 신입이 흔히 준비하는 것(모델 지식)을 체크리스트로 — 내 서류에 없는 것부터(서버 role-checklist).
 // 강점과 같이 누를 때만 AI 를 부르고, 직무별로 서류 수정 시각과 함께 이 브라우저에 기억한다.
-const CHECKLIST_KEY = "aply.v2.career.checklist";
+// 비교 방식이 바뀌면 키를 올린다 — 예전 방식 결과가 남아 보이지 않게.
+const CHECKLIST_KEY = "aply.v2.career.checklist.v2";
 type ChecklistResult = { sig: string; total: number; items: RoleChecklistItem[]; scope?: "junior" | "early" | "all" | "none" };
 
 /** 공고가 요구하는 최소 연차(못 찾으면 0). "3년 이상", "3~5년", "3년차", "경력 3년". */
@@ -612,8 +613,9 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
   return (
     <Section
       title={t("이 직무에 필요한 것", "What this role needs", "这个职位需要的", "Vị trí này cần gì", "この職種に必要なもの", "Yang dibutuhkan peran ini")}
+      // 강점과 달리 서류가 그대로여도 다시 비교할 수 있다 — 공고는 계속 바뀐다.
       aside={
-        stale ? (
+        result ? (
           <TextLink onClick={busy ? undefined : run}>
             {busy ? t("비교 중…", "Comparing…", "比较中…", "Đang so sánh…", "比較中…", "Membandingkan…") : t("다시 비교", "Refresh", "重新比较", "So sánh lại", "もう一度", "Ulangi")}
           </TextLink>
