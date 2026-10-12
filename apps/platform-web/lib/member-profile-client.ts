@@ -2446,3 +2446,11 @@ export async function getAnswerExamples(question: string): Promise<{ id: string;
   const payload = (await readApiPayload(response)) as { ok?: boolean; items?: { id: string; answer: string; score: number }[] };
   return response.ok && payload.ok === true ? payload.items ?? [] : [];
 }
+
+// 모의 면접용 '공고 가져오기' — URL(다른 서비스·회사 채용 페이지) 또는 붙여 넣은 공고 글.
+// Aply·원티드(수집된) 공고는 positionId, 그 밖은 정리된 job 을 돌려준다. 못 읽으면 MemberProfileApiError(code: PAGE_UNREADABLE·NOT_A_JOB·URL_NOT_ALLOWED).
+export type ImportedJobDraft = { title: string; company: string; mainResponsibilities: string; requiredQualifications: string; preferredQualifications: string; sourceUrl?: string };
+export async function importJob(input: { url?: string; text?: string }): Promise<{ positionId?: string; job?: ImportedJobDraft }> {
+  const r = (await authedJsonFetch<never>("/members/me/ai/import-job", { method: "POST", body: JSON.stringify(input) })) as unknown as { positionId?: string; job?: ImportedJobDraft };
+  return { positionId: r.positionId, job: r.job };
+}

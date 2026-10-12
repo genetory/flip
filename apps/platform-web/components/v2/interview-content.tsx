@@ -8,7 +8,8 @@ import { Button, Spinner } from "./ui";
 import { DictationControls, LevelChip, PracticeSheet, useDictation } from "./practice";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
-import { aiInterviewFeedback, type InterviewFeedback } from "../../lib/member-profile-client";
+import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
+import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
@@ -481,6 +482,127 @@ function QuizSheet({ onClose }: { onClose: () => void }) {
               <p className="mt-1 text-[14px] leading-[1.65] text-[color:var(--v2-ink-2)]">{L(item.why)}</p>
             </div>
           ) : null}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+// ── 공고 가져오기 ─────────────────────────────────────
+// 가고 싶은 회사·다른 서비스의 공고를 링크(또는 공고 글 붙여넣기)로 가져와 그 공고로 모의 면접.
+// Aply·원티드(수집된) 공고는 그 공고를 그대로 열고, 그 밖은 정리해서 '가져온 공고'로 계정에 남긴다.
+export function ImportJobSheet({ onClose, onStart }: { onClose: () => void; onStart: (item: PublicPositionListItem) => void }) {
+  const t = usePlatformT();
+  const { locale } = useLanguage();
+  const [mode, setMode] = useState<"url" | "text">("url");
+  const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<ImportedJobDraft | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await importJob(mode === "url" ? { url: url.trim() } : { text: text.trim() });
+      if (r.positionId) {
+        const item = await getPublicPositionById(r.positionId, { locale });
+        void addMyFavoritePosition(r.positionId).catch(() => {});
+        onStart(item);
+        return;
+      }
+      if (r.job) setDraft(r.job);
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === "PAGE_UNREADABLE") {
+        setError(t("이 페이지는 읽을 수 없어요(로그인이 필요하거나 막혀 있어요). 공고 내용을 복사해 '내용 붙여넣기'로 가져와 주세요.", "We couldn't read this page (login or blocked). Copy the posting and use 'Paste text'.", "无法读取此页面（需登录或被阻止）。请复制职位内容用'粘贴内容'导入。", "Không đọc được trang (cần đăng nhập hoặc bị chặn). Hãy sao chép nội dung và dùng 'Dán nội dung'.", "このページは読めません（ログインが必要かブロック）。本文をコピーして「本文を貼り付け」で。", "Halaman tidak bisa dibaca. Salin isinya dan gunakan 'Tempel teks'."));
+        setMode("text");
+      } else if (code === "NOT_A_JOB") setError(t("채용 공고를 찾지 못했어요. 공고 상세 페이지 주소인지 확인하거나 내용을 붙여 넣어 주세요.", "No job posting found — check it's a posting page, or paste the text.", "未找到职位信息。请确认是职位详情页，或粘贴内容。", "Không thấy tin tuyển dụng — kiểm tra link hoặc dán nội dung.", "求人が見つかりません。詳細ページか確認するか本文を貼り付けて。", "Lowongan tidak ditemukan — periksa tautan atau tempel teks."));
+      else if (code === "URL_NOT_ALLOWED") setError(t("열 수 없는 주소예요. http(s)로 시작하는 공개 페이지 주소를 넣어 주세요.", "That address can't be opened. Use a public http(s) page.", "无法打开该地址，请输入以 http(s) 开头的公开页面。", "Không mở được địa chỉ này. Dùng trang công khai http(s).", "開けないアドレスです。公開のhttp(s)ページを。", "Alamat tidak bisa dibuka. Gunakan halaman publik http(s)."));
+      else setError(t("가져오지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't import. Try again soon.", "导入失败，请稍后再试。", "Không nhập được. Thử lại sau.", "取り込めませんでした。", "Gagal mengimpor."));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const start = () => {
+    if (!draft) return;
+    const job = addImportedJob(draft);
+    onStart(importedToPosition(job));
+  };
+  const canRun = mode === "url" ? /^https?:\/\/\S+\.\S+/.test(url.trim()) : text.trim().length >= 80;
+
+  return (
+    <Sheet
+      tall
+      title={t("공고 가져오기", "Import a job", "导入职位", "Nhập tin tuyển dụng", "求人を取り込む", "Impor lowongan")}
+      subtitle={t("가고 싶은 회사 공고로 맞춤 모의 면접을 봐요", "Practice a mock interview for the job you want", "用想去公司的职位进行定制模拟面试", "Phỏng vấn thử theo tin bạn muốn", "行きたい会社の求人で模擬面接", "Simulasi untuk lowongan incaran")}
+      onClose={onClose}
+      footer={
+        draft ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="neutral" full onClick={() => setDraft(null)}>
+              {t("다시 가져오기", "Import another", "重新导入", "Nhập lại", "取り込み直す", "Impor lagi")}
+            </Button>
+            <Button full onClick={start}>
+              {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
+            </Button>
+          </div>
+        ) : (
+          <Button full onClick={() => void run()} disabled={busy || !canRun}>
+            {busy ? <Spinner /> : null}
+            {busy ? t("공고를 읽고 있어요", "Reading the posting…", "正在读取职位…", "Đang đọc tin…", "求人を読んでいます", "Membaca lowongan…") : t("가져오기", "Import", "导入", "Nhập", "取り込む", "Impor")}
+          </Button>
+        )
+      }
+    >
+      {draft ? (
+        <div className="flex flex-col gap-3">
+          <div className="rounded-3xl bg-gradient-to-br from-[#eef3ff] to-[#f6f0ff] p-5">
+            <p className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{draft.company || t("회사 이름 없음", "Company unknown", "未知公司", "Không rõ công ty", "会社名なし", "Perusahaan tidak diketahui")}</p>
+            <p className="mt-1 text-[20px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{draft.title}</p>
+            {draft.sourceUrl ? <p className="mt-1 truncate text-[12px] text-[color:var(--v2-faint)]">{draft.sourceUrl}</p> : null}
+          </div>
+          {[
+            [t("주요 업무", "What you'll do", "主要工作", "Công việc chính", "主な業務", "Tugas utama"), draft.mainResponsibilities],
+            [t("자격 요건", "Requirements", "任职要求", "Yêu cầu", "応募資格", "Persyaratan"), draft.requiredQualifications],
+            [t("우대 사항", "Nice to have", "优先条件", "Ưu tiên", "歓迎条件", "Nilai tambah"), draft.preferredQualifications]
+          ]
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
+                <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{k}</p>
+                <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-[1.65] text-[color:var(--v2-ink-3)]">{v}</p>
+              </div>
+            ))}
+          <p className="text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("AI가 공고에서 뽑아 정리했어요. 이 공고는 나만 보고, '가져온 공고'에 남아 언제든 다시 연습할 수 있어요.", "Summarized by AI. Only you can see it; it stays in 'Imported' for later practice.", "由 AI 整理。仅你可见，保存在'导入的职位'中可随时练习。", "AI tóm tắt. Chỉ bạn thấy; lưu trong 'Tin đã nhập' để luyện lại.", "AIが整理しました。自分だけが見られ「取り込んだ求人」に残ります。", "Diringkas AI. Hanya kamu yang melihat; tersimpan di 'Diimpor'.")}</p>
+        </div>
+      ) : (
+        <div>
+          <div className="flex gap-1 rounded-xl bg-[color:var(--v2-band)] p-1">
+            {(
+              [
+                ["url", t("링크로", "By link", "通过链接", "Bằng link", "リンクで", "Lewat tautan")],
+                ["text", t("내용 붙여넣기", "Paste text", "粘贴内容", "Dán nội dung", "本文を貼り付け", "Tempel teks")]
+              ] as const
+            ).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => setMode(k)} className={`h-10 flex-1 rounded-lg text-[14px] font-semibold transition ${mode === k ? "bg-white text-[color:var(--v2-ink)] shadow-sm" : "text-[color:var(--v2-muted)]"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {mode === "url" ? (
+            <>
+              <input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://" className="mt-4 h-12 w-full rounded-2xl bg-[color:var(--v2-fill)] px-4 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2" />
+              <p className="mt-2 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">{t("원티드·사람인·잡코리아·회사 채용 페이지의 공고 주소를 붙여 넣어 주세요. 링크드인처럼 로그인이 필요한 곳은 '내용 붙여넣기'로 가져와요.", "Paste a posting link from any job site or company careers page. For login-only sites (e.g. LinkedIn), use 'Paste text'.", "粘贴任意招聘网站或公司招聘页的职位链接。需登录的网站（如领英）请用'粘贴内容'。", "Dán link tin từ trang tuyển dụng hoặc trang công ty. Trang cần đăng nhập (LinkedIn) hãy dùng 'Dán nội dung'.", "求人サイトや企業の採用ページのリンクを。ログインが必要なサイトは「本文を貼り付け」で。", "Tempel tautan lowongan. Untuk situs yang perlu login (LinkedIn), gunakan 'Tempel teks'.")}</p>
+            </>
+          ) : (
+            <>
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={9} placeholder={t("공고 내용을 통째로 복사해 붙여 넣어 주세요(회사·직무·주요 업무·자격 요건).", "Paste the whole posting (company, role, duties, requirements).", "请复制粘贴整个职位内容（公司、职位、工作内容、要求）。", "Dán toàn bộ nội dung tin (công ty, vị trí, công việc, yêu cầu).", "求人本文をまるごと貼り付けてください。", "Tempel seluruh isi lowongan.")} className="mt-4 w-full resize-none rounded-2xl bg-[color:var(--v2-fill)] p-4 text-[15px] leading-[1.6] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2" />
+              <p className="mt-1 text-right text-[12px] tabular-nums text-[color:var(--v2-faint)]">{text.trim().length}</p>
+            </>
+          )}
+          {error ? <p className="mt-3 rounded-2xl bg-[#fff4e8] px-4 py-3 text-[14px] leading-[1.55] text-[#c2410c]">{error}</p> : null}
         </div>
       )}
     </Sheet>

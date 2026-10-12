@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
-import { PracticeTools } from "../interview-content";
+import { ImportJobSheet, PracticeTools } from "../interview-content";
+import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { Attention, Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
@@ -69,6 +70,8 @@ function Interviews() {
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [review, setReview] = useState<MockInterviewRecord | "self" | null>(null);
   const [practiceQ, setPracticeQ] = useState<PracticeQuestion | null>(null);
+  const [importing, setImporting] = useState(false);
+  const imported = useImportedJobs();
   const [now] = useState(() => Date.now()); // 화면을 연 시각 — 오늘의 질문·연속 기록의 기준
   const { user } = useAuthSession();
 
@@ -123,6 +126,8 @@ function Interviews() {
   useEffect(() => {
     const item = gate?.item;
     if (!item) return;
+    // 가져온 공고(ext-…)는 회사 하루 제한에 세지 않는다(서버에 연습 기록을 남기지 않음) — 아래 게이트에서 무시.
+    if (item.id.startsWith("ext-")) return;
     let alive = true;
     getMyMockInterviewUsage()
       .then((u) => alive && setLimit({ reached: u.companiesUsedToday >= u.dailyCompanyLimit && !u.practicedTodayPositionIds.includes(item.id), limit: u.dailyCompanyLimit }))
@@ -167,8 +172,14 @@ function Interviews() {
         lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
       />
 
-      {next ? (
-        <Section title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
+      {/* ① 오늘 할 것 — 다가오는 면접(있을 때) · 오늘의 질문 */}
+      <Section
+        title={t("오늘 할 것", "For today", "今天要做的", "Việc hôm nay", "今日やること", "Untuk hari ini")}
+        aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
+      >
+        <div className="flex flex-col gap-3">
+          {next ? (
+            <div>
           {/* 다가오는 면접 — 날짜·공고 · 이 공고로 연습한 정도 · 준비 버튼 */}
           {(() => {
             const rec = (records ?? []).find((m) => m.positionId === next.positionId);
@@ -209,13 +220,8 @@ function Interviews() {
             const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
             return <Row key={a.id} onClick={() => void startById(a.positionId, "upcoming")} title={a.positionTitle} meta={[a.partnerOrganizationName, whenText(t, a.interviewSelectedAt!)].filter(Boolean).join(" · ")} right={<Attention>{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</Attention>} />;
           })}
-        </Section>
-      ) : null}
-
-      <Section
-        title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}
-        aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
-      >
+            </div>
+          ) : null}
         <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-gradient-to-br from-[#edf1fd] via-[#eef0ff] to-[#f4ecff] p-5 text-left transition hover:opacity-90">
           <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
           <span className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</span>
@@ -231,18 +237,15 @@ function Interviews() {
             <span className="inline-flex h-9 shrink-0 items-center rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white">{todayAnswer ? t("다시 답하기", "Answer again", "再答一次", "Trả lời lại", "もう一度", "Jawab lagi") : t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab")}</span>
           </span>
         </button>
-        {isForeignNationality(user?.nationality) || locale !== "ko" ? <ExpressionCard t={t} /> : null}
-      </Section>
-
-      <Section title={t("연습 도구", "Practice tools", "练习工具", "Công cụ luyện tập", "練習ツール", "Alat latihan")}>
-        <PracticeTools t={t} showQuiz={isForeignNationality(user?.nationality) === true || locale !== "ko"} />
+          {isForeignNationality(user?.nationality) || locale !== "ko" ? <ExpressionCard t={t} /> : null}
+        </div>
       </Section>
 
       <InterviewReportPrompt t={t} apps={apps} />
 
-
+      {/* ② 연습하기 — 공고로 연습(내 공고·가져온 공고·가져오기·찾기·내 서류) + 연습 도구 */}
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
-        {next ? <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} /> : null}
+        <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("공고로 연습", "Practice for a job", "按职位练习", "Luyện theo tin tuyển dụng", "求人で練習", "Latihan untuk lowongan")}</p>
         {positions === null ? <RowsSkeleton count={2} /> : null}
         {candidates.map((p) => {
           // 왜 이 공고인지 — 지원한 공고 / 저장한 공고(마감이 가까우면 D-n).
@@ -254,24 +257,38 @@ function Interviews() {
               : t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Disimpan");
           return <Row key={p.id} onClick={() => startJob(p, "job")} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={[companyOf(p), why].filter(Boolean).join(" · ") || undefined} />;
         })}
+        {imported.map((j) => (
+          <Row key={j.id} onClick={() => startJob(importedToPosition(j), "job")} lead="🔗" title={j.title} meta={[j.company, t("가져온 공고", "Imported", "导入的职位", "Tin đã nhập", "取り込んだ求人", "Diimpor")].filter(Boolean).join(" · ")} />
+        ))}
+        <Row onClick={() => setImporting(true)} lead="➕" title={t("가고 싶은 회사 공고 가져오기", "Import a job you want", "导入想去的公司职位", "Nhập tin của công ty bạn muốn", "行きたい会社の求人を取り込む", "Impor lowongan incaran")} meta={t("링크나 공고 내용으로 — 원티드·사람인·회사 채용 페이지", "By link or pasted text — any job site", "通过链接或粘贴内容——任何招聘网站", "Bằng link hoặc dán nội dung", "リンクか本文で — どのサイトでも", "Lewat tautan atau tempel teks")} />
         {searching ? (
           <JobSearch onPick={(p) => startJob(p, "job")} />
         ) : (
           <Row onClick={() => setSearching(true)} lead="🔍" title={t("다른 공고 찾기", "Find another job", "查找其他职位", "Tìm tin khác", "他の求人を探す", "Cari lowongan lain")} meta={t("직무나 회사 이름으로", "By role or company", "按职位或公司", "Theo vị trí hoặc công ty", "職種や会社名で", "Berdasarkan peran atau perusahaan")} />
         )}
+        <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} />
+        <div className="pt-4">
+          <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("연습 도구", "Tools", "练习工具", "Công cụ", "練習ツール", "Alat")}</p>
+          <div className="pt-1">
+            <PracticeTools t={t} showQuiz={isForeignNationality(user?.nationality) === true || locale !== "ko"} />
+          </div>
+        </div>
       </Section>
 
-      {revisit.length ? (
-        <Section title={t("다시 볼 답", "Revisit", "再看一遍", "Xem lại", "もう一度", "Tinjau ulang")}>
-          <p className="pb-1 text-[14px] text-[color:var(--v2-muted)]">{t("며칠 전 '더 연습'이 나온 답이에요. 다시 답하면 얼마나 늘었는지 보여 드려요.", "Answers marked 'practice more' a few days ago. Try again to see your progress.", "几天前被标为'多练习'的回答，再答一次看看进步。", "Câu trả lời 'luyện thêm' vài ngày trước. Thử lại để thấy tiến bộ.", "数日前『要練習』だった回答です。もう一度答えて成長を確認。", "Jawaban 'latih lagi' beberapa hari lalu. Coba lagi.")}</p>
+      {/* ③ 내 실력 — 다시 볼 답 + 강점과 약점 */}
+      {revisit.length || tried.length ? (
+        <Section title={t("내 실력", "My progress", "我的水平", "Năng lực của tôi", "自分の実力", "Kemampuanku")}>
+          {revisit.length ? (
+            <>
+              <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("다시 볼 답 — 며칠 전 '더 연습'이 나온 답", "Revisit — marked 'practice more' days ago", "再看——几天前被标为'多练习'", "Xem lại — 'luyện thêm' vài ngày trước", "見直し — 数日前『要練習』", "Tinjau — 'latih lagi' beberapa hari lalu")}</p>
           {revisit.map((a) => (
             <Row key={a.question} onClick={() => openQuestion(a.question, a.category)} lead="🔁" title={a.question} meta={formatRelativeTime(a.updatedAt, undefined, t)} right={<LevelChip t={t} score={a.score} />} />
           ))}
-        </Section>
-      ) : null}
-
-      {tried.length ? (
-        <Section title={t("강점과 약점", "Strengths & gaps", "优势与不足", "Điểm mạnh & yếu", "強みと弱み", "Kekuatan & kekurangan")}>
+            </>
+          ) : null}
+          {tried.length ? (
+            <div className={revisit.length ? "pt-4" : ""}>
+              <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("강점과 약점", "Strengths & gaps", "优势与不足", "Điểm mạnh & yếu", "強みと弱み", "Kekuatan & kekurangan")}</p>
           {tried.map((r) => (
             <Row
               key={r.category}
@@ -286,6 +303,8 @@ function Interviews() {
             <p className="pb-1 pt-3 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">
               {t("아직 안 해 본 질문", "Not tried yet", "尚未练习", "Chưa thử", "まだの質問", "Belum dicoba")} · {untried.map((r) => mockCategoryLabelOf(t, r.category)).join(" · ")}
             </p>
+          ) : null}
+            </div>
           ) : null}
         </Section>
       ) : null}
@@ -321,7 +340,7 @@ function Interviews() {
       {gate ? (
         <MockGateModal
           allowWithoutDocs={!!gate.item}
-          dailyLimitReached={!!gate.item && limit.reached}
+          dailyLimitReached={!!gate.item && !gate.item.id.startsWith("ext-") && limit.reached}
           dailyLimit={limit.limit}
           onClose={() => setGate(null)}
           onConfirm={() => {
@@ -340,6 +359,15 @@ function Interviews() {
         />
       ) : null}
       {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
+      {importing ? (
+        <ImportJobSheet
+          onClose={() => setImporting(false)}
+          onStart={(item) => {
+            setImporting(false);
+            startJob(item, "job");
+          }}
+        />
+      ) : null}
       {review ? (
         <ReviewSheet
           t={t}

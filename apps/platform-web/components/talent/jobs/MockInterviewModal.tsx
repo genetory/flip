@@ -261,7 +261,8 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         setSlots((prev) => ({ ...prev, [idx]: { answer: a, fb: f, prev: prev[idx]?.prev ?? null } }));
         if (before) trackInterviewRetryScored(f.score - before.score);
         // 저장: 공고 모의 → 회사에 노출, self 모의 → 계정에 보관.
-        if (item?.id) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
+        // 가져온 외부 공고(ext-…)는 회사가 없는 공고라 연습 기록(회사 노출)을 남기지 않는다.
+        if (item?.id && !item.id.startsWith("ext-")) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
         else saveSelfMockAnswer({ question: q.question, category: q.category, answer: a, score: f.score, feedback: f });
         syncTickets();
       })

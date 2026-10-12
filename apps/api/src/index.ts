@@ -98,6 +98,7 @@ import {
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
+import { fetchPublicPageText, buildJobImportMessages, JOB_IMPORT_SCHEMA } from "./llm/job-import";
 import { generateJsonAnthropic } from "./llm/anthropic";
 import {
   REVIEW_FINDINGS_SCHEMA,
@@ -15991,6 +15992,64 @@ app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRo
   } catch (err) {
     console.error("[ai/career-strengths] failed", err);
     return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
+// POST /members/me/ai/import-job — 모의 면접용 '공고 가져오기'. url(다른 서비스·회사 채용 페이지) 또는 text(붙여 넣은 공고).
+//  - Aply 공고 주소, 원티드 주소(이미 수집한 공고)는 DB 에서 바로 찾아 positionId 로 돌려준다(AI 호출 없음).
+//  - 그 밖의 주소는 서버가 안전하게 읽어(SSRF 차단: llm/job-import.ts) mini 로 회사·직무·업무·자격을 정리한다.
+//  - 페이지를 못 읽거나(로그인 필요·JS 렌더링) 공고가 아니면 code 로 알려 화면이 '내용 붙여넣기'를 권한다.
+const importJobSchema = z.object({ url: z.string().trim().max(2000).optional(), text: z.string().trim().max(20000).optional() }).refine((v) => !!(v.url || v.text), "url or text");
+
+app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("import_job"), async (req, res) => {
+  const parsed = importJobSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const { url, text } = parsed.data;
+  try {
+    if (url) {
+      const aply = url.match(/\/(?:talent|v2)\/jobs\/([0-9a-f-]{36})/i);
+      const wanted = url.match(/wanted\.co\.kr\/wd\/(\d+)/i);
+      const found = aply
+        ? await prisma.position.findUnique({ where: { id: aply[1] }, select: { id: true } })
+        : wanted
+          ? await prisma.position.findFirst({ where: { sourceProvider: "WANTED", sourceExternalId: wanted[1] }, select: { id: true } })
+          : null;
+      if (found) return res.json({ ok: true, positionId: found.id });
+    }
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    let pageTitle = "";
+    let body = text ?? "";
+    let sourceUrl: string | undefined;
+    if (!body && url) {
+      try {
+        const page = await fetchPublicPageText(url);
+        pageTitle = page.title;
+        body = page.text;
+        sourceUrl = page.url;
+      } catch (err) {
+        const code = err instanceof Error ? err.message : "fetch_failed";
+        return res.status(422).json({ ok: false, code: code === "private_address" || code.startsWith("bad_") ? "URL_NOT_ALLOWED" : "PAGE_UNREADABLE", message: "page could not be read" });
+      }
+    }
+    if (body.replace(/\s+/g, "").length < 80) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "too little content" });
+    const m = buildJobImportMessages({ pageTitle, text: body });
+    const { data } = await generateJson<{ isJob?: boolean; company?: string; title?: string; responsibilities?: string; requirements?: string; preferred?: string }>({ openai, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: JOB_IMPORT_SCHEMA, schemaName: "job_import" });
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    if (!data?.isJob || !str(data.title, 200) || !(str(data.responsibilities, 4000) || str(data.requirements, 4000))) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "not a job posting" });
+    return res.json({
+      ok: true,
+      job: {
+        title: str(data.title, 200),
+        company: str(data.company, 120),
+        mainResponsibilities: str(data.responsibilities, 4000),
+        requiredQualifications: str(data.requirements, 4000),
+        preferredQualifications: str(data.preferred, 3000),
+        sourceUrl: sourceUrl ?? (url || undefined)
+      }
+    });
+  } catch (err) {
+    console.error("[ai/import-job] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to import" });
   }
 });
 

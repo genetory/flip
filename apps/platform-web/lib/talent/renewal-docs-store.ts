@@ -42,6 +42,9 @@ let jobInterests: string[] | null = null;
 // 계정 귀속 소셜/활동 데이터(같은 Resume.content 에 함께 보관).
 let follows: string[] | null = null;
 let bookmarks: string[] | null = null;
+// 모의 면접용으로 가져온 외부 공고(URL·붙여넣기) — 본인만 본다. content.renewalImportedJobs.
+export type ImportedJob = { id: string; title: string; company: string; mainResponsibilities: string; requiredQualifications: string; preferredQualifications: string; sourceUrl?: string; createdAt: number };
+let importedJobs: ImportedJob[] | null = null;
 let dailySteps: string[] | null = null;
 let careerFeed: FeedEntry[] | null = null;
 // 내 서류 기반 self 모의 면접 기록(문항별 답변·점수·피드백).
@@ -124,6 +127,9 @@ export function snapshotJobInterests(): string[] | null {
 export function snapshotFollows(): string[] | null {
   return follows;
 }
+export function snapshotImportedJobs(): ImportedJob[] | null {
+  return importedJobs;
+}
 export function snapshotBookmarks(): string[] | null {
   return bookmarks;
 }
@@ -190,6 +196,7 @@ function buildContent(): Record<string, unknown> {
   if (jobInterests) content.renewalJobInterests = jobInterests;
   if (follows) content.renewalFollows = follows;
   if (bookmarks) content.renewalBookmarks = bookmarks;
+  if (importedJobs) content.renewalImportedJobs = importedJobs;
   if (dailySteps) content.renewalDailySteps = dailySteps;
   if (careerFeed) content.renewalCareerFeed = careerFeed;
   if (selfMock) content.renewalMockInterview = selfMock;
@@ -210,6 +217,7 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   interests: string[] | null;
   follows: string[] | null;
   bookmarks: string[] | null;
+  importedJobs: ImportedJob[] | null;
   dailySteps: string[] | null;
   careerFeed: FeedEntry[] | null;
   selfMock: SelfMockRecord | null;
@@ -238,6 +246,7 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
   const interests = Array.isArray(c.renewalJobInterests) ? (c.renewalJobInterests as string[]) : null;
   const follows = Array.isArray(c.renewalFollows) ? (c.renewalFollows as string[]) : null;
   const bookmarks = Array.isArray(c.renewalBookmarks) ? (c.renewalBookmarks as string[]) : null;
+  const importedJobs = Array.isArray(c.renewalImportedJobs) ? (c.renewalImportedJobs as ImportedJob[]) : null;
   const dailySteps = Array.isArray(c.renewalDailySteps) ? (c.renewalDailySteps as string[]) : null;
   const careerFeed = Array.isArray(c.renewalCareerFeed) ? (c.renewalCareerFeed as FeedEntry[]) : null;
   const sm = c.renewalMockInterview as SelfMockRecord | undefined;
@@ -256,7 +265,7 @@ function parseContent(content: Record<string, unknown> | null | undefined): {
       : [];
   const resumeHistory = parseHistory<ResumeDoc>(c.renewalResumeHistory);
   const coverHistory = parseHistory<CoverDoc>(c.renewalCoverHistory);
-  return { resumeHistory, coverHistory, resume, cover, basic, interests, follows, bookmarks, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
+  return { resumeHistory, coverHistory, resume, cover, basic, interests, follows, bookmarks, importedJobs, dailySteps, careerFeed, selfMock, onboardingSeen, careerFeedDismissed, applyCelebrated, notifPushOptOut, notifEmailOptOut };
 }
 
 // resume-maker 형식(Career Launch 미러 / 구형 이력서)인지 — renewal 키가 있으면 아니다.
@@ -295,6 +304,7 @@ async function load(userId: string) {
       jobInterests = parsed.interests;
       follows = parsed.follows;
       bookmarks = parsed.bookmarks;
+      importedJobs = parsed.importedJobs;
       dailySteps = parsed.dailySteps;
       careerFeed = parsed.careerFeed;
       selfMock = parsed.selfMock;
@@ -313,6 +323,7 @@ async function load(userId: string) {
       jobInterests = null;
       follows = null;
       bookmarks = null;
+      importedJobs = null;
       dailySteps = null;
       careerFeed = null;
       selfMock = null;
@@ -366,6 +377,7 @@ async function load(userId: string) {
     jobInterests = null;
     follows = null;
     bookmarks = null;
+    importedJobs = null;
     dailySteps = null;
     careerFeed = null;
     selfMock = null;
@@ -393,6 +405,7 @@ export function syncUser(userId: string | null): void {
     jobInterests = null;
     follows = null;
     bookmarks = null;
+    importedJobs = null;
     dailySteps = null;
     careerFeed = null;
     selfMock = null;
@@ -484,6 +497,12 @@ export function setJobInterests(roles: string[]): void {
 
 export function setFollows(list: string[]): void {
   follows = list;
+  emit();
+  scheduleSave();
+}
+
+export function setImportedJobs(list: ImportedJob[]): void {
+  importedJobs = list;
   emit();
   scheduleSave();
 }
