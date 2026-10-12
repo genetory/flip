@@ -4,7 +4,7 @@
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
 import { useEffect, useState, type ReactNode } from "react";
 import { V2Shell, useProfilePhoto } from "../V2Shell";
-import { Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, Section, SectionSkeleton, Spinner, TextLink } from "../ui";
+import { Band, Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, Section, SectionSkeleton, Spinner, TextLink } from "../ui";
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
@@ -902,8 +902,17 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
 
 // ── 비자 ───────────────────────────────────────────────
 // 외국인 지원자에게만 있는 고민 — 지금 비자에서 취업 비자(E-7)까지 어디쯤인지. 비자는 계정(CandidateProfile.visaType)에 저장.
-// 한국인 등 해당 없는 사람은 '해당 없어요'로 이 브라우저에서 숨긴다. 조건은 바뀔 수 있어 자세한 건 비자 안내·하이코리아로 보낸다.
-const VISA_NA_KEY = "aply.v2.career.visa.na";
+// 외국인이라고 답했을 때만 보인다. 답은 포지션 탐색의 '혹시 외국인이세요?'와 같은 곳에 기억한다(어느 화면에서 답해도 같이 쓴다).
+//   비자 저장됨 → 카드 / '네' → 비자 고르기 / '아니요' → 숨김 / 아직 모름 → 얇은 질문 카드만.
+const FOREIGNER_KEY = "aply.v2.jobs.foreigner";
+
+function readForeignerAnswer(): string | null {
+  try {
+    return window.localStorage.getItem(FOREIGNER_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function visaLabel(t: PlatformT, v: CandidateVisaType): string {
   switch (v) {
@@ -934,13 +943,7 @@ const VISA_CHOICES: CandidateVisaType[] = ["D2_STUDENT", "D10_JOB_SEEKING", "E7_
 
 function VisaCard({ t }: { t: PlatformT }) {
   const [visa, setVisa] = useState<CandidateVisaType | null | undefined>(undefined); // undefined = 불러오는 중
-  const [na, setNa] = useState(() => {
-    try {
-      return window.localStorage.getItem(VISA_NA_KEY) === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [foreigner, setForeigner] = useState<string | null>(() => readForeignerAnswer());
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -965,17 +968,43 @@ function VisaCard({ t }: { t: PlatformT }) {
       setSaving(false);
     }
   };
-  const dismiss = () => {
-    setNa(true);
+  const answer = (v: "yes" | "no") => {
+    setForeigner(v);
     try {
-      window.localStorage.setItem(VISA_NA_KEY, "1");
+      window.localStorage.setItem(FOREIGNER_KEY, v);
     } catch {
-      /* 이번 방문만 숨긴다 */
+      /* 이번 방문만 기억 */
     }
   };
 
-  if (visa === undefined || (na && !visa)) return null;
+  if (visa === undefined) return null;
+  if (!visa && foreigner === "no") return null;
   const title = t("비자", "Visa", "签证", "Visa", "ビザ", "Visa");
+
+  // 아직 모름 — 포지션 탐색과 같은 얇은 질문 카드
+  if (!visa && foreigner !== "yes") {
+    return (
+      <>
+        <Band />
+        <div className="px-5 py-5">
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3">
+            <p className="min-w-0 text-[14px] leading-[1.5] text-[color:var(--v2-ink-2)]">
+              <b className="font-bold">{t("혹시 외국인이세요?", "Are you an international?", "你是外国人吗？", "Bạn là người nước ngoài?", "外国の方ですか？", "Apakah kamu WNA?")}</b>{" "}
+              {t("비자에 맞춰 취업 준비를 도와드려요.", "We'll guide you by visa.", "我们会按签证帮你准备就业。", "Chúng tôi hướng dẫn theo visa.", "ビザに合わせて就活をサポートします。", "Kami bantu sesuai visa.")}
+            </p>
+            <div className="flex shrink-0 gap-1.5">
+              <Button size="sm" onClick={() => answer("yes")}>
+                {t("네", "Yes", "是", "Có", "はい", "Ya")}
+              </Button>
+              <Button size="sm" variant="white" onClick={() => answer("no")}>
+                {t("아니요", "No", "不是", "Không", "いいえ", "Tidak")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   // 비자를 모르거나 바꾸는 중 — 고르기
   if (!visa || picking) {
@@ -983,7 +1012,7 @@ function VisaCard({ t }: { t: PlatformT }) {
       <Section title={title}>
         <div className="pb-3">
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
-            {t("외국인이라면 지금 비자를 알려 주세요. 취업 비자까지 무엇을 준비하면 되는지 알려 드려요.", "If you're an international, tell us your visa — we'll show what to prepare for a work visa.", "如果你是外国人，请告诉我们你的签证，我们会告诉你就业签证需要准备什么。", "Nếu là người nước ngoài, hãy cho biết visa — chúng tôi chỉ cách chuẩn bị visa làm việc.", "外国の方は今のビザを教えてください。就労ビザまでの準備をご案内します。", "Jika WNA, beri tahu visamu — kami tunjukkan persiapan visa kerja.")}
+            {t("지금 비자를 알려 주세요. 취업 비자까지 무엇을 준비하면 되는지 알려 드려요.", "Tell us your visa — we'll show what to prepare for a work visa.", "请告诉我们你的签证，我们会告诉你就业签证需要准备什么。", "Hãy cho biết visa — chúng tôi chỉ cách chuẩn bị visa làm việc.", "今のビザを教えてください。就労ビザまでの準備をご案内します。", "Beri tahu visamu — kami tunjukkan persiapan visa kerja.")}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {VISA_CHOICES.map((v) => (
@@ -992,13 +1021,11 @@ function VisaCard({ t }: { t: PlatformT }) {
               </Chip>
             ))}
           </div>
-          <div className="mt-3">
-            {picking ? (
+          {picking ? (
+            <div className="mt-3">
               <TextLink onClick={() => setPicking(false)}>{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</TextLink>
-            ) : (
-              <TextLink onClick={dismiss}>{t("해당 없어요", "Not applicable", "不适用", "Không áp dụng", "該当しません", "Tidak berlaku")}</TextLink>
-            )}
-          </div>
+            </div>
+          ) : null}
         </div>
       </Section>
     );
