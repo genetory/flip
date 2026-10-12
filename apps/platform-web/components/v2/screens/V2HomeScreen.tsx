@@ -5,6 +5,7 @@
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
 import { useEffect, useMemo, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
+import { FeaturedBanners } from "../../talent/screens/HomeScreen";
 import { Attention, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -200,9 +201,18 @@ function Home() {
     .join(" · ");
 
   // 맨 위 한 가지는 서류·지원을 다 읽어야 정해진다 — 그 전엔 화면 모양만.
+  // 맨 위 배너(사주·MBTI) — 기존 홈과 같은 것. 읽을 데이터가 없어 불러오는 중에도 먼저 보인다.
+  const banners = (
+    // 배너 슬라이드가 안쪽에 6·8px 여백을 갖고 있어 그만큼 덜어 본문 왼쪽 선(20px)에 맞춘다.
+    <div className="px-3.5 pt-5 md:px-3 md:pt-8">
+      <FeaturedBanners />
+    </div>
+  );
+
   if (docsStatus !== "loaded" || apps === null)
     return (
       <Page>
+        {banners}
         <MastheadSkeleton />
         <SectionSkeleton thumb={false} rows={2} />
         <SectionSkeleton thumb={false} rows={2} />
@@ -212,6 +222,7 @@ function Home() {
 
   return (
     <Page>
+      {banners}
       <Masthead eyebrow={eyebrow} title={lead.title} lede={lead.lede} action={<PrimaryButton href={lead.cta.href}>{lead.cta.label}</PrimaryButton>} />
 
       {todos.length ? (

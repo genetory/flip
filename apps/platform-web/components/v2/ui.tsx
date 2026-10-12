@@ -11,9 +11,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** 본문 폭 — 모바일은 꽉 차게, PC 는 가운데 한 단. */
+/** 본문 폭 — 모바일은 꽉 차게, PC 는 가운데 한 단(880px — GNB 폭과 너무 차이 나지 않게). */
 export function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto w-full max-w-[640px] pb-24">{children}</main>;
+  return <main className="mx-auto w-full max-w-[880px] pb-24">{children}</main>;
 }
 
 /** 머리말 — 작은 머리글 · 굵은 큰 제목 · 한두 줄 설명 · 주 행동. */

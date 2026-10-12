@@ -67,11 +67,12 @@ function Jobs() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   // '혹시 외국인이세요?' — 한국인도 보는 화면이라 먼저 걸러 두지 않고 물어본다. 답은 이 브라우저에만 기억.
-  //   yes → 필터를 켜고 다음에도 켠 채로 시작 / no → 다시 묻지 않음(닫기 없이 둘 중 하나로 답한다). 저장소를 못 써도 화면은 그대로 동작.
+  //   yes → 이번에 필터를 켠다 / no → 그대로. 어느 쪽이든 다시 묻지 않는다(닫기 없이 둘 중 하나로 답한다).
+  //   스위치는 늘 꺼진 채로 시작한다 — 한국인도 함께 보는 화면이라 미리 걸러 두지 않는다. 저장소를 못 써도 화면은 그대로 동작.
   const stored = useSyncExternalStore(subscribeForeigner, readForeigner, () => "ssr");
   const [answered, setAnswered] = useState(false);
   const [foreignerToggle, setForeigner] = useState<boolean | null>(null);
-  const foreigner = foreignerToggle ?? stored === "yes";
+  const foreigner = foreignerToggle ?? false;
   const askForeigner = stored === null && !answered;
   const answerForeigner = (answer: "yes" | "no") => {
     trackForeignerPrompt(answer);
