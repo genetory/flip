@@ -46,8 +46,9 @@ function getRecognition(): (new () => Recognition) | null {
 }
 const FILLERS = /(^|\s)(음+|어+|그+|저기|뭐랄까|약간|좀)(?=\s|$|[,.])/g;
 
-export function PracticeSheet({ question, onClose, onSaved }: { question: PracticeQuestion; onClose: () => void; onSaved?: () => void }) {
+export function PracticeSheet({ question: initial, onClose, onSaved }: { question: PracticeQuestion; onClose: () => void; onSaved?: () => void }) {
   const t = usePlatformT();
+  const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
   const { locale } = useLanguage();
   const resume = useResumeDoc();
   const info = useBasicInfo();
@@ -174,6 +175,18 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
     void startMeter();
   };
 
+  /** 다시 답하기 — 결과를 닫고 글을 고칠 수 있게(같은 질문, 또는 꼬리 질문으로). */
+  const retry = (text: string, next?: PracticeQuestion) => {
+    if (next) setQuestion(next);
+    setAnswer(text);
+    setFeedback(null);
+    setExamples(null);
+    setShared("idle");
+    setSpeech(null);
+    setRunning(false);
+    setLeft(60);
+  };
+
   const submit = async () => {
     const a = answer.trim();
     if (a.length < 10) {
@@ -215,9 +228,14 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
       onClose={onClose}
       footer={
         feedback ? (
-          <Button full onClick={onClose}>
-            {t("완료", "Done", "完成", "Xong", "完了", "Selesai")}
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="neutral" full onClick={() => retry(answer)}>
+              {t("고쳐서 다시 답하기", "Revise & retry", "修改后重答", "Sửa & trả lời lại", "直して再回答", "Perbaiki & ulangi")}
+            </Button>
+            <Button full onClick={onClose}>
+              {t("완료", "Done", "完成", "Xong", "完了", "Selesai")}
+            </Button>
+          </div>
         ) : (
           <Button full onClick={() => void submit()} disabled={busy}>
             {busy ? <Spinner /> : null}
@@ -295,40 +313,55 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
           {error ? <p className="mt-2 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
         </>
       ) : (
-        <div className="mt-4 flex flex-col gap-3">
+        <div className="mt-5 flex flex-col gap-4">
+          <ResultSummary t={t} answer={answer.trim()} feedback={feedback} />
+
+          {/* 내 답 — 숫자(결과)는 초록, 막연한 말은 빨강으로 표시 */}
           <div className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("내 답", "Your answer", "我的回答", "Câu trả lời", "あなたの回答", "Jawabanmu")}</p>
-              <LevelChip t={t} score={feedback.score} />
-            </div>
-            <p className="mt-2 whitespace-pre-wrap text-[14px] leading-[1.65] text-[color:var(--v2-ink-3)]">{answer.trim()}</p>
+            <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("내 답", "Your answer", "我的回答", "Câu trả lời", "あなたの回答", "Jawabanmu")}</p>
+            <p className="mt-2 whitespace-pre-wrap text-[15px] leading-[1.7] text-[color:var(--v2-ink-3)]">
+              <Highlighted text={answer.trim()} />
+            </p>
+            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[color:var(--v2-faint)]">
+              <span><span className="font-semibold text-[color:var(--v2-good)] underline decoration-2 underline-offset-4">30%</span> {t("구체적인 결과", "concrete result", "具体结果", "kết quả cụ thể", "具体的な成果", "hasil konkret")}</span>
+              <span><span className="font-semibold text-[color:var(--v2-attention)] underline decoration-wavy underline-offset-4">{t("열심히", "hard", "努力", "chăm chỉ", "一生懸命", "keras")}</span> {t("막연한 말", "vague word", "空泛的词", "từ mơ hồ", "あいまいな言葉", "kata samar")}</span>
+            </p>
           </div>
-          {feedback.strengths.length ? (
-            <div>
-              <p className="text-[14px] font-bold text-[color:var(--v2-good)]">{t("잘한 점", "What worked", "优点", "Điểm tốt", "良い点", "Yang bagus")}</p>
-              <ul className="mt-1 flex flex-col gap-1 text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">
-                {feedback.strengths.slice(0, 3).map((x, i) => (
-                  <li key={i}>· {x}</li>
-                ))}
-              </ul>
+
+          <div className="grid gap-2 md:grid-cols-2">
+            {feedback.strengths.length ? (
+              <PointCard tone="good" title={t("잘한 점", "What worked", "优点", "Điểm tốt", "良い点", "Yang bagus")} items={feedback.strengths.slice(0, 3)} />
+            ) : null}
+            {feedback.improvements.length ? (
+              <PointCard tone="bad" title={t("고칠 점", "To improve", "改进点", "Cần sửa", "直す点", "Perbaiki")} items={feedback.improvements.slice(0, 3)} />
+            ) : null}
+          </div>
+
+          {feedback.sampleAnswer?.trim() ? (
+            <div className="rounded-2xl border border-[color:var(--v2-line)] p-4">
+              <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("이렇게 바꿔 보면 어때요?", "Try it like this", "试试这样改", "Thử viết thế này", "こう直してみては？", "Coba seperti ini")}</p>
+              <p className="mt-2 whitespace-pre-wrap text-[15px] leading-[1.7] text-[color:var(--v2-ink-3)]">{feedback.sampleAnswer.trim()}</p>
+              <p className="mt-2 text-[12px] text-[color:var(--v2-faint)]">{t("AI가 내 답을 바탕으로 고친 예시예요. 내 경험에 맞게 바꿔 쓰세요.", "An AI rewrite based on your answer — adapt it to your real experience.", "AI 基于你的回答改写的示例，请按真实经历调整。", "Bản AI viết lại từ câu trả lời của bạn — hãy chỉnh theo trải nghiệm thật.", "AIがあなたの回答をもとに直した例です。実際の経験に合わせて。", "Contoh tulisan ulang AI — sesuaikan dengan pengalaman nyata.")}</p>
+              <div className="mt-3">
+                <Button size="sm" variant="secondary" onClick={() => retry(feedback.sampleAnswer.trim())}>
+                  {t("이 답으로 고쳐 쓰기", "Edit from this", "以此修改", "Sửa từ bản này", "これをもとに書く", "Edit dari ini")}
+                </Button>
+              </div>
             </div>
           ) : null}
-          {feedback.improvements.length ? (
-            <div>
-              <p className="text-[14px] font-bold text-[color:var(--v2-attention)]">{t("고칠 점", "To improve", "改进点", "Cần sửa", "直す点", "Perbaiki")}</p>
-              <ul className="mt-1 flex flex-col gap-1 text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">
-                {feedback.improvements.slice(0, 3).map((x, i) => (
-                  <li key={i}>· {x}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+
           {feedback.followUp ? (
             <div className="rounded-2xl bg-[color:var(--v2-accent-weak)] p-4">
               <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{t("면접관이 이어서 물을 질문", "Likely follow-up", "面试官可能追问", "Câu hỏi nối tiếp", "想定される追加質問", "Pertanyaan lanjutan")}</p>
-              <p className="mt-1 text-[15px] font-semibold leading-[1.55] text-[color:var(--v2-ink)]">{feedback.followUp}</p>
+              <p className="mt-1 text-[16px] font-semibold leading-[1.55] text-[color:var(--v2-ink)]">{feedback.followUp}</p>
+              <div className="mt-3">
+                <Button size="sm" onClick={() => retry("", { ko: feedback.followUp!, shown: feedback.followUp!, category: question.category })}>
+                  {t("이어서 답하기", "Answer it", "继续回答", "Trả lời tiếp", "続けて答える", "Jawab")}
+                </Button>
+              </div>
             </div>
           ) : null}
+
           {feedback.score >= 80 ? (
             <div className="rounded-2xl border border-[color:var(--v2-line)] p-4">
               {shared === "done" ? (
@@ -360,5 +393,87 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
         </div>
       )}
     </Sheet>
+  );
+}
+
+// ── 결과 보기 도우미 ─────────────────────────────────────
+// 막연한 말 · 숫자로 된 결과(단위까지). 캡처 그룹은 하나만 — split 결과에 조각이 겹쳐 나오지 않게.
+const VAGUE_SRC = "열심히|최선을|최선|다양한|여러 가지|많은 것|성실하게|노력했|노력하|열정|책임감";
+const NUM_SRC = "\\d[\\d,.]*\\s*(?:%|퍼센트|명|건|배|시간|분|개월|년|원|만|천|억|개)?";
+const VAGUE = new RegExp(VAGUE_SRC, "g");
+
+/** 한눈에 보는 결과 — 단계 · 한 줄 평 · 답 체크(길이·숫자로 된 결과·내 역할·막연한 말). 체크는 규칙으로 계산(AI 아님). */
+function ResultSummary({ t, answer, feedback }: { t: PlatformT; answer: string; feedback: InterviewFeedback }) {
+  const len = answer.replace(/\s+/g, "").length;
+  const hasNumber = /\d/.test(answer);
+  const hasRole = /(제가|저는|제\s|맡|담당|주도|직접|이끌)/.test(answer);
+  const vague = (answer.match(VAGUE) ?? []).length;
+  const verdict = feedback.score >= 80 ? feedback.strengths[0] : feedback.improvements[0];
+  const checks: { ok: boolean; text: string }[] = [
+    len < 120
+      ? { ok: false, text: t(`조금 짧아요(${len}자) — 1분 답이면 250~400자 정도예요`, `A bit short (${len}) — aim for 250–400 chars for 1 min`, `有点短（${len}字）— 1分钟回答约250~400字`, `Hơi ngắn (${len}) — khoảng 250–400 ký tự cho 1 phút`, `少し短い（${len}字）— 1分なら250〜400字`, `Agak pendek (${len}) — 250–400 karakter untuk 1 menit`) }
+      : len > 700
+        ? { ok: false, text: t(`길어요(${len}자) — 핵심만 남겨 1분 안에`, `Long (${len}) — keep it under a minute`, `偏长（${len}字）— 只留重点`, `Dài (${len}) — giữ trong 1 phút`, `長い（${len}字）— 要点だけに`, `Panjang (${len}) — cukup 1 menit`) }
+        : { ok: true, text: t(`길이가 알맞아요(${len}자)`, `Good length (${len})`, `长度合适（${len}字）`, `Độ dài vừa (${len})`, `ちょうどいい長さ（${len}字）`, `Panjang pas (${len})`) },
+    hasNumber
+      ? { ok: true, text: t("결과를 숫자로 말했어요", "You gave numbers", "用数字说明了结果", "Có số liệu kết quả", "成果を数字で伝えた", "Ada angka hasil") }
+      : { ok: false, text: t("결과를 숫자로 말해 보세요 (예: 30% 늘렸어요)", "Add a number (e.g. grew 30%)", "用数字说明结果（如提升30%）", "Thêm số liệu (vd: tăng 30%)", "成果を数字で（例：30%伸ばした）", "Tambahkan angka (mis. naik 30%)") },
+    hasRole
+      ? { ok: true, text: t("내 역할이 드러나요", "Your role is clear", "体现了你的角色", "Vai trò rõ ràng", "自分の役割が見える", "Peranmu jelas") }
+      : { ok: false, text: t("'제가 ~했습니다'로 내 역할을 분명히", "Say what *you* did ('I …')", "用'我做了~'说明你的角色", "Nói rõ bạn đã làm gì", "「私が〜しました」で役割を明確に", "Jelaskan apa yang *kamu* lakukan") },
+    ...(vague >= 2 ? [{ ok: false, text: t(`막연한 말이 ${vague}번 나와요 — 구체적인 예로 바꿔 보세요`, `${vague} vague words — swap for examples`, `空泛的词出现${vague}次 — 换成具体例子`, `${vague} từ mơ hồ — thay bằng ví dụ`, `あいまいな言葉が${vague}回 — 具体例に`, `${vague} kata samar — ganti dengan contoh`) }] : [])
+  ];
+  return (
+    <div className="rounded-2xl bg-[color:var(--v2-band)] p-4">
+      <div className="flex items-center gap-2">
+        <LevelChip t={t} score={feedback.score} />
+        <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("AI 평가", "AI rating", "AI 评价", "Đánh giá AI", "AI評価", "Penilaian AI")}</span>
+      </div>
+      {verdict ? <p className="mt-2 text-[17px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{verdict}</p> : null}
+      <ul className="mt-3 flex flex-col gap-1.5">
+        {checks.map((c, i) => (
+          <li key={i} className="flex items-start gap-2 text-[14px] leading-[1.5]">
+            <span className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${c.ok ? "bg-[color:var(--v2-good)] text-white" : "bg-white text-[color:var(--v2-attention)]"}`} aria-hidden>
+              {c.ok ? "✓" : "!"}
+            </span>
+            <span className={c.ok ? "text-[color:var(--v2-ink-3)]" : "font-semibold text-[color:var(--v2-ink-2)]"}>{c.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 내 답 강조 — 숫자 결과는 초록 밑줄, 막연한 말은 빨간 물결. */
+function Highlighted({ text }: { text: string }) {
+  const parts = text.split(new RegExp(`(${VAGUE_SRC}|${NUM_SRC})`, "g"));
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 0 ? (
+          <span key={i}>{p}</span>
+        ) : new RegExp(`^(?:${VAGUE_SRC})$`).test(p) ? (
+          <span key={i} className="font-semibold text-[color:var(--v2-attention)] underline decoration-wavy underline-offset-4">{p}</span>
+        ) : (
+          <span key={i} className="font-semibold text-[color:var(--v2-good)] underline decoration-2 underline-offset-4">{p}</span>
+        )
+      )}
+    </>
+  );
+}
+
+function PointCard({ tone, title, items }: { tone: "good" | "bad"; title: string; items: string[] }) {
+  return (
+    <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-[#effaf4]" : "bg-[#fdf2f3]"}`}>
+      <p className={`text-[14px] font-bold ${tone === "good" ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-attention)]"}`}>{title}</p>
+      <ul className="mt-2 flex flex-col gap-1.5">
+        {items.map((x, i) => (
+          <li key={i} className="flex gap-2 text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">
+            <span className="shrink-0 font-bold">{i + 1}.</span>
+            <span>{x}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
