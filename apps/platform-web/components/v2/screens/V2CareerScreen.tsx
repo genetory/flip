@@ -441,9 +441,9 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
           <p className="mt-3 text-[13px] text-[color:var(--v2-faint)]">{t("AI가 내 이력서·자기소개서를 읽고 뽑았어요. 자기소개서와 면접 답의 중심으로 써 보세요.", "Picked by AI from your resume and cover letter. Build your answers around these.", "AI 阅读简历和自我介绍后选出，可作为自我介绍和面试回答的核心。", "AI chọn từ CV và thư. Hãy xoay câu trả lời quanh các điểm này.", "AIが書類から選びました。自己PRや面接の軸にしてみてください。", "Dipilih AI dari dokumenmu. Jadikan inti jawabanmu.")}</p>
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-3 pb-3 pt-1 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col items-center gap-4 pb-3 pt-1 text-center">
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("AI가 내 서류를 읽고, 채용 담당자 눈에 띄는 강점 3가지를 뽑아 드려요.", "AI reads your documents and picks 3 strengths recruiters notice.", "AI 阅读你的材料，选出招聘方会注意的 3 个优势。", "AI đọc hồ sơ và chọn 3 điểm mạnh nhà tuyển dụng chú ý.", "AIが書類を読み、採用担当の目に留まる強みを3つ選びます。", "AI membaca dokumenmu dan memilih 3 kekuatan.")}</p>
-          <Button size="sm" onClick={run} disabled={busy}>
+          <Button onClick={run} disabled={busy}>
             {busy ? <Spinner /> : null}
             {busy ? t("읽고 있어요", "Reading…", "读取中", "Đang đọc", "読んでいます", "Membaca") : t("내 강점 찾기", "Find strengths", "找优势", "Tìm điểm mạnh", "強みを探す", "Cari kekuatan")}
           </Button>
@@ -766,7 +766,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
           <p className="mt-2 text-[13px] text-[color:var(--v2-faint)]">{t("이미 있는데 없다고 나오면, 이력서에 적어 두면 다음 비교부터 반영돼요.", "Already have one marked missing? Add it to your resume.", "已具备却显示缺少？写进简历，下次比较即可反映。", "Đã có mà báo thiếu? Hãy thêm vào CV.", "持っているのに「なし」なら、履歴書に書いてください。", "Sudah punya tapi tertulis belum? Tambahkan ke CV.")}</p>
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-3 pb-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col items-center gap-4 pb-3 pt-1 text-center">
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {t(
               `${roleLabel} 공고에 자주 나오는 것과 신입들이 흔히 준비하는 기술·경험·자격증·어학을 모아, 내 서류에 없는 것부터 짚어 드려요.`,
@@ -777,7 +777,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
               `Lihat keahlian, pengalaman, sertifikat, dan bahasa yang diminta lowongan pemula ${roleLabel}.`
             )}
           </p>
-          <Button size="sm" onClick={run} disabled={busy}>
+          <Button onClick={run} disabled={busy}>
             {busy ? <Spinner /> : null}
             {busy ? t("비교하고 있어요", "Comparing…", "比较中", "Đang so sánh", "比較中", "Membandingkan") : t("내 서류와 비교", "Compare", "与我的材料比较", "So sánh", "書類と比べる", "Bandingkan")}
           </Button>
