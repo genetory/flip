@@ -436,6 +436,61 @@ const careerCoachModel =
 const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
 const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
+// 모의 면접(질문 생성·답변 피드백) 모델 — 사용자 결정(2026-10-12)으로 Claude Sonnet 우선.
+// ANTHROPIC_API_KEY 가 있으면 claude-sonnet-5, 없으면 gpt-4o. Claude 호출이 실패하면 그 요청만 gpt-4o 로 폴백한다.
+// env INTERVIEW_MODEL 로 바꿀 수 있다. (아직 eval 로 두 모델을 비교하지 않았다 — 바꾼 뒤 재측정 필요.)
+const interviewModel = process.env.INTERVIEW_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiInterviewModel);
+
+/** 모의 면접용 JSON 생성 — interviewModel(Claude 우선)로 시도하고, 실패하면 gpt-4o chat json_object 로. */
+async function interviewJson(args: { system: string; user: string; temperature: number; schema: Record<string, unknown>; schemaName: string }): Promise<Record<string, unknown>> {
+  if (isClaudeModel(interviewModel)) {
+    try {
+      const r = await generateJson<Record<string, unknown>>({ openai: openai!, model: interviewModel, system: args.system, user: args.user, schema: args.schema, schemaName: args.schemaName, temperature: args.temperature });
+      if (r.data) return r.data;
+      console.warn(`[interview] ${interviewModel} returned no data — falling back to ${openaiInterviewModel}`, r.error);
+    } catch (err) {
+      console.warn(`[interview] ${interviewModel} failed — falling back to ${openaiInterviewModel}`, err);
+    }
+  }
+  const completion = await openai!.chat.completions.create({
+    model: openaiInterviewModel,
+    temperature: args.temperature,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: args.system },
+      { role: "user", content: args.user }
+    ]
+  });
+  try {
+    const v = JSON.parse(completion.choices?.[0]?.message?.content ?? "{}");
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+const MOCK_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { question: { type: "string" }, intent: { type: "string" }, category: { type: "string" } }, required: ["question", "intent", "category"] }
+    }
+  },
+  required: ["questions"]
+} as const;
+const INTERVIEW_FEEDBACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    score: { type: "number" },
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    sampleAnswer: { type: "string" },
+    followUp: { type: "string" }
+  },
+  required: ["score", "strengths", "improvements", "sampleAnswer", "followUp"]
+} as const;
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -26655,18 +26710,7 @@ app.post(
         `${resumeText ? `\n[이력서]\n${resumeText}` : "\n(이력서 미제공 — 개인 이력과 무관한 표준/공고 기반 질문만 생성)"}` +
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
         `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { questions?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.6, schema: MOCK_QUESTIONS_SCHEMA, schemaName: "interview_questions" })) as { questions?: unknown };
       const allowedCats = new Set(["intro", "experience", "competency", "weakness"]);
       const questions = Array.isArray(j.questions)
         ? j.questions
@@ -26839,18 +26883,7 @@ app.post(
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${resumeText ? `\n[이력서 요약]\n${resumeText}\n` : ""}` +
         `\n[면접 질문]\n${question}\n\n[지원자 답변]\n${answer}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown; followUp?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.5, schema: INTERVIEW_FEEDBACK_SCHEMA, schemaName: "interview_feedback" })) as { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown; followUp?: unknown };
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
       const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
