@@ -80,7 +80,11 @@ function Jobs() {
     if (answer === "yes") setForeigner(true);
     setAnswered(true);
   };
-  const [sort, setSort] = useState<"latest" | "deadline">("latest");
+  // 정렬 — 평소엔 최신·마감, 검색 중엔 관련도순을 더하고 기본으로(문장 검색도 서버가 뜻으로 찾아 준다).
+  const [baseSort, setBaseSort] = useState<"latest" | "deadline">("latest");
+  const [searchSort, setSearchSort] = useState<"relevance" | "latest" | "deadline">("relevance");
+  const sort = search ? searchSort : baseSort;
+  const setSort = (k: "relevance" | "latest" | "deadline") => (search ? setSearchSort(k) : k !== "relevance" && setBaseSort(k));
   // 결과는 '어떤 조건으로 받은 것인지'와 함께 둔다 — 조건이 바뀌면 새 결과가 올 때까지 스켈레톤을 보이게.
   const [result, setResult] = useState<{ for: unknown; items: PublicPositionListItem[]; total: number | null } | null>(null);
   const [page, setPage] = useState(1);
@@ -188,6 +192,16 @@ function Jobs() {
   const countLede = bold(t("{n}개 공고가 있어요", "{n} jobs", "共 {n} 个职位", "{n} việc làm", "{n}件の求人", "{n} lowongan"), shownCount);
   const heading: { title: string; lede: React.ReactNode } = (() => {
     const f = foreigner && tab !== "saved";
+    // 문장으로 찾으면 제목이 길어져 — 12자 넘으면 제목은 짧게, 검색한 문장은 설명 줄에.
+    if (search && search.length > 12)
+      return {
+        title: t("이런 공고를 찾았어요", "Here's what we found", "为你找到这些职位", "Đây là kết quả cho bạn", "こんな求人が見つかりました", "Ini hasil pencarianmu"),
+        lede: (
+          <>
+            <span className="text-[color:var(--v2-ink-3)]">‘{search}’</span> · {countLede}
+          </>
+        )
+      };
     if (search)
       return {
         title: t(`'${search}' 공고를 찾아봤어요`, `Here's what we found for '${search}'`, `为你找到了“${search}”相关职位`, `Đây là kết quả cho '${search}'`, `「${search}」の求人を探しました`, `Ini hasil untuk '${search}'`),
@@ -238,7 +252,7 @@ function Jobs() {
       ) : null}
 
       <div className="px-5">
-        <SearchField value={query} onChange={setQuery} placeholder={t("직무, 회사 또는 역량 검색", "Search roles, companies, skills", "搜索职位、公司或技能", "Tìm vị trí, công ty, kỹ năng", "職種・会社・スキルで検索", "Cari peran, perusahaan, keahlian")} />
+        <SearchField value={query} onChange={setQuery} placeholder={t("직무·회사 또는 '외국인 마케팅 신입'처럼 문장으로", "Role, company, or a sentence like 'marketing for new grads'", "职位、公司，或用一句话搜索", "Vị trí, công ty hoặc gõ cả câu", "職種・会社、または文章で検索", "Peran, perusahaan, atau kalimat")} />
       </div>
       {/* 탭 칩 줄 — 왼쪽 탭(넘치면 가로로 넘김), 오른쪽 끝에 '외국인 채용 가능' 스위치.
           스위치는 탭이 아니라 켜고 끄는 거름망이라 모양을 다르게 해 구분한다. 저장한 공고 탭에선 숨김. */}
@@ -311,6 +325,7 @@ function Jobs() {
         <div className="flex items-center gap-3 text-[14px]">
           {(
             [
+              ...(search ? ([["relevance", t("관련도순", "Relevance", "相关度", "Liên quan", "関連順", "Relevan")]] as const) : []),
               ["latest", t("최신순", "Newest", "最新", "Mới nhất", "新着順", "Terbaru")],
               ["deadline", t("마감 임박순", "Closing soon", "即将截止", "Sắp hết hạn", "締切が近い順", "Segera tutup")]
             ] as const
