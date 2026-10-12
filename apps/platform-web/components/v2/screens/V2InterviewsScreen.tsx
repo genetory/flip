@@ -240,9 +240,9 @@ function Interviews() {
         </Section>
       ) : null}
 
-      {/* 내가 등록한 면접 — Aply 밖에서 지원한 곳도 링크·본문·공고 검색으로 등록. 없으면 등록 안내 한 줄 */}
+      {/* 내가 등록한 모의 면접 — Aply 밖에서 지원한 곳도 링크·본문·공고 검색으로 등록. 없으면 등록 안내 한 줄 */}
       <Section
-        title={t("내가 등록한 면접", "Interviews I added", "我登记的面试", "Phỏng vấn tôi thêm", "登録した面接", "Wawancara yang kutambah")}
+        title={t("내가 등록한 모의 면접", "My mock interviews", "我登记的模拟面试", "Phỏng vấn thử của tôi", "登録した模擬面接", "Simulasi milikku")}
         aside={
           mineUpcoming.length ? (
             <button type="button" onClick={() => setRegister({ initial: null })} className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
@@ -261,7 +261,7 @@ function Interviews() {
               🗓️
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{t("면접이 잡혔나요? 등록해 두세요", "Got an interview? Add it", "有面试了吗？登记一下", "Có lịch phỏng vấn? Thêm vào", "面接が決まりましたか？登録を", "Ada wawancara? Tambahkan")}</span>
+              <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{t("모의 면접 등록하기", "Add a mock interview", "登记模拟面试", "Thêm phỏng vấn thử", "模擬面接を登録", "Tambah simulasi")}</span>
               <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("Aply 밖에서 지원한 곳도 링크·본문으로 등록하고 맞춤 연습해요", "Even outside Aply — add by link or text and practice", "Aply 以外的也可用链接或内容登记并练习", "Cả ngoài Aply — thêm bằng link/nội dung", "Aply以外もリンク・本文で登録して練習", "Di luar Aply juga — lewat tautan/teks")}</span>
             </span>
             <span className="shrink-0 text-[20px] text-[color:var(--v2-faint)]" aria-hidden>

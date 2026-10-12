@@ -118,7 +118,7 @@ export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?
             <input type="checkbox" checked={unknown} onChange={(e) => setUnknown(e.target.checked)} className="h-5 w-5 accent-[#0b46e8]" />
             {t("아직 날짜를 몰라요", "Date not set yet", "还不知道日期", "Chưa biết ngày", "日程はまだ未定", "Tanggal belum pasti")}
           </label>
-          <p className="mt-6 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">{t("등록한 면접은 나만 봐요. '내가 등록한 면접'에 D-day와 함께 떠서, 이 공고로 연습하고 면접 전날 볼 한 장(예상 질문·모범 답안)을 볼 수 있어요.", "Only you see it. It appears under 'Interviews I added' with a countdown, practice, and a night-before sheet.", "仅你可见。会显示在“我登记的面试”中，可练习并查看考前速览。", "Chỉ bạn thấy. Hiện ở 'Phỏng vấn tôi thêm' kèm D-day, luyện tập và bản ôn tập.", "自分だけが見られます。「登録した面接」にD-dayと共に表示されます。", "Hanya kamu yang melihat. Muncul di 'Wawancara yang kutambah'.")}</p>
+          <p className="mt-6 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">{t("등록한 면접은 나만 봐요. '내가 등록한 모의 면접'에 D-day와 함께 떠서, 이 공고로 연습하고 면접 전날 볼 한 장(예상 질문·모범 답안)을 볼 수 있어요.", "Only you see it. It appears under 'My mock interviews' with a countdown, practice, and a night-before sheet.", "仅你可见。会显示在“我登记的模拟面试”中，可练习并查看考前速览。", "Chỉ bạn thấy. Hiện ở 'Phỏng vấn thử của tôi' kèm D-day, luyện tập và bản ôn tập.", "自分だけが見られます。「登録した模擬面接」にD-dayと共に表示されます。", "Hanya kamu yang melihat. Muncul di 'Simulasi milikku'.")}</p>
         </div>
       ) : null}
     </Sheet>
