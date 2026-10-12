@@ -171,46 +171,14 @@ function Interviews() {
     setGate({ item: null }); // 모든 시작은 같은 시작 시트로(팝업 크기를 맞춘다)
   };
 
-  const next = upcoming[0] ?? null;
-
-  // 맨 위 한 가지는 지원(면접 일정)을 읽어야 정해진다 — 그 전엔 화면 모양만.
-  if (apps === null)
+  const aplyUpcoming = upcoming.filter((u) => !u.mine);
+  const mineUpcoming = upcoming.filter((u) => u.mine);
+  const interviewCard = (a: Upcoming, list: Upcoming[]) => {
+    const dd = a.at ? daysUntil(a.at) ?? 0 : null;
+    const ext = a.positionId.startsWith("ext-") ? imported.find((j) => j.id === a.positionId) : undefined;
+    const done = ext ? ext.answers?.length ?? 0 : (records ?? []).find((m) => m.positionId === a.positionId)?.answeredCount ?? 0;
     return (
-      <Page>
-        <MastheadSkeleton />
-        <SectionSkeleton />
-        <SectionSkeleton thumb={false} />
-      </Page>
-    );
-
-  return (
-    <Page>
-      <Masthead
-        eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
-        title={streak > 1 ? t(`${streak}일째 연습 중이에요 🔥`, `${streak}-day practice streak 🔥`, `已连续练习 ${streak} 天 🔥`, `Đã luyện ${streak} ngày liên tiếp 🔥`, `${streak}日連続で練習中 🔥`, `${streak} hari berturut-turut 🔥`) : t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
-        lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
-      />
-
-      {/* 다가오는 면접 — Aply 지원 + 직접 등록한 면접. 없으면 등록 안내 한 줄 */}
-      <Section
-        title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}
-        aside={
-          next ? (
-            <button type="button" onClick={() => setRegister({ initial: null })} className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
-              {t("+ 등록", "+ Add", "+ 登记", "+ Thêm", "+ 登録", "+ Tambah")}
-            </button>
-          ) : undefined
-        }
-      >
-        {next ? (
-          /* 가로로 넘기는 캐러셀 — 하나면 꽉 차게 */
-          <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
-            {upcoming.map((a) => {
-              const dd = a.at ? daysUntil(a.at) ?? 0 : null;
-              const ext = a.positionId.startsWith("ext-") ? imported.find((j) => j.id === a.positionId) : undefined;
-              const done = ext ? ext.answers?.length ?? 0 : (records ?? []).find((m) => m.positionId === a.positionId)?.answeredCount ?? 0;
-              return (
-                <div key={a.key} className={`shrink-0 snap-start rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 ${upcoming.length > 1 ? "w-[290px] md:w-[340px]" : "w-full"}`}>
+                <div key={a.key} className={`shrink-0 snap-start rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 ${list.length > 1 ? "w-[290px] md:w-[340px]" : "w-full"}`}>
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex h-6 shrink-0 items-center rounded-full px-2 text-[12px] font-bold ${dd === null ? "bg-white text-[color:var(--v2-muted)]" : dd <= 3 ? "bg-[color:var(--v2-attention)] text-white" : "bg-[color:var(--v2-accent)] text-white"}`}>
                       {dd === null ? t("일정 미정", "No date", "日期未定", "Chưa có ngày", "日程未定", "Belum ada") : dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}
@@ -242,8 +210,50 @@ function Interviews() {
                     </Button>
                   </div>
                 </div>
-              );
-            })}
+    );
+  };
+
+  // 맨 위 한 가지는 지원(면접 일정)을 읽어야 정해진다 — 그 전엔 화면 모양만.
+  if (apps === null)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton />
+        <SectionSkeleton thumb={false} />
+      </Page>
+    );
+
+  return (
+    <Page>
+      <Masthead
+        eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
+        title={streak > 1 ? t(`${streak}일째 연습 중이에요 🔥`, `${streak}-day practice streak 🔥`, `已连续练习 ${streak} 天 🔥`, `Đã luyện ${streak} ngày liên tiếp 🔥`, `${streak}日連続で練習中 🔥`, `${streak} hari berturut-turut 🔥`) : t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
+        lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
+      />
+
+      {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
+      {aplyUpcoming.length ? (
+        <Section title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
+          <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+            {aplyUpcoming.map((a) => interviewCard(a, aplyUpcoming))}
+          </div>
+        </Section>
+      ) : null}
+
+      {/* 내가 등록한 면접 — Aply 밖에서 지원한 곳도 링크·본문·공고 검색으로 등록. 없으면 등록 안내 한 줄 */}
+      <Section
+        title={t("내가 등록한 면접", "Interviews I added", "我登记的面试", "Phỏng vấn tôi thêm", "登録した面接", "Wawancara yang kutambah")}
+        aside={
+          mineUpcoming.length ? (
+            <button type="button" onClick={() => setRegister({ initial: null })} className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
+              {t("+ 등록", "+ Add", "+ 登记", "+ Thêm", "+ 登録", "+ Tambah")}
+            </button>
+          ) : undefined
+        }
+      >
+        {mineUpcoming.length ? (
+          <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+            {mineUpcoming.map((a) => interviewCard(a, mineUpcoming))}
           </div>
         ) : (
           <button type="button" onClick={() => setRegister({ initial: null })} className="flex w-full items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 text-left transition hover:-translate-y-0.5">
