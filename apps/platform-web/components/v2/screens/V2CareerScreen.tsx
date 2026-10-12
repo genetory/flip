@@ -730,13 +730,13 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
   const edited = doc?.updatedAt ? t(`${formatRelativeTime(doc.updatedAt, undefined, t)} 수정`, `Edited ${formatRelativeTime(doc.updatedAt, undefined, t)}`, `${formatRelativeTime(doc.updatedAt, undefined, t)}修改`, `Sửa ${formatRelativeTime(doc.updatedAt, undefined, t)}`, `${formatRelativeTime(doc.updatedAt, undefined, t)}編集`, `Diubah ${formatRelativeTime(doc.updatedAt, undefined, t)}`) : "";
 
   const badge = !doc
-    ? { text: t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]" }
+    ? { text: t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai"), cls: "bg-white text-[color:var(--v2-muted)]" }
     : !ready
-      ? { text: t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Diisi"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]" }
+      ? { text: t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Diisi"), cls: "bg-white text-[color:var(--v2-ink-3)]" }
       : { text: t("준비됐어요", "Ready", "已就绪", "Sẵn sàng", "準備OK", "Siap"), cls: "bg-[#e5f6ee] text-[color:var(--v2-good)]" };
 
   return (
-    <div className="flex flex-col rounded-2xl border border-[color:var(--v2-line)] bg-white p-4 md:p-5">
+    <div className="flex flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 md:p-5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</p>
         <span className={`shrink-0 rounded-md px-2 py-1 text-[12px] font-bold leading-none ${badge.cls}`}>{badge.text}</span>
@@ -754,7 +754,7 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
           <>
             <div className="flex gap-1" aria-hidden>
               {checks.map((c) => (
-                <span key={c.label} className={`h-1.5 flex-1 rounded-full ${c.done ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)]"}`} />
+                <span key={c.label} className={`h-1.5 flex-1 rounded-full ${c.done ? "bg-[color:var(--v2-accent)]" : "bg-white"}`} />
               ))}
             </div>
             <p className="mt-2.5 text-[13px] text-[color:var(--v2-muted)]">
@@ -793,10 +793,10 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="neutral" full href={previewHref ?? undefined} disabled={!previewHref}>
+        <Button variant="white" full href={previewHref ?? undefined} disabled={!previewHref}>
           {t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Lihat")}
         </Button>
-        <Button variant="secondary" full href={editHref}>
+        <Button variant="primary" full href={editHref}>
           {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}
         </Button>
       </div>

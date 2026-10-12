@@ -102,7 +102,7 @@ export function Button({
   onClick?: () => void;
   children: ReactNode;
   disabled?: boolean;
-  variant?: "primary" | "secondary" | "neutral";
+  variant?: "primary" | "secondary" | "neutral" | "white";
   size?: "md" | "sm";
   full?: boolean;
 }) {
@@ -112,7 +112,9 @@ export function Button({
       ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90"
       : variant === "secondary"
         ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)] hover:opacity-80"
-        : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]";
+        : variant === "white"
+          ? "bg-white text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-fill)]" // 회색 카드 위의 보조 버튼
+          : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]";
   const cls = `inline-flex shrink-0 items-center justify-center gap-1.5 font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${sizeCls} ${variantCls} ${full ? "w-full" : ""}`;
   if (href) return <Link href={href} className={cls}>{children}</Link>;
   return <button type="button" onClick={onClick} disabled={disabled} className={cls}>{children}</button>;
