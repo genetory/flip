@@ -152,29 +152,37 @@ function Career() {
       </div>
 
       <div hidden={tab !== "prep"}>
+        <Section
+          title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
+        >
+          {/* 맞는 공고·이 직무에 필요한 것이 모두 여기서 고른 직무로 정해진다 — 눈에 띄게 연파랑 카드로. */}
+          <div className="mb-2 rounded-2xl bg-[color:var(--v2-accent-weak)] p-4 md:p-5">
+            {interests.length ? (
+              <div className="flex flex-wrap gap-2">
+                {interests.map((r) => (
+                  <button key={r} type="button" onClick={() => setInterestOpen(true)} className="inline-flex h-9 items-center rounded-full bg-white px-3.5 text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80">
+                    {jobTaxonomyLabelOf(t, r)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{t("관심 직무를 골라 주세요", "Pick your job interests", "请选择感兴趣的职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan")}</p>
+            )}
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("고른 직무로 맞는 공고와 이 직무에 필요한 것을 골라 드려요.", "We pick matching jobs and what the role needs from these.", "将根据所选职位推荐职位和所需条件。", "Dựa vào đây để gợi ý việc làm và yêu cầu.", "選んだ職種で求人と必要なものを選びます。", "Dipakai untuk lowongan dan kebutuhan peran.")}</p>
+              <Button size="sm" variant={interests.length ? "white" : "primary"} onClick={() => setInterestOpen(true)}>
+                {interests.length ? t("바꾸기", "Change", "更改", "Đổi", "変更", "Ubah") : t("고르기", "Choose", "选择", "Chọn", "選ぶ", "Pilih")}
+              </Button>
+            </div>
+          </div>
+        </Section>
+
         <Section title={t("지원 서류", "Documents", "申请材料", "Hồ sơ ứng tuyển", "応募書類", "Dokumen lamaran")}>
           {/* 모바일은 한 줄에 하나 — 반 폭이면 [미리보기][수정하기]가 두 줄로 꺾인다. */}
           <div className="grid grid-cols-1 gap-3 pb-2 md:grid-cols-2">
             <DocStatusCard t={t} kind="resume" resume={resume} cover={cover} />
             <DocStatusCard t={t} kind="cover" resume={resume} cover={cover} />
           </div>
-        </Section>
-
-        <Section
-          title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
-          aside={<TextLink onClick={() => setInterestOpen(true)}>{interests.length ? t("수정", "Edit", "修改", "Sửa", "編集", "Ubah") : t("고르기", "Choose", "选择", "Chọn", "選ぶ", "Pilih")}</TextLink>}
-        >
-          {interests.length ? (
-            <div className="flex flex-wrap gap-2 pb-2">
-              {interests.map((r) => (
-                <Chip key={r} onClick={() => setInterestOpen(true)}>
-                  {jobTaxonomyLabelOf(t, r)}
-                </Chip>
-              ))}
-            </div>
-          ) : (
-            <Row onClick={() => setInterestOpen(true)} lead="🎯" title={t("관심 직무를 골라 주세요", "Pick your job interests", "请选择感兴趣的职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan")} meta={t("고르면 맞춤 공고와 모의 면접이 더 정확해져요", "Recommendations and mock interviews get sharper", "推荐职位和模拟面试会更精准", "Gợi ý và phỏng vấn thử sẽ chính xác hơn", "おすすめと模擬面接が正確になります", "Rekomendasi dan wawancara lebih tepat")} />
-          )}
         </Section>
 
         {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
