@@ -173,25 +173,26 @@ function Interviews() {
           {(() => {
             const rec = (records ?? []).find((m) => m.positionId === next.positionId);
             return (
-              <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex h-7 items-center rounded-full px-2.5 text-[13px] font-bold text-white ${d <= 3 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
-                  <span className="text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{whenText(t, next.interviewSelectedAt!)}</span>
-                </div>
-                <p className="mt-3 text-[21px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{next.positionTitle}</p>
-                <p className="mt-0.5 text-[15px] text-[color:var(--v2-muted)]">{next.partnerOrganizationName}</p>
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
-                  <span className="text-[14px] text-[color:var(--v2-ink-3)]">
-                    {rec ? t(`이 공고로 ${rec.answeredCount}문항 연습했어요`, `Practiced ${rec.answeredCount} questions for this job`, `已为此职位练习 ${rec.answeredCount} 题`, `Đã luyện ${rec.answeredCount} câu cho tin này`, `この求人で${rec.answeredCount}問練習済み`, `Sudah latihan ${rec.answeredCount} soal`) : t("아직 이 공고로 연습하지 않았어요", "Not practiced for this job yet", "还没为此职位练习", "Chưa luyện cho tin này", "この求人ではまだ練習していません", "Belum latihan untuk lowongan ini")}
-                  </span>
+              <div className="rounded-2xl bg-[color:var(--v2-band)] px-5 py-5 md:px-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex h-6 items-center rounded-full px-2 text-[12px] font-bold text-white ${d <= 3 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
+                      <span className="text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{whenText(t, next.interviewSelectedAt!)}</span>
+                    </div>
+                    <p className="mt-2 truncate text-[17px] font-bold text-[color:var(--v2-ink)]">{next.positionTitle}</p>
+                    <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-muted)]">
+                      {[next.partnerOrganizationName, rec ? t(`${rec.answeredCount}문항 연습함`, `${rec.answeredCount} practiced`, `已练 ${rec.answeredCount} 题`, `Đã luyện ${rec.answeredCount}`, `${rec.answeredCount}問練習済み`, `${rec.answeredCount} dilatih`) : t("아직 연습 전", "Not practiced yet", "尚未练习", "Chưa luyện", "まだ練習していません", "Belum latihan")].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
                   {rec?.bestScore != null ? <LevelChip t={t} score={rec.bestScore} /> : null}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button full onClick={() => void startById(next.positionId, "upcoming")}>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={() => void startById(next.positionId, "upcoming")}>
                     {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
                   </Button>
                   <Button
-                    full
+                    size="sm"
                     variant="white"
                     onClick={() => {
                       trackInterviewPrepSheetOpened();
