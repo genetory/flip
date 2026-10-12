@@ -5,13 +5,20 @@
 //  - 내 서류로 연습한 답(self-mock) · 다시 볼 점(약점 분석의 고칠 점)
 //  - 이 회사에서 실제로 나온 질문(면접 후기, 익명)
 //  - 면접관에게 할 질문: 공고의 주요 업무·우대 사항으로 회사에 맞춘 것 + 무난한 것
+//  - 예상 질문 5개와 모범 답안(AI, 누를 때만) — 공고·이 회사 후기 질문·내 이력서·연습한 답으로. 공고별로 이 브라우저에 기억.
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, RowsSkeleton } from "./ui";
 import { LevelChip } from "./practice";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
-import { getInterviewQuestions, getMyMockInterviewAnswers, getPublicPositionById, type InterviewReportItem, type MockInterviewAnswer } from "../../lib/member-profile-client";
+import { aiInterviewPrep, getInterviewQuestions, getMyMockInterviewAnswers, getPublicPositionById, type InterviewReportItem, type MockInterviewAnswer, type PrepQuestion } from "../../lib/member-profile-client";
+import { useResumeDoc } from "../../lib/talent/resume-doc";
+import { useCoverDoc } from "../../lib/talent/cover-doc";
+import { useBasicInfo } from "../../lib/talent/basic-info";
+import { resumeToText } from "../talent/jobs/MockInterviewModal";
+import { PracticeSheet, type PracticeQuestion } from "./practice";
+import { Spinner } from "./ui";
 import { useSelfMock } from "../../lib/talent/self-mock";
 import { useImportedJobs } from "../../lib/talent/imported-jobs";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../lib/talent/mock-weakness";
@@ -36,7 +43,22 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
   const imported = useImportedJobs();
   const ext = positionId.startsWith("ext-") ? imported.find((j) => j.id === positionId) : undefined;
   const [serverAnswers, setServerAnswers] = useState<MockInterviewAnswer[] | null>(positionId.startsWith("ext-") ? [] : null);
-  const [job, setJob] = useState<{ duty: string; preferred: string } | null>(null);
+  const [job, setJob] = useState<{ duty: string; preferred: string; text: string } | null>(null);
+  const resume = useResumeDoc();
+  const cover = useCoverDoc();
+  const info = useBasicInfo();
+  const cacheKey = `aply.v2.prep.${positionId}`;
+  const [prep, setPrep] = useState<PrepQuestion[] | null>(() => {
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      return raw ? (JSON.parse(raw) as { questions: PrepQuestion[] }).questions : null;
+    } catch {
+      return null;
+    }
+  });
+  const [prepBusy, setPrepBusy] = useState(false);
+  const [prepError, setPrepError] = useState<string | null>(null);
+  const [practiceQ, setPracticeQ] = useState<PracticeQuestion | null>(null);
   const [reports, setReports] = useState<InterviewReportItem[]>([]);
   const [showAll, setShowAll] = useState(false);
 
@@ -47,7 +69,14 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
       .then((a) => alive && setServerAnswers(a))
       .catch(() => alive && setServerAnswers([]));
     getPublicPositionById(positionId, { locale })
-      .then((p) => alive && setJob({ duty: firstLine(p.mainResponsibilities), preferred: firstLine(p.preferredQualifications) }))
+      .then((p) =>
+        alive &&
+        setJob({
+          duty: firstLine(p.mainResponsibilities),
+          preferred: firstLine(p.preferredQualifications),
+          text: [`공고: ${p.title}`, p.mainResponsibilities ? `주요 업무: ${p.mainResponsibilities}` : "", p.requiredQualifications ? `자격 요건: ${p.requiredQualifications}` : "", p.preferredQualifications ? `우대 사항: ${p.preferredQualifications}` : ""].filter(Boolean).join("\n").slice(0, 6000)
+        })
+      )
       .catch(() => {});
     return () => {
       alive = false;
@@ -103,6 +132,33 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
     .filter(Boolean)
     .slice(0, 3);
 
+  const jobText = ext ? [`공고: ${ext.title}`, ext.mainResponsibilities ? `주요 업무: ${ext.mainResponsibilities}` : "", ext.requiredQualifications ? `자격 요건: ${ext.requiredQualifications}` : "", ext.preferredQualifications ? `우대 사항: ${ext.preferredQualifications}` : ""].filter(Boolean).join("\n").slice(0, 6000) : job?.text ?? `공고: ${title}`;
+  const makePrep = async () => {
+    setPrepBusy(true);
+    setPrepError(null);
+    try {
+      const qs = await aiInterviewPrep({
+        jobText,
+        company: company ?? undefined,
+        resumeText: resumeToText(resume, info) || undefined,
+        coverLetterText: (cover?.items ?? []).filter((i) => i.text.trim()).map((i) => `- [${i.question}] ${i.text.trim()}`).join("\n").slice(0, 6000) || undefined,
+        reportedQuestions: reports.map((r) => r.question).slice(0, 10),
+        myAnswers: [...(intro ? [intro] : []), ...top].map((r) => ({ question: r.question, answer: r.answer.slice(0, 2000) })).slice(0, 8)
+      });
+      if (!qs.length) throw new Error("empty");
+      setPrep(qs);
+      try {
+        window.localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), questions: qs }));
+      } catch {
+        /* 기억만 못 할 뿐 */
+      }
+    } catch (e) {
+      setPrepError((e as { status?: number })?.status === 429 ? t("오늘 AI 이용 한도에 도달했어요.", "Today's AI limit was reached.", "今天的 AI 使用已达上限。", "Đã hết lượt AI hôm nay.", "本日のAI上限に達しました。", "Batas AI hari ini tercapai.") : t("만들지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't create it. Try again soon.", "生成失败，请稍后再试。", "Không tạo được. Thử lại sau.", "作れませんでした。", "Gagal membuat."));
+    } finally {
+      setPrepBusy(false);
+    }
+  };
+
   const loading = jobAnswers === null;
   const empty = !loading && !intro && top.length === 0;
   const when = interviewAt ? new Date(interviewAt) : null;
@@ -127,6 +183,50 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
         <RowsSkeleton count={4} thumb={false} />
       ) : (
         <div className="flex flex-col gap-3">
+          {/* 예상 질문과 모범 답안 — AI(누를 때만), 공고별로 기억 */}
+          {prep ? (
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                {head(t("✨ 예상 질문과 모범 답안", "✨ Likely questions & model answers", "✨ 预测问题与参考答案", "✨ Câu hỏi dự kiến & câu mẫu", "✨ 予想質問と模範回答", "✨ Pertanyaan & jawaban contoh"), "text-[color:var(--v2-accent)]")}
+                <button type="button" onClick={() => void makePrep()} disabled={prepBusy} className="text-[13px] font-semibold text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)] disabled:opacity-50">
+                  {prepBusy ? t("만드는 중…", "Creating…", "生成中…", "Đang tạo…", "作成中…", "Membuat…") : t("다시 만들기", "Regenerate", "重新生成", "Tạo lại", "作り直す", "Buat ulang")}
+                </button>
+              </div>
+              <ol className={`mt-2 flex flex-col gap-2 transition-opacity ${prepBusy ? "opacity-60" : ""}`}>
+                {prep.map((q, i) => (
+                  <li key={i} className="rounded-2xl border border-[color:var(--v2-line)] bg-white p-4">
+                    <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">Q{i + 1}</p>
+                    <p className="mt-0.5 text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{q.question}</p>
+                    {q.why ? <p className="mt-1 text-[13px] leading-[1.55] text-[color:var(--v2-muted)]">{t("면접관이 보려는 것", "What they look for", "面试官想看的", "Người PV muốn thấy", "面接官が見たいこと", "Yang dicari")} · {q.why}</p> : null}
+                    <div className="mt-3 rounded-xl bg-[color:var(--v2-fill)] p-3">
+                      <p className="text-[12px] font-bold text-[color:var(--v2-muted)]">{t("모범 답안", "Model answer", "参考答案", "Câu trả lời mẫu", "模範回答", "Jawaban contoh")}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-[14px] leading-[1.7] text-[color:var(--v2-ink-2)]">{q.answer}</p>
+                    </div>
+                    {q.tip ? <p className="mt-2 text-[13px] leading-[1.55] text-[color:var(--v2-ink-3)]">💡 {q.tip}</p> : null}
+                    <div className="mt-3">
+                      <Button size="sm" variant="secondary" onClick={() => setPracticeQ({ ko: q.question, shown: q.question, category: "job" })}>
+                        {t("이 질문으로 연습", "Practice this", "练习这题", "Luyện câu này", "この質問で練習", "Latih ini")}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-2 text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("AI가 공고·내 이력서·실제 면접 질문으로 만들었어요. 모범 답안은 내 말로 바꿔 연습하세요. '○○'는 직접 채워 주세요.", "Made by AI from the job, your resume, and real questions. Rephrase in your own words; fill in any '○○'.", "由 AI 根据职位、简历和真实面试题生成。请用自己的话练习，'○○'请自行填写。", "AI tạo từ tin, CV và câu hỏi thật. Hãy nói bằng lời của bạn; điền '○○'.", "AIが求人・履歴書・実際の質問から作りました。自分の言葉で。「○○」は自分で埋めて。", "Dibuat AI dari lowongan, CV, dan pertanyaan nyata. Isi '○○' sendiri.")}</p>
+            </div>
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-[#c9d6fb] bg-[#f5f8ff] p-5">
+              {head(t("✨ 예상 질문과 모범 답안", "✨ Likely questions & model answers", "✨ 预测问题与参考答案", "✨ Câu hỏi dự kiến & câu mẫu", "✨ 予想質問と模範回答", "✨ Pertanyaan & jawaban contoh"), "text-[color:var(--v2-accent)]")}
+              <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("이 공고·내 이력서·이 회사 실제 면접 질문으로 나올 만한 질문 5개와, 내 경험으로 쓴 모범 답안을 만들어 드려요.", "Get 5 likely questions and model answers based on this job, your resume, and real questions from this company.", "根据该职位、简历和该公司真实面试题，生成5个预测问题和基于你经历的参考答案。", "Tạo 5 câu hỏi dự kiến và câu trả lời mẫu từ tin, CV và câu hỏi thật.", "この求人・履歴書・実際の面接質問から、予想質問5つと模範回答を作ります。", "Buat 5 pertanyaan dan jawaban contoh dari lowongan, CV, dan pertanyaan nyata.")}</p>
+              <div className="mt-3">
+                <Button size="sm" onClick={() => void makePrep()} disabled={prepBusy}>
+                  {prepBusy ? <Spinner /> : null}
+                  {prepBusy ? t("만드는 중이에요", "Creating…", "生成中", "Đang tạo", "作成中", "Membuat") : t("예상 질문 만들기", "Create questions", "生成预测问题", "Tạo câu hỏi", "予想質問を作る", "Buat pertanyaan")}
+                </Button>
+              </div>
+              {prepError ? <p className="mt-2 text-[13px] text-[color:var(--v2-attention)]">{prepError}</p> : null}
+            </div>
+          )}
+
           {empty ? (
             <div className="rounded-3xl bg-[color:var(--v2-band)] p-5 text-center">
               <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{t("아직 모을 답이 없어요", "Nothing to collect yet", "还没有可汇总的回答", "Chưa có câu trả lời", "まだまとめる回答がありません", "Belum ada jawaban")}</p>
@@ -146,7 +246,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
           {/* 예상 질문과 내 답 */}
           {top.length ? (
             <div>
-              {head(t("예상 질문과 내 답", "Likely questions & my answers", "预测问题与我的回答", "Câu hỏi dự kiến & câu trả lời", "予想質問と自分の回答", "Pertanyaan & jawabanku"), "text-[color:var(--v2-ink-2)]")}
+              {head(t("내가 연습한 답", "My practiced answers", "我练习过的回答", "Câu đã luyện", "練習した回答", "Jawaban yang dilatih"), "text-[color:var(--v2-ink-2)]")}
               <ol className="mt-2 flex flex-col gap-2">
                 {visible.map((r, i) => (
                   <li key={i} className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
@@ -210,6 +310,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
           </div>
         </div>
       )}
+      {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
     </Sheet>
   );
 }

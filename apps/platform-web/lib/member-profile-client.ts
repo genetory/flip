@@ -2454,3 +2454,10 @@ export async function importJob(input: { url?: string; text?: string }): Promise
   const r = (await authedJsonFetch<never>("/members/me/ai/import-job", { method: "POST", body: JSON.stringify(input) })) as unknown as { positionId?: string; job?: ImportedJobDraft };
   return { positionId: r.positionId, job: r.job };
 }
+
+// '면접 전날 볼 한 장' — AI 예상 질문 5개와 모범 답안.
+export type PrepQuestion = { question: string; why: string; answer: string; tip: string };
+export async function aiInterviewPrep(input: { jobText?: string; company?: string; resumeText?: string; coverLetterText?: string; reportedQuestions?: string[]; myAnswers?: { question: string; answer: string }[] }): Promise<PrepQuestion[]> {
+  const r = (await authedJsonFetch<never>("/members/me/ai/interview-prep", { method: "POST", body: JSON.stringify(input) })) as unknown as { questions?: PrepQuestion[] };
+  return r.questions ?? [];
+}

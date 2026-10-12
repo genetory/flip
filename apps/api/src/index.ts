@@ -26915,6 +26915,81 @@ app.post(
   }
 );
 
+// POST /members/me/ai/interview-prep — '면접 전날 볼 한 장'의 예상 질문 5개 + 모범 답안.
+// 공고(업무·자격) · 이 회사 면접 후기 질문 · 내 이력서·자소서 · 내가 연습한 답을 보고, 질문마다 왜 묻는지·모범 답안·말할 때 팁.
+// 모범 답안은 이력서 사실만으로(없는 경험·수치 금지). 모의 면접과 같은 모델(interviewModel, Claude 우선). 화면이 공고별로 기억한다.
+const interviewPrepSchema = z.object({
+  jobText: z.string().max(6000).optional(),
+  company: z.string().max(120).optional(),
+  resumeText: z.string().max(8000).optional(),
+  coverLetterText: z.string().max(6000).optional(),
+  reportedQuestions: z.array(z.string().max(300)).max(10).optional(),
+  myAnswers: z.array(z.object({ question: z.string().max(400), answer: z.string().max(2000) })).max(8).optional()
+});
+const INTERVIEW_PREP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { question: { type: "string" }, why: { type: "string" }, answer: { type: "string" }, tip: { type: "string" } },
+        required: ["question", "why", "answer", "tip"]
+      }
+    }
+  },
+  required: ["questions"]
+} as const;
+
+app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), async (req, res) => {
+  const parsed = interviewPrepSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const d = parsed.data;
+  if (!d.jobText && !d.resumeText) return res.status(400).json({ ok: false, message: "job or resume required" });
+  try {
+    const system =
+      "당신은 한국 기업 면접을 잘 아는 면접 코치입니다. 지원자가 내일 면접을 봅니다. 이 면접에서 나올 가능성이 높은 질문 5개와, 질문마다 지원자가 그대로 말할 수 있는 모범 답안을 만들어 주세요.\n" +
+      "[질문 고르기]\n" +
+      "- [이 회사 면접에서 실제로 나온 질문]이 있으면 그중 1~2개를 반드시 포함하세요.\n" +
+      "- 1분 자기소개(또는 지원 동기) 1개, 공고의 주요 업무·자격 요건에 근거한 직무 질문 2개, 이력서 경험을 파고드는 질문 1개를 기본으로.\n" +
+      "- 질문은 실제 면접관 말투의 한 문장.\n" +
+      "[모범 답안]\n" +
+      "- 지원자의 이력서·자기소개서·연습한 답에 있는 사실만 쓰세요. 없는 회사·경험·수치를 지어내지 마세요. 근거가 부족하면 '○○' 같은 빈칸으로 남기고 tip 에 무엇을 채울지 적으세요.\n" +
+      "- 결론 먼저 → 구체적 경험(상황·행동·결과) → 이 회사·직무와 연결, 합니다체, 말로 40~60초(250~400자).\n" +
+      "- 지원자가 같은 질문에 연습한 답이 있으면 그 답을 바탕으로 더 낫게 다듬으세요.\n" +
+      "- why: 면접관이 이 질문으로 보려는 것 한 문장. tip: 말할 때 주의할 점 한 문장." +
+      aiLangDirective();
+    const user = [
+      d.company ? `회사: ${d.company}` : "",
+      d.jobText ? `[채용 공고]\n${d.jobText}` : "",
+      d.reportedQuestions?.length ? `[이 회사 면접에서 실제로 나온 질문]\n${d.reportedQuestions.map((q) => `- ${q}`).join("\n")}` : "",
+      d.resumeText ? `[이력서]\n${d.resumeText}` : "(이력서 없음)",
+      d.coverLetterText ? `[자기소개서]\n${d.coverLetterText}` : "",
+      d.myAnswers?.length ? `[지원자가 연습한 답]\n${d.myAnswers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const j = (await interviewJson({ system, user, temperature: 0.4, schema: INTERVIEW_PREP_SCHEMA, schemaName: "interview_prep" })) as { questions?: unknown };
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    const questions = (Array.isArray(j.questions) ? j.questions : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { question: str(o.question, 300), why: str(o.why, 200), answer: stripCliches(str(o.answer, 1200)), tip: str(o.tip, 200) };
+      })
+      .filter((q) => q.question && q.answer)
+      .slice(0, 5);
+    if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, questions });
+  } catch (err) {
+    console.error("[ai/interview-prep] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(500).json({ ok: false, message: "failed to prepare" });
+  }
+});
+
 app.post(
   "/members/me/ai/interview-feedback",
   authenticate,
