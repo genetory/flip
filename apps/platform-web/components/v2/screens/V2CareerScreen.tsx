@@ -8,14 +8,14 @@ import { Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Row
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
-import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getPublicPositionsPage, getMyCandidateProfile, updateMyCandidateProfile, type CandidateVisaType, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, displayMonth, useRenewalDocsStatus, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
+import { useResumeDoc, displayMonth, useRenewalDocsStatus, saveResumeDoc, addResumeItem, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
@@ -185,6 +185,8 @@ function Career() {
           </div>
         </Section>
 
+        <VisaCard t={t} />
+
         {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
         {ready && interests.length && items.length >= 2 ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
 
@@ -325,6 +327,17 @@ function SpecLine({ head, sub, right }: { head: string; sub?: string; right?: st
       {right ? <span className="shrink-0 pt-0.5 text-[13px] text-[color:var(--v2-faint)]">{right}</span> : null}
     </div>
   );
+}
+
+/** 글에 표기가 있나 — 영문·숫자 표기는 단어 경계로(Go 가 Google 에 걸리지 않게), 한글은 띄어쓰기 무시. 서버 hasTerm 과 같은 규칙. */
+function termIn(text: string, term: string): boolean {
+  const a = term.trim();
+  if (!a) return false;
+  if (/^[\x00-\x7F]+$/.test(a)) {
+    const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+    return new RegExp(`(^|[^A-Za-z0-9+#])${esc}(?![A-Za-z0-9+#])`, "i").test(text);
+  }
+  return text.replace(/\s+/g, "").toLowerCase().includes(a.replace(/\s+/g, "").toLowerCase());
 }
 
 function hostOf(url: string): string {
@@ -472,9 +485,29 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
               ? t(`관심 직무 공고 ${state.total.toLocaleString()}개 중, 내 스킬과 잘 맞는 순서예요.`, `${state.total.toLocaleString()} jobs in your interests, best skill match first.`, `感兴趣职位共 ${state.total.toLocaleString()} 个，按技能匹配排序。`, `${state.total.toLocaleString()} việc quan tâm, hợp kỹ năng nhất trước.`, `関心職種の求人${state.total.toLocaleString()}件、スキルが合う順です。`, `${state.total.toLocaleString()} lowongan minatmu, paling cocok dulu.`)
               : t(`관심 직무 공고가 ${state.total.toLocaleString()}개 있어요.`, `${state.total.toLocaleString()} jobs in your interests.`, `感兴趣职位共 ${state.total.toLocaleString()} 个。`, `${state.total.toLocaleString()} việc bạn quan tâm.`, `関心職種の求人が${state.total.toLocaleString()}件あります。`, `${state.total.toLocaleString()} lowongan minatmu.`)}
           </p>
-          {state.items.map((j) => (
-            <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />
-          ))}
+          {state.items.map((j) => {
+            // 왜 맞는지 — 공고 제목·자격 요건에 그대로 나오는 내 스킬(최대 3개 — 넘치면 '일치'가 잘린다).
+            const text = `${j.title}\n${j.requiredQualifications ?? ""}\n${j.preferredQualifications ?? ""}`;
+            const hits = skills.filter((k) => termIn(text, k)).slice(0, 3);
+            return (
+              <Row
+                key={j.id}
+                href={`/talent/jobs/${j.id}`}
+                thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }}
+                title={j.title}
+                meta={
+                  <>
+                    {[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ")}
+                    {hits.length ? (
+                      <span className="mt-0.5 block truncate text-[13px] font-semibold text-[color:var(--v2-accent)]">
+                        {t(`${hits.join(" · ")} 일치`, `Matches ${hits.join(" · ")}`, `${hits.join(" · ")} 匹配`, `Khớp ${hits.join(" · ")}`, `${hits.join("・")} 一致`, `Cocok ${hits.join(" · ")}`)}
+                      </span>
+                    ) : null}
+                  </>
+                }
+              />
+            );
+          })}
         </>
       )}
     </Section>
@@ -542,7 +575,6 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
   const result = saved[current] ?? null;
-  const stale = !!result && result.sig !== sig;
   const roleLabel = jobTaxonomyLabelOf(t, current);
 
   const run = async () => {
@@ -585,8 +617,48 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
     }
   };
 
-  const sorted = result ? [...result.items].sort((a, b) => Number(a.have) - Number(b.have) || b.count - a.count) : [];
+  // [있어요]로 방금 넣은 항목은 제자리에 둔다 — '갖춤'으로 바로 내려가면 접힌 목록에서 사라져 되돌리기를 못 누른다.
+  const [added, setAdded] = useState<Record<string, ResumeDoc>>({});
+  const sinks = (x: RoleChecklistItem) => x.have && !added[x.name];
+  const sorted = result ? [...result.items].sort((a, b) => Number(sinks(a)) - Number(sinks(b)) || b.count - a.count) : [];
   const haveCount = sorted.filter((x) => x.have).length;
+
+  // [있어요] — 해 봤는데 이력서에 안 적어 '없음'으로 나온 것을 이력서에 바로 넣는다(확인 없이, 그 자리에서 되돌리기).
+  // 스킬은 첫 스킬 항목 끝에 이어 붙이고(없으면 새로), 자격증·어학은 항목을 하나 더한다. 경험은 글로 써야 해서 에디터로 보낸다.
+  const markHave = (name: string, have: boolean) => {
+    if (!result) return;
+    const next = { ...readChecklists(), [current]: { ...result, items: result.items.map((x) => (x.name === name ? { ...x, have } : x)) } };
+    setSaved(next);
+    try {
+      window.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next));
+    } catch {
+      /* 저장 못 해도 화면엔 보인다 */
+    }
+  };
+  const addToResume = (x: RoleChecklistItem) => {
+    const base: ResumeDoc = resume ?? { targetRole: "", items: [], createdAt: Date.now(), updatedAt: Date.now() };
+    let next: ResumeDoc;
+    const skill = base.items.find((i) => i.section === "skill");
+    if (x.category === "skill" && skill) {
+      next = { ...base, items: base.items.map((i) => (i.id === skill.id ? { ...i, text: i.text.trim() ? `${i.text.trim()}, ${x.name}` : x.name } : i)) };
+    } else {
+      next = addResumeItem(base, x.category === "skill" ? "skill" : x.category === "certificate" ? "certificate" : "language", x.name).doc;
+    }
+    saveResumeDoc(next, { label: t("이 직무에 필요한 것에서 추가", "Added from role needs", "从职位所需添加", "Thêm từ yêu cầu", "必要なものから追加", "Ditambah dari kebutuhan") });
+    setAdded((m) => ({ ...m, [x.name]: base }));
+    markHave(x.name, true);
+  };
+  const undo = (x: RoleChecklistItem) => {
+    const prev = added[x.name];
+    if (!prev) return;
+    saveResumeDoc(prev);
+    setAdded((m) => {
+      const n = { ...m };
+      delete n[x.name];
+      return n;
+    });
+    markHave(x.name, false);
+  };
 
   return (
     <Section
@@ -619,9 +691,6 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
 
       {result ? (
         <div className={`pb-3 transition-opacity ${busy ? "opacity-60" : ""}`}>
-          {stale ? (
-            <p className="mb-3 text-[14px] font-medium text-[color:var(--v2-accent)]">{t("서류가 바뀌었어요. 다시 비교하면 지금 서류로 맞춰 봐요.", "Your documents changed — refresh to update.", "材料已更新，重新比较即可更新。", "Hồ sơ đã đổi — so sánh lại để cập nhật.", "書類が変わりました。もう一度で更新します。", "Dokumen berubah — ulangi untuk memperbarui.")}</p>
-          ) : null}
           <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {result.scope === "none" || !result.total
               ? t(`${roleLabel} 신입들이 흔히 준비하는 것을 내 서류와 비교했어요.`, `Compared what entry-level ${roleLabel} applicants usually prepare with your documents.`, `将${roleLabel}新人常准备的条件与你的材料作了比较。`, `Đã so những gì người mới vào ${roleLabel} thường chuẩn bị với hồ sơ của bạn.`, `${roleLabel}の新卒がよく準備するものを書類と比べました。`, `Membandingkan yang biasa disiapkan pemula ${roleLabel} dengan dokumenmu.`)
@@ -662,7 +731,26 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
                       : t("신입들이 흔히 준비해요", "Common for newcomers", "新人常准备", "Người mới hay chuẩn bị", "新卒がよく準備", "Umum bagi pemula")}
                   </p>
                   {!x.have && x.tip ? <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">{x.tip}</p> : null}
+                  {added[x.name] ? (
+                    <p className="mt-1 text-[13px] text-[color:var(--v2-good)]">
+                      {t("이력서에 추가했어요", "Added to your resume", "已添加到简历", "Đã thêm vào CV", "履歴書に追加しました", "Ditambahkan ke CV")} ·{" "}
+                      <button type="button" onClick={() => undo(x)} className="font-semibold text-[color:var(--v2-muted)] underline underline-offset-2 hover:text-[color:var(--v2-ink-2)]">
+                        {t("되돌리기", "Undo", "撤销", "Hoàn tác", "元に戻す", "Urungkan")}
+                      </button>
+                    </p>
+                  ) : null}
                 </div>
+                {!x.have ? (
+                  x.category === "experience" ? (
+                    <Button size="sm" variant="neutral" href={R.resume}>
+                      {t("적으러 가기", "Write it", "去填写", "Viết", "書きに行く", "Tulis")}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="neutral" onClick={() => addToResume(x)}>
+                      {t("있어요", "I have it", "我有", "Tôi có", "あります", "Punya")}
+                    </Button>
+                  )
+                ) : null}
               </li>
             ))}
           </ul>
@@ -809,5 +897,171 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
         </Button>
       </div>
     </div>
+  );
+}
+
+// ── 비자 ───────────────────────────────────────────────
+// 외국인 지원자에게만 있는 고민 — 지금 비자에서 취업 비자(E-7)까지 어디쯤인지. 비자는 계정(CandidateProfile.visaType)에 저장.
+// 한국인 등 해당 없는 사람은 '해당 없어요'로 이 브라우저에서 숨긴다. 조건은 바뀔 수 있어 자세한 건 비자 안내·하이코리아로 보낸다.
+const VISA_NA_KEY = "aply.v2.career.visa.na";
+
+function visaLabel(t: PlatformT, v: CandidateVisaType): string {
+  switch (v) {
+    case "D2_STUDENT":
+      return t("D-2 유학", "D-2 Student", "D-2 留学", "D-2 Du học", "D-2 留学", "D-2 Pelajar");
+    case "D4_GENERAL_TRAINING":
+      return t("D-4 어학연수", "D-4 Language", "D-4 语言研修", "D-4 Học tiếng", "D-4 語学研修", "D-4 Bahasa");
+    case "D10_JOB_SEEKING":
+      return t("D-10 구직", "D-10 Job seeking", "D-10 求职", "D-10 Tìm việc", "D-10 求職", "D-10 Cari kerja");
+    case "E7_SPECIFIC_ACTIVITY":
+      return t("E-7 취업", "E-7 Work", "E-7 就业", "E-7 Làm việc", "E-7 就労", "E-7 Kerja");
+    case "F2_RESIDENCE":
+      return "F-2";
+    case "F4_OVERSEAS_KOREAN":
+      return "F-4";
+    case "F5_PERMANENT_RESIDENCE":
+      return "F-5";
+    case "F6_MARRIAGE_IMMIGRATION":
+      return "F-6";
+    case "H1_WORKING_HOLIDAY":
+      return t("H-1 워킹홀리데이", "H-1 Working holiday", "H-1 打工度假", "H-1 Working holiday", "H-1 ワーホリ", "H-1 Working holiday");
+    default:
+      return t("기타", "Other", "其他", "Khác", "その他", "Lainnya");
+  }
+}
+
+const VISA_CHOICES: CandidateVisaType[] = ["D2_STUDENT", "D10_JOB_SEEKING", "E7_SPECIFIC_ACTIVITY", "D4_GENERAL_TRAINING", "F2_RESIDENCE", "F4_OVERSEAS_KOREAN", "F5_PERMANENT_RESIDENCE", "F6_MARRIAGE_IMMIGRATION", "H1_WORKING_HOLIDAY", "OTHER"];
+
+function VisaCard({ t }: { t: PlatformT }) {
+  const [visa, setVisa] = useState<CandidateVisaType | null | undefined>(undefined); // undefined = 불러오는 중
+  const [na, setNa] = useState(() => {
+    try {
+      return window.localStorage.getItem(VISA_NA_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [picking, setPicking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getMyCandidateProfile()
+      .then((p) => alive && setVisa(p?.visaType ?? null))
+      .catch(() => alive && setVisa(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const choose = async (v: CandidateVisaType) => {
+    setSaving(true);
+    try {
+      await updateMyCandidateProfile({ visaType: v });
+      setVisa(v);
+      setPicking(false);
+    } catch {
+      /* 실패하면 고르는 화면을 그대로 둔다 */
+    } finally {
+      setSaving(false);
+    }
+  };
+  const dismiss = () => {
+    setNa(true);
+    try {
+      window.localStorage.setItem(VISA_NA_KEY, "1");
+    } catch {
+      /* 이번 방문만 숨긴다 */
+    }
+  };
+
+  if (visa === undefined || (na && !visa)) return null;
+  const title = t("비자", "Visa", "签证", "Visa", "ビザ", "Visa");
+
+  // 비자를 모르거나 바꾸는 중 — 고르기
+  if (!visa || picking) {
+    return (
+      <Section title={title}>
+        <div className="pb-3">
+          <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
+            {t("외국인이라면 지금 비자를 알려 주세요. 취업 비자까지 무엇을 준비하면 되는지 알려 드려요.", "If you're an international, tell us your visa — we'll show what to prepare for a work visa.", "如果你是外国人，请告诉我们你的签证，我们会告诉你就业签证需要准备什么。", "Nếu là người nước ngoài, hãy cho biết visa — chúng tôi chỉ cách chuẩn bị visa làm việc.", "外国の方は今のビザを教えてください。就労ビザまでの準備をご案内します。", "Jika WNA, beri tahu visamu — kami tunjukkan persiapan visa kerja.")}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {VISA_CHOICES.map((v) => (
+              <Chip key={v} active={visa === v} onClick={() => (saving ? undefined : void choose(v))}>
+                {visaLabel(t, v)}
+              </Chip>
+            ))}
+          </div>
+          <div className="mt-3">
+            {picking ? (
+              <TextLink onClick={() => setPicking(false)}>{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</TextLink>
+            ) : (
+              <TextLink onClick={dismiss}>{t("해당 없어요", "Not applicable", "不适用", "Không áp dụng", "該当しません", "Tidak berlaku")}</TextLink>
+            )}
+          </div>
+        </div>
+      </Section>
+    );
+  }
+
+  // 취업 비자 흐름 — D-2 유학 → D-10 구직 → E-7 취업. F 계열·H-1·기타는 흐름 대신 한 줄 안내.
+  const flow: CandidateVisaType[] = ["D2_STUDENT", "D10_JOB_SEEKING", "E7_SPECIFIC_ACTIVITY"];
+  const at = flow.indexOf(visa);
+  const note =
+    visa === "D2_STUDENT"
+      ? t("졸업 후엔 D-10(구직)으로 바꿔 구직을 이어갈 수 있어요. 취업이 정해지면 E-7으로 바꿔요.", "After graduating you can switch to D-10 to keep job hunting, then to E-7 once hired.", "毕业后可转为 D-10（求职）继续找工作，确定就业后转为 E-7。", "Sau tốt nghiệp có thể đổi sang D-10 để tiếp tục tìm việc, rồi E-7 khi có việc.", "卒業後はD-10（求職）に変えて就活を続けられます。就職が決まればE-7へ。", "Setelah lulus bisa ganti ke D-10 untuk cari kerja, lalu E-7 saat diterima.")
+      : visa === "D10_JOB_SEEKING"
+        ? t("취업이 정해지면 회사와 함께 E-7 변경을 준비해요.", "Once hired, prepare the E-7 change with your company.", "确定就业后与公司一起准备变更为 E-7。", "Khi có việc, cùng công ty chuẩn bị đổi sang E-7.", "就職が決まれば会社と一緒にE-7への変更を準備します。", "Setelah diterima, siapkan perubahan ke E-7 bersama perusahaan.")
+        : visa === "E7_SPECIFIC_ACTIVITY"
+          ? t("이미 취업 비자예요. 회사를 옮길 땐 근무처 변경 허가가 필요해요.", "You already have a work visa. Changing jobs needs a workplace-change permit.", "你已持有就业签证。换公司时需要办理工作单位变更许可。", "Bạn đã có visa làm việc. Đổi công ty cần xin phép đổi nơi làm.", "すでに就労ビザです。転職時は勤務先変更の許可が必要です。", "Kamu sudah punya visa kerja. Pindah kerja perlu izin perubahan tempat kerja.")
+          : visa === "D4_GENERAL_TRAINING"
+            ? t("학위 과정(D-2)에 들어가면 D-2 → D-10 → E-7 순서로 취업을 준비해요.", "Once in a degree program (D-2), the path is D-2 → D-10 → E-7.", "进入学位课程（D-2）后，按 D-2 → D-10 → E-7 准备就业。", "Khi vào chương trình học (D-2), lộ trình là D-2 → D-10 → E-7.", "学位課程（D-2）に入るとD-2→D-10→E-7の順で準備します。", "Setelah masuk program gelar (D-2): D-2 → D-10 → E-7.")
+            : visa === "H1_WORKING_HOLIDAY"
+              ? t("정해진 기간 동안 일할 수 있어요. 오래 일하려면 E-7 같은 취업 비자로 바꿔야 해요.", "You can work for a set period. To stay longer, switch to a work visa like E-7.", "可在规定期间内工作。想长期工作需转为 E-7 等就业签证。", "Có thể làm việc trong thời hạn nhất định. Muốn ở lâu cần đổi sang visa như E-7.", "決められた期間働けます。長く働くにはE-7などへの変更が必要です。", "Bisa bekerja dalam periode tertentu. Untuk lebih lama, ganti ke visa kerja seperti E-7.")
+              : visa.startsWith("F")
+                ? t("F 비자는 취업 제한이 거의 없어요. 지원할 때 비자 종류만 알려 주면 돼요.", "F visas have almost no work restrictions — just tell employers your visa type.", "F 签证几乎没有就业限制，投递时告知签证类型即可。", "Visa F hầu như không hạn chế làm việc — chỉ cần báo loại visa.", "Fビザは就労制限がほとんどありません。応募時にビザの種類を伝えればOK。", "Visa F hampir tanpa batasan kerja — cukup sebutkan jenis visamu.")
+                : t("비자마다 일할 수 있는 조건이 달라요. 비자 안내에서 확인해 보세요.", "Work conditions differ by visa — check the visa guide.", "不同签证的工作条件不同，请查看签证指南。", "Điều kiện làm việc khác nhau theo visa — xem hướng dẫn.", "ビザごとに条件が違います。ビザ案内で確認してください。", "Syarat kerja berbeda tiap visa — cek panduan visa.");
+
+  return (
+    <Section title={title} aside={<TextLink onClick={() => setPicking(true)}>{t("바꾸기", "Change", "更改", "Đổi", "変更", "Ubah")}</TextLink>}>
+      <div className="pb-3">
+        {at >= 0 ? (
+          <ol className="flex items-center gap-1.5">
+            {flow.map((v, i) => (
+              <li key={v} className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span className={`flex h-9 min-w-0 flex-1 items-center justify-center rounded-xl px-2 text-[13px] font-bold ${i === at ? "bg-[color:var(--v2-accent)] text-white" : i < at ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]"}`}>
+                  <span className="truncate">{visaLabel(t, v)}</span>
+                </span>
+                {i < flow.length - 1 ? (
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-[color:var(--v2-faint)]" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="m9 6 6 6-6 6" />
+                  </svg>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`지금 비자: ${visaLabel(t, visa)}`, `Your visa: ${visaLabel(t, visa)}`, `当前签证：${visaLabel(t, visa)}`, `Visa hiện tại: ${visaLabel(t, visa)}`, `今のビザ：${visaLabel(t, visa)}`, `Visa saat ini: ${visaLabel(t, visa)}`)}</p>
+        )}
+        <p className="mt-3 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{note}</p>
+
+        {visa === "D2_STUDENT" || visa === "D10_JOB_SEEKING" || visa === "D4_GENERAL_TRAINING" ? (
+          <div className="mt-4 rounded-2xl bg-[color:var(--v2-band)] p-4">
+            <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("E-7을 받으려면 보통 이걸 봐요", "What E-7 usually requires", "申请 E-7 通常看这些", "E-7 thường xét những điều này", "E-7で主に見られること", "Yang biasanya dilihat untuk E-7")}</p>
+            <ul className="mt-2 flex flex-col gap-1.5 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">
+              <li>· {t("관련 분야 학위(학사 이상) 또는 경력", "A related degree (bachelor's+) or experience", "相关领域学位（本科以上）或经验", "Bằng cấp liên quan (cử nhân+) hoặc kinh nghiệm", "関連分野の学位（学士以上）または経歴", "Gelar terkait (S1+) atau pengalaman")}</li>
+              <li>· {t("전공·경력과 하는 일이 관련 있을 것", "Your job relates to your major or experience", "工作与专业或经验相关", "Công việc liên quan đến ngành học/kinh nghiệm", "仕事が専攻・経歴と関連していること", "Pekerjaan terkait jurusan/pengalaman")}</li>
+              <li>· {t("연봉이 정해진 기준 이상일 것(기준은 해마다 바뀌어요)", "Salary above the set threshold (changes yearly)", "年薪达到规定标准（每年调整）", "Lương trên mức quy định (thay đổi hằng năm)", "年収が基準以上（基準は毎年変わります）", "Gaji di atas ambang (berubah tiap tahun)")}</li>
+            </ul>
+            <p className="mt-2 text-[12px] text-[color:var(--v2-faint)]">{t("정확한 조건은 하이코리아·출입국사무소에서 확인하세요.", "Confirm exact rules with HiKorea or Immigration.", "具体条件请在 HiKorea 或出入境事务所确认。", "Xác nhận điều kiện tại HiKorea hoặc Sở XNC.", "正確な条件はハイコリア・出入国事務所でご確認ください。", "Pastikan di HiKorea atau Imigrasi.")}</p>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+          {visa !== "E7_SPECIFIC_ACTIVITY" && !visa.startsWith("F") ? <TextLink href="/talent/visa/E-7">{t("E-7 자세히 보기", "E-7 details", "E-7 详情", "Chi tiết E-7", "E-7の詳細", "Detail E-7")}</TextLink> : null}
+          {visa === "D2_STUDENT" ? <TextLink href="/talent/visa/D-10">{t("D-10 자세히 보기", "D-10 details", "D-10 详情", "Chi tiết D-10", "D-10の詳細", "Detail D-10")}</TextLink> : null}
+        </div>
+      </div>
+    </Section>
   );
 }
