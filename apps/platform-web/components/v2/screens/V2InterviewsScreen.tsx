@@ -1,21 +1,25 @@
 "use client";
 
-// v2 모의 면접 — 맨 위에 '지금 연습할 것' 하나(면접 잡힌 공고 우선), 아래로 연습 시작·약점·기록.
+// v2 모의 면접 — 맨 위에 '지금 연습할 것' 하나(면접 잡힌 공고 우선), 아래로 연습 시작·강점과 약점·기록.
+// 점수는 숫자 대신 단계(잘해요·괜찮아요·더 연습)로 — 몇 점이 좋은지 알 수 없어서. 기록은 누르면 지난 답을 다시 본다.
 // 실제 연습은 기존 팝업(MockGateModal → MockInterviewModal)과 '전날 볼 한 장'을 그대로 쓴다.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
-import { Actions, Attention, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
+import { Sheet } from "../sheets";
+import { Actions, Attention, Button, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { usePlatformT } from "../../../lib/i18n";
+import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import {
   getMyApplications,
   getMyAppliedPositions,
   getMyFavoritePositions,
+  getMyMockInterviewAnswers,
   getMyMockInterviewUsage,
   getMyMockInterviews,
   getPublicPositionById,
   getPublicPositionsPage,
+  type MockInterviewAnswer,
   type MockInterviewRecord,
   type MyApplication,
   type PublicPositionListItem
@@ -24,10 +28,10 @@ import { useSelfMock } from "../../../lib/talent/self-mock";
 import { useResumeDoc, resumeCompleteness } from "../../../lib/talent/resume-doc";
 import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
+import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { MockGateModal } from "../../talent/jobs/MockGateModal";
 import { MockInterviewModal } from "../../talent/jobs/MockInterviewModal";
-import { SelfMockResultModal } from "../../talent/jobs/SelfMockResultModal";
 import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
@@ -50,10 +54,11 @@ function Interviews() {
   const [positions, setPositions] = useState<PublicPositionListItem[] | null>(null);
   const [gate, setGate] = useState<{ item: PublicPositionListItem | null } | null>(null);
   const [practice, setPractice] = useState<{ item: PublicPositionListItem | null } | null>(null);
-  const [selfResult, setSelfResult] = useState(false);
   const [sheetApp, setSheetApp] = useState<MyApplication | null>(null);
   const [limit, setLimit] = useState({ reached: false, limit: 3 });
   const [searching, setSearching] = useState(false);
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
+  const [review, setReview] = useState<MockInterviewRecord | "self" | null>(null);
 
   const loadRecords = () => getMyMockInterviews().then(setRecords).catch(() => setRecords([]));
   useEffect(() => {
@@ -61,6 +66,7 @@ function Interviews() {
     getMyApplications().then(setApps).catch(() => setApps([]));
     Promise.all([getMyAppliedPositions().catch(() => []), getMyFavoritePositions().catch(() => [])]).then(([a, b]) => {
       const seen = new Set<string>();
+      setAppliedIds(new Set(a.map((p) => p.id)));
       setPositions([...a, ...b].filter((p) => p.status === "OPEN" && !seen.has(p.id) && seen.add(p.id)));
     });
   }, []);
@@ -78,7 +84,9 @@ function Interviews() {
   }, [positions, upcoming]);
   const selfAnswers = (selfMock?.answers ?? []).filter((a) => typeof a.score === "number");
   const selfBest = selfAnswers.length ? Math.max(...selfAnswers.map((a) => a.score as number)) : null;
-  const weak = analyzeMockWeakness(selfMock).filter((r) => r.average !== null && r.average < WEAK_BELOW);
+  const areas = analyzeMockWeakness(selfMock);
+  const tried = areas.filter((r) => r.average !== null);
+  const untried = areas.filter((r) => r.average === null && r.category !== "other");
 
   const sent = useRef(false);
   useEffect(() => {
@@ -169,9 +177,16 @@ function Interviews() {
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
         {next ? <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} /> : null}
         {positions === null ? <RowsSkeleton count={2} /> : null}
-        {candidates.map((p) => (
-          <Row key={p.id} onClick={() => startJob(p, "job")} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={companyOf(p) || undefined} />
-        ))}
+        {candidates.map((p) => {
+          // 왜 이 공고인지 — 지원한 공고 / 저장한 공고(마감이 가까우면 D-n).
+          const dd = p.sourceDeadlineDate && !p.sourceDeadlineRolling ? daysUntil(p.sourceDeadlineDate) : null;
+          const why = appliedIds.has(p.id)
+            ? t("지원한 공고", "Applied", "已投递", "Đã ứng tuyển", "応募済み", "Dilamar")
+            : dd !== null && dd >= 0 && dd <= 7
+              ? t(`저장한 공고 · ${dd === 0 ? "오늘" : `D-${dd}`} 마감`, `Saved · closes ${dd === 0 ? "today" : `D-${dd}`}`, `已收藏 · ${dd === 0 ? "今天" : `D-${dd}`}截止`, `Đã lưu · hết hạn ${dd === 0 ? "hôm nay" : `D-${dd}`}`, `保存済み · ${dd === 0 ? "今日" : `D-${dd}`}締切`, `Disimpan · tutup ${dd === 0 ? "hari ini" : `D-${dd}`}`)
+              : t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Disimpan");
+          return <Row key={p.id} onClick={() => startJob(p, "job")} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={[companyOf(p), why].filter(Boolean).join(" · ") || undefined} />;
+        })}
         {searching ? (
           <JobSearch onPick={(p) => startJob(p, "job")} />
         ) : (
@@ -179,11 +194,23 @@ function Interviews() {
         )}
       </Section>
 
-      {weak.length ? (
-        <Section title={t("내 약점", "Where I'm weakest", "我的弱点", "Điểm yếu", "私の弱点", "Kelemahanku")}>
-          {weak.map((r) => (
-            <Row key={r.category} onClick={startSelf} lead={r.emoji} title={r.label} meta={r.worst?.improvement || undefined} right={<Attention>{r.average}</Attention>} />
+      {tried.length ? (
+        <Section title={t("강점과 약점", "Strengths & gaps", "优势与不足", "Điểm mạnh & yếu", "強みと弱み", "Kekuatan & kekurangan")}>
+          {tried.map((r) => (
+            <Row
+              key={r.category}
+              onClick={startSelf}
+              lead={r.emoji}
+              title={mockCategoryLabelOf(t, r.category)}
+              meta={(r.average ?? 0) < WEAK_BELOW ? r.worst?.improvement || undefined : t(`${r.answered}개 답했어요`, `${r.answered} answered`, `已回答 ${r.answered} 题`, `Đã trả lời ${r.answered}`, `${r.answered}問回答`, `${r.answered} dijawab`)}
+              right={<LevelChip t={t} score={r.average} />}
+            />
           ))}
+          {untried.length ? (
+            <p className="pb-1 pt-3 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">
+              {t("아직 안 해 본 질문", "Not tried yet", "尚未练习", "Chưa thử", "まだの質問", "Belum dicoba")} · {untried.map((r) => mockCategoryLabelOf(t, r.category)).join(" · ")}
+            </p>
+          ) : null}
         </Section>
       ) : null}
 
@@ -194,19 +221,19 @@ function Interviews() {
           <>
             {selfAnswers.length ? (
               <Row
-                onClick={() => setSelfResult(true)}
+                onClick={() => setReview("self")}
                 title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")}
                 meta={`${t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} ${selfAnswers.length}${selfMock?.updatedAt ? ` · ${formatRelativeTime(selfMock.updatedAt, undefined, t)}` : ""}`}
-                right={selfBest != null ? t(`최고 ${selfBest}점`, `Best ${selfBest}`, `最高 ${selfBest}`, `Cao nhất ${selfBest}`, `最高${selfBest}点`, `Terbaik ${selfBest}`) : undefined}
+                right={selfBest != null ? <LevelChip t={t} score={selfBest} /> : undefined}
               />
             ) : null}
             {records.map((m) => (
               <Row
                 key={m.positionId}
-                onClick={() => void startById(m.positionId, "job")}
+                onClick={() => setReview(m)}
                 title={m.positionTitle}
                 meta={[m.companyName, `${t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} ${m.answeredCount}`, formatRelativeTime(new Date(m.lastPracticedAt).getTime(), undefined, t)].filter(Boolean).join(" · ")}
-                right={m.bestScore != null ? (m.bestScore < WEAK_BELOW ? <Attention>{t(`최고 ${m.bestScore}점`, `Best ${m.bestScore}`, `最高 ${m.bestScore}`, `Cao nhất ${m.bestScore}`, `最高${m.bestScore}点`, `Terbaik ${m.bestScore}`)}</Attention> : t(`최고 ${m.bestScore}점`, `Best ${m.bestScore}`, `最高 ${m.bestScore}`, `Cao nhất ${m.bestScore}`, `最高${m.bestScore}点`, `Terbaik ${m.bestScore}`)) : undefined}
+                right={m.bestScore != null ? <LevelChip t={t} score={m.bestScore} /> : undefined}
               />
             ))}
           </>
@@ -234,7 +261,20 @@ function Interviews() {
           }}
         />
       ) : null}
-      {selfResult ? <SelfMockResultModal onClose={() => setSelfResult(false)} /> : null}
+      {review ? (
+        <ReviewSheet
+          t={t}
+          record={review}
+          selfAnswers={selfMock?.answers ?? []}
+          onClose={() => setReview(null)}
+          onRetry={() => {
+            const r = review;
+            setReview(null);
+            if (r === "self") startSelf();
+            else void startById(r.positionId, "job");
+          }}
+        />
+      ) : null}
       {sheetApp ? (
         <InterviewPrepSheet
           positionId={sheetApp.positionId}
@@ -297,5 +337,83 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
         )}
       </div>
     </div>
+  );
+}
+
+/** 점수 → 단계. 80 이상 잘 쓴 답(mock-weakness 기준), 70 미만은 더 볼 곳. */
+function LevelChip({ t, score }: { t: PlatformT; score: number | null | undefined }) {
+  if (score == null) return null;
+  const lv =
+    score >= 80
+      ? { text: t("잘해요", "Strong", "很好", "Tốt", "良い", "Bagus"), cls: "bg-[#e5f6ee] text-[color:var(--v2-good)]" }
+      : score >= WEAK_BELOW
+        ? { text: t("괜찮아요", "Okay", "还行", "Ổn", "まずまず", "Cukup"), cls: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" }
+        : { text: t("더 연습", "Practice more", "多练习", "Luyện thêm", "要練習", "Latih lagi"), cls: "bg-[#fdeced] text-[color:var(--v2-attention)]" };
+  return <span className={`inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-bold ${lv.cls}`}>{lv.text}</span>;
+}
+
+type SelfAnswer = { question: string; category: string; answer: string; score: number | null; feedback?: { strengths: string[]; improvements: string[] } | null };
+
+/** 기록 다시 보기 — 지난 답과 단계(내 서류 연습은 AI 피드백까지). [다시 연습]은 여기서. */
+function ReviewSheet({ t, record, selfAnswers, onClose, onRetry }: { t: PlatformT; record: MockInterviewRecord | "self"; selfAnswers: SelfAnswer[]; onClose: () => void; onRetry: () => void }) {
+  const isSelf = record === "self";
+  const [answers, setAnswers] = useState<MockInterviewAnswer[] | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    if (isSelf) return;
+    let alive = true;
+    getMyMockInterviewAnswers(record.positionId)
+      .then((a) => alive && setAnswers(a))
+      .catch(() => alive && setError(true));
+    return () => {
+      alive = false;
+    };
+  }, [isSelf, record]);
+  const list: SelfAnswer[] = isSelf ? selfAnswers.filter((a) => a.answer.trim()) : (answers ?? []).map((a) => ({ ...a, category: "" }));
+
+  return (
+    <Sheet
+      tall
+      title={isSelf ? t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku") : record.positionTitle}
+      subtitle={isSelf ? t("지난 답과 AI 피드백", "Past answers & AI feedback", "过往回答与 AI 反馈", "Câu trả lời & phản hồi AI", "過去の回答とAIフィードバック", "Jawaban & umpan balik AI") : [record.companyName, t("지난 답", "Past answers", "过往回答", "Câu trả lời trước", "過去の回答", "Jawaban sebelumnya")].filter(Boolean).join(" · ")}
+      onClose={onClose}
+      footer={
+        <Button full onClick={onRetry}>
+          {t("다시 연습하기", "Practice again", "再练习", "Luyện lại", "もう一度練習", "Latihan lagi")}
+        </Button>
+      }
+    >
+      {!isSelf && answers === null && !error ? (
+        <RowsSkeleton count={3} thumb={false} />
+      ) : error ? (
+        <p className="py-10 text-center text-[15px] text-[color:var(--v2-attention)]">{t("기록을 불러오지 못했어요.", "Couldn't load.", "无法加载。", "Không tải được.", "読み込めませんでした。", "Gagal memuat.")}</p>
+      ) : !list.length ? (
+        <p className="py-10 text-center text-[15px] text-[color:var(--v2-muted)]">{t("저장된 답이 없어요.", "No saved answers.", "没有保存的回答。", "Không có câu trả lời.", "保存された回答がありません。", "Tidak ada jawaban.")}</p>
+      ) : (
+        <ol className="flex flex-col gap-3">
+          {list.map((a, i) => (
+            <li key={i} className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[15px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">
+                  Q{i + 1}. {a.question}
+                </p>
+                <LevelChip t={t} score={a.score} />
+              </div>
+              <p className="mt-2 whitespace-pre-wrap border-l-2 border-[color:var(--v2-line)] pl-3 text-[14px] leading-[1.65] text-[color:var(--v2-ink-3)]">{a.answer}</p>
+              {a.feedback?.strengths?.length ? (
+                <p className="mt-2.5 text-[13px] leading-[1.6] text-[color:var(--v2-good)]">
+                  <b>{t("잘한 점", "Good", "优点", "Tốt", "良い点", "Bagus")}</b> · {a.feedback.strengths.filter(Boolean).slice(0, 2).join(" / ")}
+                </p>
+              ) : null}
+              {a.feedback?.improvements?.length ? (
+                <p className="mt-1 text-[13px] leading-[1.6] text-[color:var(--v2-attention)]">
+                  <b>{t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")}</b> · {a.feedback.improvements.filter(Boolean).slice(0, 2).join(" / ")}
+                </p>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </Sheet>
   );
 }
