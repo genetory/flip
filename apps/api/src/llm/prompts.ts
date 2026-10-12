@@ -423,3 +423,49 @@ export function buildCareerStrengthsMessages(input: { profile: string; targetRol
   const user = `${roles}[지원자 서류]\n${input.profile}`;
   return { system, user };
 }
+
+// ── 내 커리어 '이 직무 지원자들이 갖춘 것' — 관심 직무 공고 자격 요건 + 그 직무 지원자들이 보통 갖춘 것을
+// 자격증·스킬·경험·어학 체크리스트로 만들고, 지원자 서류에 있는지(have) 표시한다.
+// jobs 는 공고 번호(1부터) — 서버가 유효한 번호만 세어 '공고 N곳 중 M곳'을 만든다(모델이 센 숫자를 믿지 않음).
+export const ROLE_CHECKLIST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          category: { type: "string", enum: ["certificate", "skill", "experience", "language"] },
+          name: { type: "string" },
+          have: { type: "boolean" },
+          jobs: { type: "array", items: { type: "integer" } },
+          tip: { type: "string" }
+        },
+        required: ["category", "name", "have", "jobs", "tip"]
+      }
+    }
+  },
+  required: ["items"]
+} as const;
+
+export function buildRoleChecklistMessages(input: { role: string; profile: string; jobs: { title: string; required?: string; preferred?: string }[] }): LlmMessages {
+  const system =
+    "당신은 한국 기업 채용을 잘 아는 커리어 코치입니다. 주어진 직무에 지원하는 사람들이 보통 갖추고 있는 자격증·스킬(능력)·경험·어학을 체크리스트로 정리하고, 지원자 서류에 그것이 있는지 판단해 주세요.\n" +
+    "[규칙]\n" +
+    "- 항목은 8~12개. 공고 자격 요건에 자주 나오는 것을 우선하고, 공고에 없더라도 이 직무 지원자들이 흔히 갖춘 것(대표 자격증·필수 도구 등)을 2~3개 더하세요.\n" +
+    "- category: certificate(자격증·시험), skill(도구·기술·능력), experience(경력·프로젝트·업무 경험), language(어학).\n" +
+    "- name 은 2~20자의 짧은 이름(예: 'Spring Boot', 'MSA 설계 경험', '정보처리기사', 'TOPIK 5급 이상', '비즈니스 영어').\n" +
+    "- jobs 는 그 항목을 요구·우대하는 공고 번호들(입력의 [공고 n]). 공고에 없으면 빈 배열.\n" +
+    "- have 판정: 먼저 지원자 서류의 [스킬]·[자격증]·[어학] 줄과 경력·프로젝트 내용을 꼼꼼히 읽으세요. 항목에 든 도구·기술 중 하나라도 서류에 그대로(대소문자·띄어쓰기 무시) 있거나, 경력·프로젝트에 같은 일을 한 내용(예: 결제 회사에서 결제 API 운영 → '결제 서비스 운영 경험')이 있으면 true. 서류 어디에도 근거가 없을 때만 false.\n" +
+    "- 'A 및 B'처럼 둘을 묶지 말고 한 항목엔 하나만(예: 'Docker', 'Kubernetes' 따로).\n" +
+    "- tip 은 have=false 일 때만, 어떻게 채우면 좋은지 한 문장(35자 안팎). 이미 경험이 있을 수도 있으니 '있다면 이력서에 적어 보세요' 같은 안내도 좋아요. have=true 면 빈 문자열.\n" +
+    "- 같은 뜻의 항목을 두 번 쓰지 마세요." +
+    aiLangDirective();
+  const jobs = input.jobs
+    .map((j, i) => `[공고 ${i + 1}] ${j.title}\n필수: ${j.required ?? ""}\n우대: ${j.preferred ?? ""}`)
+    .join("\n\n");
+  const user = `직무: ${input.role}\n\n[관심 직무 공고 ${input.jobs.length}곳의 자격 요건]\n${jobs}\n\n[지원자 서류]\n${input.profile}`;
+  return { system, user };
+}

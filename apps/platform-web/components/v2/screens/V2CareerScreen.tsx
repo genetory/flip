@@ -9,7 +9,7 @@ import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
-import { getCareerStrengths, AiQuotaError, type CareerStrength } from "../../../lib/resume-maker-client";
+import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -208,6 +208,7 @@ function Career() {
         </Section>
 
         {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
+        {ready && interests.length && items.length >= 2 ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
 
         <Section title={t("더 정리하기", "More", "更多整理", "Sắp xếp thêm", "さらに整理", "Lainnya")}>
           <Row href={R.profile} lead="🙋" title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} meta={[info.realName, info.email].filter(Boolean).join(" · ") || t("이름·연락처", "Name & contact", "姓名·联系方式", "Tên & liên hệ", "名前・連絡先", "Nama & kontak")} />
@@ -498,6 +499,164 @@ function MatchedJobs({ t, interests, skills }: { t: PlatformT; interests: string
           ))}
         </>
       )}
+    </Section>
+  );
+}
+
+// ── 이 직무 지원자들이 갖춘 것 ────────────────────────────
+// 관심 직무 공고 20곳의 자격 요건 + 그 직무에서 흔히 갖춘 것을 자격증·스킬·경험·어학 체크리스트로 — 내 서류에 없는 것부터.
+// 강점과 같이 누를 때만 AI 를 부르고, 직무별로 서류 수정 시각과 함께 이 브라우저에 기억한다.
+const CHECKLIST_KEY = "aply.v2.career.checklist";
+type ChecklistResult = { sig: string; total: number; items: RoleChecklistItem[] };
+
+function readChecklists(): Record<string, ChecklistResult> {
+  try {
+    const raw = window.localStorage.getItem(CHECKLIST_KEY);
+    const v = raw ? (JSON.parse(raw) as Record<string, ChecklistResult>) : null;
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+function categoryLabel(t: PlatformT, c: RoleChecklistItem["category"]): string {
+  if (c === "certificate") return t("자격증", "Cert", "证书", "Chứng chỉ", "資格", "Sertifikat");
+  if (c === "experience") return t("경험", "Experience", "经验", "Kinh nghiệm", "経験", "Pengalaman");
+  if (c === "language") return t("어학", "Language", "语言", "Ngoại ngữ", "語学", "Bahasa");
+  return t("스킬", "Skill", "技能", "Kỹ năng", "スキル", "Keahlian");
+}
+
+function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interests: string[]; resume: ResumeDoc | null; cover: CoverDoc | null }) {
+  const sig = `${resume?.updatedAt ?? 0}:${cover?.updatedAt ?? 0}`;
+  const [role, setRole] = useState(interests[0]);
+  const current = interests.includes(role) ? role : interests[0];
+  const [saved, setSaved] = useState<Record<string, ChecklistResult>>(() => readChecklists());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const result = saved[current] ?? null;
+  const stale = !!result && result.sig !== sig;
+  const roleLabel = jobTaxonomyLabelOf(t, current);
+
+  const run = async () => {
+    const profile = profileText(t, resume, cover);
+    setBusy(true);
+    setError(null);
+    try {
+      const page = await getPublicPositionsPage({ jobRoles: jobCategoriesForInterests([current]), limit: 20 }); // 원문(한국어) 자격 요건으로 비교
+      const jobs = page.items
+        .map((j) => ({ title: j.title.slice(0, 200), required: (j.requiredQualifications ?? "").slice(0, 1500) || undefined, preferred: (j.preferredQualifications ?? "").slice(0, 1500) || undefined }))
+        .filter((j) => j.required || j.preferred);
+      if (!jobs.length) throw new Error("no jobs");
+      const r = await getRoleChecklist({ role: roleLabel, profile, jobs });
+      const next = { ...readChecklists(), [current]: { sig, total: r.total, items: r.items } };
+      setSaved(next);
+      try {
+        window.localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next));
+      } catch {
+        /* 저장 못 해도 화면엔 보인다 */
+      }
+    } catch (e) {
+      setError(
+        e instanceof AiQuotaError
+          ? t("오늘은 더 비교할 수 없어요. 내일 다시 해 보세요.", "Daily limit reached. Try again tomorrow.", "今天已达上限，明天再试。", "Đã hết lượt hôm nay.", "本日の上限です。明日お試しください。", "Batas harian tercapai.")
+          : t("비교하지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't compare. Try again soon.", "未能比较，请稍后再试。", "Không so sánh được. Thử lại sau.", "比較できませんでした。後でもう一度。", "Gagal. Coba lagi nanti.")
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sorted = result ? [...result.items].sort((a, b) => Number(a.have) - Number(b.have) || b.count - a.count) : [];
+  const haveCount = sorted.filter((x) => x.have).length;
+
+  return (
+    <Section
+      title={t("지원자들이 갖춘 것", "What applicants have", "求职者具备的条件", "Ứng viên thường có", "応募者が持つもの", "Yang dimiliki pelamar")}
+      aside={
+        stale ? (
+          <TextLink onClick={busy ? undefined : run}>
+            {busy ? t("비교 중…", "Comparing…", "比较中…", "Đang so sánh…", "比較中…", "Membandingkan…") : t("다시 비교", "Refresh", "重新比较", "So sánh lại", "もう一度", "Ulangi")}
+          </TextLink>
+        ) : undefined
+      }
+    >
+      {interests.length > 1 ? (
+        <div className="-mx-5 mb-4 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+          {interests.map((r) => (
+            <Chip key={r} active={r === current} onClick={() => setRole(r)}>
+              {jobTaxonomyLabelOf(t, r)}
+            </Chip>
+          ))}
+        </div>
+      ) : null}
+
+      {result ? (
+        <div className={`pb-3 transition-opacity ${busy ? "opacity-60" : ""}`}>
+          {stale ? (
+            <p className="mb-3 text-[14px] font-medium text-[color:var(--v2-accent)]">{t("서류가 바뀌었어요. 다시 비교하면 지금 서류로 맞춰 봐요.", "Your documents changed — refresh to update.", "材料已更新，重新比较即可更新。", "Hồ sơ đã đổi — so sánh lại để cập nhật.", "書類が変わりました。もう一度で更新します。", "Dokumen berubah — ulangi untuk memperbarui.")}</p>
+          ) : null}
+          <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
+            {t(
+              `${roleLabel} 공고 ${result.total}곳과 이 직무 지원자들이 보통 갖춘 것을 내 서류와 비교했어요.`,
+              `Compared ${result.total} ${roleLabel} jobs and what applicants usually have with your documents.`,
+              `将 ${result.total} 个${roleLabel}职位及求职者常见条件与你的材料作了比较。`,
+              `Đã so ${result.total} tin ${roleLabel} và điều ứng viên thường có với hồ sơ của bạn.`,
+              `${roleLabel}の求人${result.total}件と応募者がよく持つものを書類と比べました。`,
+              `Membandingkan ${result.total} lowongan ${roleLabel} dengan dokumenmu.`
+            )}
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
+              <div className="h-full rounded-full bg-[color:var(--v2-good)]" style={{ width: `${sorted.length ? Math.round((haveCount / sorted.length) * 100) : 0}%` }} />
+            </div>
+            <span className="shrink-0 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">
+              {t(`${sorted.length}개 중 ${haveCount}개 갖춤`, `${haveCount} of ${sorted.length}`, `${sorted.length} 项中具备 ${haveCount} 项`, `${haveCount}/${sorted.length}`, `${sorted.length}件中${haveCount}件`, `${haveCount} dari ${sorted.length}`)}
+            </span>
+          </div>
+          <ul className="mt-3">
+            {sorted.map((x) => (
+              <li key={x.name} className="flex items-start gap-3 border-b border-[color:var(--v2-band)] py-3.5 last:border-b-0">
+                <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${x.have ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)]"}`} aria-label={x.have ? t("갖춤", "Have", "具备", "Có", "あり", "Ada") : t("없음", "Missing", "缺少", "Chưa có", "なし", "Belum")}>
+                  {x.have ? (
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M5 12.5 10 17 19 7" />
+                    </svg>
+                  ) : null}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-[16px] font-semibold leading-[1.45] ${x.have ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{x.name}</p>
+                  <p className="mt-0.5 text-[13px] text-[color:var(--v2-faint)]">
+                    {categoryLabel(t, x.category)} ·{" "}
+                    {x.count
+                      ? t(`공고 ${result.total}곳 중 ${x.count}곳`, `${x.count} of ${result.total} jobs`, `${result.total} 个职位中 ${x.count} 个`, `${x.count}/${result.total} tin`, `${result.total}件中${x.count}件`, `${x.count} dari ${result.total} lowongan`)
+                      : t("이 직무에서 흔히 갖춰요", "Common in this role", "该职位常见", "Phổ biến ở vị trí này", "この職種でよくある", "Umum di peran ini")}
+                  </p>
+                  {!x.have && x.tip ? <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">{x.tip}</p> : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[13px] text-[color:var(--v2-faint)]">{t("이미 있는데 없다고 나오면, 이력서에 적어 두면 다음 비교부터 반영돼요.", "Already have one marked missing? Add it to your resume.", "已具备却显示缺少？写进简历，下次比较即可反映。", "Đã có mà báo thiếu? Hãy thêm vào CV.", "持っているのに「なし」なら、履歴書に書いてください。", "Sudah punya tapi tertulis belum? Tambahkan ke CV.")}</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-start gap-3 pb-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
+            {t(
+              `${roleLabel} 지원자들이 보통 갖춘 자격증·스킬·경험을 공고와 함께 모아, 내 서류에 없는 것부터 짚어 드려요.`,
+              `See the certs, skills, and experience ${roleLabel} applicants usually have — and what you're missing.`,
+              `汇总${roleLabel}求职者常见的证书、技能、经验，先指出你缺少的。`,
+              `Xem chứng chỉ, kỹ năng, kinh nghiệm ứng viên ${roleLabel} thường có — và bạn còn thiếu gì.`,
+              `${roleLabel}の応募者がよく持つ資格・スキル・経験を集め、足りないものから示します。`,
+              `Lihat sertifikat, keahlian, dan pengalaman pelamar ${roleLabel} — dan yang belum kamu punya.`
+            )}
+          </p>
+          <Button size="sm" onClick={run} disabled={busy}>
+            {busy ? <Spinner /> : null}
+            {busy ? t("비교하고 있어요", "Comparing…", "比较中", "Đang so sánh", "比較中", "Membandingkan") : t("내 서류와 비교", "Compare", "与我的材料比较", "So sánh", "書類と比べる", "Bandingkan")}
+          </Button>
+        </div>
+      )}
+      {error ? <p className="pb-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
     </Section>
   );
 }

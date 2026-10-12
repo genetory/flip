@@ -89,6 +89,8 @@ import {
   DRAFT_TEXT_SCHEMA,
   CAREER_STRENGTHS_SCHEMA,
   buildCareerStrengthsMessages,
+  ROLE_CHECKLIST_SCHEMA,
+  buildRoleChecklistMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
@@ -15930,6 +15932,55 @@ app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRo
   }
 });
 
+// POST /members/me/ai/role-checklist — 내 커리어 '이 직무 지원자들이 갖춘 것'.
+// 화면이 관심 직무 공고(최대 20곳)의 자격 요건과 내 서류 글을 보낸다. '공고 N곳 중 M곳'은 서버가 공고 번호로 센다.
+// 고비용 모델(docReviewModel)이라 AI_PREMIUM_FEATURES 일일 캡에 포함.
+const roleChecklistSchema = z.object({
+  role: z.string().min(1).max(60),
+  profile: z.string().min(30).max(8000),
+  jobs: z
+    .array(z.object({ title: z.string().max(200), required: z.string().max(1500).optional(), preferred: z.string().max(1500).optional() }))
+    .min(1)
+    .max(20)
+});
+
+app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("role_checklist"), async (req, res) => {
+  const parsed = roleChecklistSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const total = parsed.data.jobs.length;
+  try {
+    const { system, user } = buildRoleChecklistMessages(parsed.data);
+    const { data } = await generateJson<{ items?: unknown }>({
+      openai,
+      model: docReviewModel, // 서류에 있는지(have) 판정 — mini 는 있는 스킬도 없다고 하는 오판이 잦아 문서 점검과 같은 모델
+      temperature: 0.2,
+      system,
+      user,
+      schema: ROLE_CHECKLIST_SCHEMA,
+      schemaName: "role_checklist"
+    });
+    const cats = new Set(["certificate", "skill", "experience", "language"]);
+    const seen = new Set<string>();
+    const items = (Array.isArray(data?.items) ? data.items : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        const name = typeof o.name === "string" ? o.name.trim() : "";
+        const category = typeof o.category === "string" && cats.has(o.category) ? o.category : "skill";
+        const jobs = new Set((Array.isArray(o.jobs) ? o.jobs : []).filter((n): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= total));
+        const have = o.have === true;
+        return { category, name, have, count: jobs.size, tip: !have && typeof o.tip === "string" ? stripCliches(o.tip.trim()) : "" };
+      })
+      .filter((x) => x.name && !seen.has(x.name.toLowerCase()) && (seen.add(x.name.toLowerCase()), true))
+      .slice(0, 12);
+    if (!items.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, total, items });
+  } catch (err) {
+    console.error("[ai/role-checklist] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // resume-maker (AI 이력서 만들기) — 경험 인터뷰 질문 생성 + 구조화 문장 생성.
 // 기존 draft-resume-text 패턴 재사용(openai chat.completions, json_object,
@@ -16227,7 +16278,7 @@ function aiFeatureCost(feature: string): number {
 // gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
 // 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
-const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover"]);
+const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover", "role_checklist"]);
 const AI_PREMIUM_DAILY_CAP = 40;
 const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
 async function aiPremiumUsedToday(userId: string): Promise<number> {
