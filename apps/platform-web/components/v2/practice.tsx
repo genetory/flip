@@ -29,7 +29,16 @@ export function LevelChip({ t, score }: { t: PlatformT; score: number | null | u
 }
 
 // 말로 답하기 — 브라우저 음성 인식(Web Speech API). 지원하지 않는 브라우저에선 버튼을 숨긴다.
-type Recognition = { lang: string; continuous: boolean; interimResults: boolean; start: () => void; stop: () => void; onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null; onend: (() => void) | null };
+type Recognition = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+};
 function getRecognition(): (new () => Recognition) | null {
   if (typeof window === "undefined") return null;
   const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
@@ -53,6 +62,10 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
   const [examples, setExamples] = useState<{ id: string; answer: string; score: number }[] | null>(null);
   const [listening, setListening] = useState(false);
   const [speech, setSpeech] = useState<{ ms: number; chars: number; fillers: number } | null>(null);
+  const [interim, setInterim] = useState(""); // 아직 확정 안 된, 지금 말하는 중인 글
+  const [level, setLevel] = useState(0); // 마이크 소리 크기 0~1
+  const [heard, setHeard] = useState(0); // 들은 시간(초)
+  const [micError, setMicError] = useState<string | null>(null);
   const recRef = useRef<Recognition | null>(null);
   const speechStart = useRef(0);
   const spoken = useRef("");
@@ -70,6 +83,48 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
   const begin = () => {
     if (timed && !running) setRunning(true);
   };
+  // 마이크 소리 크기 — 말하는 동안 막대가 움직여 '듣고 있다'는 걸 바로 알 수 있게(인식 결과는 몇 초 늦게 온다).
+  const meterStop = useRef<(() => void) | null>(null);
+  const startMeter = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      let raf = 0;
+      let last = 0;
+      const tick = (ts: number) => {
+        if (ts - last > 80) {
+          analyser.getByteTimeDomainData(buf);
+          let peak = 0;
+          for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
+          setLevel(Math.min(1, peak / 64));
+          last = ts;
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      meterStop.current = () => {
+        cancelAnimationFrame(raf);
+        stream.getTracks().forEach((tr) => tr.stop());
+        void ctx.close();
+        setLevel(0);
+      };
+    } catch {
+      /* 막대만 못 보여 줄 뿐 — 인식은 따로 돈다 */
+    }
+  };
+  useEffect(() => () => meterStop.current?.(), []);
+  // 듣는 시간(초)
+  useEffect(() => {
+    if (!listening) return;
+    const id = window.setInterval(() => setHeard((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [listening]);
+
   const toggleMic = () => {
     if (!Rec) return;
     if (listening) {
@@ -77,28 +132,46 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
       return;
     }
     begin();
+    setMicError(null);
+    setInterim("");
+    setHeard(0);
     const rec = new Rec();
     rec.lang = "ko-KR";
     rec.continuous = true;
-    rec.interimResults = false;
+    rec.interimResults = true; // 말하는 중에도 글자가 바로 보이게
     spoken.current = "";
     speechStart.current = Date.now();
     rec.onresult = (e) => {
       let add = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) add += e.results[i][0].transcript;
+      let live = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) add += e.results[i][0].transcript;
+        else live += e.results[i][0].transcript;
+      }
+      setInterim(live.trim());
       if (add.trim()) {
         spoken.current += ` ${add.trim()}`;
         setAnswer((a) => (a.trim() ? `${a.trim()} ${add.trim()}` : add.trim()));
       }
     };
+    rec.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed")
+        setMicError(t("마이크를 쓸 수 없어요. 브라우저 주소창의 마이크 권한을 허용해 주세요.", "Microphone blocked — allow mic access in your browser.", "无法使用麦克风，请在浏览器中允许麦克风权限。", "Micro bị chặn — hãy cho phép trong trình duyệt.", "マイクが使えません。ブラウザでマイクを許可してください。", "Mikrofon diblokir — izinkan di browser."));
+      else if (e.error === "no-speech") setMicError(t("목소리가 들리지 않아요. 마이크 가까이에서 다시 말해 보세요.", "We couldn't hear you — try again closer to the mic.", "没有听到声音，请靠近麦克风再试。", "Không nghe thấy — hãy nói gần micro hơn.", "声が聞こえません。マイクの近くでもう一度。", "Suara tidak terdengar — coba lebih dekat ke mikrofon."));
+      else if (e.error !== "aborted") setMicError(t("음성 인식이 멈췄어요. 다시 눌러 주세요.", "Voice input stopped — tap again.", "语音识别已停止，请再点一次。", "Nhận giọng nói đã dừng — chạm lại.", "音声認識が止まりました。もう一度押してください。", "Input suara berhenti — ketuk lagi."));
+    };
     rec.onend = () => {
       setListening(false);
+      setInterim("");
+      meterStop.current?.();
+      meterStop.current = null;
       const text = spoken.current.trim();
       if (text) setSpeech({ ms: Date.now() - speechStart.current, chars: text.replace(/\s+/g, "").length, fillers: (text.match(FILLERS) ?? []).length });
     };
     recRef.current = rec;
     setListening(true);
     rec.start();
+    void startMeter();
   };
 
   const submit = async () => {
@@ -187,6 +260,26 @@ export function PracticeSheet({ question, onClose, onSaved }: { question: Practi
             )}
             <span className="text-[13px] tabular-nums text-[color:var(--v2-faint)]">{answer.trim().length}{t("자", " chars", "字", " ký tự", "字", " karakter")}</span>
           </div>
+          {listening ? (
+            <div className="mt-3 rounded-2xl bg-[#fdeced] p-4" aria-live="polite">
+              <div className="flex items-center gap-3">
+                <span className="relative flex h-3 w-3 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--v2-attention)] opacity-60" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-[color:var(--v2-attention)]" />
+                </span>
+                <span className="text-[14px] font-bold text-[color:var(--v2-attention)]">{t("듣고 있어요", "Listening", "正在听", "Đang nghe", "聞いています", "Mendengarkan")}</span>
+                <span className="text-[13px] tabular-nums text-[color:var(--v2-muted)]">{`${Math.floor(heard / 60)}:${String(heard % 60).padStart(2, "0")}`}</span>
+                {/* 소리 크기 막대 — 말하면 움직인다 */}
+                <span className="ml-auto flex h-5 items-end gap-0.5" aria-hidden>
+                  {[0.2, 0.45, 0.7, 1, 0.7, 0.45, 0.2].map((w, i) => (
+                    <span key={i} className="w-1 rounded-full bg-[color:var(--v2-attention)] transition-[height] duration-75" style={{ height: `${Math.max(3, Math.round(20 * Math.min(1, level * 1.6) * w))}px` }} />
+                  ))}
+                </span>
+              </div>
+              <p className="mt-2 min-h-[22px] text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{interim || t("말해 보세요. 들은 말이 여기 바로 보여요.", "Start speaking — your words appear here.", "开始说吧，听到的内容会显示在这里。", "Hãy nói — lời bạn sẽ hiện ở đây.", "話してみてください。ここにすぐ表示されます。", "Mulai bicara — kata-katamu muncul di sini.")}</p>
+            </div>
+          ) : null}
+          {micError ? <p className="mt-2 text-[14px] text-[color:var(--v2-attention)]">{micError}</p> : null}
           {speech ? (
             <p className="mt-2 text-[13px] text-[color:var(--v2-muted)]">
               {t(
