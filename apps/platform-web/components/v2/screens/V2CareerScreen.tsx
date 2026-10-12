@@ -154,7 +154,8 @@ function Career() {
 
       <div hidden={tab !== "prep"}>
         <Section title={t("지원 서류", "Documents", "申请材料", "Hồ sơ ứng tuyển", "応募書類", "Dokumen lamaran")}>
-          <div className="grid grid-cols-2 gap-3 pb-2">
+          {/* 모바일은 한 줄에 하나 — 반 폭이면 [미리보기][수정하기]가 두 줄로 꺾인다. */}
+          <div className="grid grid-cols-1 gap-3 pb-2 md:grid-cols-2">
             <DocStatusCard t={t} kind="resume" resume={resume} cover={cover} />
             <DocStatusCard t={t} kind="cover" resume={resume} cover={cover} />
           </div>
@@ -719,14 +720,6 @@ function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: ResumeDoc 
   return coverQuestions(cover).map((q) => ({ label: coverQuestionLabelOf(t, q), done: done.has(q) }));
 }
 
-function CheckMark({ className = "h-3 w-3" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M5 12.5 10 17 19 7" />
-    </svg>
-  );
-}
-
 function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
   const doc = kind === "resume" ? resume : cover;
   const sig = doc?.updatedAt ?? 0;
@@ -780,83 +773,96 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
   };
 
   const sorted = review ? [...review.findings].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1)) : [];
-  const runButton = (text: string) => (
-    <button type="button" onClick={run} disabled={busy} className="relative inline-flex h-9 items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+  // 상태 배지 — 한눈에 어디쯤인지.
+  const badge = !doc
+    ? { text: t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]" }
+    : left.length
+      ? { text: t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Diisi"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]" }
+      : !review || stale
+        ? { text: t("점검 전", "Not checked", "未检查", "Chưa kiểm tra", "点検前", "Belum dicek"), cls: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" }
+        : sorted.length
+          ? { text: t(`보완 ${sorted.length}`, `${sorted.length} to fix`, `待改 ${sorted.length}`, `Sửa ${sorted.length}`, `改善 ${sorted.length}`, `${sorted.length} perbaikan`), cls: "bg-[#fdeced] text-[color:var(--v2-attention)]" }
+          : { text: t("점검 통과", "Passed", "已通过", "Đạt", "点検OK", "Lolos"), cls: "bg-[#e5f6ee] text-[color:var(--v2-good)]" };
+  const done = checks.length - left.length;
+  const runLink = (text: string) => (
+    <button type="button" onClick={run} disabled={busy} className="inline-flex items-center gap-1 text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-70 disabled:opacity-60">
       {busy ? <Spinner /> : null}
-      {busy ? t("읽는 중", "Reading", "读取中", "Đang đọc", "読込中", "Membaca") : text}
+      {busy ? t("읽고 있어요", "Reading…", "读取中…", "Đang đọc…", "読んでいます", "Membaca…") : text}
+      {busy ? null : (
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="m9 6 6 6-6 6" />
+        </svg>
+      )}
     </button>
   );
 
   return (
-    <div className="relative flex flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)] md:p-5">
-      <Link href={editHref} aria-label={label} className="absolute inset-0 rounded-2xl" />
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{label}</p>
-        {previewHref ? (
-          <Link href={previewHref} className="relative text-[13px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
-            {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
-          </Link>
-        ) : null}
+    <div className="flex flex-col rounded-2xl border border-[color:var(--v2-line)] bg-white p-4 md:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</p>
+        <span className={`shrink-0 rounded-md px-2 py-1 text-[12px] font-bold leading-none ${badge.cls}`}>{badge.text}</span>
       </div>
 
-      {left.length || !doc ? (
-        // 채우는 중 — 필수 항목 체크
-        <>
-          <ul className="mt-3 flex flex-col gap-1.5">
-            {checks.map((c) => (
-              <li key={c.label} className="flex min-w-0 items-center gap-2">
-                <span className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${c.done ? "bg-[color:var(--v2-good)] text-white" : "border-2 border-[color:var(--v2-line)] bg-white"}`} aria-hidden>
-                  {c.done ? <CheckMark /> : null}
-                </span>
-                <span className={`truncate text-[14px] ${c.done ? "text-[color:var(--v2-muted)]" : "font-semibold text-[color:var(--v2-ink-2)]"}`}>{c.label}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[13px] font-semibold text-[color:var(--v2-accent)]">
-            {!doc
-              ? t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")
-              : left.length === 1
-                ? t(`${left[0].label}만 채우면 돼요`, `Just add ${left[0].label}`, `只差${left[0].label}`, `Chỉ còn ${left[0].label}`, `${left[0].label}だけです`, `Tinggal ${left[0].label}`)
-                : t(`${left.length}개 남았어요`, `${left.length} left`, `还差 ${left.length} 项`, `Còn ${left.length}`, `あと${left.length}件`, `${left.length} lagi`)}
-          </p>
-        </>
-      ) : !review ? (
-        // 다 채움 — 아직 점검 전
-        <>
-          <p className="mt-3 flex items-center gap-1.5 text-[14px] font-semibold text-[color:var(--v2-good)]">
-            <CheckMark className="h-4 w-4" />
-            {t("필수 항목 다 채웠어요", "All essentials done", "必填项已完成", "Đã đủ mục chính", "必須項目OK", "Semua inti terisi")}
-          </p>
-          <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("이제 AI로 내용을 점검해 보세요.", "Now check the content with AI.", "现在用 AI 检查内容吧。", "Giờ hãy kiểm tra bằng AI.", "AIで内容を点検しましょう。", "Sekarang cek isi dengan AI.")}</p>
-          <div className="mt-3">{runButton(t("AI 점검", "AI check", "AI 检查", "Kiểm tra AI", "AI点検", "Cek AI"))}</div>
-        </>
-      ) : (
-        // 점검 결과
-        <>
-          {sorted.length ? (
-            <>
-              <p className="mt-3 text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`보완할 점 ${sorted.length}개`, `${sorted.length} to improve`, `${sorted.length} 处待改进`, `${sorted.length} điểm cần sửa`, `改善点${sorted.length}件`, `${sorted.length} perbaikan`)}</p>
-              <p className="mt-1 line-clamp-2 text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{sorted[0].issue}</p>
-            </>
-          ) : (
-            <p className="mt-3 flex items-center gap-1.5 text-[15px] font-bold text-[color:var(--v2-good)]">
-              <CheckMark className="h-4 w-4" />
-              {t("AI 점검 통과", "Passed AI check", "通过 AI 检查", "Đạt kiểm tra AI", "AI点検OK", "Lolos cek AI")}
+      <div className="mt-4 flex-1">
+        {left.length || !doc ? (
+          // 채우는 중 — 필수 항목 막대(칸마다 한 항목) + 남은 항목
+          <>
+            <div className="flex gap-1" aria-hidden>
+              {checks.map((c) => (
+                <span key={c.label} className={`h-1.5 flex-1 rounded-full ${c.done ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)]"}`} />
+              ))}
+            </div>
+            <p className="mt-2.5 text-[13px] text-[color:var(--v2-muted)]">
+              {t(`필수 ${checks.length}개 중 ${done}개`, `${done} of ${checks.length} essentials`, `必填 ${checks.length} 项中 ${done} 项`, `${done}/${checks.length} mục chính`, `必須${checks.length}件中${done}件`, `${done} dari ${checks.length} inti`)}
             </p>
-          )}
-          {stale ? (
-            <>
-              <p className="mt-2 text-[13px] text-[color:var(--v2-muted)]">{t("서류가 바뀌었어요", "Document changed", "材料已更新", "Hồ sơ đã đổi", "書類が変わりました", "Dokumen berubah")}</p>
-              <div className="mt-2">{runButton(t("다시 점검", "Re-check", "重新检查", "Kiểm tra lại", "再点検", "Cek ulang"))}</div>
-            </>
-          ) : sorted.length ? (
-            <button type="button" onClick={() => setOpen(true)} className="relative mt-2 self-start text-[13px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
-              {t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}
+            <ul className="mt-2 flex flex-col gap-1">
+              {left.slice(0, 3).map((c) => (
+                <li key={c.label} className="flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--v2-attention)]" aria-hidden />
+                  <span className="truncate">{c.label}</span>
+                </li>
+              ))}
+              {left.length > 3 ? <li className="text-[13px] text-[color:var(--v2-faint)]">{t(`외 ${left.length - 3}개`, `+${left.length - 3} more`, `等 ${left.length - 3} 项`, `+${left.length - 3}`, `他${left.length - 3}件`, `+${left.length - 3}`)}</li> : null}
+            </ul>
+          </>
+        ) : !review || stale ? (
+          // 다 채움 — 점검 전(또는 고친 뒤 다시 점검 전)
+          <>
+            <p className="text-[15px] font-semibold leading-[1.5] text-[color:var(--v2-ink)]">
+              {stale ? t("고친 내용을 다시 점검해 보세요", "Re-check your edits", "请重新检查修改内容", "Hãy kiểm tra lại", "直した内容を再点検", "Cek ulang suntingan") : t("필수 항목을 다 채웠어요", "All essentials are in", "必填项都写好了", "Đã đủ mục chính", "必須項目はそろいました", "Semua inti terisi")}
+            </p>
+            <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("AI가 기업 눈으로 내용을 읽고 보완할 점을 짚어 줘요.", "AI reads it like a recruiter and flags what to improve.", "AI 以企业视角阅读并指出改进点。", "AI đọc như nhà tuyển dụng và chỉ ra điểm cần sửa.", "AIが企業目線で読み改善点を示します。", "AI membaca seperti perekrut dan menandai perbaikan.")}</p>
+            <div className="mt-2.5">{runLink(stale ? t("다시 점검하기", "Re-check", "重新检查", "Kiểm tra lại", "再点検する", "Cek ulang") : t("AI로 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIで点検する", "Cek dengan AI"))}</div>
+          </>
+        ) : sorted.length ? (
+          // 점검 결과 — 보완할 점
+          <>
+            <p className="flex items-baseline gap-1">
+              <span className="text-[28px] font-bold leading-none tracking-[-0.02em] text-[color:var(--v2-ink)]">{sorted.length}</span>
+              <span className="text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{t("개 보완하면 좋아요", "to improve", "处可改进", "điểm nên sửa", "件の改善点", "perbaikan")}</span>
+            </p>
+            <p className="mt-2 line-clamp-2 text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{sorted[0].issue}</p>
+            <button type="button" onClick={() => setOpen(true)} className="mt-2 text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
+              {t("보완할 점 보기", "See details", "查看详情", "Xem chi tiết", "詳しく見る", "Lihat detail")}
             </button>
-          ) : null}
-        </>
-      )}
-      {error ? <p className="relative mt-2 text-[13px] text-[color:var(--v2-attention)]">{error}</p> : null}
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] font-semibold text-[color:var(--v2-ink)]">{t("AI 점검을 통과했어요", "Passed the AI check", "已通过 AI 检查", "Đã đạt kiểm tra AI", "AI点検をクリア", "Lolos cek AI")}</p>
+            <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("이제 공고에 지원해 보세요.", "Now go apply.", "现在去投递吧。", "Giờ hãy ứng tuyển.", "応募してみましょう。", "Sekarang lamar.")}</p>
+          </>
+        )}
+        {error ? <p className="mt-2 text-[13px] text-[color:var(--v2-attention)]">{error}</p> : null}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button size="sm" variant="neutral" full href={previewHref ?? undefined} disabled={!previewHref}>
+          {t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Lihat")}
+        </Button>
+        <Button size="sm" variant="secondary" full href={editHref}>
+          {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}
+        </Button>
+      </div>
 
       {open && review ? (
         <Sheet
