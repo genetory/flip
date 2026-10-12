@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
+import { PracticeTools } from "../interview-content";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { Actions, Attention, Button, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
@@ -192,7 +193,7 @@ function Interviews() {
         title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}
         aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày liên tiếp`, `${streak}日連続`, `${streak} hari beruntun`)}</span> : undefined}
       >
-        <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-2xl bg-[color:var(--v2-accent-weak)] p-5 text-left transition hover:opacity-90">
+        <button type="button" onClick={() => openQuestion(daily.ko, daily.category)} className="flex w-full flex-col items-start rounded-3xl bg-gradient-to-br from-[#edf1fd] via-[#eef0ff] to-[#f4ecff] p-5 text-left transition hover:opacity-90">
           <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
           <span className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</span>
           {locale !== "ko" ? <span className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</span> : null}
@@ -208,6 +209,10 @@ function Interviews() {
           </span>
         </button>
         {isForeignNationality(user?.nationality) || locale !== "ko" ? <ExpressionCard t={t} /> : null}
+      </Section>
+
+      <Section title={t("연습 도구", "Practice tools", "练习工具", "Công cụ luyện tập", "練習ツール", "Alat latihan")}>
+        <PracticeTools t={t} showQuiz={isForeignNationality(user?.nationality) === true || locale !== "ko"} />
       </Section>
 
       <InterviewReportPrompt t={t} apps={apps} />
@@ -472,7 +477,7 @@ function ExpressionCard({ t }: { t: PlatformT }) {
     <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-5">
       <p className="text-[13px] font-bold text-[color:var(--v2-muted)]">{t("오늘의 한국어 면접 표현", "Korean interview phrase", "今日韩语面试表达", "Câu tiếng Hàn phỏng vấn", "今日の韓国語面接表現", "Frasa wawancara Korea")}</p>
       <p className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{e.ko}</p>
-      <p className="mt-0.5 text-[14px] text-[color:var(--v2-ink-3)]">{expressionMeaning(t, e)}</p>
+      {expressionMeaning(t, e) !== e.ko ? <p className="mt-0.5 text-[14px] text-[color:var(--v2-ink-3)]">{expressionMeaning(t, e)}</p> : null}
       <p className="mt-3 border-l-2 border-[color:var(--v2-line)] pl-3 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{e.example}</p>
     </div>
   );

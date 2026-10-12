@@ -80,3 +80,149 @@ export function pickDailyExpression(day = kstDay()): Expression {
 export function expressionMeaning(t: PlatformT, e: Expression): string {
   return t(e.ko, e.en, e.zh, e.vi, e.ja, e.id);
 }
+
+// ── 한국 면접 매너 퀴즈 — 외국인 지원자가 실제로 헷갈리는 것. 하루 3문제(날짜로 고정).
+export type QuizItem = {
+  q: [string, string, string, string, string, string];
+  options: [string, string, string, string, string, string][];
+  answer: number;
+  why: [string, string, string, string, string, string];
+};
+
+export const MANNER_QUIZ: QuizItem[] = [
+  {
+    q: ["면접장에 들어갈 때 가장 알맞은 인사는?", "Best greeting when entering the interview room?", "进入面试室时最合适的问候是？", "Lời chào phù hợp nhất khi vào phòng phỏng vấn?", "面接室に入るときの最適な挨拶は？", "Salam terbaik saat masuk ruang wawancara?"],
+    options: [
+      ["\"안녕하세요!\" 하고 바로 앉는다", "Say \"Hello!\" and sit right away", "说\"你好！\"就直接坐下", "Chào rồi ngồi ngay", "「こんにちは！」と言ってすぐ座る", "Sapa lalu langsung duduk"],
+      ["가볍게 목례하고 \"안녕하십니까, ○○○입니다\" 한 뒤 앉으라고 하면 앉는다", "Bow lightly, say \"Hello, I'm ○○○\", sit when invited", "轻轻鞠躬说\"您好，我是○○○\"，等对方示意再坐", "Cúi nhẹ, chào và giới thiệu tên, ngồi khi được mời", "軽く会釈し名乗り、勧められてから座る", "Membungkuk ringan, sebut nama, duduk saat dipersilakan"],
+      ["악수를 먼저 청한다", "Offer a handshake first", "先主动握手", "Chủ động bắt tay trước", "先に握手を求める", "Menawarkan jabat tangan dulu"]
+    ],
+    answer: 1,
+    why: ["한국 면접에선 목례와 함께 이름을 말하고, 면접관이 권할 때 앉는 게 기본이에요. 악수는 면접관이 먼저 청할 때만.", "In Korea, bow and say your name, then sit when invited. Shake hands only if they offer.", "韩国面试中鞠躬并报名字，面试官示意后再坐。只有对方先伸手时才握手。", "Ở Hàn, cúi chào, nói tên và ngồi khi được mời. Chỉ bắt tay khi họ chủ động.", "韓国では会釈して名乗り、勧められてから座るのが基本。握手は相手から求められた時だけ。", "Di Korea, membungkuk, sebut nama, duduk saat dipersilakan. Jabat tangan hanya jika ditawari."]
+  },
+  {
+    q: ["면접관을 부를 때 알맞은 말은?", "How should you address the interviewer?", "称呼面试官时合适的说法是？", "Nên gọi người phỏng vấn thế nào?", "面接官の呼び方として適切なのは？", "Cara memanggil pewawancara yang tepat?"],
+    options: [
+      ["\"면접관님\"", "\"Myeonjeopgwan-nim\" (Interviewer)", "\"面试官님\"", "\"Myeonjeopgwan-nim\"", "「面接官様（면접관님）」", "\"Myeonjeopgwan-nim\""],
+      ["\"아저씨\" 또는 \"선생님\"", "\"Ajeossi\" or \"Seonsaengnim\"", "\"大叔\"或\"老师\"", "\"Ajeossi\" hoặc \"Seonsaengnim\"", "「おじさん」や「先生」", "\"Ajeossi\" atau \"Seonsaengnim\""],
+      ["이름을 부른다", "Use their first name", "直接叫名字", "Gọi tên", "名前で呼ぶ", "Panggil nama"]
+    ],
+    answer: 0,
+    why: ["\"면접관님\"이 가장 무난해요. 직함을 알면 \"팀장님\"처럼 불러도 좋아요.", "\"Myeonjeopgwan-nim\" is safest. If you know their title, use it (e.g. \"Team lead-nim\").", "\"面试官님\"最稳妥。知道职位时也可以叫\"组长님\"。", "\"Myeonjeopgwan-nim\" là an toàn nhất. Biết chức danh thì dùng chức danh.", "「면접관님」が無難。役職がわかれば「팀장님」なども可。", "\"Myeonjeopgwan-nim\" paling aman. Jika tahu jabatannya, pakai jabatan."]
+  },
+  {
+    q: ["\"1분 자기소개\"는 대략 몇 글자 분량이 알맞을까요?", "How long should a 1-minute self-intro be (Korean)?", "\"1分钟自我介绍\"大约多少字合适？", "Tự giới thiệu 1 phút nên khoảng bao nhiêu chữ (tiếng Hàn)?", "「1分自己紹介」は何文字くらいが適切？", "Perkenalan 1 menit sebaiknya berapa karakter (Korea)?"],
+    options: [
+      ["100자 정도", "About 100 chars", "约100字", "Khoảng 100 chữ", "100字ほど", "Sekitar 100 karakter"],
+      ["250~400자 정도", "About 250–400 chars", "约250~400字", "Khoảng 250–400 chữ", "250〜400字ほど", "Sekitar 250–400 karakter"],
+      ["800자 이상", "800+ chars", "800字以上", "Trên 800 chữ", "800字以上", "Lebih dari 800 karakter"]
+    ],
+    answer: 1,
+    why: ["보통 1분에 300자 안팎을 말해요. 이름 → 핵심 경험 하나(숫자로) → 강점 → 지원 동기 순서가 깔끔해요.", "People say ~300 chars a minute. Name → one key experience (with numbers) → strength → motivation.", "一般一分钟约说300字。名字→一个核心经历（带数字）→优点→动机。", "Khoảng 300 chữ mỗi phút. Tên → 1 trải nghiệm chính (có số) → điểm mạnh → động lực.", "1分で300字前後。名前→核心の経験1つ（数字で）→強み→動機の順がすっきり。", "Sekitar 300 karakter per menit. Nama → satu pengalaman utama → kekuatan → motivasi."]
+  },
+  {
+    q: ["\"희망 연봉은 얼마인가요?\"라는 질문에 가장 좋은 답은?", "Best answer to \"What's your expected salary?\"", "被问\"期望年薪多少？\"最好的回答是？", "Câu trả lời tốt nhất cho \"Mức lương mong muốn?\"", "「希望年収は？」への最適な答えは？", "Jawaban terbaik untuk \"Berapa gaji yang diharapkan?\""],
+    options: [
+      ["\"아무거나 괜찮습니다\"", "\"Anything is fine\"", "\"多少都可以\"", "\"Bao nhiêu cũng được\"", "「いくらでも大丈夫です」", "\"Berapa saja boleh\""],
+      ["근거 없이 높은 금액을 말한다", "Name a high number with no basis", "毫无依据地说高价", "Nói con số cao không có căn cứ", "根拠なく高い額を言う", "Sebut angka tinggi tanpa dasar"],
+      ["\"회사 내규를 따르겠습니다\" 또는 시장 수준을 근거로 범위를 말한다", "\"I'll follow company policy\" or give a range based on the market", "\"遵循公司规定\"或根据市场水平给出范围", "\"Theo quy định công ty\" hoặc nêu khoảng theo thị trường", "「御社の規定に従います」か相場に基づく範囲を伝える", "\"Mengikuti aturan perusahaan\" atau rentang sesuai pasar"]
+    ],
+    answer: 2,
+    why: ["신입은 \"내규를 따르겠다\"가 무난하고, 경력이면 시장 수준을 근거로 범위를 말해요. E-7 비자는 연봉 기준이 있어서 너무 낮게 말하지 않는 게 좋아요.", "Juniors usually say \"company policy\"; experienced hires give a market-based range. E-7 has a salary threshold, so don't go too low.", "新人一般说\"遵循规定\"，有经验者按市场给范围。E-7签证有年薪标准，别说太低。", "Người mới nói \"theo quy định\", có kinh nghiệm thì nêu khoảng theo thị trường. E-7 có ngưỡng lương nên đừng nói quá thấp.", "新卒は「規定に従います」、経験者は相場で範囲を。E-7は年収基準があるので低すぎないように。", "Lulusan baru: \"aturan perusahaan\"; berpengalaman: rentang pasar. E-7 punya ambang gaji, jangan terlalu rendah."]
+  },
+  {
+    q: ["질문을 잘 못 알아들었을 때 가장 좋은 행동은?", "You didn't understand a question. Best move?", "没听懂问题时最好的做法是？", "Không hiểu câu hỏi thì nên làm gì?", "質問がよく聞き取れなかった時は？", "Tidak paham pertanyaan. Sebaiknya?"],
+    options: [
+      ["아는 내용으로 대충 답한다", "Answer vaguely with what you know", "用自己知道的随便回答", "Trả lời đại khái", "知っていることで適当に答える", "Jawab seadanya"],
+      ["\"죄송하지만, 질문을 다시 한번 말씀해 주시겠어요?\"라고 묻는다", "Ask: \"Sorry, could you repeat the question?\"", "说\"不好意思，能请您再说一遍吗？\"", "Hỏi lại lịch sự: \"Xin lỗi, anh/chị nhắc lại được không ạ?\"", "「恐れ入りますが、もう一度おっしゃっていただけますか？」と聞く", "Tanya: \"Maaf, bisa diulang pertanyaannya?\""],
+      ["말없이 기다린다", "Wait silently", "沉默等待", "Im lặng chờ", "黙って待つ", "Diam menunggu"]
+    ],
+    answer: 1,
+    why: ["다시 물어보는 건 감점이 아니에요. 엉뚱하게 답하는 것보다 훨씬 좋아요.", "Asking again isn't penalized — it's far better than answering off-topic.", "再问一遍不会扣分，比答非所问好得多。", "Hỏi lại không bị trừ điểm — tốt hơn nhiều so với trả lời lạc đề.", "聞き返しても減点になりません。的外れに答えるよりずっと良いです。", "Bertanya ulang tidak mengurangi nilai — jauh lebih baik dari menjawab melenceng."]
+  },
+  {
+    q: ["면접 복장으로 가장 무난한 것은? (공고에 안내가 없을 때)", "Safest interview outfit (when not specified)?", "（未注明时）最稳妥的面试着装是？", "Trang phục phỏng vấn an toàn nhất (khi không ghi)?", "（指定がない時）最も無難な服装は？", "Pakaian wawancara paling aman (jika tidak disebut)?"],
+    options: [
+      ["깔끔한 정장 또는 단정한 비즈니스 캐주얼", "A neat suit or tidy business casual", "整洁的正装或得体的商务休闲装", "Vest gọn gàng hoặc business casual chỉnh tề", "きちんとしたスーツか清潔なビジネスカジュアル", "Jas rapi atau business casual"],
+      ["편한 운동복", "Comfortable sportswear", "舒适的运动服", "Đồ thể thao", "楽なスポーツウェア", "Pakaian olahraga"],
+      ["화려한 파티 옷", "Flashy party clothes", "华丽的派对服", "Đồ dự tiệc lộng lẫy", "派手なパーティー服", "Pakaian pesta mencolok"]
+    ],
+    answer: 0,
+    why: ["대기업·금융은 정장, 스타트업·IT는 단정한 비즈니스 캐주얼이 많아요. 헷갈리면 조금 더 격식 있게.", "Big firms/finance: suit. Startups/IT: tidy business casual. When unsure, go a bit more formal.", "大企业/金融穿正装，创业/IT多为商务休闲。拿不准就更正式一点。", "Tập đoàn/tài chính: vest. Startup/IT: business casual. Phân vân thì trang trọng hơn.", "大企業・金融はスーツ、スタートアップ・ITはビジカジが多い。迷ったら少しフォーマルに。", "Korporat/keuangan: jas. Startup/IT: business casual. Ragu? Lebih formal."]
+  },
+  {
+    q: ["면접 장소에는 언제 도착하는 게 좋을까요?", "When should you arrive?", "什么时候到达面试地点最好？", "Nên đến lúc nào?", "面接会場にはいつ着くのが良い？", "Kapan sebaiknya tiba?"],
+    options: [
+      ["딱 정시에", "Exactly on time", "准点到", "Đúng giờ", "ちょうど定刻に", "Tepat waktu"],
+      ["10~15분 전", "10–15 minutes early", "提前10~15分钟", "Sớm 10–15 phút", "10〜15分前", "10–15 menit lebih awal"],
+      ["1시간 전", "An hour early", "提前一小时", "Sớm 1 tiếng", "1時間前", "1 jam lebih awal"]
+    ],
+    answer: 1,
+    why: ["10~15분 전에 도착해 안내를 받는 게 좋아요. 너무 일찍 가면 회사에 부담이 될 수 있어요. 늦을 것 같으면 미리 전화하세요.", "Arrive 10–15 min early. Too early can burden the company. If you'll be late, call ahead.", "提前10~15分钟到最好。太早会给公司带来负担。可能迟到要提前打电话。", "Đến sớm 10–15 phút. Quá sớm có thể gây phiền. Nếu trễ, gọi báo trước.", "10〜15分前が良いです。早すぎると会社の負担に。遅れそうなら事前に電話を。", "Tiba 10–15 menit lebih awal. Terlalu awal bisa merepotkan. Jika telat, telepon dulu."]
+  },
+  {
+    q: ["\"마지막으로 궁금한 점 있나요?\"에 가장 좋은 답은?", "Best reply to \"Any questions for us?\"", "被问\"最后有什么想问的吗？\"最好的回答是？", "Trả lời tốt nhất cho \"Bạn có câu hỏi nào không?\"", "「最後に質問はありますか？」への最適な答えは？", "Jawaban terbaik untuk \"Ada pertanyaan?\""],
+    options: [
+      ["\"없습니다\"", "\"No, none\"", "\"没有\"", "\"Không có ạ\"", "「ありません」", "\"Tidak ada\""],
+      ["연봉·휴가만 묻는다", "Ask only about pay and vacation", "只问薪资和休假", "Chỉ hỏi lương và nghỉ phép", "給与・休暇だけ聞く", "Hanya tanya gaji dan cuti"],
+      ["업무·팀에 대한 질문 1~2개를 한다", "Ask 1–2 questions about the work or team", "提1~2个关于工作或团队的问题", "Hỏi 1–2 câu về công việc hoặc nhóm", "業務・チームについて1〜2個質問する", "Tanya 1–2 hal tentang pekerjaan/tim"]
+    ],
+    answer: 2,
+    why: ["\"입사하면 첫 3개월 동안 어떤 일을 기대하시나요?\"처럼 업무·팀 질문을 하면 관심과 준비가 보여요.", "Questions like \"What would you expect in my first 3 months?\" show interest and preparation.", "像\"入职前三个月您期待我做什么？\"这样的问题能体现兴趣和准备。", "Câu như \"3 tháng đầu anh/chị kỳ vọng gì?\" cho thấy sự quan tâm và chuẩn bị.", "「入社後3か月で期待されることは？」のような質問は関心と準備を示せます。", "Pertanyaan seperti \"Apa harapan di 3 bulan pertama?\" menunjukkan minat."]
+  },
+  {
+    q: ["면접이 끝나고 나갈 때 알맞은 행동은?", "What to do when leaving after the interview?", "面试结束离开时合适的做法是？", "Khi ra về sau phỏng vấn nên làm gì?", "面接が終わって退室する時は？", "Saat keluar setelah wawancara?"],
+    options: [
+      ["일어나서 \"감사합니다\" 인사하고, 문 앞에서 한 번 더 목례한다", "Stand, say \"Thank you\", and bow once more at the door", "起身说\"谢谢\"，在门口再鞠躬一次", "Đứng dậy cảm ơn và cúi chào lần nữa ở cửa", "立って「ありがとうございました」、ドアの前でもう一度会釈", "Berdiri, ucapkan terima kasih, membungkuk lagi di pintu"],
+      ["휴대폰을 확인하며 나간다", "Check your phone as you leave", "边看手机边离开", "Vừa đi vừa xem điện thoại", "スマホを見ながら出る", "Keluar sambil cek ponsel"],
+      ["인사 없이 바로 나간다", "Leave without a word", "不打招呼直接离开", "Ra về không chào", "挨拶せずすぐ出る", "Langsung keluar tanpa salam"]
+    ],
+    answer: 0,
+    why: ["면접은 문을 닫고 나갈 때까지예요. 마지막 인사까지 단정하게.", "The interview lasts until you close the door — keep it polite to the end.", "直到关门离开面试才算结束，礼貌到最后。", "Phỏng vấn kéo dài đến khi bạn đóng cửa — lịch sự đến cuối.", "面接はドアを閉めるまで。最後まで丁寧に。", "Wawancara berlangsung sampai pintu ditutup — tetap sopan."]
+  },
+  {
+    q: ["\"한국에서 오래 일할 생각인가요?\"라는 질문의 의도는?", "Intent behind \"Do you plan to work in Korea long-term?\"", "\"打算在韩国长期工作吗？\"这个问题的意图是？", "Ý của câu \"Bạn định làm ở Hàn lâu dài không?\"", "「韓国で長く働くつもりですか？」の意図は？", "Maksud \"Apakah berencana kerja lama di Korea?\""],
+    options: [
+      ["개인적인 호기심", "Personal curiosity", "个人好奇", "Tò mò cá nhân", "個人的な好奇心", "Rasa ingin tahu pribadi"],
+      ["뽑은 뒤 금방 떠나지 않을지(비자·정착 계획) 확인하려는 것", "To check you won't leave soon (visa, settling plans)", "确认录用后不会很快离开（签证、定居计划）", "Kiểm tra bạn có rời đi sớm không (visa, kế hoạch)", "採用後すぐ辞めないか（ビザ・定着計画）確認するため", "Memastikan tidak cepat pergi (visa, rencana)"],
+      ["거절하려는 신호", "A sign of rejection", "拒绝的信号", "Dấu hiệu từ chối", "不採用のサイン", "Tanda penolakan"]
+    ],
+    answer: 1,
+    why: ["회사는 비자 절차에 시간과 비용을 들여요. 비자 계획과 한국에서 이루고 싶은 목표를 구체적으로 말하면 좋아요.", "Companies invest in visa procedures. Share your visa plan and concrete goals in Korea.", "公司要为签证投入时间和费用。具体说明签证计划和在韩目标。", "Công ty đầu tư cho thủ tục visa. Hãy nói rõ kế hoạch visa và mục tiêu ở Hàn.", "会社はビザ手続きに時間と費用をかけます。ビザ計画と韓国での目標を具体的に。", "Perusahaan berinvestasi pada visa. Jelaskan rencana visa dan tujuanmu di Korea."]
+  },
+  {
+    q: ["답변할 때 가장 좋은 말투는?", "Best speaking style when answering?", "回答时最好的语气是？", "Cách nói tốt nhất khi trả lời?", "回答する時の最適な話し方は？", "Gaya bicara terbaik saat menjawab?"],
+    options: [
+      ["\"~했어요\" 같은 해요체", "Casual-polite \"~haeyo\"", "\"~했어요\"这样的해요体", "Kiểu \"~haeyo\"", "「〜했어요」の해요体", "Gaya \"~haeyo\""],
+      ["\"~했습니다\" 같은 합니다체", "Formal \"~haetseumnida\"", "\"~했습니다\"这样的합니다体", "Kiểu trang trọng \"~seumnida\"", "「〜했습니다」の합니다体", "Gaya formal \"~seumnida\""],
+      ["반말", "Banmal (informal)", "半语", "Nói trống không (banmal)", "タメ口", "Banmal (informal)"]
+    ],
+    answer: 1,
+    why: ["면접에선 \"~습니다\"체가 기본이에요. 중간중간 \"~요\"가 섞여도 괜찮지만 반말은 피하세요.", "Use \"~seumnida\" by default. A few \"~yo\" are fine; never banmal.", "面试以\"~습니다\"体为主，偶尔用\"~요\"可以，但避免半语。", "Dùng \"~seumnida\" là chính. Thỉnh thoảng \"~yo\" cũng được, tránh banmal.", "面接は「〜습니다」体が基本。「〜요」が混ざってもOK、タメ口はNG。", "Gunakan \"~seumnida\". Sesekali \"~yo\" boleh, hindari banmal."]
+  },
+  {
+    q: ["면접 결과 연락이 늦을 때 가장 알맞은 행동은?", "Results are late. What's appropriate?", "面试结果迟迟没通知时合适的做法是？", "Kết quả chậm thì nên làm gì?", "結果の連絡が遅い時は？", "Hasil terlambat. Apa yang tepat?"],
+    options: [
+      ["매일 전화한다", "Call every day", "每天打电话", "Gọi mỗi ngày", "毎日電話する", "Telepon setiap hari"],
+      ["안내받은 날짜가 지나면 정중하게 한 번 문의한다", "After the stated date, politely ask once", "过了告知的日期后礼貌地询问一次", "Quá ngày hẹn thì hỏi lịch sự một lần", "案内された日が過ぎたら丁寧に一度問い合わせる", "Setelah tanggal yang disebut, tanyakan sekali dengan sopan"],
+      ["떨어졌다고 생각하고 연락하지 않는다", "Assume you failed and never ask", "认为落选了不再联系", "Nghĩ là trượt và không hỏi", "落ちたと思って連絡しない", "Anggap gagal dan tidak bertanya"]
+    ],
+    answer: 1,
+    why: ["안내받은 일정이 지나면 이메일이나 전화로 한 번 정중하게 물어보세요. Aply 지원이라면 지원 현황의 메시지로 물어볼 수 있어요.", "After the stated date, ask once by email or phone. For Aply applications, use Messages in Applications.", "过了告知日期后，用邮件或电话礼貌询问一次。Aply 投递可在投递状态里发消息询问。", "Sau ngày hẹn, hỏi một lần qua email/điện thoại. Với Aply, dùng Tin nhắn trong Trạng thái ứng tuyển.", "案内日を過ぎたらメールか電話で一度丁寧に。Aplyの応募なら応募状況のメッセージで。", "Setelah tanggal, tanyakan sekali via email/telepon. Untuk Aply, gunakan Pesan di Status lamaran."]
+  }
+];
+
+/** 오늘의 매너 퀴즈 3문제(날짜로 고정). */
+export function pickDailyQuiz(day = kstDay()): QuizItem[] {
+  const start = hash(`quiz:${day}`) % MANNER_QUIZ.length;
+  return [0, 1, 2].map((i) => MANNER_QUIZ[(start + i * 5) % MANNER_QUIZ.length]);
+}
+
+/** 10분 모의 면접 5문항 — 자기소개(고정) → 직무 → 경험 → 인성 → 마지막 말(고정). seed 로 섞는다. */
+export function pickInterviewSet(seed: number): DailyQuestion[] {
+  const by = (c: DailyQuestion["category"]) => DAILY_QUESTIONS.filter((q) => q.category === c);
+  const pick = <T,>(arr: T[], k: number) => arr[(seed + k * 7) % arr.length];
+  const intro = DAILY_QUESTIONS[0];
+  const closing = DAILY_QUESTIONS[DAILY_QUESTIONS.length - 1];
+  return [intro, pick(by("competency"), 1), pick(by("experience"), 2), pick(by("weakness").filter((q) => q !== closing), 3), closing];
+}
