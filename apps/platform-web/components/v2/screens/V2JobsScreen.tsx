@@ -12,6 +12,7 @@ import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
+import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { getMyFavoritePositions, getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { trackForeignerPrompt } from "../../../lib/analytics";
 
@@ -157,24 +158,51 @@ function Jobs() {
     ["interest", t("관심 직무", "My interests", "感兴趣", "Quan tâm", "関心職種", "Minatku")],
     ["saved", t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan")]
   ];
+  // 머리말 — 외국인·한국인 모두 보는 곳이라 '어디서 일할지'가 아니라 '지금 보고 있는 공고 묶음'을 말한다.
+  // 탭·외국인 스위치·검색어에 따라 바뀐다. 숫자만 굵은 먹색({n} 자리에 끼워 넣는다 — 언어마다 어순이 다르다).
+  const bold = (tpl: string, n: number | null) =>
+    n == null ? undefined : tpl.split("{n}").flatMap((part, i) => (i === 0 ? [part] : [<b key={i} className="font-bold text-[color:var(--v2-ink)]">{n.toLocaleString()}</b>, part]));
+  const shownCount = tab === "saved" ? items?.length ?? null : total;
+  const countLede = bold(t("{n}개 공고가 있어요", "{n} jobs", "共 {n} 个职位", "{n} việc làm", "{n}件の求人", "{n} lowongan"), shownCount);
+  const heading: { title: string; lede: React.ReactNode } = (() => {
+    const f = foreigner && tab !== "saved";
+    if (search)
+      return {
+        title: t(`'${search}' 검색 결과`, `Results for '${search}'`, `“${search}” 的搜索结果`, `Kết quả cho '${search}'`, `「${search}」の検索結果`, `Hasil untuk '${search}'`),
+        lede: countLede
+      };
+    if (tab === "saved") return { title: t("저장한 공고", "Saved jobs", "已收藏的职位", "Tin đã lưu", "保存した求人", "Lowongan tersimpan"), lede: countLede };
+    if (tab === "aply")
+      return {
+        title: f
+          ? t("외국인을 채용하는 Aply 공고", "Aply jobs open to foreigners", "招外国人的 Aply 职位", "Việc Aply nhận người nước ngoài", "外国人を採用するAply求人", "Lowongan Aply untuk WNA")
+          : t("Aply로 바로 지원하는 공고", "Apply directly on Aply", "可在 Aply 直接投递的职位", "Ứng tuyển trực tiếp trên Aply", "Aplyで直接応募できる求人", "Lamar langsung di Aply"),
+        lede: countLede
+      };
+    if (tab === "interest") {
+      const names = interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ");
+      return {
+        title: f
+          ? t("외국인을 채용하는 관심 직무 공고", "Jobs in your interests open to foreigners", "招外国人的感兴趣职位", "Việc theo sở thích nhận WNA", "外国人を採用する関心職種の求人", "Lowongan minatmu untuk WNA")
+          : t("관심 직무 공고", "Jobs in your interests", "感兴趣的职位", "Việc theo nghề quan tâm", "関心職種の求人", "Lowongan sesuai minat"),
+        lede: names ? <>{names} · {countLede}</> : countLede
+      };
+    }
+    return {
+      title: f
+        ? t("외국인을 채용하는 공고", "Jobs open to foreigners", "招外国人的职位", "Việc nhận người nước ngoài", "外国人を採用する求人", "Lowongan untuk WNA")
+        : t("지금 채용 중인 공고", "Jobs hiring now", "正在招聘的职位", "Việc đang tuyển", "いま募集中の求人", "Lowongan yang sedang dibuka"),
+      lede: countLede
+    };
+  })();
+
   // 스위치는 '켜면 이것만 본다'는 뜻이라 '만'을 붙인다(공고 위 칩은 공고의 특징이라 '가능'까지만).
   const foreignerLabel = t("외국인 채용 가능만", "Foreigner-friendly only", "只看可招外国人", "Chỉ việc nhận WNA", "外国人採用可のみ", "Hanya terbuka WNA");
   const hasMore = !refreshing && tab !== "saved" && items !== null && total !== null && items.length < total;
 
   return (
     <Page>
-      <Masthead
-        eyebrow={t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan")}
-        title={t("한국에서 일할 곳을 찾아보세요", "Find where you'll work in Korea", "寻找在韩国的工作", "Tìm nơi làm việc tại Hàn Quốc", "韓国で働く場所を探しましょう", "Temukan tempat kerja di Korea")}
-        lede={
-          total != null && tab !== "saved"
-            ? // 숫자만 굵은 먹색 — 문장은 언어마다 어순이 달라 {n} 자리에 끼워 넣는다.
-              t("지금 {n}개 공고가 있어요", "{n} jobs right now", "目前有 {n} 个职位", "Hiện có {n} việc làm", "いま{n}件の求人", "{n} lowongan saat ini")
-                .split("{n}")
-                .flatMap((part, i) => (i === 0 ? [part] : [<b key={i} className="font-bold text-[color:var(--v2-ink)]">{total.toLocaleString()}</b>, part]))
-            : undefined
-        }
-      />
+      <Masthead eyebrow={t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan")} title={heading.title} lede={heading.lede} />
 
       {askForeigner && !foreigner ? (
         <div className="mx-5 mb-4 flex items-center gap-2 rounded-2xl bg-[color:var(--v2-accent-weak)] py-3 pl-4 pr-3">
@@ -201,7 +229,7 @@ function Jobs() {
                 // 'Aply' 글자 대신 로고 — 고르면 칩이 먹색이라 로고를 흰색으로 바꿔 보이게.
                 <span className="inline-flex items-center gap-1.5" aria-label="Aply ONLY">
                   {/* eslint-disable-next-line @next/next/no-img-element -- 작은 로고 한 장, 크기 고정 */}
-                  <img src="/img_logo.webp" alt="" className={`h-4 w-auto ${tab === k ? "brightness-0 invert" : ""}`} />
+                  <img src="/img_logo.webp" alt="" className={`-my-1 h-5 w-auto ${tab === k ? "brightness-0 invert" : ""}`} />
                   <span aria-hidden>ONLY</span>
                 </span>
               ) : (
