@@ -89,7 +89,7 @@ export function V2SettingsScreen() {
             </div>
           </div>
           <div className="mt-5">
-            <Button variant="neutral" full href={talentAppRoutes.profile}>
+            <Button variant="neutral" full href="/v2/profile">
               {t("프로필 편집", "Edit profile", "编辑资料", "Sửa hồ sơ", "プロフィール編集", "Edit profil")}
             </Button>
           </div>
