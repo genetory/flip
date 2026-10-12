@@ -49,7 +49,7 @@ export function Sheet({ title, subtitle, onClose, children, footer, tall = false
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">{children}</div>
-        {footer ? <div className="border-t border-[color:var(--v2-band)] px-4 py-3">{footer}</div> : null}
+        {footer ? <div className="px-4 py-3">{footer}</div> : null}
       </div>
     </div>
   );
