@@ -1,7 +1,7 @@
 "use client";
 
-// 면접 등록하기 — Aply에서 지원하지 않은 면접도 등록해 두고 일정에 맞춰 연습한다.
-// 공고 고르기(지원·저장한 공고 / 가져온 공고 / Aply 공고 검색 / 링크 / 본문 붙여넣기) → 면접 일정(몰라도 됨) → 등록.
+// 모의 면접 등록하기 — Aply에서 지원하지 않은 면접도 등록해 두고 일정에 맞춰 연습한다.
+// 공고 고르기(링크 / 본문 붙여넣기 / Aply 공고 검색) → 면접 일정(몰라도 됨) → 등록.
 import { useEffect, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, Empty, Row, RowsSkeleton, SearchField } from "./ui";
@@ -10,7 +10,6 @@ import { ImportJobSheet } from "./interview-content";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../lib/member-profile-client";
-import { importedToPosition, useImportedJobs } from "../../lib/talent/imported-jobs";
 import { removeMyInterview, saveMyInterview, type MyInterview } from "../../lib/talent/my-interviews";
 
 type Job = { positionId: string; title: string; company: string };
@@ -24,9 +23,8 @@ function splitLocal(iso: string | null): { date: string; time: string } {
   return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}` };
 }
 
-export function RegisterInterviewSheet({ initial, positions, onClose, onSaved }: { initial?: MyInterview | null; positions: PublicPositionListItem[] | null; onClose: () => void; onSaved: (m: MyInterview) => void }) {
+export function RegisterInterviewSheet({ initial, onClose, onSaved }: { initial?: MyInterview | null; onClose: () => void; onSaved: (m: MyInterview) => void }) {
   const t = usePlatformT();
-  const imported = useImportedJobs();
   const [step, setStep] = useState<"pick" | "search" | "url" | "text" | "when">(initial ? "when" : "pick");
   const [job, setJob] = useState<Job | null>(initial ? { positionId: initial.positionId, title: initial.title, company: initial.company } : null);
   const init = splitLocal(initial?.interviewAt ?? null);
@@ -57,12 +55,14 @@ export function RegisterInterviewSheet({ initial, positions, onClose, onSaved }:
       />
     );
 
-  const title = initial ? t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接日程", "Jadwal wawancara") : t("면접 등록하기", "Add an interview", "登记面试", "Thêm phỏng vấn", "面接を登録", "Tambah wawancara");
+  const pickTitle = t("어떤 공고의 면접인가요?", "Which job is the interview for?", "是哪个职位的面试？", "Phỏng vấn cho tin nào?", "どの求人の面接ですか？", "Wawancara untuk lowongan apa?");
+  const pickSub = t("이 공고에 맞춘 질문으로 연습해요", "Practice with questions tailored to it", "用定制问题练习", "Luyện câu hỏi theo tin", "求人に合わせて練習", "Latihan sesuai lowongan");
+  const title = initial ? t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接日程", "Jadwal wawancara") : t("모의 면접 등록하기", "Add a mock interview", "登记模拟面试", "Thêm phỏng vấn thử", "模擬面接を登録", "Tambah simulasi");
   return (
     <Sheet
       tall
-      title={title}
-      subtitle={step === "when" ? undefined : t("Aply 밖에서 지원한 곳도 괜찮아요", "Interviews outside Aply are fine too", "Aply 以外的面试也可以", "Cả phỏng vấn ngoài Aply", "Aply以外の面接もOK", "Wawancara di luar Aply juga bisa")}
+      title={step === "pick" ? pickTitle : title}
+      subtitle={step === "pick" ? pickSub : undefined}
       onClose={step === "search" ? () => setStep("pick") : onClose}
       footer={
         step === "when" ? (
@@ -92,40 +92,9 @@ export function RegisterInterviewSheet({ initial, positions, onClose, onSaved }:
     >
       {step === "pick" ? (
         <div>
-          <p className="text-[19px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{t("어떤 공고의 면접인가요?", "Which job is the interview for?", "是哪个职位的面试？", "Phỏng vấn cho tin nào?", "どの求人の面接ですか？", "Wawancara untuk lowongan apa?")}</p>
-          <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("공고를 알려 주면 그 공고에 맞춘 질문으로 연습하고, 면접 전날 볼 한 장도 만들어 드려요.", "We'll tailor practice questions and a night-before sheet to the job.", "我们会根据职位定制练习问题和考前速览。", "Chúng tôi tạo câu hỏi luyện tập và bản ôn tập theo tin.", "求人に合わせた質問と前日の1枚を用意します。", "Kami siapkan latihan dan lembar ringkas sesuai lowongan.")}</p>
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {(
-              [
-                ["url", "🔗", t("링크로", "By link", "链接", "Link", "リンクで", "Tautan")],
-                ["text", "📋", t("본문 붙여넣기", "Paste text", "粘贴内容", "Dán nội dung", "本文貼付", "Tempel")],
-                ["search", "🔍", t("Aply 공고", "Aply jobs", "Aply 职位", "Tin Aply", "Aply求人", "Aply")]
-              ] as const
-            ).map(([k, icon, label]) => (
-              <button key={k} type="button" onClick={() => setStep(k)} className="flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-2xl bg-[color:var(--v2-band)] px-2 text-center transition hover:-translate-y-0.5">
-                <span className="text-[22px]" aria-hidden>
-                  {icon}
-                </span>
-                <span className="text-[14px] font-semibold text-[color:var(--v2-ink-2)]">{label}</span>
-              </button>
-            ))}
-          </div>
-          {imported.length ? (
-            <div className="mt-6">
-              <p className="text-[14px] font-bold text-[color:var(--v2-ink-3)]">{t("가져온 공고", "Imported jobs", "已导入的职位", "Tin đã nhập", "取り込んだ求人", "Diimpor")}</p>
-              {imported.slice(0, 6).map((j) => (
-                <Row key={j.id} onClick={() => choose(importedToPosition(j))} lead="🔗" title={j.title} meta={j.company || undefined} />
-              ))}
-            </div>
-          ) : null}
-          {positions?.length ? (
-            <div className="mt-6">
-              <p className="text-[14px] font-bold text-[color:var(--v2-ink-3)]">{t("지원·저장한 공고", "Applied & saved", "投递/收藏的职位", "Đã ứng tuyển/lưu", "応募・保存した求人", "Dilamar & disimpan")}</p>
-              {positions.slice(0, 8).map((p) => (
-                <Row key={p.id} onClick={() => choose(p)} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={companyOf(p) || undefined} />
-              ))}
-            </div>
-          ) : null}
+          <Row onClick={() => setStep("search")} lead="🔍" title={t("Aply 공고에서 찾기", "Find on Aply", "在 Aply 找职位", "Tìm trên Aply", "Aplyで探す", "Cari di Aply")} meta={t("직무·회사 이름으로 검색", "Search by role or company", "按职位或公司搜索", "Theo vị trí/công ty", "職種・会社名で検索", "Cari peran/perusahaan")} />
+          <Row onClick={() => setStep("url")} lead="🔗" title={t("링크로 가져오기", "Import by link", "通过链接导入", "Nhập bằng link", "リンクで取り込む", "Impor lewat tautan")} meta={t("원티드·사람인·회사 채용 페이지 주소", "Any job site or careers page URL", "招聘网站或公司招聘页链接", "Link trang tuyển dụng", "求人サイト・採用ページのURL", "Tautan situs lowongan")} />
+          <Row onClick={() => setStep("text")} lead="📋" title={t("본문 붙여넣기", "Paste the posting", "粘贴职位内容", "Dán nội dung tin", "本文を貼り付け", "Tempel isi lowongan")} meta={t("링크가 없거나 로그인이 필요한 공고", "No link or login-only postings", "无链接或需登录的职位", "Không có link hoặc cần đăng nhập", "リンクなし・ログイン必須の求人", "Tanpa tautan atau perlu login")} />
         </div>
       ) : step === "search" ? (
         <JobSearch onPick={choose} />

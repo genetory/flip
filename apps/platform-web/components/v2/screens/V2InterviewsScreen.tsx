@@ -489,7 +489,6 @@ function Interviews() {
       {register ? (
         <RegisterInterviewSheet
           initial={register.initial}
-          positions={positions}
           onClose={() => setRegister(null)}
           onSaved={() => setRegister(null)}
         />
