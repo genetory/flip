@@ -41,7 +41,7 @@ import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakne
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
-import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
+import { PrepSheetV2 } from "../prep-sheet";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
 export function V2InterviewsScreen() {
@@ -440,7 +440,7 @@ function Interviews() {
         />
       ) : null}
       {sheetApp ? (
-        <InterviewPrepSheet
+        <PrepSheetV2
           positionId={sheetApp.positionId}
           title={sheetApp.positionTitle}
           company={sheetApp.partnerOrganizationName}

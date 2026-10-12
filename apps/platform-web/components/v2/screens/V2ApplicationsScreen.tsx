@@ -15,7 +15,7 @@ import { InterviewSlotModal, WithdrawModal } from "../../talent/screens/Applicat
 import { DocumentsSheet, MessageSheet, ProgressSheet } from "../sheets";
 import { StartSheet } from "../interview-content";
 import { InterviewSession } from "../interview-session";
-import { InterviewPrepSheet } from "../../talent/jobs/InterviewPrepSheet";
+import { PrepSheetV2 } from "../prep-sheet";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { trackInterviewPrepSheetOpened, trackInterviewStart } from "../../../lib/analytics";
 
@@ -201,7 +201,7 @@ function Applications() {
       {timeline ? <ProgressSheet app={timeline} onClose={() => setTimeline(null)} /> : null}
       {docs ? <DocumentsSheet app={docs} onClose={() => setDocs(null)} /> : null}
       {sheetApp ? (
-        <InterviewPrepSheet
+        <PrepSheetV2
           positionId={sheetApp.positionId}
           title={sheetApp.positionTitle}
           company={sheetApp.partnerOrganizationName}
