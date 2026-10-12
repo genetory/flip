@@ -2417,3 +2417,32 @@ export async function postDraftResumeText(input: DraftResumeTextInput): Promise<
   if (!result.draft) throw new Error("draft response missing payload");
   return result.draft;
 }
+
+// ── 모의 면접 콘텐츠 — 면접 후기(실제 나온 질문) · 잘 쓴 답 예시 ─────────────────────
+export type InterviewReportItem = { id: string; question: string; organizationName: string; positionTitle: string; createdAt: string };
+export async function reportInterviewQuestions(applicationId: string, questions: string[]): Promise<void> {
+  await authedJsonFetch<never>("/members/me/interview-questions", { method: "POST", body: JSON.stringify({ applicationId, questions }) });
+}
+export async function getReportedApplicationIds(): Promise<string[]> {
+  const r = (await authedJsonFetch<never>("/members/me/interview-questions/reported", { method: "GET" })) as unknown as { items?: string[] };
+  return r.items ?? [];
+}
+export async function getInterviewQuestions(opts?: { organization?: string; limit?: number }): Promise<{ items: InterviewReportItem[]; popular: { question: string; count: number }[] }> {
+  const url = new URL(`${getApiBaseUrl()}/interview-questions`);
+  if (opts?.organization) url.searchParams.set("organization", opts.organization);
+  if (opts?.limit) url.searchParams.set("limit", String(opts.limit));
+  const response = await fetch(url.toString(), { method: "GET" });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; items?: InterviewReportItem[]; popular?: { question: string; count: number }[] };
+  if (!response.ok || payload.ok !== true) return { items: [], popular: [] };
+  return { items: payload.items ?? [], popular: payload.popular ?? [] };
+}
+export async function shareAnswerExample(input: { question: string; category: string; answer: string; score: number }): Promise<void> {
+  await authedJsonFetch<never>("/members/me/answer-examples", { method: "POST", body: JSON.stringify(input) });
+}
+export async function getAnswerExamples(question: string): Promise<{ id: string; answer: string; score: number }[]> {
+  const url = new URL(`${getApiBaseUrl()}/answer-examples`);
+  url.searchParams.set("question", question);
+  const response = await fetch(url.toString(), { method: "GET" });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; items?: { id: string; answer: string; score: number }[] };
+  return response.ok && payload.ok === true ? payload.items ?? [] : [];
+}

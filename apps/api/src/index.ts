@@ -26958,6 +26958,118 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
 });
 
 // 내 공고 모의 면접 답변(본인만) — '면접 전날 볼 한 장'이 최고 답변을 모아 보여 줄 때 쓴다.
+// ─────────────────────────────────────────────────────────────────────────
+// 모의 면접 콘텐츠 — 면접 후기(실제 나온 질문) · 잘 쓴 답 예시.
+// 공개 응답에는 누가 남겼는지(userId 등)를 넣지 않는다. 운영자가 hidden 으로 내릴 수 있다.
+// ─────────────────────────────────────────────────────────────────────────
+const interviewReportSchema = z.object({
+  applicationId: z.string().min(1).max(64),
+  questions: z.array(z.string().trim().min(4).max(300)).min(1).max(5)
+});
+
+// 학생: 면접 후기 남기기 — 내 지원 건만. 같은 지원 건으로 다시 남기면 바꾼다.
+app.post("/members/me/interview-questions", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = interviewReportSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const app0 = await prisma.application.findFirst({
+      where: { id: parsed.data.applicationId, candidateUserId: userId },
+      select: { id: true, positionId: true, position: { select: { title: true, additionalNotes: true, partnerOrganization: { select: { name: true } } } } }
+    });
+    if (!app0) return res.status(404).json({ ok: false, message: "application not found" });
+    const organizationName = app0.position.partnerOrganization?.name ?? extractSourceCompanyName(app0.position.additionalNotes) ?? "";
+    if (!organizationName) return res.status(400).json({ ok: false, message: "company unknown" });
+    const questions = [...new Set(parsed.data.questions.map((q) => q.trim()).filter(Boolean))];
+    await prisma.$transaction([
+      prisma.interviewQuestionReport.deleteMany({ where: { userId, applicationId: app0.id } }),
+      prisma.interviewQuestionReport.createMany({
+        data: questions.map((question) => ({ userId, applicationId: app0.id, positionId: app0.positionId, organizationName, positionTitle: app0.position.title, question }))
+      })
+    ]);
+    return res.json({ ok: true, count: questions.length });
+  } catch (err) {
+    console.error("[interview-questions] create failed", err);
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 학생: 후기를 이미 남긴 지원 건 — '어떤 질문이 나왔나요?'를 다시 묻지 않게.
+app.get("/members/me/interview-questions/reported", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const rows = await prisma.interviewQuestionReport.findMany({ where: { userId: req.auth!.userId, applicationId: { not: null } }, select: { applicationId: true }, distinct: ["applicationId"] });
+    return res.json({ ok: true, items: rows.map((r) => r.applicationId).filter(Boolean) });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+// 면접 후기 질문 — organization 이 있으면 그 회사 것(최근순), 없으면 최근 것 + 많이 나온 질문(최근 60일).
+app.get("/interview-questions", async (req, res) => {
+  const organization = typeof req.query.organization === "string" ? req.query.organization.trim().slice(0, 200) : "";
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 10));
+  try {
+    const recent = await prisma.interviewQuestionReport.findMany({
+      where: { hidden: false, ...(organization ? { organizationName: organization } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, question: true, organizationName: true, positionTitle: true, createdAt: true }
+    });
+    let popular: { question: string; count: number }[] = [];
+    if (!organization) {
+      const since = new Date(Date.now() - 60 * 86_400_000);
+      const rows = await prisma.interviewQuestionReport.findMany({ where: { hidden: false, createdAt: { gte: since } }, select: { question: true }, take: 2000 });
+      const counts = new Map<string, { question: string; count: number }>();
+      for (const r of rows) {
+        const key = r.question.replace(/\s+/g, "").replace(/[?.!。？]/g, "");
+        const cur = counts.get(key) ?? { question: r.question, count: 0 };
+        cur.count += 1;
+        counts.set(key, cur);
+      }
+      popular = [...counts.values()].filter((x) => x.count >= 2).sort((a, b) => b.count - a.count).slice(0, 5);
+    }
+    return res.json({ ok: true, items: recent, popular });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+const answerExampleSchema = z.object({
+  question: z.string().trim().min(4).max(600),
+  category: z.string().trim().max(40),
+  answer: z.string().trim().min(20).max(4000),
+  score: z.number().int().min(80).max(100)
+});
+
+// 학생: 잘 쓴 답을 익명 예시로 공개(동의한 것만, '잘해요' 80점 이상). 같은 질문은 최신 답으로 바꾼다.
+app.post("/members/me/answer-examples", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = answerExampleSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    await prisma.interviewAnswerExample.upsert({
+      where: { userId_question: { userId, question: parsed.data.question } },
+      create: { userId, ...parsed.data },
+      update: { answer: parsed.data.answer, score: parsed.data.score, category: parsed.data.category, hidden: false }
+    });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 같은 질문의 잘 쓴 답 예시(점수 높은 순 3개, 익명).
+app.get("/answer-examples", async (req, res) => {
+  const question = typeof req.query.question === "string" ? req.query.question.trim().slice(0, 600) : "";
+  if (!question) return res.json({ ok: true, items: [] });
+  try {
+    const rows = await prisma.interviewAnswerExample.findMany({ where: { question, hidden: false }, orderBy: [{ score: "desc" }, { createdAt: "desc" }], take: 3, select: { id: true, answer: true, score: true } });
+    return res.json({ ok: true, items: rows });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
 app.get("/members/me/mock-interviews/:positionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
   if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });

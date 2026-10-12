@@ -24,7 +24,7 @@ import type { ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 
-function resumeToText(doc: ResumeDoc | null, info: BasicInfo): string {
+export function resumeToText(doc: ResumeDoc | null, info: BasicInfo): string {
   if (!doc || !Array.isArray(doc.items)) return "";
   const lines: string[] = [];
   if (info.realName) lines.push(`이름: ${info.realName}`);

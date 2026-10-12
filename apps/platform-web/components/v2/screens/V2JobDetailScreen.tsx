@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
 import { Button, Page, Row, RowsSkeleton } from "../ui";
 import { Sheet } from "../sheets";
+import { PracticeSheet, type PracticeQuestion } from "../practice";
 import { companyOf, daysUntil, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -21,7 +22,9 @@ import {
   getMyMockInterviewUsage,
   getPublicPositionById,
   getPublicPositionsPage,
+  getInterviewQuestions,
   removeMyFavoritePosition,
+  type InterviewReportItem,
   type PublicPositionListItem
 } from "../../../lib/member-profile-client";
 import { toPositionView } from "../../../lib/talent/positions-adapter";
@@ -338,6 +341,8 @@ function JobDetail({ id }: { id: string }) {
         </div>
       </Block>
 
+      <CompanyQuestions t={t} company={company} loggedIn={isAuthenticated} onLogin={needLogin} />
+
       {item.mainResponsibilities ? <TextBlock title={t("주요 업무", "What you'll do", "主要工作", "Công việc chính", "主な業務", "Tugas utama")} text={item.mainResponsibilities} /> : null}
       {item.requiredQualifications ? <TextBlock title={t("자격 요건", "Requirements", "任职要求", "Yêu cầu", "応募資格", "Persyaratan")} text={item.requiredQualifications} highlight={hits} /> : null}
       {item.preferredQualifications ? <TextBlock title={t("우대 사항", "Nice to have", "优先条件", "Ưu tiên", "歓迎条件", "Nilai tambah")} text={item.preferredQualifications} highlight={hits} /> : null}
@@ -631,6 +636,32 @@ function SimilarJobs({ t, item }: { t: PlatformT; item: PublicPositionListItem }
       ) : (
         list.map((j) => <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />)
       )}
+    </Block>
+  );
+}
+
+/** 이 회사 면접에서 나온 질문 — 면접을 본 사람들이 남긴 것(익명). 누르면 그 질문으로 한 문항 연습. */
+function CompanyQuestions({ t, company, loggedIn, onLogin }: { t: PlatformT; company: string; loggedIn: boolean; onLogin: () => void }) {
+  const [list, setList] = useState<InterviewReportItem[] | null>(null);
+  const [practice, setPractice] = useState<PracticeQuestion | null>(null);
+  useEffect(() => {
+    if (!company) return;
+    let alive = true;
+    getInterviewQuestions({ organization: company, limit: 6 })
+      .then((d) => alive && setList(d.items))
+      .catch(() => alive && setList([]));
+    return () => {
+      alive = false;
+    };
+  }, [company]);
+  if (!list || !list.length) return null;
+  return (
+    <Block title={t("이 회사 면접에서 나온 질문", "Asked in this company's interviews", "该公司面试中出现的问题", "Câu hỏi phỏng vấn ở công ty này", "この会社の面接で出た質問", "Pertanyaan wawancara di perusahaan ini")}>
+      <p className="pb-1 text-[14px] text-[color:var(--v2-muted)]">{t("면접을 본 사람들이 남긴 질문이에요. 눌러서 미리 답해 보세요.", "Shared by people who interviewed here. Tap to practice.", "来自在此面试过的人。点击练习。", "Do người đã phỏng vấn tại đây chia sẻ. Chạm để luyện.", "ここで面接を受けた人の共有です。押して練習。", "Dibagikan peserta wawancara di sini. Ketuk untuk latihan.")}</p>
+      {list.map((q) => (
+        <Row key={q.id} onClick={() => (loggedIn ? setPractice({ ko: q.question, shown: q.question, category: "job" }) : onLogin())} lead="💬" title={q.question} meta={q.positionTitle} />
+      ))}
+      {practice ? <PracticeSheet question={practice} onClose={() => setPractice(null)} /> : null}
     </Block>
   );
 }

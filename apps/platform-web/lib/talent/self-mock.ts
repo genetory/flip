@@ -25,6 +25,26 @@ export interface SelfMockAnswer {
 export interface SelfMockRecord {
   answers: SelfMockAnswer[];
   updatedAt: number;
+  /** 연습한 날(한국 시간 YYYY-MM-DD, 최근 60일) — 같은 질문은 덮어써서 답변만으로는 '며칠 연속'을 알 수 없다. */
+  days?: string[];
+}
+
+/** 한국 시간 기준 날짜(YYYY-MM-DD). */
+function kstDate(ts: number): string {
+  return new Date(ts + 9 * 3_600_000).toISOString().slice(0, 10);
+}
+
+/** 연속 연습 일수 — 오늘(또는 어제)까지 하루도 빠지지 않고 연습한 날 수. 오늘 아직 안 했어도 어제까지 이어졌으면 유지. */
+export function practiceStreak(record: SelfMockRecord | null | undefined, now = Date.now()): { streak: number; doneToday: boolean } {
+  const days = new Set(record?.days ?? (record?.answers ?? []).map((a) => kstDate(a.updatedAt)));
+  const today = kstDate(now);
+  const doneToday = days.has(today);
+  let streak = 0;
+  for (let i = doneToday ? 0 : 1; i < 400; i++) {
+    if (days.has(kstDate(now - i * 86_400_000))) streak++;
+    else break;
+  }
+  return { streak, doneToday };
 }
 
 export function useSelfMock(): SelfMockRecord | null {
@@ -51,7 +71,8 @@ export function saveSelfMockAnswer(a: {
   const idx = answers.findIndex((x) => x.question === a.question);
   if (idx >= 0) answers[idx] = entry;
   else answers.push(entry);
-  storeSet({ answers, updatedAt: now });
+  const days = [...new Set([...(cur?.days ?? (cur?.answers ?? []).map((x) => kstDate(x.updatedAt))), kstDate(now)])].sort().slice(-60);
+  storeSet({ answers, updatedAt: now, days });
 }
 
 export function clearSelfMock(): void {

@@ -123,6 +123,8 @@ model User {
   requestedPositionRevisions           PositionRevision[]            @relation("PositionRevisionRequester")
   reviewedPositionRevisions            PositionRevision[]            @relation("PositionRevisionReviewer")
   mockInterviewSessions                MockInterviewSession[]
+  interviewQuestionReports             InterviewQuestionReport[]
+  interviewAnswerExamples              InterviewAnswerExample[]
   applicantDocSummary                  ApplicantDocSummary?
 
   @@unique([email, authProvider])
@@ -2295,6 +2297,44 @@ model CoverLetter {
 
 // 공고별 모의 면접 연습 기록 — (userId, positionId) 당 한 행. 회사엔 "완료" 신호만,
 // 점수/답변은 지원자 전용(비공개).
+// 면접 후기 — 실제 면접을 본 학생이 '나온 질문'을 남긴다. 회사 이름으로 모아 같은 회사 공고에서 연습 질문으로 쓴다.
+// 공개 화면에는 질문 글만(누가 남겼는지 없이) 보여 준다. 운영자가 hidden 으로 내릴 수 있다.
+model InterviewQuestionReport {
+  id               String   @id @default(uuid())
+  userId           String
+  applicationId    String?
+  positionId       String?
+  organizationName String
+  positionTitle    String
+  question         String
+  hidden           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationName, createdAt])
+  @@index([positionId])
+  @@index([createdAt])
+  @@index([userId, applicationId])
+}
+
+// 잘 쓴 답 예시 — '잘해요'(80점 이상)를 받은 학생이 익명 공개에 동의한 답만. 같은 질문을 연습하는 사람에게 예시로 보여 준다.
+model InterviewAnswerExample {
+  id        String   @id @default(uuid())
+  userId    String
+  question  String
+  category  String
+  answer    String
+  score     Int
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, question])
+  @@index([question, score])
+}
+
 model MockInterviewSession {
   id              String   @id @default(uuid())
   userId          String
