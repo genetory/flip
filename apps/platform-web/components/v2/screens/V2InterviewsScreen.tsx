@@ -9,7 +9,7 @@ import { Sheet } from "../sheets";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PracticeTools } from "../interview-content";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
-import { Actions, Attention, Button, Empty, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, SearchField, Section, SectionSkeleton, SecondaryButton } from "../ui";
+import { Attention, Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -161,33 +161,55 @@ function Interviews() {
 
   return (
     <Page>
+      <Masthead
+        eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
+        title={streak > 1 ? t(`${streak}일째 연습 중이에요 🔥`, `${streak}-day practice streak 🔥`, `已连续练习 ${streak} 天 🔥`, `Đã luyện ${streak} ngày liên tiếp 🔥`, `${streak}日連続で練習中 🔥`, `${streak} hari berturut-turut 🔥`) : t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
+        lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
+      />
+
       {next ? (
-        <Masthead
-          eyebrow={[next.partnerOrganizationName, next.positionTitle].filter(Boolean).join(" · ")}
-          title={d === 0 ? t("오늘 면접이에요", "Your interview is today", "今天面试", "Hôm nay phỏng vấn", "今日が面接です", "Hari ini wawancara") : t(`면접까지 ${d}일 남았어요`, `${d} days until your interview`, `距离面试还有 ${d} 天`, `Còn ${d} ngày đến phỏng vấn`, `面接まであと${d}日`, `${d} hari lagi wawancara`)}
-          lede={t("나올 만한 질문을 미리 풀어 두면 당일에 당황하지 않아요.", "Practice the likely questions now so you stay calm on the day.", "提前练习可能的问题，当天就不会慌。", "Luyện trước câu hỏi có thể gặp để không bối rối hôm đó.", "出そうな質問を先に練習しておけば当日あわてません。", "Latih pertanyaan yang mungkin muncul agar tenang di hari H.")}
-          action={
-            <Actions>
-              <PrimaryButton onClick={() => void startById(next.positionId, "upcoming")}>{t("이 공고로 연습하기", "Practice for this job", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan untuk lowongan ini")}</PrimaryButton>
-              <SecondaryButton
-                onClick={() => {
-                  trackInterviewPrepSheetOpened();
-                  setSheetApp(next);
-                }}
-              >
-                {t("면접 전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日に見る1枚", "Lembar ringkas")}
-              </SecondaryButton>
-            </Actions>
-          }
-        />
-      ) : (
-        <Masthead
-          eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
-          title={t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
-          lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
-          action={<PrimaryButton onClick={startSelf}>{t("내 서류로 연습하기", "Practice with my documents", "用我的材料练习", "Luyện từ hồ sơ", "自分の書類で練習", "Latihan dari dokumenku")}</PrimaryButton>}
-        />
-      )}
+        <Section title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
+          {/* 다가오는 면접 — 날짜·공고 · 이 공고로 연습한 정도 · 준비 버튼 */}
+          {(() => {
+            const rec = (records ?? []).find((m) => m.positionId === next.positionId);
+            return (
+              <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex h-7 items-center rounded-full px-2.5 text-[13px] font-bold text-white ${d <= 3 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
+                  <span className="text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{whenText(t, next.interviewSelectedAt!)}</span>
+                </div>
+                <p className="mt-3 text-[21px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{next.positionTitle}</p>
+                <p className="mt-0.5 text-[15px] text-[color:var(--v2-muted)]">{next.partnerOrganizationName}</p>
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3">
+                  <span className="text-[14px] text-[color:var(--v2-ink-3)]">
+                    {rec ? t(`이 공고로 ${rec.answeredCount}문항 연습했어요`, `Practiced ${rec.answeredCount} questions for this job`, `已为此职位练习 ${rec.answeredCount} 题`, `Đã luyện ${rec.answeredCount} câu cho tin này`, `この求人で${rec.answeredCount}問練習済み`, `Sudah latihan ${rec.answeredCount} soal`) : t("아직 이 공고로 연습하지 않았어요", "Not practiced for this job yet", "还没为此职位练习", "Chưa luyện cho tin này", "この求人ではまだ練習していません", "Belum latihan untuk lowongan ini")}
+                  </span>
+                  {rec?.bestScore != null ? <LevelChip t={t} score={rec.bestScore} /> : null}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button full onClick={() => void startById(next.positionId, "upcoming")}>
+                    {t("이 공고로 연습", "Practice for it", "用此职位练习", "Luyện cho tin này", "この求人で練習", "Latihan")}
+                  </Button>
+                  <Button
+                    full
+                    variant="white"
+                    onClick={() => {
+                      trackInterviewPrepSheetOpened();
+                      setSheetApp(next);
+                    }}
+                  >
+                    {t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+          {upcoming.slice(1).map((a) => {
+            const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
+            return <Row key={a.id} onClick={() => void startById(a.positionId, "upcoming")} title={a.positionTitle} meta={[a.partnerOrganizationName, whenText(t, a.interviewSelectedAt!)].filter(Boolean).join(" · ")} right={<Attention>{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</Attention>} />;
+          })}
+        </Section>
+      ) : null}
 
       <Section
         title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}
@@ -217,14 +239,6 @@ function Interviews() {
 
       <InterviewReportPrompt t={t} apps={apps} />
 
-      {upcoming.length > 1 ? (
-        <Section title={t("면접 일정", "Interview schedule", "面试日程", "Lịch phỏng vấn", "面接予定", "Jadwal wawancara")}>
-          {upcoming.slice(1).map((a) => {
-            const dd = daysUntil(a.interviewSelectedAt!) ?? 0;
-            return <Row key={a.id} onClick={() => void startById(a.positionId, "upcoming")} title={a.positionTitle} meta={a.partnerOrganizationName ?? undefined} right={<Attention>{dd === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${dd}`}</Attention>} />;
-          })}
-        </Section>
-      ) : null}
 
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
         {next ? <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} /> : null}
@@ -559,4 +573,12 @@ function ReportedQuestions({ t, onPick }: { t: PlatformT; onPick: (question: str
       ))}
     </Section>
   );
+}
+
+/** 면접 일시 — "10월 14일(화) 14:00". */
+function whenText(t: PlatformT, iso: string): string {
+  const d = new Date(iso);
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return t(`${d.getMonth() + 1}월 ${d.getDate()}일(${wd}) ${hm}`, `${d.toLocaleDateString("en", { month: "short", day: "numeric", weekday: "short" })} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`);
 }
