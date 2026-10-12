@@ -252,7 +252,7 @@ function Jobs() {
       ) : null}
 
       <div className="px-5">
-        <SearchField value={query} onChange={setQuery} placeholder={t("직무·회사 또는 '외국인 마케팅 신입'처럼 문장으로", "Role, company, or a sentence like 'marketing for new grads'", "职位、公司，或用一句话搜索", "Vị trí, công ty hoặc gõ cả câu", "職種・会社、または文章で検索", "Peran, perusahaan, atau kalimat")} />
+        <SearchField value={query} onChange={setQuery} placeholder={t("찾는 일을 편하게 적어 보세요", "Tell us what job you're looking for", "说说你想找什么工作", "Bạn muốn tìm việc gì? Cứ gõ thoải mái", "探している仕事を気軽に書いてください", "Ceritakan pekerjaan yang kamu cari")} />
       </div>
       {/* 탭 칩 줄 — 왼쪽 탭(넘치면 가로로 넘김), 오른쪽 끝에 '외국인 채용 가능' 스위치.
           스위치는 탭이 아니라 켜고 끄는 거름망이라 모양을 다르게 해 구분한다. 저장한 공고 탭에선 숨김. */}
@@ -360,7 +360,7 @@ function Jobs() {
                 )}
                 <span className="min-w-0 flex-1">
                   {/* 위 줄 — 왼쪽 표시 칩, 오른쪽 끝 마감. 모의 면접은 바로 해 볼 수 있다는 뜻이라 파란 칩.
-                      마감은 날짜가 있을 때만(상시 채용·지난 것은 표시 안 함): 7일 안이면 빨강 D-n, 그 뒤는 회색 날짜. */}
+                      마감은 날짜가 있을 때만(상시 채용·지난 것은 표시 안 함): 늘 D-n — 7일 안이면 빨강, 그 뒤는 회색. */}
                   {(() => {
                     const foreignerOk = (j.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY");
                     const aply = j.sourceProvider === "INTERNAL";
@@ -375,11 +375,7 @@ function Jobs() {
                         </span>
                         {due ? (
                           <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${due.days <= 7 ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-faint)]"}`}>
-                            {due.days === 0
-                              ? t("오늘 마감", "Closes today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini")
-                              : due.days <= 7
-                                ? `D-${due.days}`
-                                : `~${due.date.getMonth() + 1}.${String(due.date.getDate()).padStart(2, "0")}`}
+                            {due.days === 0 ? t("오늘 마감", "Closes today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini") : `D-${due.days}`}
                           </span>
                         ) : null}
                       </span>
