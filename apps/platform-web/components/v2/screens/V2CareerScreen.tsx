@@ -32,7 +32,7 @@ import type { CareerSection } from "../../../lib/talent/career-chat";
 import { JobInterestModal } from "../../talent/jobs/JobInterestModal";
 
 const R = {
-  profile: "/talent/career/profile",
+  profile: "/v2/profile",
   resume: "/talent/career/resume/editor",
   resumePreview: "/talent/career/resume/preview",
   cover: "/talent/career/cover/editor",
