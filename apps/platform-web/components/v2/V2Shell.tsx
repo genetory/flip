@@ -39,7 +39,7 @@ function useNav() {
 }
 
 /** 프로필 사진 — 계정 사진(profileImageUrl) → 이 기기에 올린 사진 순. 바뀌면 바로 반영. */
-function useProfilePhoto(user: { id: string; profileImageUrl?: string | null } | null): string | null {
+export function useProfilePhoto(user: { id: string; profileImageUrl?: string | null } | null): string | null {
   const [photo, setPhoto] = useState<string | null>(null);
   useEffect(() => {
     const read = () => setPhoto(user ? (user.profileImageUrl ?? getStoredProfilePhoto(user.id)) : null);

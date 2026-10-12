@@ -1,20 +1,21 @@
 "use client";
 
-// v2 내 커리어 — 나에 관한 것을 한곳에: 기본 정보 · 관심 직무 · 지원 서류 · 경력 · 최근 기록 · 더 정리할 것.
+// v2 내 커리어 — 나에 관한 것을 한곳에: 프로필 · 지원 서류(다음 할 일) · 관심 직무 · 경력 · 내 스펙 · 더 정리할 것.
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
-import { useState } from "react";
-import { V2Shell, V2_ROUTES } from "../V2Shell";
+import { useState, type ReactNode } from "react";
+import { V2Shell, useProfilePhoto } from "../V2Shell";
 import { Chip, DocCard, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
+import { shortPlace } from "../lib";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
-import { useResumeDoc, resumeCompleteness, displayMonth, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
-import { useCoverDoc, coverCompleteness } from "../../../lib/talent/cover-doc";
+import { useResumeDoc, resumeCompleteness, displayMonth, useRenewalDocsStatus, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
+import { useCoverDoc, coverCompleteness, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
-import { useCareerFeed, formatRelativeTime } from "../../../lib/talent/career-feed";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
-import { SECTION_META } from "../../../lib/talent/career-chat";
-import { sectionLabelOf } from "../../../lib/talent/career-labels";
+import { sectionLabelOf, coverQuestionLabelOf } from "../../../lib/talent/career-labels";
+import type { CareerSection } from "../../../lib/talent/career-chat";
 import { JobInterestModal } from "../../talent/jobs/JobInterestModal";
 
 const R = {
@@ -30,11 +31,71 @@ const R = {
   diagnosis: "/talent/career/resume/diagnosis"
 };
 
-function docNote(t: PlatformT, pct: number): string {
-  if (pct === 0) return t("아직 시작 전", "Not started", "尚未开始", "Chưa bắt đầu", "未着手", "Belum mulai");
-  if (pct < 70) return t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Sedang diisi");
-  if (pct < 100) return t("거의 다 됐어요", "Almost there", "快完成了", "Sắp xong", "あと少し", "Hampir selesai");
-  return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
+/** 이력서 — 완성도 계산(resumeCompleteness)과 같은 순서로, 아직 빈 첫 항목을 짚는다. */
+function resumeNote(t: PlatformT, doc: ResumeDoc | null, pct: number): string {
+  if (!doc || pct === 0) return t("아직 시작 전", "Not started", "尚未开始", "Chưa bắt đầu", "未着手", "Belum mulai");
+  if (pct >= 100) return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
+  const has = (secs: CareerSection[]) => doc.items.some((i) => secs.includes(i.section));
+  const missing = !has(["education"])
+    ? sectionLabelOf(t, "education")
+    : !has(["experience", "project"])
+      ? t("경력·프로젝트", "Work or projects", "经历·项目", "Kinh nghiệm/dự án", "経歴・プロジェクト", "Kerja/proyek")
+      : !has(["skill"])
+        ? sectionLabelOf(t, "skill")
+        : !has(["certificate", "award", "activity"])
+          ? t("자격증·활동", "Certs or activities", "证书·活动", "Chứng chỉ/hoạt động", "資格・活動", "Sertifikat/aktivitas")
+          : t("항목 1~2개 더", "1–2 more items", "再加1~2项", "Thêm 1–2 mục", "あと1〜2項目", "1–2 item lagi");
+  return t(`남은 것: ${missing}`, `Left: ${missing}`, `还差：${missing}`, `Còn: ${missing}`, `残り：${missing}`, `Sisa: ${missing}`);
+}
+
+/** 자기소개서 — 아직 20자를 못 채운 첫 문항을 짚는다(coverCompleteness 와 같은 기준). */
+function coverNote(t: PlatformT, doc: CoverDoc | null, pct: number): string {
+  if (!doc || pct === 0) return t("아직 시작 전", "Not started", "尚未开始", "Chưa bắt đầu", "未着手", "Belum mulai");
+  if (pct >= 100) return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
+  const done = new Set(doc.items.filter((i) => i.text.trim().length >= 20).map((i) => i.question));
+  const left = coverQuestions(doc).filter((q) => !done.has(q));
+  if (!left.length) return t("완성", "Done", "完成", "Xong", "完成", "Selesai");
+  const first = coverQuestionLabelOf(t, left[0]);
+  return left.length > 1
+    ? t(`남은 것: ${first} 외 ${left.length - 1}개`, `Left: ${first} +${left.length - 1}`, `还差：${first} 等${left.length}项`, `Còn: ${first} +${left.length - 1}`, `残り：${first} 他${left.length - 1}件`, `Sisa: ${first} +${left.length - 1}`)
+    : t(`남은 것: ${first}`, `Left: ${first}`, `还差：${first}`, `Còn: ${first}`, `残り：${first}`, `Sisa: ${first}`);
+}
+
+/** "YYYY-MM" | "현재" → 월 수(서기 기준). */
+function monthIndex(s: string | undefined, now: Date): number | null {
+  if (!s) return null;
+  if (s === "현재") return now.getFullYear() * 12 + now.getMonth();
+  const m = s.match(/(\d{4})-(\d{2})/);
+  return m ? Number(m[1]) * 12 + Number(m[2]) - 1 : null;
+}
+
+/** 경력 기간 합 — 기간이 적힌 경력만. 겹치는 달은 한 번만 센다. */
+function workMonths(items: ResumeItem[]): number {
+  const now = new Date();
+  const months = new Set<number>();
+  for (const w of items) {
+    const a = monthIndex(w.startDate, now);
+    const b = monthIndex(w.endDate || "현재", now);
+    if (a == null || b == null || b < a) continue;
+    for (let m = a; m <= b; m++) months.add(m);
+  }
+  return months.size;
+}
+
+function durationText(t: PlatformT, months: number): string {
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  if (y && m) return t(`경력 ${y}년 ${m}개월`, `${y}y ${m}m experience`, `经验 ${y}年${m}个月`, `${y} năm ${m} tháng KN`, `経験 ${y}年${m}ヶ月`, `${y}th ${m}bln pengalaman`);
+  if (y) return t(`경력 ${y}년`, `${y}y experience`, `经验 ${y}年`, `${y} năm KN`, `経験 ${y}年`, `${y}th pengalaman`);
+  return t(`경력 ${m}개월`, `${m}m experience`, `经验 ${m}个月`, `${m} tháng KN`, `経験 ${m}ヶ月`, `${m}bln pengalaman`);
+}
+
+/** 스킬 한 항목에 여러 개를 쉼표로 적는 경우가 많다 — 칩으로 쪼갠다. */
+function splitList(text: string): string[] {
+  return text
+    .split(/[,，、\n·]|\s\/\s/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 
 export function V2CareerScreen() {
@@ -55,9 +116,17 @@ function Career() {
   const rp = resumeCompleteness(resume);
   const cp = coverCompleteness(cover);
   const interests = useJobInterests();
-  const feed = useCareerFeed();
+  const { user } = useAuthSession();
+  const photo = useProfilePhoto(user ?? null);
   const [interestOpen, setInterestOpen] = useState(false);
-  const work = (resume?.items ?? []).filter((i) => i.section === "experience");
+  const items = resume?.items ?? [];
+  const work = items.filter((i) => i.section === "experience");
+  const of = (sec: CareerSection) => items.filter((i) => i.section === sec);
+  const education = of("education");
+  const skills = [...new Set(of("skill").flatMap((i) => splitList(i.text)))];
+  const languages = of("language").flatMap((i) => splitList(i.text));
+  const certs = of("certificate");
+  const months = workMonths(work);
   const name = info.realName;
   const docsStatus = useRenewalDocsStatus();
 
@@ -75,14 +144,12 @@ function Career() {
   return (
     <Page>
       {ready ? (
-        <Masthead
-          eyebrow={t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier saya")}
-          title={name ? t(`${name}님의 커리어`, `${name}'s career`, `${name} 的职业`, `Sự nghiệp của ${name}`, `${name}さんのキャリア`, `Karier ${name}`) : t("나의 커리어", "My career", "我的职业", "Sự nghiệp của tôi", "私のキャリア", "Karier saya")}
-          lede={
-            interests.length
-              ? t(`관심 직무 · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ")}`, `Interested in · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ")}`, `感兴趣的职位 · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join("、")}`, `Quan tâm · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ")}`, `関心職種 · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join("、")}`, `Minat · ${interests.map((r) => jobTaxonomyLabelOf(t, r)).join(", ")}`)
-              : t("이력서·자기소개서와 관심 직무를 여기서 관리해요.", "Manage your resume, cover letter, and job interests here.", "在这里管理简历、自我介绍和感兴趣的职位。", "Quản lý CV, thư giới thiệu và nghề quan tâm tại đây.", "履歴書・自己PRと関心職種をここで管理します。", "Kelola CV, surat lamaran, dan minat pekerjaan di sini.")
-          }
+        <Profile
+          t={t}
+          name={name}
+          photo={info.photoUrl || photo}
+          intro={(resume?.summary || "").split("\n")[0].trim() || resume?.targetRole || ""}
+          meta={[months ? durationText(t, months) : null, shortPlace(info.address) || null].filter(Boolean).join(" · ")}
         />
       ) : (
         <Masthead
@@ -95,8 +162,8 @@ function Career() {
 
       <Section title={t("지원 서류", "Documents", "申请材料", "Hồ sơ ứng tuyển", "応募書類", "Dokumen lamaran")}>
         <div className="grid grid-cols-2 gap-3 pb-2">
-          <DocCard href={R.resume} label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")} pct={rp} note={docNote(t, rp)} previewHref={resume ? R.resumePreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} />
-          <DocCard href={R.cover} label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} pct={cp} note={docNote(t, cp)} previewHref={cover ? R.coverPreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} />
+          <DocCard href={R.resume} label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")} pct={rp} note={resumeNote(t, resume, rp)} previewHref={resume ? R.resumePreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} extra={rp >= 100 ? { href: R.diagnosis, label: t("AI 진단", "AI check", "AI 诊断", "Chẩn đoán", "AI診断", "Cek AI") } : null} />
+          <DocCard href={R.cover} label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")} pct={cp} note={coverNote(t, cover, cp)} previewHref={cover ? R.coverPreview : null} previewLabel={t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")} />
         </div>
       </Section>
 
@@ -117,42 +184,123 @@ function Career() {
         )}
       </Section>
 
-      {work.length ? (
-        <Section title={t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")} aside={<TextLink href={R.resume}>{t("편집", "Edit", "编辑", "Sửa", "編集", "Ubah")}</TextLink>}>
-          {work.map((w) => (
-            <Row
-              key={w.id}
-              title={w.company || w.text}
-              meta={[[displayMonth(w.startDate ?? ""), displayMonth(w.endDate ?? "")].filter(Boolean).join(" ~ "), w.company && w.text ? w.text : null].filter(Boolean).join(" · ") || undefined}
-            />
-          ))}
-        </Section>
-      ) : null}
+      <Section title={t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")} aside={work.length ? <TextLink href={R.resume}>{t("편집", "Edit", "编辑", "Sửa", "編集", "Ubah")}</TextLink> : undefined}>
+        {work.length ? (
+          work.map((w) => {
+            const period = [displayMonth(w.startDate ?? ""), displayMonth(w.endDate ?? "")].filter(Boolean).join(" ~ ");
+            return (
+              <Row
+                key={w.id}
+                href={R.resume}
+                title={w.company || w.text}
+                meta={
+                  <>
+                    {period ? <span>{period}</span> : <span className="font-semibold text-[color:var(--v2-accent)]">{t("기간을 적어 주세요", "Add dates", "请填写时间", "Thêm thời gian", "期間を入力", "Tambah periode")}</span>}
+                    {w.company && w.text ? <span> · {w.text}</span> : null}
+                  </>
+                }
+              />
+            );
+          })
+        ) : (
+          <Row href={R.resume} lead="💼" title={t("경력을 적어 보세요", "Add your experience", "填写经历", "Thêm kinh nghiệm", "経歴を書いてみましょう", "Tambah pengalaman")} meta={t("알바·인턴도 좋아요", "Part-time and internships count", "兼职、实习也可以", "Làm thêm, thực tập đều được", "バイト・インターンもOK", "Paruh waktu & magang juga boleh")} />
+        )}
+      </Section>
 
-      {feed.length ? (
-        <Section title={t("최근 기록", "Recent updates", "最近记录", "Cập nhật gần đây", "最近の記録", "Pembaruan terbaru")} aside={<TextLink href={R.history}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
-          {feed.slice(0, 3).map((e) => (
-            <Row
-              key={e.id}
-              href={e.href ?? R.history}
-              lead={e.emoji ?? SECTION_META[e.section]?.emoji ?? "📝"}
-              title={sectionLabelOf(t, e.section)}
-              meta={e.text}
-              right={<span className="text-[13px] font-medium text-[color:var(--v2-faint)]">{formatRelativeTime(e.createdAt, undefined, t)}</span>}
-            />
-          ))}
-        </Section>
-      ) : null}
+      <Section title={t("내 스펙", "My specs", "我的资历", "Hồ sơ năng lực", "スペック", "Kualifikasi")} aside={education.length || skills.length || languages.length || certs.length ? <TextLink href={R.resume}>{t("편집", "Edit", "编辑", "Sửa", "編集", "Ubah")}</TextLink> : undefined}>
+        {education.length || skills.length || languages.length || certs.length ? (
+          <div className="flex flex-col gap-6 pb-3 pt-2">
+            {education.length ? (
+              <Spec label={sectionLabelOf(t, "education")}>
+                {education.map((e) => (
+                  <SpecLine key={e.id} head={e.company || e.text} sub={e.company && e.text ? e.text : undefined} right={[displayMonth(e.startDate ?? ""), displayMonth(e.endDate ?? "")].filter(Boolean).join(" ~ ")} />
+                ))}
+              </Spec>
+            ) : null}
+            {skills.length ? (
+              <Spec label={sectionLabelOf(t, "skill")}>
+                <div className="flex flex-wrap gap-1.5">
+                  {skills.map((k) => (
+                    <span key={k} className="inline-flex h-8 items-center rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[14px] font-medium text-[color:var(--v2-ink-2)]">
+                      {k}
+                    </span>
+                  ))}
+                </div>
+              </Spec>
+            ) : null}
+            {languages.length ? (
+              <Spec label={sectionLabelOf(t, "language")}>
+                {languages.map((l, i) => (
+                  <SpecLine key={i} head={l} />
+                ))}
+              </Spec>
+            ) : null}
+            {certs.length ? (
+              <Spec label={sectionLabelOf(t, "certificate")}>
+                {certs.map((c) => (
+                  <SpecLine key={c.id} head={c.text || c.company || ""} right={displayMonth(c.startDate ?? "")} />
+                ))}
+              </Spec>
+            ) : null}
+          </div>
+        ) : (
+          <Row href={R.resume} lead="📌" title={t("학력·스킬·어학·자격증을 채워 보세요", "Add education, skills, languages, certs", "填写学历、技能、语言、证书", "Thêm học vấn, kỹ năng, ngoại ngữ", "学歴・スキル・語学・資格を入力", "Tambah pendidikan, keahlian, bahasa")} meta={t("이력서에 그대로 들어가요", "They go straight into your resume", "会直接写进简历", "Sẽ đưa vào CV", "そのまま履歴書に入ります", "Langsung masuk ke CV")} />
+        )}
+      </Section>
 
       <Section title={t("더 정리하기", "More", "更多整理", "Sắp xếp thêm", "さらに整理", "Lainnya")}>
         <Row href={R.profile} lead="🙋" title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} meta={[info.realName, info.email].filter(Boolean).join(" · ") || t("이름·연락처", "Name & contact", "姓名·联系方式", "Tên & liên hệ", "名前・連絡先", "Nama & kontak")} />
         <Row href={R.experiences} lead="🧩" title={t("경험 정리", "Experiences", "经历整理", "Kinh nghiệm", "経験の整理", "Pengalaman")} meta={t("알바·프로젝트·동아리를 이력서 재료로", "Turn jobs, projects, and clubs into resume material", "把兼职、项目、社团整理成简历素材", "Biến việc làm thêm, dự án thành chất liệu CV", "バイト・プロジェクトを履歴書の材料に", "Jadikan kerja & proyek bahan CV")} />
-        <Row href={R.diagnosis} lead="🔎" title={t("이력서 AI 진단", "Resume AI check", "简历 AI 诊断", "Chẩn đoán CV", "履歴書AI診断", "Cek CV AI")} meta={t("보완할 점을 짚어 줘요", "Find what to improve", "指出需要改进的地方", "Chỉ ra điểm cần cải thiện", "改善点を教えます", "Temukan yang perlu diperbaiki")} />
         <Row href={R.resumes} lead="🗂️" title={t("저장한 서류", "Saved documents", "已保存的材料", "Hồ sơ đã lưu", "保存した書類", "Dokumen tersimpan")} meta={t("버전별 이력서·자기소개서", "Resume and cover letter versions", "各版本的简历和自我介绍", "Các phiên bản CV và thư", "バージョン別の履歴書・自己PR", "Versi CV dan surat")} />
-        <Row href={V2_ROUTES.interviews} lead="🎤" title={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} meta={t("내 서류로 예상 질문 연습", "Practice likely questions from your documents", "用我的材料练习预测问题", "Luyện câu hỏi từ hồ sơ", "書類から予想質問を練習", "Latih pertanyaan dari dokumen")} />
+        <Row href={R.history} lead="📝" title={t("커리어 기록", "Career log", "职业记录", "Nhật ký", "キャリア記録", "Catatan karier")} meta={t("지금까지 적은 기록 전체", "Everything you've logged", "迄今为止的全部记录", "Tất cả ghi chép", "これまでの記録すべて", "Semua catatan")} />
       </Section>
 
       {interestOpen ? <JobInterestModal initial={interests} onClose={() => setInterestOpen(false)} /> : null}
     </Page>
+  );
+}
+
+/** 맨 위 프로필 — 사진 · 이름 · 한 줄 소개 · 경력/지역. */
+function Profile({ t, name, photo, intro, meta }: { t: PlatformT; name: string; photo: string | null; intro: string; meta: string }) {
+  return (
+    <header className="flex items-center gap-4 px-5 pb-8 pt-8 md:gap-5 md:pt-12">
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[24px] font-bold text-[color:var(--v2-muted)] md:h-[72px] md:w-[72px]">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt="" className="h-full w-full object-cover" />
+        ) : (
+          (name || "?").slice(0, 1)
+        )}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="truncate text-[24px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">{name || t("나의 커리어", "My career", "我的职业", "Sự nghiệp của tôi", "私のキャリア", "Karier saya")}</h1>
+          <TextLink href={R.profile}>{t("수정", "Edit", "修改", "Sửa", "編集", "Ubah")}</TextLink>
+        </div>
+        {intro ? <p className="mt-0.5 line-clamp-2 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{intro}</p> : null}
+        {meta ? <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{meta}</p> : null}
+      </div>
+    </header>
+  );
+}
+
+function Spec({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 text-[14px] font-semibold text-[color:var(--v2-muted)]">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+function SpecLine({ head, sub, right }: { head: string; sub?: string; right?: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 py-1.5">
+      <div className="min-w-0">
+        <p className="text-[16px] font-semibold leading-[1.5] text-[color:var(--v2-ink-2)]">{head}</p>
+        {sub ? <p className="text-[14px] leading-[1.5] text-[color:var(--v2-muted)]">{sub}</p> : null}
+      </div>
+      {right ? <span className="shrink-0 pt-0.5 text-[13px] text-[color:var(--v2-faint)]">{right}</span> : null}
+    </div>
   );
 }

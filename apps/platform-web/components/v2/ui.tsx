@@ -305,7 +305,7 @@ export function PageSkeleton() {
 }
 
 /** 서류 카드 — 이력서·자기소개서를 2단으로 나란히. 카드 전체가 편집으로, 아래 '미리보기'는 선택. */
-export function DocCard({ href, label, pct, note, previewHref, previewLabel }: { href: string; label: string; pct: number; note: string; previewHref?: string | null; previewLabel?: string }) {
+export function DocCard({ href, label, pct, note, previewHref, previewLabel, extra }: { href: string; label: string; pct: number; note: string; previewHref?: string | null; previewLabel?: string; extra?: { href: string; label: string } | null }) {
   return (
     <div className="relative flex flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)] md:p-5">
       <Link href={href} aria-label={label} className="absolute inset-0 rounded-2xl" />
@@ -315,10 +315,19 @@ export function DocCard({ href, label, pct, note, previewHref, previewLabel }: {
         <div className="h-full rounded-full bg-[color:var(--v2-accent)]" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
       </div>
       <p className="mt-2.5 text-[14px] text-[color:var(--v2-muted)]">{note}</p>
-      {previewHref ? (
-        <Link href={previewHref} className="relative mt-3 self-start text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
-          {previewLabel}
-        </Link>
+      {previewHref || extra ? (
+        <div className="relative mt-3 flex flex-wrap gap-x-4 gap-y-1 self-start">
+          {previewHref ? (
+            <Link href={previewHref} className="text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
+              {previewLabel}
+            </Link>
+          ) : null}
+          {extra ? (
+            <Link href={extra.href} className="text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
+              {extra.label}
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
