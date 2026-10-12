@@ -34,10 +34,10 @@ export function Band() {
 }
 
 /** 구획 — 띠 위에 제목과 내용. */
-export function Section({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+export function Section({ title, aside, children, band = true }: { title: string; aside?: ReactNode; children: ReactNode; band?: boolean }) {
   return (
     <>
-      <Band />
+      {band ? <Band /> : null}
       <section className="px-5 pb-7 pt-8 md:pb-9 md:pt-10">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>

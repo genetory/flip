@@ -245,7 +245,7 @@ function Interviews() {
       </div>
 
       {/* ② 면접 준비 단계 — 무엇부터 할지 순서 */}
-      <Section title={t("면접 준비 단계", "Interview prep steps", "面试准备步骤", "Các bước chuẩn bị", "面接準備ステップ", "Langkah persiapan")} aside={<span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t(`${stepsDone}/4 완료`, `${stepsDone}/4 done`, `已完成 ${stepsDone}/4`, `Xong ${stepsDone}/4`, `${stepsDone}/4 完了`, `${stepsDone}/4 selesai`)}</span>}>
+      <Section band={false} title={t("면접 준비 단계", "Interview prep steps", "面试准备步骤", "Các bước chuẩn bị", "面接準備ステップ", "Langkah persiapan")} aside={<span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t(`${stepsDone}/4 완료`, `${stepsDone}/4 done`, `已完成 ${stepsDone}/4`, `Xong ${stepsDone}/4`, `${stepsDone}/4 完了`, `${stepsDone}/4 selesai`)}</span>}>
         <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]" aria-hidden>
           <div className="h-full rounded-full bg-[color:var(--v2-good)] transition-all" style={{ width: `${(stepsDone / 4) * 100}%` }} />
         </div>
