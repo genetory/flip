@@ -120,6 +120,28 @@ function Jobs() {
     [tab, search, interests, sort, foreigner, locale, isAuthenticated]
   );
 
+  // 이번 주 마감 — 목록 정렬과 상관없이 위에 묶어 보여 준다. 탭·외국인 스위치는 따르고, 검색 중·저장 탭에선 숨긴다.
+  const [closing, setClosing] = useState<PublicPositionListItem[]>([]);
+  useEffect(() => {
+    if (tab === "saved" || search || (tab === "interest" && !interests.length)) return;
+    let alive = true;
+    getPublicPositionsPage({
+      page: 1,
+      limit: 12,
+      sort: "deadline",
+      sourceProviders: tab === "aply" ? ["INTERNAL"] : undefined,
+      jobRoles: tab === "interest" ? jobCategoriesForInterests(interests) : undefined,
+      foreignerEligible: foreigner || undefined,
+      locale
+    })
+      .then((r) => alive && setClosing(r.items.filter((j) => (deadlineOf(j)?.days ?? 99) <= 7).slice(0, 5)))
+      .catch(() => alive && setClosing([]));
+    return () => {
+      alive = false;
+    };
+  }, [tab, search, interests, foreigner, locale]);
+  const showClosing = tab !== "saved" && !search && !(tab === "interest" && !interests.length) && closing.length > 0;
+
   useEffect(() => {
     let alive = true;
     fetchPage(1)
@@ -245,6 +267,29 @@ function Jobs() {
           </span>
         ) : null}
       </div>
+
+      {showClosing ? (
+        <section className="mt-6" aria-label={t("이번 주 마감", "Closing this week", "本周截止", "Hết hạn tuần này", "今週締切", "Tutup minggu ini")}>
+          <h2 className="px-5 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">
+            {t("이번 주에 마감돼요", "Closing this week", "本周截止", "Hết hạn trong tuần này", "今週締め切られます", "Tutup minggu ini")}
+          </h2>
+          {/* scroll-px — 넘김 멈춤 위치도 본문 좌우 여백(20px)에 맞춘다(없으면 첫 카드가 화면 끝에 붙는다). */}
+          <div className="mt-3 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {closing.map((j) => {
+              const due = deadlineOf(j)!;
+              return (
+                <Link key={j.id} href={`/talent/jobs/${j.id}`} className="flex w-[230px] shrink-0 snap-start flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)]">
+                  <span className="text-[13px] font-bold text-[color:var(--v2-attention)]">
+                    {due.days === 0 ? t("오늘 마감", "Closes today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini") : `D-${due.days}`}
+                  </span>
+                  <span className="mt-1.5 line-clamp-2 text-[16px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{j.title}</span>
+                  <span className="mt-auto truncate pt-2 text-[13px] text-[color:var(--v2-faint)]">{companyOf(j)}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {/* 목록 머리 — 왼쪽 개수, 오른쪽 정렬. 필터 바로 아래라 구분선 없이 여백만. */}
       <div className="mt-5 flex items-center justify-between px-5">
