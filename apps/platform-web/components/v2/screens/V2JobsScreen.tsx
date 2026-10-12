@@ -15,6 +15,7 @@ import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { getMyFavoritePositions, getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { trackForeignerPrompt } from "../../../lib/analytics";
+import { isForeignNationality } from "../../../lib/nationality";
 
 type Tab = "all" | "aply" | "interest" | "saved";
 const PAGE = 20;
@@ -62,7 +63,7 @@ export function V2JobsScreen() {
 function Jobs() {
   const t = usePlatformT();
   const { locale } = useLanguage();
-  const { isAuthenticated } = useAuthSession();
+  const { isAuthenticated, user } = useAuthSession();
   const interests = useJobInterests();
   // ?tab=interest 처럼 다른 화면(내 커리어 '내 스펙에 맞는 공고')에서 탭을 골라 들어올 수 있다.
   const tabParam = useSearchParams()?.get("tab");
@@ -76,7 +77,8 @@ function Jobs() {
   const [answered, setAnswered] = useState(false);
   const [foreignerToggle, setForeigner] = useState<boolean | null>(null);
   const foreigner = foreignerToggle ?? false;
-  const askForeigner = stored === null && !answered;
+  // 국적을 이미 알면(계정에 저장됨) 묻지 않는다.
+  const askForeigner = stored === null && !answered && isForeignNationality(user?.nationality) === null;
   const answerForeigner = (answer: "yes" | "no") => {
     trackForeignerPrompt(answer);
     writeForeigner(answer === "yes" ? "yes" : "no");

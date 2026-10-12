@@ -1,9 +1,10 @@
 "use client";
 
-// 프로필 — 기본 인적 정보(실명·이메일·연락처·주소·사진) + 관심 직무.
+// 프로필 — 기본 인적 정보(실명·이메일·연락처·주소·사진) + 국적 + 관심 직무.
 // 소개·경험·학력·스킬 등은 이후 채팅/피드로 자동 정리된다.
 import { CareerLayout } from "../career/CareerLayout";
 import { BasicInfoForm } from "../career/BasicInfoForm";
+import { NationalityField } from "../career/NationalityField";
 import { JobInterestCard } from "../jobs/JobInterestCard";
 import { TPageHeader } from "../ui/primitives";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -27,6 +28,10 @@ function Content() {
       <section>
         <SectionTitle>{t("기본 정보","Basic info","基本信息","Thông tin cơ bản","基本情報","Info dasar")}</SectionTitle>
         <BasicInfoForm defaultName={defaultName} />
+      </section>
+      <section>
+        <SectionTitle>{t("국적","Nationality","国籍","Quốc tịch","国籍","Kebangsaan")}</SectionTitle>
+        <NationalityField className="max-w-md" />
       </section>
       <section>
         <SectionTitle>{t("관심 직무","Job interests","感兴趣的职位","Vị trí quan tâm","関心のある職種","Minat pekerjaan")}</SectionTitle>

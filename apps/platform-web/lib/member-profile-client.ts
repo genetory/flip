@@ -1819,6 +1819,7 @@ export async function updateMyBasicInfo(input: {
   phoneNumber?: string | null;
   birthDate?: string | null;
   gender?: string | null;
+  nationality?: string | null;
   profileImageData?: string | null;
 }) {
   const result = await authedJsonFetch<{

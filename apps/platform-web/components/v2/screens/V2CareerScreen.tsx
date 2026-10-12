@@ -8,7 +8,9 @@ import { Band, Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Ro
 import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
-import { getPublicPositionsPage, getMyCandidateProfile, updateMyCandidateProfile, type CandidateVisaType, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getPublicPositionsPage, getMyCandidateProfile, updateMyCandidateProfile, updateMyBasicInfo, type CandidateVisaType, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { isForeignNationality } from "../../../lib/nationality";
+import { NationalityField } from "../../talent/career/NationalityField";
 import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
@@ -902,17 +904,8 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
 
 // ── 비자 ───────────────────────────────────────────────
 // 외국인 지원자에게만 있는 고민 — 지금 비자에서 취업 비자(E-7)까지 어디쯤인지. 비자는 계정(CandidateProfile.visaType)에 저장.
-// 외국인이라고 답했을 때만 보인다. 답은 포지션 탐색의 '혹시 외국인이세요?'와 같은 곳에 기억한다(어느 화면에서 답해도 같이 쓴다).
-//   비자 저장됨 → 카드 / '네' → 비자 고르기 / '아니요' → 숨김 / 아직 모름 → 얇은 질문 카드만.
-const FOREIGNER_KEY = "aply.v2.jobs.foreigner";
-
-function readForeignerAnswer(): string | null {
-  try {
-    return window.localStorage.getItem(FOREIGNER_KEY);
-  } catch {
-    return null;
-  }
-}
+// 외국인인지는 국적(User.nationality)으로 본다 — 비자 저장됨 → 카드 / 외국 국적 → 비자 고르기 / 한국 → 숨김 /
+// 국적 모름 → 얇은 '혹시 외국인이세요?' 카드: [네] 국적 고르기, [아니요] 한국으로 저장.
 
 function visaLabel(t: PlatformT, v: CandidateVisaType): string {
   switch (v) {
@@ -942,8 +935,10 @@ function visaLabel(t: PlatformT, v: CandidateVisaType): string {
 const VISA_CHOICES: CandidateVisaType[] = ["D2_STUDENT", "D10_JOB_SEEKING", "E7_SPECIFIC_ACTIVITY", "D4_GENERAL_TRAINING", "F2_RESIDENCE", "F4_OVERSEAS_KOREAN", "F5_PERMANENT_RESIDENCE", "F6_MARRIAGE_IMMIGRATION", "H1_WORKING_HOLIDAY", "OTHER"];
 
 function VisaCard({ t }: { t: PlatformT }) {
+  const { user, refreshSession } = useAuthSession();
+  const foreign = isForeignNationality(user?.nationality);
   const [visa, setVisa] = useState<CandidateVisaType | null | undefined>(undefined); // undefined = 불러오는 중
-  const [foreigner, setForeigner] = useState<string | null>(() => readForeignerAnswer());
+  const [askNationality, setAskNationality] = useState(false);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   useEffect(() => {
@@ -968,21 +963,37 @@ function VisaCard({ t }: { t: PlatformT }) {
       setSaving(false);
     }
   };
-  const answer = (v: "yes" | "no") => {
-    setForeigner(v);
+  const notForeigner = async () => {
+    setSaving(true);
     try {
-      window.localStorage.setItem(FOREIGNER_KEY, v);
+      await updateMyBasicInfo({ nationality: "KR" });
+      await refreshSession();
     } catch {
-      /* 이번 방문만 기억 */
+      /* 실패하면 질문을 그대로 둔다 */
+    } finally {
+      setSaving(false);
     }
   };
 
   if (visa === undefined) return null;
-  if (!visa && foreigner === "no") return null;
+  if (!visa && foreign === false) return null;
   const title = t("비자", "Visa", "签证", "Visa", "ビザ", "Visa");
 
-  // 아직 모름 — 포지션 탐색과 같은 얇은 질문 카드
-  if (!visa && foreigner !== "yes") {
+  // 국적 모름 — [네]를 누르면 국적을 고르게 한다(계정에 저장되어 다른 기기에서도 다시 묻지 않는다).
+  if (!visa && foreign === null) {
+    if (askNationality) {
+      return (
+        <Section title={t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kebangsaan")}>
+          <div className="pb-3">
+            <p className="mb-3 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("국적을 알려 주시면 비자에 맞춰 취업 준비를 도와드려요.", "Tell us your nationality and we'll guide you by visa.", "告诉我们你的国籍，我们会按签证帮你准备就业。", "Cho biết quốc tịch, chúng tôi hướng dẫn theo visa.", "国籍を教えていただければビザに合わせてサポートします。", "Beri tahu kebangsaanmu, kami bantu sesuai visa.")}</p>
+            <NationalityField className="max-w-md" />
+            <div className="mt-1">
+              <TextLink onClick={() => setAskNationality(false)}>{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</TextLink>
+            </div>
+          </div>
+        </Section>
+      );
+    }
     return (
       <>
         <Band />
@@ -993,10 +1004,10 @@ function VisaCard({ t }: { t: PlatformT }) {
               {t("비자에 맞춰 취업 준비를 도와드려요.", "We'll guide you by visa.", "我们会按签证帮你准备就业。", "Chúng tôi hướng dẫn theo visa.", "ビザに合わせて就活をサポートします。", "Kami bantu sesuai visa.")}
             </p>
             <div className="flex shrink-0 gap-1.5">
-              <Button size="sm" onClick={() => answer("yes")}>
+              <Button size="sm" onClick={() => setAskNationality(true)}>
                 {t("네", "Yes", "是", "Có", "はい", "Ya")}
               </Button>
-              <Button size="sm" variant="white" onClick={() => answer("no")}>
+              <Button size="sm" variant="white" onClick={() => void notForeigner()} disabled={saving}>
                 {t("아니요", "No", "不是", "Không", "いいえ", "Tidak")}
               </Button>
             </div>

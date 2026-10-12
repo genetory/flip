@@ -27,6 +27,7 @@ type SessionUser = {
   phoneNumber?: string | null;
   birthDate?: string | null;
   gender?: string | null;
+  nationality?: string | null; // ISO 2글자 코드(KR, VN …) — lib/nationality
   role: "STUDENT" | "PARTNER" | "OPERATOR";
   authProvider?: "EMAIL" | "NAVER" | "KAKAO" | "GOOGLE";
   profileImageUrl?: string | null;

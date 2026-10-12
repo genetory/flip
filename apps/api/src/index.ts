@@ -3614,6 +3614,8 @@ const updateMyBasicInfoSchema = z.object({
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   birthDate: flexibleDateString.nullable().optional(),
   gender: z.string().trim().max(40).nullable().optional(),
+  // 국적 — ISO-3166 2글자 코드(KR, VN …). 외국인 여부(비자 안내·외국인 채용 필터)를 판단한다.
+  nationality: z.string().trim().max(120).nullable().optional(),
   profileImageData: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
 });
 
@@ -13593,6 +13595,7 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         ...(parsed.data.phoneNumber !== undefined ? { phoneNumber: parsed.data.phoneNumber?.trim() || null } : {}),
         ...(parsed.data.birthDate !== undefined ? { birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null } : {}),
         ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {}),
+        ...(parsed.data.nationality !== undefined ? { nationality: parsed.data.nationality?.trim() || null } : {}),
         ...(profileImageUrlUpdate ?? {})
       }
     });
