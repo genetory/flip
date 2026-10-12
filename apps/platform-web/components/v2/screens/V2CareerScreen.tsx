@@ -74,7 +74,7 @@ function durationText(t: PlatformT, months: number): string {
 }
 
 /** 스킬 한 항목에 여러 개를 쉼표로 적는 경우가 많다 — 칩으로 쪼갠다. */
-function splitList(text: string): string[] {
+export function splitList(text: string): string[] {
   return text
     .split(/[,，、\n·]|\s\/\s/)
     .map((x) => x.trim())
@@ -341,7 +341,7 @@ function SpecLine({ head, sub, right }: { head: string; sub?: string; right?: st
 }
 
 /** 글에 표기가 있나 — 영문·숫자 표기는 단어 경계로(Go 가 Google 에 걸리지 않게), 한글은 띄어쓰기 무시. 서버 hasTerm 과 같은 규칙. */
-function termIn(text: string, term: string): boolean {
+export function termIn(text: string, term: string): boolean {
   const a = term.trim();
   if (!a) return false;
   if (/^[\x00-\x7F]+$/.test(a)) {
@@ -637,7 +637,7 @@ function roleMatcher(t: PlatformT, role: string): (text: string) => boolean {
     keys.some((k) => (/^[A-Za-z]{1,3}$/.test(k) ? new RegExp(`(^|[^A-Za-z])${k}(?![A-Za-z])`, "i").test(text) : norm(text).includes(norm(k))));
 }
 
-function readChecklists(): Record<string, ChecklistResult> {
+export function readChecklists(): Record<string, ChecklistResult> {
   try {
     const raw = window.localStorage.getItem(CHECKLIST_KEY);
     const v = raw ? (JSON.parse(raw) as Record<string, ChecklistResult>) : null;
@@ -647,7 +647,7 @@ function readChecklists(): Record<string, ChecklistResult> {
   }
 }
 
-function categoryLabel(t: PlatformT, c: RoleChecklistItem["category"]): string {
+export function categoryLabel(t: PlatformT, c: RoleChecklistItem["category"]): string {
   if (c === "certificate") return t("자격증", "Cert", "证书", "Chứng chỉ", "資格", "Sertifikat");
   if (c === "experience") return t("경험", "Experience", "经验", "Kinh nghiệm", "経験", "Pengalaman");
   if (c === "language") return t("어학", "Language", "语言", "Ngoại ngữ", "語学", "Bahasa");
@@ -879,7 +879,7 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
 /** 필수 항목 — 이력서: 학력·경력/프로젝트·스킬·어학·한 줄 소개.
  *  자기소개서는 문항이 회사마다 달라(사용자가 바꾸고 지운다) 정해진 필수가 없다 — 한 문항이라도 썼으면 다 찬 것으로 본다.
  *  기본 문항(입사 후 포부 등)을 안 썼다고 '빠졌다'고 하지 않는다. */
-function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: ResumeDoc | null, cover: CoverDoc | null): { label: string; done: boolean }[] {
+export function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: ResumeDoc | null, cover: CoverDoc | null): { label: string; done: boolean }[] {
   if (kind === "resume") {
     const has = (secs: CareerSection[]) => !!resume?.items.some((i) => secs.includes(i.section) && (i.text.trim() || (i.company ?? "").trim()));
     return [
@@ -901,7 +901,7 @@ function coverWritten(cover: CoverDoc | null): { count: number; chars: number } 
   return { count: written.length, chars: written.reduce((a, b) => a + b, 0) };
 }
 
-function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
+export function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
   const doc = kind === "resume" ? resume : cover;
   const label = kind === "resume" ? t("이력서", "Resume", "简历", "CV", "履歴書", "CV") : t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran");
   const editHref = kind === "resume" ? R.resume : R.cover;
