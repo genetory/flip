@@ -16,6 +16,7 @@ import { NationalityField } from "../../talent/career/NationalityField";
 import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
 import { listMyConnections, type MyConnection } from "../../../lib/candidate-connect-client";
 import { V2_ROUTES } from "../V2Shell";
+import { Sheet } from "../sheets";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -487,14 +488,19 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
   const { locale } = useLanguage();
   const router = useRouter();
   // [자소서 맞추기] — 자기소개서의 지원 회사·공고 본문을 이 공고로 채우고 에디터로 간다(에디터의 AI 자소서가 공고에 1:1로 맞춰 쓴다).
-  // 이미 다른 회사로 맞춰 둔 게 있으면 한 번 묻는다.
-  const tailor = (j: PublicPositionListItem) => {
+  // 이미 다른 회사로 맞춰 둔 게 있으면 v2 시트로 한 번 묻는다.
+  const [confirmJob, setConfirmJob] = useState<PublicPositionListItem | null>(null);
+  const applyTailor = (j: PublicPositionListItem) => {
     const company = companyOf(j);
     const base = cover ?? generateCoverDoc();
-    if (base.companyName?.trim() && base.companyName.trim() !== company && !window.confirm(t(`지금 자기소개서는 '${base.companyName}'에 맞춰져 있어요. '${company}'로 바꿀까요?`, `Your cover letter targets '${base.companyName}'. Switch to '${company}'?`, `当前自我介绍针对'${base.companyName}'，要改为'${company}'吗？`, `Thư đang nhắm '${base.companyName}'. Đổi sang '${company}'?`, `今の自己PRは「${base.companyName}」向けです。「${company}」に変えますか？`, `Surat ditujukan ke '${base.companyName}'. Ganti ke '${company}'?`))) return;
     const jd = [j.title, j.requiredQualifications ? `[자격 요건]\n${j.requiredQualifications}` : "", j.preferredQualifications ? `[우대 사항]\n${j.preferredQualifications}` : ""].filter(Boolean).join("\n\n").slice(0, 4000);
-    saveCoverDoc({ ...base, companyName: company, jobText: jd }, { label: t(`${company} 공고에 맞춤`, `Tailored to ${company}`, `针对${company}`, `Theo ${company}`, `${company}向け`, `Untuk ${company}`) });
+    saveCoverDoc({ ...base, companyName: company, jobText: jd }, { label: t(`${company} 공고에 맞춤`, `Tailored to ${company}`, `针对${company}`, `Theo ${company}`, `${company}向け`, `Untuk ${company}`), force: true }); // force — 바꾸기 전 버전을 꼭 남겨 되돌릴 수 있게
     router.push(R.cover);
+  };
+  const tailor = (j: PublicPositionListItem) => {
+    const current = cover?.companyName?.trim();
+    if (current && current !== companyOf(j)) setConfirmJob(j);
+    else applyTailor(j);
   };
   const [state, setState] = useState<{ key: string; total: number; items: PublicPositionListItem[] } | null>(null);
   const key = `${interests.join(",")}|${skills.slice(0, 6).join(",")}|${locale}`;
@@ -564,6 +570,34 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
           })}
         </>
       )}
+      {confirmJob ? (
+        <Sheet
+          title={t("자기소개서 회사를 바꿀까요?", "Switch the target company?", "要更换目标公司吗？", "Đổi công ty mục tiêu?", "応募先を変えますか？", "Ganti perusahaan tujuan?")}
+          onClose={() => setConfirmJob(null)}
+          footer={
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="neutral" full onClick={() => setConfirmJob(null)}>
+                {t("그대로 두기", "Keep", "保持不变", "Giữ nguyên", "そのまま", "Biarkan")}
+              </Button>
+              <Button full onClick={() => applyTailor(confirmJob)}>
+                {t("바꾸기", "Switch", "更换", "Đổi", "変える", "Ganti")}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-[16px] leading-[1.65] text-[color:var(--v2-ink-2)]">
+            {t(
+              `지금 자기소개서는 '${cover?.companyName ?? ""}'에 맞춰져 있어요. '${companyOf(confirmJob)}' 공고로 바꾸면 지원 회사와 공고 내용이 바뀌어요.`,
+              `Your cover letter targets '${cover?.companyName ?? ""}'. Switching to '${companyOf(confirmJob)}' replaces the company and job text.`,
+              `当前自我介绍针对'${cover?.companyName ?? ""}'。改为'${companyOf(confirmJob)}'会替换公司和职位内容。`,
+              `Thư đang nhắm '${cover?.companyName ?? ""}'. Đổi sang '${companyOf(confirmJob)}' sẽ thay công ty và nội dung tin.`,
+              `今の自己PRは「${cover?.companyName ?? ""}」向けです。「${companyOf(confirmJob)}」に変えると会社と求人内容が置き換わります。`,
+              `Surat ditujukan ke '${cover?.companyName ?? ""}'. Mengganti ke '${companyOf(confirmJob)}' akan mengubah perusahaan dan teks lowongan.`
+            )}
+          </p>
+          <p className="mt-2 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("이미 쓴 답변은 그대로 남고, 지금 버전은 '저장한 서류'에서 되돌릴 수 있어요.", "Your answers stay. You can restore this version from Saved documents.", "已写的回答会保留，可在'已保存的材料'中恢复当前版本。", "Câu trả lời vẫn giữ; có thể khôi phục phiên bản này trong Hồ sơ đã lưu.", "書いた回答は残り、今の版は「保存した書類」から戻せます。", "Jawaban tetap; versi ini bisa dipulihkan dari Dokumen tersimpan.")}</p>
+        </Sheet>
+      ) : null}
     </Section>
   );
 }
