@@ -16367,7 +16367,9 @@ function aiFeatureCost(feature: string): number {
 // gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
 // 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
-const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover", "role_checklist"]);
+// 모의 면접(interview_questions·interview_feedback)은 나중에 유료로 받을 예정 — 지금은 테스트를 위해 이 하루 상한에서 뺀다.
+// (분당 상한·하루 총 상한은 그대로 적용된다.) 유료화할 때 다시 넣거나 결제 확인으로 바꾼다.
+const AI_PREMIUM_FEATURES = new Set(["review_resume", "review_cover", "role_checklist"]);
 const AI_PREMIUM_DAILY_CAP = 40;
 const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
 async function aiPremiumUsedToday(userId: string): Promise<number> {
