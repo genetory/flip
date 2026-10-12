@@ -226,8 +226,8 @@ function Jobs() {
             <Chip key={k} active={tab === k} onClick={() => setTab(k)}>
               {k === "aply" ? (
                 // 'Aply' 글자 대신 로고 — 고르면 칩이 먹색이라 로고를 흰색으로 바꿔 보이게.
-                // 대문자 ONLY·로고(p·y 꼬리)는 위로 떠 보여 1.5px 내려 눈으로 가운데를 맞춘다(박스는 이미 가운데).
-                <span className="inline-flex translate-y-[1.5px] items-center gap-1.5" aria-label="Aply ONLY">
+                // 대문자 ONLY·로고(p·y 꼬리)는 위로 떠 보여 0.5px 내려 눈으로 가운데를 맞춘다(박스는 이미 가운데).
+                <span className="inline-flex translate-y-[0.5px] items-center gap-1.5" aria-label="Aply ONLY">
                   {/* eslint-disable-next-line @next/next/no-img-element -- 작은 로고 한 장, 크기 고정 */}
                   <img src="/img_logo.webp" alt="" className={`h-5 w-auto ${tab === k ? "brightness-0 invert" : ""}`} />
                   <span aria-hidden>ONLY</span>
