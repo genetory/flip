@@ -79,7 +79,7 @@ export function PracticeTools({ t, showQuiz }: { t: PlatformT; showQuiz: boolean
 // ── 10분 모의 면접 세트 ─────────────────────────────────
 type SetAnswer = { q: DailyQuestion; answer: string; ms: number };
 
-function InterviewSetSheet({ onClose }: { onClose: () => void }) {
+export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const resume = useResumeDoc();
@@ -274,7 +274,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 // ── 1분 자기소개 만들기 ─────────────────────────────────
 // 초안(이력서로 AI) → 다듬기(글자 수·예상 시간) → 소리 내어 연습(60초 프롬프터) → 저장 / AI 피드백.
-function SelfIntroSheet({ onClose }: { onClose: () => void }) {
+export function SelfIntroSheet({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   const resume = useResumeDoc();
   const selfMock = useSelfMock();
@@ -385,7 +385,7 @@ function SelfIntroSheet({ onClose }: { onClose: () => void }) {
 // ── 한국 면접 매너 퀴즈 ─────────────────────────────────
 const QUIZ_KEY = "aply.v2.interview.quiz";
 
-function useQuizResult(): number | null {
+export function useQuizResult(): number | null {
   const [v] = useState<number | null>(() => {
     try {
       const raw = typeof window !== "undefined" ? window.localStorage.getItem(QUIZ_KEY) : null;
@@ -398,7 +398,7 @@ function useQuizResult(): number | null {
   return v;
 }
 
-function QuizSheet({ onClose }: { onClose: () => void }) {
+export function QuizSheet({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   const quiz = useMemo(() => pickDailyQuiz(), []);
   const [i, setI] = useState(0);

@@ -16,6 +16,7 @@ import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { trackInterviewFollowUpStarted, trackInterviewRetryScored } from "../../../lib/analytics";
+import { recordImportedPractice } from "../../../lib/talent/imported-jobs";
 import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
 import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
@@ -261,8 +262,9 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         setSlots((prev) => ({ ...prev, [idx]: { answer: a, fb: f, prev: prev[idx]?.prev ?? null } }));
         if (before) trackInterviewRetryScored(f.score - before.score);
         // 저장: 공고 모의 → 회사에 노출, self 모의 → 계정에 보관.
-        // 가져온 외부 공고(ext-…)는 회사가 없는 공고라 연습 기록(회사 노출)을 남기지 않는다.
-        if (item?.id && !item.id.startsWith("ext-")) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
+        // 가져온 외부 공고(ext-…)는 회사가 없는 공고라 서버 연습 기록 대신 계정의 가져온 공고에 남긴다(기록은 꼭 남아야 한다).
+        if (item?.id?.startsWith("ext-")) recordImportedPractice(item.id, { question: q.question, answer: a, score: f.score });
+        else if (item?.id) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
         else saveSelfMockAnswer({ question: q.question, category: q.category, answer: a, score: f.score, feedback: f });
         syncTickets();
       })

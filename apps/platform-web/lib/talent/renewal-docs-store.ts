@@ -43,7 +43,20 @@ let jobInterests: string[] | null = null;
 let follows: string[] | null = null;
 let bookmarks: string[] | null = null;
 // 모의 면접용으로 가져온 외부 공고(URL·붙여넣기) — 본인만 본다. content.renewalImportedJobs.
-export type ImportedJob = { id: string; title: string; company: string; mainResponsibilities: string; requiredQualifications: string; preferredQualifications: string; sourceUrl?: string; createdAt: number };
+export type ImportedJob = {
+  id: string;
+  title: string;
+  company: string;
+  mainResponsibilities: string;
+  requiredQualifications: string;
+  preferredQualifications: string;
+  sourceUrl?: string;
+  createdAt: number;
+  // 이 공고로 한 모의 면접 기록 — 회사가 없는 공고라 서버 연습 기록(MockInterviewSession) 대신 여기 남긴다.
+  answers?: { question: string; answer: string; score: number | null }[];
+  bestScore?: number | null;
+  lastPracticedAt?: number;
+};
 let importedJobs: ImportedJob[] | null = null;
 let dailySteps: string[] | null = null;
 let careerFeed: FeedEntry[] | null = null;

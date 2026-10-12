@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
-import { ImportJobSheet, PracticeTools } from "../interview-content";
+import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet } from "../interview-content";
 import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { Attention, Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, SearchField, Section, SectionSkeleton } from "../ui";
@@ -66,12 +66,23 @@ function Interviews() {
   const [practice, setPractice] = useState<{ item: PublicPositionListItem | null } | null>(null);
   const [sheetApp, setSheetApp] = useState<MyApplication | null>(null);
   const [limit, setLimit] = useState({ reached: false, limit: 3 });
-  const [searching, setSearching] = useState(false);
   const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
   const [review, setReview] = useState<MockInterviewRecord | "self" | null>(null);
   const [practiceQ, setPracticeQ] = useState<PracticeQuestion | null>(null);
   const [importing, setImporting] = useState(false);
+  const [picker, setPicker] = useState<"mine" | "imported" | "search" | null>(null);
+  const [tool, setTool] = useState<"set" | "intro" | "quiz" | null>(null);
   const imported = useImportedJobs();
+  // 연습 기록 = 서버 기록(Aply·원티드 공고) + 가져온 공고 기록(계정) — 최근 연습순.
+  const history: MockInterviewRecord[] | null =
+    records === null
+      ? null
+      : [
+          ...records,
+          ...imported
+            .filter((j) => j.answers?.length)
+            .map((j) => ({ positionId: j.id, positionTitle: j.title, companyName: j.company || null, answeredCount: j.answers!.length, bestScore: j.bestScore ?? null, lastPracticedAt: new Date(j.lastPracticedAt ?? j.createdAt).toISOString() }))
+        ].sort((a, b) => new Date(b.lastPracticedAt).getTime() - new Date(a.lastPracticedAt).getTime());
   const [now] = useState(() => Date.now()); // 화면을 연 시각 — 오늘의 질문·연속 기록의 기준
   const { user } = useAuthSession();
 
@@ -142,6 +153,8 @@ function Interviews() {
     setGate({ item });
   };
   const startById = async (positionId: string, mode: InterviewStartMode) => {
+    const ext = imported.find((j) => j.id === positionId);
+    if (ext) return startJob(importedToPosition(ext), mode);
     const item = (positions ?? []).find((p) => p.id === positionId) ?? (await getPublicPositionById(positionId, { locale }).catch(() => null));
     if (item) startJob(item, mode);
   };
@@ -243,35 +256,18 @@ function Interviews() {
 
       <InterviewReportPrompt t={t} apps={apps} />
 
-      {/* ② 연습하기 — 공고로 연습(내 공고·가져온 공고·가져오기·찾기·내 서류) + 연습 도구 */}
+      {/* ② 연습하기 — 고를 수 있게 카테고리 카드 그리드 */}
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
-        <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("공고로 연습", "Practice for a job", "按职位练习", "Luyện theo tin tuyển dụng", "求人で練習", "Latihan untuk lowongan")}</p>
-        {positions === null ? <RowsSkeleton count={2} /> : null}
-        {candidates.map((p) => {
-          // 왜 이 공고인지 — 지원한 공고 / 저장한 공고(마감이 가까우면 D-n).
-          const dd = p.sourceDeadlineDate && !p.sourceDeadlineRolling ? daysUntil(p.sourceDeadlineDate) : null;
-          const why = appliedIds.has(p.id)
-            ? t("지원한 공고", "Applied", "已投递", "Đã ứng tuyển", "応募済み", "Dilamar")
-            : dd !== null && dd >= 0 && dd <= 7
-              ? t(`저장한 공고 · ${dd === 0 ? "오늘" : `D-${dd}`} 마감`, `Saved · closes ${dd === 0 ? "today" : `D-${dd}`}`, `已收藏 · ${dd === 0 ? "今天" : `D-${dd}`}截止`, `Đã lưu · hết hạn ${dd === 0 ? "hôm nay" : `D-${dd}`}`, `保存済み · ${dd === 0 ? "今日" : `D-${dd}`}締切`, `Disimpan · tutup ${dd === 0 ? "hari ini" : `D-${dd}`}`)
-              : t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Disimpan");
-          return <Row key={p.id} onClick={() => startJob(p, "job")} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={[companyOf(p), why].filter(Boolean).join(" · ") || undefined} />;
-        })}
-        {imported.map((j) => (
-          <Row key={j.id} onClick={() => startJob(importedToPosition(j), "job")} lead="🔗" title={j.title} meta={[j.company, t("가져온 공고", "Imported", "导入的职位", "Tin đã nhập", "取り込んだ求人", "Diimpor")].filter(Boolean).join(" · ")} />
-        ))}
-        <Row onClick={() => setImporting(true)} lead="➕" title={t("가고 싶은 회사 공고 가져오기", "Import a job you want", "导入想去的公司职位", "Nhập tin của công ty bạn muốn", "行きたい会社の求人を取り込む", "Impor lowongan incaran")} meta={t("링크나 공고 내용으로 — 원티드·사람인·회사 채용 페이지", "By link or pasted text — any job site", "通过链接或粘贴内容——任何招聘网站", "Bằng link hoặc dán nội dung", "リンクか本文で — どのサイトでも", "Lewat tautan atau tempel teks")} />
-        {searching ? (
-          <JobSearch onPick={(p) => startJob(p, "job")} />
-        ) : (
-          <Row onClick={() => setSearching(true)} lead="🔍" title={t("다른 공고 찾기", "Find another job", "查找其他职位", "Tìm tin khác", "他の求人を探す", "Cari lowongan lain")} meta={t("직무나 회사 이름으로", "By role or company", "按职位或公司", "Theo vị trí hoặc công ty", "職種や会社名で", "Berdasarkan peran atau perusahaan")} />
-        )}
-        <Row onClick={startSelf} lead="📄" title={t("내 서류로 연습", "With my documents", "用我的材料", "Từ hồ sơ của tôi", "自分の書類で", "Dari dokumenku")} meta={t("이력서·자기소개서에서 나올 질문", "Questions from your resume & cover letter", "来自简历和自我介绍的问题", "Câu hỏi từ CV & thư", "履歴書・自己PRから出る質問", "Pertanyaan dari CV & surat")} />
-        <div className="pt-4">
-          <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("연습 도구", "Tools", "练习工具", "Công cụ", "練習ツール", "Alat")}</p>
-          <div className="pt-1">
-            <PracticeTools t={t} showQuiz={isForeignNationality(user?.nationality) === true || locale !== "ko"} />
-          </div>
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+          <PracticeCard tone="blue" icon="📌" title={t("내 공고로", "My jobs", "我的职位", "Tin của tôi", "自分の求人で", "Lowonganku")} meta={positions === null ? "…" : t(`지원·저장한 공고 ${candidates.length}개`, `${candidates.length} applied/saved`, `投递/收藏 ${candidates.length} 个`, `${candidates.length} tin đã lưu/ứng tuyển`, `応募・保存 ${candidates.length}件`, `${candidates.length} dilamar/disimpan`)} onClick={() => setPicker("mine")} />
+          <PracticeCard tone="violet" icon="🔗" title={t("가고 싶은 회사 공고", "Job you want", "想去的公司职位", "Tin công ty mơ ước", "行きたい会社の求人", "Lowongan incaran")} meta={imported.length ? t(`가져온 공고 ${imported.length}개`, `${imported.length} imported`, `已导入 ${imported.length} 个`, `${imported.length} tin đã nhập`, `取り込み ${imported.length}件`, `${imported.length} diimpor`) : t("링크로 가져오기", "Import by link", "通过链接导入", "Nhập bằng link", "リンクで取り込む", "Impor lewat tautan")} onClick={() => (imported.length ? setPicker("imported") : setImporting(true))} />
+          <PracticeCard tone="gray" icon="🔍" title={t("Aply 공고 찾기", "Find on Aply", "在 Aply 找职位", "Tìm trên Aply", "Aplyで探す", "Cari di Aply")} meta={t("직무·회사 이름으로", "By role or company", "按职位或公司", "Theo vị trí/công ty", "職種・会社名で", "Peran/perusahaan")} onClick={() => setPicker("search")} />
+          <PracticeCard tone="green" icon="📄" title={t("내 서류로", "My documents", "用我的材料", "Từ hồ sơ", "自分の書類で", "Dokumenku")} meta={t("이력서·자소서에서 나올 질문", "From resume & cover letter", "来自简历和自我介绍", "Từ CV & thư", "履歴書・自己PRから", "Dari CV & surat")} onClick={startSelf} />
+          <PracticeCard tone="navy" icon="⏱️" title={t("10분 모의 면접", "10-min mock", "10分钟模拟面试", "Phỏng vấn 10 phút", "10分模擬面接", "Simulasi 10 menit")} meta={t("5문항 실전 · 결과 카드", "5 questions · report", "5题实战 · 结果卡", "5 câu · thẻ kết quả", "5問・結果カード", "5 soal · laporan")} onClick={() => setTool("set")} />
+          <PracticeCard tone="orange" icon="🎤" title={t("1분 자기소개", "1-min intro", "1分钟自我介绍", "Giới thiệu 1 phút", "1分自己紹介", "Perkenalan 1 menit")} meta={t("초안·시간 재며 연습", "Draft & rehearse", "初稿·计时练习", "Nháp & tập nói", "下書き・時間計測", "Draf & latihan")} onClick={() => setTool("intro")} />
+          {isForeignNationality(user?.nationality) === true || locale !== "ko" ? (
+            <PracticeCard tone="mint" icon="🙇" title={t("면접 매너 퀴즈", "Etiquette quiz", "面试礼仪测验", "Quiz phép lịch sự", "面接マナークイズ", "Kuis etiket")} meta={t("오늘의 3문제", "3 a day", "今日3题", "3 câu/ngày", "今日の3問", "3 soal/hari")} onClick={() => setTool("quiz")} />
+          ) : null}
         </div>
       </Section>
 
@@ -312,7 +308,7 @@ function Interviews() {
       <ReportedQuestions t={t} onPick={(q) => openQuestion(q, "job")} />
 
       <Section title={t("연습 기록", "History", "练习记录", "Lịch sử", "練習記録", "Riwayat")}>
-        {records === null ? <RowsSkeleton count={3} thumb={false} /> : !selfAnswers.length && !records.length ? (
+        {history === null ? <RowsSkeleton count={3} thumb={false} /> : !selfAnswers.length && !history.length ? (
           <Empty>{t("아직 연습 기록이 없어요.", "No practice yet.", "还没有练习记录。", "Chưa có lịch sử.", "まだ練習記録がありません。", "Belum ada riwayat.")}</Empty>
         ) : (
           <>
@@ -324,10 +320,11 @@ function Interviews() {
                 right={selfBest != null ? <LevelChip t={t} score={selfBest} /> : undefined}
               />
             ) : null}
-            {records.map((m) => (
+            {history.map((m) => (
               <Row
                 key={m.positionId}
                 onClick={() => setReview(m)}
+                lead={m.positionId.startsWith("ext-") ? "🔗" : undefined}
                 title={m.positionTitle}
                 meta={[m.companyName, `${t("답변", "Answers", "回答", "Câu trả lời", "回答", "Jawaban")} ${m.answeredCount}`, formatRelativeTime(new Date(m.lastPracticedAt).getTime(), undefined, t)].filter(Boolean).join(" · ")}
                 right={m.bestScore != null ? <LevelChip t={t} score={m.bestScore} /> : undefined}
@@ -359,6 +356,44 @@ function Interviews() {
         />
       ) : null}
       {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
+      {picker ? (
+        <Sheet
+          tall
+          title={picker === "mine" ? t("내 공고로 연습", "Practice for my jobs", "用我的职位练习", "Luyện theo tin của tôi", "自分の求人で練習", "Latihan lowonganku") : picker === "imported" ? t("가고 싶은 회사 공고", "Jobs you want", "想去的公司职位", "Tin công ty mơ ước", "行きたい会社の求人", "Lowongan incaran") : t("Aply 공고 찾기", "Find on Aply", "在 Aply 找职位", "Tìm trên Aply", "Aplyで探す", "Cari di Aply")}
+          onClose={() => setPicker(null)}
+        >
+          {picker === "mine" ? (
+            candidates.length ? (
+              <div>
+        {candidates.map((p) => {
+          // 왜 이 공고인지 — 지원한 공고 / 저장한 공고(마감이 가까우면 D-n).
+          const dd = p.sourceDeadlineDate && !p.sourceDeadlineRolling ? daysUntil(p.sourceDeadlineDate) : null;
+          const why = appliedIds.has(p.id)
+            ? t("지원한 공고", "Applied", "已投递", "Đã ứng tuyển", "応募済み", "Dilamar")
+            : dd !== null && dd >= 0 && dd <= 7
+              ? t(`저장한 공고 · ${dd === 0 ? "오늘" : `D-${dd}`} 마감`, `Saved · closes ${dd === 0 ? "today" : `D-${dd}`}`, `已收藏 · ${dd === 0 ? "今天" : `D-${dd}`}截止`, `Đã lưu · hết hạn ${dd === 0 ? "hôm nay" : `D-${dd}`}`, `保存済み · ${dd === 0 ? "今日" : `D-${dd}`}締切`, `Disimpan · tutup ${dd === 0 ? "hari ini" : `D-${dd}`}`)
+              : t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Disimpan");
+          return <Row key={p.id} onClick={() => { setPicker(null); startJob(p, "job"); }} thumb={{ src: jobPhotoOf(p), fallback: companyOf(p) || p.title }} title={p.title} meta={[companyOf(p), why].filter(Boolean).join(" · ") || undefined} />;
+        })}
+              </div>
+            ) : (
+              <Empty>{t("지원하거나 저장한 공고가 없어요. 포지션 탐색에서 저장해 보세요.", "No applied or saved jobs yet.", "还没有投递或收藏的职位。", "Chưa có tin đã lưu/ứng tuyển.", "応募・保存した求人がありません。", "Belum ada lowongan.")}</Empty>
+            )
+          ) : picker === "imported" ? (
+            <div>
+              <Row onClick={() => { setPicker(null); setImporting(true); }} lead="➕" title={t("공고 가져오기", "Import a job", "导入职位", "Nhập tin", "求人を取り込む", "Impor lowongan")} meta={t("링크나 공고 내용으로", "By link or pasted text", "通过链接或内容", "Bằng link hoặc nội dung", "リンクか本文で", "Lewat tautan atau teks")} />
+              {imported.map((j) => (
+                <Row key={j.id} onClick={() => { setPicker(null); startJob(importedToPosition(j), "job"); }} lead="🔗" title={j.title} meta={[j.company, j.answers?.length ? t(`${j.answers.length}문항 연습함`, `${j.answers.length} practiced`, `已练 ${j.answers.length} 题`, `Đã luyện ${j.answers.length}`, `${j.answers.length}問練習済み`, `${j.answers.length} dilatih`) : t("아직 연습 전", "Not practiced", "尚未练习", "Chưa luyện", "未練習", "Belum")].filter(Boolean).join(" · ")} right={j.bestScore != null && j.answers?.length ? <LevelChip t={t} score={j.bestScore} /> : undefined} />
+              ))}
+            </div>
+          ) : (
+            <JobSearch onPick={(p) => { setPicker(null); startJob(p, "job"); }} />
+          )}
+        </Sheet>
+      ) : null}
+      {tool === "set" ? <InterviewSetSheet onClose={() => setTool(null)} /> : null}
+      {tool === "intro" ? <SelfIntroSheet onClose={() => setTool(null)} /> : null}
+      {tool === "quiz" ? <QuizSheet onClose={() => setTool(null)} /> : null}
       {importing ? (
         <ImportJobSheet
           onClose={() => setImporting(false)}
@@ -373,6 +408,7 @@ function Interviews() {
           t={t}
           record={review}
           selfAnswers={selfMock?.answers ?? []}
+          extAnswers={review !== "self" ? imported.find((j) => j.id === review.positionId)?.answers : undefined}
           onClose={() => setReview(null)}
           onRetry={() => {
             const r = review;
@@ -450,12 +486,13 @@ function JobSearch({ onPick }: { onPick: (p: PublicPositionListItem) => void }) 
 type SelfAnswer = { question: string; category: string; answer: string; score: number | null; feedback?: { strengths: string[]; improvements: string[] } | null };
 
 /** 기록 다시 보기 — 지난 답과 단계(내 서류 연습은 AI 피드백까지). [다시 연습]은 여기서. */
-function ReviewSheet({ t, record, selfAnswers, onClose, onRetry }: { t: PlatformT; record: MockInterviewRecord | "self"; selfAnswers: SelfAnswer[]; onClose: () => void; onRetry: () => void }) {
+function ReviewSheet({ t, record, selfAnswers, extAnswers, onClose, onRetry }: { t: PlatformT; record: MockInterviewRecord | "self"; selfAnswers: SelfAnswer[]; extAnswers?: MockInterviewAnswer[]; onClose: () => void; onRetry: () => void }) {
   const isSelf = record === "self";
-  const [answers, setAnswers] = useState<MockInterviewAnswer[] | null>(null);
+  const [fetched, setAnswers] = useState<MockInterviewAnswer[] | null>(null);
+  const answers = extAnswers ?? fetched; // 가져온 공고는 계정에 저장된 기록을 그대로
   const [error, setError] = useState(false);
   useEffect(() => {
-    if (isSelf) return;
+    if (isSelf || extAnswers) return;
     let alive = true;
     getMyMockInterviewAnswers(record.positionId)
       .then((a) => alive && setAnswers(a))
@@ -463,7 +500,7 @@ function ReviewSheet({ t, record, selfAnswers, onClose, onRetry }: { t: Platform
     return () => {
       alive = false;
     };
-  }, [isSelf, record]);
+  }, [isSelf, record, extAnswers]);
   const list: SelfAnswer[] = isSelf ? selfAnswers.filter((a) => a.answer.trim()) : (answers ?? []).map((a) => ({ ...a, category: "" }));
 
   return (
@@ -610,4 +647,30 @@ function whenText(t: PlatformT, iso: string): string {
   const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
   return t(`${d.getMonth() + 1}월 ${d.getDate()}일(${wd}) ${hm}`, `${d.toLocaleDateString("en", { month: "short", day: "numeric", weekday: "short" })} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`);
+}
+
+const TONES = {
+  blue: "bg-[#edf1fd] text-[color:var(--v2-ink)]",
+  violet: "bg-[#f3eeff] text-[color:var(--v2-ink)]",
+  gray: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink)]",
+  green: "bg-[#e8f8f1] text-[color:var(--v2-ink)]",
+  navy: "bg-[#fff0f3] text-[color:var(--v2-ink)]",
+  orange: "bg-[#fff4e8] text-[color:var(--v2-ink)]",
+  mint: "bg-[#e6f7f4] text-[color:var(--v2-ink)]"
+} as const;
+
+/** 연습하기 카드 — 카테고리마다 색이 다른 정사각형에 가까운 카드. */
+function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof typeof TONES; icon: string; title: string; meta: string; onClick: () => void }) {
+  const dark = false; // 모든 카드는 같은 결(연한 색 바탕)
+  return (
+    <button type="button" onClick={onClick} className={`group flex min-h-[128px] flex-col justify-between rounded-3xl p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] md:min-h-[140px] md:p-5 ${TONES[tone]}`}>
+      <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[20px] ${dark ? "bg-white/15" : "bg-white"}`} aria-hidden>
+        {icon}
+      </span>
+      <span className="mt-3 block">
+        <span className="block text-[16px] font-bold leading-[1.35]">{title}</span>
+        <span className={`mt-0.5 block text-[13px] leading-[1.45] ${dark ? "text-white/75" : "text-[color:var(--v2-muted)]"}`}>{meta}</span>
+      </span>
+    </button>
+  );
 }
