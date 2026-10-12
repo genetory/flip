@@ -2,7 +2,6 @@
 
 // v2 내 커리어 — 나에 관한 것을 한곳에: 프로필(링크) · 지원 서류(다음 할 일) · 기업이 보는 내 강점 · 관심 직무 · 내 스펙에 맞는 공고 · 경력 · 내 스펙 · 더 정리할 것.
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
-import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { V2Shell, useProfilePhoto } from "../V2Shell";
 import { Button, Chip, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, RowsSkeleton, Section, SectionSkeleton, Spinner, TextLink } from "../ui";
@@ -10,18 +9,18 @@ import { companyOf, jobPhotoOf, shortPlace } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
-import { getCareerStrengths, getRoleChecklist, reviewResume, reviewCover, AiQuotaError, type AiReviewFinding, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
-import { Sheet } from "../sheets";
+import { getCareerStrengths, getRoleChecklist, AiQuotaError, type CareerStrength, type RoleChecklistItem } from "../../../lib/resume-maker-client";
+import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { normalizeUrl } from "../../../lib/talent/resume-doc";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { useBasicInfo, isBasicInfoComplete } from "../../../lib/talent/basic-info";
 import { useResumeDoc, displayMonth, useRenewalDocsStatus, type ResumeDoc, type ResumeItem } from "../../../lib/talent/resume-doc";
-import { useCoverDoc, coverQuestions, type CoverDoc } from "../../../lib/talent/cover-doc";
+import { useCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
 import { useJobInterests } from "../../../lib/talent/job-interest";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
-import { sectionLabelOf, coverQuestionLabelOf } from "../../../lib/talent/career-labels";
+import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import type { CareerSection } from "../../../lib/talent/career-chat";
 import { JobInterestModal } from "../../talent/jobs/JobInterestModal";
 
@@ -690,21 +689,12 @@ function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interest
 }
 
 // ── 지원 서류 카드 ──────────────────────────────────────
-// 완성도 % 대신 — 채우는 중엔 필수 항목 체크, 다 채우면 AI 점검(보완할 점). %는 '칸이 있나'만 봐서 믿기 어렵다.
-// 점검은 에디터의 전체 점검과 같은 API(review-resume / review-cover)를 누를 때만 부르고, 서류 수정 시각과 함께 이 브라우저에 기억한다.
-const REVIEW_KEY = "aply.v2.career.review";
-type DocReview = { sig: number; findings: AiReviewFinding[]; at: number };
+// 완성도 % 대신 — 채우는 중엔 필수 항목 막대, 다 채우면 쓴 양·수정 시각. %는 '칸이 있나'만 봐서 믿기 어렵다.
+// 내용 점검(AI)은 에디터의 전체 점검에서 한다 — 카드에선 부르지 않는다.
 
-function readReviews(): Partial<Record<"resume" | "cover", DocReview>> {
-  try {
-    const raw = window.localStorage.getItem(REVIEW_KEY);
-    return raw ? (JSON.parse(raw) as Partial<Record<"resume" | "cover", DocReview>>) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** 필수 항목 — 이력서: 학력·경력/프로젝트·스킬·어학·한 줄 소개 / 자기소개서: 문항마다 20자 이상. */
+/** 필수 항목 — 이력서: 학력·경력/프로젝트·스킬·어학·한 줄 소개.
+ *  자기소개서는 문항이 회사마다 달라(사용자가 바꾸고 지운다) 정해진 필수가 없다 — 한 문항이라도 썼으면 다 찬 것으로 본다.
+ *  기본 문항(입사 후 포부 등)을 안 썼다고 '빠졌다'고 하지 않는다. */
 function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: ResumeDoc | null, cover: CoverDoc | null): { label: string; done: boolean }[] {
   if (kind === "resume") {
     const has = (secs: CareerSection[]) => !!resume?.items.some((i) => secs.includes(i.section) && (i.text.trim() || (i.company ?? "").trim()));
@@ -716,85 +706,34 @@ function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: ResumeDoc 
       { label: t("한 줄 소개", "Summary", "简介", "Giới thiệu", "自己紹介", "Ringkasan"), done: !!resume?.summary?.trim() }
     ];
   }
-  const done = new Set((cover?.items ?? []).filter((i) => i.text.trim().length >= 20).map((i) => i.question));
-  return coverQuestions(cover).map((q) => ({ label: coverQuestionLabelOf(t, q), done: done.has(q) }));
+  return [{ label: t("문항 1개 이상 쓰기", "Write at least one answer", "至少写一个问题", "Viết ít nhất 1 câu", "1問以上書く", "Tulis minimal 1 jawaban"), done: coverWritten(cover).count > 0 }];
+}
+
+/** 자기소개서에 쓴 것 — 글이 20자 이상인 문항 수와 전체 글자 수. */
+function coverWritten(cover: CoverDoc | null): { count: number; chars: number } {
+  const byQ = new Map<string, number>();
+  for (const it of cover?.items ?? []) byQ.set(it.question, (byQ.get(it.question) ?? 0) + it.text.trim().length);
+  const written = [...byQ.values()].filter((n) => n >= 20);
+  return { count: written.length, chars: written.reduce((a, b) => a + b, 0) };
 }
 
 function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
   const doc = kind === "resume" ? resume : cover;
-  const sig = doc?.updatedAt ?? 0;
   const label = kind === "resume" ? t("이력서", "Resume", "简历", "CV", "履歴書", "CV") : t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran");
   const editHref = kind === "resume" ? R.resume : R.cover;
   const previewHref = doc ? (kind === "resume" ? R.resumePreview : R.coverPreview) : null;
   const checks = docChecklist(t, kind, resume, cover);
   const left = checks.filter((c) => !c.done);
-  const [review, setReview] = useState<DocReview | null>(() => readReviews()[kind] ?? null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const stale = !!review && review.sig !== sig;
+  const done = checks.length - left.length;
+  const ready = !!doc && !left.length;
+  const written = coverWritten(cover);
+  const edited = doc?.updatedAt ? t(`${formatRelativeTime(doc.updatedAt, undefined, t)} 수정`, `Edited ${formatRelativeTime(doc.updatedAt, undefined, t)}`, `${formatRelativeTime(doc.updatedAt, undefined, t)}修改`, `Sửa ${formatRelativeTime(doc.updatedAt, undefined, t)}`, `${formatRelativeTime(doc.updatedAt, undefined, t)}編集`, `Diubah ${formatRelativeTime(doc.updatedAt, undefined, t)}`) : "";
 
-  const run = async () => {
-    if (!doc) return;
-    setBusy(true);
-    setError(null);
-    try {
-      let findings: AiReviewFinding[];
-      if (kind === "resume" && resume) {
-        findings = await reviewResume({
-          targetRole: resume.targetRole?.trim() || undefined,
-          summary: resume.summary?.trim() || undefined,
-          items: resume.items
-            .filter((it) => it.text.trim())
-            .map((it) => ({ id: it.id, section: sectionLabelOf(t, it.section), company: it.company?.trim() || undefined, period: [it.startDate, it.endDate].filter(Boolean).join(" ~ ") || undefined, text: it.text }))
-        });
-      } else {
-        // 문항 단위로 — 같은 문항에 든 글을 하나로 묶어 보낸다(에디터 점검과 같은 단위).
-        findings = await reviewCover({
-          company: cover?.companyName?.trim() || undefined,
-          jobText: cover?.jobText?.trim() || undefined,
-          questions: coverQuestions(cover)
-            .map((q, i) => ({ id: `q${i}`, prompt: q, limit: cover?.targetChars?.[q] ?? null, text: (cover?.items ?? []).filter((it) => it.question === q).map((it) => it.text.trim()).filter(Boolean).join("\n\n") }))
-            .filter((q) => q.text)
-        });
-      }
-      const next = { sig, findings, at: Date.now() };
-      setReview(next);
-      try {
-        window.localStorage.setItem(REVIEW_KEY, JSON.stringify({ ...readReviews(), [kind]: next }));
-      } catch {
-        /* 저장 못 해도 화면엔 보인다 */
-      }
-    } catch (e) {
-      setError(e instanceof AiQuotaError ? t("오늘은 더 점검할 수 없어요.", "Daily limit reached.", "今天已达上限。", "Đã hết lượt hôm nay.", "本日の上限です。", "Batas harian tercapai.") : t("점검하지 못했어요.", "Couldn't check.", "无法检查。", "Không kiểm tra được.", "点検できませんでした。", "Gagal memeriksa."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const sorted = review ? [...review.findings].sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1)) : [];
-  // 상태 배지 — 한눈에 어디쯤인지.
   const badge = !doc
     ? { text: t("시작 전", "Not started", "未开始", "Chưa bắt đầu", "未着手", "Belum mulai"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]" }
-    : left.length
+    : !ready
       ? { text: t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Diisi"), cls: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]" }
-      : !review || stale
-        ? { text: t("점검 전", "Not checked", "未检查", "Chưa kiểm tra", "点検前", "Belum dicek"), cls: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" }
-        : sorted.length
-          ? { text: t(`보완 ${sorted.length}`, `${sorted.length} to fix`, `待改 ${sorted.length}`, `Sửa ${sorted.length}`, `改善 ${sorted.length}`, `${sorted.length} perbaikan`), cls: "bg-[#fdeced] text-[color:var(--v2-attention)]" }
-          : { text: t("점검 통과", "Passed", "已通过", "Đạt", "点検OK", "Lolos"), cls: "bg-[#e5f6ee] text-[color:var(--v2-good)]" };
-  const done = checks.length - left.length;
-  const runLink = (text: string) => (
-    <button type="button" onClick={run} disabled={busy} className="inline-flex items-center gap-1 text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-70 disabled:opacity-60">
-      {busy ? <Spinner /> : null}
-      {busy ? t("읽고 있어요", "Reading…", "读取中…", "Đang đọc…", "読んでいます", "Membaca…") : text}
-      {busy ? null : (
-        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="m9 6 6 6-6 6" />
-        </svg>
-      )}
-    </button>
-  );
+      : { text: t("준비됐어요", "Ready", "已就绪", "Sẵn sàng", "準備OK", "Siap"), cls: "bg-[#e5f6ee] text-[color:var(--v2-good)]" };
 
   return (
     <div className="flex flex-col rounded-2xl border border-[color:var(--v2-line)] bg-white p-4 md:p-5">
@@ -804,8 +743,14 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
       </div>
 
       <div className="mt-4 flex-1">
-        {left.length || !doc ? (
-          // 채우는 중 — 필수 항목 막대(칸마다 한 항목) + 남은 항목
+        {kind === "cover" && !ready ? (
+          // 자기소개서 — 아직 쓴 문항이 없음(정해진 필수 문항은 없다)
+          <>
+            <p className="text-[15px] font-semibold leading-[1.5] text-[color:var(--v2-ink)]">{t("아직 쓴 문항이 없어요", "No answers yet", "还没有写任何问题", "Chưa có câu trả lời", "まだ書いた設問がありません", "Belum ada jawaban")}</p>
+            <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("회사마다 문항이 달라요. 지원할 곳 문항부터 써도 좋아요.", "Questions differ by company — start with the one you're applying to.", "每家公司问题不同，可以先写要投递公司的问题。", "Mỗi công ty hỏi khác nhau — hãy bắt đầu với nơi bạn ứng tuyển.", "設問は会社ごとに違います。応募先の設問から書いてOK。", "Tiap perusahaan beda — mulai dari yang kamu lamar.")}</p>
+          </>
+        ) : !ready ? (
+          // 이력서 채우는 중 — 필수 항목 막대(칸마다 한 항목) + 남은 항목
           <>
             <div className="flex gap-1" aria-hidden>
               {checks.map((c) => (
@@ -825,34 +770,26 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
               {left.length > 3 ? <li className="text-[13px] text-[color:var(--v2-faint)]">{t(`외 ${left.length - 3}개`, `+${left.length - 3} more`, `等 ${left.length - 3} 项`, `+${left.length - 3}`, `他${left.length - 3}件`, `+${left.length - 3}`)}</li> : null}
             </ul>
           </>
-        ) : !review || stale ? (
-          // 다 채움 — 점검 전(또는 고친 뒤 다시 점검 전)
+        ) : (
+          // 준비됨 — 쓴 양 · 수정 시각
           <>
             <p className="text-[15px] font-semibold leading-[1.5] text-[color:var(--v2-ink)]">
-              {stale ? t("고친 내용을 다시 점검해 보세요", "Re-check your edits", "请重新检查修改内容", "Hãy kiểm tra lại", "直した内容を再点検", "Cek ulang suntingan") : t("필수 항목을 다 채웠어요", "All essentials are in", "必填项都写好了", "Đã đủ mục chính", "必須項目はそろいました", "Semua inti terisi")}
+              {kind === "resume"
+                ? t("필수 항목을 다 채웠어요", "All essentials are in", "必填项都写好了", "Đã đủ mục chính", "必須項目はそろいました", "Semua inti terisi")
+                : t(`문항 ${written.count}개를 썼어요`, `${written.count} answers written`, `已写 ${written.count} 个问题`, `Đã viết ${written.count} câu`, `${written.count}問書きました`, `${written.count} jawaban ditulis`)}
             </p>
-            <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("AI가 기업 눈으로 내용을 읽고 보완할 점을 짚어 줘요.", "AI reads it like a recruiter and flags what to improve.", "AI 以企业视角阅读并指出改进点。", "AI đọc như nhà tuyển dụng và chỉ ra điểm cần sửa.", "AIが企業目線で読み改善点を示します。", "AI membaca seperti perekrut dan menandai perbaikan.")}</p>
-            <div className="mt-2.5">{runLink(stale ? t("다시 점검하기", "Re-check", "重新检查", "Kiểm tra lại", "再点検する", "Cek ulang") : t("AI로 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIで点検する", "Cek dengan AI"))}</div>
-          </>
-        ) : sorted.length ? (
-          // 점검 결과 — 보완할 점
-          <>
-            <p className="flex items-baseline gap-1">
-              <span className="text-[28px] font-bold leading-none tracking-[-0.02em] text-[color:var(--v2-ink)]">{sorted.length}</span>
-              <span className="text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{t("개 보완하면 좋아요", "to improve", "处可改进", "điểm nên sửa", "件の改善点", "perbaikan")}</span>
+            <p className="mt-1 text-[13px] text-[color:var(--v2-muted)]">
+              {[
+                kind === "resume"
+                  ? t(`항목 ${resume?.items.length ?? 0}개`, `${resume?.items.length ?? 0} items`, `${resume?.items.length ?? 0} 项`, `${resume?.items.length ?? 0} mục`, `${resume?.items.length ?? 0}項目`, `${resume?.items.length ?? 0} item`)
+                  : t(`${written.chars.toLocaleString()}자`, `${written.chars.toLocaleString()} chars`, `${written.chars.toLocaleString()} 字`, `${written.chars.toLocaleString()} ký tự`, `${written.chars.toLocaleString()}字`, `${written.chars.toLocaleString()} karakter`),
+                edited
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
-            <p className="mt-2 line-clamp-2 text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{sorted[0].issue}</p>
-            <button type="button" onClick={() => setOpen(true)} className="mt-2 text-[14px] font-semibold text-[color:var(--v2-accent)] hover:opacity-70">
-              {t("보완할 점 보기", "See details", "查看详情", "Xem chi tiết", "詳しく見る", "Lihat detail")}
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-[15px] font-semibold text-[color:var(--v2-ink)]">{t("AI 점검을 통과했어요", "Passed the AI check", "已通过 AI 检查", "Đã đạt kiểm tra AI", "AI点検をクリア", "Lolos cek AI")}</p>
-            <p className="mt-1 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("이제 공고에 지원해 보세요.", "Now go apply.", "现在去投递吧。", "Giờ hãy ứng tuyển.", "応募してみましょう。", "Sekarang lamar.")}</p>
           </>
         )}
-        {error ? <p className="mt-2 text-[13px] text-[color:var(--v2-attention)]">{error}</p> : null}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
@@ -863,30 +800,6 @@ function DocStatusCard({ t, kind, resume, cover }: { t: PlatformT; kind: "resume
           {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}
         </Button>
       </div>
-
-      {open && review ? (
-        <Sheet
-          title={t(`${label} 보완할 점`, `${label}: to improve`, `${label}待改进`, `${label}: cần sửa`, `${label}の改善点`, `${label}: perbaikan`)}
-          subtitle={t("AI가 내용을 읽고 짚었어요", "Found by AI", "由 AI 指出", "AI chỉ ra", "AIが指摘", "Ditemukan AI")}
-          onClose={() => setOpen(false)}
-          footer={
-            <Link href={editHref} className="flex h-12 w-full items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] text-[16px] font-semibold text-white transition hover:opacity-90">
-              {t("고치러 가기", "Go edit", "去修改", "Đi sửa", "直しに行く", "Perbaiki")}
-            </Link>
-          }
-        >
-          <ol className="flex flex-col gap-3">
-            {sorted.map((f, i) => (
-              <li key={i} className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
-                <p className={`text-[12px] font-bold ${f.severity === "high" ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-muted)]"}`}>{f.severity === "high" ? t("꼭 고치기", "Must fix", "必改", "Cần sửa", "要修正", "Wajib") : t("고치면 좋아요", "Nice to fix", "建议修改", "Nên sửa", "推奨", "Disarankan")}</p>
-                <p className="mt-1 text-[15px] font-semibold leading-[1.5] text-[color:var(--v2-ink)]">{f.issue}</p>
-                {f.quote ? <p className="mt-1.5 border-l-2 border-[color:var(--v2-line)] pl-2.5 text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{f.quote}</p> : null}
-                {f.fix ? <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{f.fix}</p> : null}
-              </li>
-            ))}
-          </ol>
-        </Sheet>
-      ) : null}
     </div>
   );
 }
