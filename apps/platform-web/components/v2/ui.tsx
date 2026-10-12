@@ -38,7 +38,7 @@ export function Section({ title, aside, children }: { title: string; aside?: Rea
   return (
     <>
       <Band />
-      <section className="px-5 pb-4 pt-7">
+      <section className="px-5 pb-7 pt-8 md:pb-9 md:pt-10">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>
           {aside}

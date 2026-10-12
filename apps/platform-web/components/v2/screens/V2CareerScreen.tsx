@@ -154,6 +154,8 @@ function Career() {
       </div>
 
       <div hidden={tab !== "prep"}>
+        <VisaCard t={t} slot="ask" />
+
         <Section
           title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
         >
@@ -187,7 +189,7 @@ function Career() {
           </div>
         </Section>
 
-        <VisaCard t={t} />
+        <VisaCard t={t} slot="card" />
 
         {interests.length ? <MatchedJobs t={t} interests={interests} skills={skills} /> : null}
         {ready && interests.length && items.length >= 2 ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
@@ -934,27 +936,42 @@ function visaLabel(t: PlatformT, v: CandidateVisaType): string {
 
 const VISA_CHOICES: CandidateVisaType[] = ["D2_STUDENT", "D10_JOB_SEEKING", "E7_SPECIFIC_ACTIVITY", "D4_GENERAL_TRAINING", "F2_RESIDENCE", "F4_OVERSEAS_KOREAN", "F5_PERMANENT_RESIDENCE", "F6_MARRIAGE_IMMIGRATION", "H1_WORKING_HOLIDAY", "OTHER"];
 
-function VisaCard({ t }: { t: PlatformT }) {
+// 비자는 한 화면에서 두 군데(질문 카드·비자 카드)가 읽어서, 계정별로 한 번만 불러 나눠 쓴다.
+const visaLoads = new Map<string, Promise<CandidateVisaType | null>>();
+function loadVisa(userId: string): Promise<CandidateVisaType | null> {
+  let p = visaLoads.get(userId);
+  if (!p) {
+    p = getMyCandidateProfile()
+      .then((x) => x?.visaType ?? null)
+      .catch(() => null);
+    visaLoads.set(userId, p);
+  }
+  return p;
+}
+
+/** slot="ask" — 국적을 모를 때의 '혹시 외국인이세요?'(관심 직무 위) / slot="card" — 비자 고르기·비자 카드(지원 서류 아래). */
+function VisaCard({ t, slot }: { t: PlatformT; slot: "ask" | "card" }) {
   const { user, refreshSession } = useAuthSession();
   const foreign = isForeignNationality(user?.nationality);
   const [visa, setVisa] = useState<CandidateVisaType | null | undefined>(undefined); // undefined = 불러오는 중
   const [askNationality, setAskNationality] = useState(false);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
+  const userId = user?.id ?? "";
   useEffect(() => {
+    if (!userId) return;
     let alive = true;
-    getMyCandidateProfile()
-      .then((p) => alive && setVisa(p?.visaType ?? null))
-      .catch(() => alive && setVisa(null));
+    loadVisa(userId).then((v) => alive && setVisa(v));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [userId]);
 
   const choose = async (v: CandidateVisaType) => {
     setSaving(true);
     try {
       await updateMyCandidateProfile({ visaType: v });
+      visaLoads.set(userId, Promise.resolve(v));
       setVisa(v);
       setPicking(false);
     } catch {
@@ -978,9 +995,11 @@ function VisaCard({ t }: { t: PlatformT }) {
   if (visa === undefined) return null;
   if (!visa && foreign === false) return null;
   const title = t("비자", "Visa", "签证", "Visa", "ビザ", "Visa");
+  const asking = !visa && foreign === null;
+  if ((slot === "ask") !== asking) return null; // 질문은 질문 자리에서만, 카드는 카드 자리에서만
 
   // 국적 모름 — [네]를 누르면 국적을 고르게 한다(계정에 저장되어 다른 기기에서도 다시 묻지 않는다).
-  if (!visa && foreign === null) {
+  if (asking) {
     if (askNationality) {
       return (
         <Section title={t("국적", "Nationality", "国籍", "Quốc tịch", "国籍", "Kebangsaan")}>
@@ -997,7 +1016,7 @@ function VisaCard({ t }: { t: PlatformT }) {
     return (
       <>
         <Band />
-        <div className="px-5 py-5">
+        <div className="px-5 py-7 md:py-9">
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3">
             <p className="min-w-0 text-[14px] leading-[1.5] text-[color:var(--v2-ink-2)]">
               <b className="font-bold">{t("혹시 외국인이세요?", "Are you an international?", "你是外国人吗？", "Bạn là người nước ngoài?", "外国の方ですか？", "Apakah kamu WNA?")}</b>{" "}
