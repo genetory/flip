@@ -292,16 +292,29 @@ function Jobs() {
                   <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[18px] font-bold text-[color:var(--v2-faint)]">{(companyOf(j) || j.title).slice(0, 1)}</span>
                 )}
                 <span className="min-w-0 flex-1">
-                  {/* 표시 칩 — 공고 이름 위에. 모의 면접은 바로 해 볼 수 있다는 뜻이라 파란 칩으로. */}
+                  {/* 위 줄 — 왼쪽 표시 칩, 오른쪽 끝 마감. 모의 면접은 바로 해 볼 수 있다는 뜻이라 파란 칩.
+                      마감은 날짜가 있을 때만(상시 채용·지난 것은 표시 안 함): 7일 안이면 빨강 D-n, 그 뒤는 회색 날짜. */}
                   {(() => {
                     const foreignerOk = (j.eligibleVisas ?? []).includes("FOREIGNER_FRIENDLY");
                     const aply = j.sourceProvider === "INTERNAL";
                     const mock = hasMockInterview(j);
-                    return foreignerOk || aply || mock ? (
-                      <span className="mb-1.5 flex flex-wrap gap-1.5">
-                        {aply ? <Tag>Aply ONLY</Tag> : null}
-                        {foreignerOk ? <Tag>{t("외국인 채용 가능", "Open to foreigners", "可招外国人", "Nhận WNA", "外国人採用可", "Terbuka WNA")}</Tag> : null}
-                        {mock ? <Tag tone="accent">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}</Tag> : null}
+                    const due = deadlineOf(j);
+                    return foreignerOk || aply || mock || due ? (
+                      <span className="mb-1.5 flex items-center gap-2">
+                        <span className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                          {aply ? <Tag>Aply ONLY</Tag> : null}
+                          {foreignerOk ? <Tag>{t("외국인 채용 가능", "Open to foreigners", "可招外国人", "Nhận WNA", "外国人採用可", "Terbuka WNA")}</Tag> : null}
+                          {mock ? <Tag tone="accent">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}</Tag> : null}
+                        </span>
+                        {due ? (
+                          <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${due.days <= 7 ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-faint)]"}`}>
+                            {due.days === 0
+                              ? t("오늘 마감", "Closes today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini")
+                              : due.days <= 7
+                                ? `D-${due.days}`
+                                : `~${due.date.getMonth() + 1}.${String(due.date.getDate()).padStart(2, "0")}`}
+                          </span>
+                        ) : null}
                       </span>
                     ) : null;
                   })()}
@@ -327,6 +340,17 @@ function Jobs() {
       ) : null}
     </Page>
   );
+}
+
+/** 마감 — 날짜가 있고 아직 안 지났을 때만. 상시 채용은 null. */
+function deadlineOf(j: PublicPositionListItem): { days: number; date: Date } | null {
+  if (j.sourceDeadlineRolling || !j.sourceDeadlineDate) return null;
+  const date = new Date(j.sourceDeadlineDate.slice(0, 10));
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+  return days >= 0 ? { days, date } : null;
 }
 
 function Tag({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "accent" }) {
