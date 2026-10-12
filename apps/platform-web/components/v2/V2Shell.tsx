@@ -110,7 +110,7 @@ function Header() {
                 ) : null}
               </Link>
               <Link
-                href="/talent/settings"
+                href="/v2/settings"
                 aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
                 title={name || undefined}
                 className="flex h-10 w-10 items-center justify-center rounded-xl transition hover:bg-[color:var(--v2-band)]"
