@@ -278,12 +278,19 @@ function Jobs() {
             {closing.map((j) => {
               const due = deadlineOf(j)!;
               return (
-                <Link key={j.id} href={`/talent/jobs/${j.id}`} className="flex w-[230px] shrink-0 snap-start flex-col rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)]">
-                  <span className="text-[13px] font-bold text-[color:var(--v2-attention)]">
+                <Link key={j.id} href={`/talent/jobs/${j.id}`} className="flex w-[230px] shrink-0 snap-start flex-col rounded-2xl bg-[color:var(--v2-band)] p-3 transition hover:bg-[color:var(--v2-line)]">
+                  {/* 썸네일 — 목록과 같은 사진(썸네일 → 사무실 사진 → 로고), 없으면 회사 첫 글자. */}
+                  {jobPhotoOf(j) ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- 외부 공고 이미지·data URL 이 섞여 next/image 로 못 받는다.
+                    <img src={jobPhotoOf(j)!} alt="" loading="lazy" className="h-[112px] w-full rounded-xl bg-white object-cover" />
+                  ) : (
+                    <span className="flex h-[112px] w-full items-center justify-center rounded-xl bg-white text-[24px] font-bold text-[color:var(--v2-faint)]">{(companyOf(j) || j.title).slice(0, 1)}</span>
+                  )}
+                  <span className="mt-3 px-1 text-[13px] font-bold text-[color:var(--v2-attention)]">
                     {due.days === 0 ? t("오늘 마감", "Closes today", "今天截止", "Hết hạn hôm nay", "本日締切", "Tutup hari ini") : `D-${due.days}`}
                   </span>
-                  <span className="mt-1.5 line-clamp-2 text-[16px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{j.title}</span>
-                  <span className="mt-auto truncate pt-2 text-[13px] text-[color:var(--v2-faint)]">{companyOf(j)}</span>
+                  <span className="mt-1 line-clamp-2 px-1 text-[16px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{j.title}</span>
+                  <span className="mt-auto truncate px-1 pb-1 pt-2 text-[13px] text-[color:var(--v2-faint)]">{companyOf(j)}</span>
                 </Link>
               );
             })}
