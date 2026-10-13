@@ -10,16 +10,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
 import { FeaturedBanners } from "../../talent/screens/HomeScreen";
-import { Attention, Button, Masthead, MastheadSkeleton, Page, PrimaryButton, Row, Section, SectionSkeleton, TextLink } from "../ui";
+import { Attention, Button, Masthead, MastheadSkeleton, Page, Row, Section, SectionSkeleton, TextLink } from "../ui";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PrepSheetV2 } from "../prep-sheet";
 import { jobPhotoOf } from "../lib";
-import { DocStatusCard, categoryLabel, docChecklist, readChecklists, splitList, termIn } from "./V2CareerScreen";
+import { categoryLabel, coverWritten, docChecklist, readChecklists, splitList, termIn } from "./V2CareerScreen";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
-import { useResumeDoc, useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
-import { useCoverDoc } from "../../../lib/talent/cover-doc";
+import { useResumeDoc, useRenewalDocsStatus, type ResumeDoc } from "../../../lib/talent/resume-doc";
+import { useCoverDoc, type CoverDoc } from "../../../lib/talent/cover-doc";
 import {
   getMyApplications,
   getMyFavoritePositions,
@@ -45,6 +45,7 @@ import { careerGuides } from "../../../lib/talent/home-content";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
 const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
+const PREVIEW = { resume: "/talent/career/resume/preview", cover: "/talent/career/cover/preview" };
 
 function daysUntil(iso: string): number | null {
   const today = new Date();
@@ -282,7 +283,19 @@ function Home() {
 
   return (
     <Page>
-      <Masthead eyebrow={eyebrow} title={lead.title} lede={lead.lede} action={newcomer ? undefined : <PrimaryButton href={lead.cta.href}>{lead.cta.label}</PrimaryButton>} />
+      <Masthead
+        eyebrow={eyebrow}
+        title={name ? t(`${name}님, 오늘도 한 걸음 나아가요`, `One step further today, ${name}`, `${name}，今天也前进一步吧`, `${name}, hôm nay tiến thêm một bước`, `${name}さん、今日も一歩前へ`, `${name}, selangkah lagi hari ini`) : t("오늘도 한 걸음 나아가요", "One step further today", "今天也前进一步吧", "Hôm nay tiến thêm một bước", "今日も一歩前へ", "Selangkah lagi hari ini")}
+      />
+
+      {/* 가장 중요한 셋 — 이력서·자기소개서(두 칸) + 모의 면접(한 줄). 늘 맨 위에. */}
+      <div className="-mt-2 px-5 pb-8">
+        <div className="grid grid-cols-2 gap-2.5">
+          <DocTile t={t} kind="resume" resume={resume} cover={cover} />
+          <DocTile t={t} kind="cover" resume={resume} cover={cover} />
+        </div>
+        <MockTile t={t} streak={streak} week={answeredWeek} best={lastMock?.bestScore ?? null} weakest={weakest?.label ?? null} />
+      </div>
 
       {/* 처음 온 사람 — 시작 3단계(회색 카드 + 막대) */}
       {newcomer ? (
@@ -327,6 +340,23 @@ function Home() {
         <div className="px-5 pb-8">
           <DdayCard t={t} item={nextInterview} onPrep={() => setPrepFor(nextInterview)} />
         </div>
+      ) : null}
+
+      {/* 다음 단계 — 지금 가장 중요한 한 가지(서류 → 지원). 처음 온 사람은 시작 3단계가 대신한다. */}
+      {!newcomer ? (
+        <Section title={t("다음 단계", "Next step", "下一步", "Bước tiếp theo", "次のステップ", "Langkah berikutnya")}>
+          <div className="flex items-center gap-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[18px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{lead.title}</span>
+              <span className="mt-1 block text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{lead.lede}</span>
+            </span>
+          </div>
+          <div className="mt-3">
+            <Button full href={lead.cta.href}>
+              {lead.cta.label}
+            </Button>
+          </div>
+        </Section>
       ) : null}
 
       {/* 오늘의 질문 — 주황 카드, 홈에서 바로 답하기 */}
@@ -376,14 +406,6 @@ function Home() {
           ))}
         </Section>
       ) : null}
-
-      {/* 내 서류 — 내 커리어와 같은 체크 카드 */}
-      <Section title={t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "私の書類", "Dokumen saya")} aside={<TextLink href={V2_ROUTES.career}>{t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier")}</TextLink>}>
-        <div className="grid grid-cols-1 gap-3 pb-2 md:grid-cols-2">
-          <DocStatusCard t={t} kind="resume" resume={resume} cover={cover} />
-          <DocStatusCard t={t} kind="cover" resume={resume} cover={cover} />
-        </div>
-      </Section>
 
       {/* 이번 주 채울 것 하나 — 민트 카드(내 커리어에서 비교해 둔 결과가 있을 때) */}
       {interests.length && !newcomer ? (
@@ -504,31 +526,6 @@ function Home() {
             );
           })}
         </Section>
-      ) : null}
-
-      {!newcomer ? (
-        mocks === null ? (
-          <SectionSkeleton thumb={false} rows={2} />
-        ) : lastMock || weakest ? (
-          <Section title={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} aside={<TextLink href={V2_ROUTES.interviews}>{t("연습하러 가기", "Practice", "去练习", "Luyện tập", "練習へ", "Latihan")}</TextLink>}>
-            {lastMock ? (
-              <Row
-                href={V2_ROUTES.interviews}
-                title={lastMock.positionTitle}
-                meta={[lastMock.companyName, t(`답변 ${lastMock.answeredCount}개`, `${lastMock.answeredCount} answers`, `${lastMock.answeredCount} 个回答`, `${lastMock.answeredCount} câu`, `回答${lastMock.answeredCount}件`, `${lastMock.answeredCount} jawaban`)].filter(Boolean).join(" · ")}
-                right={lastMock.bestScore != null ? <LevelChip t={t} score={lastMock.bestScore} /> : undefined}
-              />
-            ) : null}
-            {weakest ? (
-              <Row
-                href={V2_ROUTES.interviews}
-                title={t(`가장 약한 곳: ${weakest.label}`, `Weakest: ${weakest.label}`, `最弱：${weakest.label}`, `Yếu nhất: ${weakest.label}`, `いちばん弱い所：${weakest.label}`, `Terlemah: ${weakest.label}`)}
-                meta={weakest.worst?.improvement || undefined}
-                right={<Attention>{weakest.average}</Attention>}
-              />
-            ) : null}
-          </Section>
-        ) : null
       ) : null}
 
       {/* 이런 회사 — 사진 타일 세 칸 */}
@@ -688,5 +685,91 @@ function StartSteps({ t, steps, done, onMock }: { t: PlatformT; steps: { key: st
         })}
       </ol>
     </div>
+  );
+}
+
+/** 맨 위 서류 칸 — 이력서(파랑)·자기소개서(보라). 상태 · 한 줄 · 칸 막대, 아래에 [미리보기] [수정하기 ›]. 칸 전체는 에디터로. */
+function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
+  const doc = kind === "resume" ? resume : cover;
+  const checks = docChecklist(t, kind, resume, cover);
+  const done = checks.filter((c) => c.done).length;
+  const ready = !!doc && done === checks.length;
+  const written = coverWritten(cover);
+  const label = kind === "resume" ? t("이력서", "Resume", "简历", "CV", "履歴書", "CV") : t("자기소개서", "Cover letter", "自我介绍", "Thư GT", "自己紹介書", "Surat");
+  const badge = !doc ? t("시작 전", "Not started", "未开始", "Chưa", "未着手", "Belum") : ready ? t("준비됐어요", "Ready", "已就绪", "Sẵn sàng", "準備OK", "Siap") : t("채우는 중", "In progress", "填写中", "Đang điền", "作成中", "Diisi");
+  const line = !doc
+    ? t("지금 시작해 보세요", "Start now", "现在开始", "Bắt đầu ngay", "始めましょう", "Mulai sekarang")
+    : kind === "resume"
+      ? ready
+        ? t(`항목 ${resume?.items.length ?? 0}개`, `${resume?.items.length ?? 0} items`, `${resume?.items.length ?? 0} 项`, `${resume?.items.length ?? 0} mục`, `${resume?.items.length ?? 0}項目`, `${resume?.items.length ?? 0} item`)
+        : t(`필수 ${checks.length}개 중 ${done}개`, `${done}/${checks.length} essentials`, `必填 ${done}/${checks.length}`, `${done}/${checks.length} mục`, `必須 ${done}/${checks.length}`, `${done}/${checks.length} inti`)
+      : written.count
+        ? t(`문항 ${written.count}개 · ${written.chars.toLocaleString()}자`, `${written.count} answers`, `${written.count} 题 · ${written.chars.toLocaleString()} 字`, `${written.count} câu`, `${written.count}問 · ${written.chars.toLocaleString()}字`, `${written.count} jawaban`)
+        : t("아직 쓴 문항이 없어요", "No answers yet", "还没写", "Chưa viết", "まだ未記入", "Belum ada");
+  const tone = kind === "resume" ? "bg-[#edf1fd]" : "bg-[#f3eeff]";
+  const bar = kind === "resume" ? "bg-[color:var(--v2-accent)]" : "bg-[#7c3aed]";
+  return (
+    <div className={`flex min-h-[168px] flex-col rounded-3xl p-4 ${tone}`}>
+      <Link href={kind === "resume" ? EDITOR.resume : EDITOR.cover} className="flex-1">
+        <span className="flex items-start justify-between gap-1">
+          <span className={`inline-flex shrink-0 rounded-md px-1.5 py-1 text-[11px] font-bold leading-none ${ready ? "bg-[#e5f6ee] text-[color:var(--v2-good)]" : "bg-white text-[color:var(--v2-muted)]"}`}>{badge}</span>
+          {/* 일러스트 — 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림 */}
+          <img src={kind === "resume" ? "/img_resume.webp" : "/img_coverletter.webp"} alt="" aria-hidden className="-mr-1 -mt-1 h-[52px] w-[68px] object-contain mix-blend-multiply min-[360px]:h-[60px] min-[360px]:w-[80px]" />
+        </span>
+        <span className="mt-1 block truncate whitespace-nowrap text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</span>
+        <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-ink-3)]">{line}</span>
+        <span className="mt-3 flex gap-1" aria-hidden>
+          {(kind === "resume" ? checks : [{ label: "c", done: written.count > 0 }]).map((c, i) => (
+            <span key={i} className={`h-1.5 flex-1 rounded-full ${c.done ? bar : "bg-white"}`} />
+          ))}
+        </span>
+      </Link>
+      <span className="mt-4 flex items-center justify-between gap-2 whitespace-nowrap text-[14px] font-semibold">
+        {doc ? (
+          <Link href={kind === "resume" ? PREVIEW.resume : PREVIEW.cover} aria-label={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} title={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} className="-m-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--v2-muted)] hover:bg-white/60 hover:text-[color:var(--v2-ink-3)]">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </Link>
+        ) : (
+          <span />
+        )}
+        <Link href={kind === "resume" ? EDITOR.resume : EDITOR.cover} className="text-[color:var(--v2-accent)]">
+          {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")} ›
+        </Link>
+      </span>
+    </div>
+  );
+}
+
+/** 맨 위 모의 면접 줄(초록) — 연속 기록 · 이번 주 문항 · 최근 단계 · 약한 곳, 오른쪽 [연습하기]. */
+function MockTile({ t, streak, week, best, weakest }: { t: PlatformT; streak: number; week: number; best: number | null; weakest: string | null }) {
+  return (
+    <Link href={V2_ROUTES.interviews} className="mt-2.5 flex items-center gap-3 rounded-3xl bg-[#e8f8f1] p-4 transition hover:-translate-y-0.5">
+      {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림(흰 바탕 → 곱하기 합성) */}
+      <img src="/img_fake_interview.webp" alt="" aria-hidden className="-my-1 -ml-1 h-[52px] w-[68px] shrink-0 object-contain mix-blend-multiply" />
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate whitespace-nowrap text-[17px] font-bold text-[color:var(--v2-ink)]">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</span>
+          {best != null ? (
+            <span className="hidden min-[440px]:inline-flex">
+              <LevelChip t={t} score={best} />
+            </span>
+          ) : null}
+        </span>
+        <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-ink-3)]">
+          {[
+            streak > 0 ? t(`🔥 ${streak}일째`, `🔥 ${streak}-day`, `🔥 连续 ${streak} 天`, `🔥 ${streak} ngày`, `🔥 ${streak}日連続`, `🔥 ${streak} hari`) : null,
+            t(`이번 주 ${week}문항`, `${week} this week`, `本周 ${week} 题`, `${week} tuần này`, `今週${week}問`, `${week} minggu ini`),
+            weakest ? t(`약한 곳 ${weakest}`, `Weak: ${weakest}`, `薄弱：${weakest}`, `Yếu: ${weakest}`, `弱点 ${weakest}`, `Lemah: ${weakest}`) : null
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
+      </span>
+      <span className="inline-flex h-9 shrink-0 items-center rounded-lg bg-[color:var(--v2-good)] px-3.5 text-[14px] font-semibold text-white">{t("연습하기", "Practice", "练习", "Luyện", "練習", "Latihan")}</span>
+    </Link>
   );
 }

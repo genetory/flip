@@ -894,7 +894,7 @@ export function docChecklist(t: PlatformT, kind: "resume" | "cover", resume: Res
 }
 
 /** 자기소개서에 쓴 것 — 글이 20자 이상인 문항 수와 전체 글자 수. */
-function coverWritten(cover: CoverDoc | null): { count: number; chars: number } {
+export function coverWritten(cover: CoverDoc | null): { count: number; chars: number } {
   const byQ = new Map<string, number>();
   for (const it of cover?.items ?? []) byQ.set(it.question, (byQ.get(it.question) ?? 0) + it.text.trim().length);
   const written = [...byQ.values()].filter((n) => n >= 20);
