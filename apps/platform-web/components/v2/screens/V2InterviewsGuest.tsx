@@ -90,12 +90,16 @@ export function V2InterviewsGuest() {
       <ReportedQuestions t={t} onPick={toSignup} />
 
       <div className="px-5 pb-4 pt-4">
-        <div className="rounded-3xl bg-[color:var(--v2-ink)] px-6 py-7 text-white">
-          <p className="text-[20px] font-bold leading-[1.4]">{t("다음 면접, 연습하고 가요", "Practice before your next interview", "下次面试前先练习", "Luyện trước buổi phỏng vấn tới", "次の面接は練習してから", "Latihan sebelum wawancara berikutnya")}</p>
-          <p className="mt-1.5 text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요.", "Start right away with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号即可开始。", "Bắt đầu ngay bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoですぐ始められます。", "Mulai dengan email atau Google/Kakao.")}</p>
-          <div className="mt-5">
+        <div className="relative overflow-hidden rounded-3xl bg-[color:var(--v2-ink)] px-6 py-7 text-white">
+          {/* 선물 상자 일러스트(투명 배경) — 가입 첫 1회 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림 */}
+          <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="pointer-events-none absolute -right-3 -top-2 h-[110px] w-[140px] object-contain opacity-95 min-[360px]:h-[124px] min-[360px]:w-[160px]" />
+          <span className="relative inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-bold">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
+          <p className="relative mt-3 max-w-[62%] text-[20px] font-bold leading-[1.4]">{t("다음 면접, 연습하고 가요", "Practice before your next interview", "下次面试前先练习", "Luyện trước buổi phỏng vấn tới", "次の面接は練習してから", "Latihan sebelum wawancara berikutnya")}</p>
+          <p className="relative mt-1.5 max-w-[62%] text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요.", "Start right away with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号即可开始。", "Bắt đầu ngay bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoですぐ始められます。", "Mulai dengan email atau Google/Kakao.")}</p>
+          <div className="relative mt-5">
             <Link href={SIGNUP} className="flex h-12 items-center justify-center rounded-xl bg-white text-[16px] font-semibold text-[color:var(--v2-ink)] transition hover:opacity-90">
-              {t("시작하기", "Get started", "开始使用", "Bắt đầu", "はじめる", "Mulai")}
+              {t("가입하고 무료로 시작하기", "Sign up & start free", "注册并免费开始", "Đăng ký & bắt đầu miễn phí", "登録して無料で始める", "Daftar & mulai gratis")}
             </Link>
           </div>
         </div>
@@ -104,14 +108,21 @@ export function V2InterviewsGuest() {
   );
 }
 
+// 단계별 일러스트 — ① 공고(문서) ② 마주 앉은 면접 ③ AI 분석. 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다.
+const STEP_ILLUST = ["/img_process_1.webp", "/img_process_2.webp", "/img_ai_analyze.webp"];
+
 function Step({ n, title, meta }: { n: number; title: string; meta: string }) {
   return (
-    <li className="flex items-start gap-3 rounded-2xl bg-[color:var(--v2-band)] px-4 py-3.5">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-[14px] font-bold text-[color:var(--v2-accent)]">{n}</span>
-      <span className="min-w-0">
+    <li className="flex items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] py-3 pl-4 pr-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-start rounded-full bg-white text-[14px] font-bold text-[color:var(--v2-accent)] mt-1">{n}</span>
+      <span className="min-w-0 flex-1">
         <span className="block text-[16px] font-bold text-[color:var(--v2-ink)]">{title}</span>
         <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{meta}</span>
       </span>
+      {STEP_ILLUST[n - 1] ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림
+        <img src={STEP_ILLUST[n - 1]} alt="" aria-hidden className="h-[56px] w-[64px] shrink-0 object-contain mix-blend-multiply" />
+      ) : null}
     </li>
   );
 }
