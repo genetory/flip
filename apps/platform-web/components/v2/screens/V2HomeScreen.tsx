@@ -13,6 +13,7 @@ import { FeaturedBanners } from "../../talent/screens/HomeScreen";
 import { Attention, Button, Chip, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton, TextLink } from "../ui";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PrepSheetV2 } from "../prep-sheet";
+import { TalentCardSheet, TalentPoolLine, useTalentPool } from "../talent-pool";
 import { jobPhotoOf } from "../lib";
 import { RoleChecklist, coverWritten, docChecklist, splitList, termIn } from "./V2CareerScreen";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -96,6 +97,8 @@ function Home() {
   const [prepFor, setPrepFor] = useState<Upcoming | null>(null);
   const [now] = useState(() => Date.now()); // 화면을 연 시각 — 오늘의 질문·이번 주 기록의 기준
   const mine = useMyInterviews();
+  const pool = useTalentPool();
+  const [poolPreview, setPoolPreview] = useState(false);
   const followed = useFollowedCompanies();
   const router = useRouter();
 
@@ -264,6 +267,8 @@ function Home() {
           <DocTile t={t} kind="cover" resume={resume} cover={cover} />
         </div>
         <MockTile t={t} streak={streak} week={answeredWeek} best={lastMock?.bestScore ?? null} weakest={weakest?.label ?? null} />
+        {/* 서류를 채우면 기업 인재 검색에 보인다(블라인드) — 지금 상태 한 줄 + 미리보기 */}
+        <TalentPoolLine t={t} status={pool.status} onPreview={() => setPoolPreview(true)} />
       </div>
 
       {/* 처음 온 사람 — 시작 3단계(회색 카드 + 막대) */}
@@ -468,6 +473,7 @@ function Home() {
           ))}
       </Section>
 
+      {poolPreview && pool.status ? <TalentCardSheet t={t} status={pool.status} onClose={() => setPoolPreview(false)} /> : null}
       {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
       {prepFor ? (
         <PrepSheetV2

@@ -17,6 +17,8 @@ import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { getMyFavoritePositions, getInterestedCompanies } from "../../../lib/member-profile-client";
 import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../../lib/profile-media";
 import { usePlatformT } from "../../../lib/i18n";
+import { TalentCardSheet, useTalentPool } from "../talent-pool";
+import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 
 const LOCALE_LABELS: Record<PlatformLocale, string> = {
   ko: "한국어",
@@ -38,6 +40,11 @@ export function V2SettingsScreen() {
   const [interested, setInterested] = useState<number | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const name = user?.realName || user?.name || t("나", "Me", "我", "Tôi", "私", "Saya");
+  const pool = useTalentPool();
+  const [poolPreview, setPoolPreview] = useState(false);
+  const toast = useTalentPopup();
+  const togglePool = (on: boolean) =>
+    pool.setVisible(on).catch(() => toast.error(t("바꾸지 못했어요. 잠시 후 다시 해 주세요.", "Couldn't change it. Try again.", "更改失败，请稍后再试。", "Không đổi được. Thử lại.", "変更できませんでした。", "Gagal mengubah.")));
 
   // 계정 프로필 사진 — GNB·프로필 편집과 같은 소스(이력서 사진과는 별개).
   useEffect(() => {
@@ -174,6 +181,18 @@ export function V2SettingsScreen() {
           </div>
         </Section>
 
+        {/* 기업 인재 검색 노출 — 가입하면 기본으로 켜져 있다(블라인드). 끄면 인재 검색·새 연결 요청에서 빠진다. */}
+        <Section title={t("기업 인재 검색", "Talent search", "企业人才搜索", "Tìm kiếm nhân tài", "企業の人材検索", "Pencarian talenta")}>
+          <SwitchRow
+            title={t("내 이력서를 기업에게 보여 주기", "Show my resume to companies", "向企业展示我的简历", "Hiển thị CV cho doanh nghiệp", "履歴書を企業に表示", "Tampilkan CV ke perusahaan")}
+            meta={t("이름·연락처는 가린 채 보여요. 끄면 검색과 새 연결 요청에서 빠져요.", "Name and contact stay hidden. Off = out of search and new requests.", "姓名和联系方式隐藏。关闭后不再出现在搜索和新请求中。", "Ẩn tên và liên hệ. Tắt = rời tìm kiếm.", "名前・連絡先は非表示。オフで検索と新規申請から外れます。", "Nama & kontak disembunyikan.")}
+            on={pool.status ? !pool.status.optedOut : true}
+            onChange={(v) => void togglePool(v)}
+          />
+          {pool.status?.card ? <Row onClick={() => setPoolPreview(true)} lead="👀" title={t("기업에게 이렇게 보여요", "How companies see you", "企业看到的你", "Doanh nghiệp thấy bạn", "企業からの見え方", "Tampilan bagi perusahaan")} meta={pool.status.visible ? t("지금 인재 검색에 보이는 중", "Visible now", "当前可见", "Đang hiển thị", "現在表示中", "Terlihat") : pool.status.optedOut ? t("지금은 꺼져 있어요", "Currently off", "当前已关闭", "Đang tắt", "現在オフ", "Nonaktif") : t("이력서를 더 채우면 보여요", "Fill your resume to appear", "完善简历后可见", "Hoàn thiện CV để hiển thị", "履歴書を埋めると表示", "Lengkapi CV")} /> : null}
+          <Row href="/talent/connections" lead="🤝" title={t("받은 연결 요청", "Connection requests", "收到的连接请求", "Yêu cầu kết nối", "つながり申請", "Permintaan koneksi")} />
+        </Section>
+
         {/* 계정 */}
         <Section title={t("계정", "Account", "账户", "Tài khoản", "アカウント", "Akun")}>
           <Row href={getAccountUrl()} title={t("계정 정보 관리", "Manage account", "管理账户", "Quản lý tài khoản", "アカウント管理", "Kelola akun")} />
@@ -188,6 +207,7 @@ export function V2SettingsScreen() {
           </div>
         </Section>
       </Page>
+      {poolPreview && pool.status ? <TalentCardSheet t={t} status={pool.status} onClose={() => setPoolPreview(false)} /> : null}
     </V2Shell>
   );
 }

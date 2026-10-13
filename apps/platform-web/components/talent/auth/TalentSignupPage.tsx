@@ -202,6 +202,17 @@ export function TalentSignupPage() {
 
       <TalentOrDivider />
       <TalentSocialButtons />
+      {/* 기업 인재 검색 노출 안내 — 가입하면 기본으로 켜진다(블라인드). 이메일·소셜 가입 모두에 해당해 맨 아래에 둔다. */}
+      <p className="mt-5 break-keep text-center text-[12.5px] leading-relaxed text-[#8B95A1]">
+        {t(
+          "가입하면 작성한 이력서가 이름·연락처를 가린 채 기업 인재 검색에 보일 수 있어요. 설정에서 언제든 끌 수 있어요.",
+          "After signing up, your resume may appear in company talent search with your name and contact hidden. You can turn this off anytime in Settings.",
+          "注册后，你的简历可能会在隐藏姓名和联系方式的情况下出现在企业人才搜索中。可随时在设置中关闭。",
+          "Sau khi đăng ký, CV của bạn có thể hiển thị trong tìm kiếm của doanh nghiệp (ẩn tên và liên hệ). Có thể tắt trong Cài đặt.",
+          "登録すると、履歴書が名前・連絡先を隠した状態で企業の人材検索に表示されることがあります。設定でいつでもオフにできます。",
+          "Setelah mendaftar, CV-mu bisa tampil di pencarian perusahaan dengan nama dan kontak disembunyikan. Bisa dimatikan di Pengaturan."
+        )}
+      </p>
     </TalentAuthLayout>
   );
 }

@@ -107,3 +107,19 @@ export async function respondConnection(id: string, action: "accept" | "decline"
 export async function setTalentPool(optIn: boolean): Promise<void> {
   await authedJsonFetch("/members/me/talent-pool", { method: "POST", body: JSON.stringify({ optIn }) });
 }
+
+// 기업 인재 검색 노출 상태 + 기업에게 보이는 내 카드(블라인드 — 파트너 인재 검색과 같은 모양).
+export type TalentPoolCard = {
+  school: string | null;
+  major: string | null;
+  desiredJobRole: string | null;
+  skills: string[];
+  languages: string[];
+  careerCount: number;
+  activityCount: number;
+  summary: string | null;
+};
+export type TalentPoolStatus = { optedOut: boolean; hasResume: boolean; complete: boolean; visible: boolean; interestedCount: number; card: TalentPoolCard | null };
+export async function getTalentPoolStatus(): Promise<TalentPoolStatus> {
+  return (await authedJsonFetch<never>("/members/me/talent-pool", { method: "GET" })) as unknown as TalentPoolStatus;
+}

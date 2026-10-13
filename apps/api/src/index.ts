@@ -30544,7 +30544,8 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 // 파트너 인재검색에 (연락처 마스킹 상태로) 노출한다. 별도 인재풀 동의 플래그는 요구하지
 // 않는다(프로덕션에서 아무도 동의 상태가 아니라 전원 안 뜨던 문제 → 가입=발견 가능 모델).
 // 완성도 필터(isResumeReasonablyComplete)와 연락처 마스킹은 엔드포인트에서 그대로 적용.
-const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true };
+// 학생이 노출을 끄면(talentPoolOptedOutAt) 인재 검색·추천·새 연결 요청에서 뺀다(이미 연결된 기업은 그대로 볼 수 있다).
+const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true, user: { talentPoolOptedOutAt: null } };
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
 // 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
@@ -30659,16 +30660,43 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean, blind = fa
 
 // 인재풀 이력서 행 → 검색 카드(점수 없음). GET/AI 검색 공용.
 type PoolResumeRow = { userId: string; updatedAt: Date; content: unknown; user: { name: string | null; realName: string | null; nationality: string | null } | null };
+/** 리뉴얼 에디터 이력서(renewalResume.items: {section, text, company})를 인재 카드 필드로 — 구형 필드(educations·skills…)가 없을 때. */
+function renewalCardFields(content: Record<string, unknown>) {
+  const doc = (content.renewalResume && typeof content.renewalResume === "object" ? content.renewalResume : null) as { targetRole?: unknown; summary?: unknown; items?: unknown } | null;
+  const items = Array.isArray(doc?.items) ? (doc!.items as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const of = (sec: string) => items.filter((i) => i && i.section === sec && (str(i.text) || str(i.company)));
+  const split = (t: string) => t.split(/[,，、\n·]|\s\/\s/).map((x) => x.trim()).filter(Boolean);
+  const edu = of("education")[0];
+  const eduText = edu ? str(edu.company) || str(edu.text).split("\n")[0] : "";
+  return {
+    school: eduText ? eduText.slice(0, 80) : null,
+    // 전공 — 본문 첫 마디만(괄호·마침표 앞까지). 예: "컴퓨터공학 학사 졸업 (GPA …). …" → "컴퓨터공학 학사 졸업"
+    major: edu && str(edu.company) && str(edu.text) ? str(edu.text).split(/[\n(.]/)[0].trim().slice(0, 60) || null : null,
+    skills: [...new Set(of("skill").flatMap((i) => split(str(i.text))))],
+    languages: of("language").flatMap((i) => split(str(i.text))),
+    careerCount: of("experience").length,
+    activityCount: of("project").length + of("activity").length + of("award").length,
+    summary: str(doc?.summary),
+    targetRole: str(doc?.targetRole)
+  };
+}
+
 function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const content = (r.content ?? {}) as Record<string, unknown>;
-  const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
-  const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
-  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
-  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
-  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
-  const languages = Array.isArray(content.languages)
+  // 리뉴얼(v2) 이력서는 renewalResume 에만 내용이 있다 — 구형 필드가 비면 거기서 채운다(안 그러면 카드가 거의 비어 보인다).
+  const rn = renewalCardFields(content);
+  const legacyEdu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
+  const edu = legacyEdu ?? (rn.school ? { schoolName: rn.school, major: rn.major } : undefined);
+  const legacySkills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
+  const skills = legacySkills.length ? legacySkills : rn.skills;
+  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : Array.from({ length: rn.careerCount });
+  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : Array.from({ length: rn.activityCount });
+  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : rn.summary;
+  const legacyLanguages = Array.isArray(content.languages)
     ? (content.languages as Record<string, unknown>[]).map((l) => [l?.language, l?.level].filter((x) => typeof x === "string" && x).join(" ")).filter(Boolean)
     : [];
+  const languages = legacyLanguages.length ? legacyLanguages : rn.languages;
   // 블라인드 — 능력만으로 판단하도록, 연결 수락(ACCEPTED) 전에는 이름·국적을 가린다.
   const unlocked = status === "ACCEPTED";
   // 요약(자기소개)에 섞인 이름·국적 제거 + TOPIK 중립화.
@@ -30680,7 +30708,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     nationality: unlocked ? (r.user?.nationality ?? (content.nationality as string) ?? null) : null,
     school: (edu?.schoolName as string) ?? null,
     major: (edu?.major as string) ?? null,
-    desiredJobRole: (content.desiredJobRole as string) ?? null,
+    desiredJobRole: (content.desiredJobRole as string) || rn.targetRole || null,
     workType: (content.workType as string) ?? null,
     // 국적을 가리는 것과 동일하게, 국적 프록시가 되는 비자/체류자격도 연결 수락 전에는 가린다.
     visa: unlocked ? ((content.basicVisa as string) ?? null) : null,
@@ -31004,6 +31032,7 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
         SELECT "userId", "embedding" <=> ${vec}::vector AS distance
         FROM "Resume"
         WHERE "isPrimary" = true AND "embedding" IS NOT NULL
+          AND "userId" IN (SELECT "id" FROM "User" WHERE "talentPoolOptedOutAt" IS NULL)
         ORDER BY "embedding" <=> ${vec}::vector
         LIMIT 80
       `;
@@ -31716,16 +31745,39 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
   }
 });
 
-// 학생: 인재풀 등록(대표 이력서 poolOptIn) 토글
+// 학생: 기업 인재 검색 노출 상태 + 기업에게 보이는 내 카드(블라인드, 파트너가 보는 것과 같은 모양).
+// 노출 기준은 POOL_RESUME_WHERE(대표 이력서 + 끄지 않음) + 카드 완성도(isResumeReasonablyComplete).
+app.get("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [user, primary, interested] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { talentPoolOptedOutAt: true } }),
+      prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } } }),
+      prisma.partnerSavedCandidate.findMany({ where: { candidateUserId: userId }, select: { organizationId: true }, distinct: ["organizationId"] })
+    ]);
+    const optedOut = !!user?.talentPoolOptedOutAt;
+    const card = primary ? buildCandidateCard(primary, null) : null;
+    const complete = !!card && isResumeReasonablyComplete(card);
+    return res.json({ ok: true, optedOut, hasResume: !!primary, complete, visible: !optedOut && complete, interestedCount: interested.length, card });
+  } catch (err) {
+    console.error("[members/me/talent-pool GET] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load talent pool status" });
+  }
+});
+
+// 학생: 기업 인재 검색 노출 켜기/끄기. 가입하면 기본 노출 — 끄면 talentPoolOptedOutAt 을 남기고 인재 검색·추천·새 연결 요청에서 빠진다.
+// (예전 '동의해야 노출' 모델의 talentPoolConsentedAt·content.poolOptIn 은 표시·레거시 호환용으로 함께 맞춘다.)
 const talentPoolSchema = z.object({ optIn: z.boolean() });
 app.post("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const parsed = talentPoolSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
+    await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: parsed.data.optIn ? { talentPoolOptedOutAt: null, talentPoolConsentedAt: new Date() } : { talentPoolOptedOutAt: new Date(), talentPoolConsentedAt: null }
+    });
     const primary = await prisma.resume.findFirst({ where: { userId: req.auth!.userId, isPrimary: true }, select: { id: true, content: true } });
-    if (!primary) return res.status(400).json({ ok: false, code: "NO_PRIMARY_RESUME", message: "대표 이력서가 필요해요." });
-    // 동의는 유저 레벨(talentPoolConsentedAt)이 원천. content.poolOptIn 은 프론트 표시·레거시 호환용 미러.
-    await prisma.user.update({ where: { id: req.auth!.userId }, data: { talentPoolConsentedAt: parsed.data.optIn ? new Date() : null } });
+    if (!primary) return res.json({ ok: true, optIn: parsed.data.optIn });
     const content = { ...((primary.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>) };
     if (parsed.data.optIn) content.poolOptIn = { consentedAt: new Date().toISOString() };
     else delete content.poolOptIn;

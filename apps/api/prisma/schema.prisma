@@ -18,6 +18,8 @@ model User {
   emailNotifications                   Boolean                       @default(true)
   // 기업 인재풀 공개 동의 시각(유저 레벨 원천). 대표 이력서 교체와 무관하게 노출 유지.
   talentPoolConsentedAt                DateTime?
+  // 기업 인재 검색 노출 끄기 시각 — 가입하면 기본 노출(블라인드), 학생이 끄면 여기 기록하고 인재 검색·연결 요청에서 뺀다.
+  talentPoolOptedOutAt                 DateTime?
   suspendedAt                          DateTime?
   suspendedReason                      String?
   realName                             String?
