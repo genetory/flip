@@ -86,8 +86,14 @@ export function V2InterviewsGuest() {
         </div>
       </Section>
 
+      {/* 가입하면 할 수 있는 것 — 그림과 함께 */}
+      <WhatYouGet t={t} />
+
       {/* 실제 면접에서 나온 질문 — 공개 데이터(누르면 가입해서 연습) */}
       <ReportedQuestions t={t} onPick={toSignup} />
+
+      {/* 자주 묻는 질문 */}
+      <Faq t={t} />
 
       <div className="px-5 pb-4 pt-4">
         <div className="relative overflow-hidden rounded-3xl bg-[color:var(--v2-ink)] px-6 py-7 text-white">
@@ -143,7 +149,71 @@ function SampleFeedback({ t }: { t: PlatformT }) {
       <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-attention)]">
         <b>{t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")}</b> · {t("어떤 경험인지 한 가지를 숫자와 함께 말해 보세요.", "Name one specific experience, with a number.", "具体说一个经历，并带上数字。", "Nêu một kinh nghiệm cụ thể kèm con số.", "どんな経験か一つ、数字と一緒に話しましょう。", "Sebut satu pengalaman spesifik dengan angka.")}
       </p>
+      <div className="mt-3 rounded-2xl bg-white p-3">
+        <p className="text-[12px] font-bold text-[color:var(--v2-muted)]">{t("이렇게 바꿔 보면 어때요? (모범 답안)", "Try it like this (model answer)", "试试这样说（参考答案）", "Thử nói thế này (câu mẫu)", "こう直しては？（模範回答）", "Coba seperti ini (contoh)")}</p>
+        <p className="mt-1 text-[14px] leading-[1.65] text-[color:var(--v2-ink-2)]">{t("“교환학생 때 학교 SNS를 6개월 운영하며 외국인 학생 참여율을 30% 올렸습니다. 외국인 고객을 위한 서비스를 만드는 이곳에서 그 경험을 바로 쓰고 싶어 지원했습니다.”", "“As an exchange student I ran our school's social account for 6 months and raised international students' engagement by 30%. I applied because I want to use that right away building services for international customers.”", "“交换生期间我运营学校社交账号 6 个月，使外国学生参与度提升 30%。贵公司为外国客户打造服务，我希望马上发挥这段经验。”", "“Khi là sinh viên trao đổi, tôi quản lý SNS của trường 6 tháng và tăng tương tác của sinh viên quốc tế 30%. Tôi muốn dùng ngay kinh nghiệm đó.”", "「交換留学中に大学SNSを6か月運営し、留学生の参加率を30%上げました。外国人顧客向けサービスを作る御社で、その経験をすぐ活かしたいと思い応募しました。」", "“Saat pertukaran pelajar, aku mengelola SNS kampus 6 bulan dan menaikkan partisipasi mahasiswa asing 30%. Aku ingin langsung memakai pengalaman itu.”")}</p>
+      </div>
+      <div className="mt-2 rounded-2xl bg-[color:var(--v2-accent-weak)] p-3">
+        <p className="text-[12px] font-bold text-[color:var(--v2-accent)]">{t("면접관이 이어서 물을 질문", "Likely follow-up", "面试官可能追问", "Câu hỏi nối tiếp", "想定される追加質問", "Pertanyaan lanjutan")}</p>
+        <p className="mt-1 text-[14px] font-semibold leading-[1.55] text-[color:var(--v2-ink)]">{t("“참여율을 올리려고 구체적으로 무엇을 바꿨나요?”", "“What exactly did you change to raise engagement?”", "“为了提升参与度，你具体改变了什么？”", "“Cụ thể bạn đã thay đổi gì để tăng tương tác?”", "「参加率を上げるために具体的に何を変えましたか？」", "“Apa tepatnya yang kamu ubah?”")}</p>
+      </div>
     </div>
+  );
+}
+
+/** 가입하면 할 수 있는 것 — 그림과 함께 짧게. */
+const WHAT_YOU_GET: { img: string; tone: string; title: (t: PlatformT) => string; desc: (t: PlatformT) => string }[] = [
+  { img: "/img_fit_postion.webp", tone: "bg-[#edf1fd]", title: (t) => t("내가 지원할 공고에 맞춘 질문", "Questions for the job you want", "针对你要投递职位的问题", "Câu hỏi theo tin bạn ứng tuyển", "応募する求人に合わせた質問", "Pertanyaan sesuai lowongan"), desc: (t) => t("어플라이 공고는 물론 다른 사이트 공고도 링크·본문으로 가져와요. 내 이력서까지 읽고 질문을 만들어요.", "Use Aply jobs or bring any job by link or text — questions also use your resume.", "可用 Aply 职位，也可用链接或内容导入其他职位，并结合你的简历出题。", "Dùng tin Aply hoặc nhập tin khác bằng link/nội dung, kết hợp CV của bạn.", "Aplyの求人も他サイトの求人もリンク・本文で。履歴書まで読んで質問を作ります。", "Lowongan Aply atau lainnya lewat tautan/teks, ditambah CV-mu.") },
+  { img: "/img_fake_interview.webp", tone: "bg-[#fff0f3]", title: (t) => t("소리로 듣는 실전 면접", "Real mode with spoken questions", "听题实战面试", "Phỏng vấn thực chiến có đọc câu hỏi", "読み上げで実戦面接", "Mode nyata dengan suara"), desc: (t) => t("면접관처럼 질문을 읽어 주고 시간이 흘러요. 말로 답하면 글자로 받아 적어요.", "Questions are read aloud with a timer; speak and it's transcribed.", "像面试官一样朗读问题并计时，口头回答会自动转写。", "Đọc câu hỏi như người PV, có đồng hồ; nói sẽ được ghi lại.", "面接官のように質問を読み上げ、時間も計ります。話すと文字起こし。", "Pertanyaan dibacakan dengan timer; jawaban lisan ditranskripsi.") },
+  { img: "/images/img_ai_interview.webp", tone: "bg-[#e8f8f1]", title: (t) => t("답마다 바로 AI 피드백", "Instant AI feedback per answer", "每个回答即时 AI 反馈", "Phản hồi AI cho từng câu", "回答ごとにすぐAIフィードバック", "Masukan AI tiap jawaban"), desc: (t) => t("점수와 단계, 잘한 점·고칠 점, 내 경험으로 쓴 모범 답안, 꼬리 질문까지 알려 줘요.", "Score, strengths, fixes, a model answer from your experience, and a follow-up question.", "分数、优点、改进点、基于你经历的参考答案和追问。", "Điểm, ưu điểm, cần sửa, câu mẫu từ kinh nghiệm của bạn và câu hỏi nối tiếp.", "点数・良い点・直す点・自分の経験による模範回答・追加質問まで。", "Skor, kelebihan, perbaikan, contoh jawaban, dan pertanyaan lanjutan.") },
+  { img: "/img_process_3.webp", tone: "bg-[#fff4e8]", title: (t) => t("면접 전날 볼 한 장", "A night-before sheet", "面试前一天速览", "Bản ôn tập đêm trước", "前日の1枚", "Lembar ringkas malam sebelumnya"), desc: (t) => t("이 회사에서 나올 만한 질문 5개와 내 이력서로 쓴 모범 답안을 한 장에 정리해 줘요.", "5 likely questions for that company and model answers based on your resume, on one page.", "整理该公司可能出现的 5 个问题和基于简历的参考答案。", "5 câu hỏi dự kiến và câu mẫu dựa trên CV, gọn trong một trang.", "その会社で出そうな5問と履歴書による模範回答を1枚に。", "5 prediksi pertanyaan dan contoh jawaban dalam satu halaman.") },
+  { img: "/img_ai_analyze.webp", tone: "bg-[color:var(--v2-band)]", title: (t) => t("늘어 가는 내 실력 그래프", "Watch your score grow", "看着自己的分数提升", "Theo dõi điểm tăng dần", "伸びていく実力グラフ", "Lihat skormu naik"), desc: (t) => t("연습할수록 점수와 영역별 강약이 쌓여요. 약한 곳부터 다시 연습하게 도와줘요.", "Scores and strengths by area build up — practice your weak spots first.", "练得越多，分数和各领域强弱越清晰，优先练薄弱处。", "Càng luyện, điểm và điểm mạnh/yếu càng rõ.", "練習するほど点数と分野別の強弱が積み上がります。", "Makin latihan, skor dan area kuat/lemah makin jelas.") }
+];
+
+function WhatYouGet({ t }: { t: PlatformT }) {
+  return (
+    <Section title={t("가입하면 이런 걸 할 수 있어요", "What you get when you sign up", "注册后可以做这些", "Đăng ký để dùng những tính năng này", "登録するとできること", "Yang kamu dapat setelah daftar")}>
+      <ul className="flex flex-col gap-2.5">
+        {WHAT_YOU_GET.map((w) => (
+          <li key={w.img} className={`flex items-center gap-3 rounded-3xl py-3 pl-5 pr-3 ${w.tone}`}>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{w.title(t)}</span>
+              <span className="mt-1 block text-[13px] leading-[1.55] text-[color:var(--v2-ink-3)]">{w.desc(t)}</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림 */}
+            <img src={w.img} alt="" aria-hidden className="h-[64px] w-[80px] shrink-0 object-contain mix-blend-multiply" />
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+/** 자주 묻는 질문 — 눌러서 펼치기. */
+function Faq({ t }: { t: PlatformT }) {
+  const items: [string, string][] = [
+    [t("무료로 어디까지 할 수 있나요?", "What can I do for free?", "免费能做到什么程度？", "Miễn phí được những gì?", "無料でどこまでできますか？", "Apa yang gratis?"), t("가입하면 모의 면접 1회(질문 5개에 대한 AI 피드백)를 무료로 드려요. 오늘의 질문은 매일 1번 이용권 없이 답할 수 있어요.", "On sign-up you get 1 free session (AI feedback on 5 answers). Today's question can be answered once a day without a pass.", "注册后赠送 1 次模拟面试（5 个回答的 AI 反馈）。今日问题每天可免券回答 1 次。", "Đăng ký tặng 1 lượt (phản hồi AI cho 5 câu). Câu hỏi hôm nay được trả lời 1 lần/ngày.", "登録すると模擬面接1回（5問のAIフィードバック）が無料。今日の質問は1日1回チケットなしで。", "Daftar dapat 1 sesi gratis (masukan AI untuk 5 jawaban). Pertanyaan harian sekali sehari.")],
+    [t("그다음엔 어떻게 해요?", "And after that?", "之后怎么办？", "Sau đó thì sao?", "その後は？", "Setelah itu?"), t("이용권을 충전해서 계속 연습할 수 있어요. 쓴 만큼만 줄고, 결제 후 7일 안에 쓰지 않았다면 바로 환불할 수 있어요.", "Top up passes to keep practicing. They only decrease as you use them, and unused passes can be refunded within 7 days.", "可充值使用券继续练习，按使用扣除，7 天内未使用可直接退款。", "Nạp vé để luyện tiếp. Chỉ trừ khi dùng; chưa dùng có thể hoàn trong 7 ngày.", "チケットをチャージして続けられます。使った分だけ減り、未使用なら7日以内に返金可。", "Isi tiket untuk lanjut. Berkurang saat dipakai; bisa refund dalam 7 hari jika belum dipakai.")],
+    [t("외국인도 쓸 수 있나요?", "Can international students use it?", "外国人也能用吗？", "Người nước ngoài dùng được không?", "外国人も使えますか？", "Bisa untuk WNA?"), t("네. 화면은 6개 언어로 볼 수 있고, 질문은 한국어 면접 그대로 연습해요. 질문 아래에 한국어 원문도 함께 보여 줘요.", "Yes. The app works in 6 languages and you practice real Korean interview questions, with the Korean original shown.", "可以。界面支持 6 种语言，按韩语面试原样练习，并显示韩语原文。", "Có. Giao diện 6 ngôn ngữ, luyện câu hỏi phỏng vấn tiếng Hàn kèm bản gốc.", "はい。画面は6言語、質問は韓国語の面接そのままで練習します。", "Ya. Tersedia 6 bahasa, latihan pertanyaan wawancara bahasa Korea.")],
+    [t("내 답이 다른 사람에게 보이나요?", "Will others see my answers?", "我的回答会被别人看到吗？", "Người khác có thấy câu trả lời?", "回答は他人に見えますか？", "Apakah jawabanku terlihat orang lain?"), t("아니요. 내 연습 답은 나만 봐요. 잘한 답을 이름 없이 예시로 공유하는 건 내가 직접 고를 때만이에요.", "No. Your practice answers are private. Sharing a great answer anonymously happens only if you choose to.", "不会。练习回答仅自己可见，只有你主动选择时才会匿名分享。", "Không. Câu trả lời chỉ bạn thấy; chia sẻ ẩn danh chỉ khi bạn chọn.", "いいえ。自分だけが見られます。匿名共有は自分で選んだときだけ。", "Tidak. Hanya kamu yang melihat; berbagi anonim hanya jika kamu pilih.")],
+    [t("다른 모의 면접과 뭐가 달라요?", "How is this different?", "和其他模拟面试有什么不同？", "Khác gì các dịch vụ khác?", "他の模擬面接と何が違う？", "Apa bedanya?"), t("일반 질문이 아니라 내가 지원할 공고와 내 이력서로 질문을 만들고, 이 회사에서 실제로 나온 면접 질문까지 함께 연습해요.", "Questions come from the job you're applying to and your resume — plus real questions others got at that company.", "不是通用问题，而是根据你要投递的职位和简历出题，还能练习该公司真实出现过的问题。", "Câu hỏi theo tin bạn ứng tuyển và CV, kèm câu hỏi thật tại công ty đó.", "一般的な質問ではなく、応募する求人と履歴書から質問を作り、その会社で実際に出た質問も練習します。", "Pertanyaan dari lowongan dan CV-mu, plus pertanyaan nyata di perusahaan itu.")]
+  ];
+  return (
+    <Section title={t("자주 묻는 질문", "FAQ", "常见问题", "Câu hỏi thường gặp", "よくある質問", "Pertanyaan umum")}>
+      <div className="flex flex-col">
+        {items.map(([q, a]) => (
+          <details key={q} className="group border-b border-[color:var(--v2-band)] py-1 last:border-b-0">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-[16px] font-semibold text-[color:var(--v2-ink)] [&::-webkit-details-marker]:hidden">
+              {q}
+              <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-[color:var(--v2-faint)] transition group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <p className="pb-4 text-[14px] leading-[1.7] text-[color:var(--v2-ink-3)]">{a}</p>
+          </details>
+        ))}
+      </div>
+    </Section>
   );
 }
 
