@@ -4,6 +4,7 @@ import type { PlatformT } from "../i18n";
 import { careerGuides, type CareerGuide } from "./home-content";
 import { jobHunting, roleInsights } from "./insights-content";
 import { INSIGHTS } from "../insights/catalog";
+import { JOB_TAXONOMY } from "./job-taxonomy";
 
 export type GuideCat = "jobs" | "apply" | "interview";
 export type V2Guide = { slug: string; cat: GuideCat; minutes: number; guide: CareerGuide };
@@ -61,4 +62,48 @@ export function toV2Href(href: string | undefined): string | undefined {
   if (href === "/talent/jobs" || href.startsWith("/talent/jobs?")) return "/v2/jobs";
   if (href.startsWith("/talent/career/interviews")) return "/v2/interviews";
   return href;
+}
+
+// ── 나에게 맞는 글 ─────────────────────────────
+// 관심 직무(표준 직무 분류의 소분류 이름)를 대분류로 묶어 직무 글을 고른다. 예전 값(예: "DevOps/인프라")도 낱말로 잡는다.
+const ROLE_GUIDE: { majors: string[]; words: RegExp; slug: string }[] = [
+  { majors: ["개발", "데이터·AI"], words: /개발|devops|인프라|데이터|엔지니어|ai|ml/i, slug: "software-developer" },
+  { majors: ["마케팅·광고", "미디어·콘텐츠"], words: /마케팅|마케터|광고|콘텐츠|pr|홍보/i, slug: "marketer" },
+  { majors: ["디자인"], words: /디자인|디자이너|ux|ui/i, slug: "designer-portfolio" },
+  { majors: ["기획·PM"], words: /기획|pm|po|프로덕트/i, slug: "product-manager" }
+];
+function majorOf(minor: string): string | null {
+  for (const m of JOB_TAXONOMY) if (m.middles.some((mid) => mid.minors.includes(minor))) return m.label;
+  return null;
+}
+
+/** 관심 직무에 맞는 직무 글 + 누구에게나 도움 되는 글. 관심 직무가 없으면 처음 시작용 글. */
+export function personalGuides(guides: V2Guide[], interests: string[]): { personal: boolean; items: V2Guide[] } {
+  const bySlug = (s: string) => guides.find((g) => g.slug === s);
+  if (!interests.length) {
+    const items = ["find-your-role", "read-job-postings", "experience-to-resume"].map(bySlug).filter((g): g is V2Guide => !!g);
+    return { personal: false, items };
+  }
+  const roleSlugs = ROLE_GUIDE.filter((r) => interests.some((i) => { const mj = majorOf(i); return mj ? r.majors.includes(mj) : r.words.test(i); })).map((r) => r.slug);
+  const slugs = [...new Set([...roleSlugs, "no-experience-appeal", "interview-preparation"])];
+  return { personal: true, items: slugs.map(bySlug).filter((g): g is V2Guide => !!g).slice(0, 5) };
+}
+
+// ── 읽음 표시(이 브라우저에만) ─────────────────────────────
+const READ_KEY = "aply.v2.guide.read";
+export function readGuideSlugs(): string[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(READ_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+export function markGuideRead(slug: string): void {
+  try {
+    const cur = readGuideSlugs();
+    if (!cur.includes(slug)) window.localStorage.setItem(READ_KEY, JSON.stringify([...cur, slug]));
+  } catch {
+    /* 저장소를 못 쓰면 표시만 안 된다 */
+  }
 }

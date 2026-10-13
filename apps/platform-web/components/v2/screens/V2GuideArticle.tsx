@@ -7,7 +7,7 @@ import Link from "next/link";
 import { V2Shell } from "../V2Shell";
 import { Button, Page } from "../ui";
 import { usePlatformT } from "../../../lib/i18n";
-import { GUIDE_TONE, guideCatLabel, toV2Href, v2Guides } from "../../../lib/talent/v2-guides";
+import { GUIDE_TONE, guideCatLabel, markGuideRead, toV2Href, v2Guides } from "../../../lib/talent/v2-guides";
 
 export function V2GuideArticle({ slug }: { slug: string }) {
   return (
@@ -23,6 +23,15 @@ function Article({ slug }: { slug: string }) {
   const idx = guides.findIndex((g) => g.slug === slug);
   const g = idx >= 0 ? guides[idx] : null;
   const progress = useReadProgress();
+  // 끝까지(90%) 읽으면 '읽음' — 이 브라우저에만 기억. 스크롤할 게 없을 만큼 짧으면 몇 초 머물면 읽음.
+  useEffect(() => {
+    if (idx < 0) return;
+    if (progress >= 90) return markGuideRead(slug);
+    const short = document.documentElement.scrollHeight <= window.innerHeight + 40;
+    if (!short) return;
+    const timer = window.setTimeout(() => markGuideRead(slug), 4000);
+    return () => window.clearTimeout(timer);
+  }, [progress, idx, slug]);
 
   if (!g)
     return (
