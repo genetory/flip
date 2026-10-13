@@ -631,11 +631,11 @@ function minYears(j: PublicPositionListItem): number {
   return years.length ? Math.min(...years) : 0;
 }
 const SENIOR_TITLE = /시니어|senior|리드|lead|팀장|head\b|principal|책임|수석|staff/i;
-const JUNIOR_TITLE = /신입|경력\s*무관|주니어|junior|new\s*grad|인턴|intern/i;
+export const JUNIOR_TITLE = /신입|경력\s*무관|주니어|junior|new\s*grad|인턴|intern/i;
 
 /** 신입이 지원할 만한 공고인가 — 제목에 신입·인턴 표시가 있거나, 시니어 제목이 아니고 경력 3년 이상을 요구하지 않는 공고.
  *  employmentType 은 보지 않는다 — 외부 수집 공고는 '무급 인턴'으로 잘못 들어간 경우가 많다(시니어 공고 포함). */
-function isJuniorJob(j: PublicPositionListItem): boolean {
+export function isJuniorJob(j: PublicPositionListItem): boolean {
   if (JUNIOR_TITLE.test(j.title)) return true;
   return !SENIOR_TITLE.test(j.title) && minYears(j) < 3;
 }

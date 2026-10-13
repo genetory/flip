@@ -15,6 +15,7 @@ import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PrepSheetV2 } from "../prep-sheet";
 import { V2GuestHome } from "./V2GuestHome";
 import { TalentCardSheet, TalentPoolLine, useTalentPool } from "../talent-pool";
+import { ExperienceStarter, JuniorJobs, RoleQuizCard, RoleQuizSheet } from "../first-job";
 import { jobPhotoOf } from "../lib";
 import { RoleChecklist, coverWritten, docChecklist, splitList, termIn } from "./V2CareerScreen";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
@@ -115,6 +116,7 @@ function Home() {
   const mine = useMyInterviews();
   const pool = useTalentPool();
   const [poolPreview, setPoolPreview] = useState(false);
+  const [quiz, setQuiz] = useState(false);
   const followed = useFollowedCompanies();
   const router = useRouter();
 
@@ -332,6 +334,18 @@ function Home() {
         </div>
       ) : null}
 
+      {/* 첫 취업 준비생 — 관심 직무가 없으면 1분 직무 찾기, 이력서가 거의 비었으면 경험 꺼내기 */}
+      {!interests.length ? (
+        <div className="px-5 pb-6">
+          <RoleQuizCard t={t} onOpen={() => setQuiz(true)} />
+        </div>
+      ) : null}
+      {(resume?.items.length ?? 0) < 3 ? (
+        <div className="px-5 pb-6">
+          <ExperienceStarter t={t} />
+        </div>
+      ) : null}
+
       {/* 이 직무에 필요한 것 — 내 커리어와 같은 구획(관심 직무마다 칩, 비교·[있어요]까지). 결과는 직무별로 이 브라우저에 기억해 두 화면이 같다. */}
       {interests.length && !newcomer ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
 
@@ -404,6 +418,9 @@ function Home() {
           ))}
         </Section>
       ) : null}
+
+      {/* 신입·인턴 환영 공고 — 경력 없이 지원할 수 있는 곳 */}
+      <JuniorJobs t={t} />
 
       {/* 맞춤 공고 — 공고에 나오는 내 스킬을 초록으로 */}
       {jobs === null ? (
@@ -490,6 +507,7 @@ function Home() {
       </Section>
 
       {poolPreview && pool.status ? <TalentCardSheet t={t} status={pool.status} onClose={() => setPoolPreview(false)} /> : null}
+      {quiz ? <RoleQuizSheet t={t} authed onClose={() => setQuiz(false)} /> : null}
       {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
       {prepFor ? (
         <PrepSheetV2

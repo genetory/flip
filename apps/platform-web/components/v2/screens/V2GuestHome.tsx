@@ -5,15 +5,14 @@
 // 가입이 필요한 행동은 모두 가입으로 보낸다(돌아올 곳 next=/v2/home).
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { V2_ROUTES } from "../V2Shell";
 import { FeaturedBanners } from "../../talent/screens/HomeScreen";
-import { Button, Masthead, Page, Row, RowsSkeleton, Section, SectionSkeleton } from "../ui";
-import { jobPhotoOf, companyOf } from "../lib";
+import { Button, Masthead, Page, Row, Section, SectionSkeleton } from "../ui";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT } from "../../../lib/i18n";
-import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
+import { getPublicPositionsPage } from "../../../lib/member-profile-client";
 import { careerGuides } from "../../../lib/talent/home-content";
 import { careerGuideHref } from "../../../lib/talent/v2-guides";
+import { JuniorJobs, RoleQuizCard, RoleQuizSheet } from "../first-job";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { pickDailyQuestion, kstDay, questionText } from "../../../lib/talent/interview-daily";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
@@ -26,16 +25,13 @@ type Company = { name: string; industry?: string; count: number; photo: string |
 export function V2GuestHome() {
   const t = usePlatformT();
   const { locale } = useLanguage();
-  const [jobs, setJobs] = useState<PublicPositionListItem[] | null>(null);
   const [totals, setTotals] = useState<{ all: number; foreign: number } | null>(null);
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [now] = useState(() => Date.now());
+  const [quiz, setQuiz] = useState(false);
   const daily = pickDailyQuestion(null, kstDay(now));
 
   useEffect(() => {
-    getPublicPositionsPage({ limit: 4, sort: "latest", locale })
-      .then((p) => setJobs(p.items))
-      .catch(() => setJobs([]));
     Promise.all([getPublicPositionsPage({ page: 1, limit: 1, locale }), getPublicPositionsPage({ page: 1, limit: 1, foreignerEligible: true, locale })])
       .then(([a, f]) => setTotals({ all: a.total ?? 0, foreign: f.total ?? 0 }))
       .catch(() => setTotals(null));
@@ -102,24 +98,13 @@ export function V2GuestHome() {
         </Link>
       </div>
 
-      {/* 지금 올라온 공고 — 공개 데이터 */}
-      <Section
-        title={t("지금 올라온 공고", "Latest jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan terbaru")}
-        aside={totals ? <span className="text-[14px] text-[color:var(--v2-muted)]">{t(`전체 ${totals.all.toLocaleString()}개`, `${totals.all.toLocaleString()} total`, `共 ${totals.all.toLocaleString()} 个`, `${totals.all.toLocaleString()} tin`, `全${totals.all.toLocaleString()}件`, `${totals.all.toLocaleString()} total`)}</span> : undefined}
-      >
-        {jobs === null ? (
-          <RowsSkeleton count={4} />
-        ) : (
-          jobs.map((j) => (
-            <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined} />
-          ))
-        )}
-        <div className="mt-3">
-          <Button variant="neutral" full href={V2_ROUTES.jobs}>
-            {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
-          </Button>
-        </div>
-      </Section>
+      {/* 1분 직무 찾기 — 로그인 없이 해 볼 수 있다(저장은 가입 후) */}
+      <div className="px-5 pb-8">
+        <RoleQuizCard t={t} onOpen={() => setQuiz(true)} />
+      </div>
+
+      {/* 신입·인턴 환영 공고 — 경력 없이 지원할 수 있는 곳(공개 데이터) */}
+      <JuniorJobs t={t} />
 
       {/* 오늘의 면접 질문 — 맛보기. 답하고 AI 피드백은 가입 후. */}
       <Section title={t("오늘의 면접 질문", "Today's interview question", "今日面试题", "Câu hỏi phỏng vấn hôm nay", "今日の面接質問", "Pertanyaan hari ini")}>
@@ -196,6 +181,7 @@ export function V2GuestHome() {
           </div>
         </div>
       </div>
+      {quiz ? <RoleQuizSheet t={t} authed={false} onClose={() => setQuiz(false)} /> : null}
     </Page>
   );
 }
