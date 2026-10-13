@@ -152,9 +152,7 @@ export function V2InterviewsGuest() {
 
       {/* ⑨ 마지막 — 흰 바탕 가운데, 큰 제목과 버튼 하나 */}
       <section className="px-5 pb-8 pt-16 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element -- 선물 상자(투명 배경) */}
-        <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="mx-auto h-[120px] w-[160px] object-contain" />
-        <h2 className="mt-4 whitespace-pre-line text-[34px] font-bold leading-[1.2] tracking-[-0.04em] text-[color:var(--v2-ink)] md:text-[48px]">{t("다음 면접은,\n연습하고 가요.", "Next interview?\nPractice first.", "下次面试，\n先练习再去。", "Buổi PV tới,\nluyện trước đã.", "次の面接は、\n練習してから。", "Wawancara berikutnya,\nlatihan dulu.")}</h2>
+        <h2 className="whitespace-pre-line text-[34px] font-bold leading-[1.2] tracking-[-0.04em] text-[color:var(--v2-ink)] md:text-[48px]">{t("다음 면접은,\n연습하고 가요.", "Next interview?\nPractice first.", "下次面试，\n先练习再去。", "Buổi PV tới,\nluyện trước đã.", "次の面接は、\n練習してから。", "Wawancara berikutnya,\nlatihan dulu.")}</h2>
         <p className="mt-3 text-[17px] text-[color:var(--v2-ink-3)]">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</p>
         <div className="mt-7 flex justify-center">
           <PillLink href={SIGNUP}>{t("가입하고 시작하기", "Sign up & start", "注册并开始", "Đăng ký & bắt đầu", "登録して始める", "Daftar & mulai")}</PillLink>
