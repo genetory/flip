@@ -49,8 +49,8 @@ export function V2InterviewsGuest() {
             <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개에 답하고 AI 피드백까지 받아 보세요.", "Answer 5 questions for a job you choose and get AI feedback.", "选一个职位回答 5 个问题，获得 AI 反馈。", "Trả lời 5 câu theo tin bạn chọn và nhận phản hồi AI.", "好きな求人で5問に答えてAIフィードバックまで。", "Jawab 5 pertanyaan untuk lowongan pilihanmu dan dapat masukan AI.")}</span>
             <span className="mt-3 inline-flex h-9 items-center rounded-lg bg-[color:var(--v2-ink)] px-3.5 text-[14px] font-semibold text-white">{t("가입하고 해 보기", "Sign up & try", "注册并试试", "Đăng ký & thử", "登録して試す", "Daftar & coba")}</span>
           </span>
-          {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(투명 배경) */}
-          <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="h-[96px] w-[112px] shrink-0 object-contain min-[360px]:h-[112px] min-[360px]:w-[136px]" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(모의 면접 장면, 흰 바탕 → 곱하기 합성) */}
+          <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[96px] w-[120px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[112px] min-[360px]:w-[144px]" />
         </Link>
       </div>
 
