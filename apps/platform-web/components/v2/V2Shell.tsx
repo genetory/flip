@@ -29,12 +29,14 @@ export const V2_ROUTES = {
 
 function useNav() {
   const t = usePlatformT();
+  const { isAuthenticated } = useAuthSession();
   return [
     { href: V2_ROUTES.home, label: t("홈", "Home", "首页", "Trang chủ", "ホーム", "Beranda") },
     { href: V2_ROUTES.career, label: t("내 커리어", "Career", "我的职业", "Sự nghiệp", "キャリア", "Karier") },
     { href: V2_ROUTES.jobs, label: t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan") },
     { href: V2_ROUTES.interviews, label: t("모의 면접", "Interview", "模拟面试", "Phỏng vấn", "模擬面接", "Wawancara") },
-    { href: V2_ROUTES.applications, label: t("지원 현황", "Applied", "申请", "Ứng tuyển", "応募", "Lamaran") },
+    // 지원 현황은 내 지원만 보여 주는 곳 — 로그인 전엔 메뉴에서 뺀다(주소로 들어오면 '로그인이 필요해요').
+    ...(isAuthenticated ? [{ href: V2_ROUTES.applications, label: t("지원 현황", "Applied", "申请", "Ứng tuyển", "応募", "Lamaran") }] : []),
     { href: V2_ROUTES.guide, label: t("취업 가이드", "Guide", "指南", "Hướng dẫn", "ガイド", "Panduan") }
   ];
 }

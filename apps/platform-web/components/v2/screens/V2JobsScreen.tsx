@@ -67,7 +67,9 @@ function Jobs() {
   const interests = useJobInterests();
   // ?tab=interest 처럼 다른 화면(내 커리어 '내 스펙에 맞는 공고')에서 탭을 골라 들어올 수 있다.
   const tabParam = useSearchParams()?.get("tab");
-  const [tab, setTab] = useState<Tab>(tabParam === "aply" || tabParam === "interest" || tabParam === "saved" ? tabParam : "all");
+  const [tabState, setTab] = useState<Tab>(tabParam === "aply" || tabParam === "interest" || tabParam === "saved" ? tabParam : "all");
+  // 로그인 전엔 내 것 탭(관심 직무·저장한 공고)이 없다 — 주소로 들어와도 전체로.
+  const tab: Tab = !isAuthenticated && (tabState === "interest" || tabState === "saved") ? "all" : tabState;
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   // '혹시 외국인이세요?' — 한국인도 보는 화면이라 먼저 걸러 두지 않고 물어본다. 답은 이 브라우저에만 기억.
@@ -178,11 +180,16 @@ function Jobs() {
       .finally(() => setMore(false));
   };
 
+  // 관심 직무·저장한 공고는 내 것 — 로그인 전엔 늘 비어 있어 탭을 뺀다.
   const tabs: [Tab, string][] = [
     ["all", t("전체", "All", "全部", "Tất cả", "すべて", "Semua")],
     ["aply", "Aply ONLY"],
-    ["interest", t("관심 직무", "My interests", "感兴趣", "Quan tâm", "関心職種", "Minatku")],
-    ["saved", t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan")]
+    ...(isAuthenticated
+      ? ([
+          ["interest", t("관심 직무", "My interests", "感兴趣", "Quan tâm", "関心職種", "Minatku")],
+          ["saved", t("저장한 공고", "Saved", "已收藏", "Đã lưu", "保存済み", "Tersimpan")]
+        ] as [Tab, string][])
+      : [])
   ];
   // 머리말 — 외국인·한국인 모두 보는 곳이라 '어디서 일할지'가 아니라 '지금 보고 있는 공고 묶음'을 말한다.
   // 탭·외국인 스위치·검색어에 따라 바뀐다. 숫자만 굵은 먹색({n} 자리에 끼워 넣는다 — 언어마다 어순이 다르다).
