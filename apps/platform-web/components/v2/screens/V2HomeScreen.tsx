@@ -449,6 +449,11 @@ function Home() {
                   />
                 );
               })}
+              <div className="mt-3">
+                <Button variant="neutral" full href={V2_ROUTES.applications}>
+                  {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
+                </Button>
+              </div>
             </div>
           ) : (
             <p className="text-[15px] leading-[1.75] text-[color:var(--v2-muted)]">
