@@ -156,11 +156,11 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
         <Masthead
           eyebrow={t("로그인이 필요해요", "Log in required", "需要登录", "Cần đăng nhập", "ログインが必要です", "Perlu masuk")}
           title={t("내 정보로 채워지는 화면이에요", "This page is filled with your own information", "此页面会显示你的个人信息", "Trang này hiển thị thông tin của bạn", "あなたの情報で埋まる画面です", "Halaman ini berisi datamu")}
-          lede={t("로그인하면 이어서 볼 수 있어요. 가입은 무료예요.", "Log in to continue. Signing up is free.", "登录后即可继续查看。注册免费。", "Đăng nhập để tiếp tục. Đăng ký miễn phí.", "ログインすると続きが見られます。登録は無料です。", "Masuk untuk melanjutkan. Daftar gratis.")}
+          lede={t("로그인하면 이어서 볼 수 있어요.", "Log in to continue.", "登录后即可继续查看。", "Đăng nhập để tiếp tục.", "ログインすると続きが見られます。", "Masuk untuk melanjutkan.")}
           action={
             <Actions>
               <PrimaryButton href={`/talent/login?next=${encodeURIComponent(pathname)}`}>{t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}</PrimaryButton>
-              <SecondaryButton href={`/talent/signup?next=${encodeURIComponent(pathname)}`}>{t("무료로 가입하기", "Sign up free", "免费注册", "Đăng ký miễn phí", "無料で登録", "Daftar gratis")}</SecondaryButton>
+              <SecondaryButton href={`/talent/signup?next=${encodeURIComponent(pathname)}`}>{t("가입하기", "Sign up", "注册", "Đăng ký", "登録する", "Daftar")}</SecondaryButton>
             </Actions>
           }
         />

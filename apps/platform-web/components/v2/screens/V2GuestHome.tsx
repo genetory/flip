@@ -64,10 +64,10 @@ export function V2GuestHome() {
       <Masthead
         eyebrow={t("유학생·첫 취업 준비생을 위한", "For international students & first-time job seekers", "为留学生和首次求职者", "Dành cho du học sinh & người tìm việc lần đầu", "留学生・初めての就活生のための", "Untuk pelajar internasional & pencari kerja pertama")}
         title={t("첫 이력서부터 첫 지원까지, Aply와 함께", "From your first resume to your first application", "从第一份简历到第一次投递", "Từ CV đầu tiên đến lần ứng tuyển đầu tiên", "初めての履歴書から初めての応募まで", "Dari CV pertama hingga lamaran pertama")}
-        lede={t("경험을 말하듯 적으면 AI가 이력서·자기소개서로 정리하고, 실제 공고로 모의 면접까지 연습해요. 모두 무료예요.", "Write your experience like you talk — AI turns it into a resume and cover letter, and you practice interviews for real jobs. All free.", "像聊天一样写下经历，AI 帮你整理成简历和自我介绍，还能用真实职位练习模拟面试。全部免费。", "Viết kinh nghiệm như đang kể — AI biến thành CV và thư giới thiệu, rồi luyện phỏng vấn với tin thật. Miễn phí.", "経験を話すように書けば、AIが履歴書・自己紹介書に整え、実際の求人で模擬面接まで練習できます。すべて無料。", "Tulis pengalamanmu seperti bercerita — AI menyusunnya jadi CV dan surat lamaran, lalu latihan wawancara. Semua gratis.")}
+        lede={t("경험을 말하듯 적으면 AI가 이력서·자기소개서로 정리하고, 실제 공고로 모의 면접까지 연습해요.", "Write your experience like you talk — AI turns it into a resume and cover letter, and you practice interviews for real jobs.", "像聊天一样写下经历，AI 帮你整理成简历和自我介绍，还能用真实职位练习模拟面试。", "Viết kinh nghiệm như đang kể — AI biến thành CV và thư giới thiệu, rồi luyện phỏng vấn với tin thật.", "経験を話すように書けば、AIが履歴書・自己紹介書に整え、実際の求人で模擬面接まで練習できます。", "Tulis pengalamanmu seperti bercerita — AI menyusunnya jadi CV dan surat lamaran, lalu latihan wawancara.")}
         action={
           <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:flex">
-            <Button href={SIGNUP}>{t("무료로 시작하기", "Start free", "免费开始", "Bắt đầu miễn phí", "無料ではじめる", "Mulai gratis")}</Button>
+            <Button href={SIGNUP}>{t("시작하기", "Get started", "开始使用", "Bắt đầu", "はじめる", "Mulai")}</Button>
             <Button variant="secondary" href={LOGIN}>
               {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
             </Button>
@@ -82,13 +82,13 @@ export function V2GuestHome() {
             img="/img_resume.webp"
             label={t("이력서", "Resume", "简历", "CV", "履歴書", "CV")}
             line={t("말하듯 쓰면 AI가 정리", "Write naturally, AI tidies", "随意写，AI 整理", "Viết tự nhiên, AI sắp xếp", "話すように書けばAIが整理", "Tulis santai, AI rapikan")}
-            cta={t("무료로 써 보기", "Try free", "免费试用", "Dùng thử", "無料で試す", "Coba gratis")}
+            cta={t("써 보기", "Try it", "试试看", "Dùng thử", "試してみる", "Coba")}
           />
           <FeatureTile
             img="/img_coverletter.webp"
             label={t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}
             line={t("공고에 맞춰 AI 초안", "AI drafts for each job", "按职位 AI 起草", "AI soạn theo tin", "求人に合わせてAI下書き", "AI buat draf per lowongan")}
-            cta={t("무료로 써 보기", "Try free", "免费试用", "Dùng thử", "無料で試す", "Coba gratis")}
+            cta={t("써 보기", "Try it", "试试看", "Dùng thử", "試してみる", "Coba")}
           />
         </div>
         <Link href={SIGNUP} className="mt-2.5 flex min-h-[104px] items-center gap-3 rounded-3xl bg-[color:var(--v2-band)] px-5 py-6 transition hover:-translate-y-0.5">
@@ -187,10 +187,10 @@ export function V2GuestHome() {
       <div className="px-5 pb-4 pt-4">
         <div className="rounded-3xl bg-[color:var(--v2-ink)] px-6 py-7 text-white">
           <p className="text-[20px] font-bold leading-[1.4]">{t("1분이면 가입 끝", "Sign up in a minute", "1 分钟完成注册", "Đăng ký trong 1 phút", "1分で登録完了", "Daftar dalam 1 menit")}</p>
-          <p className="mt-1.5 text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요. AI 기능은 지금 모두 무료예요.", "Start with email or Google/Kakao. All AI features are free right now.", "用邮箱或 Google/Kakao 账号即可开始。AI 功能目前全部免费。", "Bắt đầu bằng email hoặc Google/Kakao. AI hiện miễn phí.", "メールかGoogle・Kakaoですぐ開始。AI機能は今すべて無料。", "Mulai dengan email atau Google/Kakao. Semua fitur AI gratis.")}</p>
+          <p className="mt-1.5 text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요.", "Start right away with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号即可开始。", "Bắt đầu ngay bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoですぐ始められます。", "Mulai dengan email atau Google/Kakao.")}</p>
           <div className="mt-5">
             <Link href={SIGNUP} className="flex h-12 items-center justify-center rounded-xl bg-white text-[16px] font-semibold text-[color:var(--v2-ink)] transition hover:opacity-90">
-              {t("무료로 시작하기", "Start free", "免费开始", "Bắt đầu miễn phí", "無料ではじめる", "Mulai gratis")}
+              {t("시작하기", "Get started", "开始使用", "Bắt đầu", "はじめる", "Mulai")}
             </Link>
           </div>
         </div>
