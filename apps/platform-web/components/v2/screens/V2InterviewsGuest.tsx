@@ -90,14 +90,15 @@ export function V2InterviewsGuest() {
         <h2 className="mt-1 text-[26px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("3단계면 실전 연습 끝", "Real practice in 3 steps", "3 步完成实战练习", "Luyện thực chiến trong 3 bước", "3ステップで実戦練習", "Latihan nyata dalam 3 langkah")}</h2>
         <ol className="mt-6 flex flex-col gap-4">
           {steps.map((st, i) => (
-            <li key={st.title} className="overflow-hidden rounded-3xl bg-[color:var(--v2-band)]">
-              {/* eslint-disable-next-line @next/next/no-img-element -- 단계 그림(흰 바탕 → 곱하기 합성) */}
-              <img src={STEP_ILLUST[i]} alt="" aria-hidden className="mx-auto h-[150px] w-full object-contain p-4 mix-blend-multiply" />
-              <div className="px-5 pb-5">
+            <li key={st.title} className="flex items-center gap-3 rounded-3xl bg-[color:var(--v2-band)] py-5 pl-5 pr-3">
+              {/* 텍스트는 왼쪽, 그림은 오른쪽 */}
+              <div className="min-w-0 flex-1">
                 <span className="text-[14px] font-bold text-[color:var(--v2-accent)]">STEP {i + 1}</span>
-                <p className="mt-1 text-[19px] font-bold text-[color:var(--v2-ink)]">{st.title}</p>
-                <p className="mt-1.5 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{st.desc}</p>
+                <p className="mt-1 text-[18px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{st.title}</p>
+                <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{st.desc}</p>
               </div>
+              {/* eslint-disable-next-line @next/next/no-img-element -- 단계 그림(흰 바탕 → 곱하기 합성) */}
+              <img src={STEP_ILLUST[i]} alt="" aria-hidden className="h-[96px] w-[96px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[112px] min-[360px]:w-[112px]" />
             </li>
           ))}
         </ol>
