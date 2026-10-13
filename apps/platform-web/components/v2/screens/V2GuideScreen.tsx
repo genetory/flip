@@ -76,7 +76,7 @@ function Guide() {
     <Page>
       <Masthead
         eyebrow={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
-        title={t("한국 취업, 이것부터 알아 두세요", "What to know first about working in Korea", "在韩国就业，先了解这些", "Làm việc ở Hàn Quốc, hãy biết điều này trước", "韓国での就職、まずはこれを", "Kerja di Korea, ketahui ini dulu")}
+        title={t("첫 취업, 이것부터 알아 두세요", "Your first job: start here", "第一次求职，先了解这些", "Việc làm đầu tiên: bắt đầu từ đây", "はじめての就職、まずはこれを", "Kerja pertama: mulai dari sini")}
         lede={
           readCount
             ? t(`글 ${guides.length}개 중 ${readCount}개를 읽었어요.`, `You've read ${readCount} of ${guides.length}.`, `${guides.length} 篇中已读 ${readCount} 篇。`, `Đã đọc ${readCount}/${guides.length} bài.`, `${guides.length}本中${readCount}本読みました。`, `Sudah baca ${readCount} dari ${guides.length}.`)
