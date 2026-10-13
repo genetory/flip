@@ -30,8 +30,18 @@ export function V2InterviewsGuest() {
       <Masthead
         eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
         title={t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
-        lede={t("지원할 공고로 질문을 받고, 말이나 글로 답하면 AI가 잘한 점과 고칠 점, 모범 답안까지 알려 줘요.", "Get questions for the job you're applying to, answer by voice or text, and AI shows what worked, what to fix, and a model answer.", "针对要投递的职位出题，用语音或文字作答，AI 会指出优点、改进点并给出参考答案。", "Nhận câu hỏi theo tin bạn ứng tuyển, trả lời bằng giọng nói hoặc chữ, AI chỉ điểm tốt, cần sửa và câu mẫu.", "応募する求人で質問を受け、声か文字で答えるとAIが良い点・直す点・模範回答を教えます。", "Dapat pertanyaan sesuai lowongan, jawab dengan suara atau teks, AI beri masukan dan contoh jawaban.")}
+        lede={t("모의 면접은 실제 면접처럼 질문을 받고 답해 보는 연습이에요. 지원할 공고로 질문을 받고 말이나 글로 답하면, AI가 잘한 점과 고칠 점, 모범 답안까지 알려 줘요.", "A mock interview is practice that feels like the real thing. Get questions for the job you're applying to, answer by voice or text, and AI shows what worked, what to fix, and a model answer.", "模拟面试就是像真正面试一样回答问题的练习。针对要投递的职位出题，用语音或文字作答，AI 会指出优点、改进点并给出参考答案。", "Phỏng vấn thử là luyện trả lời như buổi phỏng vấn thật. Nhận câu hỏi theo tin bạn ứng tuyển, trả lời bằng giọng nói hoặc chữ, AI chỉ điểm tốt, cần sửa và câu mẫu.", "模擬面接は本番のように質問に答える練習です。応募する求人で質問を受け、声か文字で答えるとAIが良い点・直す点・模範回答を教えます。", "Simulasi wawancara adalah latihan menjawab seperti wawancara sungguhan. Dapat pertanyaan sesuai lowongan, jawab dengan suara atau teks, AI beri masukan dan contoh jawaban.")}
       />
+
+      {/* 모의 면접은 이렇게 진행돼요 — 처음 온 사람이 먼저 알아야 할 것(무엇이고 어떻게 하는지). 세 단계 + 예시 피드백 */}
+      <Section band={false} title={t("모의 면접은 이렇게 진행돼요", "How a mock interview works", "模拟面试是这样进行的", "Phỏng vấn thử diễn ra thế nào", "模擬面接の流れ", "Begini simulasi berjalan")}>
+        <ol className="flex flex-col gap-2.5">
+          <Step n={1} title={t("공고 고르기", "Pick a job", "选择职位", "Chọn tin", "求人を選ぶ", "Pilih lowongan")} meta={t("어플라이 공고는 물론, 다른 사이트 공고도 링크·본문으로 가져와요", "Aply jobs, or bring any job by link or pasted text", "Aply 职位，或用链接/内容导入其他职位", "Tin Aply, hoặc nhập tin khác bằng link/nội dung", "Aplyの求人も、他サイトの求人もリンク・本文で", "Lowongan Aply atau dari situs lain lewat tautan/teks")} />
+          <Step n={2} title={t("질문에 답하기", "Answer questions", "回答问题", "Trả lời câu hỏi", "質問に答える", "Jawab pertanyaan")} meta={t("공고·내 이력서에 맞춘 질문에 말로 하거나 글로 써요", "Speak or type answers to questions tailored to the job and your resume", "针对职位和简历的问题，可语音或文字作答", "Nói hoặc viết câu trả lời theo tin và CV", "求人・履歴書に合わせた質問に話すか書いて答える", "Jawab dengan suara/teks, sesuai lowongan & CV")} />
+          <Step n={3} title={t("피드백 받기", "Get feedback", "获得反馈", "Nhận phản hồi", "フィードバックを受ける", "Dapat masukan")} meta={t("잘한 점·고칠 점·모범 답안, 면접 전날 볼 예상 질문까지", "What worked, what to fix, a model answer — plus likely questions for the night before", "优点、改进点、参考答案，以及面试前一天看的预测问题", "Điểm tốt, cần sửa, câu mẫu và câu hỏi dự kiến", "良い点・直す点・模範回答、前日の予想質問まで", "Masukan, contoh jawaban, dan prediksi pertanyaan")} />
+        </ol>
+        <SampleFeedback t={t} />
+      </Section>
 
       {/* 실전 모드 + 가입 첫 1회 — 로그인 화면의 시작 카드와 같은 모양. 이 카드만 '무료'를 쓴다(사용자 요청). */}
       <div className="-mt-2 px-5 pb-8">
@@ -59,21 +69,14 @@ export function V2InterviewsGuest() {
         </div>
       </div>
 
+      {/* 가입하면 할 수 있는 것 — 그림과 함께 */}
+      <WhatYouGet t={t} />
+
       {/* 지금 바로 체험 — 로그인 없이 오늘의 질문을 듣고 답하면 간단 체크(문장 규칙, AI 아님). AI 피드백은 가입 후. */}
       <Section title={t("지금 바로 체험해 보기", "Try it right now", "现在就试试", "Thử ngay bây giờ", "今すぐ試す", "Coba sekarang")}>
         <TryNow t={t} question={daily} />
         {/* 로그인 전엔 국적을 모르니 화면 언어로 — 한국어가 아니면 한국어 면접 표현도 */}
         {locale !== "ko" ? <ExpressionCard t={t} /> : null}
-      </Section>
-
-      {/* 이렇게 연습해요 — 세 단계 + 예시 피드백 */}
-      <Section title={t("이렇게 연습해요", "How it works", "这样练习", "Cách luyện tập", "こう練習します", "Cara berlatih")}>
-        <ol className="flex flex-col gap-2.5">
-          <Step n={1} title={t("공고 고르기", "Pick a job", "选择职位", "Chọn tin", "求人を選ぶ", "Pilih lowongan")} meta={t("어플라이 공고는 물론, 다른 사이트 공고도 링크·본문으로 가져와요", "Aply jobs, or bring any job by link or pasted text", "Aply 职位，或用链接/内容导入其他职位", "Tin Aply, hoặc nhập tin khác bằng link/nội dung", "Aplyの求人も、他サイトの求人もリンク・本文で", "Lowongan Aply atau dari situs lain lewat tautan/teks")} />
-          <Step n={2} title={t("질문에 답하기", "Answer questions", "回答问题", "Trả lời câu hỏi", "質問に答える", "Jawab pertanyaan")} meta={t("공고·내 이력서에 맞춘 질문에 말로 하거나 글로 써요", "Speak or type answers to questions tailored to the job and your resume", "针对职位和简历的问题，可语音或文字作答", "Nói hoặc viết câu trả lời theo tin và CV", "求人・履歴書に合わせた質問に話すか書いて答える", "Jawab dengan suara/teks, sesuai lowongan & CV")} />
-          <Step n={3} title={t("피드백 받기", "Get feedback", "获得反馈", "Nhận phản hồi", "フィードバックを受ける", "Dapat masukan")} meta={t("잘한 점·고칠 점·모범 답안, 면접 전날 볼 예상 질문까지", "What worked, what to fix, a model answer — plus likely questions for the night before", "优点、改进点、参考答案，以及面试前一天看的预测问题", "Điểm tốt, cần sửa, câu mẫu và câu hỏi dự kiến", "良い点・直す点・模範回答、前日の予想質問まで", "Masukan, contoh jawaban, dan prediksi pertanyaan")} />
-        </ol>
-        <SampleFeedback t={t} />
       </Section>
 
       {/* 연습 방법 — 로그인 화면과 같은 카드(누르면 가입) */}
@@ -85,9 +88,6 @@ export function V2InterviewsGuest() {
           <PracticeCard tone="orange" icon="🙋" title={t("1분 자기소개", "1-min intro", "1 分钟自我介绍", "Giới thiệu 1 phút", "1分自己紹介", "Perkenalan 1 menit")} meta={t("시간 재며 연습", "Timed practice", "计时练习", "Luyện có giờ", "時間を測って練習", "Latihan berwaktu")} onClick={toSignup} />
         </div>
       </Section>
-
-      {/* 가입하면 할 수 있는 것 — 그림과 함께 */}
-      <WhatYouGet t={t} />
 
       {/* 실제 면접에서 나온 질문 — 공개 데이터(누르면 가입해서 연습) */}
       <ReportedQuestions t={t} onPick={toSignup} />
