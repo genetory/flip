@@ -4,6 +4,7 @@
 // 위쪽 읽기 진행 막대 · 큰 제목 · 목차(눌러서 그 항목으로) · 17px 본문 · 글 끝 관련 행동 버튼 · 다음 글.
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { V2Shell } from "../V2Shell";
 import { Button, Page } from "../ui";
 import { usePlatformT } from "../../../lib/i18n";
@@ -23,6 +24,7 @@ function Article({ slug }: { slug: string }) {
   const idx = guides.findIndex((g) => g.slug === slug);
   const g = idx >= 0 ? guides[idx] : null;
   const progress = useReadProgress();
+  const router = useRouter();
   // 끝까지(90%) 읽으면 '읽음' — 이 브라우저에만 기억. 스크롤할 게 없을 만큼 짧으면 몇 초 머물면 읽음.
   useEffect(() => {
     if (idx < 0) return;
@@ -62,9 +64,17 @@ function Article({ slug }: { slug: string }) {
       </div>
 
       <article className="px-5 pb-10 pt-6 md:pt-10">
-        <Link href="/v2/guide" className="text-[14px] font-semibold text-[color:var(--v2-muted)] hover:text-[color:var(--v2-ink-3)]">
-          ‹ {t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
-        </Link>
+        {/* 뒤로 — 들어온 곳으로(바로 열었으면 가이드 목록으로) */}
+        <button
+          type="button"
+          onClick={() => (window.history.length > 1 ? router.back() : router.push("/v2/guide"))}
+          className="-ml-1.5 inline-flex h-9 items-center gap-0.5 rounded-lg pl-1 pr-2.5 text-[15px] font-semibold text-[color:var(--v2-muted)] transition hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-ink-3)]"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
+        </button>
 
         {/* 표지 */}
         <div className={`mt-4 rounded-3xl p-6 ${tone.bg}`}>
