@@ -75,11 +75,11 @@ export function V2InterviewsGuest() {
           ["⚡", t("답마다 즉시 피드백", "Instant feedback", "即时反馈", "Phản hồi tức thì", "回答ごとに即フィードバック", "Masukan instan")],
           ["🌏", t("6개 언어 화면", "6 languages", "6 种语言", "6 ngôn ngữ", "6言語対応", "6 bahasa")]
         ].map(([icon, label]) => (
-          <div key={label} className="flex flex-col items-center rounded-2xl bg-[color:var(--v2-band)] px-2 py-4 text-center">
-            <span className="text-[24px]" aria-hidden>
+          <div key={label} className="flex flex-col items-center rounded-2xl bg-[color:var(--v2-band)] px-2 py-5 text-center">
+            <span className="text-[32px] leading-none" aria-hidden>
               {icon}
             </span>
-            <span className="mt-2 text-[13px] font-bold leading-[1.35] text-[color:var(--v2-ink-2)]">{label}</span>
+            <span className="mt-3 text-[15px] font-bold leading-[1.4] text-[color:var(--v2-ink)] min-[360px]:text-[16px]">{label}</span>
           </div>
         ))}
       </section>
