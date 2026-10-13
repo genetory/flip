@@ -8,7 +8,7 @@ import { Sheet } from "../sheets";
 import { Button, Empty, Masthead, Page, RowsSkeleton, Section, Spinner } from "../ui";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { cancelMyPayment, getMyPayments, openInterviewPaywall, refreshInterviewCredits, useInterviewCredits, type MyPayment } from "../../../lib/interview-credits";
-import { creditLabel } from "../interview-paywall";
+import { CreditTicket } from "../interview-paywall";
 
 export function V2PaymentsScreen() {
   return (
@@ -60,15 +60,7 @@ function Payments() {
       />
 
       <div className="-mt-2 px-5 pb-8">
-        <div className="rounded-3xl bg-[#edf1fd] p-5">
-          <p className="text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")}</p>
-          <p className="mt-1 text-[26px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{credits ? creditLabel(t, credits.credits, per) : "…"}</p>
-          <div className="mt-4">
-            <Button full onClick={() => openInterviewPaywall("topup")}>
-              {t("충전하기", "Top up", "充值", "Nạp thêm", "チャージする", "Isi ulang")}
-            </Button>
-          </div>
-        </div>
+        <CreditTicket t={t} credits={credits ? credits.credits : null} per={per} onTopUp={() => openInterviewPaywall("topup")} />
       </div>
 
       <Section title={t("결제 내역", "Payments", "支付记录", "Lịch sử thanh toán", "決済履歴", "Riwayat pembayaran")}>

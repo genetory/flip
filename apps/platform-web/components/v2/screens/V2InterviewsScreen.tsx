@@ -41,7 +41,7 @@ import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { type WeaknessRow } from "../../../lib/talent/mock-weakness";
-import { creditLabel } from "../interview-paywall";
+import { CreditLine } from "../interview-paywall";
 import { openInterviewPaywall, useInterviewCredits } from "../../../lib/interview-credits";
 import { PrepSheetV2 } from "../prep-sheet";
 import { V2InterviewsGuest } from "./V2InterviewsGuest";
@@ -267,13 +267,8 @@ function Interviews() {
             </Button>
           </div>
           {credits?.paywall ? (
-            <div className="mt-3 flex items-center justify-between gap-2 text-[13px] text-[color:var(--v2-ink-3)]">
-              <span className="min-w-0 truncate">
-                🎟️ {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} <b className="text-[color:var(--v2-ink)]">{creditLabel(t, credits.credits, credits.perSession)}</b>
-              </span>
-              <button type="button" onClick={() => openInterviewPaywall("topup")} className="shrink-0 font-semibold text-[color:var(--v2-accent)]">
-                {t("충전", "Top up", "充值", "Nạp", "チャージ", "Isi")}
-              </button>
+            <div className="mt-3">
+              <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
             </div>
           ) : null}
         </div>
