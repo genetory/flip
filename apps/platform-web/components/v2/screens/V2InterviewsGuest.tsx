@@ -36,10 +36,10 @@ export function V2InterviewsGuest() {
       {/* 실전 모드 + 가입 첫 1회 — 로그인 화면의 시작 카드와 같은 모양. 이 카드만 '무료'를 쓴다(사용자 요청). */}
       <div className="-mt-2 px-5 pb-8">
         <div className="rounded-3xl bg-[#edf1fd] p-5">
-          <div className="flex items-center gap-3">
+          <span className="inline-flex items-center whitespace-nowrap rounded-full bg-[color:var(--v2-accent)] px-3.5 py-1.5 text-[15px] font-bold text-white">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
+          <div className="mt-1 flex items-center gap-3">
             <span className="min-w-0 flex-1">
-              <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)]">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
-              <span className="mt-2 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
+              <span className="mt-1 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
               <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개를 소리로 듣고 답하면, 잘한 점·고칠 점·모범 답안까지.", "Hear 5 questions for a job you choose, answer, and get strengths, fixes and a model answer.", "选一个职位听 5 个问题并作答，获得优点、改进点和参考答案。", "Nghe 5 câu theo tin bạn chọn, trả lời và nhận nhận xét, câu mẫu.", "好きな求人で5問を聞いて答えると、良い点・直す点・模範回答まで。", "Dengar 5 pertanyaan, jawab, dapat masukan & contoh jawaban.")}</span>
             </span>
             {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
@@ -94,7 +94,7 @@ export function V2InterviewsGuest() {
           {/* 선물 상자 일러스트(투명 배경) — 가입 첫 1회 */}
           {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림 */}
           <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="pointer-events-none absolute -right-3 -top-2 h-[110px] w-[140px] object-contain opacity-95 min-[360px]:h-[124px] min-[360px]:w-[160px]" />
-          <span className="relative inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-bold">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
+          <span className="relative inline-flex whitespace-nowrap rounded-full bg-[#ffd84d] px-3.5 py-1.5 text-[15px] font-bold text-[#191f28]">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
           <p className="relative mt-3 max-w-[62%] text-[20px] font-bold leading-[1.4]">{t("다음 면접, 연습하고 가요", "Practice before your next interview", "下次面试前先练习", "Luyện trước buổi phỏng vấn tới", "次の面接は練習してから", "Latihan sebelum wawancara berikutnya")}</p>
           <p className="relative mt-1.5 max-w-[62%] text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요.", "Start right away with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号即可开始。", "Bắt đầu ngay bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoですぐ始められます。", "Mulai dengan email atau Google/Kakao.")}</p>
           <div className="relative mt-5">
