@@ -291,9 +291,8 @@ function Interviews() {
           </div>
         ) : (
           <button type="button" onClick={() => setRegister({ initial: null })} className="flex w-full items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 text-left transition hover:-translate-y-0.5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[18px]" aria-hidden>
-              🗓️
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림(흰 바탕 → 곱하기 합성) */}
+            <img src="/img_process_1.webp" alt="" aria-hidden className="-my-2 h-[56px] w-[64px] shrink-0 object-contain mix-blend-multiply" />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{t("모의 면접 등록하기", "Add a mock interview", "登记模拟面试", "Thêm phỏng vấn thử", "模擬面接を登録", "Tambah simulasi")}</span>
               <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("Aply 밖에서 지원한 곳도 링크·본문으로 등록하고 맞춤 연습해요", "Even outside Aply — add by link or text and practice", "Aply 以外的也可用链接或内容登记并练习", "Cả ngoài Aply — thêm bằng link/nội dung", "Aply以外もリンク・本文で登録して練習", "Di luar Aply juga — lewat tautan/teks")}</span>
@@ -724,14 +723,32 @@ const TONES = {
   mint: "bg-[#e6f7f4] text-[color:var(--v2-ink)]"
 } as const;
 
+/** 연습하기 카드 일러스트 — 아이콘(이모지)마다 어울리는 그림. 없으면 이모지. */
+const PRACTICE_ILLUST: Record<string, string> = {
+  "📌": "/img_fit_postion.webp",
+  "🔗": "/images/img_partner_card.webp",
+  "🔍": "/images/img_career_position_ai.webp",
+  "📄": "/img_ai_analyze.webp",
+  "⏱️": "/img_fake_interview.webp",
+  "🎤": "/images/img_ai_interview.webp",
+  "🙋": "/images/img_ai_interview.webp",
+  "🙇": "/img_process_2.webp"
+};
+
 /** 연습하기 카드 — 카테고리마다 색이 다른 정사각형에 가까운 카드. */
 export function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof typeof TONES; icon: string; title: string; meta: string; onClick: () => void }) {
   const dark = false; // 모든 카드는 같은 결(연한 색 바탕)
   return (
     <button type="button" onClick={onClick} className={`group flex min-h-[128px] flex-col justify-between rounded-3xl p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] md:min-h-[140px] md:p-5 ${TONES[tone]}`}>
-      <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[20px] ${dark ? "bg-white/15" : "bg-white"}`} aria-hidden>
-        {icon}
-      </span>
+      {PRACTICE_ILLUST[icon] ? (
+        // 일러스트 — 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다
+        // eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림
+        <img src={PRACTICE_ILLUST[icon]} alt="" aria-hidden className="-ml-1 -mt-1 h-[60px] w-[80px] object-contain object-left mix-blend-multiply md:h-[72px] md:w-[96px]" />
+      ) : (
+        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[20px] ${dark ? "bg-white/15" : "bg-white"}`} aria-hidden>
+          {icon}
+        </span>
+      )}
       <span className="mt-3 block">
         <span className="block text-[16px] font-bold leading-[1.35]">{title}</span>
         <span className={`mt-0.5 block text-[13px] leading-[1.45] ${dark ? "text-white/75" : "text-[color:var(--v2-muted)]"}`}>{meta}</span>
