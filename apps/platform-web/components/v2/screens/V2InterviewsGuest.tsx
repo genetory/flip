@@ -1,18 +1,20 @@
 "use client";
 
 // v2 모의 면접 — 로그인하지 않은 사람용. 같은 주소(/v2/interviews)에서 로그인 여부로 갈린다.
-// 연습 방법·예시 피드백으로 "가입하면 이렇게 연습한다"를 보여 주고, 공개된 것(오늘의 질문·실제 면접 질문·한국어 표현)은 그대로 보여 준다.
-// 답하고 AI 피드백을 받는 건 가입 후(next=/v2/interviews). 모의 면접은 유료 예정 — 화면에 '무료'를 쓰지 않는다.
-import { useState } from "react";
+// 광고(랜딩) 페이지처럼: 히어로(큰 제목·큰 그림·버튼 하나) → 다른 점 셋 → 3단계 → 결과 미리보기 → 지금 바로 체험 →
+// 할 수 있는 것 → 실제 면접 질문 → 자주 묻는 질문 → 마지막 권유, 휴대폰은 아래 고정 가입 버튼.
+// 답하고 AI 피드백을 받는 건 가입 후(next=/v2/interviews). '무료'는 가입 첫 1회 안내에만 쓴다(사용자 요청).
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, Masthead, Page, Section } from "../ui";
+import { Button, Page, Section } from "../ui";
 import { DictationControls, LevelChip, SpeakButton, useDictation, useSpeak } from "../practice";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { pickDailyQuestion, kstDay, questionText, type DailyQuestion } from "../../../lib/talent/interview-daily";
+import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
-import { ExpressionCard, PracticeCard, ReportedQuestions } from "./V2InterviewsScreen";
+import { ExpressionCard, ReportedQuestions } from "./V2InterviewsScreen";
 
 const SIGNUP = `/talent/signup?next=${encodeURIComponent("/v2/interviews")}`;
 const LOGIN = `/talent/login?next=${encodeURIComponent("/v2/interviews")}`;
@@ -24,85 +26,120 @@ export function V2InterviewsGuest() {
   const daily = pickDailyQuestion(null, kstDay(now));
   const router = useRouter();
   const toSignup = () => router.push(SIGNUP);
+  // 휴대폰 아래 고정 가입 버튼 — 전역 피드백 버튼이 덮이지 않게 그만큼 비켜 준다.
+  useEffect(() => {
+    const apply = () => (window.innerWidth <= 767 ? setFabInset("v2-interviews-guest", 76) : clearFabInset("v2-interviews-guest"));
+    apply();
+    window.addEventListener("resize", apply);
+    return () => {
+      window.removeEventListener("resize", apply);
+      clearFabInset("v2-interviews-guest");
+    };
+  }, []);
+  const steps = [
+    { title: t("공고를 골라요", "Pick a job", "选择职位", "Chọn tin tuyển dụng", "求人を選ぶ", "Pilih lowongan"), desc: t("어플라이 공고는 물론, 다른 사이트에서 본 공고도 링크나 본문을 붙여 넣으면 돼요. 공고가 없으면 내 이력서로도 시작해요.", "Use an Aply job, or paste a link or text from any other site. No job? Start from your resume.", "可用 Aply 职位，也可粘贴其他网站的链接或内容。没有职位也可从简历开始。", "Dùng tin Aply hoặc dán link/nội dung từ trang khác. Chưa có tin thì bắt đầu từ CV.", "Aplyの求人も、他サイトの求人もリンクか本文を貼るだけ。求人がなくても履歴書から始められます。", "Pakai lowongan Aply atau tempel tautan/teks dari situs lain. Bisa juga dari CV.") },
+    { title: t("면접관의 질문에 답해요", "Answer the interviewer", "回答面试官的问题", "Trả lời người phỏng vấn", "面接官の質問に答える", "Jawab pewawancara"), desc: t("공고와 내 이력서에 맞춘 질문을 소리로 들려 드려요. 말로 답하면 받아 적고, 글로 써도 돼요.", "Questions tailored to the job and your resume are read aloud. Speak and it's transcribed — or type.", "根据职位和简历出题并朗读。口头回答会自动转写，也可以打字。", "Câu hỏi theo tin và CV được đọc to. Nói sẽ được ghi lại, hoặc gõ phím.", "求人と履歴書に合わせた質問を読み上げます。話せば文字起こし、書いてもOK。", "Pertanyaan dibacakan; jawab lisan atau ketik.") },
+    { title: t("바로 피드백을 받아요", "Get instant feedback", "立即获得反馈", "Nhận phản hồi ngay", "すぐにフィードバック", "Dapat masukan langsung"), desc: t("점수와 잘한 점·고칠 점, 내 경험으로 고쳐 쓴 모범 답안, 면접관이 이어서 물을 질문까지 알려 드려요.", "Score, strengths, fixes, a model answer from your own experience, and the likely follow-up.", "分数、优点、改进点、基于你经历改写的参考答案，以及面试官可能的追问。", "Điểm, ưu điểm, cần sửa, câu mẫu từ kinh nghiệm của bạn và câu hỏi nối tiếp.", "点数・良い点・直す点・自分の経験で直した模範回答・追加質問まで。", "Skor, kelebihan, perbaikan, contoh jawaban, dan pertanyaan lanjutan.") }
+  ];
 
   return (
     <Page>
-      <Masthead
-        eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
-        title={t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
-        lede={t("모의 면접은 실제 면접처럼 질문을 받고 답해 보는 연습이에요. 지원할 공고로 질문을 받고 말이나 글로 답하면, AI가 잘한 점과 고칠 점, 모범 답안까지 알려 줘요.", "A mock interview is practice that feels like the real thing. Get questions for the job you're applying to, answer by voice or text, and AI shows what worked, what to fix, and a model answer.", "模拟面试就是像真正面试一样回答问题的练习。针对要投递的职位出题，用语音或文字作答，AI 会指出优点、改进点并给出参考答案。", "Phỏng vấn thử là luyện trả lời như buổi phỏng vấn thật. Nhận câu hỏi theo tin bạn ứng tuyển, trả lời bằng giọng nói hoặc chữ, AI chỉ điểm tốt, cần sửa và câu mẫu.", "模擬面接は本番のように質問に答える練習です。応募する求人で質問を受け、声か文字で答えるとAIが良い点・直す点・模範回答を教えます。", "Simulasi wawancara adalah latihan menjawab seperti wawancara sungguhan. Dapat pertanyaan sesuai lowongan, jawab dengan suara atau teks, AI beri masukan dan contoh jawaban.")}
-      />
-
-      {/* 모의 면접은 이렇게 진행돼요 — 처음 온 사람이 먼저 알아야 할 것(무엇이고 어떻게 하는지). 세 단계 + 예시 피드백 */}
-      <Section band={false} title={t("모의 면접은 이렇게 진행돼요", "How a mock interview works", "模拟面试是这样进行的", "Phỏng vấn thử diễn ra thế nào", "模擬面接の流れ", "Begini simulasi berjalan")}>
-        <ol className="flex flex-col gap-2.5">
-          <Step n={1} title={t("공고 고르기", "Pick a job", "选择职位", "Chọn tin", "求人を選ぶ", "Pilih lowongan")} meta={t("어플라이 공고는 물론, 다른 사이트 공고도 링크·본문으로 가져와요", "Aply jobs, or bring any job by link or pasted text", "Aply 职位，或用链接/内容导入其他职位", "Tin Aply, hoặc nhập tin khác bằng link/nội dung", "Aplyの求人も、他サイトの求人もリンク・本文で", "Lowongan Aply atau dari situs lain lewat tautan/teks")} />
-          <Step n={2} title={t("질문에 답하기", "Answer questions", "回答问题", "Trả lời câu hỏi", "質問に答える", "Jawab pertanyaan")} meta={t("공고·내 이력서에 맞춘 질문에 말로 하거나 글로 써요", "Speak or type answers to questions tailored to the job and your resume", "针对职位和简历的问题，可语音或文字作答", "Nói hoặc viết câu trả lời theo tin và CV", "求人・履歴書に合わせた質問に話すか書いて答える", "Jawab dengan suara/teks, sesuai lowongan & CV")} />
-          <Step n={3} title={t("피드백 받기", "Get feedback", "获得反馈", "Nhận phản hồi", "フィードバックを受ける", "Dapat masukan")} meta={t("잘한 점·고칠 점·모범 답안, 면접 전날 볼 예상 질문까지", "What worked, what to fix, a model answer — plus likely questions for the night before", "优点、改进点、参考答案，以及面试前一天看的预测问题", "Điểm tốt, cần sửa, câu mẫu và câu hỏi dự kiến", "良い点・直す点・模範回答、前日の予想質問まで", "Masukan, contoh jawaban, dan prediksi pertanyaan")} />
-        </ol>
-        <SampleFeedback t={t} />
-      </Section>
-
-      {/* 실전 모드 + 가입 첫 1회 — 로그인 화면의 시작 카드와 같은 모양. 이 카드만 '무료'를 쓴다(사용자 요청). */}
-      <div className="-mt-2 px-5 pb-8">
-        <div className="rounded-3xl bg-[#edf1fd] p-5">
-          <span className="inline-flex items-center whitespace-nowrap rounded-full bg-[color:var(--v2-accent)] px-3.5 py-1.5 text-[15px] font-bold text-white">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
-          <div className="mt-1 flex items-center gap-3">
-            <span className="min-w-0 flex-1">
-              <span className="mt-1 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
-              <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개를 소리로 듣고 답하면, 잘한 점·고칠 점·모범 답안까지.", "Hear 5 questions for a job you choose, answer, and get strengths, fixes and a model answer.", "选一个职位听 5 个问题并作答，获得优点、改进点和参考答案。", "Nghe 5 câu theo tin bạn chọn, trả lời và nhận nhận xét, câu mẫu.", "好きな求人で5問を聞いて答えると、良い点・直す点・模範回答まで。", "Dengar 5 pertanyaan, jawab, dapat masukan & contoh jawaban.")}</span>
-            </span>
-            {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
-            <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[88px] w-[108px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[100px] min-[360px]:w-[124px]" />
-          </div>
-          <div className="mt-4">
-            <Button full href={SIGNUP}>
-              {t("가입하고 무료로 시작하기", "Sign up & start free", "注册并免费开始", "Đăng ký & bắt đầu miễn phí", "登録して無料で始める", "Daftar & mulai gratis")}
-            </Button>
-          </div>
-          <p className="mt-3 text-center text-[13px] text-[color:var(--v2-ink-3)]">
-            {t("이미 계정이 있나요?", "Have an account?", "已有账号？", "Đã có tài khoản?", "アカウントをお持ちですか？", "Sudah punya akun?")}{" "}
-            <Link href={LOGIN} className="font-semibold text-[color:var(--v2-accent)]">
-              {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
-            </Link>
-          </p>
+      {/* ① 히어로 — 광고 첫 화면: 큰 제목 하나 · 큰 그림 · 버튼 하나 */}
+      <section className="bg-[#edf1fd] px-5 pb-10 pt-8 md:rounded-b-[40px] md:px-10 md:pt-14">
+        <span className="inline-flex items-center whitespace-nowrap rounded-full bg-[color:var(--v2-accent)] px-3.5 py-1.5 text-[15px] font-bold text-white">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
+        <h1 className="mt-4 text-[32px] font-bold leading-[1.28] tracking-[-0.03em] text-[color:var(--v2-ink)] md:text-[44px]">
+          {t("면접, 이제", "Your interview,", "面试，", "Phỏng vấn,", "面接は、", "Wawancara,")}
+          <br />
+          <span className="text-[color:var(--v2-accent)]">{t("AI랑 먼저 연습하세요", "practice it with AI first", "先和 AI 练一练", "luyện với AI trước", "まずAIと練習", "latih dulu dengan AI")}</span>
+        </h1>
+        <p className="mt-3 text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("모의 면접은 실제 면접처럼 질문을 받고 답해 보는 연습이에요. 지원할 공고로 질문을 받고 답하면, AI 면접관이 바로 피드백해 드려요.", "A mock interview is practice that feels like the real thing. Get questions for your job, answer, and an AI interviewer gives feedback right away.", "模拟面试就是像真正面试一样回答问题的练习。按你的职位出题，回答后 AI 面试官立即反馈。", "Phỏng vấn thử là luyện như buổi thật. Nhận câu hỏi theo tin, trả lời và AI phản hồi ngay.", "模擬面接は本番のように質問に答える練習。求人に合わせた質問に答えると、AI面接官がすぐフィードバック。", "Simulasi wawancara seperti aslinya. Jawab pertanyaan sesuai lowongan, AI langsung memberi masukan.")}</p>
+        {/* eslint-disable-next-line @next/next/no-img-element -- 큰 장식 그림(흰 바탕 → 곱하기 합성) */}
+        <img src="/img_fake_interview.webp" alt="" aria-hidden className="mx-auto mt-4 h-[200px] w-full max-w-[340px] object-contain mix-blend-multiply md:h-[260px] md:max-w-[440px]" />
+        <div className="mt-4">
+          <Button full href={SIGNUP}>
+            {t("가입하고 1회 무료로 시작", "Sign up & try 1 free", "注册免费试 1 次", "Đăng ký, thử miễn phí 1 lần", "登録して1回無料で試す", "Daftar & coba 1x gratis")}
+          </Button>
         </div>
-      </div>
+        <p className="mt-3 text-center text-[14px] text-[color:var(--v2-ink-3)]">
+          {t("이미 계정이 있나요?", "Have an account?", "已有账号？", "Đã có tài khoản?", "アカウントをお持ちですか？", "Sudah punya akun?")}{" "}
+          <Link href={LOGIN} className="font-semibold text-[color:var(--v2-accent)]">
+            {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
+          </Link>
+        </p>
+      </section>
 
-      {/* 가입하면 할 수 있는 것 — 그림과 함께 */}
-      <WhatYouGet t={t} />
+      {/* ② 한눈에 — 다른 모의 면접과 다른 점 셋 */}
+      <section className="grid grid-cols-3 gap-2 px-5 py-8">
+        {[
+          ["📌", t("공고 맞춤 질문", "Job-tailored questions", "职位定制问题", "Câu hỏi theo tin", "求人に合わせた質問", "Pertanyaan sesuai lowongan")],
+          ["⚡", t("답마다 즉시 피드백", "Instant feedback", "即时反馈", "Phản hồi tức thì", "回答ごとに即フィードバック", "Masukan instan")],
+          ["🌏", t("6개 언어 화면", "6 languages", "6 种语言", "6 ngôn ngữ", "6言語対応", "6 bahasa")]
+        ].map(([icon, label]) => (
+          <div key={label} className="flex flex-col items-center rounded-2xl bg-[color:var(--v2-band)] px-2 py-4 text-center">
+            <span className="text-[24px]" aria-hidden>
+              {icon}
+            </span>
+            <span className="mt-2 text-[13px] font-bold leading-[1.35] text-[color:var(--v2-ink-2)]">{label}</span>
+          </div>
+        ))}
+      </section>
 
-      {/* 지금 바로 체험 — 로그인 없이 오늘의 질문을 듣고 답하면 간단 체크(문장 규칙, AI 아님). AI 피드백은 가입 후. */}
-      <Section title={t("지금 바로 체험해 보기", "Try it right now", "现在就试试", "Thử ngay bây giờ", "今すぐ試す", "Coba sekarang")}>
+      {/* ③ 이렇게 진행돼요 — 단계마다 큰 그림 */}
+      <section className="px-5 pb-10 pt-2">
+        <p className="text-[14px] font-bold text-[color:var(--v2-accent)]">{t("이렇게 진행돼요", "How it works", "进行方式", "Cách hoạt động", "進め方", "Cara kerja")}</p>
+        <h2 className="mt-1 text-[26px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("3단계면 실전 연습 끝", "Real practice in 3 steps", "3 步完成实战练习", "Luyện thực chiến trong 3 bước", "3ステップで実戦練習", "Latihan nyata dalam 3 langkah")}</h2>
+        <ol className="mt-6 flex flex-col gap-4">
+          {steps.map((st, i) => (
+            <li key={st.title} className="overflow-hidden rounded-3xl bg-[color:var(--v2-band)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 단계 그림(흰 바탕 → 곱하기 합성) */}
+              <img src={STEP_ILLUST[i]} alt="" aria-hidden className="mx-auto h-[150px] w-full object-contain p-4 mix-blend-multiply" />
+              <div className="px-5 pb-5">
+                <span className="text-[14px] font-bold text-[color:var(--v2-accent)]">STEP {i + 1}</span>
+                <p className="mt-1 text-[19px] font-bold text-[color:var(--v2-ink)]">{st.title}</p>
+                <p className="mt-1.5 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{st.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ④ 결과는 이렇게 받아요 — 실제 결과 화면 미리보기 */}
+      <section className="px-5 pb-10 pt-4">
+        <p className="text-[14px] font-bold text-[color:var(--v2-accent)]">{t("결과 미리보기", "Result preview", "结果预览", "Xem trước kết quả", "結果プレビュー", "Pratinjau hasil")}</p>
+        <h2 className="mt-1 text-[26px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("답 하나에 이만큼 알려 드려요", "This much from a single answer", "一个回答就能得到这些", "Chừng này cho một câu trả lời", "1回答でここまで", "Sebanyak ini dari satu jawaban")}</h2>
+        <SampleFeedback t={t} />
+        <div className="mt-5">
+          <Button full href={SIGNUP}>
+            {t("내 답으로 받아 보기 (1회 무료)", "Try with my answer (1 free)", "用我的回答试试（赠 1 次）", "Thử với câu của tôi (miễn phí 1 lần)", "自分の回答で試す（1回無料）", "Coba dengan jawabanku (1x gratis)")}
+          </Button>
+        </div>
+      </section>
+
+      {/* ⑤ 지금 바로 체험 — 로그인 없이(문장 규칙 간단 체크) */}
+      <Section band={false} title={t("지금 바로 체험해 보기", "Try it right now", "现在就试试", "Thử ngay bây giờ", "今すぐ試す", "Coba sekarang")}>
         <TryNow t={t} question={daily} />
         {/* 로그인 전엔 국적을 모르니 화면 언어로 — 한국어가 아니면 한국어 면접 표현도 */}
         {locale !== "ko" ? <ExpressionCard t={t} /> : null}
       </Section>
 
-      {/* 연습 방법 — 로그인 화면과 같은 카드(누르면 가입) */}
-      <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <PracticeCard tone="blue" icon="📌" title={t("내 공고로", "My jobs", "我的职位", "Tin của tôi", "自分の求人で", "Lowonganku")} meta={t("지원·저장한 공고", "Applied & saved", "投递/收藏的职位", "Đã ứng tuyển/lưu", "応募・保存した求人", "Dilamar/disimpan")} onClick={toSignup} />
-          <PracticeCard tone="violet" icon="🔗" title={t("가고 싶은 회사 공고", "Job you want", "想去的公司职位", "Tin công ty mơ ước", "行きたい会社の求人", "Lowongan incaran")} meta={t("링크로 가져오기", "Import by link", "通过链接导入", "Nhập bằng link", "リンクで取り込む", "Impor lewat tautan")} onClick={toSignup} />
-          <PracticeCard tone="navy" icon="⏱️" title={t("10분 모의 면접", "10-min mock", "10 分钟模拟面试", "PV thử 10 phút", "10分模擬面接", "Simulasi 10 menit")} meta={t("질문 5개 연달아", "5 questions in a row", "连续 5 题", "5 câu liên tiếp", "5問連続", "5 pertanyaan")} onClick={toSignup} />
-          <PracticeCard tone="orange" icon="🙋" title={t("1분 자기소개", "1-min intro", "1 分钟自我介绍", "Giới thiệu 1 phút", "1分自己紹介", "Perkenalan 1 menit")} meta={t("시간 재며 연습", "Timed practice", "计时练习", "Luyện có giờ", "時間を測って練習", "Latihan berwaktu")} onClick={toSignup} />
-        </div>
-      </Section>
+      {/* ⑥ 가입하면 할 수 있는 것 */}
+      <WhatYouGet t={t} />
 
-      {/* 실제 면접에서 나온 질문 — 공개 데이터(누르면 가입해서 연습) */}
+      {/* ⑦ 실제 면접에서 나온 질문 — 다른 사람들이 남긴 질문(공개) */}
       <ReportedQuestions t={t} onPick={toSignup} />
 
-      {/* 자주 묻는 질문 */}
+      {/* ⑧ 자주 묻는 질문 */}
       <Faq t={t} />
 
+      {/* ⑨ 마지막 가입 권유 */}
       <div className="px-5 pb-4 pt-4">
         <div className="relative overflow-hidden rounded-3xl bg-[color:var(--v2-ink)] px-6 py-7 text-white">
           {/* 선물 상자 일러스트(투명 배경) — 가입 첫 1회 */}
           {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림 */}
           <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="pointer-events-none absolute -right-3 -top-2 h-[110px] w-[140px] object-contain opacity-95 min-[360px]:h-[124px] min-[360px]:w-[160px]" />
           <span className="relative inline-flex whitespace-nowrap rounded-full bg-[#ffd84d] px-3.5 py-1.5 text-[15px] font-bold text-[#191f28]">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
-          <p className="relative mt-3 max-w-[62%] text-[20px] font-bold leading-[1.4]">{t("다음 면접, 연습하고 가요", "Practice before your next interview", "下次面试前先练习", "Luyện trước buổi phỏng vấn tới", "次の面接は練習してから", "Latihan sebelum wawancara berikutnya")}</p>
-          <p className="relative mt-1.5 max-w-[62%] text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 바로 시작해요.", "Start right away with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号即可开始。", "Bắt đầu ngay bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoですぐ始められます。", "Mulai dengan email atau Google/Kakao.")}</p>
+          <p className="relative mt-3 max-w-[62%] text-[22px] font-bold leading-[1.4]">{t("다음 면접, 연습하고 가요", "Practice before your next interview", "下次面试前先练习", "Luyện trước buổi phỏng vấn tới", "次の面接は練習してから", "Latihan sebelum wawancara berikutnya")}</p>
+          <p className="relative mt-1.5 max-w-[62%] text-[14px] leading-[1.6] text-white/75">{t("이메일이나 구글·카카오 계정으로 1분이면 가입해요.", "Sign up in a minute with email or Google/Kakao.", "用邮箱或 Google/Kakao 账号 1 分钟注册。", "Đăng ký trong 1 phút bằng email hoặc Google/Kakao.", "メールかGoogle・Kakaoで1分で登録。", "Daftar 1 menit dengan email atau Google/Kakao.")}</p>
           <div className="relative mt-5">
             <Link href={SIGNUP} className="flex h-12 items-center justify-center rounded-xl bg-white text-[16px] font-semibold text-[color:var(--v2-ink)] transition hover:opacity-90">
               {t("가입하고 무료로 시작하기", "Sign up & start free", "注册并免费开始", "Đăng ký & bắt đầu miễn phí", "登録して無料で始める", "Daftar & mulai gratis")}
@@ -110,28 +147,22 @@ export function V2InterviewsGuest() {
           </div>
         </div>
       </div>
+
+      {/* 고정 버튼에 마지막 내용이 가리지 않게 */}
+      <div aria-hidden className="h-20 md:hidden" />
+
+      {/* 휴대폰 아래 고정 가입 버튼 — 어디까지 내려도 바로 가입 */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--v2-band)] bg-white/95 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
+        <Button full href={SIGNUP}>
+          🎁 {t("가입하고 1회 무료로 시작", "Sign up & try 1 free", "注册免费试 1 次", "Đăng ký, thử miễn phí 1 lần", "登録して1回無料で試す", "Daftar & coba 1x gratis")}
+        </Button>
+      </div>
     </Page>
   );
 }
 
-// 단계별 일러스트 — ① 공고(문서) ② 마주 앉은 면접 ③ AI 분석. 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다.
+// 단계별 일러스트 — ① 공고(문서) ② 마주 앉은 면접 ③ AI 분석.
 const STEP_ILLUST = ["/img_process_1.webp", "/img_process_2.webp", "/img_ai_analyze.webp"];
-
-function Step({ n, title, meta }: { n: number; title: string; meta: string }) {
-  return (
-    <li className="flex items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] py-3 pl-4 pr-3">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center self-start rounded-full bg-white text-[14px] font-bold text-[color:var(--v2-accent)] mt-1">{n}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[16px] font-bold text-[color:var(--v2-ink)]">{title}</span>
-        <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{meta}</span>
-      </span>
-      {STEP_ILLUST[n - 1] ? (
-        // eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림
-        <img src={STEP_ILLUST[n - 1]} alt="" aria-hidden className="h-[56px] w-[64px] shrink-0 object-contain mix-blend-multiply" />
-      ) : null}
-    </li>
-  );
-}
 
 /** 예시 피드백 — 실제 결과 화면과 같은 결(단계 · 잘한 점 · 고칠 점). */
 function SampleFeedback({ t }: { t: PlatformT }) {
