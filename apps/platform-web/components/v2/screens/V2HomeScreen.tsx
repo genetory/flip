@@ -1,7 +1,7 @@
 "use client";
 
-// v2 홈 — 맨 위에 '지금 가장 중요한 한 가지'를 크게, 아래로 다른 화면에서 만든 것들을 한 장씩 꺼내 쌓는다:
-// 이력서·자기소개서·모의 면접 · 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 다음 단계 · 오늘의 질문 · 이 직무에 필요한 것 · 지원 ·
+// v2 홈 — 맨 위에 서류·모의 면접 칸을 두고, 아래로 다른 화면에서 만든 것들을 한 장씩 꺼내 쌓는다:
+// 이력서·자기소개서·모의 면접 · 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 직무별 준비 체크리스트 · 지원 ·
 // 팔로우한 회사 새 공고 · 마감 임박 · 맞춤 공고(스킬 일치) · 회사 · 가이드. 배너(사주·MBTI)는 맨 위. 처음 온 사람에겐 시작 3단계.
 // 구획마다 모양을 달리한다(색 카드·캐러셀·숫자 칸·목록) — 같은 목록이 줄줄이 이어지면 심심하다. 데이터는 전부 기존 것(새 API 없음).
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
@@ -39,7 +39,6 @@ import { useFollowedCompanies } from "../../../lib/talent/company-follow";
 import { pickDailyQuestion, kstDay, questionText } from "../../../lib/talent/interview-daily";
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
-import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
 import { careerGuides } from "../../../lib/talent/home-content";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
@@ -79,10 +78,6 @@ function Home() {
   const name = user?.realName || user?.name || "";
   const resume = useResumeDoc();
   const cover = useCoverDoc();
-  // 서류 준비 — 내 커리어 서류 카드와 같은 체크 기준(완성도 %는 기준이 모호해 쓰지 않는다).
-  const resumeLeft = docChecklist(t, "resume", resume, cover).filter((c) => !c.done);
-  const resumeReady = !!resume && !resumeLeft.length;
-  const coverReady = !!cover && docChecklist(t, "cover", resume, cover).every((c) => c.done);
   const interests = useJobInterests();
   const selfMock = useSelfMock();
   const docsStatus = useRenewalDocsStatus();
@@ -202,36 +197,11 @@ function Home() {
   }, [appList, mine]);
   const active = appList.filter((a) => a.status !== "WITHDRAWN" && a.status !== "REJECTED");
 
-  // 맨 위 한 가지 — 가장 급한 것부터.
-  const lead = (() => {
-    if (!resumeReady)
-      return {
-        title: !resume ? t("이력서부터 시작해 볼까요", "Let's start with your resume", "先从简历开始吧", "Bắt đầu từ CV nhé", "まず履歴書から始めましょう", "Mulai dari CV yuk") : t("이력서를 마무리해 볼까요", "Let's finish your resume", "把简历完成吧", "Hoàn thiện CV nhé", "履歴書を仕上げましょう", "Selesaikan CV yuk"),
-        lede: !resume
-          ? t("이력서가 있어야 공고에 지원하고 맞춤 면접 연습도 할 수 있어요.", "You need a resume to apply and to get tailored interview practice.", "有了简历才能投递并进行定制面试练习。", "Cần có CV để ứng tuyển và luyện phỏng vấn theo bạn.", "履歴書があると応募も、自分に合った面接練習もできます。", "Butuh CV untuk melamar dan latihan wawancara yang pas.")
-          : t(`남은 항목: ${resumeLeft.map((c) => c.label).join(", ")}`, `Still to add: ${resumeLeft.map((c) => c.label).join(", ")}`, `还需填写：${resumeLeft.map((c) => c.label).join("、")}`, `Còn thiếu: ${resumeLeft.map((c) => c.label).join(", ")}`, `残り：${resumeLeft.map((c) => c.label).join("、")}`, `Belum: ${resumeLeft.map((c) => c.label).join(", ")}`),
-        cta: { label: !resume ? t("이력서 쓰기", "Write resume", "写简历", "Viết CV", "履歴書を書く", "Tulis CV") : t("이어서 쓰기", "Continue", "继续写", "Viết tiếp", "続きを書く", "Lanjutkan"), href: EDITOR.resume }
-      };
-    if (!coverReady)
-      return {
-        title: t("자기소개서만 남았어요", "Just your cover letter left", "只剩自我介绍了", "Chỉ còn thư giới thiệu", "残りは自己紹介書だけ", "Tinggal surat lamaran"),
-        lede: t("이력서는 준비됐어요. 지원할 회사 문항부터 하나 써 보세요.", "Your resume is ready. Start with one question for a company you like.", "简历已就绪。先写一个想投公司的问题吧。", "CV đã sẵn sàng. Viết một câu cho công ty bạn muốn.", "履歴書は準備OK。応募先の設問から1つ書きましょう。", "CV siap. Tulis satu jawaban untuk perusahaan incaran.")
-        ,
-        cta: { label: t("자기소개서 쓰기", "Write cover letter", "写自我介绍", "Viết thư", "自己紹介書を書く", "Tulis surat"), href: EDITOR.cover }
-      };
-    return {
-      title: t("지원할 준비가 됐어요", "You're ready to apply", "可以开始投递了", "Bạn đã sẵn sàng ứng tuyển", "応募の準備ができました", "Siap melamar"),
-      lede: t("서류가 모두 준비됐어요. 나에게 맞는 공고를 찾아 지원해 보세요.", "Your documents are ready. Find a job that fits and apply.", "材料都准备好了，去找适合的职位投递吧。", "Hồ sơ đã sẵn sàng. Tìm việc phù hợp và ứng tuyển.", "書類はすべて揃いました。合う求人を探して応募しましょう。", "Dokumen siap. Cari lowongan yang cocok dan lamar."),
-      cta: { label: t("공고 보기", "Browse jobs", "浏览职位", "Xem việc làm", "求人を見る", "Lihat lowongan"), href: V2_ROUTES.jobs }
-    };
-  })();
 
   // 오늘의 질문 · 연속 기록 — 모의 면접 페이지와 같은 질문.
   const daily = pickDailyQuestion(user?.id, kstDay(now), jobCategoriesForInterests(interests));
-  const { streak, doneToday } = practiceStreak(selfMock, now);
+  const { streak } = practiceStreak(selfMock, now);
   const answers = selfMock?.answers ?? [];
-  const dailyAnswer = answers.find((a) => a.question === daily.ko && a.answer.trim());
-  const answeredToday = !!dailyAnswer && kstDay(dailyAnswer.updatedAt) === kstDay(now);
 
   // 이번 주 답한 문항 — 맨 위 모의 면접 칸에.
   const weekAgo = now - 7 * 86_400_000;
@@ -266,7 +236,7 @@ function Home() {
     </div>
   );
 
-  // 맨 위 한 가지는 서류·지원을 다 읽어야 정해진다 — 그 전엔 화면 모양만.
+  // 서류·지원을 다 읽기 전엔 화면 모양만.
 
   if (docsStatus !== "loaded" || apps === null)
     return (
@@ -339,52 +309,6 @@ function Home() {
         <div className="px-5 pb-6">
           <DdayCard t={t} item={nextInterview} onPrep={() => setPrepFor(nextInterview)} />
         </div>
-      ) : null}
-
-      {/* 다음 단계 — 지금 가장 중요한 한 가지(서류 → 지원). 처음 온 사람은 시작 3단계가 대신한다. */}
-      {!newcomer ? (
-        <Section title={t("다음 단계", "Next step", "下一步", "Bước tiếp theo", "次のステップ", "Langkah berikutnya")}>
-          <div className="flex items-center gap-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
-            <span className="min-w-0 flex-1">
-              <span className="block text-[18px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{lead.title}</span>
-              <span className="mt-1 block text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{lead.lede}</span>
-            </span>
-          </div>
-          <div className="mt-3">
-            <Button full href={lead.cta.href}>
-              {lead.cta.label}
-            </Button>
-          </div>
-        </Section>
-      ) : null}
-
-      {/* 오늘의 질문 — 주황 카드, 홈에서 바로 답하기 */}
-      {!newcomer ? (
-        <Section
-          title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}
-          aside={streak > 0 ? <span className="rounded-full bg-[#fff1e6] px-2.5 py-1 text-[13px] font-bold text-[#e8590c]">🔥 {t(`${streak}일째`, `${streak}-day streak`, `连续 ${streak} 天`, `${streak} ngày`, `${streak}日連続`, `${streak} hari`)}</span> : undefined}
-        >
-          <div className="rounded-3xl bg-[#fff4e8] p-5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] font-bold text-[#c2410c]">{mockCategoryLabelOf(t, daily.category)}</span>
-              {answeredToday ? <LevelChip t={t} score={dailyAnswer!.score} /> : null}
-            </div>
-            <p className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</p>
-            {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</p> : null}
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <span className="text-[14px] text-[color:var(--v2-ink-3)]">
-                {answeredToday
-                  ? t("오늘 연습 완료! 내일 새 질문이 와요", "Done today! New one tomorrow", "今日已完成！明天有新题", "Xong hôm nay! Mai có câu mới", "今日は完了！明日また新しい質問", "Selesai! Besok ada yang baru")
-                  : doneToday
-                    ? t("오늘 연습했어요. 이것도 해 볼까요?", "Practiced today — this one too?", "今天已练习，再试这题？", "Đã luyện — thử câu này?", "今日は練習済み。これも？", "Sudah latihan — coba ini?")
-                    : t("2분이면 돼요. 연속 기록을 이어 가세요", "2 minutes — keep your streak", "只需 2 分钟，保持连续记录", "2 phút — giữ chuỗi ngày", "2分で連続記録をキープ", "2 menit — jaga beruntun")}
-              </span>
-              <Button size="sm" variant={answeredToday ? "white" : "primary"} onClick={openDaily}>
-                {dailyAnswer ? t("다시 답하기", "Again", "再答", "Lại", "もう一度", "Lagi") : t("답하기", "Answer", "作答", "Trả lời", "答える", "Jawab")}
-              </Button>
-            </div>
-          </div>
-        </Section>
       ) : null}
 
       {/* 이 직무에 필요한 것 — 내 커리어와 같은 구획(관심 직무마다 칩, 비교·[있어요]까지). 결과는 직무별로 이 브라우저에 기억해 두 화면이 같다. */}

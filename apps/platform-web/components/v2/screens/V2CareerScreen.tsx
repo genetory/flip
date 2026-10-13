@@ -750,7 +750,7 @@ export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; i
 
   return (
     <Section
-      title={t("이 직무에 필요한 것", "What this role needs", "这个职位需要的", "Vị trí này cần gì", "この職種に必要なもの", "Yang dibutuhkan peran ini")}
+      title={t("직무별 준비 체크리스트", "Role checklist", "职位准备清单", "Checklist theo ngành", "職種別チェックリスト", "Checklist peran")}
       // 강점과 달리 서류가 그대로여도 다시 비교할 수 있다 — 공고는 계속 바뀐다.
       aside={
         result ? (
