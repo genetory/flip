@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Page, Section } from "../ui";
-import { DictationControls, LevelChip, SpeakButton, useDictation, useSpeak } from "../practice";
+import { DictationControls, Highlighted, PointCard, ResultSummary, SpeakButton, useDictation, useSpeak } from "../practice";
+import type { InterviewFeedback } from "../../../lib/member-profile-client";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { pickDailyQuestion, kstDay, questionText, type DailyQuestion } from "../../../lib/talent/interview-daily";
@@ -165,29 +166,67 @@ export function V2InterviewsGuest() {
 // 단계별 일러스트 — ① 공고(문서) ② 마주 앉은 면접 ③ AI 분석.
 const STEP_ILLUST = ["/img_process_1.webp", "/img_process_2.webp", "/img_ai_analyze.webp"];
 
-/** 예시 피드백 — 실제 결과 화면과 같은 결(단계 · 잘한 점 · 고칠 점). */
+/** 예시 피드백 — 실제 결과 화면과 같은 부품(ResultSummary·Highlighted·PointCard)에 예시 답만 넣어 그대로 보여 준다. */
 function SampleFeedback({ t }: { t: PlatformT }) {
+  const question = t("본인의 가장 큰 강점은 무엇인가요?", "What is your greatest strength?", "你最大的优点是什么？", "Điểm mạnh lớn nhất của bạn là gì?", "あなたの一番の強みは何ですか？", "Apa kekuatan terbesarmu?");
+  const answer = t(
+    "제 강점은 끈기입니다. 대학교 때 카페 아르바이트를 하면서 열심히 일했고, 손님들에게 친절하게 응대하려고 노력했습니다. 그래서 점장님께 칭찬을 많이 받았습니다.",
+    "My strength is persistence. I worked hard at a café part-time job in college and tried to be kind to customers, so my manager praised me a lot.",
+    "我的优点是坚持。大学时在咖啡店打工很努力，也尽力亲切地接待客人，所以经常受到店长表扬。",
+    "Điểm mạnh của tôi là sự kiên trì. Hồi đại học tôi làm thêm ở quán cà phê rất chăm chỉ, cố gắng phục vụ khách thân thiện nên được quản lý khen nhiều.",
+    "私の強みは粘り強さです。大学時代にカフェのアルバイトで一生懸命働き、お客様に親切に対応するよう努力しました。そのため店長によく褒められました。",
+    "Kekuatanku adalah kegigihan. Saat kuliah aku bekerja keras paruh waktu di kafe dan berusaha ramah pada pelanggan, jadi sering dipuji manajer."
+  );
+  const feedback: InterviewFeedback = {
+    score: 62,
+    strengths: [
+      t("첫 문장에서 강점을 바로 말했어요.", "You stated your strength in the first sentence.", "第一句就说出了优点。", "Nêu điểm mạnh ngay câu đầu.", "最初の一文で強みを伝えました。", "Kekuatan disebut di kalimat pertama."),
+      t("실제 경험(카페 아르바이트)을 예로 들었어요.", "You used a real experience (café job).", "举了真实经历（咖啡店打工）。", "Có ví dụ thật (làm thêm ở quán cà phê).", "実際の経験（カフェのバイト）を例にしました。", "Memakai pengalaman nyata (kerja di kafe).")
+    ],
+    improvements: [
+      t("'열심히·노력했다' 대신 실제로 한 행동을 말해 보세요.", "Replace 'worked hard / tried' with what you actually did.", "把“努力”换成你具体做了什么。", "Thay “chăm chỉ / cố gắng” bằng việc cụ thể đã làm.", "「一生懸命・努力」ではなく、実際にした行動を。", "Ganti “bekerja keras” dengan tindakan nyata."),
+      t("결과를 숫자로 보여 주세요. (예: 주문 실수 20건 → 5건)", "Show the result with a number (e.g. order errors 20 → 5).", "用数字展示结果（如：点单错误 20 → 5 件）。", "Nêu kết quả bằng số (vd: lỗi gọi món 20 → 5).", "成果を数字で（例：注文ミス20件→5件）。", "Tunjukkan hasil dengan angka (mis. salah pesanan 20 → 5).")
+    ],
+    sampleAnswer: t(
+      "제 강점은 끝까지 해내는 끈기입니다. 카페에서 1년 동안 일하며 주문 실수가 잦은 시간대를 기록해 메뉴판 순서를 바꾸자고 제안했고, 그 뒤 주문 실수가 한 달 20건에서 5건으로 줄었습니다. 입사 후에도 문제를 끝까지 파고들어 결과로 보여 드리겠습니다.",
+      "My strength is seeing things through. Working at a café for a year, I logged when order mistakes peaked and proposed reordering the menu board — mistakes fell from 20 to 5 a month. I'll dig into problems the same way and show results.",
+      "我的优点是坚持到底。在咖啡店工作一年间，我记录了点单错误多发的时段并提议调整菜单顺序，之后每月错误从 20 件降到 5 件。入职后我也会深挖问题，用结果说话。",
+      "Điểm mạnh của tôi là theo đến cùng. Làm ở quán cà phê 1 năm, tôi ghi lại khung giờ hay sai món và đề xuất đổi thứ tự menu, lỗi giảm từ 20 xuống 5 mỗi tháng. Vào công ty tôi cũng sẽ đào sâu vấn đề và chứng minh bằng kết quả.",
+      "私の強みは最後までやり抜く粘り強さです。カフェで1年働く中で注文ミスが多い時間帯を記録し、メニュー表の順番を変えるよう提案した結果、ミスは月20件から5件に減りました。入社後も問題を掘り下げ、結果で示します。",
+      "Kekuatanku adalah menuntaskan sesuatu. Selama 1 tahun di kafe, aku mencatat jam rawan salah pesanan dan mengusulkan urutan menu baru — kesalahan turun dari 20 ke 5 per bulan. Aku akan menggali masalah dengan cara yang sama."
+    ),
+    followUp: t("메뉴판을 바꾸자고 했을 때 반대는 없었나요? 어떻게 설득했나요?", "Was there pushback on changing the menu? How did you persuade them?", "提议改菜单时有人反对吗？你是怎么说服的？", "Có ai phản đối việc đổi menu không? Bạn thuyết phục thế nào?", "メニュー変更に反対はありませんでしたか？どう説得しましたか？", "Ada yang menolak perubahan menu? Bagaimana kamu meyakinkan mereka?")
+  };
   return (
-    <div className="mt-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-muted)]">{t("피드백 예시", "Sample feedback", "反馈示例", "Ví dụ phản hồi", "フィードバック例", "Contoh masukan")}</span>
-        <LevelChip t={t} score={68} />
-      </div>
-      <p className="mt-3 text-[15px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{t("Q. 우리 회사에 지원한 이유는 무엇인가요?", "Q. Why did you apply to our company?", "Q. 你为什么申请我们公司？", "Q. Vì sao bạn ứng tuyển công ty chúng tôi?", "Q. 当社に応募した理由は？", "Q. Mengapa melamar ke perusahaan kami?")}</p>
-      <p className="mt-2 rounded-2xl bg-white p-3 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("“외국인 고객을 위한 서비스를 만드는 회사라서 제 경험을 살릴 수 있다고 생각했습니다.”", "“You build services for international customers, so I thought my experience would fit.”", "“贵公司为外国客户打造服务，我觉得能发挥我的经验。”", "“Công ty làm dịch vụ cho khách nước ngoài nên tôi nghĩ kinh nghiệm của mình phù hợp.”", "「外国人顧客向けのサービスを作る会社なので、経験を活かせると思いました。」", "“Perusahaan ini melayani pelanggan asing, jadi pengalamanku cocok.”")}</p>
-      <p className="mt-3 text-[14px] leading-[1.6] text-[color:var(--v2-good)]">
-        <b>{t("잘한 점", "Good", "优点", "Tốt", "良い点", "Bagus")}</b> · {t("회사가 하는 일과 내 경험을 연결했어요.", "You linked the company's work to your experience.", "把公司业务和自己的经验联系起来了。", "Đã liên kết công việc của công ty với kinh nghiệm.", "会社の事業と自分の経験を結びつけました。", "Menghubungkan bisnis perusahaan dengan pengalamanmu.")}
-      </p>
-      <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-attention)]">
-        <b>{t("고칠 점", "Fix", "改进", "Cần sửa", "直す点", "Perbaiki")}</b> · {t("어떤 경험인지 한 가지를 숫자와 함께 말해 보세요.", "Name one specific experience, with a number.", "具体说一个经历，并带上数字。", "Nêu một kinh nghiệm cụ thể kèm con số.", "どんな経験か一つ、数字と一緒に話しましょう。", "Sebut satu pengalaman spesifik dengan angka.")}
-      </p>
-      <div className="mt-3 rounded-2xl bg-white p-3">
-        <p className="text-[12px] font-bold text-[color:var(--v2-muted)]">{t("이렇게 바꿔 보면 어때요? (모범 답안)", "Try it like this (model answer)", "试试这样说（参考答案）", "Thử nói thế này (câu mẫu)", "こう直しては？（模範回答）", "Coba seperti ini (contoh)")}</p>
-        <p className="mt-1 text-[14px] leading-[1.65] text-[color:var(--v2-ink-2)]">{t("“교환학생 때 학교 SNS를 6개월 운영하며 외국인 학생 참여율을 30% 올렸습니다. 외국인 고객을 위한 서비스를 만드는 이곳에서 그 경험을 바로 쓰고 싶어 지원했습니다.”", "“As an exchange student I ran our school's social account for 6 months and raised international students' engagement by 30%. I applied because I want to use that right away building services for international customers.”", "“交换生期间我运营学校社交账号 6 个月，使外国学生参与度提升 30%。贵公司为外国客户打造服务，我希望马上发挥这段经验。”", "“Khi là sinh viên trao đổi, tôi quản lý SNS của trường 6 tháng và tăng tương tác của sinh viên quốc tế 30%. Tôi muốn dùng ngay kinh nghiệm đó.”", "「交換留学中に大学SNSを6か月運営し、留学生の参加率を30%上げました。外国人顧客向けサービスを作る御社で、その経験をすぐ活かしたいと思い応募しました。」", "“Saat pertukaran pelajar, aku mengelola SNS kampus 6 bulan dan menaikkan partisipasi mahasiswa asing 30%. Aku ingin langsung memakai pengalaman itu.”")}</p>
-      </div>
-      <div className="mt-2 rounded-2xl bg-[color:var(--v2-accent-weak)] p-3">
-        <p className="text-[12px] font-bold text-[color:var(--v2-accent)]">{t("면접관이 이어서 물을 질문", "Likely follow-up", "面试官可能追问", "Câu hỏi nối tiếp", "想定される追加質問", "Pertanyaan lanjutan")}</p>
-        <p className="mt-1 text-[14px] font-semibold leading-[1.55] text-[color:var(--v2-ink)]">{t("“참여율을 올리려고 구체적으로 무엇을 바꿨나요?”", "“What exactly did you change to raise engagement?”", "“为了提升参与度，你具体改变了什么？”", "“Cụ thể bạn đã thay đổi gì để tăng tương tác?”", "「参加率を上げるために具体的に何を変えましたか？」", "“Apa tepatnya yang kamu ubah?”")}</p>
+    // 실제 결과 화면을 한 장 띄워 둔 것처럼 — 회색 바탕 위 흰 화면
+    <div className="mt-5 rounded-[28px] bg-[color:var(--v2-band)] p-3 min-[360px]:p-4">
+      <div className="rounded-3xl bg-white p-4 shadow-[0_6px_24px_rgba(0,0,0,0.06)] min-[360px]:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[13px] font-bold text-[color:var(--v2-muted)]">{t("예시 결과", "Sample result", "示例结果", "Kết quả mẫu", "結果の例", "Contoh hasil")}</span>
+          <span className="rounded-full bg-[color:var(--v2-band)] px-2.5 py-1 text-[12px] font-semibold text-[color:var(--v2-ink-3)]">{t("인성·강점", "Personality", "性格·优点", "Tính cách", "人柄・強み", "Kepribadian")}</span>
+        </div>
+        <p className="mt-2 text-[19px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{question}</p>
+        <div className="mt-4 flex flex-col gap-3">
+          <ResultSummary t={t} answer={answer} feedback={feedback} />
+          <div className="rounded-2xl bg-[color:var(--v2-fill)] p-4">
+            <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("내 답", "Your answer", "我的回答", "Câu trả lời", "あなたの回答", "Jawabanmu")}</p>
+            <p className="mt-2 text-[15px] leading-[1.7] text-[color:var(--v2-ink-3)]">
+              <Highlighted text={answer} />
+            </p>
+          </div>
+          <PointCard tone="good" title={t("잘한 점", "What worked", "优点", "Điểm tốt", "良い点", "Yang bagus")} items={feedback.strengths} />
+          <PointCard tone="bad" title={t("고칠 점", "To improve", "改进点", "Cần sửa", "直す点", "Perbaiki")} items={feedback.improvements} />
+          <div className="rounded-2xl bg-[color:var(--v2-band)] p-4">
+            <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("이렇게 바꿔 보면 어때요?", "Try it like this", "试试这样改", "Thử viết thế này", "こう直してみては？", "Coba seperti ini")}</p>
+            <p className="mt-2 text-[15px] leading-[1.7] text-[color:var(--v2-ink-3)]">
+              <Highlighted text={feedback.sampleAnswer} />
+            </p>
+          </div>
+          <div className="rounded-2xl bg-[color:var(--v2-accent-weak)] p-4">
+            <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{t("면접관이 이어서 물을 질문", "Likely follow-up", "面试官可能追问", "Câu hỏi nối tiếp", "想定される追加質問", "Pertanyaan lanjutan")}</p>
+            <p className="mt-1 text-[16px] font-semibold leading-[1.55] text-[color:var(--v2-ink)]">{feedback.followUp}</p>
+          </div>
+        </div>
       </div>
     </div>
   );

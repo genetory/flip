@@ -376,7 +376,7 @@ const NUM_SRC = "\\d[\\d,.]*\\s*(?:%|퍼센트|명|건|배|시간|분|개월|년
 const VAGUE = new RegExp(VAGUE_SRC, "g");
 
 /** 한눈에 보는 결과 — 단계 · 한 줄 평 · 답 체크(길이·숫자로 된 결과·내 역할·막연한 말). 체크는 규칙으로 계산(AI 아님). */
-function ResultSummary({ t, answer, feedback }: { t: PlatformT; answer: string; feedback: InterviewFeedback }) {
+export function ResultSummary({ t, answer, feedback }: { t: PlatformT; answer: string; feedback: InterviewFeedback }) {
   const len = answer.replace(/\s+/g, "").length;
   const hasNumber = /\d/.test(answer);
   const hasRole = /(제가|저는|제\s|맡|담당|주도|직접|이끌)/.test(answer);
@@ -418,7 +418,7 @@ function ResultSummary({ t, answer, feedback }: { t: PlatformT; answer: string; 
 }
 
 /** 내 답 강조 — 숫자 결과는 초록 밑줄, 막연한 말은 빨간 물결. */
-function Highlighted({ text }: { text: string }) {
+export function Highlighted({ text }: { text: string }) {
   const parts = text.split(new RegExp(`(${VAGUE_SRC}|${NUM_SRC})`, "g"));
   return (
     <>
@@ -435,7 +435,7 @@ function Highlighted({ text }: { text: string }) {
   );
 }
 
-function PointCard({ tone, title, items }: { tone: "good" | "bad"; title: string; items: string[] }) {
+export function PointCard({ tone, title, items }: { tone: "good" | "bad"; title: string; items: string[] }) {
   return (
     <div className={`rounded-2xl p-4 ${tone === "good" ? "bg-[#effaf4]" : "bg-[#fdf2f3]"}`}>
       <p className={`text-[14px] font-bold ${tone === "good" ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-attention)]"}`}>{title}</p>
