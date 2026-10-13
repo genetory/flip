@@ -79,7 +79,7 @@ function Home() {
   const name = user?.realName || user?.name || "";
   const resume = useResumeDoc();
   const cover = useCoverDoc();
-  // 서류 준비 — 내 커리어·아래 서류 카드와 같은 체크 기준(완성도 %는 기준이 모호해 쓰지 않는다).
+  // 서류 준비 — 내 커리어 서류 카드와 같은 체크 기준(완성도 %는 기준이 모호해 쓰지 않는다).
   const resumeLeft = docChecklist(t, "resume", resume, cover).filter((c) => !c.done);
   const resumeReady = !!resume && !resumeLeft.length;
   const coverReady = !!cover && docChecklist(t, "cover", resume, cover).every((c) => c.done);
@@ -290,7 +290,7 @@ function Home() {
 
       {/* 가장 중요한 셋 — 이력서·자기소개서(두 칸) + 모의 면접(한 줄). 늘 맨 위에. */}
       <div className="-mt-2 px-5 pb-8">
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-x-5">
           <DocTile t={t} kind="resume" resume={resume} cover={cover} />
           <DocTile t={t} kind="cover" resume={resume} cover={cover} />
         </div>
@@ -688,7 +688,7 @@ function StartSteps({ t, steps, done, onMock }: { t: PlatformT; steps: { key: st
   );
 }
 
-/** 맨 위 서류 칸 — 이력서(파랑)·자기소개서(보라). 상태 · 한 줄 · 칸 막대, 아래에 [미리보기] [수정하기 ›]. 칸 전체는 에디터로. */
+/** 맨 위 서류 칸 — 이력서·자기소개서. 상태 · 그림 · 이름 · 한 줄, 아래에 [미리보기] [수정하기 ›]. 위쪽은 에디터로. */
 function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "cover"; resume: ResumeDoc | null; cover: CoverDoc | null }) {
   const doc = kind === "resume" ? resume : cover;
   const checks = docChecklist(t, kind, resume, cover);
@@ -706,28 +706,21 @@ function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "c
       : written.count
         ? t(`문항 ${written.count}개 · ${written.chars.toLocaleString()}자`, `${written.count} answers`, `${written.count} 题 · ${written.chars.toLocaleString()} 字`, `${written.count} câu`, `${written.count}問 · ${written.chars.toLocaleString()}字`, `${written.count} jawaban`)
         : t("아직 쓴 문항이 없어요", "No answers yet", "还没写", "Chưa viết", "まだ未記入", "Belum ada");
-  const tone = kind === "resume" ? "bg-[#edf1fd]" : "bg-[#f3eeff]";
-  const bar = kind === "resume" ? "bg-[color:var(--v2-accent)]" : "bg-[#7c3aed]";
   return (
-    <div className={`flex min-h-[168px] flex-col rounded-3xl p-4 ${tone}`}>
+    <div className="flex flex-col">
       <Link href={kind === "resume" ? EDITOR.resume : EDITOR.cover} className="flex-1">
         <span className="flex items-start justify-between gap-1">
-          <span className={`inline-flex shrink-0 rounded-md px-1.5 py-1 text-[11px] font-bold leading-none ${ready ? "bg-[#e5f6ee] text-[color:var(--v2-good)]" : "bg-white text-[color:var(--v2-muted)]"}`}>{badge}</span>
+          <span className={`inline-flex shrink-0 rounded-md px-1.5 py-1 text-[11px] font-bold leading-none ${ready ? "bg-[#e5f6ee] text-[color:var(--v2-good)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]"}`}>{badge}</span>
           {/* 일러스트 — 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다 */}
           {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림 */}
           <img src={kind === "resume" ? "/img_resume.webp" : "/img_coverletter.webp"} alt="" aria-hidden className="-mr-1 -mt-1 h-[52px] w-[68px] object-contain mix-blend-multiply min-[360px]:h-[60px] min-[360px]:w-[80px]" />
         </span>
         <span className="mt-1 block truncate whitespace-nowrap text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</span>
         <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-ink-3)]">{line}</span>
-        <span className="mt-3 flex gap-1" aria-hidden>
-          {(kind === "resume" ? checks : [{ label: "c", done: written.count > 0 }]).map((c, i) => (
-            <span key={i} className={`h-1.5 flex-1 rounded-full ${c.done ? bar : "bg-white"}`} />
-          ))}
-        </span>
       </Link>
-      <span className="mt-4 flex items-center justify-between gap-2 whitespace-nowrap text-[14px] font-semibold">
+      <span className="mt-3 flex items-center justify-between gap-2 whitespace-nowrap text-[14px] font-semibold">
         {doc ? (
-          <Link href={kind === "resume" ? PREVIEW.resume : PREVIEW.cover} aria-label={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} title={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} className="-m-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--v2-muted)] hover:bg-white/60 hover:text-[color:var(--v2-ink-3)]">
+          <Link href={kind === "resume" ? PREVIEW.resume : PREVIEW.cover} aria-label={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} title={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} className="-m-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--v2-muted)] hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-ink-3)]">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
               <circle cx="12" cy="12" r="3" />
@@ -744,10 +737,10 @@ function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "c
   );
 }
 
-/** 맨 위 모의 면접 줄(초록) — 연속 기록 · 이번 주 문항 · 최근 단계 · 약한 곳, 오른쪽 [연습하기]. */
+/** 맨 위 모의 면접 줄 — 연속 기록 · 이번 주 문항 · 최근 단계 · 약한 곳, 오른쪽 [연습하기]. */
 function MockTile({ t, streak, week, best, weakest }: { t: PlatformT; streak: number; week: number; best: number | null; weakest: string | null }) {
   return (
-    <Link href={V2_ROUTES.interviews} className="mt-2.5 flex items-center gap-3 rounded-3xl bg-[#e8f8f1] p-4 transition hover:-translate-y-0.5">
+    <Link href={V2_ROUTES.interviews} className="mt-6 flex items-center gap-3 transition hover:-translate-y-0.5">
       {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림(흰 바탕 → 곱하기 합성) */}
       <img src="/img_fake_interview.webp" alt="" aria-hidden className="-my-1 -ml-1 h-[52px] w-[68px] shrink-0 object-contain mix-blend-multiply" />
       <span className="min-w-0 flex-1">
