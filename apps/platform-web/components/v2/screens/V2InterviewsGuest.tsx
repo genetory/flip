@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button, Page, Section } from "../ui";
+import { Button, Page, Section, Switch } from "../ui";
 import { DictationControls, Highlighted, PointCard, ResultSummary, SpeakButton, useDictation, useSpeak } from "../practice";
 import type { InterviewFeedback } from "../../../lib/member-profile-client";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -307,8 +307,21 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
   const { locale } = useLanguage();
   const [answer, setAnswer] = useState("");
   const [checked, setChecked] = useState<string | null>(null);
+  // 실전 모드 60초 — 실제 연습 화면과 같게, 쓰기·말하기를 시작하면 잰다.
+  const [timed, setTimed] = useState(false);
+  const [left, setLeft] = useState(60);
+  const [running, setRunning] = useState(false);
+  const timeUp = timed && running && left <= 0;
+  const begin = () => {
+    if (timed && !running) setRunning(true);
+  };
+  useEffect(() => {
+    if (!timed || !running || left <= 0) return;
+    const id = window.setTimeout(() => setLeft((v) => v - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [timed, running, left]);
   const tts = useSpeak();
-  const dict = useDictation({ onFinal: (add) => setAnswer((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
+  const dict = useDictation({ onStart: begin, onFinal: (add) => setAnswer((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
   const text = answer.trim();
   // 간단 체크 — AI 가 아니라 문장 규칙(길이·숫자·내 행동·결과)으로. 확인한 답이 바뀌면 다시 누르게.
   const result = checked !== null && checked === text ? quickCheck(text) : null;
@@ -321,52 +334,79 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
       ]
     : [];
   const good = checks.filter((c) => c.ok).length;
+  const check = () => {
+    dict.stop();
+    setChecked(text);
+  };
   return (
-    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
-      <div className="flex items-start justify-between gap-3">
-        <span className="min-w-0">
-          <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">
+    // 실제 '한 문항 연습' 화면을 그대로 한 장 — 회색 바탕 위 흰 화면(머리 · 질문 · 실전 모드 · 답 · 말로 답하기 · 아래 버튼)
+    <div className="rounded-[28px] bg-[color:var(--v2-band)] p-3 min-[360px]:p-4">
+      <div className="overflow-hidden rounded-3xl bg-white shadow-[0_6px_24px_rgba(0,0,0,0.06)]">
+        <div className="px-5 pb-3 pt-5">
+          <p className="text-[19px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("한 문항 연습", "Practice one question", "单题练习", "Luyện một câu", "1問練習", "Latihan satu soal")}</p>
+          <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-faint)]">
             {t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")} · {mockCategoryLabelOf(t, question.category)}
-          </span>
-          <span className="mt-1.5 block text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, question)}</span>
-          {locale !== "ko" ? <span className="mt-1 block text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</span> : null}
-        </span>
-        <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
-      </div>
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        rows={5}
-        placeholder={t("면접관에게 말하듯 편하게 답해 보세요. 마이크로 말해도 돼요.", "Answer as if talking to the interviewer — you can use the mic.", "像对面试官说话一样回答，也可以用麦克风。", "Trả lời như đang nói với người phỏng vấn — có thể dùng mic.", "面接官に話すように答えてみましょう。マイクでもOK。", "Jawab seperti berbicara ke pewawancara — bisa pakai mikrofon.")}
-        className="mt-4 w-full resize-none rounded-2xl bg-white p-4 text-[16px] leading-[1.65] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2"
-      />
-      <DictationControls t={t} dict={dict} right={<span className="text-[13px] tabular-nums text-[color:var(--v2-faint)]">{text.length}{t("자", " chars", "字", " ký tự", "字", " karakter")}</span>} />
-      <div className="mt-3">
-        <Button full onClick={() => { dict.stop(); setChecked(text); }} disabled={text.length < 10}>
-          {t("바로 체크해 보기", "Quick check", "快速检查", "Kiểm tra nhanh", "すぐにチェック", "Cek cepat")}
-        </Button>
-      </div>
-      {result ? (
-        <div className="mt-4 rounded-2xl bg-white p-4">
-          <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`간단 체크 ${good} / ${checks.length}`, `Quick check ${good} / ${checks.length}`, `快速检查 ${good} / ${checks.length}`, `Kiểm tra nhanh ${good} / ${checks.length}`, `簡単チェック ${good} / ${checks.length}`, `Cek cepat ${good} / ${checks.length}`)}</p>
-          <ul className="mt-2 flex flex-col gap-1.5">
-            {checks.map((c, i) => (
-              <li key={i} className="flex items-start gap-2 text-[14px] leading-[1.55]">
-                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${c.ok ? "bg-[color:var(--v2-good)]" : "bg-[color:var(--v2-attention)]"}`} aria-hidden>
-                  {c.ok ? "✓" : "!"}
-                </span>
-                <span className={c.ok ? "text-[color:var(--v2-ink-2)]" : "text-[color:var(--v2-ink-3)]"}>{c.ok ? c.good : c.bad}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("문장 규칙으로 본 간단 체크예요. AI 피드백은 내용까지 읽고 잘한 점·고칠 점·모범 답안을 알려 줘요.", "A rule-based quick check. AI feedback reads the content and gives strengths, fixes and a model answer.", "这是基于规则的快速检查。AI 反馈会阅读内容，给出优点、改进点和参考答案。", "Đây là kiểm tra theo quy tắc. Phản hồi AI đọc nội dung và đưa nhận xét, câu mẫu.", "文の規則による簡単チェックです。AIフィードバックは内容まで読みます。", "Cek berbasis aturan. Masukan AI membaca isi jawaban.")}</p>
-          <div className="mt-3">
-            <Button full href={SIGNUP}>
-              {t("가입하고 AI 피드백 받기 (1회 무료)", "Sign up for AI feedback (1 free)", "注册获取 AI 反馈（赠 1 次）", "Đăng ký nhận phản hồi AI (miễn phí 1 lần)", "登録してAIフィードバック（1回無料）", "Daftar untuk masukan AI (1x gratis)")}
-            </Button>
-          </div>
+          </p>
         </div>
-      ) : null}
+        <div className="px-5 pb-5">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, question)}</p>
+            <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
+          </div>
+          {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <Switch on={timed} onChange={(v) => { setTimed(v); setRunning(false); setLeft(60); }} label={t("실전 모드 · 60초", "Real mode · 60s", "实战模式 · 60秒", "Thực chiến · 60s", "本番モード・60秒", "Mode nyata · 60 dtk")} />
+            {timed ? <span className={`text-[15px] font-bold tabular-nums ${left <= 10 ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-ink-2)]"}`}>{running ? `0:${String(Math.max(0, left)).padStart(2, "0")}` : t("쓰기 시작하면 재요", "Starts when you begin", "开始作答即计时", "Bắt đầu khi bạn viết", "書き始めると計測", "Mulai saat menulis")}</span> : null}
+          </div>
+          <textarea
+            value={answer}
+            onChange={(e) => {
+              begin();
+              setAnswer(e.target.value);
+            }}
+            readOnly={timeUp}
+            rows={6}
+            placeholder={t("면접관에게 말하듯 편하게 써 보세요.", "Write as if you're talking to the interviewer.", "像对面试官说话一样写。", "Viết như đang nói với người phỏng vấn.", "面接官に話すように書いてみましょう。", "Tulis seperti berbicara ke pewawancara.")}
+            className="mt-3 w-full resize-none rounded-2xl bg-[color:var(--v2-fill)] p-4 text-[16px] leading-[1.65] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2 read-only:opacity-70"
+          />
+          {timeUp ? <p className="mt-2 text-[14px] font-semibold text-[color:var(--v2-attention)]">{t("시간이 끝났어요. 지금까지 쓴 답으로 체크해 보세요.", "Time's up — check what you have.", "时间到了，用已写的回答检查吧。", "Hết giờ — kiểm tra câu trả lời hiện có.", "時間切れです。ここまでの回答でチェックを。", "Waktu habis — cek jawabanmu.")}</p> : null}
+          <DictationControls t={t} dict={dict} disabled={timeUp} right={<span className="text-[13px] tabular-nums text-[color:var(--v2-faint)]">{text.length}{t("자", " chars", "字", " ký tự", "字", " karakter")}</span>} />
+
+          {result ? (
+            // 결과 — 실제 결과 화면의 'AI 평가' 카드와 같은 결(로그인 전이라 문장 규칙으로 본 간단 체크)
+            <div className="mt-4 rounded-2xl bg-[color:var(--v2-band)] p-4">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-white px-2.5 py-1 text-[13px] font-bold text-[color:var(--v2-ink-2)]">{good} / {checks.length}</span>
+                <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("간단 체크", "Quick check", "快速检查", "Kiểm tra nhanh", "簡単チェック", "Cek cepat")}</span>
+              </div>
+              <ul className="mt-3 flex flex-col gap-1.5">
+                {checks.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2 text-[14px] leading-[1.5]">
+                    <span className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${c.ok ? "bg-[color:var(--v2-good)] text-white" : "bg-white text-[color:var(--v2-attention)]"}`} aria-hidden>
+                      {c.ok ? "✓" : "!"}
+                    </span>
+                    <span className={c.ok ? "text-[color:var(--v2-ink-3)]" : "font-semibold text-[color:var(--v2-ink-2)]"}>{c.ok ? c.good : c.bad}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("문장 규칙으로 본 간단 체크예요. 가입하면 AI가 내용까지 읽고 잘한 점·고칠 점·고친 답·꼬리 질문을 알려 줘요.", "A rule-based quick check. Sign up and AI reads the content for strengths, fixes, a rewrite and a follow-up.", "这是基于规则的快速检查。注册后 AI 会阅读内容，给出优点、改进点、改写和追问。", "Kiểm tra theo quy tắc. Đăng ký để AI đọc nội dung và đưa nhận xét, bản sửa, câu hỏi nối tiếp.", "文の規則による簡単チェックです。登録するとAIが内容まで読みます。", "Cek berbasis aturan. Daftar agar AI membaca isi jawaban.")}</p>
+            </div>
+          ) : null}
+        </div>
+        {/* 아래 버튼 — 실제 화면의 [AI 피드백 받기] 자리 */}
+        <div className="px-4 pb-4">
+          {result ? (
+            <Button full href={SIGNUP}>
+              {t("가입하고 AI 피드백 받기", "Sign up for AI feedback", "注册获取 AI 反馈", "Đăng ký nhận phản hồi AI", "登録してAIフィードバック", "Daftar untuk masukan AI")}
+            </Button>
+          ) : (
+            <Button full onClick={check} disabled={text.length < 10}>
+              {t("바로 체크해 보기", "Quick check", "快速检查", "Kiểm tra nhanh", "すぐにチェック", "Cek cepat")}
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
