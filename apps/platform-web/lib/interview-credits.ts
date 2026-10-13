@@ -78,3 +78,14 @@ export async function confirmPayment(input: { paymentKey: string; orderId: strin
   setInterviewCreditBalance(r.credits);
   return r;
 }
+
+// ── 결제 내역 · 환불 ──
+export type MyPayment = { id: string; orderName: string; amount: number; credits: number; status: "DONE" | "CANCELED" | "PARTIAL_CANCELED"; method: string | null; approvedAt: string | null; canceledAt: string | null; canceledAmount: number | null; refundable: boolean };
+export async function getMyPayments(): Promise<{ credits: number; refundDays: number; items: MyPayment[] }> {
+  return (await authedJsonFetch<never>("/members/me/payments", { method: "GET" })) as unknown as { credits: number; refundDays: number; items: MyPayment[] };
+}
+export async function cancelMyPayment(orderId: string, reason?: string): Promise<{ refunded: number; credits: number }> {
+  const r = (await authedJsonFetch<never>(`/members/me/payments/${encodeURIComponent(orderId)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) })) as unknown as { refunded: number; credits: number };
+  setInterviewCreditBalance(r.credits);
+  return r;
+}

@@ -27125,13 +27125,153 @@ app.post("/ops/interview-credits/:userId/grant", authenticate, requireRoles([Mem
     return res.status(500).json({ ok: false, message: "failed to grant" });
   }
 });
-app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   try {
-    const items = await prisma.paymentOrder.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, userId: true, orderName: true, amount: true, status: true, method: true, approvedAt: true, failReason: true, createdAt: true } });
+    // 결제 대기(READY)는 결제창만 열고 안 낸 것 — 기본은 빼고, ?all=1 이면 모두.
+    const all = req.query.all === "1";
+    const orders = await prisma.paymentOrder.findMany({
+      where: all ? {} : { status: { not: "READY" } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, userId: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+    });
+    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const items = orders.map((o) => ({ ...o, email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
     return res.json({ ok: true, items });
   } catch (err) {
     console.error("[ops/payment-orders] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load orders" });
+  }
+});
+
+// ── 환불(결제 취소) ─────────────────────────────
+// 학생 셀프 환불: 결제 후 7일 안 + 그 결제로 받은 이용권을 쓰지 않았을 때(남은 이용권 ≥ 그 결제분)만. 전액 환불.
+// 운영자 환불: 기간·사용 여부와 관계없이, 일부 금액·회수할 이용권 수를 정해서.
+// 순서: 이용권을 먼저 회수(잔액이 모자라면 중단) → 토스 취소 → 실패하면 회수한 이용권을 되돌린다(돈은 나갔는데 이용권이 남는 일이 없게).
+const SELF_REFUND_DAYS = 7;
+
+async function tossCancel(order: { id: string; paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
+  const resp = await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(order.paymentKey)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": `${order.id}-cancel-${cancelAmount ?? "all"}` },
+    body: JSON.stringify(cancelAmount ? { cancelReason: reason, cancelAmount } : { cancelReason: reason })
+  });
+  const body = (await resp.json().catch(() => ({}))) as { status?: string; code?: string; message?: string };
+  if (!resp.ok || (body.status !== "CANCELED" && body.status !== "PARTIAL_CANCELED")) return { ok: false, code: body.code ?? `HTTP_${resp.status}`, message: body.message ?? "결제를 취소하지 못했어요." };
+  return { ok: true };
+}
+
+/** 이용권 회수 → 토스 취소 → 주문 기록. deduct 만큼 잔액이 없으면 회수하지 않고 실패. */
+async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
+  const deduct = Math.max(0, opts.deduct);
+  if (deduct > 0) {
+    const r = await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
+    if (r.count !== 1) return { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
+  }
+  const cancel = await tossCancel(order, opts.reason, opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined);
+  if (!cancel.ok) {
+    if (deduct > 0) await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+    return cancel;
+  }
+  const refunded = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : order.amount;
+  await prisma.$transaction([
+    prisma.paymentOrder.update({ where: { id: order.id }, data: { status: refunded < order.amount ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded } }),
+    ...(deduct > 0 ? [prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } })] : [])
+  ]);
+  return { ok: true as const, refunded, deducted: deduct };
+}
+
+function selfRefundable(order: { status: string; approvedAt: Date | null; credits: number }, balance: number): boolean {
+  if (order.status !== "DONE" || !order.approvedAt) return false;
+  return Date.now() - order.approvedAt.getTime() <= SELF_REFUND_DAYS * 86_400_000 && balance >= order.credits;
+}
+
+// 학생: 내 결제 내역(최근 30건) — 셀프 환불 가능 여부 포함.
+app.get("/members/me/payments", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const balance = await interviewWalletEnsure(userId);
+    const orders = await prisma.paymentOrder.findMany({
+      where: { userId, status: { in: ["DONE", "CANCELED", "PARTIAL_CANCELED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, canceledAt: true, canceledAmount: true }
+    });
+    return res.json({ ok: true, credits: balance, refundDays: SELF_REFUND_DAYS, items: orders.map((o) => ({ ...o, refundable: selfRefundable(o, balance) })) });
+  } catch (err) {
+    console.error("[payments list] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load payments" });
+  }
+});
+
+// 학생: 셀프 환불(전액) — 7일 안 + 받은 이용권을 쓰지 않았을 때.
+const selfRefundSchema = z.object({ reason: z.string().trim().max(200).optional() });
+app.post("/members/me/payments/:orderId/cancel", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "pay-cancel" }), async (req, res) => {
+  const parsed = selfRefundSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    const balance = await interviewWalletEnsure(userId);
+    if (!selfRefundable(order, balance)) return res.status(409).json({ ok: false, code: "NOT_REFUNDABLE", message: `결제 후 ${SELF_REFUND_DAYS}일 안에, 이용권을 쓰지 않았을 때만 환불할 수 있어요.` });
+    const r = await refundOrder(order, { reason: parsed.data.reason || "고객 요청", deduct: order.credits, by: "self" });
+    if (!r.ok) return res.status(400).json(r);
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, refunded: r.refunded, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 환불(일부 금액 가능) — 회수할 이용권 수는 운영자가 정한다(기본: 그 결제분, 잔액이 모자라면 남은 만큼만).
+const opsRefundSchema = z.object({ reason: z.string().trim().min(1).max(200), cancelAmount: z.number().int().positive().optional(), deductCredits: z.number().int().min(0).max(5000).optional() });
+app.post("/ops/payment-orders/:orderId/cancel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsRefundSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status !== "DONE") return res.status(409).json({ ok: false, message: "환불할 수 있는 상태가 아니에요." });
+    if (parsed.data.cancelAmount && parsed.data.cancelAmount > order.amount) return res.status(400).json({ ok: false, message: "결제 금액보다 많이 환불할 수 없어요." });
+    const balance = await interviewWalletEnsure(order.userId);
+    const deduct = Math.min(parsed.data.deductCredits ?? order.credits, balance);
+    const r = await refundOrder(order, { reason: parsed.data.reason, deduct, cancelAmount: parsed.data.cancelAmount, by: "ops" });
+    if (!r.ok) return res.status(400).json(r);
+    return res.json({ ok: true, refunded: r.refunded, deducted: r.deducted });
+  } catch (err) {
+    console.error("[ops payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 이용권 지갑 목록(검색) · 내역.
+app.get("/ops/interview-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
+      select: { id: true, email: true, name: true, interviewWallet: { select: { credits: true, updatedAt: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({ ok: true, perSession: INTERVIEW_CREDITS_PER_SESSION, items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, credits: u.interviewWallet?.credits ?? null, updatedAt: u.interviewWallet?.updatedAt ?? null })) });
+  } catch (err) {
+    console.error("[ops interview-wallets] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+app.get("/ops/interview-credits/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.interviewCreditLog.findMany({ where: { userId: String(req.params.userId) }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, amount: true, reason: true, orderId: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops interview-credit logs] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load logs" });
   }
 });
 

@@ -41,6 +41,19 @@ export function V2InterviewsGuest() {
         }
       />
 
+      {/* 가입 첫 1회 — 공고 하나로 해 보기(가입하면 이용권 1회가 들어간다). 이 문구만 '무료'를 쓴다(사용자 요청). */}
+      <div className="px-5 pb-8">
+        <Link href={SIGNUP} className="flex items-center gap-3 overflow-hidden rounded-3xl bg-[#fff4e8] py-4 pl-5 pr-3 transition hover:-translate-y-0.5">
+          <span className="min-w-0 flex-1">
+            <span className="block text-[18px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{t("가입하면 공고 1개는 무료예요", "Sign up and try one job free", "注册即可免费练习 1 个职位", "Đăng ký để luyện miễn phí 1 tin", "登録すると求人1件は無料", "Daftar, 1 lowongan gratis")}</span>
+            <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개에 답하고 AI 피드백까지 받아 보세요.", "Answer 5 questions for a job you choose and get AI feedback.", "选一个职位回答 5 个问题，获得 AI 反馈。", "Trả lời 5 câu theo tin bạn chọn và nhận phản hồi AI.", "好きな求人で5問に答えてAIフィードバックまで。", "Jawab 5 pertanyaan untuk lowongan pilihanmu dan dapat masukan AI.")}</span>
+            <span className="mt-3 inline-flex h-9 items-center rounded-lg bg-[color:var(--v2-ink)] px-3.5 text-[14px] font-semibold text-white">{t("가입하고 해 보기", "Sign up & try", "注册并试试", "Đăng ký & thử", "登録して試す", "Daftar & coba")}</span>
+          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(투명 배경) */}
+          <img src="/images/img_banner_point_signup.webp" alt="" aria-hidden className="h-[96px] w-[112px] shrink-0 object-contain min-[360px]:h-[112px] min-[360px]:w-[136px]" />
+        </Link>
+      </div>
+
       {/* 오늘의 질문 — 맛보기(답하고 피드백은 가입 후) */}
       <Section title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}>
         <div className="rounded-3xl bg-[#edf1fd] p-5">

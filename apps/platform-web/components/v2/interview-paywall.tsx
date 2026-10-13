@@ -4,6 +4,7 @@
 // 잔액 · 상품 셋(1·3·10회) · 토스페이먼츠 결제위젯(결제 수단·약관) · [결제하기]. 결제 후엔 /v2/payments/success 에서 승인.
 // 결제 키가 없으면(로컬·준비 전) '결제 준비 중'만 보인다. 화면 문구에 '무료'는 쓰지 않는다(가입 첫 1회만 예외적으로 안내).
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sheet } from "./sheets";
 import { Button, Spinner } from "./ui";
@@ -184,6 +185,9 @@ function PaywallSheet({ reason, onClose }: { reason: string; onClose: () => void
         <p className="mt-5 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[14px] leading-[1.55] text-[color:var(--v2-muted)]">{t("결제를 준비하고 있어요. 조금만 기다려 주세요.", "Payments are coming soon.", "支付功能即将上线。", "Thanh toán sắp ra mắt.", "決済は準備中です。", "Pembayaran segera hadir.")}</p>
       )}
       {error ? <p className="mt-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
+      <Link href="/v2/payments" onClick={onClose} className="mt-4 inline-block text-[13px] font-semibold text-[color:var(--v2-muted)] underline underline-offset-2">
+        {t("이용권·결제 내역 보기", "See passes & payments", "查看使用券·支付记录", "Xem vé & thanh toán", "チケット・決済履歴を見る", "Lihat tiket & pembayaran")}
+      </Link>
       <p className="mt-4 text-[12px] leading-[1.6] text-[color:var(--v2-faint)]">{t("오늘의 질문은 하루 1번 이용권 없이 답할 수 있어요. 결제한 이용권은 쓴 만큼만 줄어요.", "Today's question can be answered once a day without a pass. Passes only decrease as you use them.", "今日问题每天可免券回答 1 次。使用券按实际使用扣除。", "Câu hỏi hôm nay được trả lời 1 lần/ngày không cần vé.", "今日の質問は1日1回チケットなしで答えられます。", "Pertanyaan hari ini bisa dijawab sekali sehari tanpa tiket.")}</p>
     </Sheet>
   );

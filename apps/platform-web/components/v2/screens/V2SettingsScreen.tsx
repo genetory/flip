@@ -117,6 +117,7 @@ export function V2SettingsScreen() {
         {/* 바로 가기 */}
         <Section title={t("바로 가기", "Shortcuts", "快捷入口", "Lối tắt", "ショートカット", "Pintasan")}>
           <Row href="/v2/career" lead="📄" title={t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier saya")} meta={t("이력서·자기소개서·관심 직무", "Resume, cover letter, interests", "简历·自荐信·兴趣职位", "CV, thư, ngành quan tâm", "履歴書・自己PR・関心職種", "CV, surat, minat")} />
+          <Row href="/v2/payments" lead="🎟️" title={t("이용권·결제 내역", "Passes & payments", "使用券·支付记录", "Vé & thanh toán", "チケット・決済履歴", "Tiket & pembayaran")} meta={t("모의 면접 이용권 충전·환불", "Top up or refund mock interview passes", "充值·退款模拟面试使用券", "Nạp/hoàn vé phỏng vấn", "模擬面接チケットのチャージ・返金", "Isi/refund tiket")} />
           <Row href="/v2/applications" lead="📮" title={t("지원 현황", "Applications", "申请状态", "Ứng tuyển", "応募状況", "Lamaran")} />
           <Row href={talentAppRoutes.programs} lead="🎓" title={t("내 프로그램", "My programs", "我的项目", "Chương trình", "マイプログラム", "Program saya")} />
           <Row href={talentAppRoutes.assignments} lead="📝" title={t("과제", "Assignments", "作业", "Bài tập", "課題", "Tugas")} />

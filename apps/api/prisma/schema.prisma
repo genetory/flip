@@ -2409,7 +2409,7 @@ model InterviewCreditLog {
   @@index([userId, createdAt])
 }
 
-// 결제 주문(토스페이먼츠) — id 가 토스 orderId. 금액·충전량은 서버 상품표로 정한다. READY → DONE | FAILED | CANCELED.
+// 결제 주문(토스페이먼츠) — id 가 토스 orderId. 금액·충전량은 서버 상품표로 정한다. READY → DONE | FAILED, DONE → CANCELED | PARTIAL_CANCELED.
 model PaymentOrder {
   id         String    @id
   userId     String
@@ -2422,6 +2422,10 @@ model PaymentOrder {
   method     String?
   approvedAt DateTime?
   failReason String?
+  // 환불(결제 취소) — CANCELED(전액) | PARTIAL_CANCELED(일부). cancelReason 앞에 self:/ops: 로 누가 했는지.
+  canceledAt     DateTime?
+  canceledAmount Int?
+  cancelReason   String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
