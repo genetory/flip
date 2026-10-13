@@ -107,12 +107,12 @@ export function TermsContent() {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
-            "시행일: 2026년 1월 1일",
-            "Effective date: January 1, 2026",
-            "生效日期：2026年1月1日",
-            "Ngày hiệu lực: 1 tháng 1 năm 2026",
-            "施行日：2026年1月1日",
-            "Tanggal berlaku: 1 Januari 2026"
+            "공고일: 2026년 10월 13일 · 시행일: 2026년 10월 20일",
+            "Published: October 13, 2026 · Effective: October 20, 2026",
+            "公布日期：2026年10月13日 · 生效日期：2026年10月20日",
+            "Ngày công bố: 13/10/2026 · Ngày hiệu lực: 20/10/2026",
+            "公示日：2026年10月13日 · 施行日：2026年10月20日",
+            "Diumumkan: 13 Oktober 2026 · Berlaku: 20 Oktober 2026"
           )}
         </p>
 
@@ -502,12 +502,12 @@ export function TermsContent() {
             </h2>
             <p className="mt-2 text-muted-foreground">
               {t(
-                "본 약관은 2026년 1월 1일부터 시행합니다.",
-                "These Terms take effect on January 1, 2026.",
-                "本条款自2026年1月1日起施行。",
-                "Điều khoản này có hiệu lực từ ngày 1 tháng 1 năm 2026.",
-                "本規約は2026年1月1日から施行します。",
-                "Ketentuan ini berlaku mulai 1 Januari 2026."
+                "본 약관은 2026년 10월 20일부터 시행합니다.",
+                "These Terms take effect on October 20, 2026.",
+                "本条款自2026年10月20日起施行。",
+                "Điều khoản này có hiệu lực từ ngày 20 tháng 10 năm 2026.",
+                "本規約は2026年10月20日から施行します。",
+                "Ketentuan ini berlaku mulai 20 Oktober 2026."
               )}
             </p>
           </div>

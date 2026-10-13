@@ -13,6 +13,7 @@ import { getStoredProfilePhoto, PROFILE_PHOTO_CHANGED_EVENT } from "../../lib/pr
 import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useServerNotificationSync } from "../../lib/talent/server-notification-sync";
 import { useAuthSession } from "../auth/AuthSessionProvider";
+import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
 import { Actions, Button, Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
@@ -169,6 +170,10 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
   return (
     <div className="v2">
       <Header />
+      {/* 운영 공지(약관·방침 변경 고지 등) — 예전 사이트 헤더에만 있던 것을 v2 에도. 셸 안, 본문 폭에 맞춰. */}
+      <div className="mx-auto w-full max-w-[880px] px-1">
+        <AnnouncementBanner />
+      </div>
       {body}
       <AplyFooter />
     </div>
