@@ -1,8 +1,8 @@
 "use client";
 
 // v2 홈 — 맨 위에 '지금 가장 중요한 한 가지'를 크게, 아래로 다른 화면에서 만든 것들을 한 장씩 꺼내 쌓는다:
-// 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 오늘의 질문 · 이번 주 기록 · 오늘 할 일 · 서류 · 채울 것 하나 · 지원 ·
-// 팔로우한 회사 새 공고 · 마감 임박 · 맞춤 공고(스킬 일치) · 모의 면접 · 회사 · 배너 · 가이드. 처음 온 사람에겐 시작 3단계.
+// 이력서·자기소개서·모의 면접 · 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 다음 단계 · 오늘의 질문 · 이번 주 기록 · 앞으로 채울 것들 · 지원 ·
+// 팔로우한 회사 새 공고 · 마감 임박 · 맞춤 공고(스킬 일치) · 회사 · 가이드. 배너(사주·MBTI)는 맨 위. 처음 온 사람에겐 시작 3단계.
 // 구획마다 모양을 달리한다(색 카드·캐러셀·숫자 칸·목록) — 같은 목록이 줄줄이 이어지면 심심하다. 데이터는 전부 기존 것(새 API 없음).
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
 import { useEffect, useMemo, useState } from "react";
@@ -122,7 +122,7 @@ function Home() {
           .then((p) => setJobs(p.items))
           .catch(() => setJobs([]))
       );
-    // 이런 회사 — 직접 채용 중인 회사 중 셋(공고 수 많은 순).
+    // 이런 회사 — 직접 채용 중인 회사 중 셋(공고 수 많은 순). 전체는 [더 보기] → 회사 목록(/v2/companies).
     getPublicPositionsPage({ limit: 60, sourceProviders: ["INTERNAL"], locale })
       .then((p) => {
         const map = new Map<string, { name: string; industry?: string; count: number; photo: string | null }>();
@@ -211,17 +211,6 @@ function Home() {
     };
   })();
 
-  // 오늘 할 일 — 맨 위 한 가지와 겹치지 않게, 급한 순으로 셋까지.
-  const todos: { key: string; title: string; meta?: string; href: string }[] = [];
-  const unread = appList.reduce((n, a) => n + (a.unreadMessages || 0), 0);
-  const pendingSlot = appList.find((a) => a.status === "INTERVIEW" && a.interviewPending);
-  if (pendingSlot) todos.push({ key: "slot", title: t("면접 시간을 골라 주세요", "Pick your interview time", "请选择面试时间", "Hãy chọn giờ phỏng vấn", "面接の時間を選んでください", "Pilih jadwal wawancara"), meta: pendingSlot.positionTitle, href: "/talent/applications" });
-  if (unread) todos.push({ key: "msg", title: t(`회사가 보낸 메시지 ${unread}개`, `${unread} message(s) from companies`, `公司发来 ${unread} 条消息`, `${unread} tin nhắn từ công ty`, `会社からのメッセージ ${unread}件`, `${unread} pesan dari perusahaan`), meta: t("확인하고 답해 보세요", "Read and reply", "查看并回复", "Đọc và trả lời", "確認して返信しましょう", "Baca dan balas"), href: "/talent/applications" });
-  if (closing[0] && lead.cta.href !== V2_ROUTES.jobs) todos.push({ key: "close", title: t(`저장한 공고가 ${closing[0].d === 0 ? "오늘" : `${closing[0].d}일 뒤`} 마감돼요`, `A saved job closes ${closing[0].d === 0 ? "today" : `in ${closing[0].d} days`}`, `收藏的职位${closing[0].d === 0 ? "今天" : `${closing[0].d}天后`}截止`, `Tin đã lưu đóng ${closing[0].d === 0 ? "hôm nay" : `sau ${closing[0].d} ngày`}`, `保存した求人が${closing[0].d === 0 ? "今日" : `${closing[0].d}日後に`}締切`, `Lowongan tersimpan tutup ${closing[0].d === 0 ? "hari ini" : `${closing[0].d} hari lagi`}`), meta: closing[0].p.title, href: `/v2/jobs/${closing[0].p.id}` });
-  if (lead.cta.href !== EDITOR.cover && resumeReady && !coverReady) todos.push({ key: "cover", title: t("자기소개서 문항 하나 쓰기", "Write one cover letter answer", "写一个自我介绍问题", "Viết một câu thư giới thiệu", "自己紹介書を1問書く", "Tulis satu jawaban"), meta: t("지원할 회사 문항부터", "Start with a company you like", "从想投的公司开始", "Bắt đầu từ công ty bạn muốn", "応募先の設問から", "Mulai dari perusahaan incaran"), href: EDITOR.cover });
-  if (!interests.length) todos.push({ key: "interest", title: t("관심 직무 고르기", "Choose job interests", "选择感兴趣的职位", "Chọn nghề quan tâm", "関心職種を選ぶ", "Pilih minat pekerjaan"), meta: t("고르면 맞춤 공고가 더 정확해져요", "Recommendations get sharper", "推荐会更精准", "Gợi ý sẽ chính xác hơn", "おすすめが正確になります", "Rekomendasi lebih tepat"), href: "/talent/career" });
-  if (weakest && lead.cta.href !== V2_ROUTES.interviews) todos.push({ key: "weak", title: t(`'${weakest.label}' 다시 연습하기`, `Practice '${weakest.label}' again`, `再次练习「${weakest.label}」`, `Luyện lại '${weakest.label}'`, `「${weakest.label}」をもう一度練習`, `Latih lagi '${weakest.label}'`), meta: t(`평균 ${weakest.average}점`, `Avg ${weakest.average}`, `平均 ${weakest.average} 分`, `TB ${weakest.average}`, `平均${weakest.average}点`, `Rata-rata ${weakest.average}`), href: V2_ROUTES.interviews });
-
   // 오늘의 질문 · 연속 기록 — 모의 면접 페이지와 같은 질문.
   const daily = pickDailyQuestion(user?.id, kstDay(now), jobCategoriesForInterests(interests));
   const { streak, doneToday } = practiceStreak(selfMock, now);
@@ -243,10 +232,10 @@ function Home() {
   // 최근 30일 안에 관심 준 회사.
   const freshInterest = interestedCos.filter((c) => now - new Date(c.interestedAt).getTime() <= 30 * 86_400_000);
 
-  // 이번 주 채울 것 하나 — 내 커리어 '이 직무에 필요한 것'에서 이미 비교해 둔 결과(이 브라우저)만 읽는다. AI 를 새로 부르지 않는다.
+  // 앞으로 채울 것들 — 내 커리어 '이 직무에 필요한 것'에서 이미 비교해 둔 결과(이 브라우저)만 읽는다. AI 를 새로 부르지 않는다.
   const gapRole = interests.find((r) => checklists[r]);
   const gapResult = gapRole ? checklists[gapRole] : null;
-  const gap = gapResult?.items.filter((i) => !i.have).sort((x, y) => y.count - x.count)[0] ?? null;
+  const gaps = (gapResult?.items ?? []).filter((i) => !i.have).sort((x, y) => Number(!!x.common) - Number(!!y.common) || y.count - x.count).slice(0, 4);
 
   // 처음 온 사람 — 지원이 없고 시작 3단계가 다 끝나지 않았으면 3단계 카드를 크게, 기록류 구획은 접는다.
   const steps = [
@@ -266,14 +255,20 @@ function Home() {
     .filter(Boolean)
     .join(" · ");
 
-  // 배너(사주·MBTI) — 기존 홈과 같은 것. 가벼운 즐길 거리라 아래쪽(가이드 위)에 둔다.
-  const banners = <FeaturedBanners />;
+  // 맨 위 배너(사주·MBTI) — 기존 홈과 같은 것. 읽을 데이터가 없어 불러오는 중에도 먼저 보인다.
+  // 배너 슬라이드가 안쪽에 6·8px 여백을 갖고 있어 그만큼 덜어 본문 왼쪽 선(20px)에 맞춘다.
+  const banners = (
+    <div className="px-3.5 pt-5 md:px-3 md:pt-8">
+      <FeaturedBanners />
+    </div>
+  );
 
   // 맨 위 한 가지는 서류·지원을 다 읽어야 정해진다 — 그 전엔 화면 모양만.
 
   if (docsStatus !== "loaded" || apps === null)
     return (
       <Page>
+        {banners}
         <MastheadSkeleton />
         <SectionSkeleton thumb={false} rows={2} />
         <SectionSkeleton thumb={false} rows={2} />
@@ -283,6 +278,7 @@ function Home() {
 
   return (
     <Page>
+      {banners}
       <Masthead
         eyebrow={eyebrow}
         title={name ? t(`${name}님, 오늘도 한 걸음 나아가요`, `One step further today, ${name}`, `${name}，今天也前进一步吧`, `${name}, hôm nay tiến thêm một bước`, `${name}さん、今日も一歩前へ`, `${name}, selangkah lagi hari ini`) : t("오늘도 한 걸음 나아가요", "One step further today", "今天也前进一步吧", "Hôm nay tiến thêm một bước", "今日も一歩前へ", "Selangkah lagi hari ini")}
@@ -290,7 +286,7 @@ function Home() {
 
       {/* 가장 중요한 셋 — 이력서·자기소개서(두 칸) + 모의 면접(한 줄). 늘 맨 위에. */}
       <div className="-mt-2 px-5 pb-8">
-        <div className="grid grid-cols-2 gap-x-5">
+        <div className="grid grid-cols-2 gap-2.5">
           <DocTile t={t} kind="resume" resume={resume} cover={cover} />
           <DocTile t={t} kind="cover" resume={resume} cover={cover} />
         </div>
@@ -337,7 +333,7 @@ function Home() {
 
       {/* 가장 가까운 면접 — 파란 D-day 카드 */}
       {nextInterview ? (
-        <div className="px-5 pb-8">
+        <div className="px-5 pb-6">
           <DdayCard t={t} item={nextInterview} onPrep={() => setPrepFor(nextInterview)} />
         </div>
       ) : null}
@@ -399,30 +395,35 @@ function Home() {
         </Section>
       ) : null}
 
-      {todos.length ? (
-        <Section title={t("오늘 할 일", "Today", "今日待办", "Việc hôm nay", "今日やること", "Hari ini")}>
-          {todos.slice(0, 3).map((x, i) => (
-            <Row key={x.key} href={x.href} lead={i + 1} title={x.title} meta={x.meta} />
-          ))}
-        </Section>
-      ) : null}
-
-      {/* 이번 주 채울 것 하나 — 민트 카드(내 커리어에서 비교해 둔 결과가 있을 때) */}
+      {/* 앞으로 채울 것들 — 내 커리어에서 비교해 둔 결과 중 아직 없는 것(민트 카드 목록). 결과가 없으면 확인하러 가는 한 줄. */}
       {interests.length && !newcomer ? (
-        <Section title={t("이번 주 채울 것 하나", "One thing to add this week", "本周补上一项", "Một điều bổ sung tuần này", "今週ひとつ足すなら", "Satu hal minggu ini")}>
-          {gap && gapRole ? (
-            <Link href={V2_ROUTES.career} className="block rounded-3xl bg-[#e6f7f4] p-5 transition hover:-translate-y-0.5">
-              <span className="inline-flex h-6 items-center rounded-full bg-white px-2 text-[12px] font-bold text-[#0f766e]">
-                {categoryLabel(t, gap.category)} · {jobTaxonomyLabelOf(t, gapRole)}
-              </span>
-              <p className="mt-2 text-[20px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{gap.name}</p>
-              <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">
-                {gap.common || !gapResult?.total
-                  ? t("이 직무 신입이 흔히 준비하는데, 아직 내 서류에 없어요.", "Common for new hires in this role — not in your documents yet.", "该职位新人常准备，但你的材料里还没有。", "Người mới thường chuẩn bị — hồ sơ bạn chưa có.", "この職種の新人がよく準備するもの。まだ書類にありません。", "Umum disiapkan — belum ada di dokumenmu.")
-                  : t(`공고 ${gapResult.total}곳 중 ${gap.count}곳이 원하는데, 아직 내 서류에 없어요.`, `${gap.count} of ${gapResult.total} jobs want it — not in your documents yet.`, `${gapResult.total} 个职位中 ${gap.count} 个要求，你的材料里还没有。`, `${gap.count}/${gapResult.total} tin yêu cầu — hồ sơ bạn chưa có.`, `求人${gapResult.total}件中${gap.count}件が求めています。まだ書類にありません。`, `${gap.count}/${gapResult.total} lowongan minta — belum ada.`)}
-              </p>
-              {gap.tip ? <p className="mt-2 text-[13px] leading-[1.55] text-[#0f766e]">💡 {gap.tip}</p> : null}
-            </Link>
+        <Section
+          title={t("앞으로 채울 것들", "What to add next", "接下来要补充的", "Cần bổ sung tiếp", "これから足すもの", "Yang perlu ditambah")}
+          aside={gaps.length && gapRole ? <span className="text-[14px] text-[color:var(--v2-muted)]">{jobTaxonomyLabelOf(t, gapRole)}</span> : undefined}
+        >
+          {gaps.length ? (
+            <div className="rounded-3xl bg-[#e6f7f4] p-2">
+              <ul>
+                {gaps.map((g) => (
+                  <li key={g.name}>
+                    <Link href={V2_ROUTES.career} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-white/60">
+                      <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-white px-2 text-[12px] font-bold text-[#0f766e]">{categoryLabel(t, g.category)}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[16px] font-bold text-[color:var(--v2-ink)]">{g.name}</span>
+                        <span className="block truncate text-[13px] text-[color:var(--v2-ink-3)]">
+                          {g.common || !gapResult?.total
+                            ? t("이 직무 신입이 흔히 준비해요", "Common for new hires", "新人常准备", "Người mới thường chuẩn bị", "新人がよく準備", "Umum disiapkan")
+                            : t(`공고 ${gapResult.total}곳 중 ${g.count}곳이 원해요`, `${g.count} of ${gapResult.total} jobs want it`, `${gapResult.total} 个职位中 ${g.count} 个要求`, `${g.count}/${gapResult.total} tin yêu cầu`, `求人${gapResult.total}件中${g.count}件`, `${g.count}/${gapResult.total} lowongan`)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[18px] text-[#0f766e]/60" aria-hidden>
+                        ›
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
             <Row href={V2_ROUTES.career} lead="🧩" title={t("내 직무에 필요한 것 확인하기", "See what your role needs", "看看职位需要什么", "Xem ngành cần gì", "職種に必要なものを確認", "Lihat kebutuhan peran")} meta={t("실제 공고와 내 서류를 비교해요", "Compares real jobs with your documents", "对比真实职位与你的材料", "So sánh tin thật với hồ sơ", "実際の求人と書類を比較", "Bandingkan lowongan & dokumen")} />
           )}
@@ -500,7 +501,6 @@ function Home() {
       ) : jobs.length ? (
         <Section
           title={personalized ? t("나에게 맞는 공고", "Jobs for you", "适合你的职位", "Việc làm cho bạn", "あなたに合う求人", "Lowongan untukmu") : t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")}
-          aside={<TextLink href={V2_ROUTES.jobs}>{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}
         >
           {jobs.map((j) => {
             const text = `${j.title}\n${j.requiredQualifications ?? ""}\n${j.preferredQualifications ?? ""}`;
@@ -525,35 +525,35 @@ function Home() {
               />
             );
           })}
-        </Section>
-      ) : null}
-
-      {/* 이런 회사 — 사진 타일 세 칸 */}
-      {companies === null ? (
-        <SectionSkeleton />
-      ) : companies.length ? (
-        <Section title={t("이런 회사는 어때요", "Companies to check out", "这些公司怎么样", "Công ty đáng xem", "こんな会社はいかが", "Perusahaan untuk dilihat")}>
-          <div className="grid grid-cols-3 gap-2">
-            {companies.map((c) => (
-              <Link key={c.name} href={`/talent/company/${encodeURIComponent(c.name)}`} className="block min-w-0 transition hover:-translate-y-0.5">
-                <span className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-[color:var(--v2-band)] text-[24px] font-bold text-[color:var(--v2-faint)]">
-                  {c.photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- 회사 사진은 data URL·외부 주소가 섞여 next/image 로 못 받는다.
-                    <img src={c.photo} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  ) : (
-                    c.name.charAt(0)
-                  )}
-                </span>
-                <span className="mt-2 block truncate text-[14px] font-bold text-[color:var(--v2-ink)]">{c.name}</span>
-                <span className="block truncate text-[12px] text-[color:var(--v2-muted)]">{[c.industry, t(`채용 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} tin`, `募集 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}</span>
-              </Link>
-            ))}
+          <div className="mt-3">
+            <Button variant="neutral" full href={personalized && interests.length ? "/v2/jobs?tab=interest" : V2_ROUTES.jobs}>
+              {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
+            </Button>
           </div>
         </Section>
       ) : null}
 
-      {/* 사주·MBTI 배너 — 맨 위에서 이쪽으로(가벼운 즐길 거리는 아래에) */}
-      <div className="px-3.5 pb-2 pt-6 md:px-3">{banners}</div>
+      {/* 이런 회사 — 목록 셋 + [더 보기](회사 목록 화면) */}
+      {companies === null ? (
+        <SectionSkeleton />
+      ) : companies.length ? (
+        <Section title={t("이런 회사는 어때요", "Companies to check out", "这些公司怎么样", "Công ty đáng xem", "こんな会社はいかが", "Perusahaan untuk dilihat")}>
+          {companies.map((c) => (
+            <Row
+              key={c.name}
+              href={`/talent/company/${encodeURIComponent(c.name)}`}
+              thumb={{ src: c.photo, fallback: c.name }}
+              title={c.name}
+              meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}
+            />
+          ))}
+          <div className="mt-3">
+            <Button variant="neutral" full href="/v2/companies">
+              {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
+            </Button>
+          </div>
+        </Section>
+      ) : null}
 
       <Section
         title={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
@@ -592,30 +592,21 @@ function whenText(t: PlatformT, iso: string): string {
   return t(`${d.getMonth() + 1}월 ${d.getDate()}일 ${hm}`, `${d.toLocaleDateString("en", { month: "short", day: "numeric" })} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`, `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`, `${d.getDate()}/${d.getMonth() + 1} ${hm}`);
 }
 
-/** 가장 가까운 면접 — 파란 바탕에 큰 D-day. 하루 전·당일엔 '전날 볼 한 장'을 앞에. */
+/** 가장 가까운 면접 — 한 줄짜리 작은 카드: D-day · 공고 · 일정, 오른쪽 [전날 볼 한 장]. 줄을 누르면 모의 면접으로. */
 function DdayCard({ t, item, onPrep }: { t: PlatformT; item: Upcoming; onPrep: () => void }) {
   const d = daysUntil(item.at) ?? 0;
-  const soon = d <= 1;
   return (
-    <div className="rounded-3xl bg-[color:var(--v2-accent)] p-5 text-white">
-      <div className="flex items-start gap-4">
-        <span className="shrink-0 text-[34px] font-bold leading-none tracking-[-0.03em]">{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
-        <span className="min-w-0 flex-1 pt-0.5">
-          <span className="block text-[13px] font-semibold text-white/75">
-            {item.mine ? t("내가 등록한 면접", "Interview I added", "我登记的面试", "PV tôi thêm", "登録した面接", "Wawancaraku") : t("다가오는 면접", "Upcoming interview", "即将面试", "PV sắp tới", "近づく面接", "Wawancara")} · {whenText(t, item.at)}
-          </span>
-          <span className="mt-1 block truncate text-[18px] font-bold">{item.title}</span>
-          {item.company ? <span className="block truncate text-[14px] text-white/80">{item.company}</span> : null}
+    <div className="flex items-center gap-3 rounded-2xl bg-[#edf1fd] py-3 pl-3 pr-2">
+      <Link href={V2_ROUTES.interviews} className="flex min-w-0 flex-1 items-center gap-3">
+        <span className={`inline-flex h-8 shrink-0 items-center rounded-lg px-2 text-[14px] font-bold text-white ${d <= 1 ? "bg-[color:var(--v2-attention)]" : "bg-[color:var(--v2-accent)]"}`}>{d === 0 ? t("오늘", "Today", "今天", "Hôm nay", "今日", "Hari ini") : `D-${d}`}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-bold text-[color:var(--v2-ink)]">{item.title}</span>
+          <span className="block truncate text-[12px] text-[color:var(--v2-muted)]">{[item.company, whenText(t, item.at)].filter(Boolean).join(" · ")}</span>
         </span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button type="button" onClick={onPrep} className={`h-11 rounded-xl text-[15px] font-semibold transition hover:opacity-90 ${soon ? "bg-white text-[color:var(--v2-accent)]" : "bg-white/15 text-white"}`}>
-          {t("전날 볼 한 장", "Night-before sheet", "考前速览", "Bản ôn tập", "前日の1枚", "Lembar ringkas")}
-        </button>
-        <Link href={V2_ROUTES.interviews} className={`flex h-11 items-center justify-center rounded-xl text-[15px] font-semibold transition hover:opacity-90 ${soon ? "bg-white/15 text-white" : "bg-white text-[color:var(--v2-accent)]"}`}>
-          {t("면접 연습하기", "Practice", "练习面试", "Luyện PV", "面接練習", "Latihan")}
-        </Link>
-      </div>
+      </Link>
+      <button type="button" onClick={onPrep} className="h-8 shrink-0 whitespace-nowrap rounded-lg bg-white px-2.5 text-[13px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-90">
+        {t("전날 볼 한 장", "Prep sheet", "考前速览", "Ôn tập", "前日の1枚", "Ringkas")}
+      </button>
     </div>
   );
 }
@@ -706,33 +697,35 @@ function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "c
       : written.count
         ? t(`문항 ${written.count}개 · ${written.chars.toLocaleString()}자`, `${written.count} answers`, `${written.count} 题 · ${written.chars.toLocaleString()} 字`, `${written.count} câu`, `${written.count}問 · ${written.chars.toLocaleString()}字`, `${written.count} jawaban`)
         : t("아직 쓴 문항이 없어요", "No answers yet", "还没写", "Chưa viết", "まだ未記入", "Belum ada");
+  const href = kind === "resume" ? EDITOR.resume : EDITOR.cover;
   return (
-    <div className="flex flex-col">
-      <Link href={kind === "resume" ? EDITOR.resume : EDITOR.cover} className="flex-1">
-        <span className="flex items-start justify-between gap-1">
-          <span className={`inline-flex shrink-0 rounded-md px-1.5 py-1 text-[11px] font-bold leading-none ${ready ? "bg-[#e5f6ee] text-[color:var(--v2-good)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-muted)]"}`}>{badge}</span>
-          {/* 일러스트 — 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다 */}
-          {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림 */}
-          <img src={kind === "resume" ? "/img_resume.webp" : "/img_coverletter.webp"} alt="" aria-hidden className="-mr-1 -mt-1 h-[52px] w-[68px] object-contain mix-blend-multiply min-[360px]:h-[60px] min-[360px]:w-[80px]" />
+    <div className="flex flex-col rounded-3xl bg-[color:var(--v2-band)] p-4 min-[360px]:p-5">
+      {/* 왼쪽 배지·이름·한 줄, 오른쪽 일러스트(흰 바탕 그림 → 곱하기 합성으로 카드 색에 녹인다).
+          두 칸이라 폭이 좁아 그림은 화면이 넓을수록 키우고, 360px 아래에선 그림을 위로 올린다. */}
+      <Link href={href} className="flex flex-1 flex-col-reverse gap-2 min-[360px]:flex-row min-[360px]:items-start">
+        <span className="min-w-0 flex-1">
+          <span className={`inline-flex rounded-md px-2.5 py-1 text-[11px] font-bold leading-none ${ready ? "bg-[#e5f6ee] text-[color:var(--v2-good)]" : "bg-white text-[color:var(--v2-muted)]"}`}>{badge}</span>
+          <span className="mt-1.5 block truncate whitespace-nowrap text-[16px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[17px]">{label}</span>
+          <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-ink-3)]">{line}</span>
         </span>
-        <span className="mt-1 block truncate whitespace-nowrap text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</span>
-        <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-ink-3)]">{line}</span>
+        {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림 */}
+        <img src={kind === "resume" ? "/img_resume.webp" : "/img_coverletter.webp"} alt="" aria-hidden className="h-[80px] w-full shrink-0 object-contain mix-blend-multiply min-[360px]:-mr-1 min-[360px]:h-[60px] min-[360px]:w-[48px] min-[400px]:h-[68px] min-[400px]:w-[72px] md:h-[84px] md:w-[112px]" />
       </Link>
-      <span className="mt-3 flex items-center justify-between gap-2 whitespace-nowrap text-[14px] font-semibold">
+      {/* 내 커리어 서류 카드와 같은 버튼(두 칸) — 칸이 좁아 글자 크기·여백만 줄였다. 아주 좁은 폰에선 짧은 이름. */}
+      <div className="mt-4 grid grid-cols-2 gap-1.5">
         {doc ? (
-          <Link href={kind === "resume" ? PREVIEW.resume : PREVIEW.cover} aria-label={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} title={t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Xem")} className="-m-1.5 flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--v2-muted)] hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-ink-3)]">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+          <Link href={kind === "resume" ? PREVIEW.resume : PREVIEW.cover} className="flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-white text-[13px] font-semibold text-[color:var(--v2-ink-2)] transition hover:opacity-90">
+            <span className="min-[360px]:hidden">{t("보기", "View", "预览", "Xem", "表示", "Lihat")}</span>
+            <span className="hidden min-[360px]:inline">{t("미리보기", "Preview", "预览", "Xem", "プレビュー", "Lihat")}</span>
           </Link>
         ) : (
-          <span />
+          <span className="flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-white text-[13px] font-semibold text-[color:var(--v2-faint)] opacity-60">{t("보기", "View", "预览", "Xem", "表示", "Lihat")}</span>
         )}
-        <Link href={kind === "resume" ? EDITOR.resume : EDITOR.cover} className="text-[color:var(--v2-accent)]">
-          {doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")} ›
+        <Link href={href} className="flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-[color:var(--v2-accent)] text-[13px] font-semibold text-white transition hover:opacity-90">
+          <span className="min-[360px]:hidden">{doc ? t("수정", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작", "Start", "开始", "Bắt đầu", "開始", "Mulai")}</span>
+          <span className="hidden min-[360px]:inline">{doc ? t("수정하기", "Edit", "修改", "Sửa", "編集", "Ubah") : t("시작하기", "Start", "开始", "Bắt đầu", "始める", "Mulai")}</span>
         </Link>
-      </span>
+      </div>
     </div>
   );
 }
@@ -740,9 +733,9 @@ function DocTile({ t, kind, resume, cover }: { t: PlatformT; kind: "resume" | "c
 /** 맨 위 모의 면접 줄 — 연속 기록 · 이번 주 문항 · 최근 단계 · 약한 곳, 오른쪽 [연습하기]. */
 function MockTile({ t, streak, week, best, weakest }: { t: PlatformT; streak: number; week: number; best: number | null; weakest: string | null }) {
   return (
-    <Link href={V2_ROUTES.interviews} className="mt-6 flex items-center gap-3 transition hover:-translate-y-0.5">
+    <Link href={V2_ROUTES.interviews} className="mt-2.5 flex min-h-[104px] items-center gap-3 rounded-3xl bg-[color:var(--v2-band)] px-5 py-6 transition hover:-translate-y-0.5">
       {/* eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림(흰 바탕 → 곱하기 합성) */}
-      <img src="/img_fake_interview.webp" alt="" aria-hidden className="-my-1 -ml-1 h-[52px] w-[68px] shrink-0 object-contain mix-blend-multiply" />
+      <img src="/img_fake_interview.webp" alt="" aria-hidden className="-my-2 -ml-1 h-[48px] w-[60px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[76px] min-[360px]:w-[100px]" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate whitespace-nowrap text-[17px] font-bold text-[color:var(--v2-ink)]">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</span>
