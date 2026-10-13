@@ -46,7 +46,11 @@ export function TalentPoolLine({ t, status, onPreview }: { t: PlatformT; status:
         : t("기업 인재 검색에 보이는 중", "Visible in company talent search", "在企业人才搜索中可见", "Đang hiển thị với doanh nghiệp", "企業の人材検索に表示中", "Terlihat di pencarian");
   return (
     <div className="mt-2.5 flex items-center gap-2.5 rounded-2xl px-1 py-1.5">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+      {/* 노출 중이면 살아 있는 느낌으로 퍼지는 점(펄스), 아니면 회색 점 */}
+      <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+        {status.visible ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--v2-good)] opacity-60 motion-reduce:animate-none" /> : null}
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${dot}`} />
+      </span>
       <span className="min-w-0 flex-1 truncate text-[14px] text-[color:var(--v2-ink-3)]">{text}</span>
       {status.optedOut ? (
         <Link href="/v2/settings" className="shrink-0 whitespace-nowrap text-[14px] font-semibold text-[color:var(--v2-accent)]">
