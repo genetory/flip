@@ -358,7 +358,7 @@ function Interviews() {
 
       {/* ② 연습하기 — 고를 수 있게 카테고리 카드 그리드 */}
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
-        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <PracticeCard tone="blue" icon="📌" title={t("내 공고로", "My jobs", "我的职位", "Tin của tôi", "自分の求人で", "Lowonganku")} meta={positions === null ? "…" : t(`지원·저장한 공고 ${candidates.length}개`, `${candidates.length} applied/saved`, `投递/收藏 ${candidates.length} 个`, `${candidates.length} tin đã lưu/ứng tuyển`, `応募・保存 ${candidates.length}件`, `${candidates.length} dilamar/disimpan`)} onClick={() => setPicker("mine")} />
           <PracticeCard tone="violet" icon="🔗" title={t("가고 싶은 회사 공고", "Job you want", "想去的公司职位", "Tin công ty mơ ước", "行きたい会社の求人", "Lowongan incaran")} meta={imported.length ? t(`가져온 공고 ${imported.length}개`, `${imported.length} imported`, `已导入 ${imported.length} 个`, `${imported.length} tin đã nhập`, `取り込み ${imported.length}件`, `${imported.length} diimpor`) : t("링크로 가져오기", "Import by link", "通过链接导入", "Nhập bằng link", "リンクで取り込む", "Impor lewat tautan")} onClick={() => (imported.length ? setPicker("imported") : setImporting(true))} />
           <PracticeCard tone="gray" icon="🔍" title={t("Aply 공고 찾기", "Find on Aply", "在 Aply 找职位", "Tìm trên Aply", "Aplyで探す", "Cari di Aply")} meta={t("직무·회사 이름으로", "By role or company", "按职位或公司", "Theo vị trí/công ty", "職種・会社名で", "Peran/perusahaan")} onClick={() => setPicker("search")} />
@@ -737,22 +737,21 @@ const PRACTICE_ILLUST: Record<string, string> = {
 
 /** 연습하기 카드 — 카테고리마다 색이 다른 정사각형에 가까운 카드. */
 export function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof typeof TONES; icon: string; title: string; meta: string; onClick: () => void }) {
-  const dark = false; // 모든 카드는 같은 결(연한 색 바탕)
+  // 왼쪽 제목·설명, 오른쪽 일러스트(흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다). 그림이 없으면 이모지.
   return (
-    <button type="button" onClick={onClick} className={`group flex min-h-[128px] flex-col justify-between rounded-3xl p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] md:min-h-[140px] md:p-5 ${TONES[tone]}`}>
+    <button type="button" onClick={onClick} className={`group flex min-h-[96px] items-center gap-3 rounded-3xl py-3 pl-5 pr-3 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] ${TONES[tone]}`}>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[17px] font-bold leading-[1.35]">{title}</span>
+        <span className="mt-0.5 block text-[13px] leading-[1.45] text-[color:var(--v2-muted)]">{meta}</span>
+      </span>
       {PRACTICE_ILLUST[icon] ? (
-        // 일러스트 — 흰 바탕 그림이라 곱하기 합성으로 카드 색에 녹인다
         // eslint-disable-next-line @next/next/no-img-element -- 작은 장식 그림
-        <img src={PRACTICE_ILLUST[icon]} alt="" aria-hidden className="-ml-1 -mt-1 h-[60px] w-[80px] object-contain object-left mix-blend-multiply md:h-[72px] md:w-[96px]" />
+        <img src={PRACTICE_ILLUST[icon]} alt="" aria-hidden className="h-[72px] w-[96px] shrink-0 object-contain mix-blend-multiply" />
       ) : (
-        <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-[20px] ${dark ? "bg-white/15" : "bg-white"}`} aria-hidden>
+        <span className="mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-[22px]" aria-hidden>
           {icon}
         </span>
       )}
-      <span className="mt-3 block">
-        <span className="block text-[16px] font-bold leading-[1.35]">{title}</span>
-        <span className={`mt-0.5 block text-[13px] leading-[1.45] ${dark ? "text-white/75" : "text-[color:var(--v2-muted)]"}`}>{meta}</span>
-      </span>
     </button>
   );
 }

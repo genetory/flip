@@ -83,7 +83,7 @@ export function V2InterviewsGuest() {
 
       {/* 연습 방법 — 로그인 화면과 같은 카드(누르면 가입) */}
       <Section title={t("연습하기", "Practice", "练习", "Luyện tập", "練習する", "Latihan")}>
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <PracticeCard tone="blue" icon="📌" title={t("내 공고로", "My jobs", "我的职位", "Tin của tôi", "自分の求人で", "Lowonganku")} meta={t("지원·저장한 공고", "Applied & saved", "投递/收藏的职位", "Đã ứng tuyển/lưu", "応募・保存した求人", "Dilamar/disimpan")} onClick={toSignup} />
           <PracticeCard tone="violet" icon="🔗" title={t("가고 싶은 회사 공고", "Job you want", "想去的公司职位", "Tin công ty mơ ước", "行きたい会社の求人", "Lowongan incaran")} meta={t("링크로 가져오기", "Import by link", "通过链接导入", "Nhập bằng link", "リンクで取り込む", "Impor lewat tautan")} onClick={toSignup} />
           <PracticeCard tone="navy" icon="⏱️" title={t("10분 모의 면접", "10-min mock", "10 分钟模拟面试", "PV thử 10 phút", "10分模擬面接", "Simulasi 10 menit")} meta={t("질문 5개 연달아", "5 questions in a row", "连续 5 题", "5 câu liên tiếp", "5問連続", "5 pertanyaan")} onClick={toSignup} />
