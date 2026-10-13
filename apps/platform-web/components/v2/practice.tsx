@@ -9,6 +9,7 @@ import { Button, Spinner, Switch } from "./ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { aiInterviewFeedback, getAnswerExamples, shareAnswerExample, type InterviewFeedback } from "../../lib/member-profile-client";
+import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance } from "../../lib/interview-credits";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
@@ -57,7 +58,8 @@ export function PracticeSheet({
   intent,
   onSave,
   onNext,
-  nextBusy
+  nextBusy,
+  daily = false
 }: {
   question: PracticeQuestion;
   initialAnswer?: string;
@@ -72,6 +74,8 @@ export function PracticeSheet({
   /** 피드백 뒤 [다음 질문] — 있으면 [완료] 대신 */
   onNext?: () => void;
   nextBusy?: boolean;
+  /** 오늘의 질문 — 하루 1번 이용권 없이 */
+  daily?: boolean;
 }) {
   const t = usePlatformT();
   const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
@@ -127,7 +131,8 @@ export function PracticeSheet({
     setBusy(true);
     setError(null);
     try {
-      const fb = await aiInterviewFeedback({ question: question.ko, answer: a, resumeText: resumeToText(resume, info) || undefined, desiredJobRole: resume?.targetRole || undefined, locale });
+      const fb = await aiInterviewFeedback({ question: question.ko, answer: a, resumeText: resumeToText(resume, info) || undefined, desiredJobRole: resume?.targetRole || undefined, locale, daily: daily || undefined });
+      setInterviewCreditBalance(fb.credits);
       setFeedback(fb);
       if (onSave) onSave(question, a, fb);
       else saveSelfMockAnswer({ question: question.ko, category: question.category, answer: a, score: fb.score, feedback: { score: fb.score, strengths: fb.strengths, improvements: fb.improvements, sampleAnswer: fb.sampleAnswer } });
@@ -135,7 +140,13 @@ export function PracticeSheet({
       getAnswerExamples(question.ko)
         .then(setExamples)
         .catch(() => setExamples([]));
-    } catch {
+    } catch (e) {
+      // 이용권이 없으면 결제 창을 연다(답은 그대로 남아 있어 충전 후 다시 누르면 된다).
+      if (isInterviewPaywallError(e)) {
+        setError(t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut."));
+        openInterviewPaywall();
+        return;
+      }
       setError(t("피드백을 받지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't get feedback. Try again soon.", "未能获取反馈，请稍后再试。", "Không nhận được phản hồi. Thử lại sau.", "フィードバックを受け取れませんでした。", "Gagal mendapat umpan balik."));
     } finally {
       setBusy(false);

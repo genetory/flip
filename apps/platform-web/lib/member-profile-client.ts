@@ -1539,11 +1539,13 @@ export async function aiInterviewQuestions(input: { resumeText: string; jobText?
 }
 
 // followUp — 면접관이 이 답을 듣고 이어서 물을 꼬리 질문(없으면 빈 문자열·예전 응답엔 없음).
-export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string; followUp?: string };
-export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewFeedback> {
+// credits — 피드백 뒤 남은 모의 면접 이용권(답변 단위). 유료화가 꺼져 있으면 차감 없이 그대로.
+export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string; followUp?: string; credits?: number };
+/** daily: 오늘의 질문(하루 1번 이용권 없이). */
+export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string; daily?: boolean }): Promise<InterviewFeedback> {
   const result = await authedJsonFetch<never>("/members/me/ai/interview-feedback", { method: "POST", body: JSON.stringify(input) });
-  const r = result as unknown as { feedback?: InterviewFeedback };
-  return r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" };
+  const r = result as unknown as { feedback?: InterviewFeedback; credits?: number };
+  return { ...(r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" }), credits: r.credits };
 }
 
 // 모의 면접 연습 기록(문항별 답변·점수 저장 → 회사에 결과 노출).
@@ -2457,7 +2459,7 @@ export async function importJob(input: { url?: string; text?: string }): Promise
 
 // '면접 전날 볼 한 장' — AI 예상 질문 5개와 모범 답안.
 export type PrepQuestion = { question: string; why: string; answer: string; tip: string };
-export async function aiInterviewPrep(input: { jobText?: string; company?: string; resumeText?: string; coverLetterText?: string; reportedQuestions?: string[]; myAnswers?: { question: string; answer: string }[] }): Promise<PrepQuestion[]> {
-  const r = (await authedJsonFetch<never>("/members/me/ai/interview-prep", { method: "POST", body: JSON.stringify(input) })) as unknown as { questions?: PrepQuestion[] };
-  return r.questions ?? [];
+export async function aiInterviewPrep(input: { jobText?: string; company?: string; resumeText?: string; coverLetterText?: string; reportedQuestions?: string[]; myAnswers?: { question: string; answer: string }[] }): Promise<{ questions: PrepQuestion[]; credits?: number }> {
+  const r = (await authedJsonFetch<never>("/members/me/ai/interview-prep", { method: "POST", body: JSON.stringify(input) })) as unknown as { questions?: PrepQuestion[]; credits?: number };
+  return { questions: r.questions ?? [], credits: r.credits };
 }

@@ -10,6 +10,7 @@ import { docsReady } from "./lib";
 import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
+import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
 import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
@@ -49,7 +50,13 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
     return () => window.clearInterval(id);
   }, [idx, startedAt]);
 
+  const credits = useInterviewCredits();
   const begin = () => {
+    // 유료화가 켜져 있고 이용권이 질문 수보다 적으면 먼저 충전부터.
+    if (credits?.paywall && credits.credits < questions.length) {
+      openInterviewPaywall();
+      return;
+    }
     setStep(0);
     setStartedAt(Date.now());
     setElapsed(0);
@@ -61,6 +68,10 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
       all.map((a) => (a.answer.trim().length >= 10 ? aiInterviewFeedback({ question: a.q.ko, answer: a.answer.trim(), resumeText, desiredJobRole: resume?.targetRole || undefined, locale }) : Promise.reject(new Error("empty"))))
     );
     const fb = settled.map((r) => (r.status === "fulfilled" ? r.value : null));
+    const last = [...fb].reverse().find((f) => typeof f?.credits === "number");
+    setInterviewCreditBalance(last?.credits);
+    // 이용권이 모자라 평가 못 한 답이 있으면 결제 창을 연다.
+    if (settled.some((r) => r.status === "rejected" && isInterviewPaywallError(r.reason))) openInterviewPaywall();
     // 오늘 AI 이용 한도에 걸려 평가 못 한 답이 있으면 결과 카드에서 알려 준다.
     setLimitHit(settled.some((r) => r.status === "rejected" && (r.reason as { status?: number })?.status === 429));
     fb.forEach((f, i) => {

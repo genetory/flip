@@ -14,6 +14,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
 import { aiInterviewPrep, getInterviewQuestions, getMyMockInterviewAnswers, getPublicPositionById, type InterviewReportItem, type MockInterviewAnswer, type PrepQuestion } from "../../lib/member-profile-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
+import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance } from "../../lib/interview-credits";
 import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
@@ -137,7 +138,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
     setPrepBusy(true);
     setPrepError(null);
     try {
-      const qs = await aiInterviewPrep({
+      const { questions: qs, credits: left } = await aiInterviewPrep({
         jobText,
         company: company ?? undefined,
         resumeText: resumeToText(resume, info) || undefined,
@@ -146,6 +147,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
         myAnswers: [...(intro ? [intro] : []), ...top].map((r) => ({ question: r.question, answer: r.answer.slice(0, 2000) })).slice(0, 8)
       });
       if (!qs.length) throw new Error("empty");
+      setInterviewCreditBalance(left);
       setPrep(qs);
       try {
         window.localStorage.setItem(cacheKey, JSON.stringify({ at: Date.now(), questions: qs }));
@@ -153,6 +155,11 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
         /* 기억만 못 할 뿐 */
       }
     } catch (e) {
+      if (isInterviewPaywallError(e)) {
+        setPrepError(t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut."));
+        openInterviewPaywall();
+        return;
+      }
       setPrepError((e as { status?: number })?.status === 429 ? t("오늘 AI 이용 한도에 도달했어요.", "Today's AI limit was reached.", "今天的 AI 使用已达上限。", "Đã hết lượt AI hôm nay.", "本日のAI上限に達しました。", "Batas AI hari ini tercapai.") : t("만들지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't create it. Try again soon.", "生成失败，请稍后再试。", "Không tạo được. Thử lại sau.", "作れませんでした。", "Gagal membuat."));
     } finally {
       setPrepBusy(false);

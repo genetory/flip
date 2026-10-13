@@ -26918,6 +26918,223 @@ app.post(
 // POST /members/me/ai/interview-prep — '면접 전날 볼 한 장'의 예상 질문 5개 + 모범 답안.
 // 공고(업무·자격) · 이 회사 면접 후기 질문 · 내 이력서·자소서 · 내가 연습한 답을 보고, 질문마다 왜 묻는지·모범 답안·말할 때 팁.
 // 모범 답안은 이력서 사실만으로(없는 경험·수치 금지). 모의 면접과 같은 모델(interviewModel, Claude 우선). 화면이 공고별로 기억한다.
+// ── 모의 면접 이용권 ─────────────────────────────
+// 모의 면접은 유료(2026-10 결정). 단위는 '답변 피드백 1개' — 이용권 1회 = 답변 5개.
+//  - 가입 후 처음 쓸 때 무료 1회(답변 5개)를 넣어 준다.
+//  - 차감: 답변 피드백(interview-feedback) 1개, 면접 전날 예상 질문 만들기(interview-prep) 1개. 질문 만들기는 무료.
+//  - '오늘의 질문'은 하루 1번 무료(daily: true) — 매일 들어오게 하는 장치.
+//  - 충전: 토스페이먼츠 결제(아래 /members/me/payments/*) · 운영자 지급.
+// 일반 AI 포인트(AiWallet — 매일 무료 적립)와는 따로 둔다. 같은 포인트로 차감하면 사실상 무료가 된다.
+const INTERVIEW_CREDITS_PER_SESSION = 5;
+const INTERVIEW_FREE_TRIAL_CREDITS = INTERVIEW_CREDITS_PER_SESSION;
+const INTERVIEW_DAILY_FREE_FEATURE = "__interview_daily_free__";
+// 판매 상품 — 금액은 서버가 정한다(클라이언트가 보낸 금액은 믿지 않는다). 가격은 임시값.
+const INTERVIEW_PRODUCTS = [
+  { key: "interview_1", sessions: 1, amount: 4900 },
+  { key: "interview_3", sessions: 3, amount: 12900 },
+  { key: "interview_10", sessions: 10, amount: 39000 }
+] as const;
+function interviewProduct(key: string) {
+  return INTERVIEW_PRODUCTS.find((p) => p.key === key) ?? null;
+}
+
+/** 지갑을 만들고(처음이면 무료 1회 + 원장) 잔액을 돌려준다. */
+async function interviewWalletEnsure(userId: string): Promise<number> {
+  const found = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  if (found) return found.credits;
+  try {
+    await prisma.$transaction([
+      prisma.interviewWallet.create({ data: { userId, credits: INTERVIEW_FREE_TRIAL_CREDITS, trialGranted: true } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: INTERVIEW_FREE_TRIAL_CREDITS, reason: "free_trial" } })
+    ]);
+    return INTERVIEW_FREE_TRIAL_CREDITS;
+  } catch {
+    // 동시에 두 요청이 만들려 한 경우 — 이미 만들어진 지갑을 읽는다.
+    const again = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return again?.credits ?? 0;
+  }
+}
+
+/** 오늘의 질문 무료 1번을 오늘 이미 썼나. */
+async function interviewDailyFreeUsed(userId: string): Promise<boolean> {
+  const row = await prisma.aiUsage.findUnique({ where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey: String(aiKstDayIndex()) } }, select: { count: true } });
+  return (row?.count ?? 0) > 0;
+}
+
+/** 차감 전 확인 — 잔액이 없으면 402. 오늘의 질문 무료면 표시만 해 둔다(차감은 응답 성공 후 interviewCreditSpend). */
+// 유료화 스위치 — 켜기 전까지는 차감하지 않는다(지금 프로덕션 /talent 화면엔 결제 창이 없어서, 서버만 먼저 나가도 막히지 않게).
+// v2 가 열릴 때(또는 결제 창을 붙인 뒤) API 앱 설정에 INTERVIEW_PAYWALL_ENABLED=true.
+const interviewPaywallOn = () => process.env.INTERVIEW_PAYWALL_ENABLED === "true";
+
+function interviewCreditGuard(kind: "feedback" | "prep"): express.RequestHandler {
+  return async (req, res, next) => {
+    if (!interviewPaywallOn()) return next();
+    try {
+      const userId = req.auth!.userId;
+      const credits = await interviewWalletEnsure(userId);
+      if (kind === "feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
+        res.locals.interviewFree = true;
+        return next();
+      }
+      if (credits < 1) {
+        return res.status(402).json({ ok: false, code: "INTERVIEW_CREDITS_REQUIRED", message: "모의 면접 이용권이 필요해요.", credits });
+      }
+      res.locals.interviewCharge = kind;
+      return next();
+    } catch (err) {
+      console.error("[interview-credit] guard failed", err);
+      return res.status(500).json({ ok: false, message: "failed to check interview credits" });
+    }
+  };
+}
+
+/** 응답이 성공했을 때 1개 차감(오늘의 질문 무료면 그날 무료를 쓴 것으로). 남은 잔액을 돌려준다. */
+async function interviewCreditSpend(userId: string, res: express.Response): Promise<number> {
+  if (res.locals.interviewFree) {
+    const periodKey = String(aiKstDayIndex());
+    await prisma.aiUsage.upsert({
+      where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey } },
+      create: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey, count: 1 },
+      update: { count: { increment: 1 } }
+    });
+  } else if (res.locals.interviewCharge) {
+    // 잔액이 1 이상일 때만 깎는다(동시 요청에도 음수가 되지 않게).
+    const r = await prisma.interviewWallet.updateMany({ where: { userId, credits: { gte: 1 } }, data: { credits: { decrement: 1 } } });
+    if (r.count === 1) await prisma.interviewCreditLog.create({ data: { userId, amount: -1, reason: String(res.locals.interviewCharge) } });
+  }
+  const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  return w?.credits ?? 0;
+}
+
+// 학생: 이용권 잔액 · 상품 · 최근 내역.
+app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const credits = await interviewWalletEnsure(userId);
+    const [logs, dailyFreeUsed] = await Promise.all([
+      prisma.interviewCreditLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, select: { amount: true, reason: true, createdAt: true } }),
+      interviewDailyFreeUsed(userId)
+    ]);
+    return res.json({
+      ok: true,
+      credits,
+      perSession: INTERVIEW_CREDITS_PER_SESSION,
+      dailyFreeUsed,
+      paywall: interviewPaywallOn(),
+      paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+      products: INTERVIEW_PRODUCTS.map((p) => ({ key: p.key, sessions: p.sessions, credits: p.sessions * INTERVIEW_CREDITS_PER_SESSION, amount: p.amount })),
+      logs
+    });
+  } catch (err) {
+    console.error("[interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load interview credits" });
+  }
+});
+
+// 학생: 결제 주문 만들기 — 금액·이름은 서버 상품표로. 토스 결제창에 넘길 orderId 를 돌려준다.
+const paymentOrderSchema = z.object({ productKey: z.string().max(40) });
+app.post("/members/me/payments/orders", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
+  const parsed = paymentOrderSchema.safeParse(req.body);
+  const product = parsed.success ? interviewProduct(parsed.data.productKey) : null;
+  if (!product) return res.status(400).json({ ok: false, message: "invalid product" });
+  if (!process.env.TOSS_SECRET_KEY) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  try {
+    const order = await prisma.paymentOrder.create({
+      data: {
+        id: `ivc-${randomBytes(12).toString("hex")}`,
+        userId: req.auth!.userId,
+        productKey: product.key,
+        orderName: `모의 면접 이용권 ${product.sessions}회`,
+        amount: product.amount,
+        credits: product.sessions * INTERVIEW_CREDITS_PER_SESSION
+      },
+      select: { id: true, orderName: true, amount: true }
+    });
+    return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
+  } catch (err) {
+    console.error("[payments/orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 학생: 결제 승인 — 토스 결제창이 성공 주소로 돌려보낸 paymentKey·orderId·amount 를 서버가 확인하고 토스에 승인 요청.
+// 금액이 주문과 다르면 거절. 이미 처리된 주문이면 같은 결과를 돌려준다(새로고침·중복 호출에도 한 번만 충전).
+const paymentConfirmSchema = z.object({ paymentKey: z.string().min(1).max(200), orderId: z.string().min(6).max(64), amount: z.coerce.number().int().positive() });
+app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "pay-confirm" }), async (req, res) => {
+  const parsed = paymentConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  const { paymentKey, orderId, amount } = parsed.data;
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status === "DONE") {
+      const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+      return res.json({ ok: true, alreadyDone: true, credits: w?.credits ?? 0, added: order.credits });
+    }
+    if (order.status !== "READY") return res.status(409).json({ ok: false, message: "order is not payable" });
+    if (order.amount !== amount) {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
+      return res.status(400).json({ ok: false, code: "AMOUNT_MISMATCH", message: "결제 금액이 맞지 않아요." });
+    }
+    const resp = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+      method: "POST",
+      headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": orderId },
+      body: JSON.stringify({ paymentKey, orderId, amount })
+    });
+    const body = (await resp.json().catch(() => ({}))) as { status?: string; method?: string; approvedAt?: string; code?: string; message?: string };
+    if (!resp.ok || body.status !== "DONE") {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: (body.code ?? `HTTP_${resp.status}`).slice(0, 120) } });
+      return res.status(400).json({ ok: false, code: body.code ?? "CONFIRM_FAILED", message: body.message ?? "결제를 승인하지 못했어요." });
+    }
+    await interviewWalletEnsure(userId);
+    // READY → DONE 으로 바뀐 경우에만 충전(동시 호출에도 한 번).
+    const credited = await prisma.$transaction(async (tx) => {
+      const moved = await tx.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "DONE", paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() } });
+      if (moved.count !== 1) return false;
+      await tx.interviewWallet.update({ where: { userId }, data: { credits: { increment: order.credits } } });
+      await tx.interviewCreditLog.create({ data: { userId, amount: order.credits, reason: "purchase", orderId } });
+      return true;
+    });
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, alreadyDone: !credited, credits: w?.credits ?? 0, added: order.credits });
+  } catch (err) {
+    console.error("[payments/confirm] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to confirm payment" });
+  }
+});
+
+// 운영자: 이용권 지급(보상·테스트) · 최근 결제 주문.
+const opsInterviewGrantSchema = z.object({ credits: z.number().int().min(-500).max(500).refine((n) => n !== 0) });
+app.post("/ops/interview-credits/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsInterviewGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = String(req.params.userId);
+  try {
+    await interviewWalletEnsure(userId);
+    await prisma.$transaction([
+      prisma.interviewWallet.update({ where: { userId }, data: { credits: { increment: parsed.data.credits } } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: parsed.data.credits, reason: "ops_grant" } })
+    ]);
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[ops/interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to grant" });
+  }
+});
+app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const items = await prisma.paymentOrder.findMany({ orderBy: { createdAt: "desc" }, take: 100, select: { id: true, userId: true, orderName: true, amount: true, status: true, method: true, approvedAt: true, failReason: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops/payment-orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load orders" });
+  }
+});
+
 const interviewPrepSchema = z.object({
   jobText: z.string().max(6000).optional(),
   company: z.string().max(120).optional(),
@@ -26943,7 +27160,7 @@ const INTERVIEW_PREP_SCHEMA = {
   required: ["questions"]
 } as const;
 
-app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), async (req, res) => {
+app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), interviewCreditGuard("prep"), async (req, res) => {
   const parsed = interviewPrepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
@@ -26982,7 +27199,8 @@ app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole
       .filter((q) => q.question && q.answer)
       .slice(0, 5);
     if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
-    return res.json({ ok: true, questions });
+    const credits = await interviewCreditSpend(req.auth!.userId, res);
+    return res.json({ ok: true, questions, credits });
   } catch (err) {
     console.error("[ai/interview-prep] failed", err);
     if (isAiUpstreamError(err)) return sendAiUnavailable(res);
@@ -26996,6 +27214,7 @@ app.post(
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-interview-fb", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_feedback"),
+  interviewCreditGuard("feedback"),
   async (req, res) => {
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -27021,8 +27240,10 @@ app.post(
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
       const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
+      const credits = await interviewCreditSpend(req.auth!.userId, res);
       return res.json({
         ok: true,
+        credits,
         feedback: {
           score,
           strengths: strArr(j.strengths, 3),

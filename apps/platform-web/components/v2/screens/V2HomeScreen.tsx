@@ -508,7 +508,7 @@ function Home() {
 
       {poolPreview && pool.status ? <TalentCardSheet t={t} status={pool.status} onClose={() => setPoolPreview(false)} /> : null}
       {quiz ? <RoleQuizSheet t={t} authed onClose={() => setQuiz(false)} /> : null}
-      {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
+      {practiceQ ? <PracticeSheet question={practiceQ} daily={practiceQ.ko === daily.ko} onClose={() => setPracticeQ(null)} /> : null}
       {prepFor ? (
         <PrepSheetV2
           positionId={prepFor.positionId}

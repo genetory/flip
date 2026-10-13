@@ -58,6 +58,7 @@ model User {
   couponRedemptions                    CouponRedemption[]
   aiUsages                             AiUsage[]
   aiWallet                             AiWallet?
+  interviewWallet                      InterviewWallet?
   aiPointLogs                          AiPointLog[]
   sgcApplication                       SgcApplication?               @relation("SgcApplicationUser")
   refreshTokens                        RefreshToken[]
@@ -2382,6 +2383,49 @@ model AiWallet {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 모의 면접 이용권 — 단위는 답변 피드백 1개(이용권 1회 = 5개). 가입 후 첫 사용 시 무료 1회. 결제·운영자 지급으로 충전.
+// 일반 AI 포인트(AiWallet, 매일 무료 적립)와 따로 둔다.
+model InterviewWallet {
+  userId       String   @id
+  credits      Int      @default(0)
+  trialGranted Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 모의 면접 이용권 원장 — free_trial | purchase | ops_grant | feedback | prep. amount: 충전 +, 사용 -.
+model InterviewCreditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int
+  reason    String
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// 결제 주문(토스페이먼츠) — id 가 토스 orderId. 금액·충전량은 서버 상품표로 정한다. READY → DONE | FAILED | CANCELED.
+model PaymentOrder {
+  id         String    @id
+  userId     String
+  productKey String
+  orderName  String
+  amount     Int
+  credits    Int
+  status     String    @default("READY")
+  paymentKey String?   @unique
+  method     String?
+  approvedAt DateTime?
+  failReason String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 // AI 포인트 획득 내역(원장) — 웰컴/매일 적립/쿠폰 충전 등 '받은' 기록. 내역 페이지 표시용.

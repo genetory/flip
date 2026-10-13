@@ -14,6 +14,7 @@ import { useUnreadNotificationCount } from "../../lib/talent/notifications";
 import { useServerNotificationSync } from "../../lib/talent/server-notification-sync";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
+import { InterviewPaywallHost } from "./interview-paywall";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
 import { Actions, Button, Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
@@ -177,6 +178,8 @@ export function V2Shell({ children, requireAuth = false }: { children: ReactNode
         <AnnouncementBanner />
       </div>
       {body}
+      {/* 모의 면접 이용권 결제 창 — 어디서든 이용권이 모자라면 열린다 */}
+      <InterviewPaywallHost />
       <AplyFooter />
     </div>
   );

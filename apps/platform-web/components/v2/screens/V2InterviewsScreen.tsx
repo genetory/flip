@@ -40,6 +40,8 @@ import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakne
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
+import { creditLabel } from "../interview-paywall";
+import { openInterviewPaywall, useInterviewCredits } from "../../../lib/interview-credits";
 import { PrepSheetV2 } from "../prep-sheet";
 import { V2InterviewsGuest } from "./V2InterviewsGuest";
 import { JobSearch, RegisterInterviewSheet } from "../register-interview";
@@ -146,6 +148,7 @@ function Interviews() {
     const q = ALL_QUESTIONS.find((x) => x.ko === ko);
     setPracticeQ({ ko, shown: q ? questionText(t, q) : ko, category });
   };
+  const credits = useInterviewCredits();
 
 
   const sent = useRef(false);
@@ -244,6 +247,23 @@ function Interviews() {
         title={streak > 1 ? t(`${streak}일째 연습 중이에요 🔥`, `${streak}-day practice streak 🔥`, `已连续练习 ${streak} 天 🔥`, `Đã luyện ${streak} ngày liên tiếp 🔥`, `${streak}日連続で練習中 🔥`, `${streak} hari berturut-turut 🔥`) : t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
         lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
       />
+
+      {/* 남은 이용권 — 유료화가 켜져 있을 때만 */}
+      {credits?.paywall ? (
+        <div className="-mt-4 px-5 pb-6">
+          <div className="flex items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] px-4 py-3">
+            <span className="text-[18px]" aria-hidden>
+              🎟️
+            </span>
+            <span className="min-w-0 flex-1 truncate text-[14px] text-[color:var(--v2-ink-3)]">
+              {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} <b className="text-[color:var(--v2-ink)]">{creditLabel(t, credits.credits, credits.perSession)}</b>
+            </span>
+            <button type="button" onClick={() => openInterviewPaywall("topup")} className="shrink-0 text-[14px] font-semibold text-[color:var(--v2-accent)]">
+              {t("충전", "Top up", "充值", "Nạp", "チャージ", "Isi")}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
       {aplyUpcoming.length ? (
@@ -437,7 +457,8 @@ function Interviews() {
           }}
         />
       ) : null}
-      {practiceQ ? <PracticeSheet question={practiceQ} onClose={() => setPracticeQ(null)} /> : null}
+      {/* 오늘의 질문이면 하루 1번 이용권 없이 */}
+      {practiceQ ? <PracticeSheet question={practiceQ} daily={practiceQ.ko === daily.ko} onClose={() => setPracticeQ(null)} /> : null}
       {picker ? (
         <Sheet
           tall
