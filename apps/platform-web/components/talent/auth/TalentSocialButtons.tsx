@@ -9,17 +9,17 @@ export function TalentSocialButtons() {
   const t = usePlatformT();
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       <a
         href={`${API}/auth/naver/start`}
-        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[15px] font-bold text-white transition hover:bg-[#02b551]"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-[16px] font-semibold text-white transition hover:opacity-90"
       >
         <span aria-hidden className="font-black">N</span>
         {t("네이버로 계속하기", "Continue with Naver", "使用 Naver 继续", "Tiếp tục với Naver", "Naverで続ける", "Lanjut dengan Naver")}
       </a>
       <a
         href={`${API}/auth/kakao/start`}
-        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[15px] font-bold text-[#191919] transition hover:bg-[#f5dd00]"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-[16px] font-semibold text-[#191919] transition hover:opacity-90"
       >
         <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.86 5.36 4.66 6.78L5.5 21.5c-.1.34.27.62.57.43L10.5 19c.5.05 1 .08 1.5.08 5.52 0 10-3.58 10-8s-4.48-8-10-8z" />
@@ -28,7 +28,7 @@ export function TalentSocialButtons() {
       </a>
       <a
         href={`${API}/auth/google/start`}
-        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-[#E5E8EB] bg-white text-[15px] font-bold text-[#191F28] transition hover:bg-[#F6F8FB]"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#F2F4F6] text-[16px] font-semibold text-[#191F28] transition hover:bg-[#E5E8EB]"
       >
         <svg aria-hidden className="h-4 w-4" viewBox="0 0 48 48">
           <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
@@ -47,9 +47,9 @@ export function TalentOrDivider() {
   const label = t("또는", "or", "或", "hoặc", "または", "atau");
   return (
     <div className="my-6 flex items-center gap-3">
-      <span className="h-px flex-1 bg-[#EEF1F5]" />
-      <span className="text-[12.5px] text-[#B0B8C1]">{label}</span>
-      <span className="h-px flex-1 bg-[#EEF1F5]" />
+      <span className="h-px flex-1 bg-[#F2F4F6]" />
+      <span className="text-[13px] text-[#8B95A1]">{label}</span>
+      <span className="h-px flex-1 bg-[#F2F4F6]" />
     </div>
   );
 }

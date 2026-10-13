@@ -12,7 +12,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { AuthApiError, signupWithEmail } from "../../../lib/auth-client";
 import { getAuthPageMessages } from "../../../lib/auth-messages";
 import { TalentButton } from "../TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "./TalentAuthLayout";
+import { TalentAuthLayout, TalentField, authSubmitClass, talentInputClass } from "./TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "./TalentSocialButtons";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -195,7 +195,7 @@ export function TalentSignupPage() {
         </TalentField>
         <p className="text-[13px] leading-relaxed text-[#8B95A1]">{copy.generalHelperText}</p>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={copy.submitIdle}>
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={copy.submitIdle}>
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>
