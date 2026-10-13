@@ -76,7 +76,7 @@ function SampleCard({ t }: { t: PlatformT }) {
             A
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[18px] font-bold text-[color:var(--v2-ink)]">{t("에이플리", "Aply Student", "Aply 同学", "Aply", "エイプリ", "Aply")}</p>
+            <p className="truncate text-[18px] font-bold text-[color:var(--v2-ink)]">{t("어플라이", "Aply Student", "Aply 同学", "Aply", "アプライ", "Aply")}</p>
             <p className="truncate text-[13px] text-[color:var(--v2-muted)]">{t("경영학과 4학년 · 퍼포먼스 마케팅 희망", "Business senior · wants performance marketing", "经营学大四 · 期望效果营销", "SV năm 4 QTKD · muốn làm marketing", "経営学部4年 · パフォーマンスマーケ志望", "Mhs bisnis · ingin marketing")}</p>
           </div>
         </div>
