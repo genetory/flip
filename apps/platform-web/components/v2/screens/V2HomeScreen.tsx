@@ -1,7 +1,7 @@
 "use client";
 
 // v2 홈 — 맨 위에 '지금 가장 중요한 한 가지'를 크게, 아래로 다른 화면에서 만든 것들을 한 장씩 꺼내 쌓는다:
-// 이력서·자기소개서·모의 면접 · 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 다음 단계 · 오늘의 질문 · 이번 주 기록 · 앞으로 채울 것들 · 지원 ·
+// 이력서·자기소개서·모의 면접 · 나에게 관심 준 회사 · 가장 가까운 면접(D-day) · 다음 단계 · 오늘의 질문 · 이 직무에 필요한 것 · 지원 ·
 // 팔로우한 회사 새 공고 · 마감 임박 · 맞춤 공고(스킬 일치) · 회사 · 가이드. 배너(사주·MBTI)는 맨 위. 처음 온 사람에겐 시작 3단계.
 // 구획마다 모양을 달리한다(색 카드·캐러셀·숫자 칸·목록) — 같은 목록이 줄줄이 이어지면 심심하다. 데이터는 전부 기존 것(새 API 없음).
 // 비어 있는 구획은 아예 그리지 않는다 — 빈 칸 안내가 줄줄이 늘어서면 오히려 허전해 보인다.
@@ -10,11 +10,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { V2Shell, V2_ROUTES } from "../V2Shell";
 import { FeaturedBanners } from "../../talent/screens/HomeScreen";
-import { Attention, Button, Masthead, MastheadSkeleton, Page, Row, Section, SectionSkeleton, TextLink } from "../ui";
+import { Attention, Button, Chip, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton, TextLink } from "../ui";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PrepSheetV2 } from "../prep-sheet";
 import { jobPhotoOf } from "../lib";
-import { categoryLabel, coverWritten, docChecklist, readChecklists, splitList, termIn } from "./V2CareerScreen";
+import { RoleChecklist, coverWritten, docChecklist, splitList, termIn } from "./V2CareerScreen";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -92,12 +92,14 @@ function Home() {
   const [saved, setSaved] = useState<PublicPositionListItem[]>([]);
   const [mocks, setMocks] = useState<MockInterviewRecord[] | null>(null);
   const [companies, setCompanies] = useState<{ name: string; industry?: string; count: number; photo: string | null }[] | null>(null);
+  // 맞춤 공고 — 관심 직무가 여럿이면 칩으로 고른다. null = 추천(전체), 직무를 고르면 그 직무 공고를 관련도순으로(직무별로 기억).
+  const [jobRole, setJobRole] = useState<string | null>(null);
+  const [roleJobs, setRoleJobs] = useState<Record<string, PublicPositionListItem[]>>({});
   const [interestedCos, setInterestedCos] = useState<InterestedCompany[]>([]);
   const [followJobs, setFollowJobs] = useState<PublicPositionListItem[]>([]);
   const [practiceQ, setPracticeQ] = useState<PracticeQuestion | null>(null);
   const [prepFor, setPrepFor] = useState<Upcoming | null>(null);
   const [now] = useState(() => Date.now()); // 화면을 연 시각 — 오늘의 질문·이번 주 기록의 기준
-  const [checklists] = useState(() => (typeof window === "undefined" ? {} : readChecklists()));
   const mine = useMyInterviews();
   const followed = useFollowedCompanies();
   const router = useRouter();
@@ -153,6 +155,19 @@ function Home() {
       alive = false;
     };
   }, [followKey, locale]);
+
+  useEffect(() => {
+    if (!jobRole || roleJobs[jobRole]) return;
+    let alive = true;
+    // 같은 분류(예: 개발)에 백엔드·프론트엔드가 함께 묶여 있어 직무 이름으로 관련도순 검색한다(내 커리어 '이 직무에 필요한 것'과 같은 방식).
+    getPublicPositionsPage({ jobRoles: jobCategoriesForInterests([jobRole]), search: jobTaxonomyLabelOf(t, jobRole), sort: "relevance", limit: 4, locale })
+      .then((p) => alive && setRoleJobs((m) => ({ ...m, [jobRole]: p.items })))
+      .catch(() => alive && setRoleJobs((m) => ({ ...m, [jobRole]: [] })));
+    return () => {
+      alive = false;
+    };
+  }, [jobRole, roleJobs, locale, t]);
+  const shownJobs = jobRole ? roleJobs[jobRole] ?? null : jobs;
 
   const appList = useMemo(() => apps ?? [], [apps]);
   // 맞춤 공고 '왜 맞는지' — 공고에 그대로 나오는 내 스킬.
@@ -218,24 +233,12 @@ function Home() {
   const dailyAnswer = answers.find((a) => a.question === daily.ko && a.answer.trim());
   const answeredToday = !!dailyAnswer && kstDay(dailyAnswer.updatedAt) === kstDay(now);
 
-  // 이번 주 기록 — 최근 7일 vs 그 전 7일.
+  // 이번 주 답한 문항 — 맨 위 모의 면접 칸에.
   const weekAgo = now - 7 * 86_400_000;
-  const twoWeeksAgo = now - 14 * 86_400_000;
   const answeredWeek = answers.filter((a) => a.updatedAt >= weekAgo).length;
-  const answeredPrev = answers.filter((a) => a.updatedAt >= twoWeeksAgo && a.updatedAt < weekAgo).length;
-  const appliedWeek = appList.filter((a) => new Date(a.submittedAt).getTime() >= weekAgo).length;
-  const appliedPrev = appList.filter((a) => {
-    const at = new Date(a.submittedAt).getTime();
-    return at >= twoWeeksAgo && at < weekAgo;
-  }).length;
 
   // 최근 30일 안에 관심 준 회사.
   const freshInterest = interestedCos.filter((c) => now - new Date(c.interestedAt).getTime() <= 30 * 86_400_000);
-
-  // 앞으로 채울 것들 — 내 커리어 '이 직무에 필요한 것'에서 이미 비교해 둔 결과(이 브라우저)만 읽는다. AI 를 새로 부르지 않는다.
-  const gapRole = interests.find((r) => checklists[r]);
-  const gapResult = gapRole ? checklists[gapRole] : null;
-  const gaps = (gapResult?.items ?? []).filter((i) => !i.have).sort((x, y) => Number(!!x.common) - Number(!!y.common) || y.count - x.count).slice(0, 4);
 
   // 처음 온 사람 — 지원이 없고 시작 3단계가 다 끝나지 않았으면 3단계 카드를 크게, 기록류 구획은 접는다.
   const steps = [
@@ -384,51 +387,8 @@ function Home() {
         </Section>
       ) : null}
 
-      {/* 이번 주 기록 — 숫자 세 칸 */}
-      {!newcomer ? (
-        <Section title={t("이번 주 나", "My week", "本周的我", "Tuần này", "今週の私", "Mingguku")}>
-          <div className="grid grid-cols-3 gap-2">
-            <WeekStat t={t} label={t("답한 질문", "Answered", "回答的题", "Đã trả lời", "回答した質問", "Dijawab")} value={answeredWeek} prev={answeredPrev} />
-            <WeekStat t={t} label={t("지원", "Applied", "投递", "Ứng tuyển", "応募", "Melamar")} value={appliedWeek} prev={appliedPrev} />
-            <WeekStat t={t} label={t("연속 연습", "Streak", "连续练习", "Chuỗi ngày", "連続練習", "Beruntun")} value={streak} unit={t("일", "d", "天", "ng", "日", "h")} />
-          </div>
-        </Section>
-      ) : null}
-
-      {/* 앞으로 채울 것들 — 내 커리어에서 비교해 둔 결과 중 아직 없는 것(민트 카드 목록). 결과가 없으면 확인하러 가는 한 줄. */}
-      {interests.length && !newcomer ? (
-        <Section
-          title={t("앞으로 채울 것들", "What to add next", "接下来要补充的", "Cần bổ sung tiếp", "これから足すもの", "Yang perlu ditambah")}
-          aside={gaps.length && gapRole ? <span className="text-[14px] text-[color:var(--v2-muted)]">{jobTaxonomyLabelOf(t, gapRole)}</span> : undefined}
-        >
-          {gaps.length ? (
-            <div className="rounded-3xl bg-[#e6f7f4] p-2">
-              <ul>
-                {gaps.map((g) => (
-                  <li key={g.name}>
-                    <Link href={V2_ROUTES.career} className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-white/60">
-                      <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-white px-2 text-[12px] font-bold text-[#0f766e]">{categoryLabel(t, g.category)}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[16px] font-bold text-[color:var(--v2-ink)]">{g.name}</span>
-                        <span className="block truncate text-[13px] text-[color:var(--v2-ink-3)]">
-                          {g.common || !gapResult?.total
-                            ? t("이 직무 신입이 흔히 준비해요", "Common for new hires", "新人常准备", "Người mới thường chuẩn bị", "新人がよく準備", "Umum disiapkan")
-                            : t(`공고 ${gapResult.total}곳 중 ${g.count}곳이 원해요`, `${g.count} of ${gapResult.total} jobs want it`, `${gapResult.total} 个职位中 ${g.count} 个要求`, `${g.count}/${gapResult.total} tin yêu cầu`, `求人${gapResult.total}件中${g.count}件`, `${g.count}/${gapResult.total} lowongan`)}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[18px] text-[#0f766e]/60" aria-hidden>
-                        ›
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <Row href={V2_ROUTES.career} lead="🧩" title={t("내 직무에 필요한 것 확인하기", "See what your role needs", "看看职位需要什么", "Xem ngành cần gì", "職種に必要なものを確認", "Lihat kebutuhan peran")} meta={t("실제 공고와 내 서류를 비교해요", "Compares real jobs with your documents", "对比真实职位与你的材料", "So sánh tin thật với hồ sơ", "実際の求人と書類を比較", "Bandingkan lowongan & dokumen")} />
-          )}
-        </Section>
-      ) : null}
+      {/* 이 직무에 필요한 것 — 내 커리어와 같은 구획(관심 직무마다 칩, 비교·[있어요]까지). 결과는 직무별로 이 브라우저에 기억해 두 화면이 같다. */}
+      {interests.length && !newcomer ? <RoleChecklist t={t} interests={interests} resume={resume} cover={cover} /> : null}
 
       {!newcomer ? (
         <Section
@@ -503,11 +463,24 @@ function Home() {
       {/* 맞춤 공고 — 공고에 나오는 내 스킬을 초록으로 */}
       {jobs === null ? (
         <SectionSkeleton />
-      ) : jobs.length ? (
+      ) : jobs.length || interests.length > 1 ? (
         <Section
-          title={personalized ? t("나에게 맞는 공고", "Jobs for you", "适合你的职位", "Việc làm cho bạn", "あなたに合う求人", "Lowongan untukmu") : t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")}
+          title={personalized || interests.length ? t("나에게 맞는 공고", "Jobs for you", "适合你的职位", "Việc làm cho bạn", "あなたに合う求人", "Lowongan untukmu") : t("새로 올라온 공고", "New jobs", "最新职位", "Việc làm mới", "新着求人", "Lowongan baru")}
         >
-          {jobs.map((j) => {
+          {interests.length > 1 ? (
+            <div className="-mx-5 mb-2 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
+              <Chip active={jobRole === null} onClick={() => setJobRole(null)}>
+                {t("추천", "For you", "推荐", "Gợi ý", "おすすめ", "Rekomendasi")}
+              </Chip>
+              {interests.map((r) => (
+                <Chip key={r} active={jobRole === r} onClick={() => setJobRole(r)}>
+                  {jobTaxonomyLabelOf(t, r)}
+                </Chip>
+              ))}
+            </div>
+          ) : null}
+          {shownJobs === null ? <RowsSkeleton count={4} /> : !shownJobs.length ? <p className="py-6 text-center text-[15px] text-[color:var(--v2-faint)]">{t("이 직무 공고가 아직 없어요.", "No jobs for this role yet.", "该职位暂无职位。", "Chưa có tin cho ngành này.", "この職種の求人はまだありません。", "Belum ada lowongan.")}</p> : null}
+          {(shownJobs ?? []).map((j) => {
             const text = `${j.title}\n${j.requiredQualifications ?? ""}\n${j.preferredQualifications ?? ""}`;
             const hits = skills.filter((k) => termIn(text, k)).slice(0, 2);
             const company = j.partnerOrganization?.name || j.sourceCompanyName;
@@ -531,7 +504,7 @@ function Home() {
             );
           })}
           <div className="mt-3">
-            <Button variant="neutral" full href={personalized && interests.length ? "/v2/jobs?tab=interest" : V2_ROUTES.jobs}>
+            <Button variant="neutral" full href={interests.length ? "/v2/jobs?tab=interest" : V2_ROUTES.jobs}>
               {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
             </Button>
           </div>
@@ -612,23 +585,6 @@ function DdayCard({ t, item, onPrep }: { t: PlatformT; item: Upcoming; onPrep: (
       <button type="button" onClick={onPrep} className="h-8 shrink-0 whitespace-nowrap rounded-lg bg-white px-2.5 text-[13px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-90">
         {t("전날 볼 한 장", "Prep sheet", "考前速览", "Ôn tập", "前日の1枚", "Ringkas")}
       </button>
-    </div>
-  );
-}
-
-/** 이번 주 숫자 한 칸 — 저번 주보다 늘면 초록 ▲. */
-function WeekStat({ t, label, value, prev, unit }: { t: PlatformT; label: string; value: number; prev?: number; unit?: string }) {
-  const diff = prev === undefined ? null : value - prev;
-  return (
-    <div className="flex min-h-[96px] flex-col justify-between rounded-2xl bg-[color:var(--v2-fill)] p-3.5">
-      <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{label}</span>
-      <span>
-        <span className="text-[26px] font-bold tabular-nums leading-none text-[color:var(--v2-ink)]">{value}</span>
-        {unit ? <span className="ml-0.5 text-[14px] font-semibold text-[color:var(--v2-muted)]">{unit}</span> : null}
-        <span className={`mt-1 block text-[12px] ${diff !== null && diff > 0 ? "font-bold text-[color:var(--v2-good)]" : "text-[color:var(--v2-faint)]"}`}>
-          {prev === undefined ? t("이어 가는 중", "and counting", "持续中", "đang tiếp", "継続中", "berlanjut") : diff !== null && diff > 0 ? t(`▲ 지난주보다 ${diff}`, `▲ ${diff} vs last wk`, `▲ 比上周多 ${diff}`, `▲ hơn tuần trước ${diff}`, `▲ 先週より${diff}`, `▲ ${diff} dari lalu`) : t(`지난주 ${prev}`, `Last wk ${prev}`, `上周 ${prev}`, `Tuần trước ${prev}`, `先週 ${prev}`, `Lalu ${prev}`)}
-        </span>
-      </span>
     </div>
   );
 }

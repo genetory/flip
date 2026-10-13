@@ -654,7 +654,7 @@ export function categoryLabel(t: PlatformT, c: RoleChecklistItem["category"]): s
   return t("스킬", "Skill", "技能", "Kỹ năng", "スキル", "Keahlian");
 }
 
-function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interests: string[]; resume: ResumeDoc | null; cover: CoverDoc | null }) {
+export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; interests: string[]; resume: ResumeDoc | null; cover: CoverDoc | null }) {
   const sig = `${resume?.updatedAt ?? 0}:${cover?.updatedAt ?? 0}`;
   const [role, setRole] = useState(interests[0]);
   const current = interests.includes(role) ? role : interests[0];
