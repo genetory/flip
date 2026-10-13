@@ -124,13 +124,13 @@ function Step({ n, title, meta }: { n: number; title: string; meta: string }) {
 /** 예시 피드백 — 실제 결과 화면과 같은 결(단계 · 잘한 점 · 고칠 점). */
 function SampleFeedback({ t }: { t: PlatformT }) {
   return (
-    <div className="mt-4 rounded-3xl border border-[color:var(--v2-line)] p-5">
+    <div className="mt-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-[color:var(--v2-band)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-muted)]">{t("피드백 예시", "Sample feedback", "反馈示例", "Ví dụ phản hồi", "フィードバック例", "Contoh masukan")}</span>
+        <span className="rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-muted)]">{t("피드백 예시", "Sample feedback", "反馈示例", "Ví dụ phản hồi", "フィードバック例", "Contoh masukan")}</span>
         <LevelChip t={t} score={68} />
       </div>
       <p className="mt-3 text-[15px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{t("Q. 우리 회사에 지원한 이유는 무엇인가요?", "Q. Why did you apply to our company?", "Q. 你为什么申请我们公司？", "Q. Vì sao bạn ứng tuyển công ty chúng tôi?", "Q. 当社に応募した理由は？", "Q. Mengapa melamar ke perusahaan kami?")}</p>
-      <p className="mt-2 rounded-2xl bg-[color:var(--v2-fill)] p-3 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("“외국인 고객을 위한 서비스를 만드는 회사라서 제 경험을 살릴 수 있다고 생각했습니다.”", "“You build services for international customers, so I thought my experience would fit.”", "“贵公司为外国客户打造服务，我觉得能发挥我的经验。”", "“Công ty làm dịch vụ cho khách nước ngoài nên tôi nghĩ kinh nghiệm của mình phù hợp.”", "「外国人顧客向けのサービスを作る会社なので、経験を活かせると思いました。」", "“Perusahaan ini melayani pelanggan asing, jadi pengalamanku cocok.”")}</p>
+      <p className="mt-2 rounded-2xl bg-white p-3 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("“외국인 고객을 위한 서비스를 만드는 회사라서 제 경험을 살릴 수 있다고 생각했습니다.”", "“You build services for international customers, so I thought my experience would fit.”", "“贵公司为外国客户打造服务，我觉得能发挥我的经验。”", "“Công ty làm dịch vụ cho khách nước ngoài nên tôi nghĩ kinh nghiệm của mình phù hợp.”", "「外国人顧客向けのサービスを作る会社なので、経験を活かせると思いました。」", "“Perusahaan ini melayani pelanggan asing, jadi pengalamanku cocok.”")}</p>
       <p className="mt-3 text-[14px] leading-[1.6] text-[color:var(--v2-good)]">
         <b>{t("잘한 점", "Good", "优点", "Tốt", "良い点", "Bagus")}</b> · {t("회사가 하는 일과 내 경험을 연결했어요.", "You linked the company's work to your experience.", "把公司业务和自己的经验联系起来了。", "Đã liên kết công việc của công ty với kinh nghiệm.", "会社の事業と自分の経験を結びつけました。", "Menghubungkan bisnis perusahaan dengan pengalamanmu.")}
       </p>

@@ -201,11 +201,11 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
               </div>
               <ol className={`mt-2 flex flex-col gap-2 transition-opacity ${prepBusy ? "opacity-60" : ""}`}>
                 {prep.map((q, i) => (
-                  <li key={i} className="rounded-2xl border border-[color:var(--v2-line)] bg-white p-4">
+                  <li key={i} className="rounded-2xl bg-[color:var(--v2-band)] p-4">
                     <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">Q{i + 1}</p>
                     <p className="mt-0.5 text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{q.question}</p>
                     {q.why ? <p className="mt-1 text-[13px] leading-[1.55] text-[color:var(--v2-muted)]">{t("면접관이 보려는 것", "What they look for", "面试官想看的", "Người PV muốn thấy", "面接官が見たいこと", "Yang dicari")} · {q.why}</p> : null}
-                    <div className="mt-3 rounded-xl bg-[color:var(--v2-fill)] p-3">
+                    <div className="mt-3 rounded-xl bg-white p-3">
                       <p className="text-[12px] font-bold text-[color:var(--v2-muted)]">{t("모범 답안", "Model answer", "参考答案", "Câu trả lời mẫu", "模範回答", "Jawaban contoh")}</p>
                       <p className="mt-1 whitespace-pre-wrap text-[14px] leading-[1.7] text-[color:var(--v2-ink-2)]">{q.answer}</p>
                     </div>
@@ -221,7 +221,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
               <p className="mt-2 text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("AI가 공고·내 이력서·실제 면접 질문으로 만들었어요. 모범 답안은 내 말로 바꿔 연습하세요. '○○'는 직접 채워 주세요.", "Made by AI from the job, your resume, and real questions. Rephrase in your own words; fill in any '○○'.", "由 AI 根据职位、简历和真实面试题生成。请用自己的话练习，'○○'请自行填写。", "AI tạo từ tin, CV và câu hỏi thật. Hãy nói bằng lời của bạn; điền '○○'.", "AIが求人・履歴書・実際の質問から作りました。自分の言葉で。「○○」は自分で埋めて。", "Dibuat AI dari lowongan, CV, dan pertanyaan nyata. Isi '○○' sendiri.")}</p>
             </div>
           ) : (
-            <div className="rounded-3xl border-2 border-dashed border-[#c9d6fb] bg-[#f5f8ff] p-5">
+            <div className="rounded-3xl bg-[#edf1fd] p-5">
               {head(t("✨ 예상 질문과 모범 답안", "✨ Likely questions & model answers", "✨ 预测问题与参考答案", "✨ Câu hỏi dự kiến & câu mẫu", "✨ 予想質問と模範回答", "✨ Pertanyaan & jawaban contoh"), "text-[color:var(--v2-accent)]")}
               <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("이 공고·내 이력서·이 회사 실제 면접 질문으로 나올 만한 질문 5개와, 내 경험으로 쓴 모범 답안을 만들어 드려요.", "Get 5 likely questions and model answers based on this job, your resume, and real questions from this company.", "根据该职位、简历和该公司真实面试题，生成5个预测问题和基于你经历的参考答案。", "Tạo 5 câu hỏi dự kiến và câu trả lời mẫu từ tin, CV và câu hỏi thật.", "この求人・履歴書・実際の面接質問から、予想質問5つと模範回答を作ります。", "Buat 5 pertanyaan dan jawaban contoh dari lowongan, CV, dan pertanyaan nyata.")}</p>
               <div className="mt-3">

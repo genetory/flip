@@ -3,7 +3,7 @@
 // v2 한 문항 연습 시트 — 오늘의 질문·다시 볼 답·면접 후기 질문이 함께 쓴다.
 // 답하기(글 또는 말로) → AI 피드백(단계·잘한 점·고칠 점·꼬리 질문) → 내 연습 기록(self-mock)에 저장.
 // 실전 모드: 60초 안에 답하기. '잘해요'를 받으면 익명 예시로 공개할지 묻고, 내 답을 낸 뒤에만 다른 사람의 잘 쓴 답을 보여 준다.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, Spinner, Switch } from "./ui";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -28,6 +28,39 @@ export function LevelChip({ t, score }: { t: PlatformT; score: number | null | u
         ? { text: t("괜찮아요", "Okay", "还行", "Ổn", "まずまず", "Cukup"), cls: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" }
         : { text: t("더 연습", "Practice more", "多练习", "Luyện thêm", "要練習", "Latih lagi"), cls: "bg-[#fdeced] text-[color:var(--v2-attention)]" };
   return <span className={`inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-md px-2.5 text-[13px] font-bold ${lv.cls}`}>{lv.text}</span>;
+}
+
+// 질문 읽어 주기 — 브라우저 음성 합성(speechSynthesis). 한국어 면접이라 한국어 질문을 한국어 목소리로 읽는다.
+export function useSpeak() {
+  const speak = useCallback((text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ko-KR";
+    u.rate = 0.95;
+    const voice = synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith("ko"));
+    if (voice) u.voice = voice;
+    synth.speak(u);
+  }, []);
+  const stop = useCallback(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
+  useEffect(() => stop, [stop]); // 시트가 닫히면 멈춘다
+  return { speak, stop };
+}
+
+/** 질문 다시 듣기 버튼. */
+export function SpeakButton({ t, onSpeak }: { t: PlatformT; onSpeak: () => void }) {
+  return (
+    <button type="button" onClick={onSpeak} aria-label={t("질문 듣기", "Listen", "听问题", "Nghe câu hỏi", "質問を聞く", "Dengarkan")} title={t("질문 듣기", "Listen", "听问题", "Nghe câu hỏi", "質問を聞く", "Dengarkan")} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-[color:var(--v2-band)] px-3 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M11 5 6 9H3v6h3l5 4V5z" />
+        <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+      </svg>
+      {t("듣기", "Listen", "听", "Nghe", "聞く", "Dengar")}
+    </button>
+  );
 }
 
 // 말로 답하기 — 브라우저 음성 인식(Web Speech API). 지원하지 않는 브라우저에선 버튼을 숨긴다.
@@ -79,6 +112,7 @@ export function PracticeSheet({
 }) {
   const t = usePlatformT();
   const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
+  const tts = useSpeak();
   const { locale } = useLanguage();
   const resume = useResumeDoc();
   const info = useBasicInfo();
@@ -194,7 +228,10 @@ export function PracticeSheet({
         )
       }
     >
-      <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
+        <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
+      </div>
       {locale !== "ko" && question.shown !== question.ko ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
       {prev && !feedback ? (
         <div className="mt-3 rounded-2xl bg-[color:var(--v2-fill)] p-4">
@@ -274,7 +311,7 @@ export function PracticeSheet({
           </div>
 
           {feedback.sampleAnswer?.trim() ? (
-            <div className="rounded-2xl border border-[color:var(--v2-line)] p-4">
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-4">
               <p className="text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("이렇게 바꿔 보면 어때요?", "Try it like this", "试试这样改", "Thử viết thế này", "こう直してみては？", "Coba seperti ini")}</p>
               <p className="mt-2 whitespace-pre-wrap text-[15px] leading-[1.7] text-[color:var(--v2-ink-3)]">{feedback.sampleAnswer.trim()}</p>
               <p className="mt-2 text-[12px] text-[color:var(--v2-faint)]">{t("AI가 내 답을 바탕으로 고친 예시예요. 내 경험에 맞게 바꿔 쓰세요.", "An AI rewrite based on your answer — adapt it to your real experience.", "AI 基于你的回答改写的示例，请按真实经历调整。", "Bản AI viết lại từ câu trả lời của bạn — hãy chỉnh theo trải nghiệm thật.", "AIがあなたの回答をもとに直した例です。実際の経験に合わせて。", "Contoh tulisan ulang AI — sesuaikan dengan pengalaman nyata.")}</p>
@@ -299,7 +336,7 @@ export function PracticeSheet({
           ) : null}
 
           {feedback.score >= 80 ? (
-            <div className="rounded-2xl border border-[color:var(--v2-line)] p-4">
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-4">
               {shared === "done" ? (
                 <p className="text-[14px] font-semibold text-[color:var(--v2-good)]">{t("고마워요! 익명 예시로 공개했어요.", "Thanks! Shared anonymously.", "谢谢！已匿名分享。", "Cảm ơn! Đã chia sẻ ẩn danh.", "ありがとう！匿名で公開しました。", "Terima kasih! Dibagikan anonim.")}</p>
               ) : (

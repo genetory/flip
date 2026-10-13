@@ -40,6 +40,7 @@ import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakne
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
+import { type WeaknessRow } from "../../../lib/talent/mock-weakness";
 import { creditLabel } from "../interview-paywall";
 import { openInterviewPaywall, useInterviewCredits } from "../../../lib/interview-credits";
 import { PrepSheetV2 } from "../prep-sheet";
@@ -248,22 +249,35 @@ function Interviews() {
         lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
       />
 
-      {/* 남은 이용권 — 유료화가 켜져 있을 때만 */}
-      {credits?.paywall ? (
-        <div className="-mt-4 px-5 pb-6">
-          <div className="flex items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] px-4 py-3">
-            <span className="text-[18px]" aria-hidden>
-              🎟️
+      {/* 지금 시작 — 실전 모드(질문 5개를 소리로 읽어 주고, 끝나면 한 번에 피드백). 이 화면의 가장 큰 행동. */}
+      <div className="-mt-2 px-5 pb-8">
+        <div className="rounded-3xl bg-[#edf1fd] p-5">
+          <div className="flex items-center gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
+              <span className="mt-2 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
+              <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("질문 5개를 소리로 읽어 드려요. 끝나면 한 번에 피드백.", "5 questions read aloud, feedback at the end.", "朗读 5 个问题，结束后统一反馈。", "Đọc 5 câu hỏi, phản hồi khi xong.", "5問を読み上げ、最後にまとめてフィードバック。", "5 pertanyaan dibacakan, masukan di akhir.")}</span>
             </span>
-            <span className="min-w-0 flex-1 truncate text-[14px] text-[color:var(--v2-ink-3)]">
-              {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} <b className="text-[color:var(--v2-ink)]">{creditLabel(t, credits.credits, credits.perSession)}</b>
-            </span>
-            <button type="button" onClick={() => openInterviewPaywall("topup")} className="shrink-0 text-[14px] font-semibold text-[color:var(--v2-accent)]">
-              {t("충전", "Top up", "充值", "Nạp", "チャージ", "Isi")}
-            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
+            <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[88px] w-[108px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[100px] min-[360px]:w-[124px]" />
           </div>
+          <div className="mt-4">
+            <Button full onClick={() => setTool("set")}>
+              {t("지금 시작", "Start now", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")}
+            </Button>
+          </div>
+          {credits?.paywall ? (
+            <div className="mt-3 flex items-center justify-between gap-2 text-[13px] text-[color:var(--v2-ink-3)]">
+              <span className="min-w-0 truncate">
+                🎟️ {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} <b className="text-[color:var(--v2-ink)]">{creditLabel(t, credits.credits, credits.perSession)}</b>
+              </span>
+              <button type="button" onClick={() => openInterviewPaywall("topup")} className="shrink-0 font-semibold text-[color:var(--v2-accent)]">
+                {t("충전", "Top up", "充值", "Nạp", "チャージ", "Isi")}
+              </button>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
       {aplyUpcoming.length ? (
@@ -372,8 +386,9 @@ function Interviews() {
       </Section>
 
       {/* ③ 내 실력 — 다시 볼 답 + 강점과 약점 */}
-      {revisit.length || tried.length ? (
+      {revisit.length || tried.length || selfAnswers.length ? (
         <Section title={t("내 실력", "My progress", "我的水平", "Năng lực của tôi", "自分の実力", "Kemampuanku")}>
+          <SkillCard t={t} answers={selfMock?.answers ?? []} areas={tried} onPractice={startSelf} />
           {revisit.length ? (
             <>
               <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("다시 볼 답 — 며칠 전 '더 연습'이 나온 답", "Revisit — marked 'practice more' days ago", "再看——几天前被标为'多练习'", "Xem lại — 'luyện thêm' vài ngày trước", "見直し — 数日前『要練習』", "Tinjau — 'latih lagi' beberapa hari lalu")}</p>
@@ -383,18 +398,7 @@ function Interviews() {
             </>
           ) : null}
           {tried.length ? (
-            <div className={revisit.length ? "pt-4" : ""}>
-              <p className="pb-1 pt-2 text-[13px] font-bold text-[color:var(--v2-muted)]">{t("강점과 약점", "Strengths & gaps", "优势与不足", "Điểm mạnh & yếu", "強みと弱み", "Kekuatan & kekurangan")}</p>
-          {tried.map((r) => (
-            <Row
-              key={r.category}
-              onClick={startSelf}
-              lead={r.emoji}
-              title={mockCategoryLabelOf(t, r.category)}
-              meta={(r.average ?? 0) < WEAK_BELOW ? r.worst?.improvement || undefined : t(`${r.answered}개 답했어요`, `${r.answered} answered`, `已回答 ${r.answered} 题`, `Đã trả lời ${r.answered}`, `${r.answered}問回答`, `${r.answered} dijawab`)}
-              right={<LevelChip t={t} score={r.average} />}
-            />
-          ))}
+            <div className="pt-2">
           {untried.length ? (
             <p className="pb-1 pt-3 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">
               {t("아직 안 해 본 질문", "Not tried yet", "尚未练习", "Chưa thử", "まだの質問", "Belum dicoba")} · {untried.map((r) => mockCategoryLabelOf(t, r.category)).join(" · ")}
@@ -753,5 +757,55 @@ export function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof
         </span>
       )}
     </button>
+  );
+}
+
+/** 내 면접 실력 — 최근 답 10개 평균 점수 · 그 전 10개보다 얼마나 늘었는지 · 최근 12개 꺾은선 · 영역별 막대.
+ *  한 문항 연습·10분 모의 면접·1분 자기소개처럼 내 연습 기록(self-mock)에 쌓이는 답 기준. */
+function SkillCard({ t, answers, areas, onPractice }: { t: PlatformT; answers: { score: number | null; updatedAt: number }[]; areas: WeaknessRow[]; onPractice: () => void }) {
+  const scored = answers.filter((a): a is { score: number; updatedAt: number } => typeof a.score === "number").sort((a, b) => a.updatedAt - b.updatedAt);
+  if (!scored.length) return null;
+  const avg = (xs: { score: number }[]) => Math.round(xs.reduce((n, x) => n + x.score, 0) / xs.length);
+  const score = avg(scored.slice(-10));
+  const older = scored.slice(-20, -10);
+  const delta = older.length >= 3 ? score - avg(older) : null;
+  const series = scored.slice(-12).map((a) => a.score);
+  const pts = series.map((v, i) => `${series.length === 1 ? 50 : (i / (series.length - 1)) * 100},${38 - (v / 100) * 34}`).join(" ");
+  return (
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span>
+          <span className="block text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("내 면접 실력", "My interview score", "我的面试水平", "Điểm phỏng vấn", "面接スコア", "Skor wawancara")}</span>
+          <span className="mt-1 flex items-baseline gap-2">
+            <span className="text-[36px] font-bold leading-none tracking-[-0.02em] text-[color:var(--v2-ink)]">{score}</span>
+            <span className="text-[15px] font-semibold text-[color:var(--v2-muted)]">/ 100</span>
+            {delta !== null && delta !== 0 ? <span className={`text-[14px] font-bold ${delta > 0 ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-attention)]"}`}>{delta > 0 ? `▲ ${delta}` : `▼ ${Math.abs(delta)}`}</span> : null}
+          </span>
+          <span className="mt-1 block text-[12px] text-[color:var(--v2-faint)]">{t(`최근 답 ${Math.min(10, scored.length)}개 평균`, `Average of last ${Math.min(10, scored.length)} answers`, `最近 ${Math.min(10, scored.length)} 个回答平均`, `TB ${Math.min(10, scored.length)} câu gần nhất`, `直近${Math.min(10, scored.length)}件の平均`, `Rata-rata ${Math.min(10, scored.length)} jawaban`)}</span>
+        </span>
+        <LevelChip t={t} score={score} />
+      </div>
+      {series.length >= 2 ? (
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="mt-4 h-16 w-full" aria-hidden>
+          <polyline points={`0,40 ${pts} 100,40`} fill="rgba(11,70,232,0.08)" stroke="none" />
+          <polyline points={pts} fill="none" stroke="#0b46e8" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+      ) : null}
+      {areas.length ? (
+        <ul className="mt-4 flex flex-col gap-2.5">
+          {areas.map((r) => (
+            <li key={r.category}>
+              <button type="button" onClick={onPractice} className="flex w-full items-center gap-3 text-left">
+                <span className="w-[108px] shrink-0 truncate text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{mockCategoryLabelOf(t, r.category)}</span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white">
+                  <span className={`block h-full rounded-full ${(r.average ?? 0) >= 80 ? "bg-[color:var(--v2-good)]" : (r.average ?? 0) >= WEAK_BELOW ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-attention)]"}`} style={{ width: `${r.average ?? 0}%` }} />
+                </span>
+                <span className="w-8 shrink-0 text-right text-[13px] font-bold tabular-nums text-[color:var(--v2-ink-2)]">{r.average}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

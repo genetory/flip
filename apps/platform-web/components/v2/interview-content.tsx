@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "./sheets";
 import { Button, Spinner } from "./ui";
-import { DictationControls, LevelChip, PracticeSheet, useDictation } from "./practice";
+import { DictationControls, LevelChip, PracticeSheet, SpeakButton, useDictation, useSpeak } from "./practice";
 import { docsReady } from "./lib";
 import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -51,6 +51,12 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
   }, [idx, startedAt]);
 
   const credits = useInterviewCredits();
+  // 실전 모드 — 질문이 바뀔 때마다 면접관처럼 소리로 읽어 준다(끌 수 있다).
+  const tts = useSpeak();
+  const [voice, setVoice] = useState(true);
+  useEffect(() => {
+    if (typeof step === "number" && voice && questions[step]) tts.speak(questions[step].ko);
+  }, [step, voice, questions, tts]);
   const begin = () => {
     // 유료화가 켜져 있고 이용권이 질문 수보다 적으면 먼저 충전부터.
     if (credits?.paywall && credits.credits < questions.length) {
@@ -157,7 +163,13 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
             </span>
             <span className={`text-[15px] font-bold tabular-nums ${sec >= 120 ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-ink-3)]"}`}>{`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`}</span>
           </div>
-          <p className="mt-2 text-[21px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{questionText(t, questions[idx])}</p>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <p className="text-[21px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{questionText(t, questions[idx])}</p>
+            <SpeakButton t={t} onSpeak={() => tts.speak(questions[idx].ko)} />
+          </div>
+          <button type="button" onClick={() => setVoice((v) => !v)} aria-pressed={voice} className="mt-2 text-[13px] font-semibold text-[color:var(--v2-faint)]">
+            {voice ? t("🔊 질문을 소리로 읽어 줘요 · 끄기", "🔊 Reading questions aloud · Turn off", "🔊 朗读问题中 · 关闭", "🔊 Đang đọc câu hỏi · Tắt", "🔊 質問を読み上げ中 · オフ", "🔊 Membacakan · Matikan") : t("🔇 소리로 듣기 켜기", "🔇 Turn on read-aloud", "🔇 开启朗读", "🔇 Bật đọc", "🔇 読み上げをオン", "🔇 Nyalakan")}
+          </button>
           {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {questions[idx].ko}</p> : null}
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={7} autoFocus placeholder={t("면접관에게 말하듯 답해 보세요.", "Answer as if speaking to the interviewer.", "像对面试官说话一样回答。", "Trả lời như đang nói với người phỏng vấn.", "面接官に話すように答えてみましょう。", "Jawab seperti berbicara ke pewawancara.")} className="mt-4 w-full resize-none rounded-2xl bg-[color:var(--v2-fill)] p-4 text-[16px] leading-[1.65] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2" />
           <DictationControls t={t} dict={dict} right={<span className="text-[13px] tabular-nums text-[color:var(--v2-faint)]">{draft.trim().length}{t("자", " chars", "字", " ký tự", "字", " karakter")}</span>} />
