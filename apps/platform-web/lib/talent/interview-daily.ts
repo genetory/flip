@@ -121,11 +121,15 @@ function hash(s: string): number {
 
 /** 오늘의 질문 — 날짜(+사용자)로 고른다. 같은 날엔 같은 질문, 사람마다 순서가 다르다.
  *  관심 직무(대분류 JobCategory)가 있으면 그 직무 질문을 공통 질문과 섞는다(사흘에 한 번꼴로 직무 질문). */
+// 오늘의 질문엔 정해진 회사가 없다 — '우리 회사·저희 제품'처럼 회사를 전제한 질문은 빼고 고른다(그런 질문은 공고 연습에서).
+const DAILY_POOL = DAILY_QUESTIONS.filter((q) => !/우리|저희/.test(q.ko));
+const ROLE_POOL = (c: string) => (ROLE_QUESTIONS[c] ?? []).filter((q) => !/우리|저희/.test(q.ko));
+
 export function pickDailyQuestion(userId: string | null | undefined, day = kstDay(), roleCategories: string[] = []): DailyQuestion {
   const h = hash(`${day}:${userId ?? ""}`);
-  const role = roleCategories.flatMap((c) => ROLE_QUESTIONS[c] ?? []);
+  const role = roleCategories.flatMap(ROLE_POOL);
   if (role.length && h % 3 === 0) return role[Math.floor(h / 3) % role.length];
-  return DAILY_QUESTIONS[h % DAILY_QUESTIONS.length];
+  return DAILY_POOL[h % DAILY_POOL.length];
 }
 
 export function questionText(t: PlatformT, q: DailyQuestion): string {
