@@ -41,16 +41,30 @@ import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { PrepSheetV2 } from "../prep-sheet";
+import { V2InterviewsGuest } from "./V2InterviewsGuest";
 import { JobSearch, RegisterInterviewSheet } from "../register-interview";
 import { useMyInterviews, type MyInterview } from "../../../lib/talent/my-interviews";
 import { trackInterviewHubViewed, trackInterviewPrepSheetOpened, trackInterviewStart, type InterviewStartMode } from "../../../lib/analytics";
 
 export function V2InterviewsScreen() {
   return (
-    <V2Shell requireAuth>
-      <Interviews />
+    <V2Shell>
+      <InterviewsGate />
     </V2Shell>
   );
+}
+
+/** 로그인 여부로 갈린다 — 로그인 전엔 둘러보기(V2InterviewsGuest), 로그인하면 내 모의 면접. 확인 중엔 화면 모양만. */
+function InterviewsGate() {
+  const { isReady, isAuthenticated } = useAuthSession();
+  if (!isReady)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton />
+      </Page>
+    );
+  return isAuthenticated ? <Interviews /> : <V2InterviewsGuest />;
 }
 
 function Interviews() {
@@ -581,7 +595,7 @@ function ReviewSheet({ t, record, selfAnswers, extAnswers, onClose, onRetry }: {
 }
 
 /** 오늘의 한국어 면접 표현 — 외국인 지원자(국적 외국 또는 한국어가 아닌 화면)에게만. */
-function ExpressionCard({ t }: { t: PlatformT }) {
+export function ExpressionCard({ t }: { t: PlatformT }) {
   const e = pickDailyExpression();
   return (
     <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-5">
@@ -646,7 +660,7 @@ function InterviewReportPrompt({ t, apps }: { t: PlatformT; apps: MyApplication[
 }
 
 /** 실제 면접에서 나온 질문 — 최근에 올라온 것 + 많이 나온 것. 누르면 그 질문으로 연습. */
-function ReportedQuestions({ t, onPick }: { t: PlatformT; onPick: (question: string) => void }) {
+export function ReportedQuestions({ t, onPick }: { t: PlatformT; onPick: (question: string) => void }) {
   const [data, setData] = useState<{ items: InterviewReportItem[]; popular: { question: string; count: number }[] } | null>(null);
   useEffect(() => {
     let alive = true;
@@ -690,7 +704,7 @@ const TONES = {
 } as const;
 
 /** 연습하기 카드 — 카테고리마다 색이 다른 정사각형에 가까운 카드. */
-function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof typeof TONES; icon: string; title: string; meta: string; onClick: () => void }) {
+export function PracticeCard({ tone, icon, title, meta, onClick }: { tone: keyof typeof TONES; icon: string; title: string; meta: string; onClick: () => void }) {
   const dark = false; // 모든 카드는 같은 결(연한 색 바탕)
   return (
     <button type="button" onClick={onClick} className={`group flex min-h-[128px] flex-col justify-between rounded-3xl p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] md:min-h-[140px] md:p-5 ${TONES[tone]}`}>
