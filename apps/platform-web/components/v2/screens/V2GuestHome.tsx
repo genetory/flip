@@ -13,6 +13,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT } from "../../../lib/i18n";
 import { getPublicPositionsPage, type PublicPositionListItem } from "../../../lib/member-profile-client";
 import { careerGuides } from "../../../lib/talent/home-content";
+import { careerGuideHref } from "../../../lib/talent/v2-guides";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { pickDailyQuestion, kstDay, questionText } from "../../../lib/talent/interview-daily";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
@@ -178,8 +179,8 @@ export function V2GuestHome() {
       <Section title={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}>
         {careerGuides(t)
           .slice(0, 3)
-          .map((g) => (
-            <Row key={g.title} href={V2_ROUTES.guide} lead={g.emoji} title={g.title.replace(/\n/g, " ")} meta={g.desc} />
+          .map((g, i) => (
+            <Row key={g.title} href={careerGuideHref(i)} lead={g.emoji} title={g.title.replace(/\n/g, " ")} meta={g.desc} />
           ))}
       </Section>
 

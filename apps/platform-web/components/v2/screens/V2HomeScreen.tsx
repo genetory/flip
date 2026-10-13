@@ -43,6 +43,7 @@ import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 import { analyzeMockWeakness, WEAK_BELOW } from "../../../lib/talent/mock-weakness";
 import { careerGuides } from "../../../lib/talent/home-content";
+import { careerGuideHref } from "../../../lib/talent/v2-guides";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
 const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
@@ -483,8 +484,8 @@ function Home() {
       >
         {careerGuides(t)
           .slice(0, 3)
-          .map((g) => (
-            <Row key={g.title} href={V2_ROUTES.guide} lead={g.emoji} title={g.title.replace(/\n/g, " ")} meta={g.desc} />
+          .map((g, i) => (
+            <Row key={g.title} href={careerGuideHref(i)} lead={g.emoji} title={g.title.replace(/\n/g, " ")} meta={g.desc} />
           ))}
       </Section>
 
