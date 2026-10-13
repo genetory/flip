@@ -48,8 +48,9 @@ export function V2InterviewsGuest() {
     {
       img: "/img_process_2.webp",
       eyebrow: t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata"),
-      title: t("듣고, 말하고.\n진짜 면접처럼.", "Listen. Speak.\nLike the real thing.", "听、说，\n就像真正的面试。", "Nghe. Nói.\nNhư buổi thật.", "聞いて、話す。\n本番のように。", "Dengar. Bicara.\nSeperti aslinya."),
-      desc: t("면접관처럼 질문을 소리로 읽어 주고 시간이 흘러요. 말로 답하면 받아 적고, 글로 써도 돼요.", "Questions are read aloud with a timer. Speak and it's transcribed — or just type.", "像面试官一样朗读问题并计时。口头回答自动转写，也可打字。", "Câu hỏi được đọc to, có đồng hồ. Nói sẽ được ghi lại, hoặc gõ.", "面接官のように読み上げ、時間も流れます。話せば文字起こし、書いてもOK。", "Pertanyaan dibacakan dengan timer. Jawab lisan atau ketik.")
+      title: t("60초 타이머.\n진짜 면접처럼.", "60-second timer.\nLike the real thing.", "60 秒计时，\n就像真正的面试。", "Đồng hồ 60 giây.\nNhư buổi thật.", "60秒タイマー。\n本番のように。", "Timer 60 detik.\nSeperti aslinya."),
+      desc: t("면접관처럼 질문을 소리로 읽어 주고, 60초 타이머가 돌아가요. 말로 답하면 받아 적고, 글로 써도 돼요.", "Questions are read aloud and a 60-second timer runs. Speak and it's transcribed — or just type.", "像面试官一样朗读问题，60 秒计时开始。口头回答自动转写，也可打字。", "Câu hỏi được đọc to, đồng hồ 60 giây chạy. Nói sẽ được ghi lại, hoặc gõ.", "面接官のように読み上げ、60秒タイマーが動きます。話せば文字起こし、書いてもOK。", "Pertanyaan dibacakan, timer 60 detik berjalan. Jawab lisan atau ketik."),
+      timer: true
     },
     {
       img: "/img_ai_analyze.webp",
@@ -88,6 +89,12 @@ export function V2InterviewsGuest() {
               <p className="text-[15px] font-semibold text-[color:var(--v2-accent)]">{tile.eyebrow}</p>
               <h3 className="mt-2 whitespace-pre-line text-[28px] font-bold leading-[1.22] tracking-[-0.03em] text-[color:var(--v2-ink)] md:text-[36px]">{tile.title}</h3>
               <p className="mx-auto mt-3 max-w-[400px] text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)]">{tile.desc}</p>
+              {"timer" in tile ? (
+                // 타이머 모양 — 실전 모드의 60초
+                <p className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full bg-[#fdf2f3] px-4 py-2 text-[20px] font-bold tabular-nums text-[color:var(--v2-attention)]">
+                  <span aria-hidden>⏱</span> 1:00
+                </p>
+              ) : null}
               {/* eslint-disable-next-line @next/next/no-img-element -- 타일 그림(흰 바탕 → 곱하기 합성) */}
               <img src={tile.img} alt="" aria-hidden className="mx-auto mt-4 h-[200px] w-full max-w-[300px] object-contain mix-blend-multiply" />
             </article>
