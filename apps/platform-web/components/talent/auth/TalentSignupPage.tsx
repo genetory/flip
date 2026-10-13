@@ -56,6 +56,8 @@ export function TalentSignupPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // 비밀번호 확인 칸도 따로 보이기/숨기기.
+  const [showConfirm, setShowConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -182,16 +184,28 @@ export function TalentSignupPage() {
           </div>
         </TalentField>
         <TalentField label={copy.passwordConfirmLabel}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder={copy.passwordConfirmPlaceholder}
-            value={passwordConfirm}
-            onChange={(e) => setPasswordConfirm(e.target.value)}
-            className={talentInputClass}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
+          <div className="relative">
+            <input
+              type={showConfirm ? "text" : "password"}
+              placeholder={copy.passwordConfirmPlaceholder}
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              className={`${talentInputClass} pr-12`}
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-4 text-[#8B95A1] transition hover:text-[#4E5968]"
+              aria-label={showConfirm ? copy.hidePassword : copy.showPassword}
+              aria-pressed={showConfirm}
+              tabIndex={-1}
+            >
+              {showConfirm ? <EyeSlash className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+            </button>
+          </div>
         </TalentField>
         <p className="text-[13px] leading-relaxed text-[#8B95A1]">{copy.generalHelperText}</p>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
