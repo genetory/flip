@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Page, Section, Switch } from "../ui";
-import { DictationControls, Highlighted, PointCard, ResultSummary, SpeakButton, useDictation, useSpeak } from "../practice";
+import { DictationControls, Highlighted, PointCard, ResultSummary, SpeakButton, TimerBar, useDictation, useSpeak } from "../practice";
 import type { InterviewFeedback } from "../../../lib/member-profile-client";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -357,8 +357,9 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
 
           <div className="mt-4 flex items-center justify-between gap-3">
             <Switch on={timed} onChange={(v) => { setTimed(v); setRunning(false); setLeft(60); }} label={t("실전 모드 · 60초", "Real mode · 60s", "实战模式 · 60秒", "Thực chiến · 60s", "本番モード・60秒", "Mode nyata · 60 dtk")} />
-            {timed ? <span className={`text-[15px] font-bold tabular-nums ${left <= 10 ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-ink-2)]"}`}>{running ? `0:${String(Math.max(0, left)).padStart(2, "0")}` : t("쓰기 시작하면 재요", "Starts when you begin", "开始作答即计时", "Bắt đầu khi bạn viết", "書き始めると計測", "Mulai saat menulis")}</span> : null}
+            {timed && !running ? <span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("쓰기 시작하면 재요", "Starts when you begin", "开始作答即计时", "Bắt đầu khi bạn viết", "書き始めると計測", "Mulai saat menulis")}</span> : null}
           </div>
+          {timed && running ? <TimerBar t={t} left={left} total={60} /> : null}
           <textarea
             value={answer}
             onChange={(e) => {
