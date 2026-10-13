@@ -64,8 +64,7 @@ export function V2InterviewsGuest() {
     <Page>
       {/* ① 히어로 — 흰 바탕, 가운데 정렬, 아주 큰 제목 하나 */}
       <section className="px-5 pb-12 pt-12 text-center md:pt-20">
-        <p className="text-[17px] font-semibold text-[color:var(--v2-ink-3)]">{t("어플라이 모의 면접", "Aply Mock Interview", "Aply 模拟面试", "Phỏng vấn thử Aply", "Aply 模擬面接", "Simulasi Wawancara Aply")}</p>
-        <h1 className="mt-3 whitespace-pre-line text-[36px] font-bold leading-[1.18] tracking-[-0.04em] text-[color:var(--v2-ink)] min-[360px]:text-[40px] md:text-[60px]">
+        <h1 className="whitespace-pre-line text-[36px] font-bold leading-[1.18] tracking-[-0.04em] text-[color:var(--v2-ink)] min-[360px]:text-[40px] md:text-[60px]">
           {t("면접은,\n연습한 만큼.", "Interviews reward\npractice.", "面试，\n练多少得多少。", "Phỏng vấn,\nluyện bao nhiêu\nđược bấy nhiêu.", "面接は、\n練習した分だけ。", "Wawancara,\nsebanding latihan.")}
         </h1>
         <p className="mx-auto mt-4 max-w-[420px] text-[18px] leading-[1.55] text-[color:var(--v2-ink-3)] md:text-[21px]">{t("지원할 공고로 질문을 받고, 답하면 AI 면접관이 바로 피드백해요.", "Get questions for your job. Answer, and an AI interviewer gives feedback right away.", "按你的职位出题，回答后 AI 面试官立即反馈。", "Nhận câu hỏi theo tin, trả lời và AI phản hồi ngay.", "求人に合わせた質問に答えると、AI面接官がすぐフィードバック。", "Dapat pertanyaan sesuai lowongan, AI langsung memberi masukan.")}</p>
