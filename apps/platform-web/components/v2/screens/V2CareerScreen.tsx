@@ -30,6 +30,7 @@ import { useCareerHistorySync } from "../../../lib/talent/useCareerHistorySync";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import type { CareerSection } from "../../../lib/talent/career-chat";
 import { JobInterestModal } from "../../talent/jobs/JobInterestModal";
+import { V2CareerGuest } from "./V2CareerGuest";
 
 const R = {
   profile: "/v2/profile",
@@ -83,10 +84,23 @@ export function splitList(text: string): string[] {
 
 export function V2CareerScreen() {
   return (
-    <V2Shell requireAuth>
-      <Career />
+    <V2Shell>
+      <CareerGate />
     </V2Shell>
   );
+}
+
+/** 로그인 여부로 갈린다 — 로그인 전엔 둘러보기(V2CareerGuest), 로그인하면 내 커리어. 확인 중엔 화면 모양만. */
+function CareerGate() {
+  const { isReady, isAuthenticated } = useAuthSession();
+  if (!isReady)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton />
+      </Page>
+    );
+  return isAuthenticated ? <Career /> : <V2CareerGuest />;
 }
 
 function Career() {
