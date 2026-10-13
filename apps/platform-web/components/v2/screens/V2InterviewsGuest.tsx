@@ -7,10 +7,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Masthead, Page, Section } from "../ui";
-import { LevelChip } from "../practice";
+import { DictationControls, LevelChip, SpeakButton, useDictation, useSpeak } from "../practice";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
-import { pickDailyQuestion, kstDay, questionText } from "../../../lib/talent/interview-daily";
+import { pickDailyQuestion, kstDay, questionText, type DailyQuestion } from "../../../lib/talent/interview-daily";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { ExpressionCard, PracticeCard, ReportedQuestions } from "./V2InterviewsScreen";
 
@@ -31,42 +31,37 @@ export function V2InterviewsGuest() {
         eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
         title={t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
         lede={t("지원할 공고로 질문을 받고, 말이나 글로 답하면 AI가 잘한 점과 고칠 점, 모범 답안까지 알려 줘요.", "Get questions for the job you're applying to, answer by voice or text, and AI shows what worked, what to fix, and a model answer.", "针对要投递的职位出题，用语音或文字作答，AI 会指出优点、改进点并给出参考答案。", "Nhận câu hỏi theo tin bạn ứng tuyển, trả lời bằng giọng nói hoặc chữ, AI chỉ điểm tốt, cần sửa và câu mẫu.", "応募する求人で質問を受け、声か文字で答えるとAIが良い点・直す点・模範回答を教えます。", "Dapat pertanyaan sesuai lowongan, jawab dengan suara atau teks, AI beri masukan dan contoh jawaban.")}
-        action={
-          <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:flex">
-            <Button href={SIGNUP}>{t("시작하기", "Get started", "开始使用", "Bắt đầu", "はじめる", "Mulai")}</Button>
-            <Button variant="secondary" href={LOGIN}>
-              {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
-            </Button>
-          </div>
-        }
       />
 
-      {/* 가입 첫 1회 — 공고 하나로 해 보기(가입하면 이용권 1회가 들어간다). 이 문구만 '무료'를 쓴다(사용자 요청). */}
-      <div className="px-5 pb-8">
-        <Link href={SIGNUP} className="flex items-center gap-3 overflow-hidden rounded-3xl bg-[#fff4e8] py-4 pl-5 pr-3 transition hover:-translate-y-0.5">
-          <span className="min-w-0 flex-1">
-            <span className="block text-[18px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{t("가입하면 공고 1개는 무료예요", "Sign up and try one job free", "注册即可免费练习 1 个职位", "Đăng ký để luyện miễn phí 1 tin", "登録すると求人1件は無料", "Daftar, 1 lowongan gratis")}</span>
-            <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개에 답하고 AI 피드백까지 받아 보세요.", "Answer 5 questions for a job you choose and get AI feedback.", "选一个职位回答 5 个问题，获得 AI 反馈。", "Trả lời 5 câu theo tin bạn chọn và nhận phản hồi AI.", "好きな求人で5問に答えてAIフィードバックまで。", "Jawab 5 pertanyaan untuk lowongan pilihanmu dan dapat masukan AI.")}</span>
-            <span className="mt-3 inline-flex h-9 items-center rounded-lg bg-[color:var(--v2-ink)] px-3.5 text-[14px] font-semibold text-white">{t("가입하고 해 보기", "Sign up & try", "注册并试试", "Đăng ký & thử", "登録して試す", "Daftar & coba")}</span>
-          </span>
-          {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(모의 면접 장면, 흰 바탕 → 곱하기 합성) */}
-          <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[96px] w-[120px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[112px] min-[360px]:w-[144px]" />
-        </Link>
-      </div>
-
-      {/* 오늘의 질문 — 맛보기(답하고 피드백은 가입 후) */}
-      <Section title={t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")}>
+      {/* 실전 모드 + 가입 첫 1회 — 로그인 화면의 시작 카드와 같은 모양. 이 카드만 '무료'를 쓴다(사용자 요청). */}
+      <div className="-mt-2 px-5 pb-8">
         <div className="rounded-3xl bg-[#edf1fd] p-5">
-          <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">{mockCategoryLabelOf(t, daily.category)}</span>
-          <p className="mt-1.5 text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, daily)}</p>
-          {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {daily.ko}</p> : null}
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <span className="text-[14px] text-[color:var(--v2-ink-3)]">{t("매일 새 질문이 와요. 2분이면 답할 수 있어요.", "A new question every day. Takes 2 minutes.", "每天一道新题，只需 2 分钟。", "Mỗi ngày một câu mới. Chỉ 2 phút.", "毎日新しい質問。2分で答えられます。", "Pertanyaan baru tiap hari. 2 menit.")}</span>
-            <Button size="sm" href={SIGNUP}>
-              {t("답해 보기", "Try it", "试着回答", "Thử trả lời", "答えてみる", "Coba")}
+          <div className="flex items-center gap-3">
+            <span className="min-w-0 flex-1">
+              <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)]">🎁 {t("가입하면 1회 무료", "1 free session on sign-up", "注册赠送 1 次", "Tặng 1 lượt khi đăng ký", "登録で1回無料", "1 sesi gratis")}</span>
+              <span className="mt-2 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
+              <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("원하는 공고로 질문 5개를 소리로 듣고 답하면, 잘한 점·고칠 점·모범 답안까지.", "Hear 5 questions for a job you choose, answer, and get strengths, fixes and a model answer.", "选一个职位听 5 个问题并作答，获得优点、改进点和参考答案。", "Nghe 5 câu theo tin bạn chọn, trả lời và nhận nhận xét, câu mẫu.", "好きな求人で5問を聞いて答えると、良い点・直す点・模範回答まで。", "Dengar 5 pertanyaan, jawab, dapat masukan & contoh jawaban.")}</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
+            <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[88px] w-[108px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[100px] min-[360px]:w-[124px]" />
+          </div>
+          <div className="mt-4">
+            <Button full href={SIGNUP}>
+              {t("가입하고 무료로 시작하기", "Sign up & start free", "注册并免费开始", "Đăng ký & bắt đầu miễn phí", "登録して無料で始める", "Daftar & mulai gratis")}
             </Button>
           </div>
+          <p className="mt-3 text-center text-[13px] text-[color:var(--v2-ink-3)]">
+            {t("이미 계정이 있나요?", "Have an account?", "已有账号？", "Đã có tài khoản?", "アカウントをお持ちですか？", "Sudah punya akun?")}{" "}
+            <Link href={LOGIN} className="font-semibold text-[color:var(--v2-accent)]">
+              {t("로그인", "Log in", "登录", "Đăng nhập", "ログイン", "Masuk")}
+            </Link>
+          </p>
         </div>
+      </div>
+
+      {/* 지금 바로 체험 — 로그인 없이 오늘의 질문을 듣고 답하면 간단 체크(문장 규칙, AI 아님). AI 피드백은 가입 후. */}
+      <Section title={t("지금 바로 체험해 보기", "Try it right now", "现在就试试", "Thử ngay bây giờ", "今すぐ試す", "Coba sekarang")}>
+        <TryNow t={t} question={daily} />
         {/* 로그인 전엔 국적을 모르니 화면 언어로 — 한국어가 아니면 한국어 면접 표현도 */}
         {locale !== "ko" ? <ExpressionCard t={t} /> : null}
       </Section>
@@ -139,4 +134,85 @@ function SampleFeedback({ t }: { t: PlatformT }) {
       </p>
     </div>
   );
+}
+
+/** 지금 바로 체험 — 질문 듣기 · 말이나 글로 답하기 · [바로 체크](문장 규칙으로 즉석 확인) → 가입하면 AI 피드백. */
+function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
+  const { locale } = useLanguage();
+  const [answer, setAnswer] = useState("");
+  const [checked, setChecked] = useState<string | null>(null);
+  const tts = useSpeak();
+  const dict = useDictation({ onFinal: (add) => setAnswer((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
+  const text = answer.trim();
+  // 간단 체크 — AI 가 아니라 문장 규칙(길이·숫자·내 행동·결과)으로. 확인한 답이 바뀌면 다시 누르게.
+  const result = checked !== null && checked === text ? quickCheck(text) : null;
+  const checks = result
+    ? [
+        { ok: result.long, good: t(`말하면 약 ${result.seconds}초 — 알맞은 길이예요`, `About ${result.seconds}s spoken — good length`, `说出来约 ${result.seconds} 秒——长度合适`, `Nói khoảng ${result.seconds}s — vừa đủ`, `話すと約${result.seconds}秒 — ちょうど良い長さ`, `Sekitar ${result.seconds} detik — pas`), bad: t(`말하면 약 ${result.seconds}초 — 30초~1분이 되게 조금 더 길게`, `About ${result.seconds}s — aim for 30s–1min`, `约 ${result.seconds} 秒——建议 30 秒到 1 分钟`, `Khoảng ${result.seconds}s — nên 30s–1 phút`, `約${result.seconds}秒 — 30秒〜1分を目安に`, `Sekitar ${result.seconds} detik — targetkan 30 dtk–1 mnt`) },
+        { ok: result.number, good: t("숫자로 보여 줬어요", "You used numbers", "用了数字", "Có dùng con số", "数字で示せています", "Ada angka"), bad: t("기간·인원·결과 같은 숫자를 넣어 보세요", "Add numbers (time, team size, results)", "加入期间、人数、结果等数字", "Thêm con số (thời gian, số người, kết quả)", "期間・人数・結果などの数字を", "Tambahkan angka") },
+        { ok: result.action, good: t("내가 한 행동이 보여요", "Your actions are clear", "能看出你做了什么", "Thấy rõ việc bạn làm", "自分の行動が見えます", "Tindakanmu jelas"), bad: t("'제가 ~을 맡아 ~했다'처럼 내 행동을 넣어 보세요", "Say what you did: 'I took on … and …'", "加入“我负责……做了……”这样的行动", "Nêu việc bạn đã làm", "「私が〜を担当し〜した」と行動を", "Sebut apa yang kamu lakukan") },
+        { ok: result.ending, good: t("결과나 배운 점으로 마무리했어요", "You end with a result or lesson", "以结果或收获收尾", "Kết bằng kết quả/bài học", "結果や学びで締めています", "Diakhiri hasil/pelajaran"), bad: t("결과나 배운 점으로 마무리해 보세요", "End with a result or what you learned", "用结果或收获来收尾", "Kết bằng kết quả hoặc bài học", "結果や学んだことで締めましょう", "Akhiri dengan hasil/pelajaran") }
+      ]
+    : [];
+  const good = checks.filter((c) => c.ok).length;
+  return (
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="text-[13px] font-bold text-[color:var(--v2-accent)]">
+            {t("오늘의 질문", "Today's question", "今日问题", "Câu hỏi hôm nay", "今日の質問", "Pertanyaan hari ini")} · {mockCategoryLabelOf(t, question.category)}
+          </span>
+          <span className="mt-1.5 block text-[18px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, question)}</span>
+          {locale !== "ko" ? <span className="mt-1 block text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</span> : null}
+        </span>
+        <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
+      </div>
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        rows={5}
+        placeholder={t("면접관에게 말하듯 편하게 답해 보세요. 마이크로 말해도 돼요.", "Answer as if talking to the interviewer — you can use the mic.", "像对面试官说话一样回答，也可以用麦克风。", "Trả lời như đang nói với người phỏng vấn — có thể dùng mic.", "面接官に話すように答えてみましょう。マイクでもOK。", "Jawab seperti berbicara ke pewawancara — bisa pakai mikrofon.")}
+        className="mt-4 w-full resize-none rounded-2xl bg-white p-4 text-[16px] leading-[1.65] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2"
+      />
+      <DictationControls t={t} dict={dict} right={<span className="text-[13px] tabular-nums text-[color:var(--v2-faint)]">{text.length}{t("자", " chars", "字", " ký tự", "字", " karakter")}</span>} />
+      <div className="mt-3">
+        <Button full onClick={() => { dict.stop(); setChecked(text); }} disabled={text.length < 10}>
+          {t("바로 체크해 보기", "Quick check", "快速检查", "Kiểm tra nhanh", "すぐにチェック", "Cek cepat")}
+        </Button>
+      </div>
+      {result ? (
+        <div className="mt-4 rounded-2xl bg-white p-4">
+          <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`간단 체크 ${good} / ${checks.length}`, `Quick check ${good} / ${checks.length}`, `快速检查 ${good} / ${checks.length}`, `Kiểm tra nhanh ${good} / ${checks.length}`, `簡単チェック ${good} / ${checks.length}`, `Cek cepat ${good} / ${checks.length}`)}</p>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {checks.map((c, i) => (
+              <li key={i} className="flex items-start gap-2 text-[14px] leading-[1.55]">
+                <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ${c.ok ? "bg-[color:var(--v2-good)]" : "bg-[color:var(--v2-attention)]"}`} aria-hidden>
+                  {c.ok ? "✓" : "!"}
+                </span>
+                <span className={c.ok ? "text-[color:var(--v2-ink-2)]" : "text-[color:var(--v2-ink-3)]"}>{c.ok ? c.good : c.bad}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[12px] leading-[1.5] text-[color:var(--v2-faint)]">{t("문장 규칙으로 본 간단 체크예요. AI 피드백은 내용까지 읽고 잘한 점·고칠 점·모범 답안을 알려 줘요.", "A rule-based quick check. AI feedback reads the content and gives strengths, fixes and a model answer.", "这是基于规则的快速检查。AI 反馈会阅读内容，给出优点、改进点和参考答案。", "Đây là kiểm tra theo quy tắc. Phản hồi AI đọc nội dung và đưa nhận xét, câu mẫu.", "文の規則による簡単チェックです。AIフィードバックは内容まで読みます。", "Cek berbasis aturan. Masukan AI membaca isi jawaban.")}</p>
+          <div className="mt-3">
+            <Button full href={SIGNUP}>
+              {t("가입하고 AI 피드백 받기 (1회 무료)", "Sign up for AI feedback (1 free)", "注册获取 AI 反馈（赠 1 次）", "Đăng ký nhận phản hồi AI (miễn phí 1 lần)", "登録してAIフィードバック（1回無料）", "Daftar untuk masukan AI (1x gratis)")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** 간단 체크 — 길이(말하기 시간 추정)·숫자·내 행동·결과/배운 점. 한국어 답 기준의 낱말 규칙(영어 낱말도 조금). */
+function quickCheck(text: string) {
+  const seconds = Math.max(1, Math.round(text.replace(/\s+/g, "").length / 6)); // 한국어 말하기 약 초당 6글자
+  return {
+    seconds,
+    long: seconds >= 25,
+    number: /\d|[일이삼사오육칠팔구십백천만]+\s*(명|건|개|년|개월|주|%|퍼센트|배)/.test(text),
+    action: /(했|맡|만들|이끌|개선|해결|담당|기획|운영|분석|제안|진행|led|built|made|managed|improved|solved)/i.test(text),
+    ending: /(그래서|결과|덕분|배웠|배운|느꼈|앞으로|기여|성장|result|learned|so that)/i.test(text)
+  };
 }
