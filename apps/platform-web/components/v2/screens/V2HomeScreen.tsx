@@ -13,6 +13,7 @@ import { FeaturedBanners } from "../../talent/screens/HomeScreen";
 import { Attention, Button, Chip, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton, TextLink } from "../ui";
 import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { PrepSheetV2 } from "../prep-sheet";
+import { V2GuestHome } from "./V2GuestHome";
 import { TalentCardSheet, TalentPoolLine, useTalentPool } from "../talent-pool";
 import { jobPhotoOf } from "../lib";
 import { RoleChecklist, coverWritten, docChecklist, splitList, termIn } from "./V2CareerScreen";
@@ -66,10 +67,24 @@ function statusText(t: PlatformT, a: MyApplication): string {
 
 export function V2HomeScreen() {
   return (
-    <V2Shell requireAuth>
-      <Home />
+    <V2Shell>
+      <HomeGate />
     </V2Shell>
   );
+}
+
+/** 로그인 여부로 갈린다 — 로그인 전엔 둘러보기 홈(V2GuestHome), 로그인하면 내 홈. 확인 중엔 화면 모양만. */
+function HomeGate() {
+  const { isReady, isAuthenticated } = useAuthSession();
+  if (!isReady)
+    return (
+      <Page>
+        <MastheadSkeleton />
+        <SectionSkeleton thumb={false} rows={2} />
+        <SectionSkeleton />
+      </Page>
+    );
+  return isAuthenticated ? <Home /> : <V2GuestHome />;
 }
 
 function Home() {
