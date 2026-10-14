@@ -31,35 +31,110 @@ export function LevelChip({ t, score }: { t: PlatformT; score: number | null | u
 }
 
 // 질문 읽어 주기 — 브라우저 음성 합성(speechSynthesis). 한국어 면접이라 한국어 질문을 한국어 목소리로 읽는다.
+export type SpeakState = "idle" | "playing" | "paused" | "done";
 export function useSpeak() {
+  const [state, setState] = useState<SpeakState>("idle");
+  const [progress, setProgress] = useState(0); // 0~1 — 읽은 글자 위치(브라우저가 알려 줄 때만)
+  const cur = useRef<SpeechSynthesisUtterance | null>(null);
   const speak = useCallback((text: string) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
-    synth.cancel();
     const u = new SpeechSynthesisUtterance(text);
+    cur.current = u; // 먼저 바꿔 두면 cancel 로 끝나는 이전 문장의 onend 는 무시된다
+    synth.cancel();
     u.lang = "ko-KR";
     u.rate = 0.95;
     const voice = synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith("ko"));
     if (voice) u.voice = voice;
+    u.onend = () => {
+      if (cur.current !== u) return;
+      setState("done");
+      setProgress(1);
+    };
+    u.onerror = () => {
+      if (cur.current !== u) return;
+      setState("idle");
+      setProgress(0);
+    };
+    u.onboundary = (e) => {
+      if (cur.current === u && text.length) setProgress(Math.min(1, e.charIndex / text.length));
+    };
+    setState("playing");
+    setProgress(0);
     synth.speak(u);
   }, []);
+  const pause = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.pause();
+    setState("paused");
+  }, []);
+  const resume = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.resume();
+    setState("playing");
+  }, []);
   const stop = useCallback(() => {
+    cur.current = null;
     if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    setState("idle");
+    setProgress(0);
   }, []);
   useEffect(() => stop, [stop]); // 시트가 닫히면 멈춘다
-  return { speak, stop };
+  return { speak, pause, resume, stop, state, progress };
 }
+export type Speak = ReturnType<typeof useSpeak>;
 
-/** 질문 다시 듣기 버튼. */
-export function SpeakButton({ t, onSpeak }: { t: PlatformT; onSpeak: () => void }) {
+const ICON = "h-4 w-4";
+/** 질문 듣기 컨트롤 — 듣기 → (일시정지 · 정지) → 이어 듣기 / 다시 듣기. 읽은 만큼 바탕이 채워진다. */
+export function SpeakButton({ t, tts, text }: { t: PlatformT; tts: Speak; text: string }) {
+  const { state, progress } = tts;
+  const pill = "relative inline-flex h-9 shrink-0 items-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[13px] font-semibold text-[color:var(--v2-ink-3)]";
+  const btn = "relative z-[1] inline-flex h-9 items-center justify-center gap-1 transition hover:text-[color:var(--v2-ink)]";
+  if (state === "idle" || state === "done") {
+    const again = state === "done";
+    const label = again ? t("다시 듣기", "Replay", "重听", "Nghe lại", "もう一度", "Ulangi") : t("듣기", "Listen", "听", "Nghe", "聞く", "Dengar");
+    return (
+      <span className={pill}>
+        <button type="button" onClick={() => tts.speak(text)} aria-label={label} className={`${btn} px-3`}>
+          {again ? (
+            <svg viewBox="0 0 24 24" className={ICON} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v5h5" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" className={ICON} fill="currentColor" aria-hidden>
+              <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+            </svg>
+          )}
+          {label}
+        </button>
+      </span>
+    );
+  }
+  const playing = state === "playing";
   return (
-    <button type="button" onClick={onSpeak} aria-label={t("질문 듣기", "Listen", "听问题", "Nghe câu hỏi", "質問を聞く", "Dengarkan")} title={t("질문 듣기", "Listen", "听问题", "Nghe câu hỏi", "質問を聞く", "Dengarkan")} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-[color:var(--v2-band)] px-3 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M11 5 6 9H3v6h3l5 4V5z" />
-        <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
-      </svg>
-      {t("듣기", "Listen", "听", "Nghe", "聞く", "Dengar")}
-    </button>
+    <span className={pill} role="group" aria-label={t("질문 듣기", "Question audio", "问题朗读", "Nghe câu hỏi", "質問の音声", "Audio pertanyaan")}>
+      {/* 읽은 만큼 채움 */}
+      <span aria-hidden className="absolute inset-y-0 left-0 bg-[color:var(--v2-accent-weak)] transition-[width] duration-300" style={{ width: `${Math.round(progress * 100)}%` }} />
+      <button type="button" onClick={playing ? tts.pause : tts.resume} aria-label={playing ? t("일시정지", "Pause", "暂停", "Tạm dừng", "一時停止", "Jeda") : t("이어 듣기", "Resume", "继续", "Tiếp tục", "再開", "Lanjut")} className={`${btn} w-9 text-[color:var(--v2-accent)]`}>
+        {playing ? (
+          <svg viewBox="0 0 24 24" className={ICON} fill="currentColor" aria-hidden>
+            <rect x="6" y="5" width="4" height="14" rx="1.2" />
+            <rect x="14" y="5" width="4" height="14" rx="1.2" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className={ICON} fill="currentColor" aria-hidden>
+            <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+          </svg>
+        )}
+      </button>
+      <span className="relative z-[1] text-[12px] font-semibold text-[color:var(--v2-accent)]">{playing ? t("듣는 중", "Playing", "播放中", "Đang phát", "再生中", "Diputar") : t("멈춤", "Paused", "已暂停", "Đã dừng", "一時停止", "Dijeda")}</span>
+      <button type="button" onClick={tts.stop} aria-label={t("정지", "Stop", "停止", "Dừng", "停止", "Berhenti")} className={`${btn} w-9`}>
+        <svg viewBox="0 0 24 24" className={ICON} fill="currentColor" aria-hidden>
+          <rect x="6" y="6" width="12" height="12" rx="2" />
+        </svg>
+      </button>
+    </span>
   );
 }
 
@@ -237,7 +312,7 @@ export function PracticeSheet({
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
-        <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
+        <SpeakButton t={t} tts={tts} text={question.ko} />
       </div>
       {locale !== "ko" && question.shown !== question.ko ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
       {prev && !feedback ? (

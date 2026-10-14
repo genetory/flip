@@ -55,9 +55,10 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
   // 실전 모드 — 질문이 바뀔 때마다 면접관처럼 소리로 읽어 준다(끌 수 있다).
   const tts = useSpeak();
   const [voice, setVoice] = useState(true);
+  const { speak } = tts; // speak 는 고정 — tts 객체는 재생 상태가 바뀔 때마다 새로 만들어진다
   useEffect(() => {
-    if (typeof step === "number" && voice && questions[step]) tts.speak(questions[step].ko);
-  }, [step, voice, questions, tts]);
+    if (typeof step === "number" && voice && questions[step]) speak(questions[step].ko);
+  }, [step, voice, questions, speak]);
   const begin = () => {
     // 유료화가 켜져 있고 이용권이 질문 수보다 적으면 먼저 충전부터.
     if (credits?.paywall && credits.credits < questions.length) {
@@ -166,7 +167,7 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
           </div>
           <div className="mt-2 flex items-start justify-between gap-3">
             <p className="text-[21px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{questionText(t, questions[idx])}</p>
-            <SpeakButton t={t} onSpeak={() => tts.speak(questions[idx].ko)} />
+            <SpeakButton t={t} tts={tts} text={questions[idx].ko} />
           </div>
           <button type="button" onClick={() => setVoice((v) => !v)} aria-pressed={voice} className="mt-2 text-[13px] font-semibold text-[color:var(--v2-faint)]">
             {voice ? t("🔊 질문을 소리로 읽어 줘요 · 끄기", "🔊 Reading questions aloud · Turn off", "🔊 朗读问题中 · 关闭", "🔊 Đang đọc câu hỏi · Tắt", "🔊 質問を読み上げ中 · オフ", "🔊 Membacakan · Matikan") : t("🔇 소리로 듣기 켜기", "🔇 Turn on read-aloud", "🔇 开启朗读", "🔇 Bật đọc", "🔇 読み上げをオン", "🔇 Nyalakan")}

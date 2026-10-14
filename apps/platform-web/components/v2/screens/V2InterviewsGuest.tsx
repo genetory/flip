@@ -351,7 +351,7 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
         <div className="px-5 pb-5">
           <div className="flex items-start justify-between gap-3">
             <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questionText(t, question)}</p>
-            <SpeakButton t={t} onSpeak={() => tts.speak(question.ko)} />
+            <SpeakButton t={t} tts={tts} text={question.ko} />
           </div>
           {locale !== "ko" ? <p className="mt-1 text-[14px] text-[color:var(--v2-muted)]">🇰🇷 {question.ko}</p> : null}
 
