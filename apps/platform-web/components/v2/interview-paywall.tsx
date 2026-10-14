@@ -97,7 +97,7 @@ export function CreditLine({ t, credits, per, onTopUp }: { t: PlatformT; credits
         <TicketIcon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1 text-[15px] leading-[1.4] text-[color:var(--v2-ink-3)]">
-        {t("이용권", "Passes", "使用券", "Vé", "チケット", "Tiket")}{" "}
+        {t("모의 면접 이용권", "Mock interview passes", "模拟面试券", "Vé phỏng vấn thử", "模擬面接チケット", "Tiket simulasi")}{" "}
         <b className={`font-bold ${empty ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{empty ? t("다 썼어요", "none left", "已用完", "đã hết", "残りなし", "habis") : creditLabel(t, credits, per)}</b>
       </span>
       <button type="button" onClick={onTopUp} className="shrink-0 whitespace-nowrap text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-70">
