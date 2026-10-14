@@ -107,130 +107,165 @@ export function ExperienceCampaignPage() {
     t("자소서를 썼는데 너무 평범한 것 같아요.", "My cover letter feels too ordinary.")
   ];
 
+  // 혜택 쿠폰 — 왼쪽 큰 표시 · 점선 · 오른쪽 설명
   const offers = [
     {
-      img: "/img_process_1.webp",
-      eyebrow: t("전문가 1:1", "1:1 with an expert"),
-      title: t(`매주 단 ${WEEKLY_SLOTS}명`, `Only ${WEEKLY_SLOTS} people a week`),
-      desc: t(`어플라이 자소서 전문가가 직접 상담하고 첨삭해요. (${EXPERT_SCOPE.ko})`, `An Aply cover letter expert consults and edits with you. (${EXPERT_SCOPE.en})`)
+      mark: "1:1",
+      tone: "bg-[color:var(--v2-accent)] text-white",
+      title: t(`매주 단 ${WEEKLY_SLOTS}명`, `Only ${WEEKLY_SLOTS} a week`),
+      desc: t(`자소서 전문가가 직접 상담하고 첨삭해요. (${EXPERT_SCOPE.ko})`, `An expert consults and edits with you. (${EXPERT_SCOPE.en})`)
     },
     {
-      img: "/img_process_2.webp",
-      eyebrow: t("상담 방식", "How we meet"),
-      title: t("온라인 또는\n오프라인", "Online or\nin person"),
-      desc: t("화상 상담도, 만나서 하는 상담도 돼요. 선정 후 편한 방식으로 맞춰요.", "Video call or face to face — we'll arrange what works for you after selection.")
+      mark: t("온·오프", "ON·OFF"),
+      tone: "bg-[#7c5cff] text-white",
+      title: t("온라인 또는 오프라인", "Online or in person"),
+      desc: t("화상 상담도, 만나서 하는 상담도 돼요. 선정 후 편한 방식으로 맞춰요.", "Video call or face to face — we'll arrange it after selection.")
     },
     {
-      img: "/img_process_3.webp",
-      eyebrow: t("비용", "Cost"),
+      mark: "₩0",
+      tone: "bg-[#ffd84d] text-[#191f28]",
       title: t("100% 무료", "100% free"),
       desc: t("상담부터 약속한 첨삭 결과물까지 비용이 전혀 없어요.", "From the consultation to the promised edits — completely free.")
     }
   ];
 
+  const sample = BEFORE_AFTER_EXAMPLES[0];
   return (
     <V2Shell>
+      {/* 프로모션 페이지 — 연파랑 바탕 위에 파란 히어로·말풍선·쿠폰 카드 */}
+      <div className="bg-[#eef3ff]">
       <Page>
-        {/* ① 히어로 — 흰 바탕, 가운데 정렬, 아주 큰 제목 하나 */}
-        <section className="px-5 pb-12 pt-12 text-center md:pt-20">
-          <p className="text-[14px] font-bold tracking-[0.08em] text-[color:var(--v2-accent)]">APLY CAREER PROJECT</p>
-          <h1 className="mt-3 whitespace-pre-line text-[32px] font-bold leading-[1.2] tracking-[-0.04em] text-[color:var(--v2-ink)] min-[360px]:text-[38px] md:text-[60px]">
-            {t("당신의 경험이\n자소서가 됩니다.", "Your experience\nbecomes your\ncover letter.")}
-          </h1>
-          <p className="mx-auto mt-4 max-w-[440px] text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)] md:text-[20px]">
-            {t("한국식 자기소개서가 어렵다면? 어플라이 자소서 전문가가 직접 도와드립니다.", "Korean-style cover letters feel hard? An Aply cover letter expert will help you in person.")}
-          </p>
-          <div className="mt-7 flex justify-center">
-            <PillButton onClick={cta("hero")}>{t("무료 자소서 상담 신청하기 →", "Apply for a free consultation →")}</PillButton>
+        {/* ① 히어로 — 파란 띠, 노란 강조, 자소서 미리보기 카드 */}
+        <section className="relative overflow-hidden bg-[color:var(--v2-accent)] px-5 pb-12 pt-10 text-white md:mx-5 md:mt-6 md:rounded-[40px] md:px-10 md:pt-16">
+          {/* 장식 원 */}
+          <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10" />
+          <span aria-hidden className="pointer-events-none absolute -left-16 bottom-10 h-40 w-40 rounded-full bg-white/[0.07]" />
+          <div className="relative flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#ffd84d] px-3 py-1.5 text-[13px] font-extrabold text-[#191f28]">{t("100% 무료", "100% FREE")}</span>
+            <span className="rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold">{t(`매주 단 ${WEEKLY_SLOTS}명`, `${WEEKLY_SLOTS} per week`)}</span>
+            <span className="rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold">{t("전문가 1:1", "1:1 expert")}</span>
           </div>
-          <p className="mt-4 text-[14px] text-[color:var(--v2-muted)]">
-            {t(`매주 ${WEEKLY_SLOTS}명 선정 · 전문가 1:1 · 100% 무료`, `${WEEKLY_SLOTS} people a week · 1:1 expert · 100% free`)}
+          <p className="relative mt-6 text-[13px] font-bold tracking-[0.14em] text-white/70">APLY CAREER PROJECT</p>
+          <h1 className="relative mt-2 text-[34px] font-extrabold leading-[1.18] tracking-[-0.04em] min-[360px]:text-[40px] md:text-[60px]">
+            {t("당신의 경험이", "Your experience")}
+            <br />
+            <span className="text-[#ffd84d]">{t("자소서", "your cover letter")}</span>
+            {t("가 됩니다.", ".")}
+          </h1>
+          <p className="relative mt-4 max-w-[440px] text-[17px] leading-[1.6] text-white/85">
+            {t("한국식 자기소개서가 어렵다면? 어플라이 자소서 전문가가 직접 도와드립니다.", "Korean-style cover letters feel hard? An Aply expert will help you in person.")}
           </p>
-          {/* eslint-disable-next-line @next/next/no-img-element -- 히어로 그림(흰 바탕 → 곱하기 합성) */}
-          <img src="/img_coverletter.webp" alt="" aria-hidden className="mx-auto mt-8 h-[220px] w-full max-w-[340px] object-contain mix-blend-multiply md:h-[320px] md:max-w-[480px]" />
-          <p className="mx-auto mt-6 max-w-[420px] text-[20px] font-bold leading-[1.45] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[24px]">
-            {t("별거 아닌 경험은 없어요.", "No experience is too small.")}
-          </p>
-          <p className="mx-auto mt-2 max-w-[420px] text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)]">
-            {t("편의점 알바도, 동아리 활동도 취업 스펙이 될 수 있습니다.", "A convenience store job or a student club can become a real qualification.")}
-          </p>
+          <div className="relative mt-7 flex flex-col gap-3 min-[400px]:flex-row min-[400px]:items-center">
+            <button type="button" onClick={cta("hero")} className="inline-flex h-14 items-center justify-center rounded-full bg-white px-7 text-[17px] font-extrabold text-[color:var(--v2-accent)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.35)] transition hover:opacity-90 active:scale-[0.98]">
+              {t("무료 상담 신청하기 →", "Apply for free →")}
+            </button>
+            <span className="text-[14px] font-semibold text-white/80">{t("월요일까지 신청 · 화요일 선정", "Apply by Mon · picked Tue")}</span>
+          </div>
+          {/* 자소서 미리보기 — 살짝 기운 종이 카드 */}
+          <div className="relative mx-auto mt-10 max-w-[420px] rotate-[-2deg] rounded-[24px] bg-white p-5 text-left text-[color:var(--v2-ink)] shadow-[0_24px_48px_-20px_rgba(0,0,0,0.45)]">
+            <p className="text-[12px] font-bold tracking-[0.08em] text-[color:var(--v2-faint)]">BEFORE</p>
+            <p className="mt-1 text-[15px] leading-[1.55] text-[color:var(--v2-muted)] line-through decoration-[#f04452]/60 decoration-2">{t(sample.before.ko, sample.before.en)}</p>
+            <div aria-hidden className="my-3 border-t-2 border-dashed border-[color:var(--v2-band)]" />
+            <p className="text-[12px] font-bold tracking-[0.08em] text-[color:var(--v2-accent)]">AFTER</p>
+            <p className="mt-1 text-[16px] font-bold leading-[1.55]">
+              <span className="bg-[linear-gradient(transparent_55%,#ffe98a_55%)]">{t(sample.after.ko, sample.after.en)}</span>
+            </p>
+          </div>
         </section>
 
-        {/* ② 이런 고민 — 회색 띠 위 흰 타일, 따옴표 문장 */}
-        <section className="bg-[#f5f5f7] px-4 py-14 md:mx-5 md:rounded-[36px] md:px-8">
+        {/* ② 이런 고민 — 말풍선(채팅) */}
+        <section className="px-5 py-16">
           <Headline eyebrow={t("이런 고민 있나요?", "Sound familiar?")} title={t("혼자 쓰기\n막막했다면.", "Stuck writing\nit alone?")} />
-          <div className="mt-10 grid gap-3 md:grid-cols-2">
-            {worries.map((w) => (
-              <figure key={w} className="rounded-[28px] bg-white px-6 py-6">
-                <span aria-hidden className="block text-[36px] font-bold leading-none text-[color:var(--v2-accent)]">&ldquo;</span>
-                <blockquote className="mt-1 text-[18px] font-semibold leading-[1.5] tracking-[-0.02em] text-[color:var(--v2-ink)]">{w}</blockquote>
-              </figure>
+          <div className="mx-auto mt-10 flex max-w-[520px] flex-col gap-3">
+            {worries.map((w, i) => (
+              <div key={w} className={`flex items-end gap-2 ${i % 2 ? "flex-row-reverse" : ""}`}>
+                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[18px]">{["🙋", "🤔", "😥", "📝"][i]}</span>
+                <p className={`max-w-[82%] rounded-[22px] px-5 py-3.5 text-[16px] font-semibold leading-[1.5] shadow-[0_6px_18px_-12px_rgba(11,70,232,0.35)] ${i % 2 ? "rounded-br-md bg-[color:var(--v2-accent)] text-white" : "rounded-bl-md bg-white text-[color:var(--v2-ink)]"}`}>{w}</p>
+              </div>
             ))}
           </div>
-          <p className="mt-8 text-center text-[17px] font-semibold text-[color:var(--v2-ink-2)]">
-            {t("그 경험, 전문가와 함께 자소서로 바꿔 봐요.", "Let's turn that experience into a cover letter — with an expert.")}
+          <p className="mt-10 text-center text-[19px] font-extrabold tracking-[-0.02em] text-[color:var(--v2-ink)]">
+            {t("그 경험, 전문가와 함께\n자소서로 바꿔 봐요.", "Let's turn that experience\ninto a cover letter.").split("\n").map((l) => (
+              <span key={l} className="block">{l}</span>
+            ))}
           </p>
         </section>
 
         {/* ③ Before / After — 예시(실제 사례로 교체 예정) */}
         <BeforeAfter t={t} />
 
-        {/* ④ 컨설팅 안내 — 회색 띠 위 흰 타일 셋 + 주간 진행 */}
-        <section className="bg-[#f5f5f7] px-4 py-14 md:mx-5 md:rounded-[36px] md:px-8">
-          <Headline eyebrow={t("컨설팅 안내", "About the consultation")} title={t("전문가가\n직접 봐 드려요.", "An expert,\nwith you.")} />
-          <div className="mt-10 flex flex-col gap-4">
+        {/* ④ 혜택 — 쿠폰 카드 셋 + 주간 진행 */}
+        <section className="px-5 py-16">
+          <Headline eyebrow={t("이번 캠페인 혜택", "What you get")} title={t("전문가가\n직접 봐 드려요.", "An expert,\nwith you.")} />
+          <div className="mx-auto mt-10 flex max-w-[560px] flex-col gap-3">
             {offers.map((o) => (
-              <article key={o.img} className="overflow-hidden rounded-[28px] bg-white px-6 pb-2 pt-9 text-center">
-                <p className="text-[15px] font-semibold text-[color:var(--v2-accent)]">{o.eyebrow}</p>
-                <h3 className="mt-2 whitespace-pre-line text-[28px] font-bold leading-[1.22] tracking-[-0.03em] text-[color:var(--v2-ink)] md:text-[36px]">{o.title}</h3>
-                <p className="mx-auto mt-3 max-w-[400px] text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)]">{o.desc}</p>
-                {/* eslint-disable-next-line @next/next/no-img-element -- 타일 그림(흰 바탕 → 곱하기 합성) */}
-                <img src={o.img} alt="" aria-hidden className="mx-auto mt-4 h-[180px] w-full max-w-[260px] object-contain mix-blend-multiply" />
+              <article key={o.title} className="relative flex overflow-hidden rounded-[24px] bg-white shadow-[0_10px_28px_-18px_rgba(11,70,232,0.45)]">
+                <span className={`flex w-[96px] shrink-0 items-center justify-center text-[22px] font-extrabold tracking-[-0.02em] min-[360px]:w-[108px] ${o.tone}`}>{o.mark}</span>
+                {/* 쿠폰 홈 — 위아래 반원 + 점선 */}
+                <span aria-hidden className="relative w-0 border-l-2 border-dashed border-[#dfe6f7]">
+                  <span className="absolute -left-[9px] -top-2 h-4 w-4 rounded-full bg-[#eef3ff]" />
+                  <span className="absolute -bottom-2 -left-[9px] h-4 w-4 rounded-full bg-[#eef3ff]" />
+                </span>
+                <span className="min-w-0 flex-1 px-5 py-5">
+                  <span className="block text-[19px] font-extrabold tracking-[-0.02em] text-[color:var(--v2-ink)]">{o.title}</span>
+                  <span className="mt-1 block text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">{o.desc}</span>
+                </span>
               </article>
             ))}
           </div>
-          {/* 주간 진행 — 월 검토 · 화 선정·연락 · 수~금 상담 */}
-          <div className="mt-4 rounded-[28px] bg-white px-6 py-7">
-            <p className="text-center text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("매주 이렇게 진행돼요", "How each week works")}</p>
-            <ol className="mx-auto mt-5 flex max-w-[420px] flex-col gap-4">
+          {/* 주간 진행 — 월 검토 · 화 선정·연락 · 수~금 상담 (가로 단계) */}
+          <div className="mx-auto mt-6 max-w-[560px] rounded-[24px] bg-white px-5 py-6">
+            <p className="text-center text-[17px] font-extrabold text-[color:var(--v2-ink)]">{t("매주 이렇게 진행돼요", "How each week works")}</p>
+            <ol className="relative mt-5 grid grid-cols-3 gap-2">
+              <span aria-hidden className="absolute left-[16%] right-[16%] top-6 border-t-2 border-dashed border-[color:var(--v2-accent-weak)]" />
               {[
-                [t("월", "Mon"), t("신청서 검토", "We review applications")],
-                [t("화", "Tue"), t(`${WEEKLY_SLOTS}명 선정 · 개별 연락`, `${WEEKLY_SLOTS} selected · contacted`)],
-                [t("수~금", "Wed–Fri"), t("1:1 상담 · 자소서 첨삭", "1:1 consultation & editing")]
-              ].map(([day, what]) => (
-                <li key={day} className="flex items-center gap-4">
-                  <span className="flex h-12 min-w-[64px] items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] px-2 text-[15px] font-bold text-[color:var(--v2-accent)]">{day}</span>
-                  <span className="text-[16px] font-semibold text-[color:var(--v2-ink-2)]">{what}</span>
+                [t("월", "Mon"), t("신청서 검토", "Review")],
+                [t("화", "Tue"), t(`${WEEKLY_SLOTS}명 선정·연락`, `Pick ${WEEKLY_SLOTS}`)],
+                [t("수~금", "Wed–Fri"), t("1:1 상담·첨삭", "1:1 session")]
+              ].map(([day, what], i) => (
+                <li key={day} className="relative flex flex-col items-center text-center">
+                  <span className={`flex h-12 min-w-[48px] items-center justify-center rounded-full px-2 text-[14px] font-extrabold ${i === 1 ? "bg-[color:var(--v2-accent)] text-white" : "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"}`}>{day}</span>
+                  <span className="mt-2 text-[13px] font-bold leading-[1.4] text-[color:var(--v2-ink-2)]">{what}</span>
                 </li>
               ))}
             </ol>
           </div>
         </section>
 
-        {/* ⑤ 신청 폼 — 접수되면 이 자리가 완료 화면으로 바뀐다 */}
-        <section id={FORM_ID} ref={formRef} className="scroll-mt-20 px-5 py-16">
-          {submitted ? (
-            <Completion t={t} />
-          ) : (
-            <>
-              <Headline eyebrow={t("신청하기", "Apply")} title={t("내 경험,\n들려주세요.", "Tell us about\nyour experience.")} sub={t("작성은 3분이면 충분해요.", "It only takes about 3 minutes.")} />
-              <ApplyForm t={t} tc={tc} locale={locale} utmRef={utmRef} onDone={() => setSubmitted(true)} />
-            </>
-          )}
+        {/* ⑤ 신청 폼 — 흰 카드. 접수되면 이 자리가 완료 화면으로 바뀐다 */}
+        <section id={FORM_ID} ref={formRef} className="scroll-mt-20 px-4 py-12 md:px-5">
+          <div className="mx-auto max-w-[640px] rounded-[32px] bg-white px-5 py-10 shadow-[0_20px_50px_-30px_rgba(11,70,232,0.5)] min-[360px]:px-6 md:px-10">
+            {submitted ? (
+              <Completion t={t} />
+            ) : (
+              <>
+                <div className="flex justify-center">
+                  <span className="rounded-full bg-[#ffd84d] px-3 py-1 text-[13px] font-extrabold text-[#191f28]">{t(`이번 주 ${WEEKLY_SLOTS}자리`, `${WEEKLY_SLOTS} spots this week`)}</span>
+                </div>
+                <div className="mt-3">
+                  <Headline eyebrow={t("신청하기", "Apply")} title={t("내 경험,\n들려주세요.", "Tell us about\nyour experience.")} sub={t("작성은 3분이면 충분해요.", "It only takes about 3 minutes.")} />
+                </div>
+                <ApplyForm t={t} tc={tc} locale={locale} utmRef={utmRef} onDone={() => setSubmitted(true)} />
+              </>
+            )}
+          </div>
         </section>
 
         {/* ⑥ 자주 묻는 질문 */}
         <Faq t={t} />
 
-        {/* ⑦ 마지막 — 흰 바탕 가운데, 큰 제목과 버튼 하나 */}
+        {/* ⑦ 마지막 — 파란 띠 권유 */}
         {!submitted ? (
-          <section className="px-5 pb-8 pt-16 text-center">
-            <h2 className="whitespace-pre-line text-[30px] font-bold leading-[1.22] tracking-[-0.04em] text-[color:var(--v2-ink)] min-[360px]:text-[34px] md:text-[48px]">
+          <section className="relative mx-4 mb-6 mt-4 overflow-hidden rounded-[32px] bg-[color:var(--v2-accent)] px-6 py-12 text-center text-white md:mx-5">
+            <span aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+            <h2 className="relative whitespace-pre-line text-[30px] font-extrabold leading-[1.22] tracking-[-0.04em] min-[360px]:text-[34px] md:text-[48px]">
               {t("별거 아닌 경험은\n없어요.", "No experience\nis too small.")}
             </h2>
-            <p className="mt-3 text-[17px] text-[color:var(--v2-ink-3)]">{t("이번 주 선정, 지금 신청하세요.", "Apply now for this week's selection.")}</p>
-            <div className="mt-7 flex justify-center">
-              <PillButton onClick={cta("footer")}>{t("무료 자소서 상담 신청하기 →", "Apply for a free consultation →")}</PillButton>
+            <p className="relative mt-3 text-[16px] text-white/85">{t("편의점 알바도, 동아리 활동도 취업 스펙이 될 수 있어요.", "A part-time job or a club can become a real qualification.")}</p>
+            <div className="relative mt-7 flex justify-center">
+              <button type="button" onClick={cta("footer")} className="inline-flex h-14 items-center justify-center rounded-full bg-[#ffd84d] px-7 text-[17px] font-extrabold text-[#191f28] transition hover:opacity-90 active:scale-[0.98]">
+                {t("이번 주 신청하기 →", "Apply this week →")}
+              </button>
             </div>
           </section>
         ) : null}
@@ -240,13 +275,15 @@ export function ExperienceCampaignPage() {
 
         {/* 휴대폰 아래 고정 신청 버튼 — 폼이 보이는 동안·접수 후엔 숨긴다 */}
         {showSticky ? (
-          <div className="fixed inset-x-0 bottom-0 z-40 bg-white/90 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl md:hidden">
-            <button type="button" onClick={cta("sticky")} className="flex h-12 w-full items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-[16px] font-semibold text-white">
-              {t("무료 자소서 상담 신청하기 →", "Apply for a free consultation →")}
+          <div className="fixed inset-x-0 bottom-0 z-40 bg-[#eef3ff]/90 px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl md:hidden">
+            <button type="button" onClick={cta("sticky")} className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[color:var(--v2-accent)] text-[16px] font-bold text-white">
+              <span className="rounded-full bg-[#ffd84d] px-2 py-0.5 text-[12px] font-extrabold text-[#191f28]">{t(`이번 주 ${WEEKLY_SLOTS}자리`, `${WEEKLY_SLOTS} spots`)}</span>
+              {t("무료 상담 신청하기", "Apply for free")}
             </button>
           </div>
         ) : null}
       </Page>
+      </div>
     </V2Shell>
   );
 }
@@ -262,15 +299,6 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
   );
 }
 
-/** 둥근 알약 버튼 — 광고 페이지의 주 행동(여기선 폼으로 스크롤). */
-function PillButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" onClick={onClick} className="inline-flex h-12 max-w-full items-center justify-center rounded-full bg-[color:var(--v2-accent)] px-6 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98] min-[360px]:px-7 min-[360px]:text-[17px]">
-      {children}
-    </button>
-  );
-}
-
 /** Before/After — 칩으로 예시를 넘겨 본다. 예시는 lib/experience-campaign.ts. */
 function BeforeAfter({ t }: { t: PlatformT }) {
   const [idx, setIdx] = useState(0);
@@ -279,7 +307,7 @@ function BeforeAfter({ t }: { t: PlatformT }) {
     <section className="px-5 py-16">
       <Headline eyebrow="Before / After" title={t("같은 경험도,\n이렇게 달라져요.", "Same experience.\nNew story.")} />
       <p className="mt-4 text-center">
-        <span className="inline-flex rounded-full bg-[color:var(--v2-band)] px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
+        <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
           {t("예시 · 실제 상담 사례로 교체 예정", "Example · to be replaced with real cases")}
         </span>
       </p>
@@ -290,15 +318,16 @@ function BeforeAfter({ t }: { t: PlatformT }) {
           </Chip>
         ))}
       </div>
-      <div className="mx-auto mt-6 max-w-[560px] rounded-[28px] bg-[color:var(--v2-band)] p-3 min-[360px]:p-4">
-        <div className="rounded-3xl bg-white p-5">
-          <p className="text-[13px] font-bold tracking-[0.04em] text-[color:var(--v2-faint)]">BEFORE</p>
-          <p className="mt-2 text-[17px] leading-[1.6] text-[color:var(--v2-muted)]">{t(ex.before.ko, ex.before.en)}</p>
+      <div className="mx-auto mt-6 grid max-w-[720px] gap-3 md:grid-cols-2">
+        <div className="rounded-[24px] bg-white/70 p-5">
+          <span className="inline-flex rounded-full bg-[color:var(--v2-band)] px-2.5 py-1 text-[12px] font-extrabold tracking-[0.04em] text-[color:var(--v2-muted)]">BEFORE</span>
+          <p className="mt-3 text-[16px] leading-[1.65] text-[color:var(--v2-muted)] line-through decoration-[#f04452]/50 decoration-2">{t(ex.before.ko, ex.before.en)}</p>
         </div>
-        <div aria-hidden className="flex justify-center py-2 text-[20px] font-bold text-[color:var(--v2-accent)]">↓</div>
-        <div className="rounded-3xl bg-[color:var(--v2-accent-weak)] p-5">
-          <p className="text-[13px] font-bold tracking-[0.04em] text-[color:var(--v2-accent)]">AFTER</p>
-          <p className="mt-2 text-[18px] font-semibold leading-[1.6] text-[color:var(--v2-ink)]">{t(ex.after.ko, ex.after.en)}</p>
+        <div className="relative rounded-[24px] bg-white p-5 shadow-[0_14px_34px_-20px_rgba(11,70,232,0.55)]">
+          <span className="inline-flex rounded-full bg-[color:var(--v2-accent)] px-2.5 py-1 text-[12px] font-extrabold tracking-[0.04em] text-white">AFTER</span>
+          <p className="mt-3 text-[17px] font-bold leading-[1.65] text-[color:var(--v2-ink)]">
+            <span className="bg-[linear-gradient(transparent_58%,#ffe98a_58%)]">{t(ex.after.ko, ex.after.en)}</span>
+          </p>
         </div>
       </div>
     </section>
@@ -653,7 +682,7 @@ function Completion({ t }: { t: PlatformT }) {
           </li>
         ))}
       </ol>
-      <div className="mt-10 rounded-[28px] bg-[#f5f5f7] px-6 py-8">
+      <div className="mt-10 rounded-[28px] bg-[#eef3ff] px-6 py-8">
         <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("기다리는 동안 어플라이를 둘러보세요", "Explore Aply while you wait")}</p>
         <p className="mx-auto mt-2 max-w-[380px] text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
           {t("가입하면 이력서·자기소개서를 만들고 외국인 채용 공고에 바로 지원할 수 있어요.", "Sign up to build your resume and cover letter and apply to jobs open to international talent.")}
@@ -696,7 +725,7 @@ function Faq({ t }: { t: PlatformT }) {
     ]
   ];
   return (
-    <section className="bg-[#f5f5f7] px-4 py-14 md:mx-5 md:rounded-[36px] md:px-8">
+    <section className="px-4 py-14 md:px-8">
       <Headline eyebrow="FAQ" title={t("자주 묻는 질문", "Questions")} />
       <div className="mx-auto mt-8 flex max-w-[640px] flex-col gap-2">
         {items.map(([q, a]) => (
