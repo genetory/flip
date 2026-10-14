@@ -85,7 +85,7 @@ export function V2CompaniesScreen() {
             shown.map((c) => (
               <Row
                 key={c.name}
-                href={`/talent/company/${encodeURIComponent(c.name)}`}
+                href={`/v2/companies/${encodeURIComponent(c.name)}`}
                 thumb={{ src: c.photo, fallback: c.name }}
                 title={c.name}
                 meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}

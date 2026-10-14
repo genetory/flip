@@ -40,8 +40,8 @@ const R = {
   coverPreview: "/talent/career/cover/preview",
   resumes: "/talent/career/resumes",
   coverLetters: "/talent/career/cover-letters",
-  experiences: "/talent/career/experiences",
-  history: "/talent/career/history",
+  experiences: "/v2/experiences",
+  history: "/v2/history",
   diagnosis: "/talent/career/resume/diagnosis"
 };
 
@@ -1244,7 +1244,7 @@ function CompanyLinks({ t }: { t: PlatformT }) {
         {t("이력서를 완성하면 기업이 인재 검색에서 나를 찾을 수 있어요. 연락처는 내가 연결을 수락하기 전까지 가려져요.", "With a complete resume, companies can find you in talent search. Your contact stays hidden until you accept.", "完善简历后，企业可在人才搜索中找到你。在你接受联系前，联系方式保持隐藏。", "Khi CV hoàn chỉnh, doanh nghiệp có thể tìm thấy bạn. Liên hệ được ẩn cho đến khi bạn chấp nhận.", "履歴書を完成させると企業が人材検索であなたを見つけられます。連絡先は承諾するまで非公開です。", "Dengan CV lengkap, perusahaan bisa menemukanmu. Kontak tersembunyi sampai kamu menerima.")}
       </p>
       <Row
-        href="/talent/connections"
+        href="/v2/connections"
         lead="✉️"
         title={t("받은 연결 요청", "Connection requests", "收到的联系请求", "Yêu cầu kết nối", "届いたリクエスト", "Permintaan koneksi")}
         meta={
@@ -1255,7 +1255,7 @@ function CompanyLinks({ t }: { t: PlatformT }) {
         right={pending.length ? <span className="rounded-full bg-[color:var(--v2-attention)] px-2 py-0.5 text-[12px] font-bold text-white">{pending.length}</span> : undefined}
       />
       <Row
-        href="/talent/feed"
+        href="/v2/connections#interested"
         lead="🏢"
         title={t("관심 보인 회사", "Interested companies", "感兴趣的公司", "Công ty quan tâm", "関心を持った会社", "Perusahaan tertarik")}
         meta={

@@ -15,6 +15,10 @@ type Filter = "all" | "activity" | "update";
 // 알림 링크는 기존 화면 주소로 쌓인다 — v2에 이미 있는 화면은 v2로 보낸다.
 function toV2(href: string): string {
   if (href.startsWith("/talent/applications")) return "/v2/applications";
+  if (href.startsWith("/talent/activity/")) return href.replace("/talent/activity/", "/v2/activity/");
+  if (href.startsWith("/talent/connections")) return "/v2/connections";
+  if (href.startsWith("/talent/feed")) return "/v2/connections#interested";
+  if (href.startsWith("/talent/company/")) return href.replace("/talent/company/", "/v2/companies/");
   if (href.startsWith("/talent/career/interviews")) return "/v2/interviews";
   if (/^\/talent\/jobs\/[^/?#]+/.test(href)) return href.replace(/^\/talent\/jobs/, "/v2/jobs");
   if (href === "/talent/jobs" || href.startsWith("/talent/jobs?")) return "/v2/jobs";

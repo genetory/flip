@@ -51,7 +51,9 @@ export function middleware(req: NextRequest) {
     const dest = talentToV2(req.nextUrl.pathname);
     if (dest) {
       const url = req.nextUrl.clone();
-      url.pathname = dest;
+      const [path, hash] = dest.split("#");
+      url.pathname = path;
+      if (hash) url.hash = hash;
       return NextResponse.redirect(url, 307);
     }
   }

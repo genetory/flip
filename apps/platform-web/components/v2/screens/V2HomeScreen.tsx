@@ -299,7 +299,7 @@ function Home() {
       {/* 나에게 관심 준 회사 — 보라 띠(로고 겹쳐 보이기) */}
       {freshInterest.length ? (
         <div className="px-5 pb-6">
-          <Link href="/talent/feed" className="flex items-center gap-3 rounded-3xl bg-[#f3eeff] px-5 py-4 transition hover:-translate-y-0.5">
+          <Link href="/v2/connections#interested" className="flex items-center gap-3 rounded-3xl bg-[#f3eeff] px-5 py-4 transition hover:-translate-y-0.5">
             <span className="flex shrink-0 -space-x-2">
               {freshInterest.slice(0, 3).map((c) => (
                 <span key={c.organizationId} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-[#f3eeff] bg-white text-[13px] font-bold text-[color:var(--v2-ink-3)]">
@@ -481,7 +481,7 @@ function Home() {
           {companies.map((c) => (
             <Row
               key={c.name}
-              href={`/talent/company/${encodeURIComponent(c.name)}`}
+              href={`/v2/companies/${encodeURIComponent(c.name)}`}
               thumb={{ src: c.photo, fallback: c.name }}
               title={c.name}
               meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}

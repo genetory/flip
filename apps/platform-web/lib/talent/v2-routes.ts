@@ -13,13 +13,19 @@ const EXACT: Record<string, string> = {
   "/talent/notifications": "/v2/notifications",
   "/talent/settings": "/v2/settings",
   "/talent/career/profile": "/v2/profile",
-  "/talent/insights": "/v2/guide"
+  "/talent/insights": "/v2/guide",
+  "/talent/connections": "/v2/connections",
+  "/talent/feed": "/v2/connections#interested",
+  "/talent/career/experiences": "/v2/experiences",
+  "/talent/career/history": "/v2/history"
 };
 
 // 동적 주소 — [패턴, v2 주소 만들기]
 const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/talent\/jobs\/([^/]+)$/, (m) => `/v2/jobs/${m[1]}`],
-  [/^\/talent\/insights\/[^/]+\/([^/]+)$/, (m) => `/v2/guide/${m[1]}`]
+  [/^\/talent\/insights\/[^/]+\/([^/]+)$/, (m) => `/v2/guide/${m[1]}`],
+  [/^\/talent\/activity\/([^/]+)$/, (m) => `/v2/activity/${m[1]}`],
+  [/^\/talent\/company\/([^/]+)$/, (m) => `/v2/companies/${m[1]}`]
 ];
 
 /** 기존 talent 주소에 맞는 v2 주소(없으면 null). 끝의 '/' 는 무시한다. */
