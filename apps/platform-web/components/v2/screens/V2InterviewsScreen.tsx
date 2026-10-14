@@ -10,7 +10,7 @@ import { LevelChip, PracticeSheet, type PracticeQuestion } from "../practice";
 import { ImportJobSheet, InterviewSetSheet, QuizSheet, SelfIntroSheet, StartSheet } from "../interview-content";
 import { importedToPosition, useImportedJobs } from "../../../lib/talent/imported-jobs";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
-import { Button, Empty, Masthead, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton } from "../ui";
+import { Button, Empty, MastheadSkeleton, Page, Row, RowsSkeleton, Section, SectionSkeleton } from "../ui";
 import { companyOf, daysUntil, jobPhotoOf } from "../lib";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -235,7 +235,6 @@ function Interviews() {
   if (apps === null)
     return (
       <Page>
-        <MastheadSkeleton />
         <SectionSkeleton />
         <SectionSkeleton thumb={false} />
       </Page>
@@ -243,55 +242,10 @@ function Interviews() {
 
   return (
     <Page>
-      <Masthead
-        eyebrow={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}
-        title={streak > 1 ? t(`${streak}일째 연습 중이에요 🔥`, `${streak}-day practice streak 🔥`, `已连续练习 ${streak} 天 🔥`, `Đã luyện ${streak} ngày liên tiếp 🔥`, `${streak}日連続で練習中 🔥`, `${streak} hari berturut-turut 🔥`) : t("면접, 미리 연습해 두세요", "Practice before the real thing", "提前练习面试吧", "Hãy luyện phỏng vấn trước", "面接を先に練習しておきましょう", "Latih wawancara lebih dulu")}
-        lede={t("질문 하나만 답해도 AI가 잘한 점과 고칠 점을 알려 줘요.", "Answer even one question and AI tells you what worked and what to fix.", "只回答一道题，AI 就会指出优点和改进点。", "Chỉ cần trả lời một câu, AI sẽ chỉ ra điểm tốt và cần sửa.", "1問答えるだけで、AIが良い点と直す点を教えます。", "Jawab satu pertanyaan saja, AI beri tahu yang bagus dan yang perlu diperbaiki.")}
-      />
-
-      {/* 지금 시작 — 실전 모드(질문 5개를 소리로 읽어 주고, 끝나면 한 번에 피드백). 이 화면의 가장 큰 행동. */}
-      <div className="-mt-2 px-5 pb-8">
-        <div>
-          {/* 큰 그림 — '면접장'에 들어가는 느낌(카드 배경 없이) */}
-          <div className="relative">
-            <span className="absolute left-0 top-0 z-[1] inline-flex items-center gap-1 rounded-full bg-[color:var(--v2-accent-weak)] px-3 py-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
-            {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
-            <img src="/img_fake_interview.webp" alt="" aria-hidden className="mx-auto h-[170px] w-full max-w-[320px] object-contain mix-blend-multiply min-[360px]:h-[190px]" />
-          </div>
-          <div className="pt-2">
-            <p className="whitespace-pre-line text-[24px] font-bold leading-[1.3] tracking-[-0.03em] text-[color:var(--v2-ink)]">{t("AI 면접관과\n5분 실전 면접", "A 5-minute interview\nwith an AI interviewer", "与 AI 面试官\n5 分钟实战", "Phỏng vấn 5 phút\nvới AI", "AI面接官と\n5分の実戦面接", "Wawancara 5 menit\ndengan AI")}</p>
-            <p className="mt-1.5 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{t("질문을 소리로 읽어 드려요. 진짜 면접처럼 답해 보세요.", "Questions are read aloud. Answer like it's the real thing.", "问题会被朗读，像真正面试一样回答吧。", "Câu hỏi được đọc to. Trả lời như buổi thật.", "質問を読み上げます。本番のように答えてみて。", "Pertanyaan dibacakan. Jawab seperti aslinya.")}</p>
-            {/* 한눈에 — 질문 수 · 걸리는 시간 · 피드백 */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {[
-                [t("5개", "5", "5 个", "5", "5問", "5"), t("질문", "questions", "问题", "câu hỏi", "質問", "pertanyaan")],
-                [t("약 5분", "~5 min", "约 5 分钟", "~5 phút", "約5分", "~5 mnt"), t("걸려요", "to finish", "用时", "thời gian", "所要", "durasi")],
-                [t("한 번에", "At once", "一次性", "Một lần", "まとめて", "Sekaligus"), t("피드백", "feedback", "反馈", "phản hồi", "フィードバック", "masukan")]
-              ].map(([v, l]) => (
-                <div key={l} className="rounded-2xl bg-[color:var(--v2-band)] px-2 py-3 text-center">
-                  <p className="whitespace-nowrap text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{v}</p>
-                  <p className="mt-0.5 text-[12px] font-semibold text-[color:var(--v2-muted)]">{l}</p>
-                </div>
-              ))}
-            </div>
-            <button type="button" onClick={() => setTool("set")} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-accent)] text-[17px] font-bold text-white transition hover:opacity-90 active:scale-[0.99]">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
-              </svg>
-              {t("지금 시작", "Start now", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")}
-            </button>
-            {credits?.paywall ? (
-              <div className="mt-3">
-                <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-
+      {/* 로그인한 사람에겐 머리말·시작 카드 없이 바로 '다가오는 면접'부터(10분 모의 면접은 아래 연습하기에). */}
       {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
       {aplyUpcoming.length ? (
-        <Section title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
+        <Section band={false} title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
           <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
             {aplyUpcoming.map((a) => interviewCard(a, aplyUpcoming))}
           </div>
@@ -300,6 +254,7 @@ function Interviews() {
 
       {/* 내가 등록한 모의 면접 — Aply 밖에서 지원한 곳도 링크·본문·공고 검색으로 등록. 없으면 등록 안내 한 줄 */}
       <Section
+        band={aplyUpcoming.length > 0}
         title={t("내가 등록한 모의 면접", "My mock interviews", "我登记的模拟面试", "Phỏng vấn thử của tôi", "登録した模擬面接", "Simulasi milikku")}
         aside={
           mineUpcoming.length ? (
@@ -393,6 +348,11 @@ function Interviews() {
             <PracticeCard tone="mint" icon="🙇" title={t("면접 매너 퀴즈", "Etiquette quiz", "面试礼仪测验", "Quiz phép lịch sự", "面接マナークイズ", "Kuis etiket")} meta={t("오늘의 3문제", "3 a day", "今日3题", "3 câu/ngày", "今日の3問", "3 soal/hari")} onClick={() => setTool("quiz")} />
           ) : null}
         </div>
+        {credits?.paywall ? (
+          <div className="mt-3">
+            <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+          </div>
+        ) : null}
       </Section>
 
       {/* ③ 내 실력 — 다시 볼 답 + 강점과 약점 */}
