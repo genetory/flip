@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { talentToV2 } from "./lib/talent/v2-routes";
 
 // Legacy domain alias — anything that lands on flip-ers.com (or its www
 // subdomain) is permanently redirected to the same path on aply.global so
@@ -39,9 +40,20 @@ export function middleware(req: NextRequest) {
 
   // 리뉴얼 v2(/v2/*) — 기존 화면을 건드리지 않고 따로 만드는 새 화면 묶음. 스테이징·로컬에서만 연다.
   // 프로덕션(aply.global 등 'staging' 이 없는 호스트)에선 404 — 새 화면 코드가 아예 돌지 않게 여기서 막는다.
+  const previewHost = host.includes("staging") || host === "localhost" || host === "127.0.0.1";
   if (req.nextUrl.pathname === "/v2" || req.nextUrl.pathname.startsWith("/v2/")) {
-    const previewHost = host.includes("staging") || host === "localhost" || host === "127.0.0.1";
     if (!previewHost) return new NextResponse("Not Found", { status: 404, headers: { "X-Robots-Tag": "noindex" } });
+  }
+
+  // v2 로 다시 만든 talent 화면 — 스테이징·로컬에선 /talent/* 를 /v2/* 로 보낸다(임시 307, 쿼리 유지).
+  // 프로덕션은 v2 가 닫혀 있으니 그대로 기존 화면. ?legacy=1 이면 비교용으로 기존 화면을 그대로 연다.
+  if (previewHost && req.nextUrl.pathname.startsWith("/talent") && req.nextUrl.searchParams.get("legacy") !== "1") {
+    const dest = talentToV2(req.nextUrl.pathname);
+    if (dest) {
+      const url = req.nextUrl.clone();
+      url.pathname = dest;
+      return NextResponse.redirect(url, 307);
+    }
   }
 
   const user = process.env.BASIC_AUTH_USER?.trim();
