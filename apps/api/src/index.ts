@@ -8099,6 +8099,121 @@ app.delete("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.O
   }
 });
 
+// GET /ops/experience-applications — 자소서 경험 발굴 캠페인(/experience) 신청 목록.
+// 이름·이메일·지원 직무 검색 + 단계 필터 + 페이지. 운영자가 매주 월요일 검토 → 화요일 2명 선정.
+const EXPERIENCE_APPLICATION_STATUSES = ["RECEIVED", "REVIEWING", "SELECTED", "DONE", "DECLINED"] as const;
+const opsExperienceApplicationsQuerySchema = z.object({
+  status: z.enum(EXPERIENCE_APPLICATION_STATUSES).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/experience-applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsExperienceApplicationsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.ExperienceCampaignApplicationWhereInput = {
+    ...(f.status ? { status: f.status } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { email: { contains: f.q, mode: "insensitive" } },
+            { desiredRole: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [applications, total, statusCounts, totalAll] = await Promise.all([
+    prisma.experienceCampaignApplication.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.experienceCampaignApplication.count({ where }),
+    prisma.experienceCampaignApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.experienceCampaignApplication.count()
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    totalAll,
+    statusCounts: Object.fromEntries(statusCounts.map((s) => [s.status, s._count._all])),
+    applications: applications.map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      phone: a.phone,
+      nationality: a.nationality,
+      desiredRole: a.desiredRole,
+      experience: a.experience,
+      coverLetter: a.coverLetter,
+      consultMethod: a.consultMethod,
+      consentPrivacyAt: a.consentPrivacyAt.toISOString(),
+      consentVersion: a.consentVersion,
+      consentCaseStudy: a.consentCaseStudy,
+      status: a.status,
+      opsNote: a.opsNote,
+      selectedWeek: a.selectedWeek,
+      utmSource: a.utmSource,
+      utmMedium: a.utmMedium,
+      utmCampaign: a.utmCampaign,
+      utmContent: a.utmContent,
+      utmTerm: a.utmTerm,
+      referrer: a.referrer,
+      locale: a.locale,
+      userId: a.userId,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt.toISOString()
+    }))
+  });
+});
+
+// PATCH /ops/experience-applications/:id — 단계 변경 + 운영 메모 + 선정 주차.
+// 신청자 연락(선정 안내·일정 조율)은 운영팀이 직접 — 여기선 기록만 남긴다.
+const opsExperienceApplicationUpdateSchema = z.object({
+  status: z.enum(EXPERIENCE_APPLICATION_STATUSES).optional(),
+  opsNote: z.string().trim().max(4000).nullable().optional(),
+  selectedWeek: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-W\d{2}$/, "selectedWeek must be YYYY-Www")
+    .nullable()
+    .optional()
+});
+
+app.patch("/ops/experience-applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "missing id" });
+  const parsed = opsExperienceApplicationUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const data: Prisma.ExperienceCampaignApplicationUpdateInput = {};
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.opsNote !== undefined) data.opsNote = parsed.data.opsNote || null;
+  if (parsed.data.selectedWeek !== undefined) data.selectedWeek = parsed.data.selectedWeek || null;
+  try {
+    const found = await prisma.experienceCampaignApplication.findUnique({ where: { id }, select: { id: true } });
+    if (!found) return res.status(404).json({ ok: false, message: "application not found" });
+    const updated = await prisma.experienceCampaignApplication.update({
+      where: { id },
+      data,
+      select: { id: true, status: true, opsNote: true, selectedWeek: true, updatedAt: true }
+    });
+    return res.json({ ok: true, application: { ...updated, updatedAt: updated.updatedAt.toISOString() } });
+  } catch (error) {
+    console.error("[ops/experience-applications][patch][failed]", {
+      id,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({ ok: false, message: "failed to update application" });
+  }
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -9965,6 +10080,107 @@ app.post(
     }
 
     return res.json({ ok: true, leadId });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /public/experience-applications — "내 경험이 스펙이 되는 순간" 자소서 경험
+// 발굴 캠페인(/experience) 신청. 비회원 신청 가능(로그인 상태면 userId 만 연결).
+// 같은 이메일로 30일 안에 진행 중(RECEIVED/REVIEWING/SELECTED) 신청이 있으면 409.
+// ---------------------------------------------------------------------------
+
+// 개인정보 수집·이용 동의문 버전 — 웹(/experience) 동의문을 고치면 함께 올린다.
+const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v1";
+
+const optionalShort = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v ? v : undefined));
+
+const experienceApplicationCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  email: z.string().trim().toLowerCase().email().max(200),
+  phone: optionalShort(40),
+  nationality: optionalShort(80),
+  desiredRole: z.string().trim().min(1).max(120),
+  experience: z.string().trim().min(30).max(4000),
+  coverLetter: optionalShort(8000),
+  consultMethod: z.enum(["ONLINE", "OFFLINE", "ANY"]),
+  // 개인정보 수집·이용 동의(필수) — true 만 허용.
+  consentPrivacy: z.literal(true),
+  consentCaseStudy: z.boolean().optional(),
+  utmSource: optionalShort(200),
+  utmMedium: optionalShort(200),
+  utmCampaign: optionalShort(200),
+  utmContent: optionalShort(200),
+  utmTerm: optionalShort(200),
+  referrer: optionalShort(500),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+app.post(
+  "/public/experience-applications",
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "experience-apply", message: "잠시 후 다시 시도해 주세요." }),
+  authenticateOptional,
+  async (req, res) => {
+    const parsed = experienceApplicationCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const dup = await prisma.experienceCampaignApplication.findFirst({
+        where: { email: input.email, status: { in: ["RECEIVED", "REVIEWING", "SELECTED"] }, createdAt: { gte: since } },
+        select: { id: true }
+      });
+      if (dup) {
+        return res.status(409).json({ ok: false, code: "DUPLICATE", message: "이미 신청하셨어요. 선정되면 연락드릴게요." });
+      }
+
+      const ipRaw =
+        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+        req.socket.remoteAddress ||
+        "";
+      const ipHash = ipRaw
+        ? createHash("sha256").update(`${ipRaw}|experience-apply`).digest("hex").slice(0, 32)
+        : null;
+
+      const created = await prisma.experienceCampaignApplication.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          phone: input.phone ?? null,
+          nationality: input.nationality ?? null,
+          desiredRole: input.desiredRole,
+          experience: input.experience,
+          coverLetter: input.coverLetter ?? null,
+          consultMethod: input.consultMethod,
+          consentPrivacyAt: new Date(),
+          consentVersion: EXPERIENCE_CONSENT_VERSION,
+          consentCaseStudy: input.consentCaseStudy ?? false,
+          utmSource: input.utmSource ?? null,
+          utmMedium: input.utmMedium ?? null,
+          utmCampaign: input.utmCampaign ?? null,
+          utmContent: input.utmContent ?? null,
+          utmTerm: input.utmTerm ?? null,
+          referrer: input.referrer ?? null,
+          locale: input.locale ?? "ko",
+          userId: req.auth?.userId ?? null,
+          ipHash
+        },
+        select: { id: true }
+      });
+      return res.status(201).json({ ok: true, id: created.id });
+    } catch (error) {
+      console.error("[public/experience-applications][create][failed]", {
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return res.status(500).json({ ok: false, message: "신청을 저장하지 못했어요. 잠시 후 다시 시도해 주세요." });
+    }
   }
 );
 

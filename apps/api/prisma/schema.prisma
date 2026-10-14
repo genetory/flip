@@ -2860,6 +2860,46 @@ model SgcApplication {
   @@index([resumeId])
 }
 
+// "내 경험이 스펙이 되는 순간" 자소서 경험 발굴 캠페인(/experience) 신청.
+// 비회원도 신청 가능 — 연락은 이메일로 하므로 email 필수(소문자 정규화 저장).
+// 매주 2명 선정 → 자소서 전문가 1:1 상담·첨삭. 로그인 상태면 userId 만 같이 남긴다(FK 없음, VisaLead 와 동일).
+model ExperienceCampaignApplication {
+  id               String    @id @default(uuid())
+  name             String
+  email            String // trim + lowercase
+  phone            String?
+  nationality      String?
+  desiredRole      String // 지원 직무 (자유 입력)
+  experience       String // 경험 소개
+  coverLetter      String? // 기존 자기소개서 (선택)
+  consultMethod    String // "ONLINE" | "OFFLINE" | "ANY"
+  // 개인정보 수집·이용 동의(필수) — 동의 시각과 동의문 버전을 함께 남긴다.
+  consentPrivacyAt DateTime
+  consentVersion   String
+  // 사례 공개 동의(선택) — 익명 Before/After 공개. 언제든 철회 가능.
+  consentCaseStudy Boolean   @default(false)
+  // 운영 단계 — RECEIVED → REVIEWING → SELECTED → DONE / DECLINED
+  status           String    @default("RECEIVED")
+  opsNote          String? // 운영 메모 (operator only)
+  selectedWeek     String? // 선정 주차 (예: "2026-W43")
+  // 유입 경로 — 신청 시 URL 의 utm_* 와 document.referrer
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  utmTerm          String?
+  referrer         String?
+  locale           String    @default("ko")
+  userId           String?
+  ipHash           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // Talent 행동 이벤트 스트림 — Passport·매칭 학습·퍼널 분석의 원장(History).
 // GA 전송과 별개로 DB에 남겨 "어떤 행동을 한 Talent가 실제 채용됐는가"를 분석한다.
 // 순수 가산(append-only) — 기존 기능 무영향.

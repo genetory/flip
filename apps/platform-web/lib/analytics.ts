@@ -563,3 +563,16 @@ export function trackInterviewPrepSheetOpened() {
 export function trackForeignerPrompt(answer: "yes" | "no" | "dismiss") {
   safeSendEvent("jobs_foreigner_prompt", { answer });
 }
+
+// ---- 자소서 경험 발굴 캠페인(/experience) ----
+// 자유 입력·개인정보는 보내지 않는다. 고정 키(상담 방식·utm_source 등)만.
+export type ExperienceCampaignEvent =
+  | "experience_landing_view" // 페이지 진입
+  | "experience_cta_click" // 신청 버튼(히어로·하단 고정 등) — source 로 구분
+  | "experience_form_view" // 신청 폼이 화면에 보임
+  | "experience_form_submit" // 접수 완료
+  | "experience_form_duplicate"; // 같은 이메일로 이미 신청(409)
+
+export function trackExperienceCampaign(event: ExperienceCampaignEvent, params: Record<string, string | number | boolean> = {}) {
+  safeSendEvent(event, params);
+}
