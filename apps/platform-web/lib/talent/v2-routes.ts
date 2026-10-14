@@ -23,7 +23,11 @@ const EXACT: Record<string, string> = {
   "/talent/career/resumes": "/v2/resumes",
   "/talent/career/cover/editor": "/v2/cover",
   "/talent/career/cover/preview": "/v2/cover/preview",
-  "/talent/career/cover-letters": "/v2/cover-letters"
+  "/talent/career/cover-letters": "/v2/cover-letters",
+  // v2 에서 연결이 없는 옛 화면 — 가장 가까운 v2 화면으로(파일은 프로덕션 때문에 남겨 둔다)
+  "/talent/community": "/v2/home",
+  "/talent/onboarding": "/v2/home",
+  "/talent/settings/points": "/v2/payments"
 };
 
 // 동적 주소 — [패턴, v2 주소 만들기]
