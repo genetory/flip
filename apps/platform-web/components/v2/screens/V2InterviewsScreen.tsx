@@ -243,6 +243,12 @@ function Interviews() {
   return (
     <Page>
       {/* 로그인한 사람에겐 머리말·시작 카드 없이 바로 '다가오는 면접'부터(10분 모의 면접은 아래 연습하기에). */}
+      {/* 맨 위 — 내 이용권(항상). 남은 회수와 [충전하기] */}
+      {credits ? (
+        <div className="px-5 pt-6 md:pt-8">
+          <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+        </div>
+      ) : null}
       {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
       {aplyUpcoming.length ? (
         <Section band={false} title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
@@ -348,11 +354,6 @@ function Interviews() {
             <PracticeCard tone="mint" icon="🙇" title={t("면접 매너 퀴즈", "Etiquette quiz", "面试礼仪测验", "Quiz phép lịch sự", "面接マナークイズ", "Kuis etiket")} meta={t("오늘의 3문제", "3 a day", "今日3题", "3 câu/ngày", "今日の3問", "3 soal/hari")} onClick={() => setTool("quiz")} />
           ) : null}
         </div>
-        {credits?.paywall ? (
-          <div className="mt-3">
-            <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
-          </div>
-        ) : null}
       </Section>
 
       {/* ③ 내 실력 — 다시 볼 답 + 강점과 약점 */}

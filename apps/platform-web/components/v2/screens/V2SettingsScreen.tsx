@@ -118,10 +118,10 @@ export function V2SettingsScreen() {
         <Section title={t("바로 가기", "Shortcuts", "快捷入口", "Lối tắt", "ショートカット", "Pintasan")}>
           <Row href="/talent/career" lead="📄" title={t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier saya")} meta={t("이력서·자기소개서·관심 직무", "Resume, cover letter, interests", "简历·自荐信·兴趣职位", "CV, thư, ngành quan tâm", "履歴書・自己PR・関心職種", "CV, surat, minat")} />
           <Row href="/talent/payments" lead="🎟️" title={t("이용권·결제 내역", "Passes & payments", "使用券·支付记录", "Vé & thanh toán", "チケット・決済履歴", "Tiket & pembayaran")} meta={t("모의 면접 이용권 충전·환불", "Top up or refund mock interview passes", "充值·退款模拟面试使用券", "Nạp/hoàn vé phỏng vấn", "模擬面接チケットのチャージ・返金", "Isi/refund tiket")} />
-          <Row href="/talent/applications" lead="📮" title={t("지원 현황", "Applications", "申请状态", "Ứng tuyển", "応募状況", "Lamaran")} />
-          <Row href={talentAppRoutes.programs} lead="🎓" title={t("내 프로그램", "My programs", "我的项目", "Chương trình", "マイプログラム", "Program saya")} />
-          <Row href={talentAppRoutes.assignments} lead="📝" title={t("과제", "Assignments", "作业", "Bài tập", "課題", "Tugas")} />
-          <Row href="/talent/connections" lead="🤝" title={t("파트너 연결", "Partner connections", "伙伴连接", "Kết nối đối tác", "パートナー連携", "Koneksi mitra")} />
+          <Row href="/talent/applications" lead="📮" title={t("지원 현황", "Applications", "申请状态", "Ứng tuyển", "応募状況", "Lamaran")} meta={t("지원한 공고와 면접 일정", "Applications & interviews", "已申请职位·进度·面试日程", "Tin đã nộp, tiến độ & lịch PV", "応募した求人・進捗・面接日程", "Lamaran, tahap & jadwal wawancara")} />
+          <Row href={talentAppRoutes.programs} lead="🎓" title={t("내 프로그램", "My programs", "我的项目", "Chương trình", "マイプログラム", "Program saya")} meta={t("참여 중인 취업 프로그램과 일정", "Career programs you joined & schedule", "参加中的就业项目与日程", "Chương trình đang tham gia & lịch", "参加中の就職プログラムと日程", "Program yang diikuti & jadwal")} />
+          <Row href={talentAppRoutes.assignments} lead="📝" title={t("과제", "Assignments", "作业", "Bài tập", "課題", "Tugas")} meta={t("프로그램 과제 제출과 피드백", "Submit program tasks & get feedback", "提交项目作业与反馈", "Nộp bài & nhận phản hồi", "課題の提出とフィードバック", "Kirim tugas & dapat masukan")} />
+          <Row href="/talent/connections" lead="🤝" title={t("파트너 연결", "Partner connections", "伙伴连接", "Kết nối đối tác", "パートナー連携", "Koneksi mitra")} meta={t("기업이 보낸 연결 요청과 관심 회사", "Requests from companies & who's interested", "企业发来的连接请求与感兴趣的公司", "Yêu cầu từ doanh nghiệp & công ty quan tâm", "企業からの申請と関心企業", "Permintaan perusahaan & yang tertarik")} />
         </Section>
 
         {/* 관심 직무 — 바꾸기는 내 커리어에서 */}
