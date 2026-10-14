@@ -21,7 +21,7 @@ const CAREER_GUIDE_META: { slug: string; cat: GuideCat }[] = [
 /** 홈의 취업 가이드 목록(careerGuides 순서)에서 바로 글로 가는 주소. */
 export function careerGuideHref(i: number): string {
   const m = CAREER_GUIDE_META[i];
-  return m ? `/v2/guide/${m.slug}` : "/v2/guide";
+  return m ? `/talent/insights/${m.slug}` : "/talent/insights";
 }
 
 /** 읽는 시간(분) — 한국어 기준 분당 약 500자, 최소 1분. */
@@ -59,8 +59,8 @@ export const GUIDE_TONE: Record<GuideCat, { bg: string; ink: string }> = {
 /** 글 끝 버튼 주소 — 기존 화면 주소를 v2 화면이 있으면 v2 로. */
 export function toV2Href(href: string | undefined): string | undefined {
   if (!href) return undefined;
-  if (href === "/talent/jobs" || href.startsWith("/talent/jobs?")) return "/v2/jobs";
-  if (href.startsWith("/talent/career/interviews")) return "/v2/interviews";
+  if (href === "/talent/jobs" || href.startsWith("/talent/jobs?")) return "/talent/jobs";
+  if (href.startsWith("/talent/career/interviews")) return "/talent/career/interviews";
   return href;
 }
 

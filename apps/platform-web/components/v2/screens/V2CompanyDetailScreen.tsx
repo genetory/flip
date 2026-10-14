@@ -75,7 +75,7 @@ export function JobLine({ t, item, saved, onToggleSave }: { t: PlatformT; item: 
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <Row
-          href={`/v2/jobs/${item.id}`}
+          href={`/talent/jobs/${item.id}`}
           thumb={{ src: jobPhotoOf(item), fallback: company || item.title }}
           title={item.title}
           meta={[company, shortPlace(item.workLocation), view.employmentLabel, view.deadlineText].filter(Boolean).join(" · ") || undefined}

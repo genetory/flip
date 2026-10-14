@@ -47,8 +47,8 @@ import { careerGuides } from "../../../lib/talent/home-content";
 import { careerGuideHref } from "../../../lib/talent/v2-guides";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
-const EDITOR = { resume: "/v2/resume", cover: "/v2/cover" };
-const PREVIEW = { resume: "/v2/resume/preview", cover: "/v2/cover/preview" };
+const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
+const PREVIEW = { resume: "/talent/career/resume/preview", cover: "/talent/career/cover/preview" };
 
 function daysUntil(iso: string): number | null {
   const today = new Date();
@@ -233,7 +233,7 @@ function Home() {
 
   // 처음 온 사람 — 지원이 없고 시작 3단계가 다 끝나지 않았으면 3단계 카드를 크게, 기록류 구획은 접는다.
   const steps = [
-    { key: "interest", done: interests.length > 0, title: t("관심 직무 고르기", "Pick job interests", "选择感兴趣的职位", "Chọn ngành quan tâm", "関心職種を選ぶ", "Pilih minat"), meta: t("맞춤 공고·면접 질문의 기준이에요", "Powers your recommendations", "推荐的基础", "Cơ sở để gợi ý", "おすすめの基準", "Dasar rekomendasi"), href: "/v2/profile" },
+    { key: "interest", done: interests.length > 0, title: t("관심 직무 고르기", "Pick job interests", "选择感兴趣的职位", "Chọn ngành quan tâm", "関心職種を選ぶ", "Pilih minat"), meta: t("맞춤 공고·면접 질문의 기준이에요", "Powers your recommendations", "推荐的基础", "Cơ sở để gợi ý", "おすすめの基準", "Dasar rekomendasi"), href: "/talent/career/profile" },
     { key: "resume", done: (resume?.items.length ?? 0) > 0, title: t("이력서 시작하기", "Start your resume", "开始写简历", "Bắt đầu CV", "履歴書を始める", "Mulai CV"), meta: t("한 줄씩 써도 AI가 정리해 줘요", "AI tidies it as you go", "AI 帮你整理", "AI sắp xếp giúp", "AIが整えます", "AI merapikan"), href: EDITOR.resume },
     { key: "mock", done: answers.length > 0 || (mocks?.length ?? 0) > 0, title: t("면접 질문 하나 답해 보기", "Answer one interview question", "回答一道面试题", "Trả lời một câu", "面接の質問に1つ答える", "Jawab satu pertanyaan"), meta: t("2분이면 AI 피드백까지", "AI feedback in 2 minutes", "2 分钟获得 AI 反馈", "Phản hồi AI trong 2 phút", "2分でAIフィードバック", "Masukan AI 2 menit") }
   ];
@@ -299,7 +299,7 @@ function Home() {
       {/* 나에게 관심 준 회사 — 보라 띠(로고 겹쳐 보이기) */}
       {freshInterest.length ? (
         <div className="px-5 pb-6">
-          <Link href="/v2/connections#interested" className="flex items-center gap-3 rounded-3xl bg-[#f3eeff] px-5 py-4 transition hover:-translate-y-0.5">
+          <Link href="/talent/connections#interested" className="flex items-center gap-3 rounded-3xl bg-[#f3eeff] px-5 py-4 transition hover:-translate-y-0.5">
             <span className="flex shrink-0 -space-x-2">
               {freshInterest.slice(0, 3).map((c) => (
                 <span key={c.organizationId} className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-[#f3eeff] bg-white text-[13px] font-bold text-[color:var(--v2-ink-3)]">
@@ -387,7 +387,7 @@ function Home() {
         <Section title={t("팔로우한 회사 새 공고", "New from companies you follow", "关注公司的新职位", "Tin mới từ công ty theo dõi", "フォロー企業の新着", "Baru dari yang diikuti")}>
           <div className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
             {followJobs.map((j) => (
-              <Link key={j.id} href={`/v2/jobs/${j.id}`} className="w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl bg-[color:var(--v2-band)] transition hover:-translate-y-0.5">
+              <Link key={j.id} href={`/talent/jobs/${j.id}`} className="w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl bg-[color:var(--v2-band)] transition hover:-translate-y-0.5">
                 <span className="relative block h-28 w-full bg-[color:var(--v2-line)]">
                   {jobPhotoOf(j) ? (
                     // eslint-disable-next-line @next/next/no-img-element -- 공고 사진은 data URL·외부 주소가 섞여 next/image 로 못 받는다.
@@ -410,7 +410,7 @@ function Home() {
           {closing.map(({ p, d }) => (
             <Row
               key={p.id}
-              href={`/v2/jobs/${p.id}`}
+              href={`/talent/jobs/${p.id}`}
               title={p.title}
               meta={p.partnerOrganization?.name || p.sourceCompanyName || undefined}
               right={<Attention>{d === 0 ? t("오늘 마감", "Today", "今天截止", "Hôm nay", "今日締切", "Hari ini") : `D-${d}`}</Attention>}
@@ -449,7 +449,7 @@ function Home() {
             return (
               <Row
                 key={j.id}
-                href={`/v2/jobs/${j.id}`}
+                href={`/talent/jobs/${j.id}`}
                 thumb={{ src: j.thumbnailImages?.[0] || j.partnerOrganization?.officePhotoImageData || j.partnerOrganization?.companyLogoImageData, fallback: company || j.title }}
                 title={j.title}
                 meta={
@@ -466,7 +466,7 @@ function Home() {
             );
           })}
           <div className="mt-3">
-            <Button variant="neutral" full href={interests.length ? "/v2/jobs?tab=interest" : V2_ROUTES.jobs}>
+            <Button variant="neutral" full href={interests.length ? "/talent/jobs?tab=interest" : V2_ROUTES.jobs}>
               {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
             </Button>
           </div>
@@ -481,14 +481,14 @@ function Home() {
           {companies.map((c) => (
             <Row
               key={c.name}
-              href={`/v2/companies/${encodeURIComponent(c.name)}`}
+              href={`/talent/company/${encodeURIComponent(c.name)}`}
               thumb={{ src: c.photo, fallback: c.name }}
               title={c.name}
               meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")}
             />
           ))}
           <div className="mt-3">
-            <Button variant="neutral" full href="/v2/companies">
+            <Button variant="neutral" full href="/talent/companies">
               {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
             </Button>
           </div>

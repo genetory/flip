@@ -13,8 +13,8 @@ import { getPublicPositionsPage, type PublicPositionListItem } from "../../../li
 import { jobCategoriesForInterests } from "../../../lib/talent/job-taxonomy";
 import { jobTaxonomyLabelOf } from "../../../lib/talent/job-taxonomy-labels";
 
-const SIGNUP = `/talent/signup?next=${encodeURIComponent("/v2/career")}`;
-const LOGIN = `/talent/login?next=${encodeURIComponent("/v2/career")}`;
+const SIGNUP = `/talent/signup?next=${encodeURIComponent("/talent/career")}`;
+const LOGIN = `/talent/login?next=${encodeURIComponent("/talent/career")}`;
 
 // 유학생·첫 취업 준비생이 많이 고르는 직무(표준 직무 분류의 소분류 이름 그대로).
 // 서버 관련도 검색이 먼저 고르는 후보 수(의미 검색 상위) — 이 수에 닿으면 실제로는 더 많다.
@@ -145,7 +145,7 @@ function RoleJobs({ t }: { t: PlatformT }) {
               : t("지금은 이 직무 공고가 없어요.", "No jobs for this role right now.", "目前没有该职位的招聘。", "Hiện chưa có tin.", "現在この職種の求人はありません。", "Belum ada lowongan.")}
           </p>
           {cur.items.map((j) => (
-            <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={companyOf(j) || undefined} />
+            <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={companyOf(j) || undefined} />
           ))}
           <div className="mt-3 rounded-2xl bg-[#edf1fd] p-4">
             <p className="text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">{t("가입하면 이 공고들이 원하는 기술·자격증·경험과 내 서류를 비교해, 빠진 것부터 알려 드려요.", "Sign up and we'll compare what these jobs ask for with your documents — starting with what's missing.", "注册后，我们会将这些职位要求的技能、证书、经验与你的材料对比，先告诉你缺什么。", "Đăng ký để so sánh yêu cầu của các tin này với hồ sơ — bắt đầu từ phần còn thiếu.", "登録すると、これらの求人が求めるスキル・資格・経験と書類を比べ、足りないものから教えます。", "Daftar untuk membandingkan syarat lowongan ini dengan dokumenmu.")}</p>

@@ -38,7 +38,7 @@ import { trackInterviewStart } from "../../../lib/analytics";
 import { StartSheet } from "../interview-content";
 import { InterviewSession } from "../interview-session";
 
-const EDITOR = { resume: "/v2/resume", cover: "/v2/cover" };
+const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
 
 export function V2JobDetailScreen({ id }: { id: string }) {
   return (
@@ -143,7 +143,7 @@ function JobDetail({ id }: { id: string }) {
     };
   }, [item]);
 
-  const needLogin = () => router.push(`/talent/login?next=${encodeURIComponent(`/v2/jobs/${id}`)}`);
+  const needLogin = () => router.push(`/talent/login?next=${encodeURIComponent(`/talent/jobs/${id}`)}`);
 
   if (item === undefined) return <DetailSkeleton />;
   if (item === null)
@@ -369,7 +369,7 @@ function JobDetail({ id }: { id: string }) {
           title={t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")}
           aside={
             view.isInternal && !view.isUndisclosedCompany ? (
-              <Link href={`/v2/companies/${encodeURIComponent(org.name)}`} className="text-[15px] font-medium text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
+              <Link href={`/talent/company/${encodeURIComponent(org.name)}`} className="text-[15px] font-medium text-[color:var(--v2-faint)] hover:text-[color:var(--v2-ink-3)]">
                 {t("회사 더 보기", "More", "查看更多", "Xem thêm", "もっと見る", "Lainnya")}
               </Link>
             ) : undefined
@@ -625,7 +625,7 @@ function SimilarJobs({ t, item }: { t: PlatformT; item: PublicPositionListItem }
       {list === null ? (
         <RowsSkeleton count={3} />
       ) : (
-        list.map((j) => <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />)
+        list.map((j) => <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ") || undefined} />)
       )}
     </Block>
   );

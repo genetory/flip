@@ -63,7 +63,7 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
           eyebrow={t("내 이력서", "My resume", "我的简历", "CV của tôi", "履歴書", "CV saya")}
           title={t("이력서를 찾을 수 없어요", "Resume not found", "找不到简历", "Không tìm thấy CV", "履歴書が見つかりません", "CV tidak ditemukan")}
           lede={t("먼저 경험을 정리하고 첫 이력서를 만들어 보세요.", "Organize your experiences first, then create your first resume.", "请先整理经历，再制作第一份简历。", "Hãy sắp xếp kinh nghiệm trước, rồi tạo CV đầu tiên.", "まず経験を整理して最初の履歴書を作りましょう。", "Susun pengalaman dulu, lalu buat CV pertama.")}
-          action={<PrimaryButton href="/v2/resumes">{t("이력서 목록으로", "To resume list", "返回简历列表", "Về danh sách CV", "履歴書一覧へ", "Ke daftar CV")}</PrimaryButton>}
+          action={<PrimaryButton href="/talent/career/resumes">{t("이력서 목록으로", "To resume list", "返回简历列表", "Về danh sách CV", "履歴書一覧へ", "Ke daftar CV")}</PrimaryButton>}
         />
       </Page>
     );
@@ -170,7 +170,7 @@ function Content({ snapshot, resumeId }: { snapshot: TalentSnapshot; resumeId: s
       <Section title={t("더 다듬기", "Refine more", "继续完善", "Hoàn thiện thêm", "さらに整える", "Perbaiki lagi")}>
         <Row href={`/talent/career/resumes/${encodeURIComponent(resumeId)}/tailor`} lead="🎯" title={t("공고에 얼마나 맞을까요?", "Check your fit for a posting", "看看与职位的匹配度", "Mức phù hợp với tin", "求人との適合度", "Cek kecocokan lowongan")} meta={t("공고를 넣으면 적합도와 보완할 점을 알려 드려요", "Paste a posting for a fit score and fixes", "填入招聘信息，获取匹配分数和改进建议", "Dán tin để nhận điểm và gợi ý", "求人を入れると適合度と改善点を表示", "Tempel lowongan untuk skor & saran")} />
         <Row href="/talent/career/resume/diagnosis" lead="🩺" title={t("내 이력서 진단받기", "Get your resume diagnosed", "诊断我的简历", "Chẩn đoán CV", "履歴書を診断する", "Diagnosis CV")} meta={t("공고 없이도 부족한 부분을 짚어 드려요", "See what's missing — no posting needed", "无需招聘信息也能指出不足", "Không cần tin vẫn chỉ ra điểm thiếu", "求人なしでも不足点をお知らせ", "Tanpa lowongan pun ditunjukkan kekurangannya")} />
-        <Row href="/v2/resumes" lead="🗂️" title={t("다른 직무로도 만들기", "Make one for another role", "也为其他职位制作", "Tạo cho vị trí khác", "他の職種でも作る", "Buat untuk posisi lain")} meta={t("같은 경험, 다른 강조점", "Same experience, different emphasis", "相同经历，不同侧重", "Cùng kinh nghiệm, nhấn mạnh khác", "同じ経験で別の強調点", "Pengalaman sama, penekanan beda")} />
+        <Row href="/talent/career/resumes" lead="🗂️" title={t("다른 직무로도 만들기", "Make one for another role", "也为其他职位制作", "Tạo cho vị trí khác", "他の職種でも作る", "Buat untuk posisi lain")} meta={t("같은 경험, 다른 강조점", "Same experience, different emphasis", "相同经历，不同侧重", "Cùng kinh nghiệm, nhấn mạnh khác", "同じ経験で別の強調点", "Pengalaman sama, penekanan beda")} />
       </Section>
     </Page>
   );

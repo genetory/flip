@@ -17,8 +17,8 @@ import { usePlatformT } from "../../../lib/i18n";
 type LoadStatus = "loading" | "ready" | "error";
 
 const R = {
-  career: "/v2/career",
-  resume: "/v2/resume"
+  career: "/talent/career",
+  resume: "/talent/career/resume/editor"
 };
 
 /** 경험 목록 — 기존 useTalentSnapshot 과 같은 저장소(getSnapshot·persona)를 읽는다.

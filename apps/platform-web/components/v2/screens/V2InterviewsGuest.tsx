@@ -18,8 +18,8 @@ import { setFabInset, clearFabInset } from "../../../lib/talent/fab-inset";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { ExpressionCard, ReportedQuestions } from "./V2InterviewsScreen";
 
-const SIGNUP = `/talent/signup?next=${encodeURIComponent("/v2/interviews")}`;
-const LOGIN = `/talent/login?next=${encodeURIComponent("/v2/interviews")}`;
+const SIGNUP = `/talent/signup?next=${encodeURIComponent("/talent/career/interviews")}`;
+const LOGIN = `/talent/login?next=${encodeURIComponent("/talent/career/interviews")}`;
 
 export function V2InterviewsGuest() {
   const t = usePlatformT();

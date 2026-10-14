@@ -53,7 +53,7 @@ export function TalentPoolLine({ t, status, onPreview }: { t: PlatformT; status:
       </span>
       <span className="min-w-0 flex-1 truncate text-[14px] text-[color:var(--v2-ink-3)]">{text}</span>
       {status.optedOut ? (
-        <Link href="/v2/settings" className="shrink-0 whitespace-nowrap text-[14px] font-semibold text-[color:var(--v2-accent)]">
+        <Link href="/talent/settings" className="shrink-0 whitespace-nowrap text-[14px] font-semibold text-[color:var(--v2-accent)]">
           {t("설정", "Settings", "设置", "Cài đặt", "設定", "Atur")}
         </Link>
       ) : status.card ? (
@@ -77,10 +77,10 @@ export function TalentCardSheet({ t, status, onClose }: { t: PlatformT; status: 
       onClose={onClose}
       footer={
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="neutral" full href="/v2/settings">
+          <Button variant="neutral" full href="/talent/settings">
             {t("노출 설정", "Visibility", "展示设置", "Cài đặt", "表示設定", "Atur")}
           </Button>
-          <Button full href="/v2/resume">
+          <Button full href="/talent/career/resume/editor">
             {t("이력서 고치기", "Edit resume", "修改简历", "Sửa CV", "履歴書を編集", "Ubah CV")}
           </Button>
         </div>

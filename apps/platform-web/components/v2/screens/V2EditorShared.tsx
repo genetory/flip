@@ -43,8 +43,8 @@ export const SHEET_CLS =
   "lg:static lg:z-auto lg:h-auto lg:max-h-none lg:rounded-none lg:shadow-none";
 
 export const EDITOR_ROUTES = {
-  resume: "/v2/resume",
-  cover: "/v2/cover"
+  resume: "/talent/career/resume/editor",
+  cover: "/talent/career/cover/editor"
 } as const;
 
 export function FullMessage({ text, action }: { text: string; action?: { href: string; label: string } }) {

@@ -141,7 +141,7 @@ function loadToss(): Promise<TossPaymentsFn> {
 
 function PaywallSheet({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
-  const pathname = usePathname() ?? "/v2/interviews";
+  const pathname = usePathname() ?? "/talent/career/interviews";
   const { user } = useAuthSession();
   const credits = useInterviewCredits();
   const [pick, setPick] = useState<InterviewProduct | null>(null);
@@ -284,7 +284,7 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
         <p className="mt-5 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[14px] leading-[1.55] text-[color:var(--v2-muted)]">{t("결제를 준비하고 있어요. 조금만 기다려 주세요.", "Payments are coming soon.", "支付功能即将上线。", "Thanh toán sắp ra mắt.", "決済は準備中です。", "Pembayaran segera hadir.")}</p>
       )}
       {error ? <p className="mt-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
-      <Link href="/v2/payments" onClick={onClose} className="mt-4 inline-block text-[13px] font-semibold text-[color:var(--v2-muted)] underline underline-offset-2">
+      <Link href="/talent/payments" onClick={onClose} className="mt-4 inline-block text-[13px] font-semibold text-[color:var(--v2-muted)] underline underline-offset-2">
         {t("이용권·결제 내역 보기", "See passes & payments", "查看使用券·支付记录", "Xem vé & thanh toán", "チケット・決済履歴を見る", "Lihat tiket & pembayaran")}
       </Link>
       <p className="mt-4 text-[12px] leading-[1.6] text-[color:var(--v2-faint)]">{t("오늘의 질문은 하루 1번 이용권 없이 답할 수 있어요. 결제한 이용권은 쓴 만큼만 줄어요.", "Today's question can be answered once a day without a pass. Passes only decrease as you use them.", "今日问题每天可免券回答 1 次。使用券按实际使用扣除。", "Câu hỏi hôm nay được trả lời 1 lần/ngày không cần vé.", "今日の質問は1日1回チケットなしで答えられます。", "Pertanyaan hari ini bisa dijawab sekali sehari tanpa tiket.")}</p>

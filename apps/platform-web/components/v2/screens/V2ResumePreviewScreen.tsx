@@ -42,12 +42,12 @@ function Body() {
             doc ? (
               <Actions>
                 <V2PdfButton />
-                <Button variant="neutral" href="/v2/resume">
+                <Button variant="neutral" href="/talent/career/resume/editor">
                   {t("고치기", "Edit", "修改", "Sửa", "編集", "Ubah")}
                 </Button>
               </Actions>
             ) : (
-              <PrimaryButton href="/v2/resume">{t("이력서 만들기", "Create resume", "制作简历", "Tạo CV", "履歴書を作る", "Buat CV")}</PrimaryButton>
+              <PrimaryButton href="/talent/career/resume/editor">{t("이력서 만들기", "Create resume", "制作简历", "Tạo CV", "履歴書を作る", "Buat CV")}</PrimaryButton>
             )
           }
         />

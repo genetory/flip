@@ -275,7 +275,7 @@ function ApplicationItem({
 
   return (
     <li className="border-b border-[color:var(--v2-line)] py-5 last:border-b-0">
-      <Link href={`/v2/jobs/${a.positionId}`} className={`block transition hover:opacity-70 ${dimmed ? "opacity-60" : ""}`}>
+      <Link href={`/talent/jobs/${a.positionId}`} className={`block transition hover:opacity-70 ${dimmed ? "opacity-60" : ""}`}>
         <p className="text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{a.positionTitle}</p>
         <p className="mt-0.5 text-[14px] text-[color:var(--v2-faint)]">
           {[a.partnerOrganizationName, `${t("지원", "Applied", "申请", "Ứng tuyển", "応募", "Dilamar")} ${formatRelativeTime(new Date(a.submittedAt).getTime(), undefined, t)}`].filter(Boolean).join(" · ")}
@@ -363,7 +363,7 @@ function SimilarJobs({ t, title, excludeId }: { t: PlatformT; title: string; exc
       ) : (
         <div className="mt-1">
           {items.map((j) => (
-            <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={companyOf(j) || undefined} />
+            <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={companyOf(j) || undefined} />
           ))}
         </div>
       )}

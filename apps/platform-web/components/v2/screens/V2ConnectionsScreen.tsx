@@ -210,7 +210,7 @@ function InterestedLine({ t, c }: { t: PlatformT; c: InterestedCompany }) {
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
         <Row
-          href={`/v2/companies/${encodeURIComponent(c.name)}`}
+          href={`/talent/company/${encodeURIComponent(c.name)}`}
           thumb={{ src: c.logo, fallback: c.name }}
           title={c.name}
           meta={c.summary || [c.industry ? partnerIndustryLabel(c.industry) : null, t(`${date} 관심`, `Interested ${date}`, `${date} 关注`, `Quan tâm ${date}`, `${date} 関心`, `Tertarik ${date}`)].filter(Boolean).join(" · ")}

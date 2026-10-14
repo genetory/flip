@@ -97,8 +97,8 @@ function Body() {
       </Section>
 
       <Section title={t("바로 고치기", "Edit now", "直接修改", "Sửa ngay", "すぐ編集", "Edit langsung")}>
-        <Row href="/v2/resume" lead="✏️" title={t("이력서 편집", "Edit resume", "编辑简历", "Sửa CV", "履歴書を編集", "Edit CV")} meta={t("항목을 고르고 순서를 바꿔요", "Pick items and reorder them", "选择条目并调整顺序", "Chọn mục và đổi thứ tự", "項目を選び並べ替え", "Pilih item dan urutkan")} />
-        <Row href="/v2/resume/preview" lead="📄" title={t("미리보기·PDF", "Preview · PDF", "预览·PDF", "Xem trước · PDF", "プレビュー・PDF", "Pratinjau · PDF")} meta={t("회사에 내는 모습 그대로", "Exactly as companies see it", "公司看到的样子", "Đúng như công ty thấy", "企業に出すそのまま", "Persis seperti dilihat perusahaan")} />
+        <Row href="/talent/career/resume/editor" lead="✏️" title={t("이력서 편집", "Edit resume", "编辑简历", "Sửa CV", "履歴書を編集", "Edit CV")} meta={t("항목을 고르고 순서를 바꿔요", "Pick items and reorder them", "选择条目并调整顺序", "Chọn mục và đổi thứ tự", "項目を選び並べ替え", "Pilih item dan urutkan")} />
+        <Row href="/talent/career/resume/preview" lead="📄" title={t("미리보기·PDF", "Preview · PDF", "预览·PDF", "Xem trước · PDF", "プレビュー・PDF", "Pratinjau · PDF")} meta={t("회사에 내는 모습 그대로", "Exactly as companies see it", "公司看到的样子", "Đúng như công ty thấy", "企業に出すそのまま", "Persis seperti dilihat perusahaan")} />
       </Section>
 
       {flowOpen ? <ResumeFlow snapshot={snapshot} onClose={() => setFlowOpen(false)} /> : null}
@@ -144,7 +144,7 @@ function ProfileGate() {
           ))}
         </ul>
         <div className="mt-5">
-          <Button full href="/v2/profile">
+          <Button full href="/talent/career/profile">
             {t("기본 정보 등록하기", "Add basic info", "填写基本信息", "Nhập thông tin cơ bản", "基本情報を登録する", "Isi info dasar")}
           </Button>
         </div>
@@ -158,7 +158,7 @@ function ResumeRow({ resume }: { resume: Resume }) {
   const statusLabel = useResumeStatusLabel();
   return (
     <Row
-      href={`/v2/resumes/${encodeURIComponent(resume.id)}`}
+      href={`/talent/career/resumes/${encodeURIComponent(resume.id)}`}
       lead="📄"
       title={resume.title}
       meta={`${resume.targetRole ? `${resume.targetRole} · ` : ""}${t("수정", "Edited", "修改", "Sửa", "更新", "Diedit")} ${resume.updatedAt}`}

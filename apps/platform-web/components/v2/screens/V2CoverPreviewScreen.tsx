@@ -13,7 +13,7 @@ import { useBasicInfo } from "../../../lib/talent/basic-info";
 import { useRenewalDocsStatus } from "../../../lib/talent/resume-doc";
 import { usePlatformT } from "../../../lib/i18n";
 
-const EDITOR = "/v2/cover";
+const EDITOR = "/talent/career/cover/editor";
 
 export function V2CoverPreviewScreen() {
   return (

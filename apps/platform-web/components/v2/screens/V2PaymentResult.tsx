@@ -96,7 +96,7 @@ function Result({ kind }: { kind: "success" | "fail" }) {
   );
 }
 
-/** 돌아갈 곳 — 우리 사이트 안의 v2 주소만(다른 곳으로 보내는 주소는 무시). */
+/** 돌아갈 곳 — 우리 사이트 안의 talent 주소만(다른 곳으로 보내는 주소는 무시). */
 function safeBack(v: string | null | undefined): string {
-  return v && v.startsWith("/v2/") && !v.startsWith("//") ? v : "/v2/interviews";
+  return v && v.startsWith("/talent/") && !v.startsWith("//") ? v : "/talent/career/interviews";
 }

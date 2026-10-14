@@ -41,7 +41,7 @@ function Article({ slug }: { slug: string }) {
         <div className="px-5 py-16 text-center">
           <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{t("글을 찾을 수 없어요", "Article not found", "找不到文章", "Không tìm thấy bài", "記事が見つかりません", "Artikel tidak ditemukan")}</p>
           <div className="mt-5">
-            <Button variant="neutral" href="/v2/guide">
+            <Button variant="neutral" href="/talent/insights">
               {t("가이드 목록으로", "Back to guides", "返回指南", "Về danh sách", "ガイド一覧へ", "Kembali")}
             </Button>
           </div>
@@ -67,7 +67,7 @@ function Article({ slug }: { slug: string }) {
         {/* 뒤로 — 들어온 곳으로(바로 열었으면 가이드 목록으로) */}
         <button
           type="button"
-          onClick={() => (window.history.length > 1 ? router.back() : router.push("/v2/guide"))}
+          onClick={() => (window.history.length > 1 ? router.back() : router.push("/talent/insights"))}
           className="-ml-1.5 inline-flex h-9 items-center gap-0.5 rounded-lg pl-1 pr-2.5 text-[15px] font-semibold text-[color:var(--v2-muted)] transition hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-ink-3)]"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -133,7 +133,7 @@ function Article({ slug }: { slug: string }) {
 
         {/* 다음 글 */}
         {next && next.slug !== g.slug ? (
-          <Link href={`/v2/guide/${next.slug}`} className={`mt-4 flex items-center gap-4 rounded-3xl p-5 transition hover:-translate-y-0.5 ${GUIDE_TONE[next.cat].bg}`}>
+          <Link href={`/talent/insights/${next.slug}`} className={`mt-4 flex items-center gap-4 rounded-3xl p-5 transition hover:-translate-y-0.5 ${GUIDE_TONE[next.cat].bg}`}>
             <span className="min-w-0 flex-1">
               <span className={`block text-[13px] font-bold ${GUIDE_TONE[next.cat].ink}`}>{t("다음 글", "Next", "下一篇", "Bài tiếp", "次の記事", "Berikutnya")}</span>
               <span className="mt-1 block truncate text-[17px] font-bold text-[color:var(--v2-ink)]">{next.guide.title.replace(/\n/g, " ")}</span>

@@ -11,9 +11,9 @@ import { formatRelativeTime, removeFeedEntry, useCareerFeed, type FeedEntry } fr
 import { usePlatformT } from "../../../lib/i18n";
 
 const R = {
-  career: "/v2/career",
-  resume: "/v2/resume",
-  cover: "/v2/cover"
+  career: "/talent/career",
+  resume: "/talent/career/resume/editor",
+  cover: "/talent/career/cover/editor"
 };
 
 // 목적격 조사(을/를) — 한글 받침 여부로(기존 FeedCard 와 같은 규칙).

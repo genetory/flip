@@ -97,7 +97,7 @@ function Guide() {
         <>
           {/* 추천 글 — 큰 색 카드 */}
           <div className="px-5 pb-8">
-            <Link href={`/v2/guide/${featured.slug}`} className={`block rounded-3xl p-6 transition hover:-translate-y-0.5 ${GUIDE_TONE[featured.cat].bg}`}>
+            <Link href={`/talent/insights/${featured.slug}`} className={`block rounded-3xl p-6 transition hover:-translate-y-0.5 ${GUIDE_TONE[featured.cat].bg}`}>
               <span className="flex items-center justify-between gap-2">
                 <span className={`text-[13px] font-bold ${GUIDE_TONE[featured.cat].ink}`}>
                   {t("오늘의 추천 글", "Today's pick", "今日推荐", "Bài gợi ý hôm nay", "今日のおすすめ", "Pilihan hari ini")} · {guideCatLabel(t, featured.cat)}
@@ -178,7 +178,7 @@ function Carousel({ t, items, read }: { t: PlatformT; items: V2Guide[]; read: Se
 function GuideCard({ t, g, read, className = "" }: { t: PlatformT; g: V2Guide; read: boolean; className?: string }) {
   const tone = GUIDE_TONE[g.cat];
   return (
-    <Link href={`/v2/guide/${g.slug}`} className={`flex min-h-[200px] flex-col rounded-3xl p-5 transition hover:-translate-y-0.5 ${tone.bg} ${read ? "opacity-80" : ""} ${className}`}>
+    <Link href={`/talent/insights/${g.slug}`} className={`flex min-h-[200px] flex-col rounded-3xl p-5 transition hover:-translate-y-0.5 ${tone.bg} ${read ? "opacity-80" : ""} ${className}`}>
       <span className="flex items-start justify-between gap-2">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[22px]" aria-hidden>
           {g.guide.emoji}

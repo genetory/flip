@@ -20,12 +20,12 @@ import { usePlatformT } from "../../lib/i18n";
 import { Actions, Button, Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
 
 export const V2_ROUTES = {
-  home: "/v2/home",
-  career: "/v2/career",
-  jobs: "/v2/jobs",
-  interviews: "/v2/interviews",
-  applications: "/v2/applications",
-  guide: "/v2/guide"
+  home: "/talent/home",
+  career: "/talent/career",
+  jobs: "/talent/jobs",
+  interviews: "/talent/career/interviews",
+  applications: "/talent/applications",
+  guide: "/talent/insights"
 } as const;
 
 function useNav() {
@@ -64,9 +64,14 @@ function Header() {
   const unread = useUnreadNotificationCount();
   useServerNotificationSync();
 
+  // 가장 길게 맞는 메뉴 하나만 켠다 — /talent/career/interviews 는 '내 커리어'가 아니라 '모의 면접'.
+  const activeHref = nav
+    .map((n) => n.href)
+    .filter((h) => pathname === h || pathname.startsWith(`${h}/`))
+    .sort((a, b) => b.length - a.length)[0];
   const navLinks = (mobile: boolean) =>
     nav.map((n) => {
-      const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
+      const active = n.href === activeHref;
       return (
         <Link
           key={n.href}
@@ -104,7 +109,7 @@ function Header() {
           ) : isAuthenticated ? (
             <>
               <Link
-                href="/v2/notifications"
+                href="/talent/notifications"
                 aria-label={unread > 0 ? t(`알림 ${unread}개`, `${unread} notifications`, `${unread} 条通知`, `${unread} thông báo`, `通知 ${unread}件`, `${unread} notifikasi`) : t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
                 className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]"
               >
@@ -114,7 +119,7 @@ function Header() {
                 ) : null}
               </Link>
               <Link
-                href="/v2/settings"
+                href="/talent/settings"
                 aria-label={t("내 프로필", "My profile", "我的资料", "Hồ sơ của tôi", "マイプロフィール", "Profil saya")}
                 title={name || undefined}
                 className="flex h-10 w-10 items-center justify-center rounded-xl transition hover:bg-[color:var(--v2-band)]"

@@ -85,7 +85,7 @@ function EditorGate() {
       <StartChooser
         t={t}
         kind="resume"
-        exitHref="/v2/career"
+        exitHref="/talent/career"
         onNew={() => setStartNew(true)}
         importPanel={
           <ImportFromFile
@@ -227,7 +227,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
     <EditorTopBar
       t={t}
       active="resume"
-      exitHref="/v2/career"
+      exitHref="/talent/career"
       working={working}
       saved={store.saved}
       current={current}

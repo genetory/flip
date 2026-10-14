@@ -17,8 +17,8 @@ import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 import { pickDailyQuestion, kstDay, questionText } from "../../../lib/talent/interview-daily";
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 
-const SIGNUP = `/talent/signup?next=${encodeURIComponent("/v2/home")}`;
-const LOGIN = `/talent/login?next=${encodeURIComponent("/v2/home")}`;
+const SIGNUP = `/talent/signup?next=${encodeURIComponent("/talent/home")}`;
+const LOGIN = `/talent/login?next=${encodeURIComponent("/talent/home")}`;
 
 type Company = { name: string; industry?: string; count: number; photo: string | null };
 
@@ -154,7 +154,7 @@ export function V2GuestHome() {
             <Row key={c.name} href={`/talent/company/${encodeURIComponent(c.name)}`} thumb={{ src: c.photo, fallback: c.name }} title={c.name} meta={[c.industry, t(`채용 중 ${c.count}`, `${c.count} open`, `在招 ${c.count}`, `${c.count} vị trí`, `募集中 ${c.count}`, `${c.count} lowongan`)].filter(Boolean).join(" · ")} />
           ))}
           <div className="mt-3">
-            <Button variant="neutral" full href="/v2/companies">
+            <Button variant="neutral" full href="/talent/companies">
               {t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
             </Button>
           </div>

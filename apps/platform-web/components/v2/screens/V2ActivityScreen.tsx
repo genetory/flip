@@ -94,7 +94,7 @@ function FollowedCompanies({ t }: { t: PlatformT }) {
     <Body t={t} count={names.length}>
       {names.length ? names.map((name) => <CompanyLine key={name} t={t} name={name} />) : <Empty>{emptyOf(t, "following-companies")}</Empty>}
       <div className="mt-4">
-        <Button variant="neutral" full href="/v2/companies">
+        <Button variant="neutral" full href="/talent/companies">
           {t("채용 중인 회사 보기", "Browse companies", "查看招聘公司", "Xem công ty", "採用中の企業を見る", "Lihat perusahaan")}
         </Button>
       </div>
@@ -135,7 +135,7 @@ function CompanyLine({ t, name }: { t: PlatformT; name: string }) {
   return (
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">
-        <Row href={`/v2/companies/${encodeURIComponent(name)}`} thumb={{ src: info?.logo, fallback: name }} title={name} meta={meta} />
+        <Row href={`/talent/company/${encodeURIComponent(name)}`} thumb={{ src: info?.logo, fallback: name }} title={name} meta={meta} />
       </div>
       <Button size="sm" variant="secondary" onClick={() => unfollowCompanyName(name)}>
         {t("관심 해제", "Unfollow", "取消关注", "Bỏ theo dõi", "解除", "Batal")}
@@ -174,7 +174,7 @@ function SavedJobs({ t }: { t: PlatformT }) {
       ) : (
         <>
           <Empty>{emptyOf(t, "favorite-positions")}</Empty>
-          <Button variant="neutral" full href="/v2/jobs">
+          <Button variant="neutral" full href="/talent/jobs">
             {t("포지션 탐색", "Browse jobs", "浏览职位", "Tìm việc", "求人を探す", "Cari lowongan")}
           </Button>
         </>

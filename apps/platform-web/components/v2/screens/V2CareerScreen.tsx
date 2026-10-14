@@ -33,15 +33,15 @@ import { JobInterestModal } from "../../talent/jobs/JobInterestModal";
 import { V2CareerGuest } from "./V2CareerGuest";
 
 const R = {
-  profile: "/v2/profile",
-  resume: "/v2/resume",
-  resumePreview: "/v2/resume/preview",
-  cover: "/v2/cover",
-  coverPreview: "/v2/cover/preview",
-  resumes: "/v2/resumes",
-  coverLetters: "/v2/cover-letters",
-  experiences: "/v2/experiences",
-  history: "/v2/history",
+  profile: "/talent/career/profile",
+  resume: "/talent/career/resume/editor",
+  resumePreview: "/talent/career/resume/preview",
+  cover: "/talent/career/cover/editor",
+  coverPreview: "/talent/career/cover/preview",
+  resumes: "/talent/career/resumes",
+  coverLetters: "/talent/career/cover-letters",
+  experiences: "/talent/career/experiences",
+  history: "/talent/career/history",
   diagnosis: "/talent/career/resume/diagnosis"
 };
 
@@ -537,7 +537,7 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
   const loading = !state || state.key !== key;
   if (!loading && !state.items.length) return null;
   return (
-    <Section title={t("내 스펙에 맞는 공고", "Jobs that fit you", "适合我的职位", "Việc hợp với bạn", "自分に合う求人", "Lowongan yang cocok")} aside={<TextLink href="/v2/jobs?tab=interest">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
+    <Section title={t("내 스펙에 맞는 공고", "Jobs that fit you", "适合我的职位", "Việc hợp với bạn", "自分に合う求人", "Lowongan yang cocok")} aside={<TextLink href="/talent/jobs?tab=interest">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</TextLink>}>
       {loading ? (
         <RowsSkeleton count={3} />
       ) : (
@@ -554,7 +554,7 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
             const photo = jobPhotoOf(j);
             return (
               <div key={j.id} className="flex items-start gap-3.5 py-3">
-                <Link href={`/v2/jobs/${j.id}`} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-muted)]">
+                <Link href={`/talent/jobs/${j.id}`} className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[color:var(--v2-band)] text-[15px] font-bold text-[color:var(--v2-muted)]">
                   {photo ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -563,7 +563,7 @@ function MatchedJobs({ t, interests, skills, cover }: { t: PlatformT; interests:
                   )}
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <Link href={`/v2/jobs/${j.id}`} className="block transition hover:opacity-70">
+                  <Link href={`/talent/jobs/${j.id}`} className="block transition hover:opacity-70">
                     <span className="block truncate text-[17px] font-semibold leading-[1.45] text-[color:var(--v2-ink)]">{j.title}</span>
                     <span className="mt-0.5 block truncate text-[14px] text-[color:var(--v2-faint)]">{[companyOf(j), shortPlace(j.workLocation)].filter(Boolean).join(" · ")}</span>
                     {hits.length ? (
@@ -1244,7 +1244,7 @@ function CompanyLinks({ t }: { t: PlatformT }) {
         {t("이력서를 완성하면 기업이 인재 검색에서 나를 찾을 수 있어요. 연락처는 내가 연결을 수락하기 전까지 가려져요.", "With a complete resume, companies can find you in talent search. Your contact stays hidden until you accept.", "完善简历后，企业可在人才搜索中找到你。在你接受联系前，联系方式保持隐藏。", "Khi CV hoàn chỉnh, doanh nghiệp có thể tìm thấy bạn. Liên hệ được ẩn cho đến khi bạn chấp nhận.", "履歴書を完成させると企業が人材検索であなたを見つけられます。連絡先は承諾するまで非公開です。", "Dengan CV lengkap, perusahaan bisa menemukanmu. Kontak tersembunyi sampai kamu menerima.")}
       </p>
       <Row
-        href="/v2/connections"
+        href="/talent/connections"
         lead="✉️"
         title={t("받은 연결 요청", "Connection requests", "收到的联系请求", "Yêu cầu kết nối", "届いたリクエスト", "Permintaan koneksi")}
         meta={
@@ -1255,7 +1255,7 @@ function CompanyLinks({ t }: { t: PlatformT }) {
         right={pending.length ? <span className="rounded-full bg-[color:var(--v2-attention)] px-2 py-0.5 text-[12px] font-bold text-white">{pending.length}</span> : undefined}
       />
       <Row
-        href="/v2/connections#interested"
+        href="/talent/connections#interested"
         lead="🏢"
         title={t("관심 보인 회사", "Interested companies", "感兴趣的公司", "Công ty quan tâm", "関心を持った会社", "Perusahaan tertarik")}
         meta={

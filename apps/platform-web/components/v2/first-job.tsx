@@ -142,7 +142,7 @@ export function RoleQuizSheet({ t, authed, onClose }: { t: PlatformT; authed: bo
     saveJobInterests([...new Set([...interests, ...top.map((f) => FAMILY[f].role)])]);
     setSaved(true);
   };
-  const signup = `/talent/signup?next=${encodeURIComponent("/v2/home")}`;
+  const signup = `/talent/signup?next=${encodeURIComponent("/talent/home")}`;
 
   return (
     <Sheet
@@ -154,7 +154,7 @@ export function RoleQuizSheet({ t, authed, onClose }: { t: PlatformT; authed: bo
         done ? (
           authed ? (
             saved ? (
-              <Button full href="/v2/jobs?tab=interest">
+              <Button full href="/talent/jobs?tab=interest">
                 {t("맞는 공고 보러 가기", "See matching jobs", "查看匹配职位", "Xem việc phù hợp", "合う求人を見る", "Lihat lowongan cocok")}
               </Button>
             ) : (
@@ -206,7 +206,7 @@ export function RoleQuizSheet({ t, authed, onClose }: { t: PlatformT; authed: bo
               </div>
               <p className="mt-2 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{familyBlurb(t, f)}</p>
               {FAMILY[f].guide ? (
-                <Link href={`/v2/guide/${FAMILY[f].guide}`} className="mt-2 inline-block text-[14px] font-semibold text-[color:var(--v2-accent)]">
+                <Link href={`/talent/insights/${FAMILY[f].guide}`} className="mt-2 inline-block text-[14px] font-semibold text-[color:var(--v2-accent)]">
                   {t("이 직무 더 알아보기", "Learn more about this role", "进一步了解该职位", "Tìm hiểu thêm", "この職種をもっと知る", "Pelajari peran ini")} ›
                 </Link>
               ) : null}
@@ -276,7 +276,7 @@ function ExperienceSheet({ t, kind, onClose }: { t: PlatformT; kind: Kind; onClo
             <Button variant="neutral" full onClick={onClose}>
               {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
             </Button>
-            <Button full href="/v2/resume">
+            <Button full href="/talent/career/resume/editor">
               {t("이력서에서 다듬기", "Polish in resume", "在简历中润色", "Sửa trong CV", "履歴書で整える", "Rapikan di CV")}
             </Button>
           </div>
@@ -334,10 +334,10 @@ export function JuniorJobs({ t, signupHint = false }: { t: PlatformT; signupHint
       {items === null ? (
         <RowsSkeleton count={4} />
       ) : (
-        items.map((j) => <Row key={j.id} href={`/v2/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined} />)
+        items.map((j) => <Row key={j.id} href={`/talent/jobs/${j.id}`} thumb={{ src: jobPhotoOf(j), fallback: companyOf(j) || j.title }} title={j.title} meta={[companyOf(j), (j.workLocation || "").split(" ").slice(0, 2).join(" ")].filter(Boolean).join(" · ") || undefined} />)
       )}
       <div className="mt-3">
-        <Button variant="neutral" full href={signupHint ? `/talent/signup?next=${encodeURIComponent("/v2/home")}` : "/v2/jobs"}>
+        <Button variant="neutral" full href={signupHint ? `/talent/signup?next=${encodeURIComponent("/talent/home")}` : "/talent/jobs"}>
           {signupHint ? t("가입하고 맞춤 공고 받기", "Sign up for matching jobs", "注册获取匹配职位", "Đăng ký nhận việc phù hợp", "登録して合う求人を受け取る", "Daftar untuk lowongan cocok") : t("더 보기", "See more", "查看更多", "Xem thêm", "もっと見る", "Lihat lagi")}
         </Button>
       </div>

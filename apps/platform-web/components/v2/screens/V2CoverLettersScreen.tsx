@@ -18,9 +18,9 @@ import type { CoverLetter, CoverLetterType, TalentSnapshot } from "../../../lib/
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 
 const R = {
-  editor: "/v2/cover",
-  preview: "/v2/cover/preview",
-  profile: "/v2/profile"
+  editor: "/talent/career/cover/editor",
+  preview: "/talent/career/cover/preview",
+  profile: "/talent/career/profile"
 } as const;
 
 function basicQuestions(t: PlatformT): string[] {

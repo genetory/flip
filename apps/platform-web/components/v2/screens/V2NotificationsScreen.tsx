@@ -12,18 +12,10 @@ import { formatRelativeTime } from "../../../lib/talent/career-feed";
 
 type Filter = "all" | "activity" | "update";
 
-// 알림 링크는 기존 화면 주소로 쌓인다 — v2에 이미 있는 화면은 v2로 보낸다.
+// 알림 링크는 기존 화면 주소로 쌓인다 — 주소는 그대로 쓰고, 없어진 화면만 바꾼다.
 function toV2(href: string): string {
-  if (href.startsWith("/talent/applications")) return "/v2/applications";
-  if (href.startsWith("/talent/activity/")) return href.replace("/talent/activity/", "/v2/activity/");
-  if (href.startsWith("/talent/connections")) return "/v2/connections";
-  if (href.startsWith("/talent/feed")) return "/v2/connections#interested";
-  if (href.startsWith("/talent/company/")) return href.replace("/talent/company/", "/v2/companies/");
-  if (href.startsWith("/talent/career/interviews")) return "/v2/interviews";
-  if (/^\/talent\/jobs\/[^/?#]+/.test(href)) return href.replace(/^\/talent\/jobs/, "/v2/jobs");
-  if (href === "/talent/jobs" || href.startsWith("/talent/jobs?")) return "/v2/jobs";
-  if (href === "/talent/career") return "/v2/career";
-  if (href === "/talent/home" || href === "/talent") return "/v2/home";
+  if (href.startsWith("/talent/feed")) return "/talent/connections#interested";
+  if (href === "/talent") return "/talent/home";
   return href;
 }
 
@@ -140,8 +132,8 @@ function EmptyState({ t, filter }: { t: PlatformT; filter: Filter }) {
       </div>
       {filter !== "update" ? (
         <Section title={t("이것부터 해 보세요", "Try these first", "先试试这些", "Thử những việc này", "まずはこれから", "Coba ini dulu")}>
-          <Row href="/v2/career" lead="📝" title={t("이력서 완성하기", "Complete your resume", "完善简历", "Hoàn thành CV", "履歴書を完成", "Lengkapi resume")} meta={t("서류가 준비되면 바로 지원할 수 있어요", "Apply right away once ready", "准备好即可投递", "Sẵn sàng là ứng tuyển ngay", "準備できればすぐ応募", "Siap lalu langsung melamar")} />
-          <Row href="/v2/jobs" lead="💼" title={t("추천 공고 보기", "See recommended jobs", "查看推荐职位", "Xem việc gợi ý", "おすすめ求人を見る", "Lihat rekomendasi")} meta={t("관심 직무에 맞는 공고", "Matching your interests", "符合兴趣的职位", "Phù hợp sở thích", "関心職種に合う求人", "Sesuai minat")} />
+          <Row href="/talent/career" lead="📝" title={t("이력서 완성하기", "Complete your resume", "完善简历", "Hoàn thành CV", "履歴書を完成", "Lengkapi resume")} meta={t("서류가 준비되면 바로 지원할 수 있어요", "Apply right away once ready", "准备好即可投递", "Sẵn sàng là ứng tuyển ngay", "準備できればすぐ応募", "Siap lalu langsung melamar")} />
+          <Row href="/talent/jobs" lead="💼" title={t("추천 공고 보기", "See recommended jobs", "查看推荐职位", "Xem việc gợi ý", "おすすめ求人を見る", "Lihat rekomendasi")} meta={t("관심 직무에 맞는 공고", "Matching your interests", "符合兴趣的职位", "Phù hợp sở thích", "関心職種に合う求人", "Sesuai minat")} />
         </Section>
       ) : null}
     </>

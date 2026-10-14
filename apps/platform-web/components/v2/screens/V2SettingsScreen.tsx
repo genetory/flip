@@ -64,9 +64,9 @@ export function V2SettingsScreen() {
   }, []);
 
   const stats = [
-    { label: t("나에게 관심 준 회사", "Interested in you", "对你感兴趣", "Quan tâm bạn", "あなたに関心", "Tertarik padamu"), value: interested, href: "/v2/connections#interested", tone: "bg-[#edf1fd]" },
-    { label: t("관심 회사", "Following", "关注的公司", "Đang theo dõi", "関心企業", "Diikuti"), value: followed.length, href: "/v2/activity/following-companies", tone: "bg-[#e8f8f1]" },
-    { label: t("저장한 공고", "Saved jobs", "收藏的职位", "Tin đã lưu", "保存した求人", "Tersimpan"), value: saved, href: "/v2/jobs?tab=saved", tone: "bg-[#fff4e8]" }
+    { label: t("나에게 관심 준 회사", "Interested in you", "对你感兴趣", "Quan tâm bạn", "あなたに関心", "Tertarik padamu"), value: interested, href: "/talent/connections#interested", tone: "bg-[#edf1fd]" },
+    { label: t("관심 회사", "Following", "关注的公司", "Đang theo dõi", "関心企業", "Diikuti"), value: followed.length, href: "/talent/activity/following-companies", tone: "bg-[#e8f8f1]" },
+    { label: t("저장한 공고", "Saved jobs", "收藏的职位", "Tin đã lưu", "保存した求人", "Tersimpan"), value: saved, href: "/talent/jobs?tab=saved", tone: "bg-[#fff4e8]" }
   ];
 
   return (
@@ -96,7 +96,7 @@ export function V2SettingsScreen() {
             </div>
           </div>
           <div className="mt-5">
-            <Button variant="neutral" full href="/v2/profile">
+            <Button variant="neutral" full href="/talent/career/profile">
               {t("프로필 편집", "Edit profile", "编辑资料", "Sửa hồ sơ", "プロフィール編集", "Edit profil")}
             </Button>
           </div>
@@ -116,19 +116,19 @@ export function V2SettingsScreen() {
 
         {/* 바로 가기 */}
         <Section title={t("바로 가기", "Shortcuts", "快捷入口", "Lối tắt", "ショートカット", "Pintasan")}>
-          <Row href="/v2/career" lead="📄" title={t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier saya")} meta={t("이력서·자기소개서·관심 직무", "Resume, cover letter, interests", "简历·自荐信·兴趣职位", "CV, thư, ngành quan tâm", "履歴書・自己PR・関心職種", "CV, surat, minat")} />
-          <Row href="/v2/payments" lead="🎟️" title={t("이용권·결제 내역", "Passes & payments", "使用券·支付记录", "Vé & thanh toán", "チケット・決済履歴", "Tiket & pembayaran")} meta={t("모의 면접 이용권 충전·환불", "Top up or refund mock interview passes", "充值·退款模拟面试使用券", "Nạp/hoàn vé phỏng vấn", "模擬面接チケットのチャージ・返金", "Isi/refund tiket")} />
-          <Row href="/v2/applications" lead="📮" title={t("지원 현황", "Applications", "申请状态", "Ứng tuyển", "応募状況", "Lamaran")} />
+          <Row href="/talent/career" lead="📄" title={t("내 커리어", "My career", "我的职业", "Sự nghiệp", "マイキャリア", "Karier saya")} meta={t("이력서·자기소개서·관심 직무", "Resume, cover letter, interests", "简历·自荐信·兴趣职位", "CV, thư, ngành quan tâm", "履歴書・自己PR・関心職種", "CV, surat, minat")} />
+          <Row href="/talent/payments" lead="🎟️" title={t("이용권·결제 내역", "Passes & payments", "使用券·支付记录", "Vé & thanh toán", "チケット・決済履歴", "Tiket & pembayaran")} meta={t("모의 면접 이용권 충전·환불", "Top up or refund mock interview passes", "充值·退款模拟面试使用券", "Nạp/hoàn vé phỏng vấn", "模擬面接チケットのチャージ・返金", "Isi/refund tiket")} />
+          <Row href="/talent/applications" lead="📮" title={t("지원 현황", "Applications", "申请状态", "Ứng tuyển", "応募状況", "Lamaran")} />
           <Row href={talentAppRoutes.programs} lead="🎓" title={t("내 프로그램", "My programs", "我的项目", "Chương trình", "マイプログラム", "Program saya")} />
           <Row href={talentAppRoutes.assignments} lead="📝" title={t("과제", "Assignments", "作业", "Bài tập", "課題", "Tugas")} />
-          <Row href="/v2/connections" lead="🤝" title={t("파트너 연결", "Partner connections", "伙伴连接", "Kết nối đối tác", "パートナー連携", "Koneksi mitra")} />
+          <Row href="/talent/connections" lead="🤝" title={t("파트너 연결", "Partner connections", "伙伴连接", "Kết nối đối tác", "パートナー連携", "Koneksi mitra")} />
         </Section>
 
         {/* 관심 직무 — 바꾸기는 내 커리어에서 */}
         <Section
           title={t("관심 직무", "Job interests", "感兴趣的职位", "Ngành quan tâm", "関心職種", "Minat kerja")}
           aside={
-            <Link href="/v2/career" className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
+            <Link href="/talent/career" className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
               {t("바꾸기", "Change", "更改", "Đổi", "変更", "Ubah")}
             </Link>
           }
@@ -142,7 +142,7 @@ export function V2SettingsScreen() {
               ))}
             </div>
           ) : (
-            <Row href="/v2/career" lead="🎯" title={t("관심 직무 고르기", "Pick job interests", "选择感兴趣的职位", "Chọn ngành quan tâm", "関心職種を選ぶ", "Pilih minat")} meta={t("맞는 공고와 면접 질문을 추천해 드려요", "We'll recommend matching jobs and questions", "为你推荐匹配的职位和问题", "Gợi ý việc và câu hỏi phù hợp", "合う求人と質問をおすすめ", "Kami rekomendasikan yang cocok")} />
+            <Row href="/talent/career" lead="🎯" title={t("관심 직무 고르기", "Pick job interests", "选择感兴趣的职位", "Chọn ngành quan tâm", "関心職種を選ぶ", "Pilih minat")} meta={t("맞는 공고와 면접 질문을 추천해 드려요", "We'll recommend matching jobs and questions", "为你推荐匹配的职位和问题", "Gợi ý việc và câu hỏi phù hợp", "合う求人と質問をおすすめ", "Kami rekomendasikan yang cocok")} />
           )}
         </Section>
 
@@ -161,7 +161,7 @@ export function V2SettingsScreen() {
         <Section
           title={t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
           aside={
-            <Link href="/v2/notifications" className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
+            <Link href="/talent/notifications" className="text-[14px] font-semibold text-[color:var(--v2-accent)]">
               {t("알림함", "Inbox", "通知箱", "Hộp thư", "通知一覧", "Kotak")}
             </Link>
           }
@@ -191,7 +191,7 @@ export function V2SettingsScreen() {
             onChange={(v) => void togglePool(v)}
           />
           {pool.status?.card ? <Row onClick={() => setPoolPreview(true)} lead="👀" title={t("기업에게 이렇게 보여요", "How companies see you", "企业看到的你", "Doanh nghiệp thấy bạn", "企業からの見え方", "Tampilan bagi perusahaan")} meta={pool.status.visible ? t("지금 인재 검색에 보이는 중", "Visible now", "当前可见", "Đang hiển thị", "現在表示中", "Terlihat") : pool.status.optedOut ? t("지금은 꺼져 있어요", "Currently off", "当前已关闭", "Đang tắt", "現在オフ", "Nonaktif") : t("이력서를 더 채우면 보여요", "Fill your resume to appear", "完善简历后可见", "Hoàn thiện CV để hiển thị", "履歴書を埋めると表示", "Lengkapi CV")} /> : null}
-          <Row href="/v2/connections" lead="🤝" title={t("받은 연결 요청", "Connection requests", "收到的连接请求", "Yêu cầu kết nối", "つながり申請", "Permintaan koneksi")} />
+          <Row href="/talent/connections" lead="🤝" title={t("받은 연결 요청", "Connection requests", "收到的连接请求", "Yêu cầu kết nối", "つながり申請", "Permintaan koneksi")} />
         </Section>
 
         {/* 계정 */}

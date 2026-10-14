@@ -74,7 +74,7 @@ function EditorGate() {
       <StartChooser
         t={t}
         kind="cover"
-        exitHref="/v2/career"
+        exitHref="/talent/career"
         onNew={() => setStartNew(true)}
         importPanel={
           <ImportFromFile
@@ -228,7 +228,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
     <EditorTopBar
       t={t}
       active="cover"
-      exitHref="/v2/career"
+      exitHref="/talent/career"
       working={working}
       saved={store.saved}
       current={current}

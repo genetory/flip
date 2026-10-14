@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { talentToV2 } from "./lib/talent/v2-routes";
+import { talentAlias, talentToV2, v2ToTalent } from "./lib/talent/v2-routes";
 
 // Legacy domain alias — anything that lands on flip-ers.com (or its www
 // subdomain) is permanently redirected to the same path on aply.global so
@@ -41,31 +41,50 @@ export function middleware(req: NextRequest) {
   // 리뉴얼 v2(/v2/*) — 기존 화면을 건드리지 않고 따로 만드는 새 화면 묶음. 스테이징·로컬에서만 연다.
   // 프로덕션(aply.global 등 'staging' 이 없는 호스트)에선 404 — 새 화면 코드가 아예 돌지 않게 여기서 막는다.
   const previewHost = host.includes("staging") || host === "localhost" || host === "127.0.0.1";
-  if (req.nextUrl.pathname === "/v2" || req.nextUrl.pathname.startsWith("/v2/")) {
+  const pathname = req.nextUrl.pathname;
+  if (pathname === "/v2" || pathname.startsWith("/v2/")) {
     if (!previewHost) return new NextResponse("Not Found", { status: 404, headers: { "X-Robots-Tag": "noindex" } });
-  }
-
-  // v2 로 다시 만든 talent 화면 — 스테이징·로컬에선 /talent/* 를 /v2/* 로 보낸다(임시 307, 쿼리 유지).
-  // 프로덕션은 v2 가 닫혀 있으니 그대로 기존 화면. ?legacy=1 이면 비교용으로 기존 화면을 그대로 연다.
-  if (previewHost && req.nextUrl.pathname.startsWith("/talent") && req.nextUrl.searchParams.get("legacy") !== "1") {
-    const dest = talentToV2(req.nextUrl.pathname);
-    if (dest) {
+    // 주소창에 v2 가 보이지 않게 — v2 주소로 직접 오면 공개 주소(/talent/...)로 보낸다.
+    const pub = v2ToTalent(pathname);
+    if (pub) {
       const url = req.nextUrl.clone();
-      const [path, hash] = dest.split("#");
-      url.pathname = path;
-      if (hash) url.hash = hash;
+      url.pathname = pub;
       return NextResponse.redirect(url, 307);
     }
   }
 
+  // 스테이징·로컬: v2 로 다시 만든 talent 화면은 같은 주소에서 v2 화면을 보여 준다(rewrite — 주소 그대로).
+  // 없어진 옛 주소는 공개 주소로 redirect. 프로덕션은 그대로 기존 화면. ?legacy=1 이면 비교용으로 기존 화면.
+  if (previewHost && pathname.startsWith("/talent") && req.nextUrl.searchParams.get("legacy") !== "1") {
+    const alias = talentAlias(pathname);
+    if (alias) {
+      const url = req.nextUrl.clone();
+      const [path, hash] = alias.split("#");
+      url.pathname = path;
+      if (hash) url.hash = hash;
+      return NextResponse.redirect(url, 307);
+    }
+    const dest = talentToV2(pathname);
+    if (dest) {
+      const url = req.nextUrl.clone();
+      url.pathname = dest;
+      return withBasicAuth(req, () => NextResponse.rewrite(url));
+    }
+  }
+
+  return withBasicAuth(req, () => NextResponse.next());
+}
+
+/** 스테이징 Basic Auth(BASIC_AUTH_USER/PASSWORD 가 있을 때만) — 통과하면 ok() 응답. */
+function withBasicAuth(req: NextRequest, ok: () => NextResponse): NextResponse {
   const user = process.env.BASIC_AUTH_USER?.trim();
   const pass = process.env.BASIC_AUTH_PASSWORD;
-  if (!user || !pass) return NextResponse.next();
+  if (!user || !pass) return ok();
 
   const header = req.headers.get("authorization") ?? "";
   const expected = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
   if (header === expected) {
-    return NextResponse.next();
+    return ok();
   }
 
   return new NextResponse("Authentication required", {
