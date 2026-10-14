@@ -801,13 +801,16 @@ function SkillCard({ t, answers, areas, onPractice }: { t: PlatformT; answers: {
         <ul className="mt-5 flex flex-col gap-3">
           {areas.map((r) => (
             <li key={r.category}>
-              <button type="button" onClick={onPractice} className="flex w-full items-center gap-3 text-left">
-                <span className="w-[100px] shrink-0 truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{mockCategoryLabelOf(t, r.category)}</span>
-                <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-white">
+              {/* 영역 이름은 막대 위 한 줄에 다 보이게(잘리지 않게), 점수는 오른쪽 */}
+              <button type="button" onClick={onPractice} className="block w-full text-left">
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-[14px] font-bold leading-[1.4] text-[color:var(--v2-ink-2)]">{mockCategoryLabelOf(t, r.category)}</span>
+                  <span className="shrink-0 text-[16px] font-extrabold tabular-nums text-[color:var(--v2-ink)]">{r.average}</span>
+                </span>
+                <span className="mt-1.5 block h-3 overflow-hidden rounded-full bg-white">
                   {/* 막대도 파란 한 색 — 점수가 낮을수록 옅게 */}
                   <span className="block h-full rounded-full bg-[color:var(--v2-accent)]" style={{ width: `${Math.max(6, r.average ?? 0)}%`, opacity: (r.average ?? 0) >= 80 ? 1 : (r.average ?? 0) >= WEAK_BELOW ? 0.75 : 0.45 }} />
                 </span>
-                <span className="w-9 shrink-0 text-right text-[16px] font-extrabold tabular-nums text-[color:var(--v2-ink)]">{r.average}</span>
               </button>
             </li>
           ))}
