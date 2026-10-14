@@ -755,36 +755,43 @@ function SkillCard({ t, answers, areas, onPractice }: { t: PlatformT; answers: {
             <span className="text-[18px] font-bold text-[color:var(--v2-faint)]">/ 100</span>
           </span>
           {delta !== null && delta !== 0 ? (
-            <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-extrabold ${delta > 0 ? "bg-[#e3f6ec] text-[color:var(--v2-good)]" : "bg-[#fdecee] text-[color:var(--v2-attention)]"}`}>
+            <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-extrabold ${delta > 0 ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-white text-[color:var(--v2-ink-3)]"}`}>
               {delta > 0 ? `▲ ${delta}` : `▼ ${Math.abs(delta)}`} <span className="font-semibold opacity-80">{t("지난 10개보다", "vs previous 10", "较前 10 个", "so với 10 câu trước", "前の10件より", "dari 10 sebelumnya")}</span>
             </span>
           ) : null}
           <span className="mt-1.5 block text-[12px] text-[color:var(--v2-faint)]">{t(`최근 답 ${Math.min(10, scored.length)}개 평균`, `Average of last ${Math.min(10, scored.length)} answers`, `最近 ${Math.min(10, scored.length)} 个回答平均`, `TB ${Math.min(10, scored.length)} câu gần nhất`, `直近${Math.min(10, scored.length)}件の平均`, `Rata-rata ${Math.min(10, scored.length)} jawaban`)}</span>
         </span>
-        <LevelChip t={t} score={score} />
+        {/* 단계 — 이 카드는 파란 한 가지 색으로 */}
+        <span className="inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-md bg-[color:var(--v2-accent-weak)] px-2.5 text-[13px] font-bold text-[color:var(--v2-accent)]">
+          {score >= 80 ? t("잘해요", "Strong", "很好", "Tốt", "良い", "Bagus") : score >= 70 ? t("괜찮아요", "Okay", "还行", "Ổn", "まずまず", "Cukup") : t("더 연습", "Practice more", "多练习", "Luyện thêm", "要練習", "Latih lagi")}
+        </span>
       </div>
       {series.length >= 2 ? (
-        <div className="relative mt-5 h-36 rounded-2xl bg-white px-3 py-3">
+        <div className="relative mt-5 h-40 rounded-2xl bg-white px-3 pb-3 pt-7">
+          {/* 범례 — 점선 = 80점(잘해요) */}
+          <span className="absolute right-3 top-2 flex items-center gap-1.5 text-[11px] font-semibold text-[color:var(--v2-faint)]">
+            <span aria-hidden className="w-4 border-t-2 border-dashed border-[color:var(--v2-line)]" />
+            {t("80점 잘해요", "80 = Strong", "80分 很好", "80 = Tốt", "80点 良い", "80 = Bagus")}
+          </span>
           <div className="relative h-full">
             {/* 80점 기준선 */}
-            <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-[#c9ecd9]" style={{ top: `${goodY}%` }} />
-            <span className="absolute left-0 -translate-y-full pb-0.5 text-[11px] font-bold text-[color:var(--v2-good)]" style={{ top: `${goodY}%` }}>{t("80 잘해요", "80 Good", "80 良好", "80 Tốt", "80 良い", "80 Bagus")}</span>
+            <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-[color:var(--v2-line)]" style={{ top: `${goodY}%` }} />
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
               <defs>
                 <linearGradient id="skill-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0b46e8" stopOpacity="0.28" />
-                  <stop offset="100%" stopColor="#0b46e8" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--v2-accent)" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="var(--v2-accent)" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <polygon points={`0,100 ${pts} 100,100`} fill="url(#skill-fill)" />
-              <polyline points={pts} fill="none" stroke="#0b46e8" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              <polyline points={pts} fill="none" stroke="var(--v2-accent)" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             </svg>
             {/* 점 — 마지막 점은 크게 + 점수 말풍선 */}
             {xy.map((p, i) =>
-              i === xy.length - 1 ? null : <span key={i} aria-hidden className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0b46e8] bg-white" style={{ left: `${p.x}%`, top: `${p.y}%` }} />
+              i === xy.length - 1 ? null : <span key={i} aria-hidden className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[color:var(--v2-accent)] bg-white" style={{ left: `${p.x}%`, top: `${p.y}%` }} />
             )}
-            <span aria-hidden className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-[#0b46e8] shadow-[0_2px_8px_rgba(11,70,232,0.45)]" style={{ left: `${last.x}%`, top: `${last.y}%` }} />
-            <span className="absolute -translate-y-[calc(100%+12px)] rounded-lg bg-[color:var(--v2-ink)] px-2 py-0.5 text-[12px] font-extrabold tabular-nums text-white" style={{ top: `${last.y}%`, right: 0 }}>
+            <span aria-hidden className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-[color:var(--v2-accent)] shadow-[0_2px_8px_rgba(11,70,232,0.45)]" style={{ left: `${last.x}%`, top: `${last.y}%` }} />
+            <span className="absolute -translate-y-[calc(100%+12px)] rounded-lg bg-[color:var(--v2-accent)] px-2 py-0.5 text-[12px] font-extrabold tabular-nums text-white" style={{ top: `${last.y}%`, right: 0 }}>
               {last.v}
             </span>
           </div>
@@ -797,7 +804,8 @@ function SkillCard({ t, answers, areas, onPractice }: { t: PlatformT; answers: {
               <button type="button" onClick={onPractice} className="flex w-full items-center gap-3 text-left">
                 <span className="w-[100px] shrink-0 truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{mockCategoryLabelOf(t, r.category)}</span>
                 <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-white">
-                  <span className={`block h-full rounded-full ${(r.average ?? 0) >= 80 ? "bg-[color:var(--v2-good)]" : (r.average ?? 0) >= WEAK_BELOW ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-attention)]"}`} style={{ width: `${Math.max(6, r.average ?? 0)}%` }} />
+                  {/* 막대도 파란 한 색 — 점수가 낮을수록 옅게 */}
+                  <span className="block h-full rounded-full bg-[color:var(--v2-accent)]" style={{ width: `${Math.max(6, r.average ?? 0)}%`, opacity: (r.average ?? 0) >= 80 ? 1 : (r.average ?? 0) >= WEAK_BELOW ? 0.75 : 0.45 }} />
                 </span>
                 <span className="w-9 shrink-0 text-right text-[16px] font-extrabold tabular-nums text-[color:var(--v2-ink)]">{r.average}</span>
               </button>
