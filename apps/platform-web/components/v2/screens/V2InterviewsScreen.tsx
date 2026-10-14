@@ -251,26 +251,41 @@ function Interviews() {
 
       {/* 지금 시작 — 실전 모드(질문 5개를 소리로 읽어 주고, 끝나면 한 번에 피드백). 이 화면의 가장 큰 행동. */}
       <div className="-mt-2 px-5 pb-8">
-        <div className="rounded-3xl bg-[#edf1fd] p-5">
-          <div className="flex items-center gap-3">
-            <span className="min-w-0 flex-1">
-              <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
-              <span className="mt-2 block text-[20px] font-bold leading-[1.35] text-[color:var(--v2-ink)]">{t("AI 면접관과 5분 실전 면접", "5-minute interview with an AI interviewer", "与 AI 面试官 5 分钟实战", "Phỏng vấn 5 phút với AI", "AI面接官と5分の実戦面接", "Wawancara 5 menit dengan AI")}</span>
-              <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("질문 5개를 소리로 읽어 드려요. 끝나면 한 번에 피드백.", "5 questions read aloud, feedback at the end.", "朗读 5 个问题，结束后统一反馈。", "Đọc 5 câu hỏi, phản hồi khi xong.", "5問を読み上げ、最後にまとめてフィードバック。", "5 pertanyaan dibacakan, masukan di akhir.")}</span>
-            </span>
+        <div className="overflow-hidden rounded-[28px] bg-[#edf1fd]">
+          {/* 큰 그림 — 카드 위쪽을 채워 '면접장'에 들어가는 느낌 */}
+          <div className="relative px-5 pt-5">
+            <span className="absolute left-5 top-5 z-[1] inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
             {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
-            <img src="/img_fake_interview.webp" alt="" aria-hidden className="h-[88px] w-[108px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[100px] min-[360px]:w-[124px]" />
+            <img src="/img_fake_interview.webp" alt="" aria-hidden className="mx-auto h-[170px] w-full max-w-[320px] object-contain mix-blend-multiply min-[360px]:h-[190px]" />
           </div>
-          <div className="mt-4">
-            <Button full onClick={() => setTool("set")}>
-              {t("지금 시작", "Start now", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")}
-            </Button>
-          </div>
-          {credits?.paywall ? (
-            <div className="mt-3">
-              <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+          <div className="px-5 pb-5">
+            <p className="whitespace-pre-line text-[24px] font-bold leading-[1.3] tracking-[-0.03em] text-[color:var(--v2-ink)]">{t("AI 면접관과\n5분 실전 면접", "A 5-minute interview\nwith an AI interviewer", "与 AI 面试官\n5 分钟实战", "Phỏng vấn 5 phút\nvới AI", "AI面接官と\n5分の実戦面接", "Wawancara 5 menit\ndengan AI")}</p>
+            <p className="mt-1.5 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{t("질문을 소리로 읽어 드려요. 진짜 면접처럼 답해 보세요.", "Questions are read aloud. Answer like it's the real thing.", "问题会被朗读，像真正面试一样回答吧。", "Câu hỏi được đọc to. Trả lời như buổi thật.", "質問を読み上げます。本番のように答えてみて。", "Pertanyaan dibacakan. Jawab seperti aslinya.")}</p>
+            {/* 한눈에 — 질문 수 · 걸리는 시간 · 피드백 */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                [t("5개", "5", "5 个", "5", "5問", "5"), t("질문", "questions", "问题", "câu hỏi", "質問", "pertanyaan")],
+                [t("약 5분", "~5 min", "约 5 分钟", "~5 phút", "約5分", "~5 mnt"), t("걸려요", "to finish", "用时", "thời gian", "所要", "durasi")],
+                [t("한 번에", "At once", "一次性", "Một lần", "まとめて", "Sekaligus"), t("피드백", "feedback", "反馈", "phản hồi", "フィードバック", "masukan")]
+              ].map(([v, l]) => (
+                <div key={l} className="rounded-2xl bg-white px-2 py-3 text-center">
+                  <p className="whitespace-nowrap text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{v}</p>
+                  <p className="mt-0.5 text-[12px] font-semibold text-[color:var(--v2-muted)]">{l}</p>
+                </div>
+              ))}
             </div>
-          ) : null}
+            <button type="button" onClick={() => setTool("set")} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-accent)] text-[17px] font-bold text-white transition hover:opacity-90 active:scale-[0.99]">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+                <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+              </svg>
+              {t("지금 시작", "Start now", "立即开始", "Bắt đầu ngay", "今すぐ始める", "Mulai sekarang")}
+            </button>
+            {credits?.paywall ? (
+              <div className="mt-3">
+                <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
