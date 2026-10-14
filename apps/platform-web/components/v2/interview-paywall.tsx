@@ -23,60 +23,63 @@ export function creditLabel(t: PlatformT, credits: number, per: number): string 
   return t(`답변 ${credits}개`, `${credits} answers`, `${credits} 个回答`, `${credits} câu`, `回答${credits}個`, `${credits} jawaban`);
 }
 
-// 이용권 색 — 남색 티켓 + 금색 포인트(파란 '시작' 버튼과 구분되게). 다 써도 같은 색(숫자만 흐리게).
-const GOLD = "#ffc83d";
-const GOLD_WEAK = "#fff6dc";
-const NAVY = "#1b2333";
+// 이용권 — 지갑 속 카드처럼: 깊은 남색 + 은은한 금빛, 얇은 글자와 가는 선. 다 써도 같은 카드(숫자만 흐리게).
+const GOLD = "#f5c451";
+const NAVY = "#141a26";
 
 /** 티켓 아이콘(선) — 이모지 대신. */
 export function TicketIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z" />
       <path d="M14 6v2M14 11v2M14 16v2" />
     </svg>
   );
 }
 
-/** 이용권 카드 — 남색 티켓. 남은 회수를 금색으로 크게, 답변 수 · [충전]. 0이면 숫자를 흐리게 + 충전 권유. */
+/** 이용권 카드 — 남은 회수를 금빛으로 크게, 아래에 답변 수·1회 기준 · [충전하기]. 0이면 숫자를 흐리게 + 안내. */
 export function CreditTicket({ t, credits, per, onTopUp, action, note }: { t: PlatformT; credits: number | null; per: number; onTopUp?: () => void; action?: string; note?: string }) {
   const sessions = credits === null ? 0 : Math.floor(credits / per);
   const rest = credits === null ? 0 : credits % per;
   const empty = credits !== null && credits <= 0;
   return (
-    <div className="relative overflow-hidden rounded-3xl px-6 pb-5 pt-5 text-white" style={{ background: NAVY }}>
-      {/* 오른쪽 위 큰 티켓 무늬(장식) */}
-      <TicketIcon className="pointer-events-none absolute -right-4 -top-5 h-28 w-28 rotate-[-18deg] text-white/[0.06]" />
+    <div className="relative overflow-hidden rounded-[24px] px-6 pb-5 pt-6 text-white shadow-[0_12px_32px_-12px_rgba(20,26,38,0.55)]" style={{ background: "linear-gradient(150deg, #253047 0%, #141a26 62%)" }}>
+      {/* 은은한 금빛 — 오른쪽 위 */}
+      <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full opacity-25 blur-3xl" style={{ background: GOLD }} />
       <div className="relative flex items-center justify-between gap-3">
-        <span className={`inline-flex items-center gap-1.5 text-[14px] font-semibold text-white/70`}>
-          <TicketIcon className="h-4 w-4" />
-          {t("남은 이용권", "Remaining passes", "剩余使用券", "Vé còn lại", "残りチケット", "Sisa tiket")}
-        </span>
-        {!empty && credits !== null ? (
-          <span className="rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: "rgba(255,200,61,0.16)", color: GOLD }}>
-            {t(`답변 ${credits}개`, `${credits} answers`, `${credits} 个回答`, `${credits} câu`, `回答${credits}個`, `${credits} jawaban`)}
-          </span>
-        ) : null}
+        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/45">{t("모의 면접 이용권", "Mock interview pass", "模拟面试使用券", "Vé phỏng vấn thử", "模擬面接チケット", "Tiket simulasi")}</span>
+        <TicketIcon className="h-[18px] w-[18px] text-white/35" />
       </div>
-      <p className="relative mt-2 flex items-end gap-1.5">
-        <span className="text-[52px] font-bold leading-none tracking-[-0.03em] tabular-nums" style={{ color: empty ? "rgba(255,255,255,0.35)" : GOLD }}>{credits === null ? "…" : sessions}</span>
-        <span className="pb-1.5 text-[20px] font-bold">{t("회", sessions === 1 ? "session" : "sessions", "次", "lượt", "回", "sesi")}</span>
-        {rest ? <span className="pb-2 text-[15px] font-semibold text-white/75">+ {t(`답변 ${rest}개`, `${rest} answers`, `${rest} 个回答`, `${rest} câu`, `回答${rest}個`, `${rest} jawaban`)}</span> : null}
+      <p className="relative mt-4 flex items-baseline gap-1.5">
+        <span className="text-[56px] font-semibold leading-none tracking-[-0.04em] tabular-nums" style={{ color: empty ? "rgba(255,255,255,0.28)" : GOLD }}>{credits === null ? "…" : sessions}</span>
+        <span className="text-[18px] font-medium text-white/70">{t("회", sessions === 1 ? "session" : "sessions", "次", "lượt", "回", "sesi")}</span>
+        {rest ? <span className="ml-1 text-[14px] font-medium text-white/45">+ {t(`답변 ${rest}개`, `${rest} answers`, `${rest} 个回答`, `${rest} câu`, `回答${rest}個`, `${rest} jawaban`)}</span> : null}
       </p>
-      {/* 티켓 홈 — 양옆 반원 + 점선(같은 줄) */}
-      <div aria-hidden className="relative -mx-6 mt-4 flex items-center">
-        <span className="-ml-3 h-6 w-6 shrink-0 rounded-full bg-white" />
-        <span className={`mx-3 flex-1 border-t-2 border-dashed border-white/15`} />
-        <span className="-mr-3 h-6 w-6 shrink-0 rounded-full bg-white" />
+      {/* 티켓 홈 — 작은 반원 + 가는 점선 */}
+      <div aria-hidden className="relative -mx-6 mt-5 flex items-center">
+        <span className="-ml-2.5 h-5 w-5 shrink-0 rounded-full bg-white" />
+        <span className="mx-3 flex-1 border-t border-dashed border-white/15" />
+        <span className="-mr-2.5 h-5 w-5 shrink-0 rounded-full bg-white" />
       </div>
-      <div className="relative mt-3 flex items-center justify-between gap-3">
-        <span className={`min-w-0 text-[13px] leading-[1.45] text-white/60`}>
-          {empty
-            ? t("이용권을 다 썼어요. 충전하면 바로 이어서 연습해요.", "You're out. Top up to keep practicing.", "已用完，充值后即可继续练习。", "Đã hết vé. Nạp để luyện tiếp.", "使い切りました。チャージで続けられます。", "Tiket habis. Isi ulang untuk lanjut.")
-            : (note ?? t(`1회 = 답변 ${per}개에 AI 피드백`, `1 session = AI feedback on ${per} answers`, `1次 = ${per} 个回答的 AI 反馈`, `1 lượt = phản hồi AI cho ${per} câu`, `1回 = 回答${per}個にAIフィードバック`, `1 sesi = masukan AI untuk ${per} jawaban`))}
-        </span>
+      <div className="relative mt-4 flex items-end justify-between gap-3">
+        {empty || note ? (
+          <span className="min-w-0 text-[13px] leading-[1.5] text-white/55">
+            {empty ? t("다 썼어요. 충전하면 바로 이어서 연습해요.", "All used. Top up to keep practicing.", "已用完，充值后即可继续练习。", "Đã hết. Nạp để luyện tiếp.", "使い切りました。チャージで続けられます。", "Habis. Isi ulang untuk lanjut.") : note}
+          </span>
+        ) : (
+          <span className="flex min-w-0 gap-6">
+            <span>
+              <span className="block text-[11px] font-medium text-white/40">{t("남은 답변", "Answers left", "剩余回答", "Câu còn lại", "残り回答", "Sisa jawaban")}</span>
+              <span className="mt-0.5 block text-[15px] font-semibold tabular-nums text-white/90">{credits === null ? "…" : t(`${credits}개`, `${credits}`, `${credits} 个`, `${credits}`, `${credits}個`, `${credits}`)}</span>
+            </span>
+            <span>
+              <span className="block text-[11px] font-medium text-white/40">{t("1회", "1 session", "1 次", "1 lượt", "1回", "1 sesi")}</span>
+              <span className="mt-0.5 block text-[15px] font-semibold text-white/90">{t(`답변 ${per}개`, `${per} answers`, `${per} 个回答`, `${per} câu`, `回答${per}個`, `${per} jawaban`)}</span>
+            </span>
+          </span>
+        )}
         {onTopUp ? (
-          <button type="button" onClick={onTopUp} className="h-10 shrink-0 whitespace-nowrap rounded-full px-5 text-[15px] font-bold transition hover:opacity-90" style={{ background: GOLD, color: NAVY }}>
+          <button type="button" onClick={onTopUp} className="h-9 shrink-0 whitespace-nowrap rounded-full px-4 text-[14px] font-semibold transition hover:brightness-105 active:scale-[0.98]" style={{ background: GOLD, color: NAVY }}>
             {action ?? t("충전하기", "Top up", "充值", "Nạp thêm", "チャージ", "Isi ulang")}
           </button>
         ) : null}
@@ -85,22 +88,20 @@ export function CreditTicket({ t, credits, per, onTopUp, action, note }: { t: Pl
   );
 }
 
-/** 이용권 한 줄 — 모의 면접 화면처럼 좁은 자리에. 금색 티켓 아이콘 · 남은 회수 · [충전](남색). */
+/** 이용권 한 줄 — 좁은 자리에. 금빛 티켓 아이콘 · 남은 회수 · 글자 버튼 [충전하기 ›]. */
 export function CreditLine({ t, credits, per, onTopUp }: { t: PlatformT; credits: number; per: number; onTopUp: () => void }) {
   const empty = credits <= 0;
   return (
-    <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 bg-[color:var(--v2-band)]`}>
-      <span aria-hidden className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl min-[360px]:flex" style={{ background: GOLD_WEAK, color: "#d99a00" }}>
-        <TicketIcon className="h-[22px] w-[22px]" />
+    <div className="flex items-center gap-2.5 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3.5">
+      <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white" style={{ background: NAVY }}>
+        <TicketIcon className="h-4 w-4" />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[12px] font-semibold text-[color:var(--v2-muted)]">{t("남은 이용권", "Remaining passes", "剩余使用券", "Vé còn lại", "残りチケット", "Sisa tiket")}</span>
-        <span className={`block text-[16px] font-bold leading-[1.35] text-[color:var(--v2-ink)]`}>
-          {empty ? t("다 썼어요", "None left", "已用完", "Đã hết", "残りなし", "Habis") : creditLabel(t, credits, per)}
-        </span>
+      <span className="min-w-0 flex-1 text-[15px] leading-[1.4] text-[color:var(--v2-ink-3)]">
+        {t("이용권", "Passes", "使用券", "Vé", "チケット", "Tiket")}{" "}
+        <b className={`font-bold ${empty ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{empty ? t("다 썼어요", "none left", "已用完", "đã hết", "残りなし", "habis") : creditLabel(t, credits, per)}</b>
       </span>
-      <button type="button" onClick={onTopUp} className="h-9 shrink-0 whitespace-nowrap rounded-full px-4 text-[14px] font-bold text-white transition hover:opacity-90" style={{ background: NAVY }}>
-        {t("충전", "Top up", "充值", "Nạp", "チャージ", "Isi")}
+      <button type="button" onClick={onTopUp} className="shrink-0 whitespace-nowrap text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-70">
+        {t("충전하기", "Top up", "充值", "Nạp", "チャージ", "Isi")} ›
       </button>
     </div>
   );
@@ -236,16 +237,16 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
           const off = Math.round((1 - unit / base) * 100);
           const best = i === all.length - 1 && all.length > 1;
           return (
-            <button key={p.key} type="button" onClick={() => setPick(p)} aria-pressed={on} className={`relative flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition ${on ? "bg-[#edf1fd] ring-2 ring-[color:var(--v2-accent)]" : "bg-[color:var(--v2-fill)] hover:bg-[color:var(--v2-band)]"}`}>
-              <span className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${on ? "bg-[color:var(--v2-accent)] text-white" : "bg-white text-[color:var(--v2-ink)]"}`} aria-hidden>
+            <button key={p.key} type="button" onClick={() => setPick(p)} aria-pressed={on} className={`relative flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition ${on ? "bg-white ring-2 ring-[#141a26] shadow-[0_8px_24px_-12px_rgba(20,26,38,0.35)]" : "bg-[color:var(--v2-fill)] hover:bg-[color:var(--v2-band)]"}`}>
+              <span className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${on ? "text-[#f5c451]" : "bg-white text-[color:var(--v2-ink)]"}`} style={on ? { background: NAVY } : undefined} aria-hidden>
                 <span className="text-[20px] font-bold leading-none">{p.sessions}</span>
                 <span className="mt-0.5 text-[10px] font-bold opacity-80">{t("회", "x", "次", "lượt", "回", "x")}</span>
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[16px] font-bold text-[color:var(--v2-ink)]">{t(`${p.sessions}회 이용권`, `${p.sessions}-session pass`, `${p.sessions} 次券`, `Vé ${p.sessions} lượt`, `${p.sessions}回券`, `Tiket ${p.sessions} sesi`)}</span>
-                  {i === 1 && !best ? <span className="rounded-full bg-[color:var(--v2-accent)] px-2 py-0.5 text-[11px] font-bold text-white">{t("인기", "Popular", "热门", "Phổ biến", "人気", "Populer")}</span> : null}
-                  {best ? <span className="rounded-full bg-[#191f28] px-2 py-0.5 text-[11px] font-bold text-white">{t("가장 알뜰", "Best value", "最划算", "Tiết kiệm nhất", "一番お得", "Paling hemat")}</span> : null}
+                  {i === 1 && !best ? <span className="rounded-full bg-[#fdf3d7] px-2 py-0.5 text-[11px] font-bold text-[#a0700a]">{t("인기", "Popular", "热门", "Phổ biến", "人気", "Populer")}</span> : null}
+                  {best ? <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-[#f5c451]" style={{ background: NAVY }}>{t("가장 알뜰", "Best value", "最划算", "Tiết kiệm nhất", "一番お得", "Paling hemat")}</span> : null}
                 </span>
                 <span className="mt-0.5 block whitespace-nowrap text-[13px] text-[color:var(--v2-muted)]">
                   {t(`답변 ${p.credits}개`, `${p.credits} answers`, `${p.credits} 个回答`, `${p.credits} câu`, `回答${p.credits}個`, `${p.credits} jawaban`)}
@@ -264,7 +265,7 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
       {product && credits ? (
         // 충전하면 얼마가 되는지 — 고른 상품 기준
         <p className="mt-3 flex items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-fill)] px-3 py-2.5 text-[14px] text-[color:var(--v2-ink-3)]">
-          {t("충전하면", "After top-up", "充值后", "Sau khi nạp", "チャージ後", "Setelah isi")} <span aria-hidden>→</span> <b className="text-[color:var(--v2-accent)]">{creditLabel(t, credits.credits + product.credits, per)}</b>
+          {t("충전하면", "After top-up", "充值后", "Sau khi nạp", "チャージ後", "Setelah isi")} <span aria-hidden>→</span> <b className="text-[color:var(--v2-ink)]">{creditLabel(t, credits.credits + product.credits, per)}</b>
         </p>
       ) : null}
 
