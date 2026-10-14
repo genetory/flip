@@ -111,7 +111,7 @@ export function InterviewPaywallHost() {
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => onInterviewPaywall((r) => setOpen(r)), []);
   if (!open || !isAuthenticated) return null;
-  return <PaywallSheet reason={open} onClose={() => setOpen(null)} />;
+  return <PaywallSheet onClose={() => setOpen(null)} />;
 }
 
 type TossWidgets = {
@@ -138,7 +138,7 @@ function loadToss(): Promise<TossPaymentsFn> {
   return sdkLoading;
 }
 
-function PaywallSheet({ reason, onClose }: { reason: string; onClose: () => void }) {
+function PaywallSheet({ onClose }: { onClose: () => void }) {
   const t = usePlatformT();
   const pathname = usePathname() ?? "/v2/interviews";
   const { user } = useAuthSession();
@@ -224,9 +224,7 @@ function PaywallSheet({ reason, onClose }: { reason: string; onClose: () => void
         ) : undefined
       }
     >
-      {reason === "needed" ? (
-        <p className="mb-4 rounded-2xl bg-[#fff4e8] px-4 py-3 text-[14px] leading-[1.55] text-[#c2410c]">{t("이용권을 다 썼어요. 충전하면 바로 이어서 피드백을 받을 수 있어요.", "You're out of passes. Top up to keep getting feedback.", "使用券已用完，充值后可继续获得反馈。", "Bạn đã hết vé. Nạp thêm để tiếp tục.", "チケットを使い切りました。チャージすると続けられます。", "Tiket habis. Isi ulang untuk lanjut.")}</p>
-      ) : null}
+      {/* 다 썼을 때 안내는 아래 티켓(연한 주황)이 대신한다 */}
       <CreditTicket t={t} credits={credits ? credits.credits : null} per={per} note={t("쓴 만큼만 줄어요. 7일 안에 안 쓰면 환불돼요.", "Only used passes count. Unused can be refunded in 7 days.", "按使用扣除，7 天内未用可退款。", "Chỉ trừ khi dùng. Chưa dùng hoàn trong 7 ngày.", "使った分だけ減り、7日以内未使用なら返金可。", "Berkurang saat dipakai. Refund 7 hari jika belum dipakai.")} />
 
       <p className="mt-6 text-[17px] font-bold text-[color:var(--v2-ink)]">{t("얼마나 충전할까요?", "How many?", "充值多少？", "Nạp bao nhiêu?", "いくつチャージしますか？", "Berapa banyak?")}</p>

@@ -26721,6 +26721,7 @@ app.post(
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-interview-q", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_questions"),
+  interviewCreditGuard("check"),
   async (req, res) => {
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -26966,7 +26967,8 @@ async function interviewDailyFreeUsed(userId: string): Promise<boolean> {
 // v2 가 열릴 때(또는 결제 창을 붙인 뒤) API 앱 설정에 INTERVIEW_PAYWALL_ENABLED=true.
 const interviewPaywallOn = () => process.env.INTERVIEW_PAYWALL_ENABLED === "true";
 
-function interviewCreditGuard(kind: "feedback" | "prep"): express.RequestHandler {
+/** check: 질문 만들기처럼 잔액만 확인하고 차감하지 않는 자리(이용권 0이면 402). */
+function interviewCreditGuard(kind: "feedback" | "prep" | "check"): express.RequestHandler {
   return async (req, res, next) => {
     if (!interviewPaywallOn()) return next();
     try {
@@ -26979,7 +26981,7 @@ function interviewCreditGuard(kind: "feedback" | "prep"): express.RequestHandler
       if (credits < 1) {
         return res.status(402).json({ ok: false, code: "INTERVIEW_CREDITS_REQUIRED", message: "모의 면접 이용권이 필요해요.", credits });
       }
-      res.locals.interviewCharge = kind;
+      if (kind !== "check") res.locals.interviewCharge = kind;
       return next();
     } catch (err) {
       console.error("[interview-credit] guard failed", err);

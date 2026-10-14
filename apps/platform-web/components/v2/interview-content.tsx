@@ -11,6 +11,7 @@ import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
+import { CreditLine } from "./interview-paywall";
 import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
@@ -588,6 +589,9 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
   const ready = docsReady(resume, cover);
   const both = ready.resume && ready.cover;
   const blocked = dailyLimitReached || (!allowWithoutDocs && !both);
+  // 유료화가 켜져 있고 이용권이 없으면 시작 대신 충전부터.
+  const credits = useInterviewCredits();
+  const noCredits = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1;
   const row = (label: string, ok: boolean, href: string) => (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3.5">
       <div className="flex items-center gap-2.5">
@@ -609,9 +613,15 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
       subtitle={title}
       onClose={onClose}
       footer={
-        <Button full onClick={onConfirm} disabled={blocked}>
-          {t("모의 면접 시작하기", "Start", "开始模拟面试", "Bắt đầu", "模擬面接を始める", "Mulai")}
-        </Button>
+        noCredits ? (
+          <Button full onClick={() => openInterviewPaywall("needed")}>
+            {t("이용권 충전하고 시작하기", "Top up & start", "充值后开始", "Nạp vé & bắt đầu", "チャージして始める", "Isi tiket & mulai")}
+          </Button>
+        ) : (
+          <Button full onClick={onConfirm} disabled={blocked}>
+            {t("모의 면접 시작하기", "Start", "开始模拟面试", "Bắt đầu", "模擬面接を始める", "Mulai")}
+          </Button>
+        )
       }
     >
       <div className="rounded-3xl bg-[#edf1fd] p-5">
@@ -636,6 +646,11 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
               ? t("서류가 덜 채워져도 시작할 수 있어요. 공고 기반 질문이 나오고, 서류를 채우면 내 경험에 맞춘 질문으로 더 정확해져요.", "You can start anyway — questions come from the job; fuller documents make them more personal.", "材料不完整也能开始，会基于职位出题；完善材料后会更贴合你的经历。", "Vẫn bắt đầu được — câu hỏi dựa trên tin; hồ sơ đầy đủ sẽ sát hơn.", "書類が未完成でも始められます。求人ベースの質問になり、書類を埋めるとより個別化されます。", "Tetap bisa mulai — pertanyaan dari lowongan.")
               : t("내 서류로 연습하려면 이력서와 자기소개서를 먼저 채워 주세요.", "Fill in your resume and cover letter first to practice with them.", "要用材料练习，请先完善简历和自我介绍。", "Hãy hoàn thiện CV và thư trước.", "書類で練習するには先に履歴書と自己PRを。", "Lengkapi CV dan surat lamaran dulu.")}
       </p>
+      {credits?.paywall ? (
+        <div className="mt-5">
+          <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+        </div>
+      ) : null}
     </Sheet>
   );
 }

@@ -9,7 +9,7 @@ import { Button, Spinner, Switch } from "./ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { aiInterviewFeedback, getAnswerExamples, shareAnswerExample, type InterviewFeedback } from "../../lib/member-profile-client";
-import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance } from "../../lib/interview-credits";
+import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
@@ -130,6 +130,9 @@ export function PracticeSheet({
   const [shared, setShared] = useState<"idle" | "saving" | "done">("idle");
   const [examples, setExamples] = useState<{ id: string; answer: string; score: number }[] | null>(null);
   const timeUp = timed && running && left <= 0;
+  // 유료화가 켜져 있고 이용권이 없으면 답하기 전에 잠근다(오늘의 질문은 하루 1번 이용권 없이).
+  const credits = useInterviewCredits();
+  const locked = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1 && !(daily && !credits?.dailyFreeUsed) && !feedback;
 
   // 실전 모드 타이머 — 첫 글자를 쓰거나 말하기를 누르면 시작.
   useEffect(() => {
@@ -220,6 +223,10 @@ export function PracticeSheet({
               </Button>
             )}
           </div>
+        ) : locked ? (
+          <Button full onClick={() => openInterviewPaywall("needed")}>
+            {t("이용권 충전하기", "Top up passes", "充值使用券", "Nạp vé", "チケットをチャージ", "Isi tiket")}
+          </Button>
         ) : (
           <Button full onClick={() => void submit()} disabled={busy}>
             {busy ? <Spinner /> : null}
@@ -264,7 +271,19 @@ export function PracticeSheet({
       ) : null}
       {intent && !feedback ? <p className="mt-2 rounded-xl bg-[color:var(--v2-fill)] px-3 py-2 text-[13px] leading-[1.55] text-[color:var(--v2-muted)]">💡 {t("면접관이 보려는 것", "What they look for", "面试官想看的", "Người PV muốn thấy", "面接官が見たいこと", "Yang dicari")} · {intent}</p> : null}
 
-      {!feedback ? (
+      {locked ? (
+        // 잠금 — 질문은 보여 주되 답·피드백은 이용권이 있어야
+        <div className="mt-5 flex flex-col items-center rounded-3xl bg-[#fff4e8] px-5 py-7 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#c2410c]" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+          </span>
+          <p className="mt-3 text-[17px] font-bold text-[color:var(--v2-ink)]">{t("이용권이 있어야 답할 수 있어요", "You need a pass to answer", "需要使用券才能作答", "Cần vé để trả lời", "回答にはチケットが必要です", "Perlu tiket untuk menjawab")}</p>
+          <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("충전하면 바로 이어서 답하고 AI 피드백을 받을 수 있어요. 오늘의 질문은 하루 1번 이용권 없이 답할 수 있어요.", "Top up to answer and get AI feedback right away. Today's question is open once a day without a pass.", "充值后即可作答并获得 AI 反馈。今日问题每天可免券回答 1 次。", "Nạp để trả lời và nhận phản hồi AI ngay. Câu hỏi hôm nay được trả lời 1 lần/ngày không cần vé.", "チャージするとすぐ回答・AIフィードバック。今日の質問は1日1回チケットなしで。", "Isi ulang untuk menjawab dan dapat masukan AI. Pertanyaan harian sekali sehari tanpa tiket.")}</p>
+        </div>
+      ) : !feedback ? (
         <>
           <div className="mt-4 flex items-center justify-between gap-3">
             <Switch on={timed} onChange={(v) => { setTimed(v); setRunning(false); setLeft(60); }} label={t("실전 모드 · 60초", "Real mode · 60s", "实战模式 · 60秒", "Thực chiến · 60s", "本番モード・60秒", "Mode nyata · 60 dtk")} />

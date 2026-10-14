@@ -18,6 +18,7 @@ import { saveSelfMockAnswer } from "../../lib/talent/self-mock";
 import { recordImportedPractice } from "../../lib/talent/imported-jobs";
 import { mockCategoryLabelOf } from "../../lib/talent/career-labels";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
+import { isInterviewPaywallError, openInterviewPaywall, useInterviewCredits } from "../../lib/interview-credits";
 
 function coverToText(doc: CoverDoc | null): string {
   return (doc?.items ?? [])
@@ -47,6 +48,9 @@ export function InterviewSession({ item, onClose }: { item?: PublicPositionListI
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const authored = (item?.mockInterviewQuestions ?? []).filter(Boolean);
+  // 유료화가 켜져 있고 이용권이 없으면 질문을 만들기 전에 결제 창부터.
+  const credits = useInterviewCredits();
+  const noCredits = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1;
   const company = item ? companyOf(item) : "";
 
   const generate = async (category: Cat, asked: string[]): Promise<InterviewQuestion[]> => {
@@ -62,14 +66,23 @@ export function InterviewSession({ item, onClose }: { item?: PublicPositionListI
     });
     return qs.filter((q) => q.question && !asked.includes(q.question));
   };
-  const fail = (e: unknown) =>
+  const fail = (e: unknown) => {
+    if (isInterviewPaywallError(e)) {
+      openInterviewPaywall("needed");
+      return;
+    }
     setError(
       (e as { status?: number })?.status === 429
         ? t("오늘 AI 이용 한도에 도달했어요. 내일 다시 해 주세요.", "Today's AI limit was reached. Try tomorrow.", "今天的 AI 使用已达上限。", "Đã hết lượt AI hôm nay.", "本日のAI上限に達しました。", "Batas AI hari ini tercapai.")
         : t("질문을 만들지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't create a question. Try again soon.", "无法生成问题，请稍后再试。", "Không tạo được câu hỏi.", "質問を作れませんでした。", "Gagal membuat pertanyaan.")
     );
+  };
 
   const pick = async (c: Cat) => {
+    if (noCredits) {
+      openInterviewPaywall("needed");
+      return;
+    }
     setCat(c);
     setError(null);
     setIdx(0);
