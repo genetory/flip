@@ -740,37 +740,66 @@ function SkillCard({ t, answers, areas, onPractice }: { t: PlatformT; answers: {
   const older = scored.slice(-20, -10);
   const delta = older.length >= 3 ? score - avg(older) : null;
   const series = scored.slice(-12).map((a) => a.score);
-  const pts = series.map((v, i) => `${series.length === 1 ? 50 : (i / (series.length - 1)) * 100},${38 - (v / 100) * 34}`).join(" ");
+  // 꺾은선 — 위아래 여백을 두고(0~100점 → 세로 8%~92%), 점은 HTML 로 얹어 찌그러지지 않게.
+  const xy = series.map((v, i) => ({ x: series.length === 1 ? 50 : (i / (series.length - 1)) * 100, y: 92 - (v / 100) * 84, v }));
+  const pts = xy.map((p) => `${p.x},${p.y}`).join(" ");
+  const last = xy[xy.length - 1];
+  const goodY = 92 - 0.8 * 84; // 80점 '잘해요' 기준선
   return (
     <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
       <div className="flex items-start justify-between gap-3">
         <span>
-          <span className="block text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("내 면접 실력", "My interview score", "我的面试水平", "Điểm phỏng vấn", "面接スコア", "Skor wawancara")}</span>
-          <span className="mt-1 flex items-baseline gap-2">
-            <span className="text-[36px] font-bold leading-none tracking-[-0.02em] text-[color:var(--v2-ink)]">{score}</span>
-            <span className="text-[15px] font-semibold text-[color:var(--v2-muted)]">/ 100</span>
-            {delta !== null && delta !== 0 ? <span className={`text-[14px] font-bold ${delta > 0 ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-attention)]"}`}>{delta > 0 ? `▲ ${delta}` : `▼ ${Math.abs(delta)}`}</span> : null}
+          <span className="block text-[14px] font-bold text-[color:var(--v2-ink-3)]">{t("내 면접 실력", "My interview score", "我的面试水平", "Điểm phỏng vấn", "面接スコア", "Skor wawancara")}</span>
+          <span className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-[56px] font-extrabold leading-none tracking-[-0.04em] tabular-nums text-[color:var(--v2-ink)]">{score}</span>
+            <span className="text-[18px] font-bold text-[color:var(--v2-faint)]">/ 100</span>
           </span>
-          <span className="mt-1 block text-[12px] text-[color:var(--v2-faint)]">{t(`최근 답 ${Math.min(10, scored.length)}개 평균`, `Average of last ${Math.min(10, scored.length)} answers`, `最近 ${Math.min(10, scored.length)} 个回答平均`, `TB ${Math.min(10, scored.length)} câu gần nhất`, `直近${Math.min(10, scored.length)}件の平均`, `Rata-rata ${Math.min(10, scored.length)} jawaban`)}</span>
+          {delta !== null && delta !== 0 ? (
+            <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-extrabold ${delta > 0 ? "bg-[#e3f6ec] text-[color:var(--v2-good)]" : "bg-[#fdecee] text-[color:var(--v2-attention)]"}`}>
+              {delta > 0 ? `▲ ${delta}` : `▼ ${Math.abs(delta)}`} <span className="font-semibold opacity-80">{t("지난 10개보다", "vs previous 10", "较前 10 个", "so với 10 câu trước", "前の10件より", "dari 10 sebelumnya")}</span>
+            </span>
+          ) : null}
+          <span className="mt-1.5 block text-[12px] text-[color:var(--v2-faint)]">{t(`최근 답 ${Math.min(10, scored.length)}개 평균`, `Average of last ${Math.min(10, scored.length)} answers`, `最近 ${Math.min(10, scored.length)} 个回答平均`, `TB ${Math.min(10, scored.length)} câu gần nhất`, `直近${Math.min(10, scored.length)}件の平均`, `Rata-rata ${Math.min(10, scored.length)} jawaban`)}</span>
         </span>
         <LevelChip t={t} score={score} />
       </div>
       {series.length >= 2 ? (
-        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="mt-4 h-16 w-full" aria-hidden>
-          <polyline points={`0,40 ${pts} 100,40`} fill="rgba(11,70,232,0.08)" stroke="none" />
-          <polyline points={pts} fill="none" stroke="#0b46e8" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </svg>
+        <div className="relative mt-5 h-36 rounded-2xl bg-white px-3 py-3">
+          <div className="relative h-full">
+            {/* 80점 기준선 */}
+            <span aria-hidden className="absolute inset-x-0 border-t-2 border-dashed border-[#c9ecd9]" style={{ top: `${goodY}%` }} />
+            <span className="absolute left-0 -translate-y-full pb-0.5 text-[11px] font-bold text-[color:var(--v2-good)]" style={{ top: `${goodY}%` }}>{t("80 잘해요", "80 Good", "80 良好", "80 Tốt", "80 良い", "80 Bagus")}</span>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+              <defs>
+                <linearGradient id="skill-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0b46e8" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#0b46e8" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <polygon points={`0,100 ${pts} 100,100`} fill="url(#skill-fill)" />
+              <polyline points={pts} fill="none" stroke="#0b46e8" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+            </svg>
+            {/* 점 — 마지막 점은 크게 + 점수 말풍선 */}
+            {xy.map((p, i) =>
+              i === xy.length - 1 ? null : <span key={i} aria-hidden className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0b46e8] bg-white" style={{ left: `${p.x}%`, top: `${p.y}%` }} />
+            )}
+            <span aria-hidden className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-[#0b46e8] shadow-[0_2px_8px_rgba(11,70,232,0.45)]" style={{ left: `${last.x}%`, top: `${last.y}%` }} />
+            <span className="absolute -translate-y-[calc(100%+12px)] rounded-lg bg-[color:var(--v2-ink)] px-2 py-0.5 text-[12px] font-extrabold tabular-nums text-white" style={{ top: `${last.y}%`, right: 0 }}>
+              {last.v}
+            </span>
+          </div>
+        </div>
       ) : null}
       {areas.length ? (
-        <ul className="mt-4 flex flex-col gap-2.5">
+        <ul className="mt-5 flex flex-col gap-3">
           {areas.map((r) => (
             <li key={r.category}>
               <button type="button" onClick={onPractice} className="flex w-full items-center gap-3 text-left">
-                <span className="w-[108px] shrink-0 truncate text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{mockCategoryLabelOf(t, r.category)}</span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-white">
-                  <span className={`block h-full rounded-full ${(r.average ?? 0) >= 80 ? "bg-[color:var(--v2-good)]" : (r.average ?? 0) >= WEAK_BELOW ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-attention)]"}`} style={{ width: `${r.average ?? 0}%` }} />
+                <span className="w-[100px] shrink-0 truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{mockCategoryLabelOf(t, r.category)}</span>
+                <span className="h-3.5 flex-1 overflow-hidden rounded-full bg-white">
+                  <span className={`block h-full rounded-full ${(r.average ?? 0) >= 80 ? "bg-[color:var(--v2-good)]" : (r.average ?? 0) >= WEAK_BELOW ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-attention)]"}`} style={{ width: `${Math.max(6, r.average ?? 0)}%` }} />
                 </span>
-                <span className="w-8 shrink-0 text-right text-[13px] font-bold tabular-nums text-[color:var(--v2-ink-2)]">{r.average}</span>
+                <span className="w-9 shrink-0 text-right text-[16px] font-extrabold tabular-nums text-[color:var(--v2-ink)]">{r.average}</span>
               </button>
             </li>
           ))}
