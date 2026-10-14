@@ -6,7 +6,7 @@
 // 휴대폰은 아래 고정 신청 버튼(폼이 보이면 숨김).
 // 문구·제공 범위·보관 기간·예시는 lib/experience-campaign.ts 에서 바꾼다. 이 캠페인은 '무료'를 써도 된다(전액 무료 행사).
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { V2Shell } from "../v2/V2Shell";
+import { AplyFooter } from "../AplyFooter";
 import { Button, Chip, Page, Spinner } from "../v2/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
@@ -131,16 +131,22 @@ export function ExperienceCampaignPage() {
 
   const sample = BEFORE_AFTER_EXAMPLES[0];
   return (
-    <V2Shell>
+    // 완전히 분리된 싱글 페이지 — 사이트 상단 메뉴(GNB) 없이, 법적 고지용 바닥글만.
+    <div className="v2">
       {/* 프로모션 페이지 — 연파랑 바탕 위에 파란 히어로·말풍선·쿠폰 카드 */}
       <div className="bg-[#eef3ff]">
       <Page>
         {/* ① 히어로 — 파란 띠, 노란 강조, 자소서 미리보기 카드 */}
-        <section className="relative overflow-hidden bg-[color:var(--v2-accent)] px-5 pb-12 pt-10 text-white md:mx-5 md:mt-6 md:rounded-[40px] md:px-10 md:pt-16">
+        <section className="relative overflow-hidden bg-[color:var(--v2-accent)] px-5 pb-12 pt-6 text-white md:mx-5 md:mt-6 md:rounded-[40px] md:px-10 md:pt-10">
           {/* 장식 원 */}
           <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10" />
           <span aria-hidden className="pointer-events-none absolute -left-16 bottom-10 h-40 w-40 rounded-full bg-white/[0.07]" />
-          <div className="relative flex flex-wrap gap-2">
+          {/* 로고 — 메뉴 없이 브랜드만(흰 칩 위) */}
+          <span className="relative inline-flex h-9 items-center rounded-full bg-white px-3.5">
+            {/* eslint-disable-next-line @next/next/no-img-element -- 작은 로고 */}
+            <img src="/img_logo.webp" alt="Aply" className="h-5 w-auto" />
+          </span>
+          <div className="relative mt-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-[#ffd84d] px-3 py-1.5 text-[13px] font-extrabold text-[#191f28]">{t("100% 무료", "100% FREE")}</span>
             <span className="rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold">{t(`매주 단 ${WEEKLY_SLOTS}명`, `${WEEKLY_SLOTS} per week`)}</span>
             <span className="rounded-full bg-white/15 px-3 py-1.5 text-[13px] font-bold">{t("전문가 1:1", "1:1 expert")}</span>
@@ -284,7 +290,8 @@ export function ExperienceCampaignPage() {
         ) : null}
       </Page>
       </div>
-    </V2Shell>
+      <AplyFooter />
+    </div>
   );
 }
 
