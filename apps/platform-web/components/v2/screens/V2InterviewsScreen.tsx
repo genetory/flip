@@ -251,14 +251,14 @@ function Interviews() {
 
       {/* 지금 시작 — 실전 모드(질문 5개를 소리로 읽어 주고, 끝나면 한 번에 피드백). 이 화면의 가장 큰 행동. */}
       <div className="-mt-2 px-5 pb-8">
-        <div className="overflow-hidden rounded-[28px] bg-[#edf1fd]">
-          {/* 큰 그림 — 카드 위쪽을 채워 '면접장'에 들어가는 느낌 */}
-          <div className="relative px-5 pt-5">
-            <span className="absolute left-5 top-5 z-[1] inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
+        <div>
+          {/* 큰 그림 — '면접장'에 들어가는 느낌(카드 배경 없이) */}
+          <div className="relative">
+            <span className="absolute left-0 top-0 z-[1] inline-flex items-center gap-1 rounded-full bg-[color:var(--v2-accent-weak)] px-3 py-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]">🎙️ {t("실전 모드", "Real mode", "实战模式", "Chế độ thực chiến", "実戦モード", "Mode nyata")}</span>
             {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림(흰 바탕 → 곱하기 합성) */}
             <img src="/img_fake_interview.webp" alt="" aria-hidden className="mx-auto h-[170px] w-full max-w-[320px] object-contain mix-blend-multiply min-[360px]:h-[190px]" />
           </div>
-          <div className="px-5 pb-5">
+          <div className="pt-2">
             <p className="whitespace-pre-line text-[24px] font-bold leading-[1.3] tracking-[-0.03em] text-[color:var(--v2-ink)]">{t("AI 면접관과\n5분 실전 면접", "A 5-minute interview\nwith an AI interviewer", "与 AI 面试官\n5 分钟实战", "Phỏng vấn 5 phút\nvới AI", "AI面接官と\n5分の実戦面接", "Wawancara 5 menit\ndengan AI")}</p>
             <p className="mt-1.5 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{t("질문을 소리로 읽어 드려요. 진짜 면접처럼 답해 보세요.", "Questions are read aloud. Answer like it's the real thing.", "问题会被朗读，像真正面试一样回答吧。", "Câu hỏi được đọc to. Trả lời như buổi thật.", "質問を読み上げます。本番のように答えてみて。", "Pertanyaan dibacakan. Jawab seperti aslinya.")}</p>
             {/* 한눈에 — 질문 수 · 걸리는 시간 · 피드백 */}
@@ -268,7 +268,7 @@ function Interviews() {
                 [t("약 5분", "~5 min", "约 5 分钟", "~5 phút", "約5分", "~5 mnt"), t("걸려요", "to finish", "用时", "thời gian", "所要", "durasi")],
                 [t("한 번에", "At once", "一次性", "Một lần", "まとめて", "Sekaligus"), t("피드백", "feedback", "反馈", "phản hồi", "フィードバック", "masukan")]
               ].map(([v, l]) => (
-                <div key={l} className="rounded-2xl bg-white px-2 py-3 text-center">
+                <div key={l} className="rounded-2xl bg-[color:var(--v2-band)] px-2 py-3 text-center">
                   <p className="whitespace-nowrap text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{v}</p>
                   <p className="mt-0.5 text-[12px] font-semibold text-[color:var(--v2-muted)]">{l}</p>
                 </div>
