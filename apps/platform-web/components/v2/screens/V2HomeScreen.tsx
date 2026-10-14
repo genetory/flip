@@ -47,8 +47,8 @@ import { careerGuides } from "../../../lib/talent/home-content";
 import { careerGuideHref } from "../../../lib/talent/v2-guides";
 import { partnerIndustryLabel } from "../../../lib/partner-industry-labels";
 
-const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
-const PREVIEW = { resume: "/talent/career/resume/preview", cover: "/talent/career/cover/preview" };
+const EDITOR = { resume: "/v2/resume", cover: "/v2/cover" };
+const PREVIEW = { resume: "/v2/resume/preview", cover: "/v2/cover/preview" };
 
 function daysUntil(iso: string): number | null {
   const today = new Date();

@@ -634,8 +634,8 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
       </div>
       <p className="mt-5 text-[14px] font-bold text-[color:var(--v2-ink-2)]">{t("내 서류", "My documents", "我的材料", "Hồ sơ của tôi", "自分の書類", "Dokumenku")}</p>
       <div className="mt-2 flex flex-col gap-2">
-        {row(t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), ready.resume, "/talent/career/resume/editor")}
-        {row(t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), ready.cover, "/talent/career/cover/editor")}
+        {row(t("이력서", "Resume", "简历", "CV", "履歴書", "CV"), ready.resume, "/v2/resume")}
+        {row(t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"), ready.cover, "/v2/cover")}
       </div>
       <p className="mt-3 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">
         {dailyLimitReached

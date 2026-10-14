@@ -80,7 +80,7 @@ export function TalentCardSheet({ t, status, onClose }: { t: PlatformT; status: 
           <Button variant="neutral" full href="/v2/settings">
             {t("노출 설정", "Visibility", "展示设置", "Cài đặt", "表示設定", "Atur")}
           </Button>
-          <Button full href="/talent/career/resume/editor">
+          <Button full href="/v2/resume">
             {t("이력서 고치기", "Edit resume", "修改简历", "Sửa CV", "履歴書を編集", "Ubah CV")}
           </Button>
         </div>

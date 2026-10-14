@@ -276,7 +276,7 @@ function ExperienceSheet({ t, kind, onClose }: { t: PlatformT; kind: Kind; onClo
             <Button variant="neutral" full onClick={onClose}>
               {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
             </Button>
-            <Button full href="/talent/career/resume/editor">
+            <Button full href="/v2/resume">
               {t("이력서에서 다듬기", "Polish in resume", "在简历中润色", "Sửa trong CV", "履歴書で整える", "Rapikan di CV")}
             </Button>
           </div>

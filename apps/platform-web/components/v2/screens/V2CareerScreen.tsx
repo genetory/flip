@@ -34,12 +34,12 @@ import { V2CareerGuest } from "./V2CareerGuest";
 
 const R = {
   profile: "/v2/profile",
-  resume: "/talent/career/resume/editor",
-  resumePreview: "/talent/career/resume/preview",
-  cover: "/talent/career/cover/editor",
-  coverPreview: "/talent/career/cover/preview",
-  resumes: "/talent/career/resumes",
-  coverLetters: "/talent/career/cover-letters",
+  resume: "/v2/resume",
+  resumePreview: "/v2/resume/preview",
+  cover: "/v2/cover",
+  coverPreview: "/v2/cover/preview",
+  resumes: "/v2/resumes",
+  coverLetters: "/v2/cover-letters",
   experiences: "/v2/experiences",
   history: "/v2/history",
   diagnosis: "/talent/career/resume/diagnosis"

@@ -504,6 +504,9 @@ export type EditorEvent =
 export function editorDocOfPath(path: string): EditorDoc | null {
   if (path.includes("/career/resume")) return "resume";
   if (path.includes("/career/cover")) return "cover";
+  // v2 편집기(/v2/resume, /v2/cover 와 그 미리보기) — 목록(/v2/resumes, /v2/cover-letters)은 제외
+  if (/^\/v2\/resume(\/|$)/.test(path)) return "resume";
+  if (/^\/v2\/cover(\/|$)/.test(path)) return "cover";
   return null;
 }
 

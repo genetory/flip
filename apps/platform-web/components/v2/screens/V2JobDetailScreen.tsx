@@ -38,7 +38,7 @@ import { trackInterviewStart } from "../../../lib/analytics";
 import { StartSheet } from "../interview-content";
 import { InterviewSession } from "../interview-session";
 
-const EDITOR = { resume: "/talent/career/resume/editor", cover: "/talent/career/cover/editor" };
+const EDITOR = { resume: "/v2/resume", cover: "/v2/cover" };
 
 export function V2JobDetailScreen({ id }: { id: string }) {
   return (
