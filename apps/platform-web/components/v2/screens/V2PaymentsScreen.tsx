@@ -2,7 +2,7 @@
 
 // v2 이용권·결제 내역 — 남은 모의 면접 이용권 · [충전] · 결제 내역(환불 가능하면 [환불]) · 이용 내역.
 // 셀프 환불: 결제 후 7일 안, 그 결제로 받은 이용권을 쓰지 않았을 때만(서버가 최종 판단). 그 밖엔 고객센터로.
-// AI 포인트(서버 AI_POINTS_ENABLED)가 켜져 있으면 — 포인트 카드 · 포인트 내역(받은·쓴, 기능 이름) · 결제 내역 · 기능별 포인트.
+// AI 포인트(서버 AI_POINTS_ENABLED)가 켜져 있으면 — 포인트 카드 · 포인트 내역(받은·쓴, 기능 이름) · 결제 내역.
 import { useCallback, useEffect, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
@@ -109,7 +109,6 @@ function Payments() {
   ) : null;
 
   if (pointsMode && pts) {
-    const costs = Object.entries(pts.costs).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
     return (
       <Page>
         <Masthead
@@ -146,17 +145,6 @@ function Payments() {
 
         {paymentsSection}
 
-        <Section title={t("기능별 포인트", "Points per feature", "各功能积分", "Điểm theo tính năng", "機能別ポイント", "Poin per fitur")}>
-          <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
-            {costs.map(([k, v]) => (
-              <li key={k} className="flex items-center justify-between gap-3 border-b border-[color:var(--v2-band)] py-2.5">
-                <span className="min-w-0 truncate text-[14px] text-[color:var(--v2-ink-3)]">{pointReasonLabel(t, k)}</span>
-                <span className="shrink-0 text-[14px] font-bold tabular-nums text-[color:var(--v2-ink)]">{formatPoints(v)}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="pt-3 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">{t("AI가 결과를 돌려줬을 때만 차감돼요. 오늘의 질문은 하루 1번 포인트 없이 답할 수 있어요.", "Points are only used when the AI returns a result. Today's question can be answered once a day without points.", "仅在 AI 返回结果时扣除。今日问题每天可不扣积分回答 1 次。", "Chỉ trừ khi AI trả kết quả. Câu hỏi hôm nay 1 lần/ngày không tốn điểm.", "AIが結果を返したときだけ減ります。今日の質問は1日1回ポイントなしで。", "Poin hanya terpakai saat AI memberi hasil. Pertanyaan harian sekali sehari tanpa poin.")}</p>
-        </Section>
         {refundSheet}
       </Page>
     );
