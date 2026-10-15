@@ -137,49 +137,48 @@ export const BEFORE_AFTER_EXAMPLES: { tag: Copy; before: Copy; after: Copy }[] =
 ];
 
 /**
- * 참여 후기 — 상담을 받은 분이 공개에 동의한 후기만 넣는다.
- * example: true 인 항목은 '예시' 표시가 붙는다(실제 후기처럼 보이면 안 됨 — 표시광고법).
- * 실제 후기가 하나라도 생기면 예시 항목을 지우고 example 을 빼서 넣는다. 이름은 가려서(예: "N○○").
+ * 사례 카드 — 이런 경험이 어떤 취업 강점으로 정리되는지(서비스를 쓰면 이렇게 바뀐다는 설명).
+ * 특정인의 후기가 아니므로 이름·국적·1인칭 문장을 쓰지 않는다.
  */
-export type CampaignReview = { example?: boolean; who: Copy; tag: Copy; quote: Copy };
-export const REVIEWS: CampaignReview[] = [
+export type CampaignCase = { icon: string; from: Copy; to: Copy; role: Copy };
+export const CASE_STUDIES: CampaignCase[] = [
   {
-    example: true,
-    who: { ko: "N○○ · 베트남", en: "N○○ · Vietnam", zh: "N○○ · 越南", vi: "N○○ · Việt Nam", ja: "N○○ · ベトナム", id: "N○○ · Vietnam" },
-    tag: { ko: "해외영업 지원", en: "Overseas sales", zh: "应聘海外销售", vi: "Ứng tuyển kinh doanh QT", ja: "海外営業志望", id: "Lamar sales luar negeri" },
-    quote: {
-      ko: "편의점 알바는 쓸 게 없다고 생각했는데, 상담하면서 발주 경험이 영업 역량이 될 수 있다는 걸 알았어요.",
-      en: "I thought my convenience store job had nothing to show. The consultation showed me my ordering work was a sales skill.",
-      zh: "我以为便利店兼职没什么可写的，咨询后才发现订货经验也能成为销售能力。",
-      vi: "Tôi nghĩ việc làm thêm ở cửa hàng tiện lợi chẳng có gì để viết, nhưng nhờ tư vấn tôi nhận ra kinh nghiệm đặt hàng chính là năng lực kinh doanh.",
-      ja: "コンビニバイトは書くことがないと思っていましたが、相談で発注の経験が営業力になると分かりました。",
-      id: "Saya kira kerja di minimarket tidak ada yang bisa ditulis. Lewat konsultasi saya sadar pengalaman pemesanan itu kemampuan sales."
-    }
+    icon: "🏪",
+    from: { ko: "편의점 발주 경험", en: "Convenience store ordering", zh: "便利店订货经验", vi: "Kinh nghiệm đặt hàng ở cửa hàng tiện lợi", ja: "コンビニの発注経験", id: "Pengalaman pemesanan di minimarket" },
+    to: {
+      ko: "재고 관리·수요 예측·커뮤니케이션 역량으로 정리",
+      en: "Framed as inventory management, demand forecasting and communication skills",
+      zh: "整理为库存管理·需求预测·沟通能力",
+      vi: "Được trình bày thành năng lực quản lý tồn kho, dự báo nhu cầu và giao tiếp",
+      ja: "在庫管理・需要予測・コミュニケーション力として整理",
+      id: "Dirumuskan sebagai kemampuan manajemen stok, prediksi permintaan, dan komunikasi"
+    },
+    role: { ko: "해외영업 직무로 연결", en: "Linked to overseas sales", zh: "对接海外销售岗位", vi: "Kết nối với kinh doanh quốc tế", ja: "海外営業職につなげる", id: "Terhubung ke sales luar negeri" }
   },
   {
-    example: true,
-    who: { ko: "L○○ · 중국", en: "L○○ · China", zh: "L○○ · 中国", vi: "L○○ · Trung Quốc", ja: "L○○ · 中国", id: "L○○ · Tiongkok" },
-    tag: { ko: "마케팅 지원", en: "Marketing", zh: "应聘市场营销", vi: "Ứng tuyển marketing", ja: "マーケティング志望", id: "Lamar marketing" },
-    quote: {
-      ko: "동아리 활동을 숫자와 결과 중심으로 다시 쓰니까 이력서가 훨씬 또렷해졌어요.",
-      en: "Rewriting my club activities around numbers and results made my resume much clearer.",
-      zh: "把社团活动改成以数字和结果为主来写后，简历清晰多了。",
-      vi: "Viết lại hoạt động câu lạc bộ theo con số và kết quả giúp CV của tôi rõ ràng hơn hẳn.",
-      ja: "サークル活動を数字と成果中心に書き直したら、履歴書がずっと分かりやすくなりました。",
-      id: "Menulis ulang kegiatan klub dengan angka dan hasil membuat CV saya jauh lebih jelas."
-    }
+    icon: "🎉",
+    from: { ko: "동아리 활동", en: "Student club activities", zh: "社团活动", vi: "Hoạt động câu lạc bộ", ja: "サークル活動", id: "Kegiatan klub" },
+    to: {
+      ko: "숫자와 결과 중심의 마케팅 경험으로 정리",
+      en: "Framed as marketing experience built on numbers and results",
+      zh: "整理为以数字和结果为中心的营销经验",
+      vi: "Được trình bày thành kinh nghiệm marketing dựa trên con số và kết quả",
+      ja: "数字と成果中心のマーケティング経験として整理",
+      id: "Dirumuskan sebagai pengalaman marketing berbasis angka dan hasil"
+    },
+    role: { ko: "마케팅 직무로 연결", en: "Linked to marketing", zh: "对接市场营销岗位", vi: "Kết nối với marketing", ja: "マーケティング職につなげる", id: "Terhubung ke marketing" }
   },
   {
-    example: true,
-    who: { ko: "T○○ · 우즈베키스탄", en: "T○○ · Uzbekistan", zh: "T○○ · 乌兹别克斯坦", vi: "T○○ · Uzbekistan", ja: "T○○ · ウズベキスタン", id: "T○○ · Uzbekistan" },
-    tag: { ko: "무역사무 지원", en: "Trade admin", zh: "应聘贸易事务", vi: "Ứng tuyển văn phòng XNK", ja: "貿易事務志望", id: "Lamar admin ekspor-impor" },
-    quote: {
-      ko: "한국 회사가 원하는 지원동기가 뭔지 몰랐는데, 제 경험에서 이유를 찾아 주셔서 자신감이 생겼어요.",
-      en: "I didn't know what motivation Korean companies wanted. They found the reason in my own experience, and I felt confident.",
-      zh: "我不知道韩国公司想看什么样的求职动机，专家从我的经历中帮我找到了理由，我更有信心了。",
-      vi: "Tôi không biết công ty Hàn muốn động lực ứng tuyển thế nào. Chuyên gia tìm ra lý do từ chính trải nghiệm của tôi, nên tôi tự tin hơn.",
-      ja: "韓国企業が求める志望動機が分かりませんでしたが、自分の経験から理由を見つけてもらえて自信がつきました。",
-      id: "Saya tidak tahu motivasi seperti apa yang dicari perusahaan Korea. Ahli menemukan alasannya dari pengalaman saya, jadi saya lebih percaya diri."
-    }
+    icon: "🧭",
+    from: { ko: "막막한 지원동기", en: "A vague motivation", zh: "毫无头绪的求职动机", vi: "Động lực ứng tuyển mơ hồ", ja: "まとまらない志望動機", id: "Motivasi melamar yang samar" },
+    to: {
+      ko: "실제 경험에서 회사와 직무를 선택한 이유 발견",
+      en: "The reason for choosing the company and role, found in real experience",
+      zh: "从真实经历中找到选择公司和岗位的理由",
+      vi: "Tìm ra lý do chọn công ty và vị trí từ chính trải nghiệm thật",
+      ja: "実際の経験から会社と職種を選んだ理由を発見",
+      id: "Menemukan alasan memilih perusahaan dan posisi dari pengalaman nyata"
+    },
+    role: { ko: "무역사무 직무로 연결", en: "Linked to trade admin", zh: "对接贸易事务岗位", vi: "Kết nối với văn phòng xuất nhập khẩu", ja: "貿易事務職につなげる", id: "Terhubung ke admin ekspor-impor" }
   }
 ];

@@ -17,7 +17,7 @@ import { setFabInset, clearFabInset } from "../../lib/talent/fab-inset";
 import { trackExperienceCampaign } from "../../lib/analytics";
 import {
   BEFORE_AFTER_EXAMPLES,
-  REVIEWS,
+  CASE_STUDIES,
   CASE_STUDY_CONSENT,
   EXPERT_SCOPE,
   PRIVACY_CONSENT_DETAILS,
@@ -215,8 +215,8 @@ export function ExperienceCampaignPage() {
         {/* ③ Before / After — 예시(실제 사례로 교체 예정) */}
         <BeforeAfter t={t} />
 
-        {/* ③-2 참여 후기 — 공개 동의한 후기만(지금은 예시) */}
-        <Reviews t={t} />
+        {/* ③-2 사례 카드 — 이런 경험도 취업 강점이 될 수 있어요 */}
+        <Cases t={t} />
 
         {/* ④ 혜택 — 쿠폰 카드 셋 + 주간 진행 */}
         <section className="px-5 py-16">
@@ -382,53 +382,28 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
   );
 }
 
-/** 발표용(스테이징·로컬, 또는 ?preview=client 링크)인지 — 이때만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에선 예시에 늘 표시를 붙인다. */
-function usePreviewHost(): boolean {
-  const [preview, setPreview] = useState(false);
-  useEffect(() => {
-    const h = window.location.hostname;
-    // 클라이언트 확인용 링크(?preview=client)도 발표 화면처럼 — 일반 방문자는 그대로 '예시' 표시
-    const clientPreview = new URLSearchParams(window.location.search).get("preview") === "client";
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 호스트는 마운트 후에만 안다
-    setPreview(clientPreview || h.includes("staging") || h === "localhost" || h === "127.0.0.1");
-  }, []);
-  return preview;
-}
-
-/** 참여 후기 — 가로로 넘기는 카드. 예시 항목엔 '예시' 표시(실제 후기로 교체 예정). */
-function Reviews({ t }: { t: PlatformT }) {
+/** 사례 카드 — 이런 경험이 어떤 취업 강점으로 정리되는지. 카드 모양은 예전 후기 카드 그대로(가로 넘기기 · 넓은 화면 3칸). */
+function Cases({ t }: { t: PlatformT }) {
   const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
-  const preview = usePreviewHost();
-  if (!REVIEWS.length) return null;
-  const hasExample = !preview && REVIEWS.some((r) => r.example);
+  if (!CASE_STUDIES.length) return null;
   return (
     <section className="py-16">
       <div className="px-5">
         <Headline
-          eyebrow={t("참여 후기", "Reviews", "参与者评价", "Cảm nhận", "参加者の声", "Testimoni")}
-          title={t("먼저 받아 본 사람들의\n이야기.", "From people\nwho tried it.", "先体验过的人\n怎么说。", "Những người\nđã tham gia nói gì.", "先に受けた人の\n声。", "Kata mereka\nyang sudah ikut.")}
+          eyebrow={t("이렇게 바뀌어요", "How it changes", "可以这样转变", "Thay đổi thế này", "こう変わります", "Begini perubahannya")}
+          title={t("이런 경험도\n취업 강점이 될 수 있어요.", "Experiences like these\ncan become strengths.", "这样的经历\n也能成为求职优势。", "Những trải nghiệm này\ncũng thành điểm mạnh.", "こんな経験も\n就活の強みになります。", "Pengalaman seperti ini\nbisa jadi kekuatan.")}
         />
-        {hasExample ? (
-          <p className="mt-4 text-center">
-            <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
-              {t("예시 · 실제 참여 후기로 교체 예정", "Example · to be replaced with real reviews", "示例 · 将替换为真实评价", "Ví dụ · sẽ thay bằng cảm nhận thật", "例 · 実際の声に差し替え予定", "Contoh · akan diganti testimoni asli")}
-            </span>
-          </p>
-        ) : null}
       </div>
       {/* 휴대폰은 가로로 넘기기, 넓은 화면은 3칸 */}
       <div className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
-        {REVIEWS.map((r, i) => (
+        {CASE_STUDIES.map((c, i) => (
           <figure key={i} className="flex w-[82%] max-w-[320px] shrink-0 snap-center flex-col rounded-[24px] bg-white p-6 shadow-[0_12px_30px_-20px_rgba(11,70,232,0.5)] md:w-auto md:max-w-none">
-            <span aria-hidden className="text-[40px] font-extrabold leading-none text-[color:var(--v2-accent)]">&ldquo;</span>
-            <blockquote className="mt-1 flex-1 text-[16px] font-semibold leading-[1.6] tracking-[-0.01em] text-[color:var(--v2-ink)]">{tc(r.quote)}</blockquote>
+            <span className="text-[14px] font-bold text-[color:var(--v2-muted)]">{tc(c.from)}</span>
+            <span aria-hidden className="mt-1 text-[22px] font-extrabold leading-none text-[color:var(--v2-accent)]">↓</span>
+            <p className="mt-2 flex-1 text-[16px] font-semibold leading-[1.6] tracking-[-0.01em] text-[color:var(--v2-ink)]">{tc(c.to)}</p>
             <figcaption className="mt-5 flex items-center gap-3">
-              <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[15px] font-extrabold text-[color:var(--v2-accent)]">{r.who.en.charAt(0)}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{tc(r.who)}</span>
-                <span className="block truncate text-[13px] text-[color:var(--v2-muted)]">{tc(r.tag)}</span>
-              </span>
-              {r.example && !preview ? <span className="ml-auto shrink-0 rounded-full bg-[color:var(--v2-band)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-muted)]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</span> : null}
+              <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[18px]">{c.icon}</span>
+              <span className="min-w-0 truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{tc(c.role)}</span>
             </figcaption>
           </figure>
         ))}
@@ -440,19 +415,11 @@ function Reviews({ t }: { t: PlatformT }) {
 /** Before/After — 칩으로 예시를 넘겨 본다. 예시는 lib/experience-campaign.ts. */
 function BeforeAfter({ t }: { t: PlatformT }) {
   const [idx, setIdx] = useState(0);
-  const preview = usePreviewHost();
   const ex = BEFORE_AFTER_EXAMPLES[idx] ?? BEFORE_AFTER_EXAMPLES[0];
   const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
   return (
     <section className="px-5 py-16">
       <Headline eyebrow="Before / After" title={t("같은 경험도,\n이렇게 달라져요.", "Same experience.\nNew story.", "同样的经历，\n可以这样不同。", "Cùng trải nghiệm,\nkhác cách kể.", "同じ経験でも、\nこんなに変わる。", "Pengalaman sama,\ncerita berbeda.")} />
-      {preview ? null : (
-        <p className="mt-4 text-center">
-          <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
-            {t("예시 · 실제 상담 사례로 교체 예정", "Example · to be replaced with real cases", "示例 · 将替换为真实咨询案例", "Ví dụ · sẽ thay bằng ca tư vấn thật", "例 · 実際の相談事例に差し替え予定", "Contoh · akan diganti kasus nyata")}
-          </span>
-        </p>
-      )}
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {BEFORE_AFTER_EXAMPLES.map((e, i) => (
           <Chip key={e.tag.ko} active={i === idx} onClick={() => setIdx(i)}>
