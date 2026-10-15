@@ -16,6 +16,7 @@ import { setFabInset, clearFabInset } from "../../lib/talent/fab-inset";
 import { trackExperienceCampaign } from "../../lib/analytics";
 import {
   BEFORE_AFTER_EXAMPLES,
+  REVIEWS,
   CASE_STUDY_CONSENT,
   EXPERT_SCOPE,
   PRIVACY_CONSENT_DETAILS,
@@ -213,6 +214,9 @@ export function ExperienceCampaignPage() {
         {/* ③ Before / After — 예시(실제 사례로 교체 예정) */}
         <BeforeAfter t={t} />
 
+        {/* ③-2 참여 후기 — 공개 동의한 후기만(지금은 예시) */}
+        <Reviews t={t} />
+
         {/* ④ 혜택 — 쿠폰 카드 셋 + 주간 진행 */}
         <section className="px-5 py-16">
           <Headline eyebrow={t("이번 캠페인 혜택", "What you get", "本次活动福利", "Quyền lợi chiến dịch", "今回のキャンペーン特典", "Keuntungan kampanye")} title={t("전문가가\n직접 봐 드려요.", "An expert,\nwith you.", "专家\n亲自帮你看。", "Chuyên gia\ntrực tiếp góp ý.", "専門家が\n直接見ます。", "Ahli\nlangsung membantu.")} />
@@ -359,6 +363,47 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
       <h2 className="mt-2 whitespace-pre-line text-[30px] font-bold leading-[1.22] tracking-[-0.035em] text-[color:var(--v2-ink)] min-[360px]:text-[32px] md:text-[48px]">{title}</h2>
       {sub ? <p className="mt-3 text-[17px] text-[color:var(--v2-ink-3)]">{sub}</p> : null}
     </div>
+  );
+}
+
+/** 참여 후기 — 가로로 넘기는 카드. 예시 항목엔 '예시' 표시(실제 후기로 교체 예정). */
+function Reviews({ t }: { t: PlatformT }) {
+  const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
+  if (!REVIEWS.length) return null;
+  const hasExample = REVIEWS.some((r) => r.example);
+  return (
+    <section className="py-16">
+      <div className="px-5">
+        <Headline
+          eyebrow={t("참여 후기", "Reviews", "参与者评价", "Cảm nhận", "参加者の声", "Testimoni")}
+          title={t("먼저 받아 본 사람들의\n이야기.", "From people\nwho tried it.", "先体验过的人\n怎么说。", "Những người\nđã tham gia nói gì.", "先に受けた人の\n声。", "Kata mereka\nyang sudah ikut.")}
+        />
+        {hasExample ? (
+          <p className="mt-4 text-center">
+            <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
+              {t("예시 · 실제 참여 후기로 교체 예정", "Example · to be replaced with real reviews", "示例 · 将替换为真实评价", "Ví dụ · sẽ thay bằng cảm nhận thật", "例 · 実際の声に差し替え予定", "Contoh · akan diganti testimoni asli")}
+            </span>
+          </p>
+        ) : null}
+      </div>
+      {/* 휴대폰은 가로로 넘기기, 넓은 화면은 3칸 */}
+      <div className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] md:grid md:grid-cols-3 md:overflow-visible">
+        {REVIEWS.map((r, i) => (
+          <figure key={i} className="flex w-[82%] max-w-[320px] shrink-0 snap-center flex-col rounded-[24px] bg-white p-6 shadow-[0_12px_30px_-20px_rgba(11,70,232,0.5)] md:w-auto md:max-w-none">
+            <span aria-hidden className="text-[40px] font-extrabold leading-none text-[color:var(--v2-accent)]">&ldquo;</span>
+            <blockquote className="mt-1 flex-1 text-[16px] font-semibold leading-[1.6] tracking-[-0.01em] text-[color:var(--v2-ink)]">{tc(r.quote)}</blockquote>
+            <figcaption className="mt-5 flex items-center gap-3">
+              <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[15px] font-extrabold text-[color:var(--v2-accent)]">{r.who.en.charAt(0)}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{tc(r.who)}</span>
+                <span className="block truncate text-[13px] text-[color:var(--v2-muted)]">{tc(r.tag)}</span>
+              </span>
+              {r.example ? <span className="ml-auto shrink-0 rounded-full bg-[color:var(--v2-band)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-muted)]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</span> : null}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
   );
 }
 

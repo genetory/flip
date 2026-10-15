@@ -135,3 +135,51 @@ export const BEFORE_AFTER_EXAMPLES: { tag: Copy; before: Copy; after: Copy }[] =
     }
   }
 ];
+
+/**
+ * 참여 후기 — 상담을 받은 분이 공개에 동의한 후기만 넣는다.
+ * example: true 인 항목은 '예시' 표시가 붙는다(실제 후기처럼 보이면 안 됨 — 표시광고법).
+ * 실제 후기가 하나라도 생기면 예시 항목을 지우고 example 을 빼서 넣는다. 이름은 가려서(예: "N○○").
+ */
+export type CampaignReview = { example?: boolean; who: Copy; tag: Copy; quote: Copy };
+export const REVIEWS: CampaignReview[] = [
+  {
+    example: true,
+    who: { ko: "N○○ · 베트남", en: "N○○ · Vietnam", zh: "N○○ · 越南", vi: "N○○ · Việt Nam", ja: "N○○ · ベトナム", id: "N○○ · Vietnam" },
+    tag: { ko: "해외영업 지원", en: "Overseas sales", zh: "应聘海外销售", vi: "Ứng tuyển kinh doanh QT", ja: "海外営業志望", id: "Lamar sales luar negeri" },
+    quote: {
+      ko: "편의점 알바는 쓸 게 없다고 생각했는데, 상담하면서 발주 경험이 영업 역량이 될 수 있다는 걸 알았어요.",
+      en: "I thought my convenience store job had nothing to show. The consultation showed me my ordering work was a sales skill.",
+      zh: "我以为便利店兼职没什么可写的，咨询后才发现订货经验也能成为销售能力。",
+      vi: "Tôi nghĩ việc làm thêm ở cửa hàng tiện lợi chẳng có gì để viết, nhưng nhờ tư vấn tôi nhận ra kinh nghiệm đặt hàng chính là năng lực kinh doanh.",
+      ja: "コンビニバイトは書くことがないと思っていましたが、相談で発注の経験が営業力になると分かりました。",
+      id: "Saya kira kerja di minimarket tidak ada yang bisa ditulis. Lewat konsultasi saya sadar pengalaman pemesanan itu kemampuan sales."
+    }
+  },
+  {
+    example: true,
+    who: { ko: "L○○ · 중국", en: "L○○ · China", zh: "L○○ · 中国", vi: "L○○ · Trung Quốc", ja: "L○○ · 中国", id: "L○○ · Tiongkok" },
+    tag: { ko: "마케팅 지원", en: "Marketing", zh: "应聘市场营销", vi: "Ứng tuyển marketing", ja: "マーケティング志望", id: "Lamar marketing" },
+    quote: {
+      ko: "동아리 활동을 숫자와 결과 중심으로 다시 쓰니까 이력서가 훨씬 또렷해졌어요.",
+      en: "Rewriting my club activities around numbers and results made my resume much clearer.",
+      zh: "把社团活动改成以数字和结果为主来写后，简历清晰多了。",
+      vi: "Viết lại hoạt động câu lạc bộ theo con số và kết quả giúp CV của tôi rõ ràng hơn hẳn.",
+      ja: "サークル活動を数字と成果中心に書き直したら、履歴書がずっと分かりやすくなりました。",
+      id: "Menulis ulang kegiatan klub dengan angka dan hasil membuat CV saya jauh lebih jelas."
+    }
+  },
+  {
+    example: true,
+    who: { ko: "T○○ · 우즈베키스탄", en: "T○○ · Uzbekistan", zh: "T○○ · 乌兹别克斯坦", vi: "T○○ · Uzbekistan", ja: "T○○ · ウズベキスタン", id: "T○○ · Uzbekistan" },
+    tag: { ko: "무역사무 지원", en: "Trade admin", zh: "应聘贸易事务", vi: "Ứng tuyển văn phòng XNK", ja: "貿易事務志望", id: "Lamar admin ekspor-impor" },
+    quote: {
+      ko: "한국 회사가 원하는 지원동기가 뭔지 몰랐는데, 제 경험에서 이유를 찾아 주셔서 자신감이 생겼어요.",
+      en: "I didn't know what motivation Korean companies wanted. They found the reason in my own experience, and I felt confident.",
+      zh: "我不知道韩国公司想看什么样的求职动机，专家从我的经历中帮我找到了理由，我更有信心了。",
+      vi: "Tôi không biết công ty Hàn muốn động lực ứng tuyển thế nào. Chuyên gia tìm ra lý do từ chính trải nghiệm của tôi, nên tôi tự tin hơn.",
+      ja: "韓国企業が求める志望動機が分かりませんでしたが、自分の経験から理由を見つけてもらえて自信がつきました。",
+      id: "Saya tidak tahu motivasi seperti apa yang dicari perusahaan Korea. Ahli menemukan alasannya dari pengalaman saya, jadi saya lebih percaya diri."
+    }
+  }
+];
