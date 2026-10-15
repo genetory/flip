@@ -1,4 +1,4 @@
-// "내 경험이 스펙이 되는 순간" — 어플라이 자소서 경험 발굴 캠페인(/experience) 문구·설정.
+// "내 경험이 스펙이 되는 순간" — 어플라이 자소서 경험 발굴 캠페인(/events/experience) 문구·설정.
 // 마케팅·법무가 자주 바꿀 값은 전부 여기 모아 둔다(화면 코드는 components/pages/ExperienceCampaignPage.tsx).
 // 문구는 { ko, en, zh, vi, ja, id } — 앱의 여섯 언어 모두(zh = 간체 중국어, 로케일 "zh-CN").
 

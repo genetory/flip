@@ -6,7 +6,7 @@ import { readAccessToken } from "../../../../../lib/auth-client";
 
 // ---------------------------------------------------------------------------
 // /dashboard/ops/operations/experience-applications — "내 경험이 스펙이 되는 순간"
-// 자소서 경험 발굴 캠페인(/experience) 신청 관리. sgc-applications 와 같은 ops 패턴
+// 자소서 경험 발굴 캠페인(/events/experience) 신청 관리. sgc-applications 와 같은 ops 패턴
 // (검색 + 단계 필터 + 페이지네이션 + status 카운트 + 인라인 단계 변경 + 상세 모달 메모).
 // 주간 운영: 월 검토 → 화 2명 선정·개별 연락 → 수~금 상담. 연락은 운영팀이 직접(자동 발송 없음).
 // ---------------------------------------------------------------------------
@@ -196,7 +196,7 @@ export default function ExperienceApplicationsPage() {
       <header>
         <h1>자소서 경험 발굴 캠페인</h1>
         <p>
-          &ldquo;내 경험이 스펙이 되는 순간&rdquo;(/experience) 신청자입니다. 매주 월요일 검토, 화요일 2명 선정 후 개별 연락,
+          &ldquo;내 경험이 스펙이 되는 순간&rdquo;(/events/experience) 신청자입니다. 매주 월요일 검토, 화요일 2명 선정 후 개별 연락,
           수~금 상담을 진행하세요. 선정·연락은 자동 발송되지 않으니 단계 변경 후 직접 연락해 주세요.
         </p>
       </header>

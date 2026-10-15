@@ -2229,7 +2229,7 @@ async function sendExperienceApplicationDiscordNotification(input: {
       {
         color: 0x0b46e8,
         title: "📝 자소서 경험 발굴 캠페인 — 신규 신청",
-        description: "/experience 에서 새 상담 신청이 접수됐어요.",
+        description: "/events/experience 에서 새 상담 신청이 접수됐어요.",
         fields: [
           { name: "이름", value: cut(input.name || "-", 256), inline: true },
           { name: "지원 직무", value: cut(input.desiredRole || "-", 256), inline: true },
@@ -2947,7 +2947,7 @@ app.use(cors({
 // DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치+여유로 맞춘다.
 app.use(express.json({ limit: "40mb" }));
 
-// 로컬 개발 전용 — Blob 스토리지가 없는 로컬에서 저장한 첨부 파일(/experience 신청 등)을 내려준다.
+// 로컬 개발 전용 — Blob 스토리지가 없는 로컬에서 저장한 첨부 파일(/events/experience 신청 등)을 내려준다.
 // 프로덕션에서는 등록하지 않는다.
 if (process.env.NODE_ENV !== "production") {
   app.use(
