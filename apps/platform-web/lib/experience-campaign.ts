@@ -45,10 +45,10 @@ export const PRIVACY_CONSENT_DETAILS: { label: Copy; value: Copy }[] = [
   }
 ];
 
-/** 사례 공개 동의(선택) 설명. */
+/** 익명 사례 공개 동의(필수) 설명. 바꾸면 API 의 EXPERIENCE_CONSENT_VERSION 도 올린다. */
 export const CASE_STUDY_CONSENT: Copy = {
-  ko: "동의하면 상담 전후 자기소개서를 이름 등 개인을 알 수 없게 가린 Before/After 사례로 공개할 수 있어요. 언제든 철회할 수 있어요.",
-  en: "If you agree, your before/after cover letter may be shared as an anonymous example with all personal details removed. You can withdraw anytime."
+  ko: "상담 전후 자기소개서를 이름·연락처 등 개인을 알 수 없게 가린 Before/After 사례로 어플라이 홈페이지·SNS에 소개할 수 있어요.",
+  en: "Your before/after cover letter may be shared on Aply's website and social media as an anonymous example, with names, contacts and identifying details removed."
 };
 
 /** Before/After 예시 — 실제 상담 사례(공개 동의분)가 생기면 교체한다. */

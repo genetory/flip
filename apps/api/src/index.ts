@@ -10174,7 +10174,7 @@ app.post(
 
 // 개인정보 수집·이용 동의문 버전 — 웹(/experience) 동의문을 고치면 함께 올린다.
 // v2: 경험 소개·자기소개서 텍스트 → 이력서(필수)·자기소개서(선택) 파일 첨부로 수집 항목 변경.
-const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v2";
+const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v3";
 
 // ---- 첨부 파일(multipart) -------------------------------------------------
 // 이력서(resume, 필수)·자기소개서(coverLetterFile, 선택) 각 1개, 10MB 이하.
@@ -10293,7 +10293,8 @@ const experienceApplicationCreateSchema = z.object({
   // multipart 라 불리언도 문자열로 온다 — "true"/"false" 를 받아 바꾼다.
   // 개인정보 수집·이용 동의(필수) — true 만 허용.
   consentPrivacy: z.preprocess((v) => v === true || v === "true", z.literal(true)),
-  consentCaseStudy: z.preprocess((v) => (v === undefined || v === "" ? undefined : v === true || v === "true"), z.boolean().optional()),
+  // 익명 사례 공개 동의(필수) — true 만 허용.
+  consentCaseStudy: z.preprocess((v) => v === true || v === "true", z.literal(true)),
   utmSource: optionalShort(200),
   utmMedium: optionalShort(200),
   utmCampaign: optionalShort(200),

@@ -409,10 +409,11 @@ function validate(f: Fields, t: PlatformT): Partial<Record<FieldKey, string>> {
   if (ce) e.coverLetterFile = ce;
   if (!f.consultMethod) e.consultMethod = t("상담 방식을 골라 주세요.", "Please choose a consultation method.");
   if (!f.consentPrivacy) e.consentPrivacy = t("개인정보 수집·이용에 동의해야 신청할 수 있어요.", "You need to agree to the privacy terms to apply.");
+  if (!f.consentCaseStudy) e.consentCaseStudy = t("익명 사례 공개에 동의해야 신청할 수 있어요.", "You need to agree to anonymous case sharing to apply.");
   return e;
 }
 
-const FIELD_ORDER: FieldKey[] = ["name", "email", "phone", "nationality", "desiredRole", "resume", "coverLetterFile", "consultMethod", "consentPrivacy"];
+const FIELD_ORDER: FieldKey[] = ["name", "email", "phone", "nationality", "desiredRole", "resume", "coverLetterFile", "consultMethod", "consentPrivacy", "consentCaseStudy"];
 
 function ApplyForm({
   t,
@@ -586,7 +587,7 @@ function ApplyForm({
         </div>
       </Field>
 
-      {/* 동의 — 개인정보(필수, 펼쳐 보기) · 사례 공개(선택) */}
+      {/* 동의 — 개인정보(필수, 펼쳐 보기) · 익명 사례 공개(필수) */}
       <div className="flex flex-col gap-3 rounded-[28px] bg-[color:var(--v2-fill)] p-5">
         <div>
           <CheckRow id="exp-consentPrivacy" checked={f.consentPrivacy} onChange={(v) => set("consentPrivacy", v)} invalid={Boolean(errors.consentPrivacy)}>
@@ -611,10 +612,11 @@ function ApplyForm({
           {errors.consentPrivacy ? <ErrorText id="exp-consentPrivacy-err">{errors.consentPrivacy}</ErrorText> : null}
         </div>
         <div>
-          <CheckRow id="exp-consentCaseStudy" checked={f.consentCaseStudy} onChange={(v) => set("consentCaseStudy", v)}>
-            <span className="font-semibold text-[color:var(--v2-ink)]">{t("[선택] 익명 사례 공개에 동의합니다.", "[Optional] I agree to share my case anonymously.")}</span>
+          <CheckRow id="exp-consentCaseStudy" checked={f.consentCaseStudy} onChange={(v) => set("consentCaseStudy", v)} invalid={Boolean(errors.consentCaseStudy)}>
+            <span className="font-semibold text-[color:var(--v2-ink)]">{t("[필수] 익명 사례 공개에 동의합니다.", "[Required] I agree to share my case anonymously.")}</span>
           </CheckRow>
           <p className="ml-9 mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{tc(CASE_STUDY_CONSENT)}</p>
+          {errors.consentCaseStudy ? <ErrorText id="exp-consentCaseStudy-err">{errors.consentCaseStudy}</ErrorText> : null}
         </div>
       </div>
 
@@ -818,7 +820,7 @@ function Faq({ t }: { t: PlatformT }) {
     ],
     [
       t("사례 공개 동의는 꼭 해야 하나요?", "Do I have to agree to share my case?"),
-      t("아니요, 선택이에요. 동의한 분의 사례만 이름 등 개인을 알 수 없게 가려 Before/After로 공개하고, 언제든 철회할 수 있어요. 동의하지 않아도 선정에 영향은 없어요.", "No, it's optional. Only cases with consent are shared, anonymized, as before/after examples, and you can withdraw anytime. It doesn't affect selection.")
+      t("네, 이 캠페인은 상담 사례를 익명 Before/After로 소개하는 프로젝트라 신청할 때 동의가 필요해요. 이름·연락처 등 개인을 알 수 있는 정보는 모두 가리고 공개해요.", "Yes. This campaign shares consultation cases as anonymous before/after examples, so consent is required to apply. Names, contacts and anything identifying are removed.")
     ],
     [
       t("외국인도 신청할 수 있나요?", "Can international students apply?"),
