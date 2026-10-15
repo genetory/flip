@@ -81,7 +81,7 @@ export function CreditLine({ t, credits, per, onTopUp }: { t: PlatformT; credits
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3">
       {/* eslint-disable-next-line @next/next/no-img-element -- 이용권 그림(흰 바탕 → 곱하기 합성) */}
-      <img src={COUPON} alt="" aria-hidden className="h-11 w-11 shrink-0 object-contain mix-blend-multiply" />
+      <img src={COUPON} alt="" aria-hidden className="hidden h-11 w-11 shrink-0 object-contain mix-blend-multiply min-[360px]:block" />
       <span className="min-w-0 flex-1">
         <span className="block text-[12px] font-semibold text-[color:var(--v2-muted)]">{t("모의 면접 이용권", "Mock interview passes", "模拟面试券", "Vé phỏng vấn thử", "模擬面接チケット", "Tiket simulasi")}</span>
         <span className={`block text-[16px] font-bold leading-[1.35] ${empty ? "text-[color:var(--v2-muted)]" : "text-[color:var(--v2-ink)]"}`}>{empty ? t("다 썼어요", "None left", "已用完", "Đã hết", "残りなし", "Habis") : creditLabel(t, credits, per)}</span>

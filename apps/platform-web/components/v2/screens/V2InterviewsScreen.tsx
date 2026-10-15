@@ -243,12 +243,26 @@ function Interviews() {
   return (
     <Page>
       {/* 로그인한 사람에겐 머리말·시작 카드 없이 바로 '다가오는 면접'부터(10분 모의 면접은 아래 연습하기에). */}
-      {/* 맨 위 — 내 이용권(항상). 남은 회수와 [충전하기] */}
-      {credits ? (
-        <div className="px-5 pt-6 md:pt-8">
-          <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+      {/* 맨 위 — 인사 + 면접 그림, 그 아래 내 이용권(항상). 남은 회수와 [충전하기] */}
+      <div className="px-5 pt-6 md:pt-8">
+        <div className="rounded-3xl bg-[color:var(--v2-accent-weak)] p-4 min-[360px]:p-5">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</p>
+              <p className="mt-1 whitespace-pre-line text-[20px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)] min-[360px]:text-[22px]">
+                {t("오늘도 한 문제,\n연습해 볼까요?", "One question\ntoday?", "今天也练\n一道题吧？", "Hôm nay luyện\nmột câu nhé?", "今日も1問、\n練習しませんか？", "Latihan satu\nsoal hari ini?")}
+              </p>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 모의 면접 그림(흰 바탕 → 곱하기 합성, 가장자리 흐림) */}
+            <img src="/img_fake_interview_0.webp" alt="" aria-hidden className="-my-2 -mr-2 h-[112px] w-[112px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[128px] min-[360px]:w-[128px] md:h-[150px] md:w-[150px]" style={{ maskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)" }} />
+          </div>
+          {credits ? (
+            <div className="mt-3">
+              <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
       {/* 다가오는 면접 — Aply에서 지원해 잡힌 면접만(있을 때만). 가로로 넘기는 캐러셀, 하나면 꽉 차게 */}
       {aplyUpcoming.length ? (
         <Section band={false} title={t("다가오는 면접", "Upcoming interview", "即将到来的面试", "Phỏng vấn sắp tới", "近づく面接", "Wawancara mendatang")}>
