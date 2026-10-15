@@ -12,8 +12,10 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes } from "../../../lib/image-upload";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 import {
   getMyPartnerPositionById,
+  getMyPartnerOrganization,
   createMyPartnerPosition,
   updateMyPartnerPosition,
   aiDraftPositionContent,
@@ -159,6 +161,27 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   const [uploadingImg, setUploadingImg] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
+  // 신규 등록은 파트너 승인(운영중)이 나야 가능 — 서버도 막지만, 다 쓰고 나서 '저장 실패'를 보지 않게 들어올 때 먼저 확인한다.
+  const { user } = useAuthSession();
+  // 운영자·수정 화면은 확인 없이 통과. 파트너 신규 등록만 조직 권한(canPostPositions)을 불러와 본다.
+  const bypass = isEdit || user?.role === "OPERATOR";
+  const [orgAllowed, setOrgAllowed] = useState<boolean | null>(null);
+  const postAllowed = bypass ? true : orgAllowed;
+  const setPostAllowed = setOrgAllowed;
+  useEffect(() => {
+    if (bypass || !user) return;
+    let alive = true;
+    getMyPartnerOrganization()
+      .then((org) => {
+        if (alive) setOrgAllowed(Boolean(org?.permissions?.canPostPositions));
+      })
+      .catch(() => {
+        if (alive) setOrgAllowed(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [bypass, user]);
 
   function load() {
     if (!positionId) return;
@@ -255,7 +278,13 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
         toast.success(t("공고를 등록했어요", "Posting created", "职位已提交", "Đã tạo tin", "求人を登録しました", "Lowongan dibuat"));
       }
       router.push(isEdit ? `${partnerRoutes.positions}/${positionId}` : partnerRoutes.positions);
-    } catch {
+    } catch (error) {
+      // 승인 전(403) — 일반 실패와 구분해 관리자 문의로 안내
+      if ((error as { status?: number })?.status === 403) {
+        setPostAllowed(false);
+        toast.error(t("파트너 승인 후 공고를 등록할 수 있어요. 관리자에게 문의해 주세요.", "You can post after your partner account is approved. Please contact the admin.", "合作伙伴审核通过后才能发布职位，请联系管理员。", "Bạn có thể đăng tin sau khi tài khoản đối tác được duyệt. Vui lòng liên hệ quản trị viên.", "パートナー承認後に求人を登録できます。管理者にお問い合わせください。", "Anda bisa memposting setelah akun mitra disetujui. Silakan hubungi admin."));
+        return;
+      }
       toast.error(t("저장에 실패했어요. 잠시 후 다시 시도해주세요.", "Couldn't save. Please try again later.", "保存失败，请稍后再试。", "Không lưu được. Vui lòng thử lại sau.", "保存に失敗しました。しばらくして再度お試しください。", "Gagal menyimpan. Coba lagi nanti."));
     } finally {
       setSaving(false);
@@ -265,10 +294,13 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   return (
     <PartnerAppShell>
       <TalentBackButton className="mb-4" />
-      {status === "loading" ? <TLoading /> : null}
+      {status === "loading" || (!isEdit && postAllowed === null) ? <TLoading /> : null}
       {status === "error" ? <TError onRetry={load} /> : null}
 
-      {status === "ready" ? (
+      {/* 승인 전 — 등록 대신 안내와 관리자 문의 */}
+      {!isEdit && postAllowed === false ? <PostBlocked t={t} /> : null}
+
+      {status === "ready" && (isEdit || postAllowed === true) ? (
         <div className="flex flex-col gap-10">
           <div>
             <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{isEdit ? t("공고 수정", "Edit posting", "编辑职位", "Sửa tin", "求人を編集", "Ubah lowongan") : t("새 공고 등록", "New posting", "创建职位", "Tạo tin mới", "求人を新規登録", "Lowongan baru")}</h1>
@@ -459,5 +491,24 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
 function Textarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className="w-full resize-none rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+  );
+}
+
+/** 승인 전 파트너 — 공고 등록 대신 안내 + 관리자 문의. */
+function PostBlocked({ t }: { t: PlatformT }) {
+  return (
+    <div className="rounded-2xl border border-[#EEF1F5] bg-white px-6 py-10 text-center">
+      <span aria-hidden className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FFF4E8] text-[26px]">⏳</span>
+      <h1 className="mt-4 text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("아직 파트너 승인 전이에요", "Your partner account isn't approved yet", "合作伙伴尚未通过审核", "Tài khoản đối tác chưa được duyệt", "まだパートナー承認前です", "Akun mitra belum disetujui")}</h1>
+      <p className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#5A6473]">
+        {t("관리자 승인이 나면 공고를 등록할 수 있어요. 승인이 늦어지거나 궁금한 점이 있으면 관리자에게 문의해 주세요.", "You can post once an admin approves your account. If it's taking a while or you have questions, please contact the admin.", "管理员审核通过后即可发布职位。如审核较慢或有疑问，请联系管理员。", "Bạn có thể đăng tin khi quản trị viên duyệt tài khoản. Nếu lâu hoặc có thắc mắc, vui lòng liên hệ quản trị viên.", "管理者の承認後に求人を登録できます。承認が遅い場合やご不明点は管理者にお問い合わせください。", "Anda bisa memposting setelah admin menyetujui akun. Jika lama atau ada pertanyaan, hubungi admin.")}
+      </p>
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <a href="mailto:info@flip-ers.com?subject=%5BAply%20%ED%8C%8C%ED%8A%B8%EB%84%88%5D%20%EC%8A%B9%EC%9D%B8%20%EB%AC%B8%EC%9D%98" className="inline-flex h-11 items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14.5px] font-bold text-white transition hover:opacity-90">
+          {t("관리자에게 문의하기", "Contact the admin", "联系管理员", "Liên hệ quản trị viên", "管理者に問い合わせる", "Hubungi admin")}
+        </a>
+        <span className="text-[12.5px] text-[#8B95A1]">info@flip-ers.com</span>
+      </div>
+    </div>
   );
 }

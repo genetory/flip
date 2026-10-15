@@ -163,8 +163,13 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
         toast.success(t("공고를 복제했어요. 내용을 확인하고 게시하세요.", "Posting duplicated. Review the details and publish.", "职位已复制。请检查内容后发布。", "Đã nhân bản tin. Kiểm tra nội dung rồi đăng.", "求人を複製しました。内容を確認して掲載してください。", "Lowongan diduplikat. Periksa lalu terbitkan."));
         router.push(`${partnerRoutes.positions}/${created.id}/edit`);
       })
-      .catch(() => {
-        toast.error(t("복제에 실패했어요.", "Couldn't duplicate.", "复制失败。", "Không nhân bản được.", "複製できませんでした。", "Gagal menduplikat."));
+      .catch((error) => {
+        // 승인 전(403) — 일반 실패와 구분해 관리자 문의로 안내
+        toast.error(
+          (error as { status?: number })?.status === 403
+            ? t("파트너 승인 후 공고를 등록할 수 있어요. 관리자에게 문의해 주세요.", "You can post after your partner account is approved. Please contact the admin.", "合作伙伴审核通过后才能发布职位，请联系管理员。", "Bạn có thể đăng tin sau khi tài khoản đối tác được duyệt. Vui lòng liên hệ quản trị viên.", "パートナー承認後に求人を登録できます。管理者にお問い合わせください。", "Anda bisa memposting setelah akun mitra disetujui. Silakan hubungi admin.")
+            : t("복제에 실패했어요.", "Couldn't duplicate.", "复制失败。", "Không nhân bản được.", "複製できませんでした。", "Gagal menduplikat.")
+        );
         setBusy(false);
       });
   }
