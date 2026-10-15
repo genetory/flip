@@ -122,21 +122,21 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
     const thumb = posThumb(p);
     const bullets = posBullets(p);
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
+      <div className="flex items-start gap-3 rounded-2xl bg-[color:var(--v2-band)] p-3.5">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-[#EEF1F5] object-cover" />
+          <img src={thumb} alt="" className="h-11 w-11 shrink-0 rounded-xl bg-white object-cover" />
         ) : (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-[18px] w-[18px]" weight="fill" /></span>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-[color:var(--v2-accent)]"><Buildings className="h-[18px] w-[18px]" weight="fill" /></span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{name || t("회사명 미정", "Company TBD", "公司待定", "Chưa rõ công ty", "会社未定", "Perusahaan TBD")}</p>
-          <p className="truncate text-[11.5px] font-semibold text-[#4E5968]">{p.title}</p>
+          <p className="truncate text-[15px] font-semibold text-[color:var(--v2-ink)]">{name || t("회사명 미정", "Company TBD", "公司待定", "Chưa rõ công ty", "会社未定", "Perusahaan TBD")}</p>
+          <p className="truncate text-[13px] font-medium text-[color:var(--v2-ink-3)]">{p.title}</p>
           {bullets.length ? (
             <ul className="mt-1 space-y-0.5">
               {bullets.map((b, i) => (
-                <li key={i} className="flex gap-1.5 text-[11.5px] leading-[1.45] text-[#8B95A1]">
-                  <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#C4CAD2]" />
+                <li key={i} className="flex gap-1.5 text-[11.5px] leading-[1.45] text-[color:var(--v2-faint)]">
+                  <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[color:var(--v2-faint)]" />
                   <span className="min-w-0 truncate">{b}</span>
                 </li>
               ))}
@@ -144,8 +144,8 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Link href={`/talent/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("공고 보기", "View posting", "查看公告", "Xem tin", "求人を見る", "Lihat lowongan")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#F2F4F6] hover:text-[#191F28]"><ArrowUpRight className="h-4 w-4" weight="bold" /></Link>
-          <button type="button" onClick={() => (on ? remove(name) : addFromPosition(p))} disabled={!name} className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11.5px] font-bold transition disabled:opacity-40 ${on ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "bg-[#EDF1FD] text-[#0B46E8] hover:bg-[#DDE7FC]"}`}>
+          <Link href={`/talent/jobs/${p.id}`} target="_blank" rel="noopener noreferrer" aria-label={t("공고 보기", "View posting", "查看公告", "Xem tin", "求人を見る", "Lihat lowongan")} className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-white hover:text-[color:var(--v2-ink)]"><ArrowUpRight className="h-4 w-4" weight="bold" /></Link>
+          <button type="button" onClick={() => (on ? remove(name) : addFromPosition(p))} disabled={!name} className={`inline-flex h-9 items-center gap-1 rounded-lg px-3 text-[13px] font-semibold transition disabled:opacity-40 ${on ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "bg-white text-[color:var(--v2-accent)] hover:opacity-80"}`}>
             {on ? <><Check className="h-3.5 w-3.5" weight="bold" /> {t("담음", "Saved", "已收藏", "Đã lưu", "保存済", "Tersimpan")}</> : <><Plus className="h-3.5 w-3.5" weight="bold" /> {t("담기", "Save", "收藏", "Lưu", "保存", "Simpan")}</>}
           </button>
         </div>
@@ -154,12 +154,12 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-[color:var(--v2-bg,#fff)]" : "flex min-h-screen flex-col bg-[color:var(--v2-bg,#fff)]"}>
       {embedded ? (
-        <div className="border-b border-[#EEF1F5]">
+        <div className="border-b border-[color:var(--v2-line)]">
           <div className="mx-auto w-full max-w-3xl px-5 py-3">
-            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-            <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("목표 기업 탐색", "Explore target companies", "探索目标企业", "Khám phá công ty mục tiêu", "目標企業を探す", "Jelajahi perusahaan target")}</p>
+            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("목표 기업 탐색", "Explore target companies", "探索目标企业", "Khám phá công ty mục tiêu", "目標企業を探す", "Jelajahi perusahaan target")}</p>
           </div>
         </div>
       ) : (
@@ -169,33 +169,33 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
         <div className="mx-auto w-full max-w-3xl px-5 pb-20 pt-4 md:pt-8">
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">
                 <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
-              <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+              <Link href="/career-launch/week/1" className="inline-flex h-9 items-center rounded-lg bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 목표 기업 탐색", "Step 1 · Target companies", "Step 1 · 目标企业", "Step 1 · Công ty mục tiêu", "Step 1 · 目標企業", "Step 1 · Perusahaan target")}</p>
-            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("가고 싶은 기업을 정해봐요", "Pick the companies you want to join", "选定你想去的企业", "Chọn công ty bạn muốn vào", "行きたい企業を決めましょう", "Pilih perusahaan yang kamu tuju")}</h1>
-            <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("정한 직무로 지금 채용 중인 기업이에요. 도전·적정·안정을 섞어 3곳 정도 담아두면, Step 2 지원 서류를 그 기업에 맞춰 준비할 수 있어요.", "Companies hiring now for your role. Save about 3 — a mix of reach, match, and safe — so you can tailor your Step 2 documents to them.", "这些是你所选职务当前正在招聘的企业。混合冲刺·匹配·稳妥收藏约3家，Step 2材料就能据此准备。", "Các công ty đang tuyển cho nghề của bạn. Lưu khoảng 3 (thử sức·phù hợp·an toàn) để chuẩn bị hồ sơ Step 2 theo họ.", "選んだ職種で今採用中の企業です。挑戦・適正・安定を混ぜて3社ほど保存すると、Step 2の書類をその企業に合わせて準備できます。", "Perusahaan yang merekrut untuk peranmu. Simpan sekitar 3 (menantang, cocok, aman) agar bisa menyesuaikan dokumen Step 2.")}</p>
+            <p className="text-[14px] font-semibold text-[color:var(--v2-accent)]">{t("Step 1 · 목표 기업 탐색", "Step 1 · Target companies", "Step 1 · 目标企业", "Step 1 · Công ty mục tiêu", "Step 1 · 目標企業", "Step 1 · Perusahaan target")}</p>
+            <h1 className="mt-1.5 break-keep text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">{t("가고 싶은 기업을 정해봐요", "Pick the companies you want to join", "选定你想去的企业", "Chọn công ty bạn muốn vào", "行きたい企業を決めましょう", "Pilih perusahaan yang kamu tuju")}</h1>
+            <p className="mt-2 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("정한 직무로 지금 채용 중인 기업이에요. 도전·적정·안정을 섞어 3곳 정도 담아두면, Step 2 지원 서류를 그 기업에 맞춰 준비할 수 있어요.", "Companies hiring now for your role. Save about 3 — a mix of reach, match, and safe — so you can tailor your Step 2 documents to them.", "这些是你所选职务当前正在招聘的企业。混合冲刺·匹配·稳妥收藏约3家，Step 2材料就能据此准备。", "Các công ty đang tuyển cho nghề của bạn. Lưu khoảng 3 (thử sức·phù hợp·an toàn) để chuẩn bị hồ sơ Step 2 theo họ.", "選んだ職種で今採用中の企業です。挑戦・適正・安定を混ぜて3社ほど保存すると、Step 2の書類をその企業に合わせて準備できます。", "Perusahaan yang merekrut untuk peranmu. Simpan sekitar 3 (menantang, cocok, aman) agar bisa menyesuaikan dokumen Step 2.")}</p>
           </div>
 
           {/* 내 목표 기업 */}
-          <div className="mt-5 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-4">
+          <div className="mt-6 rounded-3xl bg-[color:var(--v2-accent-weak)] p-5">
             <div className="flex items-center justify-between gap-2">
-              <p className="inline-flex items-center gap-1.5 text-[13px] font-black text-[#0B1227]"><Target className="h-4 w-4 text-[#0B46E8]" weight="fill" /> {t("내 목표 기업", "My target companies", "我的目标企业", "Công ty mục tiêu của tôi", "私の目標企業", "Perusahaan targetku")}</p>
-              <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11.5px] font-bold text-[#0B46E8]">{saved.length}{t(" / 3곳", " / 3", " / 3家", " / 3", " / 3社", " / 3")}</span>
+              <p className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[color:var(--v2-ink)]"><Target className="h-4 w-4 text-[color:var(--v2-accent)]" weight="fill" /> {t("내 목표 기업", "My target companies", "我的目标企业", "Công ty mục tiêu của tôi", "私の目標企業", "Perusahaan targetku")}</p>
+              <span className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-[color:var(--v2-accent)]">{saved.length}{t(" / 3곳", " / 3", " / 3家", " / 3", " / 3社", " / 3")}</span>
             </div>
             {saved.length === 0 ? (
-              <p className="mt-2 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("아래에서 관심 가는 기업을 '담기'로 추가해보세요. 3곳 정도가 좋아요.", "Add companies below with 'Save'. About 3 is a good number.", "在下方用“收藏”添加感兴趣的企业，约3家为宜。", "Thêm công ty bên dưới bằng 'Lưu'. Khoảng 3 là tốt.", "下から気になる企業を「保存」で追加しましょう。3社ほどが目安です。", "Tambahkan perusahaan di bawah dengan 'Simpan'. Sekitar 3 ideal.")}</p>
+              <p className="mt-2 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{t("아래에서 관심 가는 기업을 '담기'로 추가해보세요. 3곳 정도가 좋아요.", "Add companies below with 'Save'. About 3 is a good number.", "在下方用“收藏”添加感兴趣的企业，约3家为宜。", "Thêm công ty bên dưới bằng 'Lưu'. Khoảng 3 là tốt.", "下から気になる企業を「保存」で追加しましょう。3社ほどが目安です。", "Tambahkan perusahaan di bawah dengan 'Simpan'. Sekitar 3 ideal.")}</p>
             ) : (
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {saved.map((c) => (
-                  <span key={c.name} className="inline-flex items-center gap-1.5 rounded-full border border-[#CFE0FF] bg-white px-2.5 py-1 text-[12px] font-bold text-[#0B1227]">
+                  <span key={c.name} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[color:var(--v2-ink)]">
                     {c.name}
-                    <button type="button" onClick={() => remove(c.name)} aria-label={t("빼기", "Remove", "移除", "Bỏ", "外す", "Hapus")} className="text-[#8B95A1] transition hover:text-[#F04452]"><X className="h-3.5 w-3.5" weight="bold" /></button>
+                    <button type="button" onClick={() => remove(c.name)} aria-label={t("빼기", "Remove", "移除", "Bỏ", "外す", "Hapus")} className="text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-attention)]"><X className="h-3.5 w-3.5" weight="bold" /></button>
                   </span>
                 ))}
               </div>
@@ -204,51 +204,51 @@ export function TargetCompanyExplorer({ embedded = false, onClose }: { embedded?
 
           {/* 추천 — 관심 직무로 채용 중인 기업 */}
           <div className="mt-6">
-            <p className="text-[13.5px] font-bold text-[#191F28]">{t("관심 직무로 채용 중인 기업", "Companies hiring for your roles", "招聘你所选职务的企业", "Công ty đang tuyển nghề của bạn", "関心職種で採用中の企業", "Perusahaan yang merekrut peranmu")}</p>
+            <p className="text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("관심 직무로 채용 중인 기업", "Companies hiring for your roles", "招聘你所选职务的企业", "Công ty đang tuyển nghề của bạn", "関心職種で採用中の企業", "Perusahaan yang merekrut peranmu")}</p>
             {!loaded ? (
-              <p className="mt-3 flex items-center gap-2 text-[12.5px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+              <p className="mt-3 flex items-center gap-2 text-[12.5px] text-[color:var(--v2-faint)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
             ) : selectedJobs.length === 0 ? (
-              <div className="mt-2 rounded-xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-4 text-center">
-                <p className="text-[12.5px] text-[#8B95A1]">{t("먼저 '관심 직무 3개 선정'을 마치면 맞춤 기업을 추천해드려요. 아래 검색으로도 찾을 수 있어요.", "Finish 'Pick 3 roles' first for tailored suggestions. You can also use search below.", "先完成“选定3个关注职务”即可获得推荐，也可用下方搜索。", "Hoàn thành 'Chọn 3 nghề' trước để có gợi ý. Bạn cũng có thể tìm bên dưới.", "先に「関心職種3つ選定」を終えると推薦できます。下の検索でも探せます。", "Selesaikan 'Pilih 3 peran' dulu untuk saran. Bisa juga pakai pencarian di bawah.")}</p>
-                <Link href="/career-launch/jobs" className="mt-2 inline-block text-[12.5px] font-bold text-[#0B46E8] hover:underline">{t("관심 직무 정하러 가기 →", "Pick roles →", "去选职务 →", "Chọn nghề →", "職種を選ぶ →", "Peran →")}</Link>
+              <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-5 text-center">
+                <p className="text-[12.5px] text-[color:var(--v2-faint)]">{t("먼저 '관심 직무 3개 선정'을 마치면 맞춤 기업을 추천해드려요. 아래 검색으로도 찾을 수 있어요.", "Finish 'Pick 3 roles' first for tailored suggestions. You can also use search below.", "先完成“选定3个关注职务”即可获得推荐，也可用下方搜索。", "Hoàn thành 'Chọn 3 nghề' trước để có gợi ý. Bạn cũng có thể tìm bên dưới.", "先に「関心職種3つ選定」を終えると推薦できます。下の検索でも探せます。", "Selesaikan 'Pilih 3 peran' dulu untuk saran. Bisa juga pakai pencarian di bawah.")}</p>
+                <Link href="/career-launch/jobs" className="mt-2 inline-block text-[12.5px] font-bold text-[color:var(--v2-accent)] hover:underline">{t("관심 직무 정하러 가기 →", "Pick roles →", "去选职务 →", "Chọn nghề →", "職種を選ぶ →", "Peran →")}</Link>
               </div>
             ) : suggestions && suggestions.length > 0 ? (
               <div className="mt-2 flex flex-col gap-2">
                 {suggestions.map((p) => <CompanyRow key={p.id} p={p} />)}
               </div>
             ) : (
-              <p className="mt-2 text-[12.5px] text-[#8B95A1]">{t("지금은 매칭되는 공고가 적어요. 아래 검색으로 관심 기업을 직접 찾아보세요.", "Few matching openings right now. Use search below to find companies.", "目前匹配的公告较少，请用下方搜索查找企业。", "Hiện ít tin phù hợp. Dùng tìm kiếm bên dưới.", "今はマッチする求人が少ないです。下の検索で探してください。", "Sedikit lowongan cocok saat ini. Gunakan pencarian di bawah.")}</p>
+              <p className="mt-2 text-[12.5px] text-[color:var(--v2-faint)]">{t("지금은 매칭되는 공고가 적어요. 아래 검색으로 관심 기업을 직접 찾아보세요.", "Few matching openings right now. Use search below to find companies.", "目前匹配的公告较少，请用下方搜索查找企业。", "Hiện ít tin phù hợp. Dùng tìm kiếm bên dưới.", "今はマッチする求人が少ないです。下の検索で探してください。", "Sedikit lowongan cocok saat ini. Gunakan pencarian di bawah.")}</p>
             )}
           </div>
 
           {/* 검색 */}
           <div className="mt-6">
-            <p className="text-[13.5px] font-bold text-[#191F28]">{t("기업·직무로 검색", "Search companies or roles", "按企业/职务搜索", "Tìm công ty/nghề", "企業・職種で検索", "Cari perusahaan/peran")}</p>
+            <p className="text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("기업·직무로 검색", "Search companies or roles", "按企业/职务搜索", "Tìm công ty/nghề", "企業・職種で検索", "Cari perusahaan/peran")}</p>
             <div className="mt-2 flex gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[#E5E8EB] bg-white px-3 focus-within:border-[#0B46E8]">
-                <MagnifyingGlass className="h-4 w-4 shrink-0 text-[#8B95A1]" weight="bold" />
-                <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} placeholder={t("예: 마케팅, 토스, 외국계", "e.g. marketing, Toss", "如：营销、外企", "vd: marketing", "例: マーケ、外資", "cth: marketing")} className="min-w-0 flex-1 bg-transparent py-2.5 text-[14px] outline-none placeholder:text-[#B0B8C1]" />
+              <div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-2xl bg-[color:var(--v2-band)] px-4 ring-[color:var(--v2-accent)] focus-within:ring-2">
+                <MagnifyingGlass className="h-4 w-4 shrink-0 text-[color:var(--v2-faint)]" weight="bold" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }} placeholder={t("예: 마케팅, 토스, 외국계", "e.g. marketing, Toss", "如：营销、外企", "vd: marketing", "例: マーケ、外資", "cth: marketing")} className="min-w-0 flex-1 bg-transparent py-2.5 text-[16px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-faint)]" />
               </div>
-              <button type="button" onClick={() => void runSearch()} disabled={searching || !q.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+              <button type="button" onClick={() => void runSearch()} disabled={searching || !q.trim()} className="inline-flex h-12 shrink-0 items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-5 text-[16px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
                 {searching ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}{t("검색", "Search", "搜索", "Tìm", "検索", "Cari")}
               </button>
             </div>
             {results.length > 0 ? (
               <div className="mt-2 flex flex-col gap-2">{results.map((p) => <CompanyRow key={p.id} p={p} />)}</div>
             ) : searchErr ? (
-              <p className="mt-3 rounded-xl bg-[#FDECEC] px-4 py-3 text-center text-[12.5px] font-semibold text-[#F04452]">{t("검색 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.", "Something went wrong. Please try again.", "搜索出错，请稍后重试。", "Có lỗi xảy ra. Vui lòng thử lại.", "検索中に問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi.")}</p>
+              <p className="mt-3 rounded-2xl bg-[color:var(--v2-band)] px-4 py-3 text-center text-[12.5px] font-semibold text-[color:var(--v2-attention)]">{t("검색 중 문제가 생겼어요. 잠시 후 다시 시도해 주세요.", "Something went wrong. Please try again.", "搜索出错，请稍后重试。", "Có lỗi xảy ra. Vui lòng thử lại.", "検索中に問題が発生しました。もう一度お試しください。", "Terjadi masalah. Coba lagi.")}</p>
             ) : searched && !searching ? (
-              <p className="mt-3 rounded-xl bg-[#F6F8FB] px-4 py-3 text-center text-[12.5px] text-[#8B95A1]">{t("검색 결과가 없어요. 다른 키워드로 찾아보세요.", "No results. Try another keyword.", "没有结果，试试其他关键词。", "Không có kết quả. Thử từ khóa khác.", "検索結果がありません。別のキーワードでお試しください。", "Tidak ada hasil. Coba kata kunci lain.")}</p>
+              <p className="mt-3 rounded-2xl bg-[color:var(--v2-band)] px-4 py-3 text-center text-[12.5px] text-[color:var(--v2-faint)]">{t("검색 결과가 없어요. 다른 키워드로 찾아보세요.", "No results. Try another keyword.", "没有结果，试试其他关键词。", "Không có kết quả. Thử từ khóa khác.", "検索結果がありません。別のキーワードでお試しください。", "Tidak ada hasil. Coba kata kunci lain.")}</p>
             ) : null}
           </div>
 
           {/* 마치기 */}
-          <div className="mt-8 flex items-center justify-between gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4">
-            <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{saved.length > 0 ? t(`좋아요! 목표 기업 ${saved.length}곳을 담았어요. Step 2에서 이 기업들에 맞춰 서류를 준비해요.`, `Nice! ${saved.length} target companies saved. Tailor your Step 2 docs to them.`, `很好！已收藏 ${saved.length} 家目标企业。Step 2据此准备材料。`, `Tuyệt! Đã lưu ${saved.length} công ty. Chuẩn bị hồ sơ Step 2 theo họ.`, `いいですね！目標企業を${saved.length}社保存しました。Step 2で書類を合わせます。`, `Bagus! ${saved.length} perusahaan tersimpan. Sesuaikan dokumen Step 2.`) : t("관심 가는 기업을 하나 이상 담으면 이 단계가 완료돼요.", "Save at least one company to complete this step.", "至少收藏一家企业即可完成本步骤。", "Lưu ít nhất một công ty để hoàn thành bước này.", "1社以上保存するとこのステップが完了します。", "Simpan minimal satu perusahaan untuk menyelesaikan langkah ini.")}</p>
+          <div className="mt-8 flex items-center justify-between gap-3 rounded-3xl bg-[color:var(--v2-band)] p-5">
+            <p className="break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{saved.length > 0 ? t(`좋아요! 목표 기업 ${saved.length}곳을 담았어요. Step 2에서 이 기업들에 맞춰 서류를 준비해요.`, `Nice! ${saved.length} target companies saved. Tailor your Step 2 docs to them.`, `很好！已收藏 ${saved.length} 家目标企业。Step 2据此准备材料。`, `Tuyệt! Đã lưu ${saved.length} công ty. Chuẩn bị hồ sơ Step 2 theo họ.`, `いいですね！目標企業を${saved.length}社保存しました。Step 2で書類を合わせます。`, `Bagus! ${saved.length} perusahaan tersimpan. Sesuaikan dokumen Step 2.`) : t("관심 가는 기업을 하나 이상 담으면 이 단계가 완료돼요.", "Save at least one company to complete this step.", "至少收藏一家企业即可完成本步骤。", "Lưu ít nhất một công ty để hoàn thành bước này.", "1社以上保存するとこのステップが完了します。", "Simpan minimal satu perusahaan untuk menyelesaikan langkah ini.")}</p>
             {embedded ? (
-              <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</button>
+              <button type="button" onClick={onClose} className="inline-flex h-12 shrink-0 items-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[15px] font-semibold text-white transition hover:opacity-90">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</button>
             ) : (
-              <Link href="/career-launch/week/1" className="shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</Link>
+              <Link href="/career-launch/week/1" className="inline-flex h-12 shrink-0 items-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[15px] font-semibold text-white transition hover:opacity-90">{t("정리하고 마치기", "Done", "整理并结束", "Xong", "まとめて終了", "Selesai")}</Link>
             )}
           </div>
         </div>

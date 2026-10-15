@@ -45,11 +45,11 @@ export function RealOpeningsPreview({ roles }: { roles: string[] }) {
   if (items === null || items.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-      <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
+      <p className="text-[13px] font-semibold text-[color:var(--v2-accent)]">
         {t("지금 열린 실제 채용 공고", "Live openings for your picks", "现在正在招聘的实际职位", "Tin tuyển dụng thật đang mở", "今開いている実際の求人", "Lowongan nyata yang sedang dibuka")}
       </p>
-      <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#8B95A1]">
+      <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-faint)]">
         {t("선정한 직무로 지금 채용 중인 공고예요. 4단계를 마친 뒤 완성한 서류로 바로 지원해봐요.", "These are hiring right now for your chosen roles. After the 4 steps, apply with your finished docs.", "这些是你所选职务当前正在招聘的职位。完成4个步骤后用完成的材料直接申请吧。", "Đây là các tin đang tuyển cho nghề bạn chọn. Sau 4 bước, hãy ứng tuyển bằng hồ sơ hoàn thiện.", "選んだ職種で今採用中の求人です。4ステップを終えたら完成した書類でそのまま応募しましょう。", "Ini sedang merekrut untuk peran pilihanmu. Setelah 4 langkah, lamar dengan dokumen jadimu.")}
       </p>
       <div className="mt-3 flex flex-col gap-2">
@@ -59,16 +59,16 @@ export function RealOpeningsPreview({ roles }: { roles: string[] }) {
             <Link
               key={it.id}
               href={`/talent/jobs/${it.id}`}
-              className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-[#F8FAFC] px-3 py-2.5 transition hover:border-[#0B46E8]/40 hover:bg-white"
+              className="flex items-center gap-3 rounded-2xl bg-white px-3.5 py-3 transition hover:bg-[color:var(--v2-fill)]"
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">
                 <Briefcase className="h-4 w-4" weight="fill" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-bold text-[#191F28]">{it.title}</p>
-                {company ? <p className="truncate text-[11.5px] text-[#8B95A1]">{company}</p> : null}
+                <p className="truncate text-[13px] font-bold text-[color:var(--v2-ink)]">{it.title}</p>
+                {company ? <p className="truncate text-[11.5px] text-[color:var(--v2-faint)]">{company}</p> : null}
               </div>
-              <ArrowRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+              <ArrowRight className="h-4 w-4 shrink-0 text-[color:var(--v2-faint)]" />
             </Link>
           );
         })}

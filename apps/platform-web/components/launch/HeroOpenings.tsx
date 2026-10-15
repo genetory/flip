@@ -45,6 +45,10 @@ function shuffle<T>(arr: T[]): T[] {
 
 const PAGE = 5;
 
+// v2 칩 — 고르면 먹색, 나머지는 연회색.
+const CHIP_ON = "inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-[15px] font-semibold transition bg-[color:var(--v2-ink)] text-white";
+const CHIP_OFF = "inline-flex h-10 shrink-0 items-center justify-center rounded-full px-4 text-[15px] font-semibold transition bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]";
+
 export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
   const t = useLaunchT();
   const canMock = currentWeek >= 4; // 공고별 모의면접은 4주차 도달 후에만
@@ -180,15 +184,15 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
       {/* 준비 중인 직무 */}
       {jobs.length > 0 ? (
         <div className="mb-4">
-          <p className="cl-eyebrow mb-2 inline-flex items-center gap-1.5" style={{ color: "var(--cl-faint)" }}>
-            <Target className="h-3.5 w-3.5" weight="fill" style={{ color: "var(--cl-accent)" }} aria-hidden /> {t("준비 중인 직무", "Roles you're preparing for", "正在准备的职务", "Nghề bạn đang chuẩn bị", "準備中の職種", "Peran yang kamu siapkan")}
+          <p className="mb-2.5 inline-flex items-center gap-1.5 text-[14px] font-semibold text-[color:var(--v2-muted)]">
+            <Target className="h-3.5 w-3.5" weight="fill" style={{ color: "var(--v2-accent)" }} aria-hidden /> {t("준비 중인 직무", "Roles you're preparing for", "正在准备的职务", "Nghề bạn đang chuẩn bị", "準備中の職種", "Peran yang kamu siapkan")}
           </p>
-          <div className="cl-role-tabs">
+          <div className="flex flex-wrap gap-2">
             {jobs.length > 1 ? (
-              <button type="button" onClick={() => selectJob("")} className={activeJob === "" ? "cl-role-chip on" : "cl-role-chip"}>{t("전체", "All", "全部", "Tất cả", "すべて", "Semua")}</button>
+              <button type="button" onClick={() => selectJob("")} className={activeJob === "" ? CHIP_ON : CHIP_OFF}>{t("전체", "All", "全部", "Tất cả", "すべて", "Semua")}</button>
             ) : null}
             {jobs.map((j) => (
-              <button key={j} type="button" onClick={() => selectJob(j)} className={activeJob === j ? "cl-role-chip on" : "cl-role-chip"}>{j}</button>
+              <button key={j} type="button" onClick={() => selectJob(j)} className={activeJob === j ? CHIP_ON : CHIP_OFF}>{j}</button>
             ))}
           </div>
         </div>
@@ -198,8 +202,8 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
       {shown.length > 0 ? (
         <>
           <div className="mb-2.5 flex items-center justify-between gap-2">
-            <p className="text-[14px] font-black text-[#191F28]">{t("나에게 어울리는 공고", "Openings that fit you", "适合你的公告", "Tin phù hợp với bạn", "あなたに合う求人", "Lowongan yang cocok")}</p>
-            <Link href="/talent/jobs" target="_blank" rel="noopener noreferrer" className="text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</Link>
+            <p className="text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("나에게 어울리는 공고", "Openings that fit you", "适合你的公告", "Tin phù hợp với bạn", "あなたに合う求人", "Lowongan yang cocok")}</p>
+            <Link href="/talent/jobs" target="_blank" rel="noopener noreferrer" className="text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">{t("전체 보기", "See all", "查看全部", "Xem tất cả", "すべて見る", "Lihat semua")}</Link>
           </div>
           <div className="flex flex-col gap-2.5">
             {shown.map((p, i) => {
@@ -208,26 +212,26 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
               const bullets = posBullets(p);
               const fit = (relRef.current.get(p.id) ?? 0) >= 2; // 관심 직무 키워드가 여러 개 맞으면 "잘 맞아요"
               return (
-                <div key={`${p.id}:${i}`} className="cl-gate">
-                  <Link href={`/talent/jobs/${p.id}`} className="cl-gate-main">
-                    <span className="logo">
+                <div key={`${p.id}:${i}`} className="grid grid-cols-[1fr_auto] items-stretch gap-3 rounded-2xl bg-[color:var(--v2-band)] p-4 transition md:hover:bg-[color:var(--v2-line)]">
+                  <Link href={`/talent/jobs/${p.id}`} className="grid min-w-0 grid-cols-[48px_1fr] items-start gap-3.5">
+                    <span className="grid h-12 w-12 flex-none place-items-center overflow-hidden rounded-xl bg-white text-[color:var(--v2-accent)]">
                       {thumb ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={thumb} alt="" />
+                        <img src={thumb} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <Buildings className="h-5 w-5" weight="fill" aria-hidden />
                       )}
                     </span>
-                    <span className="body">
-                      <span className="ttl-row">
-                        <span className="ttl">{p.title}</span>
-                        {fit ? <span className="cl-fit"><Target className="h-3 w-3" weight="fill" aria-hidden /> {t("잘 맞아요", "Great fit", "很匹配", "Rất hợp", "好相性", "Cocok")}</span> : null}
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="break-keep text-[15px] font-semibold tracking-[-0.01em] text-[color:var(--v2-ink)]">{p.title}</span>
+                        {fit ? <span className="inline-flex items-center gap-[3px] whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-[color:var(--v2-good)]"><Target className="h-3 w-3" weight="fill" aria-hidden /> {t("잘 맞아요", "Great fit", "很匹配", "Rất hợp", "好相性", "Cocok")}</span> : null}
                       </span>
-                      {name ? <span className="co">{name}</span> : null}
+                      {name ? <span className="mt-0.5 block text-[13px] font-medium text-[color:var(--v2-muted)]">{name}</span> : null}
                       {bullets.length ? (
-                        <ul className="bl">
+                        <ul className="mt-1.5 flex flex-col gap-[3px]">
                           {bullets.map((b, j) => (
-                            <li key={j}><span>{b}</span></li>
+                            <li key={j} className="flex min-w-0 gap-1.5 text-[12px] leading-[1.45] text-[color:var(--v2-faint)] before:mt-[6px] before:h-[3px] before:w-[3px] before:flex-none before:rounded-full before:bg-[color:var(--v2-faint)] before:content-['']"><span className="min-w-0 truncate">{b}</span></li>
                           ))}
                         </ul>
                       ) : null}
@@ -236,7 +240,7 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
                   <button
                     type="button"
                     onClick={() => (canMock ? setActive(positionToPosting(p)) : setBlocked(true))}
-                    className={`cl-gate-btn${canMock ? "" : " locked"}`}
+                    className={`inline-flex h-9 flex-none items-center gap-1.5 self-end whitespace-nowrap rounded-lg px-3.5 text-[13px] font-semibold transition ${canMock ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "bg-white text-[color:var(--v2-faint)]"}`}
                     aria-label={t("모의면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara")}
                   >
                     {canMock ? <Microphone className="h-3.5 w-3.5" weight="fill" aria-hidden /> : <Lock className="h-3.5 w-3.5" weight="fill" aria-hidden />}
@@ -247,13 +251,13 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
             })}
           </div>
           {poolRef.current.length > PAGE ? (
-            <button type="button" onClick={more} className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white py-2.5 text-[13px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+            <button type="button" onClick={more} className="mt-3 inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-band)] text-[15px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
               <Shuffle className="h-4 w-4" weight="bold" /> {t("다른 공고 더보기", "Show more openings", "查看更多公告", "Xem thêm tin", "他の求人をもっと見る", "Tampilkan lebih banyak")}
             </button>
           ) : null}
         </>
       ) : loaded && jobs.length > 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-4 text-center text-[12.5px] text-[#8B95A1]">{t("지금 매칭되는 공고가 적어요. 잠시 후 다시 확인해보세요.", "Few matches right now. Check back soon.", "目前匹配较少，请稍后再看。", "Hiện ít tin phù hợp. Kiểm tra lại sau.", "今はマッチが少ないです。後で確認してください。", "Sedikit yang cocok. Cek lagi nanti.")}</p>
+        <p className="rounded-2xl bg-[color:var(--v2-band)] p-5 text-center text-[14px] text-[color:var(--v2-faint)]">{t("지금 매칭되는 공고가 적어요. 잠시 후 다시 확인해보세요.", "Few matches right now. Check back soon.", "目前匹配较少，请稍后再看。", "Hiện ít tin phù hợp. Kiểm tra lại sau.", "今はマッチが少ないです。後で確認してください。", "Sedikit yang cocok. Cek lagi nanti.")}</p>
       ) : null}
 
       {/* 공고별 모의면접(4주차 도달자) — PostingInterviewCard 와 동일 모달 */}
@@ -262,11 +266,11 @@ export function HeroOpenings({ currentWeek = 1 }: { currentWeek?: number }) {
       {/* 4주차 전 안내 팝업 */}
       {blocked ? (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-5" onClick={() => setBlocked(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Lock className="h-6 w-6" weight="fill" aria-hidden /></span>
-            <p className="mt-3 text-[15.5px] font-black text-[#191F28]">{t("모의면접은 Step 4부터예요", "Mock interview opens in Step 4", "模拟面试从Step 4开始", "Phỏng vấn thử mở ở Step 4", "模擬面接はStep 4から", "Wawancara mulai Step 4")}</p>
-            <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#4E5968]">{t("공고별 모의면접은 Step 4를 진행해야 열려요. 지금은 이번 단계 미션을 이어가 주세요.", "Job-specific mock interviews unlock once you reach Step 4. Continue this step's missions for now.", "公告模拟面试需进行到Step 4才会解锁。请先继续本步骤任务。", "Phỏng vấn thử theo tin mở khi bạn đến Step 4. Hãy tiếp tục nhiệm vụ bước này.", "求人別模擬面接はStep 4に到達すると開きます。今はこのステップのミッションを進めてください。", "Wawancara per lowongan terbuka saat kamu mencapai Step 4. Lanjutkan misi langkah ini dulu.")}</p>
-            <button type="button" onClick={() => setBlocked(false)} className="mt-4 w-full rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white">{t("확인", "Got it", "知道了", "Đã hiểu", "了解", "Oke")}</button>
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"><Lock className="h-6 w-6" weight="fill" aria-hidden /></span>
+            <p className="mt-3 text-[15.5px] font-bold text-[color:var(--v2-ink)]">{t("모의면접은 Step 4부터예요", "Mock interview opens in Step 4", "模拟面试从Step 4开始", "Phỏng vấn thử mở ở Step 4", "模擬面接はStep 4から", "Wawancara mulai Step 4")}</p>
+            <p className="mt-2 break-keep text-[13px] leading-relaxed text-[color:var(--v2-ink-3)]">{t("공고별 모의면접은 Step 4를 진행해야 열려요. 지금은 이번 단계 미션을 이어가 주세요.", "Job-specific mock interviews unlock once you reach Step 4. Continue this step's missions for now.", "公告模拟面试需进行到Step 4才会解锁。请先继续本步骤任务。", "Phỏng vấn thử theo tin mở khi bạn đến Step 4. Hãy tiếp tục nhiệm vụ bước này.", "求人別模擬面接はStep 4に到達すると開きます。今はこのステップのミッションを進めてください。", "Wawancara per lowongan terbuka saat kamu mencapai Step 4. Lanjutkan misi langkah ini dulu.")}</p>
+            <button type="button" onClick={() => setBlocked(false)} className="mt-5 h-12 w-full rounded-xl bg-[color:var(--v2-accent)] px-4 text-[16px] font-semibold text-white transition hover:opacity-90">{t("확인", "Got it", "知道了", "Đã hiểu", "了解", "Oke")}</button>
           </div>
         </div>
       ) : null}

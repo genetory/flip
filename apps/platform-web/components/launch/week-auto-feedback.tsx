@@ -71,7 +71,7 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
   return (
     <Card>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13.5px] font-semibold text-[#4E5968]">{heading ?? t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</span>
+        <span className="text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{heading ?? t("피드백", "Feedback", "反馈", "Phản hồi", "フィードバック", "Umpan balik")}</span>
         {state === "loading" ? (
           <Pill tone="grey">{t("확인 중…", "Checking…", "确认中…", "Đang kiểm tra…", "確認中…", "Memeriksa…")}</Pill>
         ) : state === "done" ? (
@@ -82,26 +82,26 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
       </div>
 
       {state === "loading" ? (
-        <p className="mt-3 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+        <p className="mt-3 text-[13px] text-[color:var(--v2-faint)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
       ) : state === "done" ? (
         <div className="mt-3">
           {stale ? (
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#FFF9EC] px-3 py-2">
-              <span className="text-[12px] font-semibold text-[#B7791F]">{t("내용이 바뀌었어요. 다시 받아 최신 피드백으로 갱신할 수 있어요.", "Your work changed. Refresh to get updated feedback.", "内容有变。可重新获取以更新反馈。", "Nội dung đã đổi. Nhận lại để cập nhật phản hồi.", "内容が変わりました。再取得で最新のフィードバックに更新できます。", "Isi berubah. Ambil lagi untuk memperbarui umpan balik.")}</span>
-              <button type="button" onClick={generate} disabled={busy} className="shrink-0 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12px] font-bold text-white transition hover:bg-[#0B1227] disabled:opacity-60">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#fff4e8] px-3 py-2">
+              <span className="text-[12px] font-semibold text-[#c2410c]">{t("내용이 바뀌었어요. 다시 받아 최신 피드백으로 갱신할 수 있어요.", "Your work changed. Refresh to get updated feedback.", "内容有变。可重新获取以更新反馈。", "Nội dung đã đổi. Nhận lại để cập nhật phản hồi.", "内容が変わりました。再取得で最新のフィードバックに更新できます。", "Isi berubah. Ambil lagi untuk memperbarui umpan balik.")}</span>
+              <button type="button" onClick={generate} disabled={busy} className="shrink-0 rounded-lg bg-[color:var(--v2-accent)] px-3 py-1.5 text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
                 {busy ? t("갱신 중…", "Refreshing…", "更新中…", "Đang cập nhật…", "更新中…", "Memperbarui…") : t("다시 받기", "Refresh", "重新获取", "Nhận lại", "再取得", "Ambil ulang")}
               </button>
             </div>
           ) : null}
-          <p className="whitespace-pre-wrap break-keep rounded-xl bg-[#F6F8FB] p-3.5 text-[13.5px] leading-relaxed text-[#333D4B]"><RichText text={text} /></p>
+          <p className="whitespace-pre-wrap break-keep rounded-xl bg-[color:var(--v2-fill)] p-3.5 text-[13.5px] leading-relaxed text-[color:var(--v2-ink-2)]"><RichText text={text} /></p>
           {/* 능동 코치 — 분석에서 멈추지 않고 다음 주차 행동으로 이어준다 */}
           {showNext && nextW <= 4 ? (
             <Link
               href={`/career-launch/week/${nextW}`}
-              className="group mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#191F28] px-4 py-3 transition hover:bg-[#0B1227]"
+              className="group mt-3 flex items-center justify-between gap-3 rounded-xl bg-[color:var(--v2-accent)] px-4 py-3 transition hover:opacity-90"
             >
               <span className="min-w-0">
-                <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("다음 액션", "Next action", "下一步", "Việc tiếp theo", "次のアクション", "Aksi berikutnya")}</span>
+                <span className="block text-[10.5px] font-bold uppercase tracking-[0.1em] text-white/70">{t("다음 액션", "Next action", "下一步", "Việc tiếp theo", "次のアクション", "Aksi berikutnya")}</span>
                 <span className="mt-0.5 block truncate text-[14px] font-bold text-white">{t(`Step ${nextW} 이어가기`, `Continue to Step ${nextW}`, `继续Step ${nextW}`, `Tiếp tục Step ${nextW}`, `Step ${nextW}へ進む`, `Lanjut ke Step ${nextW}`)}</span>
               </span>
               <ArrowRight className="h-5 w-5 shrink-0 text-white transition" weight="bold" />
@@ -110,22 +110,22 @@ export function WeekAutoFeedback({ week, heading, showNext = true, nextWeek }: {
         </div>
       ) : state === "ready" ? (
         <div className="mt-3">
-          <p className="break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives you feedback.", "教练会审阅本步骤成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
+          <p className="break-keep text-[13px] leading-relaxed text-[color:var(--v2-faint)]">{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives you feedback.", "教练会审阅本步骤成果并给出反馈。", "Huấn luyện viên sẽ xem xét kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
           <button
             type="button"
             onClick={generate}
             disabled={busy}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0B1227] disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Sparkle className="h-4 w-4" weight="fill" />}
             {busy ? t("받는 중…", "Getting…", "获取中…", "Đang nhận…", "受け取り中…", "Sedang mengambil…") : t("피드백 받기", "Get feedback", "获取反馈", "Nhận phản hồi", "フィードバックを受け取る", "Dapatkan umpan balik")}
           </button>
-          {quota ? <p className="mt-2 text-[12px] font-semibold text-[#F04452]">{t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.")}</p> : null}
+          {quota ? <p className="mt-2 text-[12px] font-semibold text-[color:var(--v2-attention)]">{t("지금은 AI 사용이 많아요. 잠시 후 다시 시도해 주세요.", "AI is busy right now. Please try again in a moment.", "AI 当前繁忙，请稍后再试。", "AI đang bận. Vui lòng thử lại sau giây lát.", "現在AIの利用が集中しています。少し後にお試しください。", "AI sedang sibuk. Silakan coba lagi sesaat lagi.")}</p> : null}
         </div>
       ) : state === "none" ? (
-        <p className="mt-3 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{t("이번 단계 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this step's activities first to get feedback.", "先完成本步骤的活动即可获得反馈。", "Hãy thực hiện hoạt động bước này trước để nhận phản hồi.", "このステップのアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas langkah ini dulu untuk mendapat umpan balik.")}</p>
+        <p className="mt-3 break-keep text-[13px] leading-relaxed text-[color:var(--v2-faint)]">{t("이번 단계 활동을 먼저 진행하면 피드백을 받을 수 있어요.", "Do this step's activities first to get feedback.", "先完成本步骤的活动即可获得反馈。", "Hãy thực hiện hoạt động bước này trước để nhận phản hồi.", "このステップのアクティビティを先に進めるとフィードバックを受け取れます。", "Lakukan aktivitas langkah ini dulu untuk mendapat umpan balik.")}</p>
       ) : (
-        <p className="mt-3 text-[13px] text-[#8B95A1]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
+        <p className="mt-3 text-[13px] text-[color:var(--v2-faint)]">{t("피드백을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load the feedback. Please try again in a moment.", "无法加载反馈。请稍后再试。", "Không thể tải phản hồi. Vui lòng thử lại sau giây lát.", "フィードバックを読み込めませんでした。少し後にもう一度お試しください。", "Tidak dapat memuat umpan balik. Silakan coba lagi sebentar lagi.")}</p>
       )}
     </Card>
   );

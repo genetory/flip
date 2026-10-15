@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Check, ArrowRight, CaretLeft, Sparkle } from "@phosphor-icons/react";
-import { LAUNCH, type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
+import { type Mission, type MissionStatus, type Step } from "../../lib/launch/data";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { useStepActionLabel } from "../../lib/launch/data-i18n";
 
@@ -16,7 +16,7 @@ export function Card({ children, className = "", onClick }: { children: React.Re
   return (
     <div
       onClick={onClick}
-      className={`rounded-2xl border border-[#EEF1F5] bg-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04),0_8px_24px_-12px_rgba(17,24,39,0.12)] ${onClick ? "cursor-pointer transition hover:border-[#0B46E8]/30" : ""} ${className}`}
+      className={`rounded-3xl bg-[color:var(--v2-band)] p-5 md:p-6 ${onClick ? "cursor-pointer transition hover:bg-[color:var(--v2-line)]" : ""} ${className}`}
     >
       {children}
     </div>
@@ -25,20 +25,20 @@ export function Card({ children, className = "", onClick }: { children: React.Re
 
 export function Pill({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "lime" | "grey" | "amber" | "green" }) {
   const cls: Record<string, string> = {
-    blue: "bg-[#EDF1FD] text-[#0B46E8]",
+    blue: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]",
     lime: "bg-[#EAFFD1] text-[#3A6B00]",
-    grey: "bg-[#F2F4F6] text-[#4E5968]",
+    grey: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]",
     amber: "bg-amber-50 text-amber-700",
-    green: "bg-emerald-50 text-emerald-700"
+    green: "bg-[#E5F6EE] text-[color:var(--v2-good)]"
   };
-  return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-bold ${cls[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-semibold ${cls[tone]}`}>{children}</span>;
 }
 
 // 진행률 바 — 라임 포인트.
 export function ProgressBar({ value, height = 10 }: { value: number; height?: number }) {
   return (
-    <div className="w-full overflow-hidden rounded-full bg-[#F2F4F6]" style={{ height }}>
-      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: LAUNCH.blue }} />
+    <div className="w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]" style={{ height }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: "var(--v2-accent)" }} />
     </div>
   );
 }
@@ -55,14 +55,14 @@ export function Checklist({ items }: { items: Mission[] }) {
             <button
               type="button"
               onClick={() => setState((s) => ({ ...s, [m.id]: !s[m.id] }))}
-              className="flex w-full items-center gap-3 rounded-xl border border-[#EEF1F5] bg-white px-3.5 py-3 text-left transition hover:bg-[#FAFBFC]"
+              className="flex w-full items-center gap-3 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3.5 text-left transition hover:bg-[color:var(--v2-band)]"
             >
               <span
-                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 ${checked ? "border-[#0B46E8] bg-[#0B46E8]" : "border-[#C9CDD2]"}`}
+                className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 ${checked ? "border-[color:var(--v2-accent)] bg-[color:var(--v2-accent)]" : "border-[color:var(--v2-line)] bg-white"}`}
               >
                 {checked ? <Check className="h-3 w-3 text-white" weight="bold" /> : null}
               </span>
-              <span className={`text-[14px] ${checked ? "text-[#8B95A1] line-through" : "font-medium text-[#191F28]"}`}>{m.label}</span>
+              <span className={`text-[15px] ${checked ? "text-[color:var(--v2-faint)] line-through" : "font-medium text-[color:var(--v2-ink)]"}`}>{m.label}</span>
             </button>
           </li>
         );
@@ -91,18 +91,18 @@ export function Stepper({ steps }: { steps: Step[] }) {
                 aria-label={done
                   ? t("완료 취소", "Mark as incomplete", "取消完成", "Bỏ đánh dấu hoàn thành", "完了を取り消す", "Batalkan selesai")
                   : t("완료로 표시", "Mark as done", "标记为完成", "Đánh dấu hoàn thành", "完了にする", "Tandai selesai")}
-                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-black shadow-sm transition ${
-                  done ? "bg-[#0B46E8] text-white" : "border-2 border-[#D7DCE3] bg-white text-[#4E5968] hover:bg-[#E5E8EB]"
+                className={`flex h-9 w-9 flex-none items-center justify-center rounded-full text-[14px] font-bold transition ${
+                  done ? "bg-[color:var(--v2-accent)] text-white" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"
                 }`}
               >
                 {done ? <Check className="h-[15px] w-[15px]" weight="bold" /> : i + 1}
               </button>
-              {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[#E5E8EB]" /> : null}
+              {!last ? <span className="mt-1.5 w-[2px] flex-1 rounded bg-[color:var(--v2-band)]" /> : null}
             </div>
             {/* 내용 */}
             <div className={`min-w-0 flex-1 ${last ? "pb-0.5" : "pb-7"}`}>
-              <p className={`text-[15.5px] font-bold leading-snug tracking-[-0.01em] md:text-[16px] ${done ? "text-[#B0B8C1] line-through" : "text-[#191F28]"}`}>{s.title}</p>
-              <p className={`mt-1.5 break-keep text-[13.5px] leading-[1.7] ${done ? "text-[#B0B8C1]" : "text-[#4E5968]"}`}>
+              <p className={`text-[17px] font-bold leading-snug tracking-[-0.02em] ${done ? "text-[color:var(--v2-faint)] line-through" : "text-[color:var(--v2-ink)]"}`}>{s.title}</p>
+              <p className={`mt-1.5 break-keep text-[15px] leading-[1.6] ${done ? "text-[color:var(--v2-faint)]" : "text-[color:var(--v2-ink-3)]"}`}>
                 {s.desc
                   .split(/(?<=\.)\s+/)
                   .filter(Boolean)
@@ -115,7 +115,7 @@ export function Stepper({ steps }: { steps: Step[] }) {
               {s.action ? (
                 <Link
                   href={s.action.href}
-                  className="group/act mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                  className="group/act mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent-weak)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80"
                 >
                   {actionLabel(s.action.label)}
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/act:translate-x-0.5" weight="bold" aria-hidden />
@@ -144,11 +144,11 @@ export function LaunchButton({
   full?: boolean;
   type?: "button" | "submit";
 }) {
-  const base = `inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[15px] font-bold transition ${full ? "w-full" : ""}`;
+  const base = `inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-[16px] font-semibold transition active:scale-[0.98] ${full ? "w-full" : ""}`;
   const styles: Record<string, string> = {
-    primary: "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]",
-    lime: "bg-[#B7FF5A] text-[#111111] hover:brightness-105",
-    outline: "bg-[#F2F4F6] text-[#191F28] hover:border-[#0B46E8]/40"
+    primary: "bg-[color:var(--v2-accent)] text-white hover:opacity-90",
+    lime: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)] hover:opacity-80",
+    outline: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-line)]"
   };
   const cls = `${base} ${styles[variant]}`;
   if (href) return <Link href={href} className={cls}>{children}</Link>;
@@ -162,16 +162,16 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
   const [value, setValue] = useState("");
   if (status === "reviewed") {
     return (
-      <div className="flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-[13.5px] font-semibold text-emerald-700">
+      <div className="flex items-center gap-1.5 rounded-2xl bg-[#E5F6EE] px-4 py-3.5 text-[15px] font-semibold text-[color:var(--v2-good)]">
         <Check className="h-4 w-4 flex-none" weight="bold" /> {t("제출 완료 · 피드백까지 받았어요", "Submitted · Feedback received", "已提交 · 已收到反馈", "Đã nộp · Đã nhận phản hồi", "提出完了 · フィードバックも受け取りました", "Terkirim · Umpan balik diterima")}
       </div>
     );
   }
   if (status === "submitted") {
     return (
-      <div className="flex items-center justify-between rounded-xl border border-[#CFE0FF] bg-[#EDF1FD] px-4 py-3.5">
-        <span className="flex items-center gap-1.5 text-[13.5px] font-semibold text-[#0B46E8]"><Check className="h-4 w-4 flex-none" weight="bold" /> {t("제출 완료 · 피드백 대기 중", "Submitted · Awaiting feedback", "已提交 · 等待反馈中", "Đã nộp · Đang chờ phản hồi", "提出完了 · フィードバック待ち", "Terkirim · Menunggu umpan balik")}</span>
-        <button type="button" onClick={() => setStatus("todo")} className="text-[12px] font-semibold text-[#8B95A1] underline">
+      <div className="flex items-center justify-between gap-2 rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3.5">
+        <span className="flex items-center gap-1.5 text-[15px] font-semibold text-[color:var(--v2-accent)]"><Check className="h-4 w-4 flex-none" weight="bold" /> {t("제출 완료 · 피드백 대기 중", "Submitted · Awaiting feedback", "已提交 · 等待反馈中", "Đã nộp · Đang chờ phản hồi", "提出完了 · フィードバック待ち", "Terkirim · Menunggu umpan balik")}</span>
+        <button type="button" onClick={() => setStatus("todo")} className="shrink-0 text-[14px] font-semibold text-[color:var(--v2-faint)] underline">
           {t("다시 제출", "Resubmit", "重新提交", "Nộp lại", "再提出", "Kirim ulang")}
         </button>
       </div>
@@ -183,7 +183,7 @@ export function SubmissionBox({ label, initialStatus }: { label: string; initial
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={label}
-        className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
+        className="h-12 w-full rounded-2xl bg-[color:var(--v2-fill)] px-4 text-[16px] text-[color:var(--v2-ink)] outline-none ring-1 ring-[color:var(--v2-line)] placeholder:text-[color:var(--v2-faint)] focus:ring-2 focus:ring-[color:var(--v2-accent)]"
       />
       <LaunchButton variant="primary" full onClick={() => setStatus("submitted")}>
         {t("과제 제출하기", "Submit assignment", "提交作业", "Nộp bài tập", "課題を提出する", "Kirim tugas")}
@@ -199,22 +199,22 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
   const done = status !== "todo";
   return (
     <div
-      className={`rounded-2xl border p-4 md:p-5 ${
-        done ? "border-emerald-200 bg-emerald-50/50" : "border-[#EEF1F5] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+      className={`rounded-3xl p-5 md:p-6 ${
+        done ? "bg-[#F0FAF5]" : "bg-[color:var(--v2-band)]"
       }`}
     >
       <div className="flex items-start gap-3">
-        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${done ? "bg-emerald-100" : "bg-[#EDF1FD]"}`}>
-          {done ? <Check className="h-5 w-5 text-emerald-600" weight="bold" /> : <Sparkle className="h-5 w-5 text-[#0B46E8]" weight="fill" />}
+        <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${done ? "bg-[#DDF3E8]" : "bg-white"}`}>
+          {done ? <Check className="h-5 w-5 text-[color:var(--v2-good)]" weight="bold" /> : <Sparkle className="h-5 w-5 text-[color:var(--v2-accent)]" weight="fill" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[14.5px] font-bold text-[#191F28]">{label}</p>
+            <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{label}</p>
             {done
               ? <Pill tone="green">{t("자동 제출됨", "Auto-submitted", "已自动提交", "Đã tự động nộp", "自動提出済み", "Terkirim otomatis")}</Pill>
               : <Pill tone="grey">{t("활동 시 자동 반영", "Applied automatically on activity", "活动时自动应用", "Tự động cập nhật khi hoạt động", "活動時に自動反映", "Otomatis saat beraktivitas")}</Pill>}
           </div>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-[#4E5968]">
+          <p className="mt-1.5 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {done
               ? t(
                   `${source}에서 자동으로 담겨 제출됐어요. 따로 제출하지 않아도 괜찮아요 👍`,
@@ -243,8 +243,8 @@ export function AutoSubmitStatus({ label, status, source }: { label: string; sta
 export function SectionTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{children}</h2>
-      {sub ? <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{sub}</p> : null}
+      <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{children}</h2>
+      {sub ? <p className="mt-1.5 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-faint)]">{sub}</p> : null}
     </div>
   );
 }
@@ -253,19 +253,19 @@ export function SectionTitle({ children, sub }: { children: React.ReactNode; sub
 export function LaunchTopBar({ back }: { back?: { href: string; label: string } }) {
   const t = useLaunchT();
   return (
-    <header className="sticky top-0 z-30 border-b border-[#EEF1F5] bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-[color:var(--v2-band)] bg-white/95 backdrop-blur">
       <LaunchContainer className="flex h-14 items-center justify-between">
         {back ? (
-          <Link href={back.href} className="flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+          <Link href={back.href} className="flex items-center gap-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
             <CaretLeft className="h-4 w-4" weight="bold" /> {back.label}
           </Link>
         ) : (
           <Link href="/career-launch" className="flex items-center gap-2">
-            <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px]" style={{ background: LAUNCH.blue }} />
-            <span className="text-[14px] font-extrabold text-[#0B1227]">Career Launch</span>
+            <span className="inline-block h-2.5 w-2.5 rotate-45 rounded-[2px]" style={{ background: "var(--v2-accent)" }} />
+            <span className="text-[15px] font-bold text-[color:var(--v2-ink)]">Career Launch</span>
           </Link>
         )}
-        <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#0B46E8]">{t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}</Link>
+        <Link href="/career-launch/dashboard" className="text-[15px] font-semibold text-[color:var(--v2-accent)]">{t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}</Link>
       </LaunchContainer>
     </header>
   );

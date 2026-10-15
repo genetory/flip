@@ -143,12 +143,12 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
       {embedded ? (
-        <div className="border-b border-[#EEF1F5]">
+        <div className="border-b border-[color:var(--v2-line)]">
           <div className="mx-auto w-full max-w-5xl px-5 py-3">
-            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-            <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("직무 깊이 알기", "Explore your roles", "深入了解职务", "Tìm hiểu nghề sâu hơn", "職務を深く知る", "Pahami peran")}</p>
+            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("직무 깊이 알기", "Explore your roles", "深入了解职务", "Tìm hiểu nghề sâu hơn", "職務を深く知る", "Pahami peran")}</p>
           </div>
         </div>
       ) : (
@@ -159,16 +159,16 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
           {/* 헤더 — 첫 커리어 상담과 동일: 페이지일 때만 1주차·종료하고 나가기(모달은 상단바 X로 나감) */}
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">
                 <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
-              <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+              <Link href="/career-launch/week/1" className="rounded-xl bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 자료", "Step 1 · Research", "Step 1 · 资料", "Step 1 · Tư liệu", "Step 1 · 資料", "Step 1 · Riset")}</p>
-            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</h1>
-            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{t("Step 1 · 자료", "Step 1 · Research", "Step 1 · 资料", "Step 1 · Tư liệu", "Step 1 · 資料", "Step 1 · Riset")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[24px]">{t("선정 직무 깊이 알기", "Get to Know Your Selected Jobs", "深入了解选定的职务", "Hiểu sâu công việc đã chọn", "選定した職務を深く知る", "Kenali Pekerjaan Pilihanmu Lebih Dalam")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("AI 코치와 대화하며 선정 직무를 깊이 이해해요", "Chat with the AI coach to deeply understand your selected jobs", "与 AI 教练对话，深入了解选定的职务", "Trò chuyện với huấn luyện viên AI để hiểu sâu công việc đã chọn", "AIコーチと話しながら選定した職務を深く理解します", "Mengobrol dengan pelatih AI untuk memahami pekerjaan pilihanmu lebih dalam")} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
 
           {/* 좌 대화 · 우 정리한 직무 정보 — 2단(Diagnosis·Experience와 동일) */}
@@ -176,28 +176,28 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
             {/* ── 좌: 대화 ── */}
             <div className="flex min-w-0 flex-col">
           {/* 대화 */}
-          <div className="min-h-[42vh] space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
+          <div className="min-h-[42vh] space-y-4 rounded-3xl bg-white py-4 md:py-5">
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
+                  <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-4 py-3 text-[15px] leading-relaxed text-[color:var(--v2-ink)]">
                     <RichText text={m.text} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
+                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-br-md bg-[color:var(--v2-accent)] px-4 py-3 text-[15px] leading-relaxed text-white"><RichText text={m.text} /></div>
                 </div>
               )
             )}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+                <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                <div className="inline-flex items-center gap-1 rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-3.5 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)]" />
                 </div>
               </div>
             ) : null}
@@ -209,7 +209,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                     key={c}
                     type="button"
                     onClick={() => send(c)}
-                    className="rounded-full border border-[#0B46E8]/30 bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                    className="rounded-full bg-[color:var(--v2-accent-weak)] px-3.5 py-2 text-[13px] font-bold text-[color:var(--v2-accent)] transition hover:opacity-80"
                   >
                     {c}
                   </button>
@@ -218,7 +218,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
             ) : null}
             <div ref={endRef} />
           </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
+          <p className="mt-2 text-center text-[11.5px] text-[color:var(--v2-faint)]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
 
           {/* 입력 / 완료 */}
           {done ? (
@@ -227,14 +227,14 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                 <button
                   type="button"
                   onClick={() => onClose?.()}
-                  className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  className="flex h-[46px] shrink-0 items-center sm:flex-1 justify-center rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14px] font-bold text-white transition hover:opacity-90"
                 >
                   {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                 </button>
               ) : (
                 <Link
                   href="/career-launch/week/1"
-                  className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  className="flex h-[46px] shrink-0 items-center sm:flex-1 justify-center rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14px] font-bold text-white transition hover:opacity-90"
                 >
                   {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                 </Link>
@@ -242,7 +242,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
               <button
                 type="button"
                 onClick={() => setDone(false)}
-                className="h-[46px] shrink-0 rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                className="h-[46px] shrink-0 rounded-xl bg-[color:var(--v2-band)] px-4 text-[13.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
               >
                 {t("계속 정리하기", "Keep gathering", "继续整理", "Tiếp tục tổng hợp", "続けて整理する", "Lanjut mengumpulkan")}
               </button>
@@ -261,7 +261,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                       key={q.send}
                       type="button"
                       onClick={() => send(q.label)}
-                      className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+                      className="rounded-full bg-[color:var(--v2-band)] px-4 py-2.5 text-[12.5px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
                     >
                       {q.label}
                     </button>
@@ -271,7 +271,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
               {/* 통합 입력 바(텍스트필드+전송 44px 정렬). '정리 완료'는 전체폭 하단 행으로 분리해 높이 충돌 제거. */}
               <div className="space-y-2">
                 <form
-                  className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
+                  className="flex items-end gap-1.5 rounded-2xl bg-[color:var(--v2-band)] p-1.5 ring-[color:var(--v2-accent)] transition focus-within:bg-white focus-within:ring-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     send(input);
@@ -289,14 +289,14 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                     rows={1}
                     placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                     disabled={loading}
-                    className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
+                    className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[color:var(--v2-ink)] placeholder:text-[color:var(--v2-faint)] focus:outline-none focus:ring-0 disabled:opacity-60"
                   />
                   <button
                     type="submit"
                     disabled={!input.trim() || loading}
                     aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
                     className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
-                      input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"
+                      input.trim() && !loading ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
                     }`}
                   >
                     <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
@@ -306,7 +306,7 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
                   <button
                     type="button"
                     onClick={finishNow}
-                    className="w-full rounded-xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-black text-white transition hover:bg-[#0A3ECB]"
+                    className="w-full rounded-xl bg-[color:var(--v2-accent)] px-4 py-3 text-[13.5px] font-bold text-white transition hover:opacity-90"
                   >
                     {t("정리 완료", "Done gathering", "整理完成", "Hoàn tất tổng hợp", "整理完了", "Selesai")}
                   </button>
@@ -319,20 +319,20 @@ export function MaterialsChat({ embedded = false, onClose }: { embedded?: boolea
             {/* ── 우: 정리한 직무 정보(sticky) ── */}
             <div>
               <div className="lg:sticky lg:top-20">
-                <p className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">
-                  {t("정리한 직무 정보", "Job insights gathered", "整理的职务信息", "Thông tin công việc đã tổng hợp", "整理した職務情報", "Info pekerjaan terkumpul")} <span className="rounded-full bg-[#EDF1FD] px-1.5 py-0.5 text-[10.5px] font-black text-[#0B46E8]">{materials.length}</span>
+                <p className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--v2-faint)]">
+                  {t("정리한 직무 정보", "Job insights gathered", "整理的职务信息", "Thông tin công việc đã tổng hợp", "整理した職務情報", "Info pekerjaan terkumpul")} <span className="rounded-full bg-[color:var(--v2-accent-weak)] px-1.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-accent)]">{materials.length}</span>
                 </p>
                 {materials.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
-                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[22px]" aria-hidden>📋</span>
-                    <p className="mt-3 text-[13.5px] font-bold text-[#191F28]">{t("정리한 정보가 여기 쌓여요", "Insights appear here", "整理的信息会在这里", "Thông tin sắp xếp hiện ở đây", "整理した情報がここに", "Info tersusun muncul di sini")}</p>
-                    <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("대화하며 직무별 핵심 정보(하는 일·필요 역량 등)가 여기 정리돼요.", "As you chat, key info per job (tasks, skills…) is gathered here.", "对话时，每个职务的核心信息（工作内容·所需能力等）会在这里整理。", "Khi trò chuyện, thông tin chính mỗi nghề (công việc, năng lực…) được sắp xếp ở đây.", "会話しながら職務ごとの核心情報（業務・必要な力など）がここに整理されます。", "Sambil ngobrol, info inti tiap pekerjaan (tugas, kompetensi…) dikumpulkan di sini.")}</p>
+                  <div className="rounded-3xl bg-[color:var(--v2-band)] p-6 text-center">
+                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--v2-band)] text-[22px]" aria-hidden>📋</span>
+                    <p className="mt-3 text-[13.5px] font-bold text-[color:var(--v2-ink)]">{t("정리한 정보가 여기 쌓여요", "Insights appear here", "整理的信息会在这里", "Thông tin sắp xếp hiện ở đây", "整理した情報がここに", "Info tersusun muncul di sini")}</p>
+                    <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("대화하며 직무별 핵심 정보(하는 일·필요 역량 등)가 여기 정리돼요.", "As you chat, key info per job (tasks, skills…) is gathered here.", "对话时，每个职务的核心信息（工作内容·所需能力等）会在这里整理。", "Khi trò chuyện, thông tin chính mỗi nghề (công việc, năng lực…) được sắp xếp ở đây.", "会話しながら職務ごとの核心情報（業務・必要な力など）がここに整理されます。", "Sambil ngobrol, info inti tiap pekerjaan (tugas, kompetensi…) dikumpulkan di sini.")}</p>
                   </div>
                 ) : (
                   <div className="flex max-h-[62vh] flex-col gap-2 overflow-y-auto">
                     {materials.map((mat, i) => (
-                      <div key={i} className="flex gap-1.5 break-keep rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5 text-[12.5px] leading-relaxed text-[#333D4B]">
-                        <span className="flex-none text-[#3A6B00]">•</span>{mat}
+                      <div key={i} className="flex gap-1.5 break-keep rounded-2xl bg-[color:var(--v2-band)] px-3 py-2.5 text-[12.5px] leading-relaxed text-[color:var(--v2-ink-2)]">
+                        <span className="flex-none text-[color:var(--v2-good)]">•</span>{mat}
                       </div>
                     ))}
                   </div>

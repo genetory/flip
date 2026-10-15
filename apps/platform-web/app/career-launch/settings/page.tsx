@@ -10,7 +10,7 @@ import { CaretLeft, SignOut, CaretRight, CircleNotch } from "@phosphor-icons/rea
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
-import { Card, SectionTitle } from "../../../components/launch/ui";
+import { SectionTitle } from "../../../components/launch/ui";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
 
@@ -25,8 +25,8 @@ export default function CareerLaunchSettingsPage() {
 
   if (!isReady || !isAuthenticated) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#F6F8FB]">
-        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+      <main className="flex min-h-screen items-center justify-center bg-[color:var(--v2-bg,#fff)]">
+        <span className="inline-flex items-center gap-2 text-[13px] text-[color:var(--v2-faint)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </main>
     );
   }
@@ -34,40 +34,40 @@ export default function CareerLaunchSettingsPage() {
   const name = user?.name?.trim() || user?.email || t("학생", "Student", "学生", "Sinh viên", "学生", "Siswa");
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="isolate flex min-h-screen flex-col bg-[color:var(--v2-bg,#fff)]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968]">
+          <Link href="/career-launch/dashboard" className="mb-4 inline-flex items-center gap-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
             <CaretLeft className="h-4 w-4" /> {t("대시보드", "Dashboard", "仪表板", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
           </Link>
-          <h1 className="text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{t("설정", "Settings", "设置", "Cài đặt", "設定", "Pengaturan")}</h1>
+          <h1 className="text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{t("설정", "Settings", "设置", "Cài đặt", "設定", "Pengaturan")}</h1>
 
           <div className="mt-6 flex flex-col gap-7">
             {/* 프로필 */}
-            <Card className="flex items-center gap-4">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px] font-black text-[#0B46E8]">{name.slice(0, 1).toUpperCase()}</span>
+            <div className="flex items-center gap-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-[22px] font-bold text-[color:var(--v2-accent)]">{name.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0">
-                <p className="truncate text-[17px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</p>
-                {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
+                <p className="truncate text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{name}</p>
+                {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[color:var(--v2-faint)]">{user.email}</p> : null}
               </div>
-            </Card>
+            </div>
 
             {/* 계정 */}
             <div>
               <SectionTitle>{t("계정", "Account", "账户", "Tài khoản", "アカウント", "Akun")}</SectionTitle>
-              <Card className="divide-y divide-[#F2F4F6] !p-0">
+              <div className="divide-y divide-[color:var(--v2-line)] overflow-hidden rounded-3xl bg-[color:var(--v2-band)]">
                 <Item label={t("계정 정보 관리", "Manage account", "管理账户", "Quản lý tài khoản", "アカウント管理", "Kelola akun")} href={getAccountUrl()} />
                 <Item label={t("이용약관", "Terms", "用户协议", "Điều khoản", "利用規約", "Ketentuan")} href="/legal/terms" />
                 <Item label={t("개인정보처리방침", "Privacy Policy", "隐私政策", "Chính sách bảo mật", "プライバシーポリシー", "Kebijakan Privasi")} href="/legal/privacy" />
-              </Card>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={() => void logout()}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-[#EEF1F5] bg-white py-4 text-[14px] font-semibold text-[#F04452] transition hover:bg-[#FFF5F5]"
+              className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-band)] text-[16px] font-semibold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-line)]"
             >
               <SignOut className="h-[18px] w-[18px]" /> {t("로그아웃", "Log out", "退出登录", "Đăng xuất", "ログアウト", "Keluar")}
             </button>
@@ -81,9 +81,9 @@ export default function CareerLaunchSettingsPage() {
 
 function Item({ label, href }: { label: string; href: string }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-5 py-4 transition hover:bg-[#F6F8FB]">
-      <span className="flex-1 text-[14.5px] text-[#191F28]">{label}</span>
-      <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
+    <Link href={href} className="flex items-center gap-3 px-5 py-4 transition hover:bg-[color:var(--v2-line)]">
+      <span className="flex-1 text-[16px] font-medium text-[color:var(--v2-ink)]">{label}</span>
+      <CaretRight className="h-4 w-4 text-[color:var(--v2-faint)]" />
     </Link>
   );
 }

@@ -44,11 +44,11 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
 }) {
   const t = useLaunchT();
   const statusTone: Record<string, string> = {
-    completed: "bg-[#E7F7EF] text-[#0A9B59]",
-    in_progress: "bg-[#E8F3FF] text-[#1B64DA]",
-    available: "bg-[#F2F4F6] text-[#4E5968]",
-    not_started: "bg-[#F2F4F6] text-[#8B95A1]",
-    locked: "bg-[#F2F4F6] text-[#B0B8C1]"
+    completed: "bg-[#E7F7EF] text-[color:var(--v2-good)]",
+    in_progress: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]",
+    available: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]",
+    not_started: "bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]",
+    locked: "bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
   };
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
   return (
@@ -79,10 +79,10 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
       {/* 결과물 */}
       {resultLabels.length > 0 ? (
         <div className="mt-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini")}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--v2-faint)]">{t("이번 주 결과물", "This week's deliverables", "本周成果", "Kết quả tuần này", "今週の成果物", "Hasil minggu ini")}</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {resultLabels.map((r) => (
-              <span key={r} className="rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-semibold text-[#4E5968]">{r}</span>
+              <span key={r} className="rounded-full bg-[color:var(--v2-band)] px-2.5 py-1 text-[12px] font-semibold text-[color:var(--v2-ink-3)]">{r}</span>
             ))}
           </div>
         </div>
@@ -91,13 +91,13 @@ export function WeekHero({ week, title, subtitle, question, status, doneCount, t
       {/* 진행 */}
       <div className="mt-4">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[12px] font-bold text-[#191F28]">
+          <p className="text-[12px] font-bold text-[color:var(--v2-ink)]">
             {t(`${totalCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${totalCount} done`, `${totalCount} 项中完成 ${doneCount} 项`, `${doneCount}/${totalCount} hoàn thành`, `${totalCount}件中${doneCount}件完了`, `${doneCount} dari ${totalCount} selesai`)}
           </p>
-          <span className="text-[12px] font-black tabular-nums text-[#0B46E8]">{pct}%</span>
+          <span className="text-[12px] font-bold tabular-nums text-[color:var(--v2-accent)]">{pct}%</span>
         </div>
-        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
-          <div className="h-full rounded-full bg-[#3182F6] transition-[width]" style={{ width: `${pct}%` }} />
+        <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]">
+          <div className="h-full rounded-full bg-[color:var(--v2-accent)] transition-[width]" style={{ width: `${pct}%` }} />
         </div>
       </div>
     </div>
@@ -109,17 +109,17 @@ export function WeekCompletionCriteria({ steps, data, onView }: { steps: Step[];
   const t = useLaunchT();
   const stepText = useStepText();
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5" onMouseEnter={onView}>
-      <p className="text-[13px] font-bold text-[#191F28]">{t("이번 주 완료 조건", "This week's completion criteria", "本周完成条件", "Điều kiện hoàn thành tuần này", "今週の完了条件", "Kriteria penyelesaian minggu ini")}</p>
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5" onMouseEnter={onView}>
+      <p className="text-[13px] font-bold text-[color:var(--v2-ink)]">{t("이번 주 완료 조건", "This week's completion criteria", "本周完成条件", "Điều kiện hoàn thành tuần này", "今週の完了条件", "Kriteria penyelesaian minggu ini")}</p>
       <ul className="mt-2.5 flex flex-col gap-1.5">
         {steps.map((s) => {
           const done = isStepDone(s.id, data);
           return (
             <li key={s.id} className="flex items-center gap-2 text-[13.5px]">
-              {done ? <CheckCircle size={18} weight="fill" className="flex-none text-[#0A9B59]" /> : <Circle size={18} className="flex-none text-[#C9CDD2]" />}
-              <span className={done ? "text-[#8B95A1] line-through" : "text-[#191F28]"}>{stepText(s.id, "title")}</span>
+              {done ? <CheckCircle size={18} weight="fill" className="flex-none text-[color:var(--v2-good)]" /> : <Circle size={18} className="flex-none text-[color:var(--v2-faint)]" />}
+              <span className={done ? "text-[color:var(--v2-faint)] line-through" : "text-[color:var(--v2-ink)]"}>{stepText(s.id, "title")}</span>
               {!done && s.action?.href ? (
-                <Link href={s.action.href} className="ml-auto flex-none text-[12px] font-semibold text-[#1B64DA]">
+                <Link href={s.action.href} className="ml-auto flex-none text-[12px] font-semibold text-[color:var(--v2-accent)]">
                   {t("하러 가기", "Go do it", "去完成", "Đi làm", "やりに行く", "Kerjakan")}
                 </Link>
               ) : null}
@@ -137,19 +137,19 @@ export function NextWeekPreview({ week, teaser, unlocked, onClick }: { week: num
   if (week >= 5) return null;
   const isFinal = week === 4;
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-[#FBFCFD] p-5">
-      <div className="flex items-center gap-2 text-[#8B95A1]">
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-5">
+      <div className="flex items-center gap-2 text-[color:var(--v2-faint)]">
         <ArrowDown size={14} weight="bold" />
         <p className="text-[11.5px] font-bold uppercase tracking-[0.08em]">{isFinal ? t("프로그램 마무리", "Program wrap-up", "项目收尾", "Kết thúc chương trình", "プログラムの締め", "Penutup program") : t(`다음 · Week ${week + 1}`, `Next · Week ${week + 1}`, `下一步 · Week ${week + 1}`, `Tiếp · Week ${week + 1}`, `次 · Week ${week + 1}`, `Berikutnya · Week ${week + 1}`)}</p>
       </div>
-      <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[#191F28]">{teaser}</p>
+      <p className="mt-1.5 break-keep text-[14px] leading-relaxed text-[color:var(--v2-ink)]">{teaser}</p>
       {!isFinal ? (
         unlocked ? (
-          <Link href={`/career-launch/week/${week + 1}`} onClick={onClick} className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#191F28] px-3.5 py-2 text-[13px] font-bold text-white">
+          <Link href={`/career-launch/week/${week + 1}`} onClick={onClick} className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-3.5 py-2 text-[13px] font-bold text-white transition hover:opacity-90">
             {t(`Week ${week + 1} 시작하기`, `Start Week ${week + 1}`, `开始 Week ${week + 1}`, `Bắt đầu Week ${week + 1}`, `Week ${week + 1}を始める`, `Mulai Week ${week + 1}`)} <ArrowRight size={14} weight="bold" />
           </Link>
         ) : (
-          <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-[#B0B8C1]">
+          <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-[color:var(--v2-faint)]">
             <Lock size={12} weight="fill" /> {t("이번 주 결과물을 완성하면 열려요", "Opens when you finish this week's deliverables", "完成本周成果后解锁", "Mở khi hoàn thành kết quả tuần này", "今週の成果物を完成すると開きます", "Terbuka setelah hasil minggu ini selesai")}
           </p>
         )

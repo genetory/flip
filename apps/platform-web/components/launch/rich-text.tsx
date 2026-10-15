@@ -15,7 +15,7 @@ export function RichText({ text, sectioned = false }: { text: string; sectioned?
           const heading = line.trim().match(/^\*\*(.+)\*\*$/);
           if (heading) {
             return (
-              <span key={i} className="mt-6 mb-2 block text-[17px] font-black leading-snug tracking-[-0.01em] text-[#0B1227] first:mt-0 md:text-[18px]">
+              <span key={i} className="mt-6 mb-2 block text-[18px] font-bold leading-snug tracking-[-0.02em] text-[color:var(--v2-ink,#191F28)] first:mt-0">
                 {heading[1]}
               </span>
             );

@@ -11,20 +11,20 @@ export function CoachingIntroScreen({ intro, onStart, onEditKnown }: { intro: Co
   const t = useLaunchT();
   return (
     <div className="mx-auto w-full max-w-5xl px-5 pt-6 pb-8 md:pt-8">
-      <p className="text-[12.5px] font-bold uppercase tracking-[0.1em] text-[#3182F6]">{t("오늘의 상담", "Today's coaching", "今日咨询", "Tư vấn hôm nay", "今日の相談", "Konseling hari ini")}</p>
-      <h1 className="mt-2 break-keep text-[22px] font-bold leading-snug text-[#191F28]">{intro.title}</h1>
-      <p className="mt-2 text-[14px] leading-relaxed text-[#4E5968]">{intro.problem}</p>
+      <p className="text-[12.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--v2-accent)]">{t("오늘의 상담", "Today's coaching", "今日咨询", "Tư vấn hôm nay", "今日の相談", "Konseling hari ini")}</p>
+      <h1 className="mt-2 break-keep text-[22px] font-bold leading-snug text-[color:var(--v2-ink)]">{intro.title}</h1>
+      <p className="mt-2 text-[14px] leading-relaxed text-[color:var(--v2-ink-3)]">{intro.problem}</p>
 
       {intro.known.length > 0 && (
-        <div className="mt-5 rounded-2xl border border-[#DDE7FB] bg-[#F4F8FF] p-4">
-          <p className="text-[12.5px] font-bold text-[#1B64DA]">{t("코치가 이미 알고 있는 내용", "What the coach already knows", "教练已了解的内容", "Điều coach đã biết", "コーチがすでに知っていること", "Yang sudah diketahui coach")}</p>
-          <ul className="mt-1.5 space-y-1 text-[13.5px] text-[#191F28]">
+        <div className="mt-5 rounded-3xl bg-[color:var(--v2-accent-weak)] p-4">
+          <p className="text-[12.5px] font-bold text-[color:var(--v2-accent)]">{t("코치가 이미 알고 있는 내용", "What the coach already knows", "教练已了解的内容", "Điều coach đã biết", "コーチがすでに知っていること", "Yang sudah diketahui coach")}</p>
+          <ul className="mt-1.5 space-y-1 text-[13.5px] text-[color:var(--v2-ink)]">
             {intro.known.map((k, i) => (
               <li key={i}>· {k}</li>
             ))}
           </ul>
           {onEditKnown ? (
-            <button onClick={onEditKnown} className="mt-2 text-[12.5px] font-semibold text-[#1B64DA]">
+            <button onClick={onEditKnown} className="mt-2 text-[12.5px] font-semibold text-[color:var(--v2-accent)]">
               {t("코치가 알고 있는 내용 수정하기", "Edit what the coach knows", "修改教练已了解的内容", "Sửa điều coach đã biết", "コーチが知っている内容を修正", "Ubah yang diketahui coach")}
             </button>
           ) : null}
@@ -32,9 +32,9 @@ export function CoachingIntroScreen({ intro, onStart, onEditKnown }: { intro: Co
       )}
 
       {intro.toConfirm.length > 0 && (
-        <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
-          <p className="text-[12.5px] font-bold text-[#4E5968]">{t("오늘 확인할 내용", "What we'll confirm today", "今天要确认的内容", "Điều cần xác nhận hôm nay", "今日確認する内容", "Yang akan dikonfirmasi hari ini")}</p>
-          <ul className="mt-1.5 space-y-1 text-[13.5px] text-[#191F28]">
+        <div className="mt-3 rounded-3xl bg-[color:var(--v2-band)] p-4">
+          <p className="text-[12.5px] font-bold text-[color:var(--v2-ink-3)]">{t("오늘 확인할 내용", "What we'll confirm today", "今天要确认的内容", "Điều cần xác nhận hôm nay", "今日確認する内容", "Yang akan dikonfirmasi hari ini")}</p>
+          <ul className="mt-1.5 space-y-1 text-[13.5px] text-[color:var(--v2-ink)]">
             {intro.toConfirm.map((k, i) => (
               <li key={i}>· {k}</li>
             ))}
@@ -42,15 +42,15 @@ export function CoachingIntroScreen({ intro, onStart, onEditKnown }: { intro: Co
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2 text-[12.5px] text-[#8B95A1]">
+      <div className="mt-4 flex items-center gap-2 text-[12.5px] text-[color:var(--v2-faint)]">
         <span>{intro.estimateText}</span>
         <span aria-hidden>·</span>
         <span>{t("결과물", "Result", "成果", "Kết quả", "成果物", "Hasil")}: {intro.artifactLabel}</span>
       </div>
-      <button onClick={onStart} className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-3.5 text-[15px] font-bold text-white transition sm:w-auto sm:min-w-[240px]">
+      <button onClick={onStart} className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-4 py-3.5 text-[15px] font-bold text-white transition hover:opacity-90 sm:w-auto sm:min-w-[240px]">
         {intro.ctaLabel} <ArrowRight size={16} weight="bold" />
       </button>
-      <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-[#B0B8C1]">
+      <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-[color:var(--v2-faint)]">
         <Info size={13} className="mt-0.5 flex-none" /> {AI_DISCLOSURE}
       </p>
     </div>

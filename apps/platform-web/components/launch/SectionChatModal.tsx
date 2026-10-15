@@ -99,38 +99,38 @@ export function SectionChatModal({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#0B1227]/40 p-4" style={vp ? { top: vp.offsetTop, height: vp.height, bottom: "auto" } : undefined} onClick={onClose}>
       <div className="flex h-full w-full max-w-[460px] flex-col overflow-hidden rounded-3xl bg-white sm:h-[76vh] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         {/* 헤더 */}
-        <div className="border-b border-[#EEF1F5] px-5 py-3">
-          <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-2xl px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]">
+        <div className="border-b border-[color:var(--v2-line)] px-5 py-3">
+          <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-2xl px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]">
             <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
           </button>
           <div className="mt-1.5 flex min-w-0 items-center gap-2.5">
-            <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]">
+            <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" />
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#0B46E8]">{t("AI 코치", "AI coach", "AI 教练", "AI coach", "AIコーチ", "AI coach")}</p>
-              <p className="truncate text-[14px] font-black text-[#0B1227]">{title}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--v2-accent)]">{t("AI 코치", "AI coach", "AI 教练", "AI coach", "AIコーチ", "AI coach")}</p>
+              <p className="truncate text-[14px] font-bold text-[color:var(--v2-ink)]">{title}</p>
             </div>
           </div>
         </div>
 
         {/* 대화 */}
-        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-[#FAFBFC] p-4">
+        <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto bg-[color:var(--v2-fill)] p-4">
           {messages.map((m, i) =>
             m.role === "bot" ? (
               <div key={i} className="flex items-end gap-2">
-                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]">
+                <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" />
                 </span>
-                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
+                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] leading-relaxed text-[color:var(--v2-ink)]">
                   <RichText text={m.text} />
                 </div>
               </div>
             ) : (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">
+                <div className="max-w-[85%] whitespace-pre-wrap break-keep rounded-[22px] rounded-br-md bg-[color:var(--v2-accent)] px-3.5 py-2.5 text-[14px] leading-relaxed text-white">
                   <RichText text={m.text} />
                 </div>
               </div>
@@ -138,14 +138,14 @@ export function SectionChatModal({
           )}
           {loading ? (
             <div className="flex items-end gap-2">
-              <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[#E5E8EB]">
+              <span className="flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" />
               </span>
-              <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+              <div className="inline-flex items-center gap-1 rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-3.5 py-3">
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.2s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.1s]" />
+                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)]" />
               </div>
             </div>
           ) : null}
@@ -153,8 +153,8 @@ export function SectionChatModal({
         </div>
 
         {/* 입력 */}
-        <div className="border-t border-[#EEF1F5] p-3">
-          <p className="mb-2 flex flex-wrap items-center gap-x-1.5 px-1 text-[11px] text-[#B0B8C1]">
+        <div className="border-t border-[color:var(--v2-line)] p-3">
+          <p className="mb-2 flex flex-wrap items-center gap-x-1.5 px-1 text-[11px] text-[color:var(--v2-faint)]">
             <span>{t("💬 모국어로 답해도 돼요 · 닫은 뒤 ‘저장’을 눌러 반영", "💬 Answer in your own language · tap 'Save' after closing", "💬 可以用母语回答 · 关闭后点击‘保存’", "💬 Trả lời bằng tiếng mẹ đẻ · nhấn 'Lưu' sau khi đóng", "💬 母国語で答えてOK · 閉じたら『保存』で反映", "💬 Jawab dengan bahasa ibu · ketuk 'Simpan' setelah menutup")}</span>
           </p>
           <form
@@ -177,13 +177,13 @@ export function SectionChatModal({
               rows={1}
               placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
               disabled={loading}
-              className="max-h-32 min-h-[46px] flex-1 resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] disabled:bg-[#F8FAFC]"
+              className="max-h-32 min-h-[46px] flex-1 resize-none rounded-2xl bg-[color:var(--v2-band)] px-3.5 py-3 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2 disabled:bg-[color:var(--v2-fill)]"
             />
             <button
               type="submit"
               disabled={!input.trim() || loading}
               aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
-              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
+              className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-line)] text-[color:var(--v2-faint)]"}`}
             >
               {loading ? <CircleNotch className="h-5 w-5 animate-spin" weight="bold" /> : <PaperPlaneTilt className="h-5 w-5" weight="fill" />}
             </button>

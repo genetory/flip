@@ -82,12 +82,12 @@ export function CareerLaunchPublicLanding() {
   ];
 
   return (
-    <main className="mx-auto w-full max-w-[760px] px-5 pb-16 pt-8">
-      <p className="text-[12.5px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">Career Launch</p>
-      <h1 className="mt-2 break-keep text-[27px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[34px]">
+    <main className="mx-auto w-full max-w-[760px] px-5 pb-24 pt-8 md:pt-12">
+      <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">Career Launch</p>
+      <h1 className="mt-1.5 break-keep text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[32px] md:leading-[1.3]">
         {t("4주 만에 지원 준비를 끝내는 프로그램", "Finish your application prep in four weeks")}
       </h1>
-      <p className="mt-3 break-keep text-[14.5px] leading-relaxed text-[#4E5968]">
+      <p className="mt-2.5 break-keep text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">
         {t(
           "무엇을 먼저 해야 할지 모르겠다면, 순서대로 따라가면 돼요. 4주 뒤에는 기업에 낼 수 있는 이력서·자기소개서와 면접 준비가 남아요.",
           "If you don't know what to do first, just follow the order. After four weeks you'll have a submittable resume, cover letter, and interview prep."
@@ -95,13 +95,13 @@ export function CareerLaunchPublicLanding() {
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968]">
+        <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)]">
           <Clock className="h-3.5 w-3.5" weight="fill" /> {t("주당 2~3시간", "2–3 hours a week")}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968]">
+        <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)]">
           <Robot className="h-3.5 w-3.5" weight="fill" /> {t("AI 코치가 함께", "With an AI coach")}
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968]">
+        <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)]">
           <UserCircle className="h-3.5 w-3.5" weight="fill" /> {t("운영진이 직접 답변", "Our team answers directly")}
         </span>
       </div>
@@ -110,35 +110,35 @@ export function CareerLaunchPublicLanding() {
       <Link
         href="/career-launch/start"
         onClick={() => trackCareerLaunchStartClick("landing_hero")}
-        className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-[#0B46E8] px-6 text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+        className="mt-6 inline-flex h-12 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-6 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
       >
         {t("시작하기", "Get started")}
       </Link>
 
-      <section className="mt-10">
-        <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("4주 구성", "The four weeks")}</h2>
+      <section className="mt-12">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("4주 구성", "The four weeks")}</h2>
         <ol className="mt-3 flex flex-col gap-2.5">
           {weeks.map((w) => (
-            <li key={w.w} className="rounded-2xl border border-[#EEF1F5] bg-white px-4 py-3.5">
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#0B46E8]">{w.w}</p>
-              <p className="mt-1 break-keep text-[15px] font-black text-[#191F28]">{w.title}</p>
-              <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{w.body}</p>
+            <li key={w.w} className="rounded-2xl bg-[color:var(--v2-band)] px-5 py-4">
+              <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{w.w}</p>
+              <p className="mt-1 break-keep text-[17px] font-bold text-[color:var(--v2-ink)]">{w.title}</p>
+              <p className="mt-1 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-muted)]">{w.body}</p>
             </li>
           ))}
         </ol>
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("4주 뒤에 남는 것", "What you'll have after four weeks")}</h2>
+      <section className="mt-12">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("4주 뒤에 남는 것", "What you'll have after four weeks")}</h2>
         <ul className="mt-3 flex flex-col gap-2">
           {outputs.map((o) => (
-            <li key={o} className="flex items-start gap-2 text-[13.5px] leading-relaxed text-[#333D4B]">
-              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#0A9B59]" weight="fill" />
+            <li key={o} className="flex items-start gap-2.5 text-[16px] leading-[1.6] text-[color:var(--v2-ink-2)]">
+              <CheckCircle className="mt-1 h-[18px] w-[18px] shrink-0 text-[color:var(--v2-good)]" weight="fill" />
               <span className="break-keep">{o}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[12px] leading-relaxed text-[#8B95A1]">
+        <p className="mt-3 text-[14px] leading-[1.6] text-[color:var(--v2-faint)]">
           {t(
             "결과물은 본인이 쓴 내용으로 만들어져요. 다른 사람의 이력서를 예시로 보여주지 않습니다.",
             "Your outputs are built from what you write. We don't show other people's documents as examples."
@@ -146,36 +146,36 @@ export function CareerLaunchPublicLanding() {
         </p>
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("자주 묻는 질문", "FAQ")}</h2>
+      <section className="mt-12">
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("자주 묻는 질문", "FAQ")}</h2>
         <div className="mt-3 flex flex-col gap-1.5">
           {faqs.map((f) => (
-            <details key={f.q} className="rounded-2xl border border-[#EEF1F5] bg-white px-4 py-3">
-              <summary className="flex cursor-pointer items-center justify-between gap-2 text-[13.5px] font-bold text-[#191F28]">
+            <details key={f.q} className="rounded-2xl bg-[color:var(--v2-band)] px-5 py-4">
+              <summary className="flex cursor-pointer items-center justify-between gap-2 text-[16px] font-semibold text-[color:var(--v2-ink)]">
                 {f.q}
-                <CaretDown className="h-4 w-4 shrink-0 text-[#B0B8C1]" weight="bold" />
+                <CaretDown className="h-4 w-4 shrink-0 text-[color:var(--v2-faint)]" weight="bold" />
               </summary>
-              <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#4E5968]">{f.a}</p>
+              <p className="mt-2 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{f.a}</p>
             </details>
           ))}
         </div>
       </section>
 
-      <section className="mt-10 rounded-2xl bg-[#F5F8FF] px-4 py-5 text-center">
-        <p className="break-keep text-[15px] font-black text-[#191F28]">{t("어떤 직무가 맞는지 모르겠다면", "Not sure which role fits you?")}</p>
-        <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#4E5968]">
+      <section className="mt-12 rounded-3xl bg-[color:var(--v2-accent-weak)] px-5 py-7 text-center">
+        <p className="break-keep text-[18px] font-bold text-[color:var(--v2-ink)]">{t("어떤 직무가 맞는지 모르겠다면", "Not sure which role fits you?")}</p>
+        <p className="mt-1.5 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
           {t("내 비자로 지원할 수 있는 공고부터 확인해 보세요.", "Start by checking the jobs your visa allows.")}
         </p>
         <Link
           href="/talent/visa"
           onClick={() => trackCareerLaunchStartClick("landing_visa_guide")}
-          className="mt-3 inline-block text-[13.5px] font-bold text-[#0B46E8] underline underline-offset-2"
+          className="mt-4 inline-flex h-10 items-center rounded-xl bg-white px-4 text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80"
         >
           {t("비자별 취업 가이드 보기", "See job guides by visa")}
         </Link>
       </section>
 
-      <p className="mt-8 text-[11.5px] leading-relaxed text-[#8B95A1]">
+      <p className="mt-8 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
         {t(
           "APLY 는 합격이나 비자 발급을 보장하지 않습니다. 프로그램은 준비 과정을 돕는 도구예요.",
           "Aply does not guarantee a job offer or a visa. The program is a tool to help you prepare."

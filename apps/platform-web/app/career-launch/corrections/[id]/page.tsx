@@ -6,7 +6,6 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CaretLeft } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
-import { LaunchAmbientBackground } from "../../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../../components/AplyFooter";
 import { RichText } from "../../../../components/launch/rich-text";
 import { PostingResultList } from "../../../../components/launch/PostingResultList";
@@ -73,57 +72,56 @@ export default function CorrectionDetailPage({ params }: { params: Promise<{ id:
   const avg = items.length ? Math.round(items.reduce((s, it) => s + it.score, 0) / items.length) : null;
 
   return (
-    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
-      <LaunchAmbientBackground />
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/corrections" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+        <div className="mx-auto w-full max-w-[880px] px-5 pt-6 md:pt-10">
+          <Link href="/career-launch/corrections" className="inline-flex items-center gap-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
             <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}
           </Link>
 
           {phase === "loading" ? (
-            <p className="mt-8 text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
+            <p className="mt-8 text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</p>
           ) : phase === "error" ? (
             <div className="mt-8">
-              <p className="text-[13px] text-[#8B95A1]">{t("불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load. Please try again shortly.", "加载失败，请稍后重试。", "Không tải được. Thử lại sau.", "読み込めませんでした。少し後にお試しください。", "Gagal memuat. Coba lagi.")}</p>
-              <button type="button" onClick={() => void load()} className="mt-3 rounded-lg border border-[#E5E8EB] px-4 py-2 text-[12.5px] font-bold text-[#4E5968]">{t("다시 시도", "Retry", "重试", "Thử lại", "再試行", "Coba lagi")}</button>
+              <p className="text-[15px] text-[color:var(--v2-muted)]">{t("불러오지 못했어요. 잠시 후 다시 시도해 주세요.", "Couldn't load. Please try again shortly.", "加载失败，请稍后重试。", "Không tải được. Thử lại sau.", "読み込めませんでした。少し後にお試しください。", "Gagal memuat. Coba lagi.")}</p>
+              <button type="button" onClick={() => void load()} className="mt-3 inline-flex h-9 items-center rounded-lg bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("다시 시도", "Retry", "重试", "Thử lại", "再試行", "Coba lagi")}</button>
             </div>
           ) : phase === "notfound" || !log ? (
-            <p className="mt-8 text-[13px] text-[#8B95A1]">{t("면접 기록을 찾을 수 없어요.", "Interview record not found.", "找不到面试记录。", "Không tìm thấy bản ghi.", "面接記録が見つかりません。", "Rekaman tidak ditemukan.")}</p>
+            <p className="mt-8 text-[15px] text-[color:var(--v2-muted)]">{t("면접 기록을 찾을 수 없어요.", "Interview record not found.", "找不到面试记录。", "Không tìm thấy bản ghi.", "面接記録が見つかりません。", "Rekaman tidak ditemukan.")}</p>
           ) : (
             <>
               <div className="mt-3.5">
-                <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{eyebrow}</p>
-                <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[26px]">{label}</h1>
-                {date ? <p className="mt-1.5 text-[12.5px] text-[#8B95A1]">{date}</p> : null}
+                <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">{eyebrow}</p>
+                <h1 className="mt-1.5 break-keep text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">{label}</h1>
+                {date ? <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{date}</p> : null}
               </div>
 
               {items.length ? (
                 <div className="mt-5">
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <p className="text-[14px] font-black text-[#191F28]">{t("면접 결과", "Interview results", "面试结果", "Kết quả phỏng vấn", "面接結果", "Hasil wawancara")}</p>
-                    {avg != null ? <span className="rounded-full bg-[#EDF1FD] px-2.5 py-1 text-[12px] font-bold text-[#0B46E8]">{t("평균", "Avg", "平均", "TB", "平均", "Rata")} {avg}</span> : null}
+                    <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("면접 결과", "Interview results", "面试结果", "Kết quả phỏng vấn", "面接結果", "Hasil wawancara")}</p>
+                    {avg != null ? <span className="rounded-full bg-[color:var(--v2-accent-weak)] px-2.5 py-1 text-[13px] font-bold text-[color:var(--v2-accent)]">{t("평균", "Avg", "平均", "TB", "平均", "Rata")} {avg}</span> : null}
                   </div>
                   <PostingResultList items={items} rescore={logRescore(log)} onItemsChange={updateItems} />
                 </div>
               ) : log.messages?.length ? (
-                <div className="mt-5 space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
+                <div className="mt-5 space-y-4 rounded-3xl bg-[color:var(--v2-band)] p-4 md:p-5">
                   {log.messages.map((m, i) =>
                     m.role === "bot" ? (
                       <div key={i} className="flex items-end gap-2">
-                        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">🎤</span>
-                        <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]"><RichText text={m.text} /></div>
+                        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-white text-[15px]">🎤</span>
+                        <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[15px] leading-[1.6] text-[color:var(--v2-ink)]"><RichText text={m.text} /></div>
                       </div>
                     ) : (
                       <div key={i} className="flex justify-end">
-                        <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
+                        <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[color:var(--v2-accent)] px-4 py-3 text-[15px] leading-[1.6] text-white"><RichText text={m.text} /></div>
                       </div>
                     )
                   )}
                 </div>
               ) : (
-                <p className="mt-8 text-center text-[13px] text-[#8B95A1]">{t("표시할 내용이 없어요.", "Nothing to show.", "无内容可显示。", "Không có nội dung.", "表示する内容がありません。", "Tidak ada yang ditampilkan.")}</p>
+                <p className="mt-8 text-center text-[15px] text-[color:var(--v2-muted)]">{t("표시할 내용이 없어요.", "Nothing to show.", "无内容可显示。", "Không có nội dung.", "表示する内容がありません。", "Tidak ada yang ditampilkan.")}</p>
               )}
             </>
           )}

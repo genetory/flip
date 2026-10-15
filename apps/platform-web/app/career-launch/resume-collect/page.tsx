@@ -22,7 +22,6 @@ import {
 } from "../../../lib/launch/resume-data";
 import { fetchProgress } from "../../../lib/launch/progress-client";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -187,11 +186,10 @@ export default function ResumeCollectPage() {
 
   if (!isReady || !loaded) {
     return (
-      <div className="isolate flex min-h-screen flex-col bg-white">
-        <LaunchAmbientBackground />
+      <div className="flex min-h-screen flex-col bg-white">
         <CareerLaunchHeader />
         <main className="flex flex-1 items-center justify-center">
-          <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>
+          <span className="text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>
         </main>
         <AplyFooter />
       </div>
@@ -206,18 +204,18 @@ export default function ResumeCollectPage() {
           {/* 상단 바 — 폼을 아래로 스크롤하며 타이핑해도 저장/취소가 항상 손에 닿도록
               헤더(top-14) 바로 아래에 고정. 스크롤 시 backdrop-blur 로 본문과 분리한다. */}
           <div className="sticky top-14 z-30 -mx-5 flex items-center justify-between gap-3 bg-white/85 px-5 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
-            <button type="button" onClick={onBack} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <button type="button" onClick={onBack} className="-ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <SaveIndicator state={saveState} dirty={dirty} t={t} />
-              <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
+              <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] min-[360px]:px-3 min-[360px]:text-[14px] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
               </button>
-              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="inline-flex h-9 items-center whitespace-nowrap rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] min-[360px]:px-3 min-[360px]:text-[14px] disabled:cursor-not-allowed disabled:opacity-40">
                 {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
               </button>
-              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--v2-accent)] px-2.5 text-[13px] font-semibold min-[360px]:px-3.5 min-[360px]:text-[14px] text-white transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
                 {saveState === "saving" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Check className="h-4 w-4" weight="bold" />}
                 {t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
               </button>
@@ -226,18 +224,18 @@ export default function ResumeCollectPage() {
 
           {/* 마스트헤드 */}
           <div className="mt-3.5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
-            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{focus ? sectionLabel[focus] : t("내 이력서 작성", "Build your resume", "撰写我的简历", "Viết CV của tôi", "履歴書を作成", "Susun resume saya")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{focus ? t("이 항목만 채우면 돼요. 직접 입력하거나 'AI로 채우기'로 대화하며 완성하세요.", "Just fill in this section — type it in or use 'Fill with AI' to complete it by chatting.", "只需填写此项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần điền mục này — tự nhập hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ入力すればOK。直接入力するか『AIで埋める』で会話しながら完成させましょう。", "Cukup isi bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Fill in each item and it updates the preview instantly. Tap 'Save' above when you're done.", "直接填写各项，右侧预览会即时更新。完成后点击上方‘保存’。", "Điền từng mục và bản xem trước cập nhật ngay. Xong thì nhấn 'Lưu' ở trên.", "各項目を入力すると右のプレビューに即反映。書き終えたら上の『保存』を押してください。", "Isi tiap item dan pratinjau langsung diperbarui. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
+            <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">{t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")}</p>
+            <h1 className="mt-1.5 break-keep text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{focus ? sectionLabel[focus] : t("내 이력서 작성", "Build your resume", "撰写我的简历", "Viết CV của tôi", "履歴書を作成", "Susun resume saya")}</h1>
+            <p className="mt-2.5 break-keep text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)] md:text-[17px]">{focus ? t("이 항목만 채우면 돼요. 직접 입력하거나 'AI로 채우기'로 대화하며 완성하세요.", "Just fill in this section — type it in or use 'Fill with AI' to complete it by chatting.", "只需填写此项。可直接输入，或用“用AI填写”对话完成。", "Chỉ cần điền mục này — tự nhập hoặc dùng 'Điền bằng AI' để hoàn thành qua trò chuyện.", "この項目だけ入力すればOK。直接入力するか『AIで埋める』で会話しながら完成させましょう。", "Cukup isi bagian ini — ketik langsung atau pakai 'Isi dengan AI' lewat percakapan.") : t("항목을 직접 채우면 오른쪽 미리보기에 바로 반영돼요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Fill in each item and it updates the preview instantly. Tap 'Save' above when you're done.", "直接填写各项，右侧预览会即时更新。完成后点击上方‘保存’。", "Điền từng mục và bản xem trước cập nhật ngay. Xong thì nhấn 'Lưu' ở trên.", "各項目を入力すると右のプレビューに即反映。書き終えたら上の『保存』を押してください。", "Isi tiap item dan pratinjau langsung diperbarui. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
           </div>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             {/* ── 편집 폼 ── */}
             <div className="flex flex-col gap-9">
               {/* 기본정보 */}
               <section id="sec-basic" className={show("basic") ? undefined : "hidden"}>
                 <div className="mb-4 flex items-center justify-between gap-2">
-                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
+                  <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("기본정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
                   <AiBtn onClick={() => setChatFocus("basic")} label={aiLabel} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -307,7 +305,7 @@ export default function ResumeCollectPage() {
               {/* 스킬 */}
               <section id="sec-skill" className={show("skill") ? undefined : "hidden"}>
                 <div className="mb-4 flex items-center justify-between gap-2">
-                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</h2>
+                  <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</h2>
                   <AiBtn onClick={() => setChatFocus("skill")} label={aiLabel} />
                 </div>
                 <TagInput values={data.skills ?? []} onChange={(vals) => commit({ ...data, skills: vals })} placeholder={t("예: Python (엔터로 추가)", "e.g., Python (Enter to add)", "例：Python（回车添加）", "VD: Python (Enter để thêm)", "例：Python（Enterで追加）", "Cth: Python (Enter untuk menambah)")} />
@@ -316,7 +314,7 @@ export default function ResumeCollectPage() {
               {/* 어학 */}
               <section id="sec-lang" className={show("lang") ? undefined : "hidden"}>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</h2>
+                  <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("어학", "Languages", "语言", "Ngoại ngữ", "語学", "Bahasa")}</h2>
                   {!noLang ? (
                     <div className="flex items-center gap-1.5">
                       <AiBtn onClick={() => setChatFocus("lang")} label={aiLabel} />
@@ -324,8 +322,8 @@ export default function ResumeCollectPage() {
                     </div>
                   ) : null}
                 </div>
-                <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-[#4E5968]">
-                  <input type="checkbox" checked={noLang} onChange={(e) => setNoLang(e.target.checked)} className="h-4 w-4 accent-[#0B46E8]" />
+                <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[15px] font-medium text-[color:var(--v2-ink-3)]">
+                  <input type="checkbox" checked={noLang} onChange={(e) => setNoLang(e.target.checked)} className="h-[18px] w-[18px] accent-[color:var(--v2-accent)]" />
                   {t("어학 없음", "No languages", "无语言", "Chưa có ngoại ngữ", "語学なし", "Belum ada bahasa")}
                 </label>
                 {noLang ? null : (
@@ -357,12 +355,12 @@ export default function ResumeCollectPage() {
             {/* ── 실시간 A4 미리보기 ── */}
             <div className={`${showPreview ? "block" : "hidden"} lg:block`}>
               <div className="lg:sticky lg:top-20">
-                <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
+                <p className="mb-2.5 text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
                 {/* 회색 트레이 위에 A4 시트가 쌓임 — 1장을 넘기면 다음 장이 아래로 이어짐 */}
-                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
+                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-3xl bg-[color:var(--v2-band)] p-3">
                   <ResumePreview content={toResumeContent(data)} design={DEFAULT_DESIGN} preserveOrder />
                 </div>
-                <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
+                <Link href="/career-launch/resume-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80">
                   {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} <ArrowUpRight className="inline h-3.5 w-3.5 align-text-bottom" weight="bold" aria-hidden />
                 </Link>
               </div>
@@ -388,11 +386,11 @@ export default function ResumeCollectPage() {
 }
 
 // ── 하위 UI ──
-const inputClass = "w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
+const inputClass = "w-full rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2";
 const taClass = `${inputClass} min-h-[64px] resize-y leading-relaxed`;
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="mb-1.5 block text-[12px] font-bold text-[#4E5968]">{children}</label>;
+  return <label className="mb-1.5 block text-[14px] font-semibold text-[color:var(--v2-muted)]">{children}</label>;
 }
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
@@ -404,21 +402,21 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
 }
 function AiBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0B1227]">
+    <button type="button" onClick={onClick} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-ink)] px-3 text-[14px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
       <Sparkle className="h-3.5 w-3.5" weight="fill" /> {label}
     </button>
   );
 }
 function AddBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#E1E9FC]">
+    <button type="button" onClick={onClick} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-accent-weak)] px-3 text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80 active:scale-[0.98]">
       <Plus className="h-3.5 w-3.5" weight="bold" /> {label}
     </button>
   );
 }
 function SortBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 rounded-lg border border-[#E5E8EB] bg-white px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+    <button type="button" onClick={onClick} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-band)] px-3 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
       <SortAscending className="h-3.5 w-3.5" weight="bold" /> {label}
     </button>
   );
@@ -426,7 +424,7 @@ function SortBtn({ onClick, label }: { onClick: () => void; label: string }) {
 function RowSectionTitle({ title, onAdd, addLabel, onAi, aiLabel, onSort, sortLabel }: { title: string; onAdd: () => void; addLabel: string; onAi?: () => void; aiLabel?: string; onSort?: () => void; sortLabel?: string }) {
   return (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
+      <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>
       <div className="flex items-center gap-1.5">
         {onSort ? <SortBtn onClick={onSort} label={sortLabel ?? ""} /> : null}
         {onAi ? <AiBtn onClick={onAi} label={aiLabel ?? "AI"} /> : null}
@@ -437,20 +435,20 @@ function RowSectionTitle({ title, onAdd, addLabel, onAi, aiLabel, onSort, sortLa
 }
 function RowCard({ children, onRemove, onUp, onDown, first, last }: { children: React.ReactNode; onRemove: () => void; onUp?: () => void; onDown?: () => void; first?: boolean; last?: boolean }) {
   return (
-    <div className="relative rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-4 pr-12">
+    <div className="relative rounded-2xl bg-[color:var(--v2-band)] p-4 pr-12">
       {children}
       <div className="absolute right-2.5 top-2.5 flex flex-col items-center">
         {onUp ? (
-          <button type="button" onClick={onUp} disabled={first} aria-label="move up" className="flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-30">
+          <button type="button" onClick={onUp} disabled={first} aria-label="move up" className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-white hover:text-[color:var(--v2-ink-3)] disabled:opacity-30">
             <CaretUp className="h-3.5 w-3.5" weight="bold" />
           </button>
         ) : null}
         {onDown ? (
-          <button type="button" onClick={onDown} disabled={last} aria-label="move down" className="flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#4E5968] disabled:opacity-30">
+          <button type="button" onClick={onDown} disabled={last} aria-label="move down" className="flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-white hover:text-[color:var(--v2-ink-3)] disabled:opacity-30">
             <CaretDown className="h-3.5 w-3.5" weight="bold" />
           </button>
         ) : null}
-        <button type="button" onClick={onRemove} aria-label="remove" className="mt-0.5 flex h-6 w-7 items-center justify-center rounded text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]">
+        <button type="button" onClick={onRemove} aria-label="remove" className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-white hover:text-[color:var(--v2-attention)]">
           <Trash className="h-4 w-4" />
         </button>
       </div>
@@ -458,14 +456,14 @@ function RowCard({ children, onRemove, onUp, onDown, first, last }: { children: 
   );
 }
 function Empty({ t }: { t: ReturnType<typeof useLaunchT> }) {
-  return <p className="mb-3 rounded-xl border border-dashed border-[#E5E8EB] bg-[#FAFBFC] px-4 py-3 text-[12.5px] text-[#B0B8C1]">{t("‘추가’를 눌러 항목을 채워보세요.", "Tap 'Add' to fill this in.", "点击“添加”来填写。", "Nhấn 'Thêm' để điền.", "「追加」を押して入力しましょう。", "Ketuk 'Tambah' untuk mengisi.")}</p>;
+  return <p className="mb-3 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3.5 text-[14px] text-[color:var(--v2-faint)]">{t("‘추가’를 눌러 항목을 채워보세요.", "Tap 'Add' to fill this in.", "点击“添加”来填写。", "Nhấn 'Thêm' để điền.", "「追加」を押して入力しましょう。", "Ketuk 'Tambah' untuk mengisi.")}</p>;
 }
 
 function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, hidden, t }: { id: string; title: string; none: boolean; onNone: (v: boolean) => void; noneLabel: string; list: ResumeExperience[]; onChange: (next: ResumeExperience[]) => void; onAi?: () => void; hidden?: boolean; t: ReturnType<typeof useLaunchT> }) {
   return (
     <section id={id} className={hidden ? "hidden" : undefined}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[19px]">{title}</h2>
+        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>
         {!none ? (
           <div className="flex items-center gap-1.5">
             {list.length > 1 ? <SortBtn onClick={() => onChange(sortByDateDesc(list))} label={t("날짜순", "By date", "按日期", "Theo ngày", "日付順", "Urut tanggal")} /> : null}
@@ -474,8 +472,8 @@ function ExpSection({ id, title, none, onNone, noneLabel, list, onChange, onAi, 
           </div>
         ) : null}
       </div>
-      <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-[#4E5968]">
-        <input type="checkbox" checked={none} onChange={(e) => onNone(e.target.checked)} className="h-4 w-4 accent-[#0B46E8]" />
+      <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-[15px] font-medium text-[color:var(--v2-ink-3)]">
+        <input type="checkbox" checked={none} onChange={(e) => onNone(e.target.checked)} className="h-[18px] w-[18px] accent-[color:var(--v2-accent)]" />
         {noneLabel}
       </label>
       {none ? null : (
@@ -524,9 +522,9 @@ function TagInput({ values, onChange, placeholder }: { values: string[]; onChang
       {values.length ? (
         <div className="mb-2.5 flex flex-wrap gap-2">
           {values.map((s, i) => (
-            <span key={`${s}-${i}`} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2F4F6] px-3 py-1.5 text-[12.5px] font-semibold text-[#4E5968]">
+            <span key={`${s}-${i}`} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[color:var(--v2-band)] px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-2)]">
               {s}
-              <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))} className="text-[#B0B8C1] transition hover:text-[#F04452]">×</button>
+              <button type="button" onClick={() => onChange(values.filter((_, j) => j !== i))} className="text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-attention)]">×</button>
             </span>
           ))}
         </div>
@@ -551,20 +549,20 @@ function TagInput({ values, onChange, placeholder }: { values: string[]; onChang
 function SaveIndicator({ state, dirty, t }: { state: SaveState; dirty: boolean; t: ReturnType<typeof useLaunchT> }) {
   if (state === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[color:var(--v2-faint)]">
         <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")}
       </span>
     );
   }
   if (state === "error") {
-    return <span className="text-[12px] font-semibold text-[#F04452]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
+    return <span className="text-[13px] font-semibold text-[color:var(--v2-attention)]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
   }
   if (dirty) {
-    return <span className="text-[12px] font-semibold text-[#C77700]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
+    return <span className="text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
   }
   if (state === "saved") {
     return (
-      <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#12B76A]">
+      <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-good)]">
         <Check className="h-3.5 w-3.5" weight="bold" /> {t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}
       </span>
     );

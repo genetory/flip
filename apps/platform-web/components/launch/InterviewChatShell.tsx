@@ -78,12 +78,12 @@ export function InterviewChatShell({
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
       {embedded ? (
-        <div className="border-b border-[#EEF1F5]">
+        <div className="border-b border-[color:var(--v2-line)]">
           <div className="mx-auto w-full max-w-5xl px-5 py-3">
-            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-            <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{embeddedTitle}</p>
+            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{embeddedTitle}</p>
           </div>
         </div>
       ) : (
@@ -93,50 +93,50 @@ export function InterviewChatShell({
         <div className="mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-5xl flex-col px-5 pt-4 md:pt-6" style={{ height: vp ? vp.height - 56 : undefined, paddingBottom: "calc(env(safe-area-inset-bottom) + 1rem)" }}>
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">
                 <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {weekLabel}
               </Link>
-              <Link href={backHref} className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+              <Link href={backHref} className="rounded-xl bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
           <div className="mt-3.5 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{eyebrow}</p>
-              <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{title}</h1>
-              {sub ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{sub}</p> : null}
+              <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{eyebrow}</p>
+              <h1 className="mt-1.5 break-keep text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[24px]">{title}</h1>
+              {sub ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{sub}</p> : null}
             </div>
-            {progress ? <span className="mt-1 shrink-0 rounded-full bg-[#F2F4F6] px-2.5 py-1 text-[11.5px] font-bold text-[#4E5968]">{progress}</span> : null}
+            {progress ? <span className="mt-1 shrink-0 rounded-full bg-[color:var(--v2-band)] px-2.5 py-1 text-[11.5px] font-bold text-[color:var(--v2-ink-3)]">{progress}</span> : null}
           </div>
 
-          <div className="mt-4 flex-1 space-y-4 overflow-y-auto rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
+          <div className="mt-4 flex-1 space-y-4 overflow-y-auto rounded-3xl bg-white py-4 md:py-5">
             {messages.map((m, i) =>
               m.role === "bot" ? (
                 <div key={i} className="flex items-end gap-2">
-                  <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">🎤</span>
+                  <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[15px]">🎤</span>
                   <div className="max-w-[84%]">
-                    {m.followUp ? <p className="mb-1 text-[11.5px] font-semibold text-[#C77700]">↳ {t("꼬리질문", "Follow-up", "追问", "Câu hỏi tiếp", "追加質問", "Lanjutan")}</p> : null}
-                    <div className="whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]"><RichText text={m.text} /></div>
+                    {m.followUp ? <p className="mb-1 text-[11.5px] font-semibold text-[#c2410c]">↳ {t("꼬리질문", "Follow-up", "追问", "Câu hỏi tiếp", "追加質問", "Lanjutan")}</p> : null}
+                    <div className="whitespace-pre-wrap break-keep rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-4 py-3 text-[15px] leading-relaxed text-[color:var(--v2-ink)]"><RichText text={m.text} /></div>
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
+                  <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-br-md bg-[color:var(--v2-accent)] px-4 py-3 text-[15px] leading-relaxed text-white"><RichText text={m.text} /></div>
                 </div>
               )
             )}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#EDF1FD] text-[15px]">🎤</span>
-                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[15px]">🎤</span>
+                <div className="inline-flex items-center gap-1 rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-3.5 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)]" />
                 </div>
               </div>
             ) : null}
             <div ref={endRef} />
           </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{note}</p>
+          <p className="mt-2 text-center text-[11.5px] text-[color:var(--v2-faint)]">{note}</p>
 
           {finished ? (
             <div className="mt-3">{completion}</div>
@@ -146,12 +146,12 @@ export function InterviewChatShell({
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {quickReplies.map((q) => (
                     // 학생 화면·AI 입력 모두 로케일 언어가 되도록 label(번역본)을 전송한다(value 는 key 용).
-                    <button key={q.value} type="button" onClick={() => { if (!loading && !inputDisabled) onSend(q.label); }} className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">{q.label}</button>
+                    <button key={q.value} type="button" onClick={() => { if (!loading && !inputDisabled) onSend(q.label); }} className="rounded-full bg-[color:var(--v2-band)] px-4 py-2.5 text-[12.5px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{q.label}</button>
                   ))}
                 </div>
               ) : null}
               <form
-                className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
+                className="flex items-end gap-1.5 rounded-2xl bg-[color:var(--v2-band)] p-1.5 ring-[color:var(--v2-accent)] transition focus-within:bg-white focus-within:ring-2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   submit(input);
@@ -170,13 +170,13 @@ export function InterviewChatShell({
                   rows={1}
                   placeholder={placeholder}
                   disabled={loading || inputDisabled}
-                  className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
+                  className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[color:var(--v2-ink)] placeholder:text-[color:var(--v2-faint)] focus:outline-none focus:ring-0 disabled:opacity-60"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || loading || inputDisabled}
                   aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading && !inputDisabled ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"}`}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading && !inputDisabled ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"}`}
                 >
                   <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
                 </button>

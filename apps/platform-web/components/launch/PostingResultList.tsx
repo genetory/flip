@@ -9,10 +9,10 @@ import type { PostingScore } from "../../lib/launch/posting-interview";
 import type { PostingInterviewItem } from "../../lib/launch/progress-client";
 
 function scoreTone(s: number): { text: string; bg: string } {
-  if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
-  if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
-  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-[#FFF6E5]" };
-  return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
+  if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-white" };
+  if (s >= 60) return { text: "text-[color:var(--v2-accent)]", bg: "bg-white" };
+  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-white" };
+  return { text: "text-[color:var(--v2-attention)]", bg: "bg-white" };
 }
 
 export function PostingResultList({ items, rescore, onItemsChange }: { items: PostingInterviewItem[]; rescore?: (question: string, answer: string) => Promise<PostingScore>; onItemsChange?: (items: PostingInterviewItem[]) => void }) {
@@ -47,48 +47,48 @@ export function PostingResultList({ items, rescore, onItemsChange }: { items: Po
         const tone = scoreTone(it.score);
         const isOpen = open === i;
         return (
-          <div key={i} className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+          <div key={i} className="overflow-hidden rounded-2xl bg-[color:var(--v2-band)]">
             <button type="button" onClick={() => setOpen(isOpen ? null : i)} className="flex w-full items-center gap-3.5 px-3.5 py-3 text-left">
               <span className={`flex min-w-[62px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-3 ${tone.bg}`}>
-                <span className={`text-[20px] font-black leading-none ${tone.text}`}>{it.score}</span>
+                <span className={`text-[20px] font-bold leading-none ${tone.text}`}>{it.score}</span>
                 <span className={`text-[9.5px] font-bold uppercase tracking-wide ${tone.text}`}>/ 100</span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-bold text-[#8B95A1]">Q{i + 1}</span>
-                <span className="block break-keep text-[13.5px] font-bold leading-snug text-[#191F28] line-clamp-2">{it.question}</span>
+                <span className="block text-[11px] font-bold text-[color:var(--v2-faint)]">Q{i + 1}</span>
+                <span className="block break-keep text-[15px] font-semibold leading-snug text-[color:var(--v2-ink)] line-clamp-2">{it.question}</span>
               </span>
-              <CaretDown className={`h-4 w-4 shrink-0 text-[#C4CAD2] transition ${isOpen ? "rotate-180" : ""}`} weight="bold" />
+              <CaretDown className={`h-4 w-4 shrink-0 text-[color:var(--v2-faint)] transition ${isOpen ? "rotate-180" : ""}`} weight="bold" />
             </button>
             {isOpen ? (
-              <div className="space-y-3 border-t border-[#F2F4F6] px-3.5 py-3 text-[13px] leading-relaxed">
+              <div className="space-y-3 border-t border-[color:var(--v2-line)] px-3.5 py-3 text-[13px] leading-relaxed">
                 <div>
-                  <p className="text-[11.5px] font-bold text-[#8B95A1]">{t("내 답변", "My answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
-                  <p className="mt-0.5 whitespace-pre-wrap break-keep text-[#333D4B]">{it.answer}</p>
+                  <p className="text-[11.5px] font-bold text-[color:var(--v2-faint)]">{t("내 답변", "My answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-keep text-[color:var(--v2-ink-2)]">{it.answer}</p>
                 </div>
                 {it.feedback ? (
-                  <div className="rounded-xl bg-[#FAFBFC] p-3">
-                    <p className="text-[11.5px] font-bold text-[#C77700]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
-                    <p className="mt-0.5 break-keep text-[#4E5968]">{it.feedback}</p>
+                  <div className="rounded-xl bg-white p-3">
+                    <p className="text-[11.5px] font-bold text-[color:var(--v2-attention)]">💬 {t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+                    <p className="mt-0.5 break-keep text-[color:var(--v2-ink-3)]">{it.feedback}</p>
                   </div>
                 ) : null}
                 {it.modelAnswer ? (
-                  <div className="rounded-xl bg-[#F8FAFF] p-3">
-                    <p className="text-[11.5px] font-bold text-[#0B46E8]">🧭 {t("모범답안", "Model answer", "范例答案", "Câu trả lời mẫu", "模範解答", "Jawaban contoh")}</p>
-                    <p className="mt-0.5 whitespace-pre-wrap break-keep text-[#333D4B]">{it.modelAnswer}</p>
+                  <div className="rounded-xl bg-[color:var(--v2-accent-weak)] p-3">
+                    <p className="text-[11.5px] font-bold text-[color:var(--v2-accent)]">🧭 {t("모범답안", "Model answer", "范例答案", "Câu trả lời mẫu", "模範解答", "Jawaban contoh")}</p>
+                    <p className="mt-0.5 whitespace-pre-wrap break-keep text-[color:var(--v2-ink-2)]">{it.modelAnswer}</p>
                   </div>
                 ) : null}
                 {canRetry ? (
                   retryIdx === i ? (
                     <div>
-                      <textarea value={retryText} onChange={(e) => setRetryText(e.target.value)} rows={4} placeholder={t("이번엔 이렇게 답해볼게요…", "This time I'll answer like this…", "这次这样回答…", "Lần này tôi sẽ trả lời thế này…", "今回はこう答えます…", "Kali ini aku jawab begini…")} className="w-full resize-none rounded-xl border border-[#E5E8EB] p-3 text-[15px] leading-relaxed outline-none focus:border-[#0B46E8]" />
+                      <textarea value={retryText} onChange={(e) => setRetryText(e.target.value)} rows={4} placeholder={t("이번엔 이렇게 답해볼게요…", "This time I'll answer like this…", "这次这样回答…", "Lần này tôi sẽ trả lời thế này…", "今回はこう答えます…", "Kali ini aku jawab begini…")} className="w-full resize-none rounded-2xl bg-white p-3.5 ring-[color:var(--v2-accent)] focus:ring-2 text-[15px] leading-relaxed outline-none focus:border-[color:var(--v2-accent)]" />
                       <div className="mt-2 flex gap-2">
-                        <button type="button" onClick={() => void doRetry(i)} disabled={busy || !retryText.trim()} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{t("다시 채점", "Re-score", "重新评分", "Chấm lại", "再採点", "Nilai ulang")}</button>
-                        <button type="button" onClick={() => { setRetryIdx(null); setRetryText(""); }} className="rounded-xl border border-[#E5E8EB] px-4 py-2 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+                        <button type="button" onClick={() => void doRetry(i)} disabled={busy || !retryText.trim()} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-50">{busy ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{t("다시 채점", "Re-score", "重新评分", "Chấm lại", "再採点", "Nilai ulang")}</button>
+                        <button type="button" onClick={() => { setRetryIdx(null); setRetryText(""); }} className="h-9 rounded-lg bg-white px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
                       </div>
-                      {err ? <p className="mt-1.5 text-[12px] text-[#F04452]">{err}</p> : null}
+                      {err ? <p className="mt-1.5 text-[12px] text-[color:var(--v2-attention)]">{err}</p> : null}
                     </div>
                   ) : (
-                    <button type="button" onClick={() => { setRetryIdx(i); setRetryText(""); setErr(""); }} className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:border-[#0B46E8]/40"><ArrowClockwise className="h-3.5 w-3.5" weight="bold" />{t("다시 답하기", "Try again", "重新作答", "Trả lời lại", "もう一度答える", "Coba lagi")}</button>
+                    <button type="button" onClick={() => { setRetryIdx(i); setRetryText(""); setErr(""); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white px-3.5 text-[14px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80"><ArrowClockwise className="h-3.5 w-3.5" weight="bold" />{t("다시 답하기", "Try again", "重新作答", "Trả lời lại", "もう一度答える", "Coba lagi")}</button>
                   )
                 ) : null}
               </div>

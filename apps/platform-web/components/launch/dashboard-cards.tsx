@@ -50,16 +50,16 @@ export function CoachTodayCard({ vm }: { vm: DashboardVM }) {
   const t = useLaunchT();
   const c = vm.coach;
   return (
-    <div className="flex items-start gap-4 rounded-2xl bg-white p-6">
-      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-gradient-to-br from-[#3182F6] to-[#1B64DA] text-white">
+    <div className="flex items-start gap-4 rounded-3xl bg-white p-6 ring-1 ring-[color:var(--v2-line)]">
+      <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-white">
         <Sparkle size={20} weight="fill" aria-hidden />
       </span>
       <div className="min-w-0">
         <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("전담 커리어 코치", "Your career coach", "专属职业教练", "Coach nghề riêng", "専属キャリアコーチ", "Coach karier pribadi")}</p>
-        {c.remembered ? <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{c.remembered}</p> : null}
-        <p className="mt-1.5 break-keep text-[16px] font-bold leading-relaxed text-[#191F28]">“{c.todayFocus}”</p>
-        {c.purpose ? <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{c.purpose}</p> : null}
-        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] font-semibold text-[#8B95A1]">
+        {c.remembered ? <p className="mt-1.5 break-keep text-[14px] leading-[1.6] text-[color:var(--v2-faint)]">{c.remembered}</p> : null}
+        <p className="mt-1.5 break-keep text-[17px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">“{c.todayFocus}”</p>
+        {c.purpose ? <p className="mt-1.5 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{c.purpose}</p> : null}
+        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] font-medium text-[color:var(--v2-faint)]">
           <span className="inline-flex items-center gap-1">
             <Clock size={13} weight="bold" /> {t(`약 ${c.estimatedMinutes}분`, `About ${c.estimatedMinutes} min`, `约 ${c.estimatedMinutes} 分钟`, `Khoảng ${c.estimatedMinutes} phút`, `約${c.estimatedMinutes}分`, `Sekitar ${c.estimatedMinutes} mnt`)}
           </span>
@@ -72,7 +72,7 @@ export function CoachTodayCard({ vm }: { vm: DashboardVM }) {
             void logActivity("next_action_click", { week: vm.currentWeek });
             trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
           }}
-          className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-bold text-[#0B46E8] transition hover:gap-2.5"
+          className="mt-3 inline-flex items-center gap-1.5 text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:gap-2.5"
         >
           {c.cta} <ArrowRight size={15} weight="bold" />
         </Link>
@@ -89,23 +89,23 @@ export function CurrentWeekCard({ vm, doneCount, requiredCount }: { vm: Dashboar
   const meta = metas[w - 1] ?? metas[0];
   const pct = requiredCount > 0 ? Math.round((doneCount / requiredCount) * 100) : 0;
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-[color:var(--v2-line)]">
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-[#E8F3FF] px-2.5 py-1 text-[12px] font-bold text-[#1B64DA]">Week {w}</span>
-        <span className="text-[15px] font-bold text-[#191F28]">{meta.title}</span>
+        <span className="rounded-full bg-[color:var(--v2-accent-weak)] px-2.5 py-1 text-[12px] font-semibold text-[color:var(--v2-accent)]">Week {w}</span>
+        <span className="text-[17px] font-bold text-[color:var(--v2-ink)]">{meta.title}</span>
       </div>
-      <p className="mt-2 break-keep text-[13px] leading-relaxed text-[#4E5968]">{meta.goal}</p>
-      <div className="mt-3 flex items-center justify-between text-[12.5px]">
-        <span className="font-semibold text-[#191F28]">
+      <p className="mt-2 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{meta.goal}</p>
+      <div className="mt-3 flex items-center justify-between text-[14px]">
+        <span className="font-semibold text-[color:var(--v2-ink)]">
           {t(`${requiredCount}개 중 ${doneCount}개 완료`, `${doneCount} of ${requiredCount} done`, `${requiredCount} 项中完成 ${doneCount} 项`, `${doneCount}/${requiredCount} hoàn thành`, `${requiredCount}件中${doneCount}件完了`, `${doneCount} dari ${requiredCount} selesai`)}
         </span>
-        <span className="tabular-nums text-[#8B95A1]">{pct}%</span>
+        <span className="tabular-nums text-[color:var(--v2-faint)]">{pct}%</span>
       </div>
-      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[#F2F4F6]">
-        <div className="h-full rounded-full bg-[#3182F6] transition-all" style={{ width: `${pct}%` }} />
+      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[color:var(--v2-band)]">
+        <div className="h-full rounded-full bg-[color:var(--v2-accent)] transition-all" style={{ width: `${pct}%` }} />
       </div>
-      <p className="mt-3 text-[12.5px] text-[#4E5968]">
-        <span className="text-[#8B95A1]">{tResult(t)}</span> · {meta.result}
+      <p className="mt-3 text-[14px] text-[color:var(--v2-ink-3)]">
+        <span className="text-[color:var(--v2-faint)]">{tResult(t)}</span> · {meta.result}
       </p>
     </div>
   );
@@ -117,17 +117,17 @@ export function NextActionCard({ vm }: { vm: DashboardVM }) {
   const a = vm.nextAction;
   const blocked = Boolean(a.blockedReason);
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-      <p className="text-[15px] font-bold text-[#191F28]">{a.label}</p>
-      {a.reason ? <p className="mt-1 text-[13px] text-[#4E5968]">{a.reason}</p> : null}
-      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[12px] text-[#8B95A1]">
-        <span className="inline-flex items-center gap-1 rounded-full bg-[#F2F4F6] px-2 py-0.5">
+    <div className="rounded-3xl bg-white p-5 ring-1 ring-[color:var(--v2-line)]">
+      <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{a.label}</p>
+      {a.reason ? <p className="mt-1 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{a.reason}</p> : null}
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[13px] text-[color:var(--v2-muted)]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--v2-band)] px-2.5 py-1">
           <Clock size={12} weight="bold" /> {t(`약 ${a.estimatedMinutes}분`, `About ${a.estimatedMinutes} min`, `约 ${a.estimatedMinutes} 分钟`, `Khoảng ${a.estimatedMinutes} phút`, `約${a.estimatedMinutes}分`, `Sekitar ${a.estimatedMinutes} mnt`)}
         </span>
-        <span className="rounded-full bg-[#F2F4F6] px-2 py-0.5">{tResult(t)}: {a.expectedResult}</span>
+        <span className="rounded-full bg-[color:var(--v2-band)] px-2.5 py-1">{tResult(t)}: {a.expectedResult}</span>
       </div>
       {blocked ? (
-        <p className="mt-3 flex items-center gap-1 text-[12.5px] text-[#C77700]">
+        <p className="mt-3 flex items-center gap-1 text-[14px] font-medium text-[color:var(--v2-attention)]">
           <WarningCircle size={14} weight="fill" /> {a.blockedReason}
         </p>
       ) : (
@@ -137,7 +137,7 @@ export function NextActionCard({ vm }: { vm: DashboardVM }) {
             void logActivity("next_action_click", { week: vm.currentWeek }); // 주요 행동 클릭 자체 DB 적재(#3)
             trackCareerFunnel("career_primary_action_clicked", { actionType: a.actionType, destination: a.destination, currentWeek: vm.currentWeek });
           }}
-          className="mt-3.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#191F28] px-4 py-3 text-[14px] font-bold text-white transition"
+          className="mt-4 flex h-12 w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
         >
           {a.cta} <ArrowRight size={15} weight="bold" />
         </Link>
@@ -148,10 +148,10 @@ export function NextActionCard({ vm }: { vm: DashboardVM }) {
 
 // 영역 4 — 4주 여정. 상태 + 잠긴 주차 해제 조건.
 const STATUS_TONE: Record<string, string> = {
-  completed: "bg-[#E7F7EF] text-[#0A9B59]",
-  in_progress: "bg-[#E8F3FF] text-[#1B64DA]",
-  available: "bg-[#F2F4F6] text-[#4E5968]",
-  locked: "bg-[#F2F4F6] text-[#B0B8C1]"
+  completed: "bg-[#E5F6EE] text-[color:var(--v2-good)]",
+  in_progress: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]",
+  available: "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]",
+  locked: "bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
 };
 function journeyStatusLabel(t: LaunchT, status: string): string {
   switch (status) {
@@ -184,19 +184,19 @@ export function FourWeekJourney({ vm }: { vm: DashboardVM }) {
               trackCareerFunnel("career_week_card_clicked", { currentWeek: week });
             }}
             aria-disabled={status === "locked"}
-            className={`rounded-2xl border p-4 transition ${status === "locked" ? "cursor-default border-[#F2F4F6] bg-[#FBFCFD]" : "border-[#EEF1F5] bg-white hover:border-[#3182F6]/30"} ${isCurrent ? "ring-2 ring-[#3182F6]/25" : ""}`}
+            className={`rounded-2xl p-4 transition ${status === "locked" ? "cursor-default bg-[color:var(--v2-fill)]" : "bg-[color:var(--v2-band)] hover:bg-[color:var(--v2-line)]"} ${isCurrent ? "ring-2 ring-[color:var(--v2-accent)]" : ""}`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[12px] font-bold text-[#8B95A1]">Week {week}</span>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${STATUS_TONE[status]}`}>
+              <span className="text-[13px] font-semibold text-[color:var(--v2-faint)]">Week {week}</span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${STATUS_TONE[status]}`}>
                 {status === "completed" ? <CheckCircle size={11} weight="fill" /> : status === "locked" ? <Lock size={10} weight="fill" /> : null}
                 {journeyStatusLabel(t, status)}
               </span>
             </div>
-            <p className="mt-1.5 text-[14px] font-bold text-[#191F28]">{meta.title}</p>
-            <p className="mt-0.5 text-[12px] text-[#8B95A1]">{tResult(t)} · {meta.result}</p>
+            <p className="mt-1.5 text-[16px] font-bold text-[color:var(--v2-ink)]">{meta.title}</p>
+            <p className="mt-0.5 text-[13px] text-[color:var(--v2-faint)]">{tResult(t)} · {meta.result}</p>
             {status === "locked" ? (
-              <p className="mt-2 text-[11.5px] text-[#B0B8C1]">{t(`Week ${week - 1} 결과물을 완성하면 열려요`, `Opens when you finish Week ${week - 1}`, `完成第${week - 1}周成果后解锁`, `Mở khi hoàn thành Tuần ${week - 1}`, `Week ${week - 1}を終えると開きます`, `Terbuka setelah Minggu ${week - 1} selesai`)}</p>
+              <p className="mt-2 text-[13px] text-[color:var(--v2-faint)]">{t(`Week ${week - 1} 결과물을 완성하면 열려요`, `Opens when you finish Week ${week - 1}`, `完成第${week - 1}周成果后解锁`, `Mở khi hoàn thành Tuần ${week - 1}`, `Week ${week - 1}を終えると開きます`, `Terbuka setelah Minggu ${week - 1} selesai`)}</p>
             ) : null}
           </Link>
         );
@@ -257,13 +257,13 @@ export function GrowthSummaryCard({ vm }: { vm: DashboardVM }) {
     <div className="grid grid-cols-2 gap-3">
       <div className="cl-mini">
         <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("면접 성장(최초 대비)", "Interview growth (vs first)", "面试成长(对比首次)", "Tiến bộ PV (so với đầu)", "面接の成長(最初比)", "Pertumbuhan wawancara (vs awal)")}</p>
-        <p className="mt-2 text-[26px] font-black tabular-nums" style={{ color: "var(--cl-mint)" }}>{t(`+${g.scoreGrowthRate}점`, `+${g.scoreGrowthRate} pts`, `+${g.scoreGrowthRate} 分`, `+${g.scoreGrowthRate} điểm`, `+${g.scoreGrowthRate}点`, `+${g.scoreGrowthRate} poin`)}</p>
+        <p className="mt-2 text-[26px] font-bold tabular-nums" style={{ color: "var(--cl-mint)" }}>{t(`+${g.scoreGrowthRate}점`, `+${g.scoreGrowthRate} pts`, `+${g.scoreGrowthRate} 分`, `+${g.scoreGrowthRate} điểm`, `+${g.scoreGrowthRate}点`, `+${g.scoreGrowthRate} poin`)}</p>
       </div>
       <div className="cl-mini">
         <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("오답 해결", "Corrections resolved", "错题解决", "Lỗi đã sửa", "復習の解決", "Koreksi selesai")}</p>
-        <p className="mt-2 text-[26px] font-black tabular-nums text-[#191F28]">
+        <p className="mt-2 text-[26px] font-bold tabular-nums text-[color:var(--v2-ink)]">
           {g.correctionResolved ?? 0}
-          <span className="text-[15px] font-bold text-[#B0B8C1]">/{g.correctionTotal ?? 0}</span>
+          <span className="text-[15px] font-bold text-[color:var(--v2-faint)]">/{g.correctionTotal ?? 0}</span>
         </p>
       </div>
     </div>
@@ -281,12 +281,12 @@ export function CohortActivityCard({ vm }: { vm: DashboardVM }) {
   return (
     <div className="cl-mini">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EAF2FF]">
-          <Users size={17} className="text-[#3182F6]" />
+        <span className="mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)]">
+          <Users size={17} className="text-[color:var(--v2-accent)]" />
         </span>
         <div className="min-w-0">
           <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("함께하는 동료", "Peers with you", "同行伙伴", "Đồng đội cùng bạn", "一緒に取り組む仲間", "Rekan bersamamu")}</p>
-          <p className="mt-1 text-[14px] leading-snug text-[#191F28]">
+          <p className="mt-1 text-[15px] leading-snug text-[color:var(--v2-ink)]">
             {t(`같은 기수 동료 ${peers}명이 이번 주 커리어를 준비하고 있어요`, `${peers} peers in your cohort are preparing this week`, `同期 ${peers} 名同伴本周正在准备求职`, `${peers} đồng đội cùng khóa đang chuẩn bị tuần này`, `同じ期の仲間 ${peers}名が今週キャリアを準備しています`, `${peers} rekan seangkatan sedang bersiap minggu ini`)}
           </p>
         </div>
@@ -307,10 +307,10 @@ export function SeminarCard({ vm }: { vm: DashboardVM }) {
       onClick={() => trackCareerFunnel("career_seminar_clicked", { currentWeek: s.week })}
       className="cl-mini flex items-center gap-3.5"
     >
-      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[#EAF2FF]"><CalendarBlank size={17} className="text-[#3182F6]" /></span>
+      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)]"><CalendarBlank size={17} className="text-[color:var(--v2-accent)]" /></span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-bold text-[#191F28]">{s.title ?? `Week ${s.week} ${t("세미나", "Seminar", "研讨会", "Hội thảo", "セミナー", "Seminar")}`}</p>
-        <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">
+        <p className="truncate text-[16px] font-bold text-[color:var(--v2-ink)]">{s.title ?? `Week ${s.week} ${t("세미나", "Seminar", "研讨会", "Hội thảo", "セミナー", "Seminar")}`}</p>
+        <p className="mt-0.5 text-[14px] text-[color:var(--v2-faint)]">
           {dt.toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {s.online ? t("온라인", "Online", "线上", "Trực tuyến", "オンライン", "Online") : t("오프라인", "Offline", "线下", "Trực tiếp", "オフライン", "Offline")}
         </p>
       </div>

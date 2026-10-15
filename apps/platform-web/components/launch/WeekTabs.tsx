@@ -320,7 +320,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
             ) : null}
             {!locked ? (
               <div className="mt-3">
-                <button type="button" onClick={open} className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[13px] font-bold text-white transition hover:opacity-90" style={{ background: "var(--cl-accent)" }}>
+                <button type="button" onClick={open} className="inline-flex h-10 items-center gap-1.5 rounded-xl px-4 text-[15px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]" style={{ background: "var(--cl-accent)" }}>
                   {t("면접 보기", "Start interview", "开始面试", "Bắt đầu phỏng vấn", "面接を始める", "Mulai wawancara")} <ArrowRight className="h-3.5 w-3.5" weight="bold" />
                 </button>
                 {done ? <p className="mt-1.5 text-[11.5px]" style={{ color: "var(--cl-faint)" }}>{t("면접을 여러 번 보며 답변을 다듬어 보세요. 볼수록 실력이 늘어요.", "Take it again and again to refine your answers — practice makes it better.", "多面试几次打磨回答，越练越熟练。", "Phỏng vấn nhiều lần để hoàn thiện câu trả lời — càng luyện càng giỏi.", "何度も面接して回答を磨きましょう。練習するほど上達します。", "Ulangi wawancara untuk mengasah jawaban — makin berlatih makin baik.")}</p> : null}
@@ -340,14 +340,14 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   if (!loaded) {
     return (
       <>
-        <div className="cl-role-tabs">
+        <div className="cl-role-tabs" style={{ flexWrap: "nowrap", overflowX: "auto" }}>
           {[1, 2, 3, 4].map((i) => (
             <span key={i} className="cl-role-chip" style={{ opacity: 0.5 }}>{t(`Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`, `Step ${i}`)}</span>
           ))}
         </div>
-        <div className="mt-6 h-44 rounded-2xl bg-white" style={{ boxShadow: "var(--cl-shadow-sm)" }} />
+        <div className="mt-6 h-44 animate-pulse rounded-3xl bg-[color:var(--v2-band)]" />
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => <div key={i} className="h-20 rounded-2xl bg-white" style={{ boxShadow: "var(--cl-shadow-sm)" }} />)}
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-20 animate-pulse rounded-2xl bg-[color:var(--v2-band)]" />)}
         </div>
       </>
     );
@@ -356,7 +356,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
   return (
     <>
       {/* 주차 탭 */}
-      <div className="cl-role-tabs" style={{ overflowX: "auto", paddingBottom: 2 }}>
+      <div className="cl-role-tabs [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ flexWrap: "nowrap", overflowX: "auto", paddingBottom: 2 }}>
         {WEEKS.map((w) => {
           const done = isWeekComplete(w.week, data);
           const reachable = w.week === 1 || isWeekComplete(w.week - 1, data);
@@ -408,7 +408,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
       {selWeek === 1 ? (
         <div className="mt-8">
           <h2 className="cl-headline">{t("이번 단계 피드백", "This step's feedback", "本步骤反馈", "Phản hồi bước này", "このステップのフィードバック", "Umpan balik langkah ini")}</h2>
-          <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives feedback.", "教练审阅本步骤成果并给出反馈。", "Huấn luyện viên xem kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
+          <p className="mt-1 text-[15px] leading-[1.6]" style={{ color: "var(--cl-muted)" }}>{t("이번 단계 결과물을 코치가 검토해 피드백을 드려요.", "Your coach reviews this step's work and gives feedback.", "教练审阅本步骤成果并给出反馈。", "Huấn luyện viên xem kết quả bước này và đưa phản hồi.", "コーチがこのステップの成果を確認してフィードバックします。", "Pelatih meninjau hasil langkah ini dan memberi umpan balik.")}</p>
           <div className="mt-3"><WeekAutoFeedback week={1} showNext={false} /></div>
         </div>
       ) : null}
@@ -416,7 +416,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
         <>
           <div className="mt-8">
             <h2 className="cl-headline">{t("이력서 피드백", "Resume feedback", "简历反馈", "Phản hồi hồ sơ", "履歴書フィードバック", "Umpan balik resume")}</h2>
-            <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 이력서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the resume you built and gives feedback.", "教练审阅你完成的简历并给出反馈。", "Huấn luyện viên xem hồ sơ bạn tạo và đưa phản hồi.", "対話で作った履歴書をコーチが確認してフィードバックします。", "Pelatih meninjau resume yang kamu buat dan memberi umpan balik.")}</p>
+            <p className="mt-1 text-[15px] leading-[1.6]" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 이력서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the resume you built and gives feedback.", "教练审阅你完成的简历并给出反馈。", "Huấn luyện viên xem hồ sơ bạn tạo và đưa phản hồi.", "対話で作った履歴書をコーチが確認してフィードバックします。", "Pelatih meninjau resume yang kamu buat dan memberi umpan balik.")}</p>
             <div className="mt-3 flex flex-col gap-3">
               <ResumeScoreCard />
               <WeekAutoFeedback week={2} showNext={false} />
@@ -424,7 +424,7 @@ export function WeekTabs({ initialWeek }: { initialWeek?: number }) {
           </div>
           <div className="mt-8">
             <h2 className="cl-headline">{t("자기소개서 피드백", "Cover letter feedback", "自我介绍反馈", "Phản hồi thư giới thiệu", "自己紹介書フィードバック", "Umpan balik surat lamaran")}</h2>
-            <p className="mt-1 text-[13.5px] leading-relaxed" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 자기소개서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the cover letter you built and gives feedback.", "教练审阅你完成的自我介绍并给出反馈。", "Huấn luyện viên xem thư giới thiệu bạn tạo và đưa phản hồi.", "対話で作った自己紹介書をコーチが確認してフィードバックします。", "Pelatih meninjau surat lamaran yang kamu buat dan memberi umpan balik.")}</p>
+            <p className="mt-1 text-[15px] leading-[1.6]" style={{ color: "var(--cl-muted)" }}>{t("대화로 만든 자기소개서를 코치가 검토해 피드백을 드려요.", "Your coach reviews the cover letter you built and gives feedback.", "教练审阅你完成的自我介绍并给出反馈。", "Huấn luyện viên xem thư giới thiệu bạn tạo và đưa phản hồi.", "対話で作った自己紹介書をコーチが確認してフィードバックします。", "Pelatih meninjau surat lamaran yang kamu buat dan memberi umpan balik.")}</p>
             <div className="mt-3 flex flex-col gap-3">
               <CoverScoreCard />
               <WeekAutoFeedback week={3} showNext={false} />

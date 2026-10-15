@@ -84,26 +84,26 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
   if (state === "ok") return <>{children}</>;
   if (state === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F8FB]">
-        <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <span className="text-[15px] text-[color:var(--v2-faint)]">{t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8FB]">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
+        <div className="mx-auto w-full max-w-5xl px-5 py-8 md:py-14">
           <Reveal>
             <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
             <CareerLaunchIntro />
-            <div className="rounded-3xl border border-[#EEF1F5] bg-white p-7 shadow-[0_10px_40px_rgba(11,18,39,0.06)] md:p-8">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]">
+            <div className="rounded-3xl bg-[color:var(--v2-band)] p-6 md:p-8">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[color:var(--v2-accent)]">
                 <GraduationCap className="h-7 w-7" weight="fill" />
               </span>
-              <h1 className="mt-5 text-[21px] font-black tracking-[-0.02em] text-[#0B1227]">{t("초대코드를 입력해주세요", "Enter your invitation code", "请输入邀请码", "Nhập mã mời của bạn", "招待コードを入力してください", "Masukkan kode undangan")}</h1>
-              <p className="mt-2.5 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">
+              <h1 className="mt-5 text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("초대코드를 입력해주세요", "Enter your invitation code", "请输入邀请码", "Nhập mã mời của bạn", "招待コードを入力してください", "Masukkan kode undangan")}</h1>
+              <p className="mt-2.5 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
                 {t(
                   "Career Launch는 대학·기수별로 운영돼요. 발급받은 초대코드를 입력하면 바로 시작할 수 있어요.",
                   "Career Launch runs by university and cohort. Enter the invitation code you received to get started.",
@@ -119,13 +119,13 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder={t("초대코드", "Invitation code", "邀请码", "Mã mời", "招待コード", "Kode undangan")}
                   autoCapitalize="characters"
-                  className="w-full rounded-2xl bg-[#F5F6F8] px-4 py-3.5 text-center text-[17px] font-black tracking-[0.24em] text-[#191F28] outline-none placeholder:text-[15px] placeholder:font-semibold placeholder:tracking-normal placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30"
+                  className="h-14 w-full rounded-2xl bg-white px-4 text-center text-[18px] font-bold tracking-[0.24em] text-[color:var(--v2-ink)] outline-none placeholder:text-[16px] placeholder:font-medium placeholder:tracking-normal placeholder:text-[color:var(--v2-faint)] focus:ring-2 focus:ring-[color:var(--v2-accent)]"
                 />
-                {err ? <p className="text-center text-[12.5px] font-semibold text-[#F04452]">{err}</p> : null}
+                {err ? <p className="text-center text-[14px] font-semibold text-[color:var(--v2-attention)]">{err}</p> : null}
                 <button
                   type="submit"
                   disabled={!code.trim() || busy}
-                  className="inline-flex h-[52px] w-full items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+                  className="inline-flex h-14 w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98] disabled:opacity-40"
                 >
                   {busy ? (
                     <>
@@ -140,7 +140,7 @@ export function EnrollmentGate({ children }: { children: React.ReactNode }) {
                   )}
                 </button>
               </form>
-              <p className="mt-4 break-keep text-center text-[12px] leading-relaxed text-[#B0B8C1]">
+              <p className="mt-4 break-keep text-center text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
                 {t("코드가 없으신가요? 운영자에게 등록을 문의해 주세요.", "No code? Ask an administrator to enroll you.", "没有邀请码？请联系运营人员注册。", "Chưa có mã? Hãy liên hệ quản trị viên để đăng ký.", "コードがありませんか？運営者に登録をお問い合わせください。", "Tidak punya kode? Hubungi admin untuk mendaftar.")}
               </p>
             </div>

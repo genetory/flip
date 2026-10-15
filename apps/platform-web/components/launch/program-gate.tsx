@@ -29,9 +29,13 @@ const GATED_PREFIXES = [
   "/career-launch/culture"
 ];
 
+// 운영 콘솔(/career-launch/ops·ops-report·ops-print)은 자체 디자인 시스템 — v2 껍데기(.v2)를 씌우지 않는다.
+const OPS_PREFIX = "/career-launch/ops";
+
 export function ProgramGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const gated = GATED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (!gated) return <>{children}</>;
-  return <EnrollmentGate>{children}</EnrollmentGate>;
+  if (pathname.startsWith(OPS_PREFIX)) return <>{children}</>;
+  // 학생 화면 — v2 색(--v2-*)이 풀리도록 .v2 로 감싼다.
+  return <div className="v2">{gated ? <EnrollmentGate>{children}</EnrollmentGate> : children}</div>;
 }

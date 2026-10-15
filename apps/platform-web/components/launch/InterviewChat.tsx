@@ -92,32 +92,32 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
   const completion = (
     <div className="flex flex-col gap-3">
       {report && (report.strengths.length > 0 || report.improvements.length > 0 || report.modelAnswer) ? (
-        <div className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[#0B46E8]">{t("이번 면접 준비도 리포트", "Your readiness report", "本次面试准备度报告", "Báo cáo mức sẵn sàng", "今回の準備度レポート", "Laporan kesiapan")}</p>
+        <div className="rounded-3xl bg-[color:var(--v2-band)] p-4">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[color:var(--v2-accent)]">{t("이번 면접 준비도 리포트", "Your readiness report", "本次面试准备度报告", "Báo cáo mức sẵn sàng", "今回の準備度レポート", "Laporan kesiapan")}</p>
           {report.strengths.length > 0 ? (
             <div className="mt-3">
-              <p className="text-[12.5px] font-bold text-[#0A9B59]">💪 {t("잘한 점", "Strengths", "做得好", "Điểm mạnh", "良かった点", "Kelebihan")}</p>
+              <p className="text-[12.5px] font-bold text-[color:var(--v2-good)]">💪 {t("잘한 점", "Strengths", "做得好", "Điểm mạnh", "良かった点", "Kelebihan")}</p>
               <ul className="mt-1 space-y-1">
                 {report.strengths.map((s, i) => (
-                  <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>
+                  <li key={i} className="break-keep text-[13px] leading-relaxed text-[color:var(--v2-ink-2)]">· {s}</li>
                 ))}
               </ul>
             </div>
           ) : null}
           {report.improvements.length > 0 ? (
             <div className="mt-3">
-              <p className="text-[12.5px] font-bold text-[#C77700]">✏️ {t("더 다듬을 점", "To improve", "可改进", "Cần cải thiện", "改善点", "Perlu diperbaiki")}</p>
+              <p className="text-[12.5px] font-bold text-[#c2410c]">✏️ {t("더 다듬을 점", "To improve", "可改进", "Cần cải thiện", "改善点", "Perlu diperbaiki")}</p>
               <ul className="mt-1 space-y-1">
                 {report.improvements.map((s, i) => (
-                  <li key={i} className="break-keep text-[13px] leading-relaxed text-[#333D4B]">· {s}</li>
+                  <li key={i} className="break-keep text-[13px] leading-relaxed text-[color:var(--v2-ink-2)]">· {s}</li>
                 ))}
               </ul>
             </div>
           ) : null}
           {report.modelAnswer ? (
-            <div className="mt-3 rounded-xl bg-[#F8FAFF] p-3">
-              <p className="text-[12.5px] font-bold text-[#0B46E8]">🧭 {t("모범 답변 방향", "Model answer direction", "范例答案方向", "Hướng trả lời mẫu", "模範解答の方向", "Arah jawaban contoh")}</p>
-              <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#333D4B]">{report.modelAnswer}</p>
+            <div className="mt-3 rounded-xl bg-[color:var(--v2-accent-weak)] p-3">
+              <p className="text-[12.5px] font-bold text-[color:var(--v2-accent)]">🧭 {t("모범 답변 방향", "Model answer direction", "范例答案方向", "Hướng trả lời mẫu", "模範解答の方向", "Arah jawaban contoh")}</p>
+              <p className="mt-1 break-keep text-[13px] leading-relaxed text-[color:var(--v2-ink-2)]">{report.modelAnswer}</p>
             </div>
           ) : null}
         </div>
@@ -129,7 +129,7 @@ export function InterviewChat({ embedded = false, onClose, section }: { embedded
             setDone(false);
             setReport(null);
           }}
-          className="flex h-[46px] items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+          className="flex h-[46px] items-center justify-center rounded-xl bg-[color:var(--v2-band)] px-4 text-[13.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
         >
           {t("더 연습하기", "Practice more", "继续练习", "Luyện tập thêm", "もっと練習する", "Latihan lagi")}
         </button>
