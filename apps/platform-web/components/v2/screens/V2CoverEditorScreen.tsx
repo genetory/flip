@@ -79,6 +79,7 @@ function EditorGate() {
         onNew={() => setStartNew(true)}
         importPanel={
           <ImportFromFile
+            tall
             t={t}
             title={t("자기소개서 가져오기", "Import your cover letter", "导入自我介绍", "Nhập thư giới thiệu", "自己紹介書を取り込む", "Impor surat lamaran")}
             hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 답변은 에피소드로 들어가고, 어느 문항에 쓸지는 직접 고르면 돼요.", "Upload a PDF or paste the text. Answers become episodes, and you choose which question each one goes to.", "请上传 PDF 或粘贴内容。答案会成为经历，放入哪个题目由你决定。", "Tải PDF hoặc dán nội dung. Câu trả lời thành đoạn kể, bạn chọn dùng cho câu nào.", "PDFを上げるか本文を貼り付けてください。回答はエピソードになり、どの設問に使うかは自分で選べます。", "Unggah PDF atau tempel teks. Jawaban jadi episode, kamu pilih untuk pertanyaan mana.")}
@@ -700,6 +701,7 @@ function Inspector(props: {
       <div className={`flex shrink-0 flex-col gap-7 [&>*]:shrink-0 ${itemFocused ? "hidden lg:flex" : ""}`}>
       <RecentChanges t={t} points={props.changePoints} onRestore={(at) => void restoreCoverVersion(at)} />
       <ImportFromFile
+            tall
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
         hint={t(

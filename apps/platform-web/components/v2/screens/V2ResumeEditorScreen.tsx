@@ -90,6 +90,7 @@ function EditorGate() {
         onNew={() => setStartNew(true)}
         importPanel={
           <ImportFromFile
+            tall
             t={t}
             title={t("이력서 가져오기", "Import your resume", "导入简历", "Nhập CV", "履歴書を取り込む", "Impor CV")}
             hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 가져온 뒤 바로 고칠 수 있어요.", "Upload a PDF or paste the text. You can edit it right after.", "请上传 PDF 或粘贴内容。导入后可立即修改。", "Tải PDF hoặc dán nội dung. Có thể sửa ngay sau đó.", "PDFを上げるか本文を貼り付けてください。取り込んだ後すぐ直せます。", "Unggah PDF atau tempel teks. Bisa langsung diedit.")}
@@ -748,6 +749,7 @@ function Inspector(props: {
           스크롤 열에서 버튼 높이가 눌린다. 같은 gap 의 flex 열로 감싸 데스크톱 간격을 유지한다. */}
       <div className={`flex shrink-0 flex-col gap-7 [&>*]:shrink-0 ${itemFocused ? "hidden lg:flex" : ""}`}>
       <ImportFromFile
+            tall
         t={t}
         title={t("파일에서 가져오기", "Import from a file", "从文件导入", "Nhập từ tệp", "ファイルから取り込む", "Impor dari berkas")}
         hint={t(
