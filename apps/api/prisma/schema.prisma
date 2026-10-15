@@ -2870,8 +2870,13 @@ model ExperienceCampaignApplication {
   phone            String?
   nationality      String?
   desiredRole      String // 지원 직무 (자유 입력)
-  experience       String // 경험 소개
-  coverLetter      String? // 기존 자기소개서 (선택)
+  experience       String? // 경험 소개 (v1 신청만 — v2부터는 파일 첨부로 대체)
+  coverLetter      String? // 기존 자기소개서 텍스트 (v1 신청만)
+  // v2 — 첨부 파일(Blob URL·원래 파일 이름). 이력서는 필수, 자기소개서는 선택.
+  resumeUrl           String?
+  resumeFileName      String?
+  coverLetterUrl      String?
+  coverLetterFileName String?
   consultMethod    String // "ONLINE" | "OFFLINE" | "ANY"
   // 개인정보 수집·이용 동의(필수) — 동의 시각과 동의문 버전을 함께 남긴다.
   consentPrivacyAt DateTime

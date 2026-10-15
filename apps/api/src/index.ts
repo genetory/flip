@@ -2881,6 +2881,19 @@ app.use(cors({
 // DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치+여유로 맞춘다.
 app.use(express.json({ limit: "40mb" }));
 
+// 로컬 개발 전용 — Blob 스토리지가 없는 로컬에서 저장한 첨부 파일(/experience 신청 등)을 내려준다.
+// 프로덕션에서는 등록하지 않는다.
+if (process.env.NODE_ENV !== "production") {
+  app.use(
+    "/local-uploads",
+    express.static(path.resolve(process.cwd(), ".local-uploads"), {
+      dotfiles: "deny",
+      index: false,
+      setHeaders: (res) => res.setHeader("Content-Disposition", "attachment")
+    })
+  );
+}
+
 type RateLimitBucket = { count: number; resetAt: number };
 const rateLimitStore = new Map<string, RateLimitBucket>();
 
@@ -8151,6 +8164,10 @@ app.get("/ops/experience-applications", authenticate, requireRoles([MemberRole.O
       desiredRole: a.desiredRole,
       experience: a.experience,
       coverLetter: a.coverLetter,
+      resumeUrl: a.resumeUrl,
+      resumeFileName: a.resumeFileName,
+      coverLetterUrl: a.coverLetterUrl,
+      coverLetterFileName: a.coverLetterFileName,
       consultMethod: a.consultMethod,
       consentPrivacyAt: a.consentPrivacyAt.toISOString(),
       consentVersion: a.consentVersion,
@@ -10090,7 +10107,107 @@ app.post(
 // ---------------------------------------------------------------------------
 
 // 개인정보 수집·이용 동의문 버전 — 웹(/experience) 동의문을 고치면 함께 올린다.
-const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v1";
+// v2: 경험 소개·자기소개서 텍스트 → 이력서(필수)·자기소개서(선택) 파일 첨부로 수집 항목 변경.
+const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v2";
+
+// ---- 첨부 파일(multipart) -------------------------------------------------
+// 이력서(resume, 필수)·자기소개서(coverLetterFile, 선택) 각 1개, 10MB 이하.
+// PDF·Word·한글. 한글(HWP/HWPX)은 브라우저·OS 마다 mime 이 제각각(octet-stream 포함)이라 확장자도 같이 본다.
+const EXPERIENCE_FILE_MAX_BYTES = 10 * 1024 * 1024;
+const EXPERIENCE_FILE_EXT_MIME: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  hwp: ["application/x-hwp", "application/haansofthwp", "application/vnd.hancom.hwp"],
+  hwpx: ["application/vnd.hancom.hwpx", "application/haansofthwpx", "application/hwp+zip"]
+};
+// 확장자는 맞는데 mime 을 못 알아본 경우(octet-stream·zip 등)도 받는다 — 확장자가 기준.
+const EXPERIENCE_FILE_GENERIC_MIME = new Set(["application/octet-stream", "application/zip", "application/x-zip-compressed", ""]);
+const EXPERIENCE_FILE_CONTENT_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  hwp: "application/x-hwp",
+  hwpx: "application/vnd.hancom.hwpx"
+};
+
+function experienceFileExt(name: string): string {
+  const m = /\.([a-z0-9]+)$/i.exec(name.trim());
+  return m ? m[1]!.toLowerCase() : "";
+}
+
+class ExperienceFileTypeError extends Error {}
+
+const experienceApplicationUpload = multer({
+  storage: multer.memoryStorage(),
+  // 브라우저는 파일 이름을 UTF-8 로 보낸다 — 기본값(latin1)이면 '자소서.pdf' 같은 한글 이름이 깨진다.
+  defParamCharset: "utf8",
+  limits: { fileSize: EXPERIENCE_FILE_MAX_BYTES, files: 2, fields: 30 },
+  fileFilter: (_req, file, cb) => {
+    const ext = experienceFileExt(file.originalname);
+    const allowed = EXPERIENCE_FILE_EXT_MIME[ext];
+    const mime = (file.mimetype || "").toLowerCase();
+    if (allowed && (allowed.includes(mime) || EXPERIENCE_FILE_GENERIC_MIME.has(mime))) return cb(null, true);
+    return cb(new ExperienceFileTypeError("unsupported file type"));
+  }
+}).fields([
+  { name: "resume", maxCount: 1 },
+  { name: "coverLetterFile", maxCount: 1 }
+]);
+
+// multer 오류(용량 초과·형식·필드 개수)를 500 대신 알아듣기 쉬운 400 으로.
+function experienceApplicationUploadMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+  experienceApplicationUpload(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof ExperienceFileTypeError) {
+      return res.status(400).json({ ok: false, code: "FILE_TYPE", message: "PDF·Word·한글(HWP) 파일만 올릴 수 있어요." });
+    }
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ ok: false, code: "FILE_TOO_LARGE", message: "파일은 10MB 이하로 올려 주세요." });
+      }
+      return res.status(400).json({ ok: false, code: "FILE_INVALID", message: "첨부 파일을 확인해 주세요. (이력서 1개, 자기소개서 1개까지)" });
+    }
+    return next(err);
+  });
+}
+
+// 로컬 개발 전용 저장소 — AZURE_STORAGE_CONNECTION_STRING 이 없는 로컬에서만 apps/api/.local-uploads 에 쓴다.
+// 프로덕션에서는 절대 쓰지 않는다(스토리지가 없으면 500 + 로그).
+const LOCAL_UPLOADS_DIR = path.resolve(process.cwd(), ".local-uploads");
+
+async function storeExperienceApplicationFile(
+  req: express.Request,
+  file: Express.Multer.File,
+  kind: "resume" | "cover-letter"
+): Promise<string> {
+  const ext = experienceFileExt(file.originalname);
+  const contentType = EXPERIENCE_FILE_CONTENT_TYPE[ext] ?? "application/octet-stream";
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  // 추측할 수 없는 이름 — Blob 은 공개 읽기(access: "blob")라 URL 을 아는 사람만 열 수 있다(기존 지원 서류와 같은 방식).
+  const blobName = `experience-applications/${month}/${kind}-${randomBytes(16).toString("hex")}.${ext || "bin"}`;
+  const container = getAzureContainerClient();
+  if (container) {
+    await container.createIfNotExists({ access: "blob" });
+    const client = container.getBlockBlobClient(blobName);
+    await client.uploadData(file.buffer, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+        blobContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.originalname)}`
+      }
+    });
+    return client.url;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Azure Blob storage is not configured (AZURE_STORAGE_CONNECTION_STRING missing).");
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  const target = path.join(LOCAL_UPLOADS_DIR, blobName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, file.buffer);
+  return `${req.protocol}://${req.get("host")}/local-uploads/${blobName}`;
+}
 
 const optionalShort = (max: number) =>
   z
@@ -10106,12 +10223,11 @@ const experienceApplicationCreateSchema = z.object({
   phone: optionalShort(40),
   nationality: optionalShort(80),
   desiredRole: z.string().trim().min(1).max(120),
-  experience: z.string().trim().min(30).max(4000),
-  coverLetter: optionalShort(8000),
   consultMethod: z.enum(["ONLINE", "OFFLINE", "ANY"]),
+  // multipart 라 불리언도 문자열로 온다 — "true"/"false" 를 받아 바꾼다.
   // 개인정보 수집·이용 동의(필수) — true 만 허용.
-  consentPrivacy: z.literal(true),
-  consentCaseStudy: z.boolean().optional(),
+  consentPrivacy: z.preprocess((v) => v === true || v === "true", z.literal(true)),
+  consentCaseStudy: z.preprocess((v) => (v === undefined || v === "" ? undefined : v === true || v === "true"), z.boolean().optional()),
   utmSource: optionalShort(200),
   utmMedium: optionalShort(200),
   utmCampaign: optionalShort(200),
@@ -10125,12 +10241,19 @@ app.post(
   "/public/experience-applications",
   rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "experience-apply", message: "잠시 후 다시 시도해 주세요." }),
   authenticateOptional,
+  experienceApplicationUploadMiddleware,
   async (req, res) => {
     const parsed = experienceApplicationCreateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
     }
     const input = parsed.data;
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[] | undefined>;
+    const resumeFile = files.resume?.[0];
+    const coverLetterFile = files.coverLetterFile?.[0];
+    if (!resumeFile || resumeFile.size === 0) {
+      return res.status(400).json({ ok: false, code: "RESUME_REQUIRED", message: "이력서 파일을 첨부해 주세요." });
+    }
     try {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const dup = await prisma.experienceCampaignApplication.findFirst({
@@ -10149,6 +10272,21 @@ app.post(
         ? createHash("sha256").update(`${ipRaw}|experience-apply`).digest("hex").slice(0, 32)
         : null;
 
+      // 검증·중복 확인을 모두 통과한 뒤에만 올린다 — 400/409 에 고아 파일이 남지 않게.
+      let resumeUrl: string;
+      let coverLetterUrl: string | null = null;
+      try {
+        resumeUrl = await storeExperienceApplicationFile(req, resumeFile, "resume");
+        if (coverLetterFile && coverLetterFile.size > 0) {
+          coverLetterUrl = await storeExperienceApplicationFile(req, coverLetterFile, "cover-letter");
+        }
+      } catch (error) {
+        console.error("[public/experience-applications][upload][failed]", {
+          message: error instanceof Error ? error.message : String(error)
+        });
+        return res.status(500).json({ ok: false, message: "파일을 올리지 못했어요. 잠시 후 다시 시도해 주세요." });
+      }
+
       const created = await prisma.experienceCampaignApplication.create({
         data: {
           name: input.name,
@@ -10156,8 +10294,10 @@ app.post(
           phone: input.phone ?? null,
           nationality: input.nationality ?? null,
           desiredRole: input.desiredRole,
-          experience: input.experience,
-          coverLetter: input.coverLetter ?? null,
+          resumeUrl,
+          resumeFileName: resumeFile.originalname.slice(0, 255),
+          coverLetterUrl,
+          coverLetterFileName: coverLetterUrl && coverLetterFile ? coverLetterFile.originalname.slice(0, 255) : null,
           consultMethod: input.consultMethod,
           consentPrivacyAt: new Date(),
           consentVersion: EXPERIENCE_CONSENT_VERSION,

@@ -24,8 +24,8 @@ export const PRIVACY_CONSENT_DETAILS: { label: Copy; value: Copy }[] = [
   {
     label: { ko: "수집 항목", en: "What we collect" },
     value: {
-      ko: "이름, 이메일, 지원 직무, 경험 소개, 상담 방식 (선택: 휴대폰 번호, 국적, 기존 자기소개서)",
-      en: "Name, email, desired role, experience, consultation method (optional: phone, nationality, existing cover letter)"
+      ko: "이름, 이메일, 지원 직무, 이력서 파일, 상담 방식 (선택: 휴대폰 번호, 국적, 자기소개서 파일)",
+      en: "Name, email, desired role, resume file, consultation method (optional: phone, nationality, cover letter file)"
     }
   },
   {

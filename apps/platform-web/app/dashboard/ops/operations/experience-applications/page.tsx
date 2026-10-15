@@ -21,8 +21,13 @@ type Application = {
   phone: string | null;
   nationality: string | null;
   desiredRole: string;
-  experience: string;
+  // v1 신청(텍스트)만 값이 있다 — v2부터는 파일 첨부.
+  experience: string | null;
   coverLetter: string | null;
+  resumeUrl: string | null;
+  resumeFileName: string | null;
+  coverLetterUrl: string | null;
+  coverLetterFileName: string | null;
   consultMethod: ConsultMethod;
   consentPrivacyAt: string;
   consentVersion: string;
@@ -544,17 +549,29 @@ function ApplicationDetailModal({
           <DetailMeta label="신청일" value={formatDate(application.createdAt)} />
         </div>
 
-        <DetailBlock title="경험 소개">
-          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
-            {application.experience}
-          </p>
+        <DetailBlock title="첨부 파일">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13.5 }}>
+            <FileLink label="이력서" url={application.resumeUrl} fileName={application.resumeFileName} />
+            <FileLink label="자기소개서" url={application.coverLetterUrl} fileName={application.coverLetterFileName} />
+          </div>
         </DetailBlock>
 
-        <DetailBlock title="기존 자기소개서">
-          <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
-            {application.coverLetter || "-"}
-          </p>
-        </DetailBlock>
+        {/* 예전(v1) 신청 — 텍스트로 받던 경험 소개·자기소개서가 있을 때만 */}
+        {application.experience ? (
+          <DetailBlock title="경험 소개 (이전 양식)">
+            <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
+              {application.experience}
+            </p>
+          </DetailBlock>
+        ) : null}
+
+        {application.coverLetter ? (
+          <DetailBlock title="기존 자기소개서 (이전 양식)">
+            <p style={{ whiteSpace: "pre-wrap", fontSize: 13.5, lineHeight: 1.6, color: "var(--ink)", margin: 0 }}>
+              {application.coverLetter}
+            </p>
+          </DetailBlock>
+        ) : null}
 
         <DetailBlock title="유입 경로">
           <p style={{ fontSize: 13, color: "var(--ink)", margin: 0, wordBreak: "break-all" }}>
@@ -572,6 +589,21 @@ function ApplicationDetailModal({
           <NoteEditor key={application.opsNote ?? ""} value={application.opsNote ?? ""} onSave={(memo) => onUpdate({ opsNote: memo || null })} />
         </DetailBlock>
       </div>
+    </div>
+  );
+}
+
+function FileLink({ label, url, fileName }: { label: string; url: string | null; fileName: string | null }) {
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "baseline", minWidth: 0 }}>
+      <span style={{ flexShrink: 0, color: "var(--ink-soft)", width: 72 }}>{label}</span>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" download={fileName ?? undefined} style={{ color: "var(--accent-ink)", fontWeight: 600, wordBreak: "break-all" }}>
+          {fileName || "파일 받기"}
+        </a>
+      ) : (
+        <span style={{ color: "var(--ink)" }}>-</span>
+      )}
     </div>
   );
 }

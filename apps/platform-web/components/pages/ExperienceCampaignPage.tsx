@@ -23,8 +23,10 @@ import {
 } from "../../lib/experience-campaign";
 
 const FORM_ID = "apply";
-const EXPERIENCE_MIN = 30;
-const EXPERIENCE_MAX = 4000;
+// 첨부 파일 — 이력서(필수)·자기소개서(선택). API(/public/experience-applications)와 같은 기준.
+const FILE_MAX_BYTES = 10 * 1024 * 1024;
+const FILE_EXTS = ["pdf", "doc", "docx", "hwp", "hwpx"];
+const FILE_ACCEPT = FILE_EXTS.map((e) => `.${e}`).join(",");
 const FAB_KEY = "experience-campaign";
 
 type ConsultMethod = "ONLINE" | "OFFLINE" | "ANY";
@@ -249,7 +251,7 @@ export function ExperienceCampaignPage() {
                   <span className="rounded-full bg-[#ffd84d] px-3 py-1 text-[13px] font-extrabold text-[#191f28]">{t(`이번 주 ${WEEKLY_SLOTS}자리`, `${WEEKLY_SLOTS} spots this week`)}</span>
                 </div>
                 <div className="mt-3">
-                  <Headline eyebrow={t("신청하기", "Apply")} title={t("내 경험,\n들려주세요.", "Tell us about\nyour experience.")} sub={t("작성은 3분이면 충분해요.", "It only takes about 3 minutes.")} />
+                  <Headline eyebrow={t("신청하기", "Apply")} title={t("이력서만\n보내 주세요.", "Just send\nyour resume.")} sub={t("1분이면 신청할 수 있어요.", "It takes about a minute.")} />
                 </div>
                 <ApplyForm t={t} tc={tc} locale={locale} utmRef={utmRef} onDone={() => setSubmitted(true)} />
               </>
@@ -351,8 +353,8 @@ type Fields = {
   phone: string;
   nationality: string;
   desiredRole: string;
-  experience: string;
-  coverLetter: string;
+  resume: File | null;
+  coverLetterFile: File | null;
   consultMethod: ConsultMethod | "";
   consentPrivacy: boolean;
   consentCaseStudy: boolean;
@@ -365,8 +367,8 @@ const EMPTY: Fields = {
   phone: "",
   nationality: "",
   desiredRole: "",
-  experience: "",
-  coverLetter: "",
+  resume: null,
+  coverLetterFile: null,
   consultMethod: "",
   consentPrivacy: false,
   consentCaseStudy: false
@@ -377,6 +379,19 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const NATIONALITY_SUGGESTIONS = ["베트남", "중국", "우즈베키스탄", "몽골", "인도네시아", "일본", "네팔", "미국", "필리핀", "태국"];
 
+function fileExt(name: string) {
+  const m = /\.([a-z0-9]+)$/i.exec(name);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function fileError(file: File | null, t: PlatformT): string | undefined {
+  if (!file) return undefined;
+  if (!FILE_EXTS.includes(fileExt(file.name))) return t("PDF·Word·한글 파일만 올릴 수 있어요.", "Only PDF, Word or HWP files.");
+  if (file.size > FILE_MAX_BYTES) return t("10MB 이하 파일로 올려 주세요.", "Please use a file under 10MB.");
+  if (file.size === 0) return t("빈 파일이에요. 다른 파일을 골라 주세요.", "This file is empty. Please choose another.");
+  return undefined;
+}
+
 function validate(f: Fields, t: PlatformT): Partial<Record<FieldKey, string>> {
   const e: Partial<Record<FieldKey, string>> = {};
   if (!f.name.trim()) e.name = t("이름을 입력해 주세요.", "Please enter your name.");
@@ -384,15 +399,19 @@ function validate(f: Fields, t: PlatformT): Partial<Record<FieldKey, string>> {
   else if (!EMAIL_RE.test(f.email.trim())) e.email = t("이메일 형식을 확인해 주세요.", "Please check your email address.");
   if (f.phone.trim() && !/^[+\d][\d\s-]{6,}$/.test(f.phone.trim())) e.phone = t("휴대폰 번호를 확인해 주세요.", "Please check your phone number.");
   if (!f.desiredRole.trim()) e.desiredRole = t("지원하려는 직무를 입력해 주세요.", "Please enter the role you're applying for.");
-  const expLen = f.experience.trim().length;
-  if (expLen === 0) e.experience = t("경험을 소개해 주세요.", "Please tell us about your experience.");
-  else if (expLen < EXPERIENCE_MIN) e.experience = t(`조금만 더 써 주세요. (${EXPERIENCE_MIN}자 이상)`, `Please write a bit more (${EXPERIENCE_MIN}+ characters).`);
+  if (!f.resume) e.resume = t("이력서 파일을 첨부해 주세요.", "Please attach your resume.");
+  else {
+    const re = fileError(f.resume, t);
+    if (re) e.resume = re;
+  }
+  const ce = fileError(f.coverLetterFile, t);
+  if (ce) e.coverLetterFile = ce;
   if (!f.consultMethod) e.consultMethod = t("상담 방식을 골라 주세요.", "Please choose a consultation method.");
   if (!f.consentPrivacy) e.consentPrivacy = t("개인정보 수집·이용에 동의해야 신청할 수 있어요.", "You need to agree to the privacy terms to apply.");
   return e;
 }
 
-const FIELD_ORDER: FieldKey[] = ["name", "email", "phone", "nationality", "desiredRole", "experience", "coverLetter", "consultMethod", "consentPrivacy"];
+const FIELD_ORDER: FieldKey[] = ["name", "email", "phone", "nationality", "desiredRole", "resume", "coverLetterFile", "consultMethod", "consentPrivacy"];
 
 function ApplyForm({
   t,
@@ -420,6 +439,14 @@ function ApplyForm({
     if (tried) setErrors(validate(next, t));
   };
 
+  // 파일은 고르자마자 형식·용량을 확인해 바로 알려 준다(제출 전이어도).
+  const setFile = (k: "resume" | "coverLetterFile", file: File | null) => {
+    const next = { ...f, [k]: file };
+    setF(next);
+    if (tried) setErrors(validate(next, t));
+    else setErrors((prev) => ({ ...prev, [k]: fileError(file, t) }));
+  };
+
   const submit = async () => {
     if (busy) return;
     setTried(true);
@@ -435,23 +462,27 @@ function ApplyForm({
     setBusy(true);
     try {
       const token = readAccessToken();
+      // 파일 첨부라 multipart(FormData) — Content-Type 은 브라우저가 boundary 와 함께 정한다.
+      const body = new FormData();
+      const put = (k: string, v: string | undefined) => {
+        if (v) body.append(k, v);
+      };
+      put("name", f.name.trim());
+      put("email", f.email.trim().toLowerCase());
+      put("phone", f.phone.trim() || undefined);
+      put("nationality", f.nationality.trim() || undefined);
+      put("desiredRole", f.desiredRole.trim());
+      put("consultMethod", f.consultMethod);
+      put("consentPrivacy", "true");
+      put("consentCaseStudy", f.consentCaseStudy ? "true" : "false");
+      for (const [k, v] of Object.entries(utmRef.current ?? {})) put(k, v);
+      put("locale", locale);
+      if (f.resume) body.append("resume", f.resume, f.resume.name);
+      if (f.coverLetterFile) body.append("coverLetterFile", f.coverLetterFile, f.coverLetterFile.name);
       const res = await fetch(`${apiBase()}/public/experience-applications`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          name: f.name.trim(),
-          email: f.email.trim().toLowerCase(),
-          phone: f.phone.trim() || undefined,
-          nationality: f.nationality.trim() || undefined,
-          desiredRole: f.desiredRole.trim(),
-          experience: f.experience.trim(),
-          coverLetter: f.coverLetter.trim() || undefined,
-          consultMethod: f.consultMethod,
-          consentPrivacy: true,
-          consentCaseStudy: f.consentCaseStudy,
-          ...utmRef.current,
-          locale
-        })
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body
       });
       if (res.status === 409) {
         trackExperienceCampaign("experience_form_duplicate");
@@ -462,11 +493,19 @@ function ApplyForm({
         setNotice({ tone: "error", text: t("잠시 후 다시 시도해 주세요.", "Please try again in a moment.") });
         return;
       }
+      if (res.status === 400) {
+        // 서버가 파일 문제(형식·용량·누락)를 알려 주면 그 문구를 그대로 보여 준다.
+        const data = (await res.json().catch(() => null)) as { code?: string; message?: string } | null;
+        if (data?.code && data.message) {
+          setNotice({ tone: "error", text: data.message });
+          return;
+        }
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       trackExperienceCampaign("experience_form_submit", {
         consult_method: f.consultMethod,
         case_study: f.consentCaseStudy,
-        has_cover_letter: Boolean(f.coverLetter.trim()),
+        has_cover_letter_file: Boolean(f.coverLetterFile),
         utm_source: utmRef.current?.utmSource ?? "(none)"
       });
       onDone();
@@ -478,7 +517,6 @@ function ApplyForm({
     }
   };
 
-  const expLen = f.experience.trim().length;
   const methods: [ConsultMethod, string][] = [
     ["ONLINE", t("온라인", "Online")],
     ["OFFLINE", t("오프라인", "In person")],
@@ -519,24 +557,12 @@ function ApplyForm({
         <input id="exp-desiredRole" value={f.desiredRole} onChange={(e) => set("desiredRole", e.target.value)} maxLength={120} placeholder={t("예: 해외영업, 마케팅, 무역사무", "e.g. Overseas sales, marketing")} className={inputCls(errors.desiredRole)} aria-invalid={Boolean(errors.desiredRole)} aria-describedby={errors.desiredRole ? "exp-desiredRole-err" : undefined} />
       </Field>
 
-      <Field
-        id="exp-experience"
-        label={t("경험 소개", "Your experience")}
-        required
-        error={errors.experience}
-        hint={t("아르바이트, 동아리, 봉사, 수업 프로젝트 등 무엇이든 좋아요. 언제, 무엇을, 어떻게 했는지 편하게 적어 주세요.", "Part-time jobs, clubs, volunteering, class projects — anything. Tell us when, what and how.")}
-        right={
-          <span className={`text-[13px] tabular-nums ${expLen > 0 && expLen < EXPERIENCE_MIN ? "text-[color:var(--v2-attention)]" : "text-[color:var(--v2-faint)]"}`}>
-            {expLen}
-            {t("자", " chars")} / {t(`최소 ${EXPERIENCE_MIN}자`, `min ${EXPERIENCE_MIN}`)}
-          </span>
-        }
-      >
-        <textarea id="exp-experience" value={f.experience} onChange={(e) => set("experience", e.target.value)} rows={6} maxLength={EXPERIENCE_MAX} placeholder={t("예: 편의점에서 2년 동안 일하면서 주말 발주를 맡았어요. 잘 팔리는 시간대를 기록해서…", "e.g. I worked at a convenience store for 2 years and handled weekend orders. I tracked busy hours and…")} className={`${inputCls(errors.experience)} h-auto resize-none py-3.5 leading-[1.65]`} aria-invalid={Boolean(errors.experience)} aria-describedby={errors.experience ? "exp-experience-err" : "exp-experience-hint"} />
+      <Field id="exp-resume" label={t("이력서 파일", "Resume file")} required error={errors.resume} hint={t("PDF·Word·한글 파일, 10MB 이하", "PDF, Word or HWP, up to 10MB")}>
+        <FilePicker id="exp-resume" t={t} file={f.resume} error={errors.resume} onChange={(file) => setFile("resume", file)} />
       </Field>
 
-      <Field id="exp-coverLetter" label={t("기존 자기소개서", "Existing cover letter")} hint={t("있으면 붙여 넣어 주세요. 없어도 괜찮아요.", "Paste it here if you have one. It's fine if you don't.")}>
-        <textarea id="exp-coverLetter" value={f.coverLetter} onChange={(e) => set("coverLetter", e.target.value)} rows={4} maxLength={8000} className={`${inputCls()} h-auto resize-none py-3.5 leading-[1.65]`} aria-describedby="exp-coverLetter-hint" />
+      <Field id="exp-coverLetterFile" label={t("자기소개서 파일", "Cover letter file")} error={errors.coverLetterFile} hint={t("있으면 함께 올려 주세요. 없어도 괜찮아요.", "Add it if you have one. It's fine if you don't.")}>
+        <FilePicker id="exp-coverLetterFile" t={t} file={f.coverLetterFile} error={errors.coverLetterFile} onChange={(file) => setFile("coverLetterFile", file)} />
       </Field>
 
       <Field id="exp-consultMethod" label={t("상담 방식", "Consultation method")} required error={errors.consultMethod}>
@@ -617,6 +643,73 @@ function ApplyForm({
 
 function inputCls(error?: string) {
   return `h-12 w-full rounded-2xl bg-[color:var(--v2-fill)] px-4 text-[16px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-faint)] focus:ring-2 ${error ? "ring-2 ring-[color:var(--v2-attention)]" : "ring-[color:var(--v2-accent)]"}`;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))}KB`;
+}
+
+/** 파일 고르기 — 회색 둥근 칸 + '파일 선택'. 고르면 이름·크기와 지우기(×). id 는 오류 시 포커스 대상(칸 전체). */
+function FilePicker({ id, t, file, error, onChange }: { id: string; t: PlatformT; file: File | null; error?: string; onChange: (file: File | null) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const describedBy = error ? `${id}-err` : `${id}-hint`;
+  return (
+    <div
+      id={id}
+      tabIndex={-1}
+      aria-describedby={describedBy}
+      className={`flex min-h-[56px] items-center gap-3 rounded-2xl bg-[color:var(--v2-fill)] py-2 pl-4 pr-2 outline-none ${error ? "ring-2 ring-[color:var(--v2-attention)]" : ""}`}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={FILE_ACCEPT}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => {
+          const picked = e.target.files?.[0] ?? null;
+          // 같은 파일을 다시 골라도 onChange 가 오도록 비운다.
+          e.target.value = "";
+          if (picked) onChange(picked);
+        }}
+      />
+      <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-[color:var(--v2-faint)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <path d="M14 3v5h5" />
+      </svg>
+      {file ? (
+        <>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-semibold text-[color:var(--v2-ink)]">{file.name}</span>
+            <span className="block text-[13px] tabular-nums text-[color:var(--v2-muted)]">{formatFileSize(file.size)}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            aria-label={t(`${file.name} 지우기`, `Remove ${file.name}`)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[color:var(--v2-muted)] transition hover:bg-[color:var(--v2-band)]"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="min-w-0 flex-1 truncate text-[15px] text-[color:var(--v2-faint)]">{t("파일 없음", "No file")}</span>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="h-10 shrink-0 rounded-full bg-white px-4 text-[14px] font-bold text-[color:var(--v2-accent)] transition hover:opacity-90 active:scale-[0.98]"
+          >
+            {t("파일 선택", "Choose file")}
+          </button>
+        </>
+      )}
+    </div>
+  );
 }
 
 function Field({ id, label, required, error, hint, right, children }: { id: string; label: string; required?: boolean; error?: string; hint?: string; right?: ReactNode; children: ReactNode }) {
@@ -720,7 +813,7 @@ function Faq({ t }: { t: PlatformT }) {
     ],
     [
       t("기존 자기소개서가 없어도 되나요?", "Do I need an existing cover letter?"),
-      t("네. 경험만 있으면 충분해요. 전문가와 함께 경험을 찾고 자소서 문장으로 바꿔 드려요.", "No. Your experience is enough — the expert will help you find it and turn it into cover letter sentences.")
+      t("네, 이력서만 있어도 돼요. 전문가가 이력서 속 경험을 찾아 자소서 문장으로 바꿔 드려요.", "No — your resume is enough. The expert will find the experiences in it and turn them into cover letter sentences.")
     ],
     [
       t("사례 공개 동의는 꼭 해야 하나요?", "Do I have to agree to share my case?"),
