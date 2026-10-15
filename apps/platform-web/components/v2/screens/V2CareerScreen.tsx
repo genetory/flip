@@ -160,7 +160,7 @@ function Career() {
         // 처음 온 사람 — 내 이력서를 들고 있는 그림
         <div className="-mt-4 px-5 pb-6">
           {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
-          <img src="/img_talent_resume_0.webp" alt="" aria-hidden className="mx-auto h-[200px] w-[200px] object-contain mix-blend-multiply md:h-[240px] md:w-[240px]" />
+          <img src="/img_my_career_0.webp" alt="" aria-hidden className="mx-auto h-[200px] w-[200px] object-contain mix-blend-multiply md:h-[240px] md:w-[240px]" />
         </div>
       ) : null}
 
@@ -186,11 +186,10 @@ function Career() {
           title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
         >
           {/* 맞는 공고·이 직무에 필요한 것이 모두 여기서 고른 직무로 정해진다 — 눈에 띄게 연파랑 카드로. */}
-          <div className="relative mb-2 overflow-hidden rounded-2xl bg-[color:var(--v2-accent-weak)] p-4 md:p-5">
-            {/* 목표·계획 그림 — 오른쪽 위(글자와 겹치지 않게 칩 영역 오른쪽 여백) */}
-            {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
-            <img src="/img_talent_resume_2.webp" alt="" aria-hidden className="pointer-events-none absolute right-1 top-1 h-[84px] w-[84px] object-contain mix-blend-multiply md:h-[100px] md:w-[100px]" style={{ maskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)" }} />
-            <div className="pr-[72px] md:pr-[88px]">
+          <div className="mb-2 rounded-2xl bg-[color:var(--v2-accent-weak)] p-4 md:p-5">
+            {/* 위 줄 — 직무 칩(왼쪽) · 목표·계획 그림(오른쪽 칸). 그림은 칸 안에만 있어 아래 [바꾸기]와 겹치지 않는다 */}
+            <div className="flex items-start gap-2">
+              <div className="min-w-0 flex-1">
             {interests.length ? (
               <div className="flex flex-wrap gap-2">
                 {interests.map((r) => (
@@ -202,6 +201,9 @@ function Career() {
             ) : (
               <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{t("관심 직무를 골라 주세요", "Pick your job interests", "请选择感兴趣的职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan")}</p>
             )}
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
+              <img src="/img_talent_resume_2.webp" alt="" aria-hidden className="-mr-1 -mt-1 shrink-0 h-[84px] w-[84px] object-contain mix-blend-multiply md:h-[100px] md:w-[100px]" style={{ maskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)" }} />
             </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <p className="text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("고른 직무로 맞는 공고와 이 직무에 필요한 것을 골라 드려요.", "We pick matching jobs and what the role needs from these.", "将根据所选职位推荐职位和所需条件。", "Dựa vào đây để gợi ý việc làm và yêu cầu.", "選んだ職種で求人と必要なものを選びます。", "Dipakai untuk lowongan dan kebutuhan peran.")}</p>

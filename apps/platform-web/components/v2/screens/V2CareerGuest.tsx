@@ -40,6 +40,12 @@ export function V2CareerGuest() {
         }
       />
 
+      {/* 내 커리어 그림 — 내 이력서를 들고 있는 학생(흰 바탕 → 곱하기 합성) */}
+      <div className="-mt-2 px-5 pb-6">
+        {/* eslint-disable-next-line @next/next/no-img-element -- 장식 그림 */}
+        <img src="/img_my_career_0.webp" alt="" aria-hidden className="mx-auto h-[240px] w-[240px] object-contain mix-blend-multiply min-[360px]:h-[260px] min-[360px]:w-[260px] md:h-[300px] md:w-[300px]" />
+      </div>
+
       <SampleCard t={t} />
       <RoleJobs t={t} />
 
