@@ -366,16 +366,21 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
   );
 }
 
-/** 참여 후기 — 가로로 넘기는 카드. 예시 항목엔 '예시' 표시(실제 후기로 교체 예정). */
-function Reviews({ t }: { t: PlatformT }) {
-  const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
-  // 발표용 — 스테이징·로컬에서만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에서는 예시 후기에 늘 표시를 붙인다.
+/** 발표용(스테이징·로컬)인지 — 이때만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에선 예시에 늘 표시를 붙인다. */
+function usePreviewHost(): boolean {
   const [preview, setPreview] = useState(false);
   useEffect(() => {
     const h = window.location.hostname;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 호스트는 마운트 후에만 안다
     setPreview(h.includes("staging") || h === "localhost" || h === "127.0.0.1");
   }, []);
+  return preview;
+}
+
+/** 참여 후기 — 가로로 넘기는 카드. 예시 항목엔 '예시' 표시(실제 후기로 교체 예정). */
+function Reviews({ t }: { t: PlatformT }) {
+  const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
+  const preview = usePreviewHost();
   if (!REVIEWS.length) return null;
   const hasExample = !preview && REVIEWS.some((r) => r.example);
   return (
@@ -417,16 +422,19 @@ function Reviews({ t }: { t: PlatformT }) {
 /** Before/After — 칩으로 예시를 넘겨 본다. 예시는 lib/experience-campaign.ts. */
 function BeforeAfter({ t }: { t: PlatformT }) {
   const [idx, setIdx] = useState(0);
+  const preview = usePreviewHost();
   const ex = BEFORE_AFTER_EXAMPLES[idx] ?? BEFORE_AFTER_EXAMPLES[0];
   const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
   return (
     <section className="px-5 py-16">
       <Headline eyebrow="Before / After" title={t("같은 경험도,\n이렇게 달라져요.", "Same experience.\nNew story.", "同样的经历，\n可以这样不同。", "Cùng trải nghiệm,\nkhác cách kể.", "同じ経験でも、\nこんなに変わる。", "Pengalaman sama,\ncerita berbeda.")} />
-      <p className="mt-4 text-center">
-        <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
-          {t("예시 · 실제 상담 사례로 교체 예정", "Example · to be replaced with real cases", "示例 · 将替换为真实咨询案例", "Ví dụ · sẽ thay bằng ca tư vấn thật", "例 · 実際の相談事例に差し替え予定", "Contoh · akan diganti kasus nyata")}
-        </span>
-      </p>
+      {preview ? null : (
+        <p className="mt-4 text-center">
+          <span className="inline-flex rounded-full bg-white px-3 py-1 text-[13px] font-semibold text-[color:var(--v2-muted)]">
+            {t("예시 · 실제 상담 사례로 교체 예정", "Example · to be replaced with real cases", "示例 · 将替换为真实咨询案例", "Ví dụ · sẽ thay bằng ca tư vấn thật", "例 · 実際の相談事例に差し替え予定", "Contoh · akan diganti kasus nyata")}
+          </span>
+        </p>
+      )}
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {BEFORE_AFTER_EXAMPLES.map((e, i) => (
           <Chip key={e.tag.ko} active={i === idx} onClick={() => setIdx(i)}>
