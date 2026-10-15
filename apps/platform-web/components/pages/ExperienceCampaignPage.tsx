@@ -6,6 +6,7 @@
 // 휴대폰은 아래 고정 신청 버튼(폼이 보이면 숨김).
 // 문구·제공 범위·보관 기간·예시는 lib/experience-campaign.ts 에서 바꾼다. 이 캠페인은 '무료'를 써도 된다(전액 무료 행사).
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { AplyFooter } from "../AplyFooter";
 import { Button, Chip, Page, Spinner } from "../v2/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -298,6 +299,21 @@ export function ExperienceCampaignPage() {
             </div>
           </section>
         ) : null}
+
+        {/* 어플라이 홈 바로가기 — 메뉴가 없는 싱글 페이지라 서비스로 가는 길을 하나 둔다 */}
+        <section className="px-4 pb-6 md:px-5">
+          <Link href="/" className="group mx-auto flex max-w-[640px] items-center gap-4 rounded-[24px] bg-white p-5 shadow-[0_12px_30px_-22px_rgba(11,70,232,0.5)] transition hover:-translate-y-0.5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)]">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 작은 로고 */}
+              <img src="/img_logo.webp" alt="Aply" className="h-4 w-auto" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[16px] font-bold text-[color:var(--v2-ink)]">{t("어플라이가 궁금하다면", "Curious about Aply?", "想了解 Aply？", "Muốn biết về Aply?", "Aplyが気になったら", "Penasaran dengan Aply?")}</span>
+              <span className="mt-0.5 block text-[13px] leading-[1.5] text-[color:var(--v2-muted)]">{t("외국인 유학생·첫 취업 준비생을 위한 취업 플랫폼 둘러보기", "Explore the career platform for international students and first-time job seekers", "浏览为留学生和首次求职者打造的求职平台", "Khám phá nền tảng việc làm cho du học sinh và người tìm việc lần đầu", "留学生・初めての就活生のための就職プラットフォームを見る", "Jelajahi platform karier untuk mahasiswa asing dan pencari kerja pertama")}</span>
+            </span>
+            <span aria-hidden className="shrink-0 text-[20px] font-bold text-[color:var(--v2-accent)] transition group-hover:translate-x-0.5">›</span>
+          </Link>
+        </section>
 
         {/* 고정 버튼에 마지막 내용이 가리지 않게 */}
         <div aria-hidden className="h-20 md:hidden" />
