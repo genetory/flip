@@ -74,15 +74,22 @@ function Guide() {
 
   return (
     <Page>
-      <Masthead
-        eyebrow={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
-        title={t("첫 취업, 이것부터 알아 두세요", "Your first job: start here", "第一次求职，先了解这些", "Việc làm đầu tiên: bắt đầu từ đây", "はじめての就職、まずはこれを", "Kerja pertama: mulai dari sini")}
-        lede={
-          readCount
-            ? t(`글 ${guides.length}개 중 ${readCount}개를 읽었어요.`, `You've read ${readCount} of ${guides.length}.`, `${guides.length} 篇中已读 ${readCount} 篇。`, `Đã đọc ${readCount}/${guides.length} bài.`, `${guides.length}本中${readCount}本読みました。`, `Sudah baca ${readCount} dari ${guides.length}.`)
-            : t(`직무·지원 노하우·면접·비자까지 글 ${guides.length}개를 정리했어요.`, `${guides.length} reads on roles, applying, interviews and visas.`, `整理了职位、求职技巧、面试、签证等 ${guides.length} 篇文章。`, `${guides.length} bài về nghề, ứng tuyển, phỏng vấn và visa.`, `職種・応募のコツ・面接・ビザまで${guides.length}本をまとめました。`, `${guides.length} bacaan tentang peran, melamar, wawancara, visa.`)
-        }
-      />
+      {/* 머리말 + 그림 — 휴대폰은 아래 가운데, 넓은 화면은 오른쪽 */}
+      <div className="relative">
+        <div className="md:pr-[230px]">
+          <Masthead
+            eyebrow={t("취업 가이드", "Career guide", "求职指南", "Hướng dẫn", "就活ガイド", "Panduan karier")}
+            title={t("첫 취업, 이것부터 알아 두세요", "Your first job: start here", "第一次求职，先了解这些", "Việc làm đầu tiên: bắt đầu từ đây", "はじめての就職、まずはこれを", "Kerja pertama: mulai dari sini")}
+            lede={
+              readCount
+                ? t(`글 ${guides.length}개 중 ${readCount}개를 읽었어요.`, `You've read ${readCount} of ${guides.length}.`, `${guides.length} 篇中已读 ${readCount} 篇。`, `Đã đọc ${readCount}/${guides.length} bài.`, `${guides.length}本中${readCount}本読みました。`, `Sudah baca ${readCount} dari ${guides.length}.`)
+                : t(`직무·지원 노하우·면접·비자까지 글 ${guides.length}개를 정리했어요.`, `${guides.length} reads on roles, applying, interviews and visas.`, `整理了职位、求职技巧、面试、签证等 ${guides.length} 篇文章。`, `${guides.length} bài về nghề, ứng tuyển, phỏng vấn và visa.`, `職種・応募のコツ・面接・ビザまで${guides.length}本をまとめました。`, `${guides.length} bacaan tentang peran, melamar, wawancara, visa.`)
+            }
+          />
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- 취업 가이드 그림(흰 바탕 → 곱하기 합성) */}
+        <img src="/img_guide_0.webp" alt="" aria-hidden className="mx-auto -mt-4 mb-4 h-[170px] w-[170px] object-contain mix-blend-multiply md:absolute md:right-5 md:top-4 md:m-0 md:h-[200px] md:w-[200px]" style={{ maskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)" }} />
+      </div>
 
       {/* 분류 칩 */}
       <div className="-mt-2 flex gap-2 overflow-x-auto px-5 pb-6 [scrollbar-width:none]">
