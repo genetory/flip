@@ -136,10 +136,11 @@ export function ExperienceCampaignPage() {
     // 완전히 분리된 싱글 페이지 — 사이트 상단 메뉴(GNB) 없이, 법적 고지용 바닥글만.
     <div className="v2">
       {/* 프로모션 페이지 — 연파랑 바탕 위에 파란 히어로·말풍선·쿠폰 카드 */}
-      <div className="bg-[#eef3ff]">
+      {/* 위 여백도 바탕색으로(섹션 margin 대신 padding — 흰 띠가 생기지 않게) */}
+      <div className="bg-[#eef3ff] md:pt-6">
       <Page>
         {/* ① 히어로 — 파란 띠, 노란 강조, 자소서 미리보기 카드 */}
-        <section className="relative overflow-hidden bg-[color:var(--v2-accent)] px-5 pb-12 pt-6 text-white md:mx-5 md:mt-6 md:rounded-[40px] md:px-10 md:pt-10">
+        <section className="relative overflow-hidden bg-[color:var(--v2-accent)] px-5 pb-12 pt-6 text-white md:mx-5 md:rounded-[40px] md:px-10 md:pt-10">
           {/* 장식 원 */}
           <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-white/10" />
           <span aria-hidden className="pointer-events-none absolute -left-16 bottom-10 h-40 w-40 rounded-full bg-white/[0.07]" />
