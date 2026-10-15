@@ -42,7 +42,6 @@ import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { type WeaknessRow } from "../../../lib/talent/mock-weakness";
 import { CreditLine } from "../interview-paywall";
-import { InterviewPointsLine } from "../ai-points";
 import { openInterviewPaywall, useInterviewCredits } from "../../../lib/interview-credits";
 import { PrepSheetV2 } from "../prep-sheet";
 import { V2InterviewsGuest } from "./V2InterviewsGuest";
@@ -257,13 +256,10 @@ function Interviews() {
             {/* eslint-disable-next-line @next/next/no-img-element -- 모의 면접 그림(흰 바탕 → 곱하기 합성, 가장자리 흐림) */}
             <img src="/img_fake_interview_0.webp" alt="" aria-hidden className="-my-2 -mr-2 h-[112px] w-[112px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[128px] min-[360px]:w-[128px] md:h-[150px] md:w-[150px]" style={{ maskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 74%, transparent 100%)" }} />
           </div>
-          {credits ? (
+          {/* 포인트 모드는 GNB 잔액 칩이 늘 보여서 여기선 생략 — 예전 이용권 모드일 때만 이용권 줄 */}
+          {credits && !credits.points ? (
             <div className="mt-3">
-              {credits.points ? (
-                <InterviewPointsLine t={t} balance={credits.points.balance} feedbackCost={credits.points.feedbackCost} onTopUp={() => openInterviewPaywall("topup")} />
-              ) : (
-                <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
-              )}
+              <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
             </div>
           ) : null}
         </div>
