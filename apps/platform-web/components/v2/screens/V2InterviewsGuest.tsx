@@ -315,16 +315,18 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
   const begin = () => {
     if (timed && !running) setRunning(true);
   };
-  useEffect(() => {
-    if (!timed || !running || left <= 0) return;
-    const id = window.setTimeout(() => setLeft((v) => v - 1), 1000);
-    return () => window.clearTimeout(id);
-  }, [timed, running, left]);
   const tts = useSpeak();
   const dict = useDictation({ onStart: begin, onFinal: (add) => setAnswer((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
   const text = answer.trim();
   // 간단 체크 — AI 가 아니라 문장 규칙(길이·숫자·내 행동·결과)으로. 확인한 답이 바뀌면 다시 누르게.
   const result = checked !== null && checked === text ? quickCheck(text) : null;
+  // [바로 체크]를 누르면 타이머를 멈추고 숨긴다(답을 고치면 이어서 잰다) — 실제 화면의 [AI 피드백 받기]와 같게.
+  const timerHold = Boolean(result);
+  useEffect(() => {
+    if (!timed || !running || left <= 0 || timerHold) return;
+    const id = window.setTimeout(() => setLeft((v) => v - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [timed, running, left, timerHold]);
   const checks = result
     ? [
         { ok: result.long, good: t(`말하면 약 ${result.seconds}초 — 알맞은 길이예요`, `About ${result.seconds}s spoken — good length`, `说出来约 ${result.seconds} 秒——长度合适`, `Nói khoảng ${result.seconds}s — vừa đủ`, `話すと約${result.seconds}秒 — ちょうど良い長さ`, `Sekitar ${result.seconds} detik — pas`), bad: t(`말하면 약 ${result.seconds}초 — 30초~1분이 되게 조금 더 길게`, `About ${result.seconds}s — aim for 30s–1min`, `约 ${result.seconds} 秒——建议 30 秒到 1 分钟`, `Khoảng ${result.seconds}s — nên 30s–1 phút`, `約${result.seconds}秒 — 30秒〜1分を目安に`, `Sekitar ${result.seconds} detik — targetkan 30 dtk–1 mnt`) },
@@ -359,7 +361,7 @@ function TryNow({ t, question }: { t: PlatformT; question: DailyQuestion }) {
             <Switch on={timed} onChange={(v) => { setTimed(v); setRunning(false); setLeft(60); }} label={t("실전 모드 · 60초", "Real mode · 60s", "实战模式 · 60秒", "Thực chiến · 60s", "本番モード・60秒", "Mode nyata · 60 dtk")} />
             {timed && !running ? <span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("쓰기 시작하면 재요", "Starts when you begin", "开始作答即计时", "Bắt đầu khi bạn viết", "書き始めると計測", "Mulai saat menulis")}</span> : null}
           </div>
-          {timed && running ? <TimerBar t={t} left={left} total={60} /> : null}
+          {timed && running && !result ? <TimerBar t={t} left={left} total={60} /> : null}
           <textarea
             value={answer}
             onChange={(e) => {

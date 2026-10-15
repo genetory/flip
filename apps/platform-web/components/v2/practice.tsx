@@ -212,11 +212,13 @@ export function PracticeSheet({
   const locked = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1 && !(daily && !credits?.dailyFreeUsed) && !feedback;
 
   // 실전 모드 타이머 — 첫 글자를 쓰거나 말하기를 누르면 시작.
+  // [AI 피드백 받기]를 누르면 멈추고(AI가 읽는 동안), 결과가 나오면 숨긴다. 실패하면 이어서 잰다.
+  const timerHold = busy || Boolean(feedback);
   useEffect(() => {
-    if (!timed || !running || left <= 0) return;
+    if (!timed || !running || left <= 0 || timerHold) return;
     const id = window.setTimeout(() => setLeft((s) => s - 1), 1000);
     return () => window.clearTimeout(id);
-  }, [timed, running, left]);
+  }, [timed, running, left, timerHold]);
 
   const begin = () => {
     if (timed && !running) setRunning(true);
@@ -383,7 +385,7 @@ export function PracticeSheet({
             <Switch on={timed} onChange={(v) => { setTimed(v); setRunning(false); setLeft(60); }} label={t("실전 모드 · 60초", "Real mode · 60s", "实战模式 · 60秒", "Thực chiến · 60s", "本番モード・60秒", "Mode nyata · 60 dtk")} />
             {timed && !running ? <span className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("쓰기 시작하면 재요", "Starts when you begin", "开始作答即计时", "Bắt đầu khi bạn viết", "書き始めると計測", "Mulai saat menulis")}</span> : null}
           </div>
-          {timed && running ? <TimerBar t={t} left={left} total={60} /> : null}
+          {timed && running && !feedback ? <TimerBar t={t} left={left} total={60} paused={busy} /> : null}
           <textarea
             value={answer}
             onChange={(e) => {
@@ -532,36 +534,39 @@ export function ResultSummary({ t, answer, feedback }: { t: PlatformT; answer: s
 }
 
 /** 실전 모드 타이머 — 큰 숫자 + 줄어드는 막대. 20초 남으면 주황, 10초 남으면 빨강 테두리와 깜빡이는 점으로 압박을 준다. */
-export function TimerBar({ t, left, total }: { t: PlatformT; left: number; total: number }) {
+export function TimerBar({ t, left, total, paused = false }: { t: PlatformT; left: number; total: number; paused?: boolean }) {
   const sec = Math.max(0, left);
   const pct = Math.max(0, Math.min(100, (sec / total) * 100));
-  const level = sec <= 10 ? "danger" : sec <= 20 ? "warn" : "ok";
-  const color = level === "danger" ? "#f04452" : level === "warn" ? "#ff8a00" : "var(--v2-accent)";
-  const bg = level === "danger" ? "bg-[#fdf2f3]" : level === "warn" ? "bg-[#fff4e8]" : "bg-[color:var(--v2-accent-weak)]";
+  const level = paused ? "ok" : sec <= 10 ? "danger" : sec <= 20 ? "warn" : "ok";
+  const color = paused ? "var(--v2-muted)" : level === "danger" ? "#f04452" : level === "warn" ? "#ff8a00" : "var(--v2-accent)";
+  const bg = paused ? "bg-[color:var(--v2-fill)]" : level === "danger" ? "bg-[#fdf2f3]" : level === "warn" ? "bg-[#fff4e8]" : "bg-[color:var(--v2-accent-weak)]";
+  const alarm = level === "danger" && sec > 0;
   return (
-    <div className={`mt-3 rounded-2xl px-4 py-3 transition-colors ${bg} ${level === "danger" && sec > 0 ? "ring-2 ring-[#f04452]" : ""}`} role="timer" aria-live="off">
-      <div className="flex items-end justify-between gap-3">
-        <span className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color }}>
-          {level === "danger" && sec > 0 ? (
+    <div className={`mt-3 rounded-xl px-3.5 py-2.5 transition-colors ${bg} ${alarm ? "ring-2 ring-[#f04452]" : ""}`} role="timer" aria-live="off">
+      <div className="flex items-center justify-between gap-3">
+        <span className="flex items-center gap-1.5 text-[12.5px] font-bold" style={{ color }}>
+          {alarm ? (
             // 10초 남으면 깜빡이는 빨간 점
-            <span className="relative flex h-2.5 w-2.5" aria-hidden>
+            <span className="relative flex h-2 w-2" aria-hidden>
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f04452] opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#f04452]" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f04452]" />
             </span>
           ) : null}
-          {sec <= 0
-            ? t("시간 끝", "Time's up", "时间到", "Hết giờ", "時間切れ", "Waktu habis")
-            : level === "danger"
-              ? t("곧 끝나요!", "Almost out!", "快结束了！", "Sắp hết!", "もうすぐ終了！", "Hampir habis!")
-              : level === "warn"
-                ? t("서둘러요", "Hurry up", "抓紧", "Nhanh lên", "急いで", "Cepat")
-                : t("⏱ 남은 시간", "⏱ Time left", "⏱ 剩余时间", "⏱ Còn lại", "⏱ 残り時間", "⏱ Sisa waktu")}
+          {paused
+            ? t("⏸ 멈춤", "⏸ Paused", "⏸ 已暂停", "⏸ Tạm dừng", "⏸ 停止中", "⏸ Jeda")
+            : sec <= 0
+              ? t("시간 끝", "Time's up", "时间到", "Hết giờ", "時間切れ", "Waktu habis")
+              : level === "danger"
+                ? t("곧 끝나요!", "Almost out!", "快结束了！", "Sắp hết!", "もうすぐ終了！", "Hampir habis!")
+                : level === "warn"
+                  ? t("서둘러요", "Hurry up", "抓紧", "Nhanh lên", "急いで", "Cepat")
+                  : t("⏱ 남은 시간", "⏱ Time left", "⏱ 剩余时间", "⏱ Còn lại", "⏱ 残り時間", "⏱ Sisa waktu")}
         </span>
-        <span className="text-[34px] font-bold leading-none tabular-nums tracking-[-0.02em]" style={{ color }}>
+        <span className="text-[22px] font-bold leading-none tabular-nums tracking-[-0.02em]" style={{ color }}>
           {Math.floor(sec / 60)}:{String(sec % 60).padStart(2, "0")}
         </span>
       </div>
-      <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white">
         <div className="h-full rounded-full transition-[width] duration-1000 ease-linear" style={{ width: `${pct}%`, background: color }} />
       </div>
     </div>
