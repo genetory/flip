@@ -345,6 +345,7 @@ export function SelfIntroSheet({ onClose }: { onClose: () => void }) {
             <Button size="sm" variant="secondary" onClick={() => void draft()} disabled={drafting}>
               {drafting ? <Spinner /> : null}
               {text.trim() ? t("이력서로 다시 쓰기", "Redraft from resume", "用简历重写", "Viết lại từ CV", "履歴書で書き直す", "Tulis ulang dari CV") : t("이력서로 초안 만들기", "Draft from resume", "用简历生成初稿", "Tạo nháp từ CV", "履歴書で下書き", "Draf dari CV")}
+              {drafting ? null : <CostTag feature="draft_resume_text" />}
             </Button>
             <Button size="sm" variant="neutral" onClick={() => { setLeft(60); setRehearse(true); }} disabled={!text.trim()}>
               ▶ {t("소리 내어 연습", "Rehearse aloud", "朗读练习", "Tập nói", "声に出して練習", "Latihan bersuara")}

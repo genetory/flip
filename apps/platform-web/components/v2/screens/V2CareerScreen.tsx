@@ -3,6 +3,7 @@
 // v2 내 커리어 — 나에 관한 것을 한곳에: 프로필(링크) · 지원 서류(다음 할 일) · 기업이 보는 내 강점 · 관심 직무 · 내 스펙에 맞는 공고 · 경력 · 내 스펙 · 더 정리할 것.
 // 관심 직무 고르기는 기존 팝업(JobInterestModal)을, 서류 편집은 기존 에디터를 그대로 쓴다.
 import Link from "next/link";
+import { CostTag } from "../ai-points";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { V2Shell, useProfilePhoto } from "../V2Shell";
@@ -513,6 +514,7 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
           <Button onClick={run} disabled={busy}>
             {busy ? <Spinner /> : null}
             {busy ? t("읽고 있어요", "Reading…", "读取中", "Đang đọc", "読んでいます", "Membaca") : t("내 강점 찾기", "Find strengths", "找优势", "Tìm điểm mạnh", "強みを探す", "Cari kekuatan")}
+            {busy ? null : <CostTag feature="career_strengths" />}
           </Button>
         </div>
       )}
@@ -903,6 +905,7 @@ export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; i
           <Button onClick={run} disabled={busy}>
             {busy ? <Spinner /> : null}
             {busy ? t("비교하고 있어요", "Comparing…", "比较中", "Đang so sánh", "比較中", "Membandingkan") : t("내 서류와 비교", "Compare", "与我的材料比较", "So sánh", "書類と比べる", "Bandingkan")}
+            {busy ? null : <CostTag feature="role_checklist" />}
           </Button>
         </div>
       )}

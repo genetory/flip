@@ -4,6 +4,7 @@
 // 질문 유형 고르기 → (AI가 한 문항씩 만들고) 한 문항 연습 시트로 답하기·피드백 → [다음 질문].
 // 답 기록: Aply·원티드 공고 → 서버 연습 기록 / 가져온 공고(ext-…) → 계정의 가져온 공고 / 내 서류 → 내 연습 기록(self-mock).
 import { useState } from "react";
+import { CostTag } from "./ai-points";
 import { Sheet } from "./sheets";
 import { Spinner } from "./ui";
 import { PracticeSheet, type PracticeQuestion } from "./practice";
@@ -140,7 +141,10 @@ export function InterviewSession({ item, onClose }: { item?: PublicPositionListI
     return (
       <Sheet tall title={heading} subtitle={company || undefined} onClose={onClose}>
         <p className="text-[19px] font-bold leading-[1.45] text-[color:var(--v2-ink)]">{t("어떤 질문으로 연습할까요?", "What would you like to practice?", "想练习哪类问题？", "Bạn muốn luyện loại nào?", "どの質問で練習しますか？", "Mau latihan pertanyaan apa?")}</p>
-        <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("고르면 AI가 한 문항씩 만들어요. 답하면 바로 피드백, [다음 질문]으로 이어서.", "Pick one — AI writes questions one by one; you get feedback after each.", "选择后 AI 逐题出题，每题回答后立即反馈。", "Chọn — AI tạo từng câu, phản hồi sau mỗi câu.", "選ぶとAIが1問ずつ作ります。答えるとすぐフィードバック。", "Pilih — AI membuat pertanyaan satu per satu.")}</p>
+        <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("고르면 AI가 한 문항씩 만들어요. 답하면 바로 피드백, [다음 질문]으로 이어서.", "Pick one — AI writes questions one by one; you get feedback after each.", "选择后 AI 逐题出题，每题回答后立即反馈。", "Chọn — AI tạo từng câu, phản hồi sau mỗi câu.", "選ぶとAIが1問ずつ作ります。答えるとすぐフィードバック。", "Pilih — AI membuat pertanyaan satu per satu.")}
+          {/* 포인트 모드 — 질문 1개를 만들 때마다 드는 포인트 */}
+          <CostTag feature="interview_questions" className="ml-1 text-[color:var(--v2-accent)]" />
+          {credits?.points ? <span className="text-[color:var(--v2-muted)]"> {t("(질문 1개)", "(per question)", "（每题）", "(mỗi câu)", "（1問）", "(per soal)")}</span> : null}</p>
         <div className="mt-4 grid grid-cols-2 gap-2.5">
           {options.map((o) => (
             <button key={o.c} type="button" disabled={busy} onClick={() => void pick(o.c)} className={`flex min-h-[112px] flex-col justify-between rounded-3xl p-4 text-left transition hover:-translate-y-0.5 disabled:opacity-60 ${o.tone}`}>
