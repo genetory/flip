@@ -369,8 +369,15 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
 /** 참여 후기 — 가로로 넘기는 카드. 예시 항목엔 '예시' 표시(실제 후기로 교체 예정). */
 function Reviews({ t }: { t: PlatformT }) {
   const tc = (c: Copy) => t(c.ko, c.en, c.zh, c.vi, c.ja, c.id);
+  // 발표용 — 스테이징·로컬에서만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에서는 예시 후기에 늘 표시를 붙인다.
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    const h = window.location.hostname;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 호스트는 마운트 후에만 안다
+    setPreview(h.includes("staging") || h === "localhost" || h === "127.0.0.1");
+  }, []);
   if (!REVIEWS.length) return null;
-  const hasExample = REVIEWS.some((r) => r.example);
+  const hasExample = !preview && REVIEWS.some((r) => r.example);
   return (
     <section className="py-16">
       <div className="px-5">
@@ -398,7 +405,7 @@ function Reviews({ t }: { t: PlatformT }) {
                 <span className="block truncate text-[14px] font-bold text-[color:var(--v2-ink-2)]">{tc(r.who)}</span>
                 <span className="block truncate text-[13px] text-[color:var(--v2-muted)]">{tc(r.tag)}</span>
               </span>
-              {r.example ? <span className="ml-auto shrink-0 rounded-full bg-[color:var(--v2-band)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-muted)]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</span> : null}
+              {r.example && !preview ? <span className="ml-auto shrink-0 rounded-full bg-[color:var(--v2-band)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-muted)]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</span> : null}
             </figcaption>
           </figure>
         ))}
