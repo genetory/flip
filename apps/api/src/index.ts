@@ -17424,14 +17424,10 @@ function aiCharge(feature: string, when?: (req: import("express").Request) => bo
   };
 }
 
-// POST /members/me/ai/redeem-code — 쿠폰 코드로 AI 티켓 충전. 사용자당 같은 코드 1회,
-// 코드별 전체 사용 횟수(maxUses) 상한. 성공 시 지갑 잔액에 tickets 만큼 더한다.
-app.post(
-  "/members/me/ai/redeem-code",
-  authenticate,
-  requireRoles([MemberRole.STUDENT]),
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-redeem", message: "잠시 후 다시 시도해 주세요." }),
-  async (req, res) => {
+// POST /members/me/ai-points/redeem (예전 경로 /members/me/ai/redeem-code 도 유지) — 포인트 코드(쿠폰·리딤·이벤트 코드)로 AI 포인트 충전.
+// 사용자당 같은 코드 1회, 코드별 전체 사용 횟수(maxUses) 상한. 성공 시 지갑 잔액에 tickets(=포인트) 만큼 더한다.
+// v2 화면은 새 경로를 쓴다 — '/ai/' 가 들어간 경로는 클라이언트가 실패를 'AI 사용 불가' 안내로 띄우기 때문.
+const redeemPointCodeHandler = async (req: express.Request, res: express.Response) => {
     const userId = req.auth!.userId;
     const code = String(req.body?.code ?? "").trim().toUpperCase().replace(/\s+/g, "");
     if (!code || code.length > 40) return res.status(400).json({ ok: false, code: "COUPON_INVALID", message: "유효하지 않은 코드예요." });
@@ -17464,13 +17460,94 @@ app.post(
       }
       const wallet = await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: coupon.tickets } } });
       await logAiPoints(userId, coupon.tickets, "coupon");
-      return res.json({ ok: true, tickets: coupon.tickets, balance: wallet.balance });
+      return res.json({ ok: true, tickets: coupon.tickets, points: coupon.tickets, balance: wallet.balance });
     } catch (err) {
       console.error("[ai/redeem-code] failed", err);
       return res.status(500).json({ ok: false, message: "failed to redeem code" });
     }
+};
+const redeemPointCodeLimit = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-redeem", message: "잠시 후 다시 시도해 주세요." });
+app.post("/members/me/ai-points/redeem", authenticate, requireRoles([MemberRole.STUDENT]), redeemPointCodeLimit, redeemPointCodeHandler);
+app.post("/members/me/ai/redeem-code", authenticate, requireRoles([MemberRole.STUDENT]), redeemPointCodeLimit, redeemPointCodeHandler);
+
+// ── 운영 콘솔: 포인트 코드 관리 ──
+// GET /ops/point-codes?q= — 최근 200개(코드·메모·그룹 검색).
+app.get("/ops/point-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const raw = String(req.query.q ?? "").trim().slice(0, 60);
+    const where = raw
+      ? { OR: [{ code: { contains: raw.toUpperCase().replace(/\s+/g, "") } }, { memo: { contains: raw, mode: "insensitive" as const } }, { groupKey: { contains: raw, mode: "insensitive" as const } }] }
+      : {};
+    const rows = await prisma.coupon.findMany({ where, orderBy: { createdAt: "desc" }, take: 200 });
+    return res.json({
+      ok: true,
+      items: rows.map((c) => ({ id: c.id, code: c.code, points: c.tickets, maxUses: c.maxUses, usedCount: c.usedCount, groupKey: c.groupKey, memo: c.memo, active: c.active, expiresAt: c.expiresAt, createdAt: c.createdAt }))
+    });
+  } catch (err) {
+    console.error("[ops/point-codes] list failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
   }
-);
+});
+
+// POST /ops/point-codes — 코드 만들기. code(직접 지정, 예: FALL2026) 또는 count 개 랜덤(prefix+6자).
+const opsCreatePointCodeSchema = z.object({
+  points: z.number().int().min(1).max(100000),
+  code: z.string().trim().max(40).regex(/^[A-Za-z0-9_-]*$/).optional(),
+  count: z.number().int().min(1).max(500).optional(),
+  prefix: z.string().trim().max(12).regex(/^[A-Za-z0-9]*$/).optional(),
+  maxUses: z.number().int().min(1).max(10_000_000).optional(),
+  groupKey: z.string().trim().max(60).optional(),
+  memo: z.string().trim().max(200).optional(),
+  expiresAt: z.string().datetime({ offset: true }).optional()
+});
+app.post("/ops/point-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsCreatePointCodeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+  try {
+    const d = parsed.data;
+    const codes: string[] = [];
+    if (d.code) {
+      const c = d.code.toUpperCase();
+      if (await prisma.coupon.findUnique({ where: { code: c } })) return res.status(409).json({ ok: false, message: "이미 있는 코드예요." });
+      codes.push(c);
+    } else {
+      const prefix = (d.prefix || "APLY").toUpperCase();
+      const set = new Set<string>();
+      while (set.size < (d.count ?? 1)) set.add(randomCouponCode(prefix));
+      codes.push(...set);
+    }
+    const data = codes.map((code) => ({
+      code,
+      tickets: d.points,
+      maxUses: d.maxUses ?? 1,
+      groupKey: d.groupKey || null,
+      memo: d.memo || null,
+      expiresAt: d.expiresAt ? new Date(d.expiresAt) : null
+    }));
+    const r = await prisma.coupon.createMany({ data, skipDuplicates: true });
+    console.info(`[ops/point-codes] created=${r.count} points=${d.points} maxUses=${d.maxUses ?? 1} by=${req.auth!.userId}`);
+    return res.json({ ok: true, codes, created: r.count });
+  } catch (err) {
+    console.error("[ops/point-codes] create failed", err);
+    return res.status(500).json({ ok: false, message: "만들지 못했어요." });
+  }
+});
+
+// PATCH /ops/point-codes/:id — 사용 중지/재개(active), 메모 수정.
+app.patch("/ops/point-codes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const body = z.object({ active: z.boolean().optional(), memo: z.string().trim().max(200).nullable().optional() }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const c = await prisma.coupon.update({
+      where: { id: String(req.params.id) },
+      data: { ...(body.data.active !== undefined ? { active: body.data.active } : {}), ...(body.data.memo !== undefined ? { memo: body.data.memo || null } : {}) }
+    });
+    return res.json({ ok: true, item: { id: c.id, active: c.active, memo: c.memo } });
+  } catch (err) {
+    console.error("[ops/point-codes] update failed", err);
+    return res.status(404).json({ ok: false, message: "코드를 찾지 못했어요." });
+  }
+});
 
 // POST /members/me/ai/coupons — 운영자 전용 쿠폰 생성. 단일 코드(code) 또는 랜덤 N개(count).
 // 환경(스테이징/프로덕션)별 DB에 직접 SQL 없이 쿠폰을 만들 수 있다.

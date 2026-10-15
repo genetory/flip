@@ -2,7 +2,7 @@
 
 // v2 이용권·결제 내역 — 남은 모의 면접 이용권 · [충전] · 결제 내역(환불 가능하면 [환불]) · 이용 내역.
 // 셀프 환불: 결제 후 7일 안, 그 결제로 받은 이용권을 쓰지 않았을 때만(서버가 최종 판단). 그 밖엔 고객센터로.
-// AI 포인트(서버 AI_POINTS_ENABLED)가 켜져 있으면 — 포인트 카드 · 포인트 내역(받은·쓴, 기능 이름) · 결제 내역.
+// AI 포인트(서버 AI_POINTS_ENABLED)가 켜져 있으면 — 포인트 카드 · 포인트 내역(받은·쓴, 기능 이름) · 코드 등록(?code= 링크면 미리 채움) · 결제 내역.
 import { useCallback, useEffect, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
@@ -10,7 +10,7 @@ import { Button, Empty, Masthead, Page, RowsSkeleton, Section, Spinner } from ".
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { cancelMyPayment, getMyPayments, openInterviewPaywall, refreshInterviewCredits, useInterviewCredits, type MyPayment } from "../../../lib/interview-credits";
 import { CreditTicket } from "../interview-paywall";
-import { PointsTicket, pointReasonLabel } from "../ai-points";
+import { PointsTicket, RedeemCodeBox, pointReasonLabel } from "../ai-points";
 import { formatPoints, openPointsPaywall, refreshAiPoints, useAiPoints } from "../../../lib/ai-points";
 
 export function V2PaymentsScreen() {
@@ -122,6 +122,11 @@ function Payments() {
             {t(`가입하면 ${formatPoints(pts.daily.welcome)}, 매일 +${formatPoints(pts.daily.grant)}씩 쌓여요(잔액 ${formatPoints(pts.daily.cap)}까지).`, `Sign up for ${formatPoints(pts.daily.welcome)}, then +${formatPoints(pts.daily.grant)} every day (while under ${formatPoints(pts.daily.cap)}).`, `注册即得 ${formatPoints(pts.daily.welcome)}，每天 +${formatPoints(pts.daily.grant)}（余额 ${formatPoints(pts.daily.cap)} 以内）。`, `Đăng ký nhận ${formatPoints(pts.daily.welcome)}, mỗi ngày +${formatPoints(pts.daily.grant)} (khi dưới ${formatPoints(pts.daily.cap)}).`, `登録で${formatPoints(pts.daily.welcome)}、毎日+${formatPoints(pts.daily.grant)}（残高${formatPoints(pts.daily.cap)}まで）。`, `Daftar dapat ${formatPoints(pts.daily.welcome)}, lalu +${formatPoints(pts.daily.grant)} tiap hari (saldo maks ${formatPoints(pts.daily.cap)}).`)}
           </p>
         </div>
+
+        <Section title={t("포인트 코드 등록", "Redeem a code", "兑换积分码", "Nhập mã điểm", "ポイントコード登録", "Tukar kode poin")}>
+          <RedeemCodeBox t={t} fromUrl />
+          <p className="mt-2 px-1 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">{t("쿠폰·이벤트 코드를 넣으면 포인트가 바로 충전돼요.", "Enter a coupon or event code to add points instantly.", "输入优惠码或活动码，积分立即到账。", "Nhập mã quà tặng hoặc sự kiện để nạp điểm ngay.", "クーポン・イベントコードを入れるとすぐにポイントが入ります。", "Masukkan kode kupon/acara untuk menambah poin.")}</p>
+        </Section>
 
         <Section title={t("포인트 내역", "Point history", "积分记录", "Lịch sử điểm", "ポイント履歴", "Riwayat poin")}>
           {!pts.logs.length ? (

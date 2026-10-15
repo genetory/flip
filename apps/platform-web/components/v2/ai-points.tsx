@@ -12,7 +12,8 @@ import { Button, Spinner } from "./ui";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { createPaymentOrder } from "../../lib/interview-credits";
-import { formatPoints, onPointsConfirm, onPointsPaywall, refreshAiPoints, useAiCost, useAiPoints, type AiPointProduct, type PointsConfirmRequest } from "../../lib/ai-points";
+import { formatPoints, onPointsConfirm, onPointsPaywall, redeemPointCode, refreshAiPoints, useAiCost, useAiPoints, type AiPointProduct, type PointsConfirmRequest, type RedeemError } from "../../lib/ai-points";
+import { useToast } from "../toast/ToastProvider";
 import { CLIENT_KEY, COUPON, loadToss, type TossWidgets } from "./interview-paywall";
 
 export const PAYMENTS_HREF = "/talent/payments";
@@ -22,7 +23,7 @@ export function pointReasonLabel(t: PlatformT, r: string): string {
   const L: Record<string, [string, string, string, string, string, string]> = {
     welcome: ["가입 보너스", "Sign-up bonus", "注册奖励", "Thưởng đăng ký", "登録ボーナス", "Bonus daftar"],
     daily: ["매일 적립", "Daily points", "每日积分", "Điểm hằng ngày", "毎日ポイント", "Poin harian"],
-    coupon: ["쿠폰 등록", "Coupon", "优惠码", "Mã quà tặng", "クーポン", "Kupon"],
+    coupon: ["코드 등록", "Code redeemed", "兑换码", "Nhập mã", "コード登録", "Tukar kode"],
     purchase: ["충전", "Top-up", "充值", "Nạp điểm", "チャージ", "Isi ulang"],
     refund: ["환불", "Refund", "退款", "Hoàn tiền", "返金", "Refund"],
     ops_grant: ["운영자 지급", "Granted", "运营发放", "Được tặng", "運営付与", "Diberikan"],
@@ -136,6 +137,82 @@ export function PointsChip({ className }: { className?: string }) {
       <img src={COUPON} alt="" aria-hidden className="hidden h-5 w-5 shrink-0 object-contain mix-blend-multiply min-[360px]:block" />
       {formatPoints(pts.balance)}
     </Link>
+  );
+}
+
+/**
+ * 포인트 코드 등록 — 쿠폰·리딤·이벤트 코드를 넣으면 그 포인트가 바로 충전된다.
+ * fromUrl: 이벤트 링크(/talent/payments?code=XXXX)로 들어오면 칸을 미리 채운다(등록은 사용자가 누른다). 포인트 상태를 불러온 뒤에만 그려져 서버 렌더와 어긋나지 않는다.
+ */
+export function RedeemCodeBox({ t, fromUrl = false, autoFocus = false }: { t: PlatformT; fromUrl?: boolean; autoFocus?: boolean }) {
+  const toast = useToast();
+  const [code, setCode] = useState(() => (fromUrl && typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("code") ?? "").trim().toUpperCase().slice(0, 40) : ""));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<RedeemError | null>(null);
+  const [done, setDone] = useState<number | null>(null);
+  const clean = code.trim().toUpperCase().replace(/\s+/g, "");
+  const msg: Record<RedeemError, string> = {
+    invalid: t("없는 코드예요. 다시 확인해 주세요.", "That code doesn't exist. Please check it.", "兑换码无效，请再确认。", "Mã không tồn tại. Hãy kiểm tra lại.", "存在しないコードです。ご確認ください。", "Kode tidak ada. Periksa lagi."),
+    expired: t("기간이 끝난 코드예요.", "This code has expired.", "该兑换码已过期。", "Mã đã hết hạn.", "期限切れのコードです。", "Kode sudah kedaluwarsa."),
+    already: t("이미 등록한 코드예요.", "You've already used this code.", "你已使用过该兑换码。", "Bạn đã dùng mã này.", "登録済みのコードです。", "Kode ini sudah dipakai."),
+    group: t("이 이벤트 코드는 한 번만 등록할 수 있어요.", "Only one code per event.", "每个活动只能兑换一次。", "Mỗi sự kiện chỉ nhập 1 mã.", "このイベントのコードは1回だけです。", "Satu kode per acara."),
+    exhausted: t("모두 사용된 코드예요.", "This code has been fully used.", "该兑换码已被领完。", "Mã đã hết lượt.", "使い切られたコードです。", "Kode sudah habis."),
+    busy: t("잠시 후 다시 해 주세요.", "Please try again shortly.", "请稍后再试。", "Vui lòng thử lại sau.", "少し後でお試しください。", "Coba lagi sebentar."),
+    unknown: t("등록하지 못했어요. 잠시 후 다시 해 주세요.", "Couldn't redeem. Try again soon.", "兑换失败，请稍后再试。", "Không nhập được. Thử lại sau.", "登録できませんでした。", "Gagal menukar. Coba lagi.")
+  };
+  const submit = async () => {
+    if (!clean || busy) return;
+    setBusy(true);
+    setError(null);
+    setDone(null);
+    const r = await redeemPointCode(clean);
+    setBusy(false);
+    if (r.ok) {
+      setDone(r.points);
+      setCode("");
+      toast.success(t(`${formatPoints(r.points)} 충전됐어요`, `${formatPoints(r.points)} added`, `已充值 ${formatPoints(r.points)}`, `Đã nạp ${formatPoints(r.points)}`, `${formatPoints(r.points)} チャージしました`, `${formatPoints(r.points)} ditambahkan`));
+    } else setError(r.error);
+  };
+  return (
+    <div>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <input
+          value={code}
+          onChange={(e) => {
+            setCode(e.target.value.toUpperCase());
+            setError(null);
+          }}
+          autoFocus={autoFocus}
+          maxLength={40}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label={t("포인트 코드", "Point code", "积分兑换码", "Mã điểm", "ポイントコード", "Kode poin")}
+          placeholder={t("코드 입력", "Enter code", "输入兑换码", "Nhập mã", "コードを入力", "Masukkan kode")}
+          className={`h-12 min-w-0 flex-1 rounded-xl bg-[color:var(--v2-fill)] px-4 text-[16px] font-semibold uppercase tracking-[0.06em] text-[color:var(--v2-ink)] outline-none ring-1 transition placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2 focus:ring-[color:var(--v2-accent)] ${error ? "ring-[#f04452]" : "ring-transparent"}`}
+        />
+        <button
+          type="submit"
+          disabled={!clean || busy}
+          className="flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-ink)] px-5 text-[15px] font-bold text-white transition hover:opacity-90 disabled:opacity-40"
+        >
+          {busy ? <Spinner /> : null}
+          {t("등록", "Redeem", "兑换", "Nhập", "登録", "Tukar")}
+        </button>
+      </form>
+      {error ? <p className="mt-2 px-1 text-[13px] text-[#f04452]">{msg[error]}</p> : null}
+      {done != null ? (
+        <p className="mt-2 px-1 text-[13px] font-semibold text-[color:var(--v2-accent)]">
+          {t(`${formatPoints(done)}가 충전됐어요.`, `${formatPoints(done)} added to your balance.`, `已充值 ${formatPoints(done)}。`, `Đã nạp ${formatPoints(done)}.`, `${formatPoints(done)}がチャージされました。`, `${formatPoints(done)} ditambahkan.`)}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -364,6 +441,7 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
         <p className="mt-5 rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[14px] leading-[1.55] text-[color:var(--v2-muted)]">{t("결제를 준비하고 있어요. 조금만 기다려 주세요.", "Payments are coming soon.", "支付功能即将上线。", "Thanh toán sắp ra mắt.", "決済は準備中です。", "Pembayaran segera hadir.")}</p>
       )}
       {error ? <p className="mt-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
+      <SheetCodeToggle t={t} />
       <Link href={PAYMENTS_HREF} onClick={onClose} className="mt-4 inline-block text-[13px] font-semibold text-[color:var(--v2-muted)] underline underline-offset-2">
         {t("포인트·결제 내역 보기", "See points & payments", "查看积分·支付记录", "Xem điểm & thanh toán", "ポイント・決済履歴を見る", "Lihat poin & pembayaran")}
       </Link>
@@ -373,6 +451,24 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
           : null}
       </p>
     </Sheet>
+  );
+}
+
+/** 충전 시트 안 '코드가 있나요?' — 누르면 코드 입력칸이 열린다. */
+function SheetCodeToggle({ t }: { t: PlatformT }) {
+  const [open, setOpen] = useState(false);
+  if (open) {
+    return (
+      <div className="mt-5">
+        <p className="mb-2 text-[15px] font-bold text-[color:var(--v2-ink)]">{t("포인트 코드 등록", "Redeem a code", "兑换积分码", "Nhập mã điểm", "ポイントコード登録", "Tukar kode poin")}</p>
+        <RedeemCodeBox t={t} autoFocus />
+      </div>
+    );
+  }
+  return (
+    <button type="button" onClick={() => setOpen(true)} className="mt-5 block text-[14px] font-semibold text-[color:var(--v2-accent)]">
+      {t("쿠폰·이벤트 코드가 있나요?", "Have a coupon or event code?", "有优惠码或活动码？", "Có mã quà tặng?", "クーポン・イベントコードをお持ちですか？", "Punya kode kupon/acara?")}
+    </button>
   );
 }
 

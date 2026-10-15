@@ -2445,7 +2445,7 @@ model AiPointLog {
   @@index([userId, createdAt])
 }
 
-// AI 티켓 쿠폰 — 코드로 1회성(또는 제한 횟수) 충전. 사용자당 같은 코드는 한 번만.
+// AI 포인트 코드(쿠폰·리딤·이벤트 코드) — 코드로 1회성(또는 제한 횟수) 충전. tickets = 충전 포인트. 사용자당 같은 코드는 한 번만.
 model Coupon {
   id        String    @id @default(uuid())
   code      String    @unique // 대문자/공백 정규화해 저장
@@ -2456,6 +2456,7 @@ model Coupon {
   groupKey  String?
   active    Boolean   @default(true)
   expiresAt DateTime?
+  memo      String? // 운영 메모(어떤 이벤트·용도의 코드인지)
   createdAt DateTime  @default(now())
 
   redemptions CouponRedemption[]

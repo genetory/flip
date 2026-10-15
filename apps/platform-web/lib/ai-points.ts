@@ -137,3 +137,19 @@ export async function spendGate(cost: number, label: string): Promise<boolean> {
   if (cost < CONFIRM_FROM || confirmListeners.size === 0) return true;
   return new Promise<boolean>((resolve) => confirmListeners.forEach((l) => l({ cost, label, resolve })));
 }
+
+// ── 포인트 코드(쿠폰·리딤·이벤트 코드) ──
+export type RedeemError = "invalid" | "expired" | "already" | "group" | "exhausted" | "busy" | "unknown";
+/** 코드를 등록해 포인트를 충전 — 성공하면 잔액·내역을 다시 불러온다. 실패는 사유 키로 돌려준다(화면이 6개 언어로 띄운다). */
+export async function redeemPointCode(code: string): Promise<{ ok: true; points: number } | { ok: false; error: RedeemError }> {
+  try {
+    const r = (await authedJsonFetch<never>("/members/me/ai-points/redeem", { method: "POST", body: JSON.stringify({ code }) })) as unknown as { points?: number; tickets?: number; balance?: number };
+    setAiPointsBalance(r.balance);
+    void refreshAiPoints();
+    return { ok: true, points: r.points ?? r.tickets ?? 0 };
+  } catch (e) {
+    const x = e as { status?: number; code?: string };
+    const map: Record<string, RedeemError> = { COUPON_INVALID: "invalid", COUPON_EXPIRED: "expired", COUPON_ALREADY: "already", COUPON_GROUP_USED: "group", COUPON_EXHAUSTED: "exhausted" };
+    return { ok: false, error: (x.code && map[x.code]) || (x.status === 429 ? "busy" : "unknown") };
+  }
+}
