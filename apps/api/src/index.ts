@@ -10174,7 +10174,7 @@ app.post(
 
 // 개인정보 수집·이용 동의문 버전 — 웹(/experience) 동의문을 고치면 함께 올린다.
 // v2: 경험 소개·자기소개서 텍스트 → 이력서(필수)·자기소개서(선택) 파일 첨부로 수집 항목 변경.
-const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v3";
+const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v4";
 
 // ---- 첨부 파일(multipart) -------------------------------------------------
 // 이력서(resume, 필수)·자기소개서(coverLetterFile, 선택) 각 1개, 10MB 이하.

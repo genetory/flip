@@ -7,9 +7,9 @@ import { pageSeo } from "../../lib/seo";
 
 export const metadata: Metadata = pageSeo({
   path: "/experience",
-  title: "내 경험이 스펙이 되는 순간 — 무료 자소서 1:1 상담",
+  title: "내 경험이 스펙이 되는 순간 — 무료 이력서·자소서 1:1 상담",
   description:
-    "한국식 자기소개서가 어렵다면? 매주 2명, 어플라이 자소서 전문가가 1:1 상담과 첨삭을 무료로 도와드려요. 편의점 알바도, 동아리 활동도 취업 스펙이 될 수 있습니다.",
+    "한국식 이력서·자기소개서가 어렵다면? 매주 2명, 어플라이 취업 서류 전문가가 1:1 상담과 첨삭을 무료로 도와드려요. 편의점 알바도, 동아리 활동도 취업 스펙이 될 수 있습니다.",
   ogImage: "/img_coverletter.webp"
 });
 
