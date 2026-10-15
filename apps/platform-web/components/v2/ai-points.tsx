@@ -131,7 +131,7 @@ export function PointsChip({ className }: { className?: string }) {
     <Link
       href={PAYMENTS_HREF}
       aria-label={t(`AI 포인트 ${formatPoints(pts.balance)}`, `AI points ${formatPoints(pts.balance)}`, `AI 积分 ${formatPoints(pts.balance)}`, `Điểm AI ${formatPoints(pts.balance)}`, `AIポイント ${formatPoints(pts.balance)}`, `Poin AI ${formatPoints(pts.balance)}`)}
-      className={`flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[color:var(--v2-accent-weak)] pl-2 pr-2.5 text-[13px] font-bold tabular-nums text-[color:var(--v2-accent)] transition hover:opacity-80 min-[360px]:pl-1.5 ${className ?? ""}`}
+      className={`flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-[color:var(--v2-accent-weak)] px-3 text-[13px] font-bold tabular-nums text-[color:var(--v2-accent)] transition hover:opacity-80 min-[360px]:pl-2.5 min-[360px]:pr-3.5 ${className ?? ""}`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- 쿠폰 그림(흰 바탕 → 곱하기 합성) */}
       <img src={COUPON} alt="" aria-hidden className="hidden h-5 w-5 shrink-0 object-contain mix-blend-multiply min-[360px]:block" />
