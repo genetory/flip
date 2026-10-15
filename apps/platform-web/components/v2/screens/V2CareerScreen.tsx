@@ -156,6 +156,13 @@ function Career() {
           action={<PrimaryButton href={R.profile}>{t("기본 정보 입력하기", "Enter basic info", "填写基本信息", "Nhập thông tin", "基本情報を入力", "Isi info dasar")}</PrimaryButton>}
         />
       )}
+      {!ready ? (
+        // 처음 온 사람 — 내 이력서를 들고 있는 그림
+        <div className="-mt-4 px-5 pb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
+          <img src="/img_talent_resume_0.webp" alt="" aria-hidden className="mx-auto h-[200px] w-[200px] object-contain mix-blend-multiply md:h-[240px] md:w-[240px]" />
+        </div>
+      ) : null}
 
       {/* 지원 준비(서류·관심 직무·맞는 공고) / 내 프로필(강점·경력·스펙) — 한 화면이 너무 길지 않게 둘로 나눈다.
           둘 다 그려 두고 숨기기만 해서, 탭을 오가도 불러온 공고·강점이 그대로 남는다. */}
@@ -179,7 +186,11 @@ function Career() {
           title={t("관심 직무", "Job interests", "感兴趣的职位", "Nghề quan tâm", "関心職種", "Minat pekerjaan")}
         >
           {/* 맞는 공고·이 직무에 필요한 것이 모두 여기서 고른 직무로 정해진다 — 눈에 띄게 연파랑 카드로. */}
-          <div className="mb-2 rounded-2xl bg-[color:var(--v2-accent-weak)] p-4 md:p-5">
+          <div className="relative mb-2 overflow-hidden rounded-2xl bg-[color:var(--v2-accent-weak)] p-4 md:p-5">
+            {/* 목표·계획 그림 — 오른쪽 위(글자와 겹치지 않게 칩 영역 오른쪽 여백) */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
+            <img src="/img_talent_resume_2.webp" alt="" aria-hidden className="pointer-events-none absolute right-1 top-1 h-[84px] w-[84px] object-contain mix-blend-multiply md:h-[100px] md:w-[100px]" style={{ maskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)", WebkitMaskImage: "radial-gradient(closest-side, #000 70%, transparent 100%)" }} />
+            <div className="pr-[72px] md:pr-[88px]">
             {interests.length ? (
               <div className="flex flex-wrap gap-2">
                 {interests.map((r) => (
@@ -191,6 +202,7 @@ function Career() {
             ) : (
               <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{t("관심 직무를 골라 주세요", "Pick your job interests", "请选择感兴趣的职位", "Chọn nghề bạn quan tâm", "関心職種を選んでください", "Pilih minat pekerjaan")}</p>
             )}
+            </div>
             <div className="mt-3 flex items-center justify-between gap-3">
               <p className="text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("고른 직무로 맞는 공고와 이 직무에 필요한 것을 골라 드려요.", "We pick matching jobs and what the role needs from these.", "将根据所选职位推荐职位和所需条件。", "Dựa vào đây để gợi ý việc làm và yêu cầu.", "選んだ職種で求人と必要なものを選びます。", "Dipakai untuk lowongan dan kebutuhan peran.")}</p>
               <Button size="sm" variant={interests.length ? "white" : "primary"} onClick={() => setInterestOpen(true)}>
@@ -224,6 +236,17 @@ function Career() {
 
       </div>
       <div hidden={tab !== "me"}>
+        {/* 내 프로필 머리 — 채울수록 기업이 더 잘 알아본다 */}
+        <div className="px-5 pb-2">
+          <div className="flex items-center gap-3 rounded-3xl bg-[color:var(--v2-band)] py-3 pl-5 pr-3">
+            <span className="min-w-0 flex-1">
+              <span className="block text-[17px] font-bold leading-[1.4] text-[color:var(--v2-ink)]">{t("채울수록 더 잘 보여요", "The more you add, the more you stand out", "填得越多，越受关注", "Càng đầy đủ càng nổi bật", "埋めるほど目に留まる", "Makin lengkap, makin menonjol")}</span>
+              <span className="mt-1 block text-[13px] leading-[1.5] text-[color:var(--v2-ink-3)]">{t("강점·경력·스펙이 이력서와 기업이 보는 내 카드에 그대로 들어가요.", "Your strengths, experience and specs go into your resume and the card companies see.", "优势、经历和资历会直接用于简历和企业看到的名片。", "Điểm mạnh, kinh nghiệm và năng lực được đưa vào CV và thẻ doanh nghiệp thấy.", "強み・経歴・スペックが履歴書と企業が見るカードにそのまま入ります。", "Kekuatan, pengalaman, dan kualifikasi masuk ke CV dan kartu yang dilihat perusahaan.")}</span>
+            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element -- 내 커리어 일러스트(흰 바탕 → 곱하기 합성) */}
+            <img src="/img_talent_resume_3.webp" alt="" aria-hidden className="h-[88px] w-[88px] shrink-0 object-contain mix-blend-multiply min-[360px]:h-[100px] min-[360px]:w-[100px]" />
+          </div>
+        </div>
         {ready && items.length >= 2 ? <Strengths t={t} resume={resume} cover={cover} interests={interests.map((r) => jobTaxonomyLabelOf(t, r))} /> : null}
 
         <Section title={t("경력", "Experience", "经历", "Kinh nghiệm", "経歴", "Pengalaman")} aside={work.length ? <TextLink href={R.resume}>{t("편집", "Edit", "编辑", "Sửa", "編集", "Ubah")}</TextLink> : undefined}>
