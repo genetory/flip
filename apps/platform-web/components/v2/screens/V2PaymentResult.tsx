@@ -11,6 +11,7 @@ import { Button, Page, Spinner } from "../ui";
 import { usePlatformT } from "../../../lib/i18n";
 import { confirmPayment, openInterviewPaywall, refreshInterviewCredits } from "../../../lib/interview-credits";
 import { creditLabel } from "../interview-paywall";
+import { formatPoints, openPointsPaywall, refreshAiPoints, useAiPoints } from "../../../lib/ai-points";
 
 export function V2PaymentResult({ kind }: { kind: "success" | "fail" }) {
   return (
@@ -28,7 +29,8 @@ function Result({ kind }: { kind: "success" | "fail" }) {
   const orderId = q?.get("orderId") ?? "";
   const amount = Number(q?.get("amount") ?? "0");
   const complete = kind === "success" && Boolean(paymentKey && orderId && amount);
-  const [state, setState] = useState<{ status: "working" | "done" | "error"; added?: number; credits?: number; message?: string }>({ status: complete ? "working" : "error", message: kind === "fail" ? q?.get("message") ?? undefined : undefined });
+  const pts = useAiPoints();
+  const [state, setState] = useState<{ status: "working" | "done" | "error"; points?: boolean; added?: number; credits?: number; message?: string }>({ status: complete ? "working" : "error", message: kind === "fail" ? q?.get("message") ?? undefined : undefined });
   const started = useRef(false);
 
   useEffect(() => {
@@ -36,8 +38,9 @@ function Result({ kind }: { kind: "success" | "fail" }) {
     started.current = true;
     confirmPayment({ paymentKey, orderId, amount })
       .then((r) => {
-        setState({ status: "done", added: r.added, credits: r.credits });
+        setState({ status: "done", points: r.kind === "points", added: r.added, credits: r.kind === "points" ? (r.balance ?? r.credits) : r.credits });
         void refreshInterviewCredits();
+        void refreshAiPoints();
       })
       .catch((e) => setState({ status: "error", message: (e as { message?: string })?.message }));
   }, [complete, paymentKey, orderId, amount]);
@@ -58,13 +61,24 @@ function Result({ kind }: { kind: "success" | "fail" }) {
             <p className="text-[48px]" aria-hidden>
               🎉
             </p>
-            <p className="mt-3 text-[22px] font-bold text-[color:var(--v2-ink)]">{t("이용권을 넣었어요", "Your pass is ready", "使用券已到账", "Đã nạp vé", "チケットを追加しました", "Tiket sudah masuk")}</p>
-            <p className="mt-2 text-[15px] text-[color:var(--v2-ink-3)]">
-              {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} · <b>{creditLabel(t, state.credits ?? 0, 5)}</b>
-            </p>
+            {state.points ? (
+              <>
+                <p className="mt-3 text-[22px] font-bold text-[color:var(--v2-ink)]">{t(`${formatPoints(state.added ?? 0)}를 충전했어요`, `${formatPoints(state.added ?? 0)} added`, `已充值 ${formatPoints(state.added ?? 0)}`, `Đã nạp ${formatPoints(state.added ?? 0)}`, `${formatPoints(state.added ?? 0)}をチャージしました`, `${formatPoints(state.added ?? 0)} ditambahkan`)}</p>
+                <p className="mt-2 text-[15px] text-[color:var(--v2-ink-3)]">
+                  {t("AI 포인트", "AI points", "AI 积分", "Điểm AI", "AIポイント", "Poin AI")} · <b className="tabular-nums">{formatPoints(state.credits ?? 0)}</b>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mt-3 text-[22px] font-bold text-[color:var(--v2-ink)]">{t("이용권을 넣었어요", "Your pass is ready", "使用券已到账", "Đã nạp vé", "チケットを追加しました", "Tiket sudah masuk")}</p>
+                <p className="mt-2 text-[15px] text-[color:var(--v2-ink-3)]">
+                  {t("남은 이용권", "Remaining", "剩余", "Còn lại", "残り", "Sisa")} · <b>{creditLabel(t, state.credits ?? 0, 5)}</b>
+                </p>
+              </>
+            )}
             <div className="mx-auto mt-8 max-w-[320px]">
               <Button full href={back}>
-                {t("모의 면접 이어서 하기", "Continue practicing", "继续练习", "Tiếp tục luyện", "練習を続ける", "Lanjut latihan")}
+                {state.points ? t("이어서 하기", "Continue", "继续", "Tiếp tục", "続ける", "Lanjutkan") : t("모의 면접 이어서 하기", "Continue practicing", "继续练习", "Tiếp tục luyện", "練習を続ける", "Lanjut latihan")}
               </Button>
             </div>
           </>
@@ -80,7 +94,8 @@ function Result({ kind }: { kind: "success" | "fail" }) {
                 full
                 onClick={() => {
                   window.history.replaceState(null, "", back);
-                  openInterviewPaywall("retry");
+                  if (pts?.enabled) openPointsPaywall("retry");
+                  else openInterviewPaywall("retry");
                 }}
               >
                 {t("다시 결제하기", "Try again", "重新支付", "Thử lại", "もう一度支払う", "Coba lagi")}

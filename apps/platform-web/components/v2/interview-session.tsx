@@ -50,7 +50,8 @@ export function InterviewSession({ item, onClose }: { item?: PublicPositionListI
   const authored = (item?.mockInterviewQuestions ?? []).filter(Boolean);
   // 유료화가 켜져 있고 이용권이 없으면 질문을 만들기 전에 결제 창부터.
   const credits = useInterviewCredits();
-  const noCredits = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1;
+  // 포인트 모드 — 질문을 만들 만큼(interview_questions)은 있어야 시작.
+  const noCredits = credits?.points ? credits.points.balance < Math.max(credits.points.questionsCost, credits.points.feedbackCost) : Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1;
   const company = item ? companyOf(item) : "";
 
   const generate = async (category: Cat, asked: string[]): Promise<InterviewQuestion[]> => {

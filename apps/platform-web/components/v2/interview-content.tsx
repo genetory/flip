@@ -12,6 +12,8 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
 import { CreditLine } from "./interview-paywall";
+import { CostTag, InterviewPointsLine } from "./ai-points";
+import { formatPoints } from "../../lib/ai-points";
 import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
@@ -118,6 +120,8 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
         step === "intro" ? (
           <Button full onClick={begin}>
             {t("면접 시작", "Start interview", "开始面试", "Bắt đầu", "面接開始", "Mulai")}
+            {/* 포인트 모드 — 세트 전체 비용(답변 수 × 답변 1개) */}
+            {credits?.points ? <span className="whitespace-nowrap tabular-nums opacity-80"> · {formatPoints(credits.points.feedbackCost * questions.length)}</span> : null}
           </Button>
         ) : typeof step === "number" ? (
           <Button full onClick={next} disabled={draft.trim().length < 10}>
@@ -524,6 +528,7 @@ export function ImportJobSheet({ onClose, onStart, initialMode = "url", title, s
           <Button full onClick={() => void run()} disabled={busy || !canRun}>
             {busy ? <Spinner /> : null}
             {busy ? t("공고를 읽고 있어요", "Reading the posting…", "正在读取职位…", "Đang đọc tin…", "求人を読んでいます", "Membaca lowongan…") : t("가져오기", "Import", "导入", "Nhập", "取り込む", "Impor")}
+            {!busy ? <CostTag feature="import_job" /> : null}
           </Button>
         )
       }
@@ -616,7 +621,9 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
       footer={
         noCredits ? (
           <Button full onClick={() => openInterviewPaywall("needed")}>
-            {t("이용권 충전하고 시작하기", "Top up & start", "充值后开始", "Nạp vé & bắt đầu", "チャージして始める", "Isi tiket & mulai")}
+            {credits?.points
+              ? t("포인트 충전하고 시작하기", "Top up & start", "充值后开始", "Nạp điểm & bắt đầu", "チャージして始める", "Isi poin & mulai")
+              : t("이용권 충전하고 시작하기", "Top up & start", "充值后开始", "Nạp vé & bắt đầu", "チャージして始める", "Isi tiket & mulai")}
           </Button>
         ) : (
           <Button full onClick={onConfirm} disabled={blocked}>
@@ -649,7 +656,11 @@ export function StartSheet({ title, allowWithoutDocs, dailyLimitReached, dailyLi
       </p>
       {credits?.paywall ? (
         <div className="mt-5">
-          <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+          {credits.points ? (
+            <InterviewPointsLine t={t} balance={credits.points.balance} feedbackCost={credits.points.feedbackCost} onTopUp={() => openInterviewPaywall("topup")} />
+          ) : (
+            <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+          )}
         </div>
       ) : null}
     </Sheet>

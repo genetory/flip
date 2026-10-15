@@ -42,6 +42,7 @@ import {
 import { ModularResumePages, type DropSlot, type EditorInteraction } from "../../talent/editor/ModularResumePages";
 import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } from "../../../lib/talent/resume-scan";
 import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume, importResume } from "../../../lib/resume-maker-client";
+import { CostTag } from "../ai-points";
 import { importedResumeToPreview, type ImportPreview } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile, resumeImportSummary } from "../../talent/editor/ImportFromFile";
 import { StartChooser } from "../../talent/editor/StartChooser";
@@ -93,6 +94,7 @@ function EditorGate() {
             title={t("이력서 가져오기", "Import your resume", "导入简历", "Nhập CV", "履歴書を取り込む", "Impor CV")}
             hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 가져온 뒤 바로 고칠 수 있어요.", "Upload a PDF or paste the text. You can edit it right after.", "请上传 PDF 或粘贴内容。导入后可立即修改。", "Tải PDF hoặc dán nội dung. Có thể sửa ngay sau đó.", "PDFを上げるか本文を貼り付けてください。取り込んだ後すぐ直せます。", "Unggah PDF atau tempel teks. Bisa langsung diedit.")}
             parse={async (input) => importedResumeToPreview(await importResume(input))}
+            costFeature="import_resume"
             summarize={(p) => resumeImportSummary(t, p.countsBySection)}
             onApply={(p) => {
               trackEditor("editor_import_applied", { doc: "resume", where: "start", count: p.items.length });
@@ -757,6 +759,7 @@ function Inspector(props: {
           "Unggah PDF resume lama, akan dirapikan jadi item. Isi yang ada tidak dihapus."
         )}
         parse={async (input) => importedResumeToPreview(await importResume(input))}
+            costFeature="import_resume"
         summarize={(p) => resumeImportSummary(t, p.countsBySection)}
         onApply={props.onImport}
         onUndo={props.importUndo}
@@ -902,6 +905,7 @@ function ContentEditor(props: Parameters<typeof Inspector>[0] & { id: string; it
         t={t}
         text={text}
         polish={(src, style) => (isSummary ? polishSelfIntro({ text: src, style, desiredJobRole: doc.targetRole || undefined }) : polishExperienceText({ text: src, style, type: item?.section }))}
+        costFeature={isSummary ? "polish_intro" : "polish_experience"}
         onApply={setText}
       />
       {item ? (
@@ -1075,6 +1079,7 @@ function ResumeCheckSection({
           : review.ran
             ? t("AI로 다시 점검", "Check with AI again", "再用 AI 检查", "Kiểm tra lại bằng AI", "AIで再チェック", "Cek ulang dengan AI")
             : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
+        {!review.running ? <CostTag feature="review_resume" /> : null}
       </button>
       {review.error ? <p className="text-[13px] leading-[1.6] text-[color:var(--v2-attention)]">{review.error}</p> : null}
       {hiddenIssues.hiddenCount > 0 ? (
@@ -1184,6 +1189,7 @@ function BulkPolishSection({ t, doc, onDoc }: { t: PlatformT; doc: ResumeDoc; on
         {busy
           ? t("정리 중…", "Polishing…", "整理中…", "Đang chỉnh…", "整えています…", "Merapikan…")
           : `${t("정리", "Polish", "整理", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}
+        {!busy ? <CostTag feature="polish_resume_items" /> : null}
       </button>
       {prev ? (
         <button

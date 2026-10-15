@@ -16871,22 +16871,48 @@ app.post(
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
 // 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
-const AI_WELCOME_GRANT = 1000; // 가입(첫 사용) 시 1회 지급 (10배 스케일)
-const AI_DAILY_GRANT = 200; // 매일 적립 (10배 스케일)
-const AI_DAILY_CAP = 2000; // 적립 누적 상한 (10배 스케일)
+// AI 포인트(유료화) 스위치 — API 앱 설정 AI_POINTS_ENABLED=true 일 때만 차감·402·결제가 포인트로 돈다.
+// 꺼져 있으면(기본) 지금처럼 무료(가드레일 429 캡만) + 모의 면접은 기존 이용권(INTERVIEW_PAYWALL_ENABLED) 흐름 그대로.
+const aiPointsOn = () => process.env.AI_POINTS_ENABLED === "true";
+// 1P = 10원. 충전 상품은 이 표 하나로 — 가격·보너스를 바꿀 땐 여기만 고친다(클라이언트가 보낸 금액은 믿지 않는다).
+const AI_POINT_WON = 10;
+const AI_POINT_PRODUCTS = [
+  { key: "points_500", points: 500, bonus: 0, amount: 4900, badge: null },
+  { key: "points_1500", points: 1500, bonus: 150, amount: 12900, badge: "popular" },
+  { key: "points_5000", points: 5000, bonus: 800, amount: 39000, badge: "best" }
+] as const;
+function aiPointProduct(key: string) {
+  return AI_POINT_PRODUCTS.find((p) => p.key === key) ?? null;
+}
 
-// 기능별 티켓 비용. 없는 키는 0(과금 안 함).
+// 무료 적립 — 포인트 유료화가 켜지면 가입 200P · 매일 +20P(매일 적립은 잔액 100P 까지만 채운다).
+// 꺼져 있을 때(무료 시대)는 예전 값 그대로(10배 스케일) — 기존 화면(포인트 카드) 표시가 바뀌지 않게.
+const AI_WELCOME_GRANT_LEGACY = 1000;
+const AI_DAILY_GRANT_LEGACY = 200;
+const AI_DAILY_CAP_LEGACY = 2000;
+const aiWelcomeGrant = () => (aiPointsOn() ? 200 : AI_WELCOME_GRANT_LEGACY);
+const aiDailyGrant = () => (aiPointsOn() ? 20 : AI_DAILY_GRANT_LEGACY);
+const aiDailyCap = () => (aiPointsOn() ? 100 : AI_DAILY_CAP_LEGACY);
+
+// 기능별 포인트 비용(1P = 10원). 없는 키는 0(차감 안 함).
+// 가벼움 10P(다듬기·제안·번역·단일 필드) · 보통 20P(분석·초안·점검·면접 답변 피드백) · 무거움 30P(전체 파싱·질문 세트·면접 준비).
 const AI_FEATURE_COST: Record<string, number> = {
-  // 무거움(30) — 이력서/자소서 전체 파싱·면접 질문 세트 생성 (10배 스케일)
+  // 무거움(30)
   import_resume: 30,
   import_cover_letter: 30,
-  interview_questions: 30,
-  // 보통(20) — 분석·초안 생성
+  interview_questions: 10, // 공고 세션은 질문을 하나씩 만든다 — 질문 1개 10P + 피드백 20P
+  interview_prep: 30,
+  // 보통(20)
   tailor_analyze: 20,
   draft_intro: 20,
   generate_english_intro: 20,
   cover_letter: 20,
-  // 가벼움(10) — 다듬기·제안·번역·단건 평가·단일 필드 개선
+  review_resume: 20,
+  review_cover: 20,
+  polish_resume_items: 20,
+  // 모의 면접 답변 피드백 1개(gpt-4o) — 5문항 세트 = 100P. 오늘의 질문은 하루 1번 차감 없이.
+  interview_feedback: 20,
+  // 가벼움(10)
   draft_resume_text: 10,
   experience_interview: 10,
   experience_bullets: 10,
@@ -16897,23 +16923,36 @@ const AI_FEATURE_COST: Record<string, number> = {
   summarize_intro: 10,
   suggest_skills: 10,
   translate_texts: 10,
-  // gpt-4o 사용(원가 높음) — 티켓당 원가가 다른 기능과 맞도록 20으로 책정.
-  interview_feedback: 20,
-  // Career Launch — 프로그램 참가자에겐 모든 AI 기능 무료(포인트 차감·게이트 없음).
-  // 유료 전환하려면 값을 되돌린다.
-  career_resume_chat: 0,
-  career_cover_chat: 0,
-  career_job_chat: 0,
-  career_material_chat: 0,
-  career_diagnosis_chat: 0,
-  career_interview_chat: 0,
-  career_week_feedback: 0,
-  career_final_feedback: 0,
-  career_docs_summary: 0,
-  // 에디터 '전체 점검'(AI) — 지금은 AI 기능 전면 무료라 0. 제약은 분당·일일 캡뿐.
-  review_resume: 0,
-  review_cover: 0
+  role_checklist: 10,
+  import_job: 10,
+  // 내 커리어 화면 '기업이 보는 강점 3가지' — 프로그램 밖(/members/me/ai) 기능이라 과금.
+  career_strengths: 10
+  // Career Launch 프로그램 안 AI(CAREER_PROGRAM_FEATURES)는 0 — 수강생에게 서비스로 제공.
 };
+// Career Launch 프로그램 안(/career-launch/*) AI — 비용 0. 나중에 값을 매겨도 활성 수강생은 면제(isActiveCareerLaunchStudent).
+// 프로그램 밖(에디터·v2 모의 면접 등)은 수강생도 똑같이 포인트를 쓴다.
+const CAREER_PROGRAM_FEATURES = new Set([
+  "career_resume_chat",
+  "career_cover_chat",
+  "career_job_chat",
+  "career_material_chat",
+  "career_diagnosis_chat",
+  "career_interview_chat",
+  "career_week_feedback",
+  "career_final_feedback",
+  "career_docs_summary",
+  "career_experience_mining",
+  "career_strength_story",
+  "career_w2_resume_version",
+  "career_w2_cover_version",
+  "career_w2_scores",
+  "career_interview_complete",
+  "career_w4_growth",
+  "career_report",
+  "career_interview_retry",
+  "career_resume_bullet",
+  "career_cover_question"
+]);
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
 }
@@ -17024,9 +17063,9 @@ function aiQuotaResetAt(): string {
 
 type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
-// 포인트 '획득' 내역 기록(원장). 표시용이라 실패해도 흐름을 막지 않는다.
+// 포인트 내역 기록(원장) — 획득은 +, 사용·환불 회수는 -(reason 에 기능 키). 표시용이라 실패해도 흐름을 막지 않는다.
 async function logAiPoints(userId: string, amount: number, reason: string): Promise<void> {
-  if (amount <= 0) return;
+  if (!amount) return;
   try {
     await prisma.aiPointLog.create({ data: { userId, amount, reason } });
   } catch (err) {
@@ -17198,51 +17237,79 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
 }
 
 // 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
+// 포인트 유료화가 켜져 있으면 남아 있는 모의 면접 이용권도 한 번 포인트로 바꾼다(답변 1개 = interview_feedback 비용).
 // 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
 async function aiWalletReconcile(userId: string): Promise<number> {
   const today = aiKstDayIndex();
-  const wallet = await prisma.aiWallet.findUnique({ where: { userId } });
+  let wallet = await prisma.aiWallet.findUnique({ where: { userId } });
   // 첫 사용 — 가입 보너스 지급.
   if (!wallet) {
-    const created = await prisma.aiWallet.create({
-      data: { userId, balance: AI_WELCOME_GRANT, lastGrantDay: today, welcomed: true }
-    });
-    await logAiPoints(userId, AI_WELCOME_GRANT, "welcome");
-    return created.balance;
-  }
-  // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
-  if (wallet.lastGrantDay < today) {
+    const welcome = aiWelcomeGrant();
+    try {
+      wallet = await prisma.aiWallet.create({ data: { userId, balance: welcome, lastGrantDay: today, welcomed: true } });
+      await logAiPoints(userId, welcome, "welcome");
+    } catch {
+      // 동시에 두 요청이 만들려 한 경우 — 이미 만들어진 지갑을 읽는다(보너스 중복 없음).
+      wallet = await prisma.aiWallet.findUnique({ where: { userId } });
+      if (!wallet) throw new Error("ai wallet create failed");
+    }
+  } else if (wallet.lastGrantDay < today) {
+    // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
     const days = today - wallet.lastGrantDay;
-    const next = Math.min(AI_DAILY_CAP, wallet.balance + AI_DAILY_GRANT * days);
-    const balance = Math.max(wallet.balance, next); // 적립은 줄이지 않는다
-    const updated = await prisma.aiWallet.update({
-      where: { userId },
-      data: { balance, lastGrantDay: today }
-    });
-    await logAiPoints(userId, balance - wallet.balance, "daily");
-    return updated.balance;
+    const next = Math.min(aiDailyCap(), wallet.balance + aiDailyGrant() * days);
+    const add = Math.max(0, next - wallet.balance); // 적립은 줄이지 않는다
+    // lastGrantDay 조건부 갱신 — 동시 요청에도 하루치가 두 번 들어가지 않게.
+    const moved = await prisma.aiWallet.updateMany({ where: { userId, lastGrantDay: wallet.lastGrantDay }, data: { lastGrantDay: today, ...(add > 0 ? { balance: { increment: add } } : {}) } });
+    if (moved.count === 1 && add > 0) await logAiPoints(userId, add, "daily");
+    wallet = (await prisma.aiWallet.findUnique({ where: { userId } })) ?? wallet;
+  }
+  if (aiPointsOn()) {
+    const converted = await aiConvertInterviewCredits(userId);
+    if (converted > 0) return (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? wallet.balance + converted;
   }
   return wallet.balance;
+}
+
+// 모의 면접 이용권 → AI 포인트 1회 전환(지연 마이그레이션). 이용권 지갑은 0 으로 두고(테이블은 그대로) 양쪽 원장에 남긴다.
+// credits 값이 그대로일 때만 0 으로 바꿔(조건부) 동시 요청에도 한 번만 전환된다. 반환: 더한 포인트.
+async function aiConvertInterviewCredits(userId: string): Promise<number> {
+  const iw = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  if (!iw || iw.credits <= 0) return 0;
+  const points = iw.credits * aiFeatureCost("interview_feedback");
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const moved = await tx.interviewWallet.updateMany({ where: { userId, credits: iw.credits }, data: { credits: 0 } });
+      if (moved.count !== 1) return 0;
+      await tx.interviewCreditLog.create({ data: { userId, amount: -iw.credits, reason: "convert_to_points" } });
+      await tx.aiWallet.update({ where: { userId }, data: { balance: { increment: points } } });
+      await tx.aiPointLog.create({ data: { userId, amount: points, reason: "interview_credit_convert" } });
+      return points;
+    });
+  } catch (err) {
+    console.error("[ai/convert-interview-credits] failed", err);
+    return 0;
+  }
 }
 
 // 공용 티켓 잔량 — 지갑 기준(적립 반영).
 async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
   const remaining = await aiWalletReconcile(userId);
-  return { limit: AI_DAILY_CAP, used: Math.max(0, AI_DAILY_CAP - remaining), remaining, resetAt: aiQuotaResetAt(), dailyGrant: AI_DAILY_GRANT };
+  const cap = aiDailyCap();
+  return { limit: cap, used: Math.max(0, cap - remaining), remaining, resetAt: aiQuotaResetAt(), dailyGrant: aiDailyGrant() };
 }
 
-// 성공한 호출의 비용을 지갑에서 차감(원자적 조건부 감소) + 분석용 사용량 로그 증가.
-async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
-  const cost = aiFeatureCost(feature);
-  if (cost <= 0) return;
-  // 잔액이 충분할 때만 차감(동시성 안전). 부족하면 무시(게이트에서 이미 막힘).
-  const dec = await prisma.aiWallet.updateMany({
-    where: { userId, balance: { gte: cost } },
-    data: { balance: { decrement: cost } }
-  });
-  // 실제 차감됐으면 포인트 내역에 소모(음수) 기록 — 사용자 내역에 '어디에 썼는지' 노출.
-  if (dec.count > 0) await logAiPoints(userId, -cost, feature).catch(() => {});
-  // 분석 로그(월 단위 기능별 사용량) — 잔액과 별개로 통계 유지.
+// 포인트 선점 — 잔액이 cost 이상일 때만 원자적으로 깎는다(동시 요청에도 0 아래로 내려가지 않음).
+async function aiPointsReserve(userId: string, cost: number): Promise<boolean> {
+  const dec = await prisma.aiWallet.updateMany({ where: { userId, balance: { gte: cost } }, data: { balance: { decrement: cost } } });
+  return dec.count === 1;
+}
+// 선점 취소 — 실패한 응답이면 되돌린다(내역에는 남기지 않음).
+async function aiPointsRelease(userId: string, cost: number): Promise<void> {
+  await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: cost } } }).catch((err) => console.error("[ai/points-release] failed", err));
+}
+// 선점 확정 — 성공 응답이면 내역(-cost, reason=기능 키)과 분석용 사용량을 남기고 남은 잔액을 돌려준다.
+async function aiPointsCommit(userId: string, feature: string, cost: number): Promise<number | null> {
+  await logAiPoints(userId, -cost, feature);
   const periodKey = aiQuotaPeriodKey();
   await prisma.aiUsage
     .upsert({
@@ -17251,6 +17318,8 @@ async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
       update: { count: { increment: cost } }
     })
     .catch(() => {});
+  const w = await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }).catch(() => null);
+  return w?.balance ?? null;
 }
 
 // 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
@@ -17293,16 +17362,64 @@ function sendAiUnavailable(res: import("express").Response): void {
   res.status(503).json({ ok: false, code: "AI_UNAVAILABLE", message: "AI가 일시적으로 사용이 어려워요. 잠시 후 다시 시도해 주세요." });
 }
 
-// 탤런트 AI는 포인트 없이 무료 — 다만 무분별 사용을 막는 서버 가드레일(인증·레이트리밋·
-// 일일 상한)만 적용한다. 포인트 차감/노출은 없다.
+// AI 라우트 미들웨어 — 가드레일(인증·분당·일일 캡) + 포인트(AI_POINTS_ENABLED 일 때만).
+// 포인트: 호출 전에 비용만큼 원자적으로 선점(부족하면 402 AI_POINTS_REQUIRED) → 성공 응답(ok !== false, 4xx/5xx 아님)이면 확정,
+// 실패 응답·연결 끊김이면 되돌린다. 성공 응답에는 aiPoints: { balance, spent } 를 붙여 화면이 잔액을 바로 갱신한다.
+// 면제: 비용 0 · Career Launch 프로그램 안 기능(활성 수강생) · 오늘의 질문 피드백(하루 1번, daily:true).
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
     if (when && !when(req)) return next();
-    const deny = await aiGate(req.auth?.userId, feature);
+    const userId = req.auth?.userId;
+    const deny = await aiGate(userId, feature);
     if (deny) {
       res.status(deny.status).json(deny.body);
       return;
     }
+    if (!aiPointsOn() || !userId) return next();
+    const cost = aiFeatureCost(feature);
+    if (cost <= 0) return next();
+    try {
+      if (CAREER_PROGRAM_FEATURES.has(feature) && (await isActiveCareerLaunchStudent(userId))) return next();
+      // 오늘의 질문 — 하루 1번 차감 없이. 사용 표시는 성공 후 interviewCreditSpend 가 남긴다.
+      if (feature === "interview_feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
+        res.locals.interviewFree = true;
+        return next();
+      }
+      await aiWalletReconcile(userId);
+      if (!(await aiPointsReserve(userId, cost))) {
+        const balance = (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? 0;
+        res.status(402).json({ ok: false, code: "AI_POINTS_REQUIRED", message: "AI 포인트가 부족해요.", balance, cost });
+        return;
+      }
+    } catch (err) {
+      console.error("[ai/points] reserve failed", { feature, error: getErrorMessage(err) });
+      res.status(500).json({ ok: false, message: "failed to check ai points" });
+      return;
+    }
+    res.locals.aiPointsCharged = cost;
+    let settled = false;
+    const origJson = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      if (settled) return origJson(body);
+      settled = true;
+      const ok = res.statusCode < 400 && !(body && typeof body === "object" && (body as { ok?: unknown }).ok === false);
+      if (!ok) {
+        void aiPointsRelease(userId, cost);
+        return origJson(body);
+      }
+      void aiPointsCommit(userId, feature, cost)
+        .catch(() => null)
+        .then((balance) => {
+          origJson(body && typeof body === "object" && !Array.isArray(body) ? { ...(body as Record<string, unknown>), aiPoints: { balance, spent: cost } } : body);
+        });
+      return res;
+    }) as typeof res.json;
+    // json 없이 끝나거나(끊김·send) 응답을 못 보낸 경우 — 차감하지 않는다.
+    res.on("close", () => {
+      if (settled) return;
+      settled = true;
+      void aiPointsRelease(userId, cost);
+    });
     next();
   };
 }
@@ -27383,6 +27500,11 @@ function interviewProduct(key: string) {
 async function interviewWalletEnsure(userId: string): Promise<number> {
   const found = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
   if (found) return found.credits;
+  // 포인트 모드에선 이용권 첫 1회를 주지 않는다(가입 보너스는 AI 포인트로 받는다).
+  if (aiPointsOn()) {
+    await prisma.interviewWallet.create({ data: { userId, credits: 0, trialGranted: true } }).catch(() => null);
+    return (await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0;
+  }
   try {
     await prisma.$transaction([
       prisma.interviewWallet.create({ data: { userId, credits: INTERVIEW_FREE_TRIAL_CREDITS, trialGranted: true } }),
@@ -27410,7 +27532,8 @@ const interviewPaywallOn = () => process.env.INTERVIEW_PAYWALL_ENABLED === "true
 /** check: 질문 만들기처럼 잔액만 확인하고 차감하지 않는 자리(이용권 0이면 402). */
 function interviewCreditGuard(kind: "feedback" | "prep" | "check"): express.RequestHandler {
   return async (req, res, next) => {
-    if (!interviewPaywallOn()) return next();
+    // 포인트 유료화가 켜져 있으면 모의 면접도 AI 포인트(aiCharge)로 받는다 — 이용권 가드는 쉰다.
+    if (aiPointsOn() || !interviewPaywallOn()) return next();
     try {
       const userId = req.auth!.userId;
       const credits = await interviewWalletEnsure(userId);
@@ -27444,14 +27567,79 @@ async function interviewCreditSpend(userId: string, res: express.Response): Prom
     const r = await prisma.interviewWallet.updateMany({ where: { userId, credits: { gte: 1 } }, data: { credits: { decrement: 1 } } });
     if (r.count === 1) await prisma.interviewCreditLog.create({ data: { userId, amount: -1, reason: String(res.locals.interviewCharge) } });
   }
+  // 포인트 모드 — '남은 답변 수'(포인트 ÷ 답변 1개 비용)로 돌려준다(예전 화면 호환). 실제 잔액은 aiPoints 로 함께 간다.
+  if (aiPointsOn()) return interviewAnswersFromPoints(await aiWalletBalance(userId));
   const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
   return w?.credits ?? 0;
 }
+
+async function aiWalletBalance(userId: string): Promise<number> {
+  return (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? 0;
+}
+function interviewAnswersFromPoints(balance: number): number {
+  const per = aiFeatureCost("interview_feedback");
+  return per > 0 ? Math.floor(balance / per) : 0;
+}
+/** 화면용 포인트 상품표. */
+function aiPointProductsView() {
+  return AI_POINT_PRODUCTS.map((p) => ({ key: p.key, points: p.points, bonus: p.bonus, total: p.points + p.bonus, amount: p.amount, badge: p.badge }));
+}
+/** 화면용 기능별 비용표(0 은 뺀다). */
+function aiPointCostsView(): Record<string, number> {
+  return Object.fromEntries(Object.entries(AI_FEATURE_COST).filter(([, v]) => v > 0));
+}
+/** 포인트 결제 주문인가(상품 키로 구분 — 플래그를 끈 뒤에도 이미 낸 주문은 포인트로 처리). */
+const isPointsOrder = (o: { productKey: string }) => o.productKey.startsWith("points_");
+
+// 학생: AI 포인트 — 잔액(적립·이용권 전환 반영) · 적립 규칙 · 기능별 비용 · 충전 상품 · 최근 내역(30).
+app.get("/members/me/ai-points", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const balance = await aiWalletReconcile(userId);
+    const [logs, dailyFreeUsed] = await Promise.all([
+      prisma.aiPointLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, amount: true, reason: true, createdAt: true } }),
+      interviewDailyFreeUsed(userId)
+    ]);
+    return res.json({
+      ok: true,
+      enabled: aiPointsOn(),
+      balance,
+      won: AI_POINT_WON,
+      daily: { welcome: aiWelcomeGrant(), grant: aiDailyGrant(), cap: aiDailyCap(), nextAt: aiQuotaResetAt() },
+      costs: aiPointCostsView(),
+      perSet: INTERVIEW_CREDITS_PER_SESSION,
+      dailyFreeUsed,
+      paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+      refundDays: SELF_REFUND_DAYS,
+      products: aiPointProductsView(),
+      logs
+    });
+  } catch (err) {
+    console.error("[ai-points] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load ai points" });
+  }
+});
 
 // 학생: 이용권 잔액 · 상품 · 최근 내역.
 app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
     const userId = req.auth!.userId;
+    // 포인트 모드 — 이용권 대신 포인트를 '남은 답변 수'로 환산해 돌려준다(예전 화면이 깨지지 않게).
+    if (aiPointsOn()) {
+      const balance = await aiWalletReconcile(userId);
+      return res.json({
+        ok: true,
+        points: true,
+        balance,
+        credits: interviewAnswersFromPoints(balance),
+        perSession: INTERVIEW_CREDITS_PER_SESSION,
+        dailyFreeUsed: await interviewDailyFreeUsed(userId),
+        paywall: true,
+        paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+        products: [],
+        logs: []
+      });
+    }
     const credits = await interviewWalletEnsure(userId);
     const [logs, dailyFreeUsed] = await Promise.all([
       prisma.interviewCreditLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, select: { amount: true, reason: true, createdAt: true } }),
@@ -27477,10 +27665,21 @@ app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.
 const paymentOrderSchema = z.object({ productKey: z.string().max(40) });
 app.post("/members/me/payments/orders", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
   const parsed = paymentOrderSchema.safeParse(req.body);
-  const product = parsed.success ? interviewProduct(parsed.data.productKey) : null;
-  if (!product) return res.status(400).json({ ok: false, message: "invalid product" });
+  // 포인트 모드면 포인트 충전 상품만, 아니면 예전 모의 면접 이용권 상품만 판다.
+  const pointsProduct = parsed.success && aiPointsOn() ? aiPointProduct(parsed.data.productKey) : null;
+  const product = parsed.success && !aiPointsOn() ? interviewProduct(parsed.data.productKey) : null;
+  if (!product && !pointsProduct) return res.status(400).json({ ok: false, message: "invalid product" });
   if (!process.env.TOSS_SECRET_KEY) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
   try {
+    if (pointsProduct) {
+      const total = pointsProduct.points + pointsProduct.bonus;
+      const order = await prisma.paymentOrder.create({
+        data: { id: `pts-${randomBytes(12).toString("hex")}`, userId: req.auth!.userId, productKey: pointsProduct.key, orderName: `AI 포인트 ${total.toLocaleString("en-US")}P`, amount: pointsProduct.amount, credits: total },
+        select: { id: true, orderName: true, amount: true }
+      });
+      return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
+    }
+    if (!product) return res.status(400).json({ ok: false, message: "invalid product" });
     const order = await prisma.paymentOrder.create({
       data: {
         id: `ivc-${randomBytes(12).toString("hex")}`,
@@ -27513,6 +27712,10 @@ app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.
     const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
     if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
     if (order.status === "DONE") {
+      if (isPointsOrder(order)) {
+        const balance = await aiWalletBalance(userId);
+        return res.json({ ok: true, kind: "points", alreadyDone: true, balance, credits: balance, added: order.credits });
+      }
       const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
       return res.json({ ok: true, alreadyDone: true, credits: w?.credits ?? 0, added: order.credits });
     }
@@ -27530,6 +27733,19 @@ app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.
     if (!resp.ok || body.status !== "DONE") {
       await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: (body.code ?? `HTTP_${resp.status}`).slice(0, 120) } });
       return res.status(400).json({ ok: false, code: body.code ?? "CONFIRM_FAILED", message: body.message ?? "결제를 승인하지 못했어요." });
+    }
+    if (isPointsOrder(order)) {
+      await aiWalletReconcile(userId);
+      // READY → DONE 으로 바뀐 경우에만 포인트 충전(동시 호출·새로고침에도 한 번).
+      const creditedPoints = await prisma.$transaction(async (tx) => {
+        const moved = await tx.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "DONE", paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() } });
+        if (moved.count !== 1) return false;
+        await tx.aiWallet.update({ where: { userId }, data: { balance: { increment: order.credits } } });
+        await tx.aiPointLog.create({ data: { userId, amount: order.credits, reason: "purchase" } });
+        return true;
+      });
+      const balance = await aiWalletBalance(userId);
+      return res.json({ ok: true, kind: "points", alreadyDone: !creditedPoints, balance, credits: balance, added: order.credits });
     }
     await interviewWalletEnsure(userId);
     // READY → DONE 으로 바뀐 경우에만 충전(동시 호출에도 한 번).
@@ -27575,12 +27791,12 @@ app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR])
       where: all ? {} : { status: { not: "READY" } },
       orderBy: { createdAt: "desc" },
       take: 100,
-      select: { id: true, userId: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
     });
     const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
     const byId = new Map(users.map((u) => [u.id, u]));
-    const items = orders.map((o) => ({ ...o, email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
-    return res.json({ ok: true, items });
+    const items = orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
+    return res.json({ ok: true, pointsEnabled: aiPointsOn(), items });
   } catch (err) {
     console.error("[ops/payment-orders] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load orders" });
@@ -27607,21 +27823,30 @@ async function tossCancel(order: { id: string; paymentKey: string | null }, reas
 }
 
 /** 이용권 회수 → 토스 취소 → 주문 기록. deduct 만큼 잔액이 없으면 회수하지 않고 실패. */
-async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
+// 포인트 주문이면 AI 포인트에서, 예전 이용권 주문이면 이용권에서 회수한다.
+async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number; productKey: string }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
   const deduct = Math.max(0, opts.deduct);
+  const points = isPointsOrder(order);
   if (deduct > 0) {
-    const r = await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
-    if (r.count !== 1) return { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
+    const r = points
+      ? await prisma.aiWallet.updateMany({ where: { userId: order.userId, balance: { gte: deduct } }, data: { balance: { decrement: deduct } } })
+      : await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
+    if (r.count !== 1) return points ? { ok: false as const, code: "POINTS_USED", message: "충전한 포인트를 이미 써서 환불할 수 없어요." } : { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
   }
   const cancel = await tossCancel(order, opts.reason, opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined);
   if (!cancel.ok) {
-    if (deduct > 0) await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+    if (deduct > 0) {
+      if (points) await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: deduct } } });
+      else await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+    }
     return cancel;
   }
   const refunded = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : order.amount;
   await prisma.$transaction([
     prisma.paymentOrder.update({ where: { id: order.id }, data: { status: refunded < order.amount ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded } }),
-    ...(deduct > 0 ? [prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } })] : [])
+    ...(deduct > 0
+      ? [points ? prisma.aiPointLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund" } }) : prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } })]
+      : [])
   ]);
   return { ok: true as const, refunded, deducted: deduct };
 }
@@ -27635,14 +27860,22 @@ function selfRefundable(order: { status: string; approvedAt: Date | null; credit
 app.get("/members/me/payments", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
     const userId = req.auth!.userId;
-    const balance = await interviewWalletEnsure(userId);
+    // 포인트 모드면 새 이용권 지갑을 만들지 않는다(가입 1회 이용권이 생겨 포인트로 바뀌는 일이 없게).
+    const pointsBalance = await aiWalletReconcile(userId);
+    const balance = aiPointsOn() ? ((await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0) : await interviewWalletEnsure(userId);
     const orders = await prisma.paymentOrder.findMany({
       where: { userId, status: { in: ["DONE", "CANCELED", "PARTIAL_CANCELED"] } },
       orderBy: { createdAt: "desc" },
       take: 30,
-      select: { id: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, canceledAt: true, canceledAmount: true }
+      select: { id: true, productKey: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, canceledAt: true, canceledAmount: true }
     });
-    return res.json({ ok: true, credits: balance, refundDays: SELF_REFUND_DAYS, items: orders.map((o) => ({ ...o, refundable: selfRefundable(o, balance) })) });
+    return res.json({
+      ok: true,
+      credits: balance,
+      points: pointsBalance,
+      refundDays: SELF_REFUND_DAYS,
+      items: orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", refundable: selfRefundable(o, isPointsOrder({ productKey }) ? pointsBalance : balance) }))
+    });
   } catch (err) {
     console.error("[payments list] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load payments" });
@@ -27658,10 +27891,16 @@ app.post("/members/me/payments/:orderId/cancel", authenticate, requireRoles([Mem
   try {
     const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
     if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
-    const balance = await interviewWalletEnsure(userId);
-    if (!selfRefundable(order, balance)) return res.status(409).json({ ok: false, code: "NOT_REFUNDABLE", message: `결제 후 ${SELF_REFUND_DAYS}일 안에, 이용권을 쓰지 않았을 때만 환불할 수 있어요.` });
+    const points = isPointsOrder(order);
+    const balance = points ? await aiWalletReconcile(userId) : await interviewWalletEnsure(userId);
+    if (!selfRefundable(order, balance))
+      return res.status(409).json({ ok: false, code: "NOT_REFUNDABLE", message: points ? `결제 후 ${SELF_REFUND_DAYS}일 안에, 충전한 포인트가 남아 있을 때만 환불할 수 있어요.` : `결제 후 ${SELF_REFUND_DAYS}일 안에, 이용권을 쓰지 않았을 때만 환불할 수 있어요.` });
     const r = await refundOrder(order, { reason: parsed.data.reason || "고객 요청", deduct: order.credits, by: "self" });
     if (!r.ok) return res.status(400).json(r);
+    if (points) {
+      const left = await aiWalletBalance(userId);
+      return res.json({ ok: true, kind: "points", refunded: r.refunded, balance: left, credits: left });
+    }
     const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
     return res.json({ ok: true, refunded: r.refunded, credits: w?.credits ?? 0 });
   } catch (err) {
@@ -27671,7 +27910,7 @@ app.post("/members/me/payments/:orderId/cancel", authenticate, requireRoles([Mem
 });
 
 // 운영자: 환불(일부 금액 가능) — 회수할 이용권 수는 운영자가 정한다(기본: 그 결제분, 잔액이 모자라면 남은 만큼만).
-const opsRefundSchema = z.object({ reason: z.string().trim().min(1).max(200), cancelAmount: z.number().int().positive().optional(), deductCredits: z.number().int().min(0).max(5000).optional() });
+const opsRefundSchema = z.object({ reason: z.string().trim().min(1).max(200), cancelAmount: z.number().int().positive().optional(), deductCredits: z.number().int().min(0).max(100000).optional() });
 app.post("/ops/payment-orders/:orderId/cancel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = opsRefundSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
@@ -27680,7 +27919,8 @@ app.post("/ops/payment-orders/:orderId/cancel", authenticate, requireRoles([Memb
     if (!order) return res.status(404).json({ ok: false, message: "order not found" });
     if (order.status !== "DONE") return res.status(409).json({ ok: false, message: "환불할 수 있는 상태가 아니에요." });
     if (parsed.data.cancelAmount && parsed.data.cancelAmount > order.amount) return res.status(400).json({ ok: false, message: "결제 금액보다 많이 환불할 수 없어요." });
-    const balance = await interviewWalletEnsure(order.userId);
+    // 회수 단위 — 포인트 주문이면 포인트, 예전 주문이면 이용권(답변 수).
+    const balance = isPointsOrder(order) ? await aiWalletReconcile(order.userId) : await interviewWalletEnsure(order.userId);
     const deduct = Math.min(parsed.data.deductCredits ?? order.credits, balance);
     const r = await refundOrder(order, { reason: parsed.data.reason, deduct, cancelAmount: parsed.data.cancelAmount, by: "ops" });
     if (!r.ok) return res.status(400).json(r);
@@ -27714,6 +27954,61 @@ app.get("/ops/interview-credits/:userId/logs", authenticate, requireRoles([Membe
   } catch (err) {
     console.error("[ops interview-credit logs] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load logs" });
+  }
+});
+
+// 운영자: AI 포인트 지갑 목록(검색) · 내역 · 지급/회수(보상·테스트). 지급도 원장(AiPointLog, reason=ops_grant)에 남긴다.
+app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
+      select: { id: true, email: true, name: true, aiWallet: { select: { balance: true, updatedAt: true } }, interviewWallet: { select: { credits: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({
+      ok: true,
+      enabled: aiPointsOn(),
+      items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, balance: u.aiWallet?.balance ?? null, interviewCredits: u.interviewWallet?.credits ?? null, updatedAt: u.aiWallet?.updatedAt ?? null }))
+    });
+  } catch (err) {
+    console.error("[ops ai-wallets] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+app.get("/ops/ai-points/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.aiPointLog.findMany({ where: { userId: String(req.params.userId) }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, amount: true, reason: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops ai-point logs] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load logs" });
+  }
+});
+const opsPointGrantSchema = z.object({ points: z.number().int().min(-100000).max(100000).refine((n) => n !== 0) });
+app.post("/ops/ai-points/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPointGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = String(req.params.userId);
+  try {
+    const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!exists) return res.status(404).json({ ok: false, message: "user not found" });
+    await aiWalletReconcile(userId);
+    const n = parsed.data.points;
+    // 회수(음수)는 잔액 아래로 내려가지 않게 — 잔액이 모자라면 남은 만큼만.
+    const balance = await aiWalletBalance(userId);
+    const delta = n < 0 ? -Math.min(-n, balance) : n;
+    if (delta !== 0) {
+      await prisma.$transaction([
+        prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: delta } } }),
+        prisma.aiPointLog.create({ data: { userId, amount: delta, reason: "ops_grant" } })
+      ]);
+    }
+    return res.json({ ok: true, balance: await aiWalletBalance(userId), applied: delta });
+  } catch (err) {
+    console.error("[ops ai-points grant] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to grant" });
   }
 });
 

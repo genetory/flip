@@ -12,7 +12,7 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { createPaymentOrder, onInterviewPaywall, refreshInterviewCredits, useInterviewCredits, type InterviewProduct } from "../../lib/interview-credits";
 
-const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
+export const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
 
 /** 남은 이용권을 '회 + 답변'으로 — 예: "1회 (답변 5개)", "1회 + 답변 3개", "답변 3개". */
 export function creditLabel(t: PlatformT, credits: number, per: number): string {
@@ -24,7 +24,7 @@ export function creditLabel(t: PlatformT, credits: number, per: number): string 
 }
 
 // 이용권 — 쿠폰 그림(img_coupon, 흰 바탕 → 곱하기 합성)과 같은 파란 결. 연파랑 카드 + 파란 숫자 · 다 쓰면 숫자만 흐리게.
-const COUPON = "/img_coupon.webp";
+export const COUPON = "/img_coupon.webp";
 
 /** 이용권 카드 — 남은 회수를 크게, 오른쪽에 쿠폰 그림, 아래에 남은 답변·1회 기준 · [충전하기]. */
 export function CreditTicket({ t, credits, per, onTopUp, action, note }: { t: PlatformT; credits: number | null; per: number; onTopUp?: () => void; action?: string; note?: string }) {
@@ -101,7 +101,7 @@ export function InterviewPaywallHost() {
   return <PaywallSheet onClose={() => setOpen(null)} />;
 }
 
-type TossWidgets = {
+export type TossWidgets = {
   setAmount: (a: { currency: "KRW"; value: number }) => Promise<void>;
   renderPaymentMethods: (o: { selector: string; variantKey?: string }) => Promise<unknown>;
   renderAgreement: (o: { selector: string; variantKey?: string }) => Promise<unknown>;
@@ -111,7 +111,7 @@ type TossPaymentsFn = (clientKey: string) => { widgets: (o: { customerKey: strin
 
 /** 토스페이먼츠 SDK(v2 standard) — 처음 필요할 때 한 번만 불러온다. */
 let sdkLoading: Promise<TossPaymentsFn> | null = null;
-function loadToss(): Promise<TossPaymentsFn> {
+export function loadToss(): Promise<TossPaymentsFn> {
   const w = window as unknown as { TossPayments?: TossPaymentsFn };
   if (w.TossPayments) return Promise.resolve(w.TossPayments);
   sdkLoading ??= new Promise((resolve, reject) => {

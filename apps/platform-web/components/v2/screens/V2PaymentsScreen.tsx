@@ -2,6 +2,7 @@
 
 // v2 이용권·결제 내역 — 남은 모의 면접 이용권 · [충전] · 결제 내역(환불 가능하면 [환불]) · 이용 내역.
 // 셀프 환불: 결제 후 7일 안, 그 결제로 받은 이용권을 쓰지 않았을 때만(서버가 최종 판단). 그 밖엔 고객센터로.
+// AI 포인트(서버 AI_POINTS_ENABLED)가 켜져 있으면 — 포인트 카드 · 포인트 내역(받은·쓴, 기능 이름) · 결제 내역 · 기능별 포인트.
 import { useCallback, useEffect, useState } from "react";
 import { V2Shell } from "../V2Shell";
 import { Sheet } from "../sheets";
@@ -9,6 +10,8 @@ import { Button, Empty, Masthead, Page, RowsSkeleton, Section, Spinner } from ".
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { cancelMyPayment, getMyPayments, openInterviewPaywall, refreshInterviewCredits, useInterviewCredits, type MyPayment } from "../../../lib/interview-credits";
 import { CreditTicket } from "../interview-paywall";
+import { PointsTicket, pointReasonLabel } from "../ai-points";
+import { formatPoints, openPointsPaywall, refreshAiPoints, useAiPoints } from "../../../lib/ai-points";
 
 export function V2PaymentsScreen() {
   return (
@@ -38,6 +41,8 @@ const day = (iso: string | null) => (iso ? iso.slice(0, 10).replace(/-/g, ".") :
 
 function Payments() {
   const t = usePlatformT();
+  const pts = useAiPoints();
+  const pointsMode = Boolean(pts?.enabled);
   const credits = useInterviewCredits();
   const [data, setData] = useState<{ refundDays: number; items: MyPayment[] } | null>(null);
   const [refund, setRefund] = useState<MyPayment | null>(null);
@@ -50,6 +55,112 @@ function Payments() {
     load();
   }, [load]);
   const per = credits?.perSession ?? 5;
+  useEffect(() => {
+    if (pointsMode) void refreshAiPoints();
+  }, [pointsMode]);
+
+  const paymentsSection = (
+    <Section title={t("결제 내역", "Payments", "支付记录", "Lịch sử thanh toán", "決済履歴", "Riwayat pembayaran")}>
+      {data === null ? (
+        <RowsSkeleton count={3} thumb={false} />
+      ) : !data.items.length ? (
+        <Empty>{t("아직 결제한 내역이 없어요.", "No payments yet.", "还没有支付记录。", "Chưa có thanh toán.", "まだ決済はありません。", "Belum ada pembayaran.")}</Empty>
+      ) : (
+        <ul>
+          {data.items.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 border-b border-[color:var(--v2-band)] py-4 last:border-b-0">
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="min-w-0 truncate text-[16px] font-semibold text-[color:var(--v2-ink)]">{p.orderName}</span>
+                  {statusChip(t, p)}
+                </span>
+                <span className="mt-0.5 block text-[13px] text-[color:var(--v2-faint)]">
+                  {[day(p.approvedAt), won(t, p.amount), p.canceledAmount ? t(`환불 ${p.canceledAmount.toLocaleString()}원`, `Refunded ₩${p.canceledAmount.toLocaleString()}`, `退款 ₩${p.canceledAmount.toLocaleString()}`, `Hoàn ₩${p.canceledAmount.toLocaleString()}`, `返金 ₩${p.canceledAmount.toLocaleString()}`, `Kembali ₩${p.canceledAmount.toLocaleString()}`) : null].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+              {p.refundable ? (
+                <Button size="sm" variant="neutral" onClick={() => setRefund(p)}>
+                  {t("환불", "Refund", "退款", "Hoàn tiền", "返金", "Refund")}
+                </Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="pt-3 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
+        {pointsMode
+          ? t(`결제 후 ${data?.refundDays ?? 7}일 안에, 충전한 포인트가 그대로 남아 있으면 바로 환불할 수 있어요. 그 밖의 환불은 고객센터(info@flip-ers.com)로 문의해 주세요.`, `Within ${data?.refundDays ?? 7} days, if the topped-up points are still in your balance, you can refund here. For other cases, contact info@flip-ers.com.`, `支付后 ${data?.refundDays ?? 7} 天内且充值积分仍在余额中时，可直接退款。其他情况请联系 info@flip-ers.com。`, `Trong ${data?.refundDays ?? 7} ngày, nếu điểm đã nạp vẫn còn, bạn có thể hoàn tiền tại đây. Khác: info@flip-ers.com.`, `決済後${data?.refundDays ?? 7}日以内で、チャージしたポイントが残っていればここで返金できます。その他は info@flip-ers.com へ。`, `Dalam ${data?.refundDays ?? 7} hari, jika poin isi ulang masih ada, bisa refund di sini. Lainnya: info@flip-ers.com.`)
+          : t(`결제 후 ${data?.refundDays ?? 7}일 안에, 받은 이용권을 쓰지 않았다면 바로 환불할 수 있어요. 그 밖의 환불은 고객센터(info@flip-ers.com)로 문의해 주세요.`, `Within ${data?.refundDays ?? 7} days of payment and before using the pass, you can refund right here. For other cases, contact info@flip-ers.com.`, `支付后 ${data?.refundDays ?? 7} 天内且未使用使用券时，可直接退款。其他情况请联系 info@flip-ers.com。`, `Trong ${data?.refundDays ?? 7} ngày và chưa dùng vé, bạn có thể hoàn tiền tại đây. Trường hợp khác liên hệ info@flip-ers.com.`, `決済後${data?.refundDays ?? 7}日以内でチケット未使用ならここで返金できます。その他は info@flip-ers.com へ。`, `Dalam ${data?.refundDays ?? 7} hari dan tiket belum dipakai, bisa refund di sini. Lainnya hubungi info@flip-ers.com.`)}
+      </p>
+    </Section>
+  );
+  const refundSheet = refund ? (
+    <RefundSheet
+      t={t}
+      p={refund}
+      onClose={() => setRefund(null)}
+      onDone={() => {
+        setRefund(null);
+        load();
+        void refreshInterviewCredits();
+        void refreshAiPoints();
+      }}
+    />
+  ) : null;
+
+  if (pointsMode && pts) {
+    const costs = Object.entries(pts.costs).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]));
+    return (
+      <Page>
+        <Masthead
+          eyebrow={t("포인트·결제", "Points & payments", "积分·支付", "Điểm & thanh toán", "ポイント・決済", "Poin & pembayaran")}
+          title={t("AI 포인트", "AI points", "AI 积分", "Điểm AI", "AIポイント", "Poin AI")}
+          lede={t("이력서·자기소개서·모의 면접 AI에 함께 써요.", "One balance for resume, cover letter & interview AI.", "简历、自我介绍、模拟面试 AI 通用。", "Dùng chung cho AI CV, thư & phỏng vấn.", "履歴書・自己紹介書・模擬面接のAIに共通。", "Satu saldo untuk AI CV, surat & wawancara.")}
+        />
+        <div className="-mt-2 px-5 pb-8">
+          <PointsTicket t={t} balance={pts.balance} onTopUp={() => openPointsPaywall("topup")} dailyGrant={pts.daily.grant} feedbackCost={pts.costs.interview_feedback} />
+          <p className="mt-3 px-1 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">
+            {t(`가입하면 ${formatPoints(pts.daily.welcome)}, 매일 +${formatPoints(pts.daily.grant)}씩 쌓여요(잔액 ${formatPoints(pts.daily.cap)}까지).`, `Sign up for ${formatPoints(pts.daily.welcome)}, then +${formatPoints(pts.daily.grant)} every day (while under ${formatPoints(pts.daily.cap)}).`, `注册即得 ${formatPoints(pts.daily.welcome)}，每天 +${formatPoints(pts.daily.grant)}（余额 ${formatPoints(pts.daily.cap)} 以内）。`, `Đăng ký nhận ${formatPoints(pts.daily.welcome)}, mỗi ngày +${formatPoints(pts.daily.grant)} (khi dưới ${formatPoints(pts.daily.cap)}).`, `登録で${formatPoints(pts.daily.welcome)}、毎日+${formatPoints(pts.daily.grant)}（残高${formatPoints(pts.daily.cap)}まで）。`, `Daftar dapat ${formatPoints(pts.daily.welcome)}, lalu +${formatPoints(pts.daily.grant)} tiap hari (saldo maks ${formatPoints(pts.daily.cap)}).`)}
+          </p>
+        </div>
+
+        <Section title={t("포인트 내역", "Point history", "积分记录", "Lịch sử điểm", "ポイント履歴", "Riwayat poin")}>
+          {!pts.logs.length ? (
+            <Empty>{t("아직 내역이 없어요.", "Nothing yet.", "还没有记录。", "Chưa có.", "まだありません。", "Belum ada.")}</Empty>
+          ) : (
+            <ul>
+              {pts.logs.map((l) => (
+                <li key={l.id} className="flex items-center justify-between gap-3 border-b border-[color:var(--v2-band)] py-3 last:border-b-0">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-semibold text-[color:var(--v2-ink-2)]">{pointReasonLabel(t, l.reason)}</span>
+                    <span className="block text-[12px] text-[color:var(--v2-faint)]">{new Date(l.createdAt).toLocaleString("sv-SE").slice(0, 16)}</span>
+                  </span>
+                  <span className={`shrink-0 text-[15px] font-bold tabular-nums ${l.amount >= 0 ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink-3)]"}`}>
+                    {l.amount >= 0 ? `+${formatPoints(l.amount)}` : `−${formatPoints(-l.amount)}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        {paymentsSection}
+
+        <Section title={t("기능별 포인트", "Points per feature", "各功能积分", "Điểm theo tính năng", "機能別ポイント", "Poin per fitur")}>
+          <ul className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
+            {costs.map(([k, v]) => (
+              <li key={k} className="flex items-center justify-between gap-3 border-b border-[color:var(--v2-band)] py-2.5">
+                <span className="min-w-0 truncate text-[14px] text-[color:var(--v2-ink-3)]">{pointReasonLabel(t, k)}</span>
+                <span className="shrink-0 text-[14px] font-bold tabular-nums text-[color:var(--v2-ink)]">{formatPoints(v)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="pt-3 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">{t("AI가 결과를 돌려줬을 때만 차감돼요. 오늘의 질문은 하루 1번 포인트 없이 답할 수 있어요.", "Points are only used when the AI returns a result. Today's question can be answered once a day without points.", "仅在 AI 返回结果时扣除。今日问题每天可不扣积分回答 1 次。", "Chỉ trừ khi AI trả kết quả. Câu hỏi hôm nay 1 lần/ngày không tốn điểm.", "AIが結果を返したときだけ減ります。今日の質問は1日1回ポイントなしで。", "Poin hanya terpakai saat AI memberi hasil. Pertanyaan harian sekali sehari tanpa poin.")}</p>
+        </Section>
+        {refundSheet}
+      </Page>
+    );
+  }
 
   return (
     <Page>
@@ -63,37 +174,7 @@ function Payments() {
         <CreditTicket t={t} credits={credits ? credits.credits : null} per={per} onTopUp={() => openInterviewPaywall("topup")} />
       </div>
 
-      <Section title={t("결제 내역", "Payments", "支付记录", "Lịch sử thanh toán", "決済履歴", "Riwayat pembayaran")}>
-        {data === null ? (
-          <RowsSkeleton count={3} thumb={false} />
-        ) : !data.items.length ? (
-          <Empty>{t("아직 결제한 내역이 없어요.", "No payments yet.", "还没有支付记录。", "Chưa có thanh toán.", "まだ決済はありません。", "Belum ada pembayaran.")}</Empty>
-        ) : (
-          <ul>
-            {data.items.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 border-b border-[color:var(--v2-band)] py-4 last:border-b-0">
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-[16px] font-semibold text-[color:var(--v2-ink)]">{p.orderName}</span>
-                    {statusChip(t, p)}
-                  </span>
-                  <span className="mt-0.5 block text-[13px] text-[color:var(--v2-faint)]">
-                    {[day(p.approvedAt), won(t, p.amount), p.canceledAmount ? t(`환불 ${p.canceledAmount.toLocaleString()}원`, `Refunded ₩${p.canceledAmount.toLocaleString()}`, `退款 ₩${p.canceledAmount.toLocaleString()}`, `Hoàn ₩${p.canceledAmount.toLocaleString()}`, `返金 ₩${p.canceledAmount.toLocaleString()}`, `Kembali ₩${p.canceledAmount.toLocaleString()}`) : null].filter(Boolean).join(" · ")}
-                  </span>
-                </span>
-                {p.refundable ? (
-                  <Button size="sm" variant="neutral" onClick={() => setRefund(p)}>
-                    {t("환불", "Refund", "退款", "Hoàn tiền", "返金", "Refund")}
-                  </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="pt-3 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
-          {t(`결제 후 ${data?.refundDays ?? 7}일 안에, 받은 이용권을 쓰지 않았다면 바로 환불할 수 있어요. 그 밖의 환불은 고객센터(info@flip-ers.com)로 문의해 주세요.`, `Within ${data?.refundDays ?? 7} days of payment and before using the pass, you can refund right here. For other cases, contact info@flip-ers.com.`, `支付后 ${data?.refundDays ?? 7} 天内且未使用使用券时，可直接退款。其他情况请联系 info@flip-ers.com。`, `Trong ${data?.refundDays ?? 7} ngày và chưa dùng vé, bạn có thể hoàn tiền tại đây. Trường hợp khác liên hệ info@flip-ers.com.`, `決済後${data?.refundDays ?? 7}日以内でチケット未使用ならここで返金できます。その他は info@flip-ers.com へ。`, `Dalam ${data?.refundDays ?? 7} hari dan tiket belum dipakai, bisa refund di sini. Lainnya hubungi info@flip-ers.com.`)}
-        </p>
-      </Section>
+      {paymentsSection}
 
       <Section title={t("이용 내역", "Usage", "使用记录", "Lịch sử dùng", "利用履歴", "Riwayat pemakaian")}>
         {!credits ? (
@@ -117,18 +198,7 @@ function Payments() {
         )}
       </Section>
 
-      {refund ? (
-        <RefundSheet
-          t={t}
-          p={refund}
-          onClose={() => setRefund(null)}
-          onDone={() => {
-            setRefund(null);
-            load();
-            void refreshInterviewCredits();
-          }}
-        />
-      ) : null}
+      {refundSheet}
     </Page>
   );
 }
@@ -168,7 +238,11 @@ function RefundSheet({ t, p, onClose, onDone }: { t: PlatformT; p: MyPayment; on
         <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{p.orderName}</p>
         <p className="mt-1 text-[14px] text-[color:var(--v2-ink-3)]">{won(t, p.amount)}</p>
       </div>
-      <p className="mt-4 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t(`결제한 ${won(t, p.amount)} 전액이 환불되고, 받은 이용권(답변 ${p.credits}개)은 사라져요. 카드사에 따라 환불까지 며칠 걸릴 수 있어요.`, `The full ${won(t, p.amount)} will be refunded and the ${p.credits} answers removed. Card refunds can take a few days.`, `将全额退款 ${won(t, p.amount)}，获得的使用券（${p.credits} 个回答）将被收回。退款到账可能需要几天。`, `Hoàn toàn bộ ${won(t, p.amount)} và thu hồi ${p.credits} câu. Có thể mất vài ngày.`, `${won(t, p.amount)}全額が返金され、チケット（回答${p.credits}個）は消えます。返金まで数日かかる場合があります。`, `${won(t, p.amount)} dikembalikan penuh, ${p.credits} jawaban dihapus.`)}</p>
+      {p.kind === "points" ? (
+        <p className="mt-4 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t(`결제한 ${won(t, p.amount)} 전액이 환불되고, 충전한 ${formatPoints(p.credits)}가 잔액에서 빠져요. 카드사에 따라 환불까지 며칠 걸릴 수 있어요.`, `The full ${won(t, p.amount)} will be refunded and ${formatPoints(p.credits)} removed from your balance. Card refunds can take a few days.`, `将全额退款 ${won(t, p.amount)}，并从余额扣回 ${formatPoints(p.credits)}。退款到账可能需要几天。`, `Hoàn toàn bộ ${won(t, p.amount)} và trừ ${formatPoints(p.credits)} khỏi số dư. Có thể mất vài ngày.`, `${won(t, p.amount)}全額が返金され、${formatPoints(p.credits)}が残高から引かれます。返金まで数日かかる場合があります。`, `${won(t, p.amount)} dikembalikan penuh, ${formatPoints(p.credits)} dikurangi dari saldo.`)}</p>
+      ) : (
+        <p className="mt-4 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t(`결제한 ${won(t, p.amount)} 전액이 환불되고, 받은 이용권(답변 ${p.credits}개)은 사라져요. 카드사에 따라 환불까지 며칠 걸릴 수 있어요.`, `The full ${won(t, p.amount)} will be refunded and the ${p.credits} answers removed. Card refunds can take a few days.`, `将全额退款 ${won(t, p.amount)}，获得的使用券（${p.credits} 个回答）将被收回。退款到账可能需要几天。`, `Hoàn toàn bộ ${won(t, p.amount)} và thu hồi ${p.credits} câu. Có thể mất vài ngày.`, `${won(t, p.amount)}全額が返金され、チケット（回答${p.credits}個）は消えます。返金まで数日かかる場合があります。`, `${won(t, p.amount)} dikembalikan penuh, ${p.credits} jawaban dihapus.`)}</p>
+      )}
       {error ? <p className="mt-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
     </Sheet>
   );

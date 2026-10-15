@@ -10,6 +10,7 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { aiInterviewFeedback, getAnswerExamples, shareAnswerExample, type InterviewFeedback } from "../../lib/member-profile-client";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
+import { formatPoints } from "../../lib/ai-points";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { saveSelfMockAnswer, useSelfMock } from "../../lib/talent/self-mock";
@@ -255,7 +256,11 @@ export function PracticeSheet({
     } catch (e) {
       // 이용권이 없으면 결제 창을 연다(답은 그대로 남아 있어 충전 후 다시 누르면 된다).
       if (isInterviewPaywallError(e)) {
-        setError(t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut."));
+        setError(
+          credits?.points
+            ? t("AI 포인트가 부족해요. 충전하면 바로 이어서 할 수 있어요.", "Not enough AI points. Top up to continue.", "AI 积分不足，充值后即可继续。", "Không đủ điểm AI. Nạp để tiếp tục.", "AIポイントが足りません。チャージすると続けられます。", "Poin AI kurang. Isi ulang untuk lanjut.")
+            : t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut.")
+        );
         openInterviewPaywall();
         return;
       }
@@ -300,12 +305,14 @@ export function PracticeSheet({
           </div>
         ) : locked ? (
           <Button full onClick={() => openInterviewPaywall("needed")}>
-            {t("이용권 충전하기", "Top up passes", "充值使用券", "Nạp vé", "チケットをチャージ", "Isi tiket")}
+            {credits?.points ? t("AI 포인트 충전하기", "Top up AI points", "充值 AI 积分", "Nạp điểm AI", "AIポイントをチャージ", "Isi poin AI") : t("이용권 충전하기", "Top up passes", "充值使用券", "Nạp vé", "チケットをチャージ", "Isi tiket")}
           </Button>
         ) : (
           <Button full onClick={() => void submit()} disabled={busy}>
             {busy ? <Spinner /> : null}
             {busy ? t("AI가 읽고 있어요", "AI is reading…", "AI 正在阅读", "AI đang đọc…", "AIが読んでいます", "AI membaca…") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバック", "Dapatkan umpan balik AI")}
+            {/* 비용 — 포인트 모드에서만. 오늘의 질문(하루 1번)은 차감이 없어 표시하지 않는다 */}
+            {!busy && credits?.points && !(daily && !credits.dailyFreeUsed) ? <span className="whitespace-nowrap tabular-nums opacity-80"> · {formatPoints(credits.points.feedbackCost)}</span> : null}
           </Button>
         )
       }
@@ -355,8 +362,19 @@ export function PracticeSheet({
               <path d="M8 11V8a4 4 0 0 1 8 0v3" />
             </svg>
           </span>
+          {credits?.points ? (
+            <>
+              <p className="mt-3 text-[17px] font-bold text-[color:var(--v2-ink)]">{t(`답변 1개에 ${formatPoints(credits.points.feedbackCost)}가 필요해요`, `Each answer needs ${formatPoints(credits.points.feedbackCost)}`, `每个回答需要 ${formatPoints(credits.points.feedbackCost)}`, `Mỗi câu cần ${formatPoints(credits.points.feedbackCost)}`, `回答1個に${formatPoints(credits.points.feedbackCost)}必要です`, `Tiap jawaban perlu ${formatPoints(credits.points.feedbackCost)}`)}</p>
+              <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">
+                {t(`지금 ${formatPoints(credits.points.balance)}. 충전하면 바로 이어서 답하고 AI 피드백을 받을 수 있어요. 오늘의 질문은 하루 1번 포인트 없이 답할 수 있어요.`, `You have ${formatPoints(credits.points.balance)}. Top up to answer and get AI feedback. Today's question is open once a day without points.`, `当前 ${formatPoints(credits.points.balance)}。充值后即可作答并获得 AI 反馈。今日问题每天可不扣积分回答 1 次。`, `Hiện có ${formatPoints(credits.points.balance)}. Nạp để trả lời và nhận phản hồi AI. Câu hỏi hôm nay 1 lần/ngày không tốn điểm.`, `現在 ${formatPoints(credits.points.balance)}。チャージするとすぐ回答・AIフィードバック。今日の質問は1日1回ポイントなしで。`, `Saldo ${formatPoints(credits.points.balance)}. Isi ulang untuk menjawab. Pertanyaan harian sekali sehari tanpa poin.`)}
+              </p>
+            </>
+          ) : (
+            <>
           <p className="mt-3 text-[17px] font-bold text-[color:var(--v2-ink)]">{t("이용권이 있어야 답할 수 있어요", "You need a pass to answer", "需要使用券才能作答", "Cần vé để trả lời", "回答にはチケットが必要です", "Perlu tiket untuk menjawab")}</p>
           <p className="mt-1.5 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("충전하면 바로 이어서 답하고 AI 피드백을 받을 수 있어요. 오늘의 질문은 하루 1번 이용권 없이 답할 수 있어요.", "Top up to answer and get AI feedback right away. Today's question is open once a day without a pass.", "充值后即可作答并获得 AI 反馈。今日问题每天可免券回答 1 次。", "Nạp để trả lời và nhận phản hồi AI ngay. Câu hỏi hôm nay được trả lời 1 lần/ngày không cần vé.", "チャージするとすぐ回答・AIフィードバック。今日の質問は1日1回チケットなしで。", "Isi ulang untuk menjawab dan dapat masukan AI. Pertanyaan harian sekali sehari tanpa tiket.")}</p>
+            </>
+          )}
         </div>
       ) : !feedback ? (
         <>

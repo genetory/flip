@@ -442,7 +442,10 @@ export async function getAiPointHistory(): Promise<AiPointLogEntry[]> {
   return Array.isArray(payload?.history) ? payload.history : [];
 }
 
-// ⚠️ 현재 정책: AI 기능은 전면 무료다.
+// ⚠️ AI 포인트(서버 AI_POINTS_ENABLED)가 켜지면 비용이 있는 기능은 잔액이 모자랄 때 402 AI_POINTS_REQUIRED 를 준다.
+//    그때는 notifyAiBlocked → <AiBlockedHandler/> 가 포인트 충전 시트(lib/ai-points openPointsPaywall)를 연다.
+//    아래 설명은 플래그가 꺼져 있을 때(기본·무료)의 동작이다.
+// 현재 정책(플래그 꺼짐): AI 기능은 전면 무료다.
 // 서버 aiGate(apps/api/src/index.ts)는 지갑/티켓을 차감하지 않고 다음만 검사한다.
 //   - 분당 호출 상한 AI_PER_MINUTE_CAP = 20 → 429 AI_RATE
 //   - 일일 총량 상한 AI_DAILY_TOTAL_CAP = 500 → 429 AI_DAILY_LIMIT

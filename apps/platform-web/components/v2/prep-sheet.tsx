@@ -15,6 +15,8 @@ import { usePlatformT } from "../../lib/i18n";
 import { aiInterviewPrep, getInterviewQuestions, getMyMockInterviewAnswers, getPublicPositionById, type InterviewReportItem, type MockInterviewAnswer, type PrepQuestion } from "../../lib/member-profile-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance } from "../../lib/interview-credits";
+import { getAiPointsState } from "../../lib/ai-points";
+import { CostTag } from "./ai-points";
 import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
@@ -156,7 +158,11 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
       }
     } catch (e) {
       if (isInterviewPaywallError(e)) {
-        setPrepError(t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut."));
+        setPrepError(
+          getAiPointsState()?.enabled
+            ? t("AI 포인트가 부족해요. 충전하면 바로 이어서 할 수 있어요.", "Not enough AI points. Top up to continue.", "AI 积分不足，充值后即可继续。", "Không đủ điểm AI. Nạp để tiếp tục.", "AIポイントが足りません。チャージすると続けられます。", "Poin AI kurang. Isi ulang untuk lanjut.")
+            : t("이용권이 필요해요. 충전하면 바로 이어서 할 수 있어요.", "You need a pass. Top up to continue.", "需要使用券，充值后即可继续。", "Cần vé. Nạp thêm để tiếp tục.", "チケットが必要です。チャージすると続けられます。", "Perlu tiket. Isi ulang untuk lanjut.")
+        );
         openInterviewPaywall();
         return;
       }
@@ -228,6 +234,7 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
                 <Button size="sm" onClick={() => void makePrep()} disabled={prepBusy}>
                   {prepBusy ? <Spinner /> : null}
                   {prepBusy ? t("만드는 중이에요", "Creating…", "生成中", "Đang tạo", "作成中", "Membuat") : t("예상 질문 만들기", "Create questions", "生成预测问题", "Tạo câu hỏi", "予想質問を作る", "Buat pertanyaan")}
+                  {!prepBusy ? <CostTag feature="interview_prep" /> : null}
                 </Button>
               </div>
               {prepError ? <p className="mt-2 text-[13px] text-[color:var(--v2-attention)]">{prepError}</p> : null}

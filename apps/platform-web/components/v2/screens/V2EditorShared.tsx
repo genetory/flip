@@ -10,6 +10,7 @@ import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { trackEditor } from "../../../lib/analytics";
 import type { DocVersion } from "../../../lib/talent/doc-versions";
 import type { SaveState } from "../../talent/editor/editor-shared";
+import { PointsChip } from "../ai-points";
 
 // 동작(훅·계산)은 기존 그대로.
 export {
@@ -143,6 +144,10 @@ export function EditorTopBar<L, S>({
         {tab("resume", t("이력서", "Resume", "简历", "Hồ sơ", "履歴書", "Resume"))}
         {tab("cover", t("자기소개서", "Cover letter", "自我介绍", "Thư giới thiệu", "自己紹介書", "Surat lamaran"))}
       </nav>
+      {/* 모바일은 상단 바가 옆으로 넘어가므로 문서 탭 바로 옆(첫 화면에 보이게) */}
+      <span className="shrink-0 lg:hidden">
+        <PointsChip />
+      </span>
       <div className="mx-1 h-6 w-px shrink-0 bg-[color:var(--v2-band)]" />
       <nav aria-label={t("버전", "Versions", "版本", "Phiên bản", "バージョン", "Versi")} className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
         {chip(working, t("편집 중", "Editing", "编辑中", "Đang sửa", "編集中", "Sedang diedit"))}
@@ -173,6 +178,10 @@ export function EditorTopBar<L, S>({
         ) : null}
       </span>
       <div className="flex-1" />
+      {/* AI 포인트 잔액 — 셸이 없는 전체 화면이라 여기에도(포인트가 켜져 있을 때만). PC 는 오른쪽 끝 */}
+      <span className="hidden shrink-0 lg:block">
+        <PointsChip />
+      </span>
       {right}
     </header>
   );

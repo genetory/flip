@@ -460,7 +460,7 @@ function Strengths({ t, resume, cover, interests }: { t: PlatformT; resume: Resu
     } catch (e) {
       setError(
         e instanceof AiQuotaError
-          ? t("오늘은 더 찾을 수 없어요. 내일 다시 해 보세요.", "Daily limit reached. Try again tomorrow.", "今天已达上限，明天再试。", "Đã hết lượt hôm nay.", "本日の上限です。明日お試しください。", "Batas harian tercapai.")
+          ? t("AI 포인트가 부족해요. 충전하면 이어서 할 수 있어요.", "Not enough AI points. Top up to continue.", "AI 积分不足，充值后可继续。", "Không đủ điểm AI. Nạp để tiếp tục.", "AIポイントが足りません。チャージで続けられます。", "Poin AI kurang. Isi ulang untuk lanjut.")
           : t("강점을 찾지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't find strengths. Try again soon.", "未能分析，请稍后再试。", "Không tìm được. Thử lại sau.", "見つけられませんでした。後でもう一度。", "Gagal. Coba lagi nanti.")
       );
     } finally {
@@ -736,7 +736,7 @@ export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; i
     } catch (e) {
       setError(
         e instanceof AiQuotaError
-          ? t("오늘은 더 비교할 수 없어요. 내일 다시 해 보세요.", "Daily limit reached. Try again tomorrow.", "今天已达上限，明天再试。", "Đã hết lượt hôm nay.", "本日の上限です。明日お試しください。", "Batas harian tercapai.")
+          ? t("AI 포인트가 부족해요. 충전하면 이어서 할 수 있어요.", "Not enough AI points. Top up to continue.", "AI 积分不足，充值后可继续。", "Không đủ điểm AI. Nạp để tiếp tục.", "AIポイントが足りません。チャージで続けられます。", "Poin AI kurang. Isi ulang untuk lanjut.")
           : t("비교하지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't compare. Try again soon.", "未能比较，请稍后再试。", "Không so sánh được. Thử lại sau.", "比較できませんでした。後でもう一度。", "Gagal. Coba lagi nanti.")
       );
     } finally {

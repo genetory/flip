@@ -35,6 +35,7 @@ import {
   type ResolvedCover
 } from "../../../lib/talent/cover-layout";
 import { generateCoverLetter, polishSelfIntro, reviewCover, importCoverLetter } from "../../../lib/resume-maker-client";
+import { CostTag } from "../ai-points";
 import { importedCoverToItems } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile } from "../../talent/editor/ImportFromFile";
 import { StartChooser } from "../../talent/editor/StartChooser";
@@ -82,6 +83,7 @@ function EditorGate() {
             title={t("자기소개서 가져오기", "Import your cover letter", "导入自我介绍", "Nhập thư giới thiệu", "自己紹介書を取り込む", "Impor surat lamaran")}
             hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 답변은 에피소드로 들어가고, 어느 문항에 쓸지는 직접 고르면 돼요.", "Upload a PDF or paste the text. Answers become episodes, and you choose which question each one goes to.", "请上传 PDF 或粘贴内容。答案会成为经历，放入哪个题目由你决定。", "Tải PDF hoặc dán nội dung. Câu trả lời thành đoạn kể, bạn chọn dùng cho câu nào.", "PDFを上げるか本文を貼り付けてください。回答はエピソードになり、どの設問に使うかは自分で選べます。", "Unggah PDF atau tempel teks. Jawaban jadi episode, kamu pilih untuk pertanyaan mana.")}
             parse={async (input) => importedCoverToItems((await importCoverLetter(input)).items)}
+            costFeature="import_cover_letter"
             summarize={(items) => (items.length ? [{ label: t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode"), count: items.length }] : [])}
             onApply={(items) => {
               trackEditor("editor_import_applied", { doc: "cover", where: "start", count: items.length });
@@ -709,6 +711,7 @@ function Inspector(props: {
           "Unggah PDF surat lamaran lama, tiap jawaban jadi episode. Kamu pilih untuk pertanyaan mana."
         )}
         parse={async (input) => importedCoverToItems((await importCoverLetter(input)).items)}
+            costFeature="import_cover_letter"
         summarize={(items) => (items.length ? [{ label: t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode"), count: items.length }] : [])}
         onApply={props.onImport}
         onUndo={props.importUndo}
@@ -813,7 +816,7 @@ function Inspector(props: {
             )}
             onChange={(v) => props.onText(id, v)}
           />
-          <AiPolish key={`ai-${id}`} t={t} text={para} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} />
+          <AiPolish key={`ai-${id}`} t={t} text={para} polish={(src, style) => polishSelfIntro({ text: src, style })} onApply={(v) => props.onText(id, v)} costFeature="polish_intro" />
         </Section>
 
         <button type="button" onClick={() => props.onDeleteEpisode(id)} className="order-4 flex h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[14px] font-semibold leading-none text-[color:var(--v2-attention)] transition hover:bg-[#FFF0F1] lg:order-none">
@@ -883,6 +886,7 @@ function Inspector(props: {
             })
           }
           onApply={(v) => props.onPolishedAnswer(q, v)}
+          costFeature="cover_letter"
         />
       </Section>
 
@@ -1019,6 +1023,8 @@ function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc
         {busy
           ? t("다듬는 중…", "Polishing…", "润色中…", "Đang chỉnh…", "整えています…", "Merapikan…")
           : `${t("다듬기", "Tidy up", "润色", "Chỉnh", "整える", "Rapikan")} ${targets.length}`}
+        {/* 에피소드마다 한 번씩 부르므로 개수만큼 */}
+        {!busy ? <CostTag feature="polish_intro" times={targets.length} /> : null}
       </button>
       {prev ? (
         <button
@@ -1318,6 +1324,7 @@ function FinalCheckSection({
           : review.ran
             ? t("AI로 다시 점검", "Check with AI again", "再用 AI 检查", "Kiểm tra lại bằng AI", "AIで再チェック", "Cek ulang dengan AI")
             : t("AI로 더 점검하기", "Check with AI", "用 AI 检查", "Kiểm tra bằng AI", "AIでチェック", "Cek dengan AI")}
+        {!review.running ? <CostTag feature="review_cover" /> : null}
       </button>
       {review.error ? <p className="text-[13px] leading-[1.6] text-[color:var(--v2-attention)]">{review.error}</p> : null}
       {hiddenIssues.hiddenCount > 0 ? (

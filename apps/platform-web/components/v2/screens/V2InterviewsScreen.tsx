@@ -42,6 +42,7 @@ import { formatRelativeTime } from "../../../lib/talent/career-feed";
 import { InterviewSession } from "../interview-session";
 import { type WeaknessRow } from "../../../lib/talent/mock-weakness";
 import { CreditLine } from "../interview-paywall";
+import { InterviewPointsLine } from "../ai-points";
 import { openInterviewPaywall, useInterviewCredits } from "../../../lib/interview-credits";
 import { PrepSheetV2 } from "../prep-sheet";
 import { V2InterviewsGuest } from "./V2InterviewsGuest";
@@ -258,7 +259,11 @@ function Interviews() {
           </div>
           {credits ? (
             <div className="mt-3">
-              <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+              {credits.points ? (
+                <InterviewPointsLine t={t} balance={credits.points.balance} feedbackCost={credits.points.feedbackCost} onTopUp={() => openInterviewPaywall("topup")} />
+              ) : (
+                <CreditLine t={t} credits={credits.credits} per={credits.perSession} onTopUp={() => openInterviewPaywall("topup")} />
+              )}
             </div>
           ) : null}
         </div>

@@ -13,6 +13,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { UploadSimple, CircleNotch } from "@phosphor-icons/react";
 import type { PlatformT } from "../../../lib/i18n";
+import { useAiPoints } from "../../../lib/ai-points";
 import { Section, TINT_BTN } from "./editor-shared";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import type { CareerSection } from "../../../lib/talent/career-chat";
@@ -27,10 +28,13 @@ export function ImportFromFile<T>({
   parse,
   summarize,
   onApply,
-  onUndo
+  onUndo,
+  costFeature
 }: {
   t: PlatformT;
   title: string;
+  /** AI 포인트 비용을 보일 기능 키(v2 에서만 넘긴다) — 포인트가 켜져 있을 때만 붙인다. */
+  costFeature?: string;
   hint: string;
   /** 파일(dataUrl) 또는 붙여넣은 텍스트 → 가져온 결과. 서버 호출은 여기서 한다. */
   parse: (input: { pdfBase64?: string; text?: string }) => Promise<T>;
@@ -41,6 +45,9 @@ export function ImportFromFile<T>({
   onUndo?: (() => void) | null;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // 비용 표시 — costFeature 가 있을 때만 포인트 상태를 불러온다(옛 화면은 부르지 않음).
+  const pts = useAiPoints(Boolean(costFeature));
+  const cost = costFeature && pts?.enabled ? (pts.costs[costFeature] ?? null) : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ parsed: T; summary: ImportSummary } | null>(null);
@@ -146,7 +153,7 @@ export function ImportFromFile<T>({
             className={`${TINT_BTN} flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none`}
           >
             {busy ? <CircleNotch size={14} weight="bold" className="animate-spin" /> : <UploadSimple size={14} weight="bold" />}
-            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}</span>
+            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}{!busy && cost ? <span className="tabular-nums opacity-75">{` · ${cost.toLocaleString("en-US")}P`}</span> : null}</span>
           </button>
           <PasteBox t={t} busy={busy} onSubmit={(text) => void run({ text })} />
         </>

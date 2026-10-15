@@ -1,13 +1,14 @@
 "use client";
 
 // AI 가드레일 차단 시 전역 안내 — 이메일 인증 필요(403)면 '인증 메일 받기' 모달,
-// 레이트·일일 한도(429)면 토스트. 루트 레이아웃에 1회 마운트.
+// 레이트·일일 한도(429)면 토스트, AI 포인트 부족(402)이면 충전 시트. 루트 레이아웃에 1회 마운트.
 import { useEffect, useState } from "react";
 import { useAuthSession } from "./auth/AuthSessionProvider";
 import { useToast } from "./toast/ToastProvider";
 import { usePlatformT } from "../lib/i18n";
 import { resendVerificationEmail } from "../lib/auth-client";
 import { AI_BLOCKED_EVENT, type AiBlockedDetail } from "../lib/ai-blocked";
+import { openPointsPaywall } from "../lib/ai-points";
 
 export function AiBlockedHandler() {
   const { user } = useAuthSession();
@@ -21,7 +22,10 @@ export function AiBlockedHandler() {
     const onBlocked = (e: Event) => {
       const detail = (e as CustomEvent<AiBlockedDetail>).detail;
       if (!detail) return;
-      if (detail.kind === "verify") {
+      if (detail.kind === "points") {
+        // AI 포인트 부족 — 충전 시트(v2 레이아웃의 PointsPaywallHost)를 연다.
+        openPointsPaywall("needed");
+      } else if (detail.kind === "verify") {
         setSent(false);
         setOpen(true);
       } else {

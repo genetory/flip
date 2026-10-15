@@ -203,6 +203,11 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
   if (method === "POST" && path.startsWith("/members/me/ai/") && typeof window !== "undefined") {
     window.dispatchEvent(new Event("aply:ai-usage-changed"));
   }
+  // AI 포인트가 차감된 응답엔 남은 잔액(aiPoints.balance)이 실려 온다 — 잔액을 보는 곳(헤더 칩 등)에 알린다(lib/ai-points).
+  const aiPoints = (payload as { aiPoints?: { balance?: unknown } }).aiPoints;
+  if (aiPoints && typeof aiPoints.balance === "number" && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("aply:ai-points", { detail: { balance: aiPoints.balance } }));
+  }
 
   return payload;
 }

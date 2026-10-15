@@ -15,6 +15,7 @@ import { useServerNotificationSync } from "../../lib/talent/server-notification-
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AnnouncementBanner } from "../announcements/AnnouncementBanner";
 import { InterviewPaywallHost } from "./interview-paywall";
+import { PointsChip } from "./ai-points";
 import { AplyFooter } from "../AplyFooter";
 import { usePlatformT } from "../../lib/i18n";
 import { Actions, Button, Masthead, Page, PageSkeleton, PrimaryButton, SecondaryButton } from "./ui";
@@ -90,7 +91,7 @@ function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[color:var(--v2-band)] bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1080px] items-center gap-6 px-5">
+      <div className="mx-auto flex h-16 max-w-[1080px] items-center gap-4 px-5 md:gap-6">
         <Link href={V2_ROUTES.home} aria-label="Aply" className="flex shrink-0 items-center">
           <Image src="/img_logo.webp" alt="Aply" width={96} height={30} className="h-6 w-auto md:h-7" priority />
         </Link>
@@ -108,6 +109,8 @@ function Header() {
             </>
           ) : isAuthenticated ? (
             <>
+              {/* AI 포인트 잔액(포인트가 켜져 있을 때만) */}
+              <PointsChip className="mr-1" />
               <Link
                 href="/talent/notifications"
                 aria-label={unread > 0 ? t(`알림 ${unread}개`, `${unread} notifications`, `${unread} 条通知`, `${unread} thông báo`, `通知 ${unread}件`, `${unread} notifikasi`) : t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}
