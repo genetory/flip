@@ -1,13 +1,15 @@
 "use client";
 
 // Talent 로그인 후 화면 접근 가드.
-// - 미로그인 → /talent/login (리뉴얼 로그인. 구형 /login 으로 보내지 않는다)
+// - 미로그인 → 그 자리에서 잠긴 미리보기(무슨 화면인지 + 로그인/가입). 곧장 로그인으로 보내면
+//   무슨 화면인지도 모른 채 잠겨 있어 믿음이 안 간다. 로그인은 /talent/login?next= 로.
 // - PARTNER → /business (파트너 콘솔)
 // - STUDENT / OPERATOR 허용 (운영자는 학생 기능 슈퍼유저)
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthSession } from "../../auth/AuthSessionProvider";
 import { TLoading } from "../ui/primitives";
+import { TalentLockedPreview } from "./TalentLockedPreview";
 import { usePlatformT } from "../../../lib/i18n";
 
 // allowGuest: 로그인 없이도 열람 가능한 공개 화면(포지션 탐색·취업 가이드 등).
@@ -20,12 +22,7 @@ export function TalentGuard({ children, allowGuest = false }: { children: ReactN
 
   useEffect(() => {
     if (!isReady || allowGuest) return; // 공개 화면 — 리다이렉트 없음
-    if (!isAuthenticated) {
-      // 로그인 페이지는 ?next= 만 신뢰(same-origin 내부 경로). 로그인 후 원래 화면으로 복귀.
-      const here = window.location.pathname + window.location.search;
-      router.replace(`/talent/login?next=${encodeURIComponent(here)}`);
-      return;
-    }
+    if (!isAuthenticated) return; // 잠긴 미리보기를 보여 준다(아래)
     if (user?.role === "PARTNER") {
       router.replace("/partner/home");
     }
@@ -36,6 +33,7 @@ export function TalentGuard({ children, allowGuest = false }: { children: ReactN
   // 공고 상세·비자 가이드가 모두 그랬다). 보호할 비공개 내용이 없고 리다이렉트도 하지
   // 않으므로 기다릴 이유가 없다. 로그인 필요 화면은 그대로 확인 후에 렌더한다.
   if (!isReady && !allowGuest) return <TLoading label={t("확인하는 중…", "Checking…", "确认中…", "Đang kiểm tra…", "確認中…", "Memeriksa…")} />;
+  if (!allowGuest && !isAuthenticated) return <TalentLockedPreview />;
   if (!allowed) return <TLoading label={t("이동하는 중…", "Redirecting…", "跳转中…", "Đang chuyển…", "移動中…", "Mengalihkan…")} />;
   return <>{children}</>;
 }

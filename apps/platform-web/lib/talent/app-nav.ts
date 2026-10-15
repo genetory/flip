@@ -1,6 +1,6 @@
 // 로그인 후 Talent 앱의 내비게이션 구조.
 // 핵심 탭 4개(홈/내 커리어/포지션 탐색/취업 소식) + 계정 설정(프로필 메뉴).
-import { House, Compass, Briefcase, Newspaper, ClipboardText, UsersThree, type Icon } from "@phosphor-icons/react";
+import { House, Compass, Briefcase, Newspaper, ClipboardText, Microphone, type Icon } from "@phosphor-icons/react";
 
 export const talentAppRoutes = {
   // 홈(GNB 대시보드)과 랜딩(공개)을 분리. /talent = 랜딩, /talent/home = 홈.
@@ -31,7 +31,7 @@ export const talentAppRoutes = {
   settings: "/talent/settings"
 } as const;
 
-export type TalentTabKey = "feed" | "home" | "career" | "jobs" | "community" | "insights" | "applications";
+export type TalentTabKey = "feed" | "home" | "career" | "jobs" | "community" | "interviews" | "insights" | "applications";
 
 export interface TalentNavItem {
   key: TalentTabKey;
@@ -48,7 +48,8 @@ export const talentMainNav: TalentNavItem[] = [
   { key: "home", label: "홈", href: talentAppRoutes.home, icon: House },
   { key: "career", label: "내 커리어", href: talentAppRoutes.career, icon: Compass },
   { key: "jobs", label: "포지션 탐색", href: talentAppRoutes.jobs, icon: Briefcase, guest: true },
-  { key: "community", label: "커뮤니티", href: talentAppRoutes.community, icon: UsersThree, guest: true },
+  // 커뮤니티는 GNB 에서만 가렸다(화면·주소는 그대로) — 그 자리에 모의 면접을 둔다.
+  { key: "interviews", label: "모의 면접", href: talentAppRoutes.interviews, icon: Microphone },
   { key: "applications", label: "지원 현황", href: talentAppRoutes.applications, icon: ClipboardText },
   { key: "insights", label: "취업 가이드", href: talentAppRoutes.insights, icon: Newspaper, guest: true }
 ];
@@ -56,6 +57,8 @@ export const talentMainNav: TalentNavItem[] = [
 // 현재 경로가 해당 탭에 속하는지 판단.
 export function isTabActive(pathname: string, href: string): boolean {
   if (href === talentAppRoutes.home) return pathname === href;
+  // 모의 면접은 /talent/career 아래 있지만 따로 탭이 있다 — 내 커리어 탭까지 켜지지 않게.
+  if (href === talentAppRoutes.career && isTabActive(pathname, talentAppRoutes.interviews)) return false;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -73,6 +76,8 @@ export function useTalentNavLabel(): (key: TalentTabKey) => string {
         return t("포지션 탐색", "Jobs", "职位", "Việc làm", "求人", "Lowongan");
       case "community":
         return t("커뮤니티", "Community", "社区", "Cộng đồng", "コミュニティ", "Komunitas");
+      case "interviews":
+        return t("모의 면접", "Interview", "模拟面试", "Phỏng vấn", "模擬面接", "Wawancara");
       case "applications":
         return t("지원 현황", "Applied", "申请", "Ứng tuyển", "応募", "Lamaran");
       case "insights":

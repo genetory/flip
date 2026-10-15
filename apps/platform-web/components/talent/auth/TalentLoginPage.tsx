@@ -10,7 +10,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../../lib/auth-client";
 import { getAuthPageMessages } from "../../../lib/auth-messages";
 import { TalentButton } from "../TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "./TalentAuthLayout";
+import { TalentAuthLayout, TalentField, authSubmitClass, talentInputClass } from "./TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "./TalentSocialButtons";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -82,7 +82,7 @@ export function TalentLoginPage() {
       footer={
         <p className="text-[14px] text-[#8B95A1]">
           {copy.signupPrompt}{" "}
-          <Link href={signupHref} className="font-bold text-[#0B46E8]">
+          <Link href={signupHref} className="font-semibold text-[#0B46E8]">
             {copy.signupLink}
           </Link>
         </p>
@@ -112,7 +112,7 @@ export function TalentLoginPage() {
           />
         </TalentField>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={copy.submitIdle}>
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={copy.submitIdle}>
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>

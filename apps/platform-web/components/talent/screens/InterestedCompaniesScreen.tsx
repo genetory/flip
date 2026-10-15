@@ -42,7 +42,7 @@ export function InterestedCompaniesScreen() {
           <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] px-6 py-12 text-center">
             <Buildings className="mx-auto h-8 w-8 text-[#C4CAD2]" />
             <p className="mt-3 text-[14px] font-bold text-[#191F28]">{t("아직 관심을 준 회사가 없어요", "No companies yet", "还没有公司关注你", "Chưa có công ty nào", "まだ関心を持った会社はありません", "Belum ada perusahaan")}</p>
-            <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이력서·자기소개서를 완성하고 인재풀 공개를 켜면 회사들이 능력을 보고 관심을 표할 수 있어요.", "Complete your resume and cover letter and turn on talent-pool visibility so companies can find you by ability.", "完善简历和自我介绍并开启人才库公开，公司就能凭能力关注你。", "Hoàn thiện CV và thư xin việc, bật hiển thị talent pool để công ty tìm bạn theo năng lực.", "履歴書・自己PRを完成し人材プール公開をオンにすると、会社が能力を見て関心を示せます。", "Lengkapi resume dan surat lamaran serta aktifkan visibilitas talent pool agar perusahaan menemukanmu.")}</p>
+            <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("이력서를 채우면 기업 인재 검색에 이름·연락처를 가린 채 보이고, 회사들이 능력을 보고 관심을 표할 수 있어요.", "Fill in your resume to appear in company talent search (name and contact hidden), so companies can show interest based on your skills.", "完善简历后，你会以隐藏姓名和联系方式的方式出现在企业人才搜索中，公司可凭能力关注你。", "Hoàn thiện CV để xuất hiện trong tìm kiếm (ẩn tên và liên hệ), công ty có thể quan tâm theo năng lực.", "履歴書を埋めると名前・連絡先を隠して人材検索に表示され、会社が能力を見て関心を示せます。", "Lengkapi CV agar tampil di pencarian (nama & kontak disembunyikan) dan perusahaan bisa tertarik.")}</p>
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">

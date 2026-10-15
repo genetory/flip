@@ -87,6 +87,8 @@ const nextConfig = {
       { source: "/business/:path*", destination: "/", permanent: true },
       { source: "/pricing", destination: "/", permanent: true },
       { source: "/community", destination: "/", permanent: true },
+      // 자소서 경험 발굴 캠페인 — 이벤트 주소로 옮김(먼저 공유된 /experience 링크 호환)
+      { source: "/experience", destination: "/events/experience", permanent: true },
       // 비자 안내는 리뉴얼 경로(/talent/visa)로 발행했다 — 기존 유입 링크를 홈으로 버리지 않고
       // 같은 내용의 새 주소로 넘긴다. 나머지 /resources/* 는 그대로 홈으로 차단.
       { source: "/resources/visa", destination: "/talent/visa", permanent: true },

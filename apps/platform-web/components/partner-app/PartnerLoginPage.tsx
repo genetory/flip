@@ -12,7 +12,7 @@ import { usePlatformT } from "../../lib/i18n";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { TalentButton } from "../talent/TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentAuthLayout, TalentField, authSubmitClass, talentInputClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 
 function sanitizeNextParam(raw: string | null): string | null {
@@ -112,7 +112,7 @@ export function PartnerLoginPage() {
           />
         </TalentField>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={copy.submitIdle}>
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={copy.submitIdle}>
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>

@@ -12,7 +12,7 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { AuthApiError, signupWithEmail } from "../../../lib/auth-client";
 import { getAuthPageMessages } from "../../../lib/auth-messages";
 import { TalentButton } from "../TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "./TalentAuthLayout";
+import { TalentAuthLayout, TalentField, authSubmitClass, talentInputClass } from "./TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "./TalentSocialButtons";
 import { usePlatformT } from "../../../lib/i18n";
 
@@ -56,6 +56,8 @@ export function TalentSignupPage() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  // 비밀번호 확인 칸도 따로 보이기/숨기기.
+  const [showConfirm, setShowConfirm] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -182,26 +184,49 @@ export function TalentSignupPage() {
           </div>
         </TalentField>
         <TalentField label={copy.passwordConfirmLabel}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder={copy.passwordConfirmPlaceholder}
-            value={passwordConfirm}
-            onChange={(e) => setPasswordConfirm(e.target.value)}
-            className={talentInputClass}
-            required
-            minLength={8}
-            autoComplete="new-password"
-          />
+          <div className="relative">
+            <input
+              type={showConfirm ? "text" : "password"}
+              placeholder={copy.passwordConfirmPlaceholder}
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              className={`${talentInputClass} pr-12`}
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-4 text-[#8B95A1] transition hover:text-[#4E5968]"
+              aria-label={showConfirm ? copy.hidePassword : copy.showPassword}
+              aria-pressed={showConfirm}
+              tabIndex={-1}
+            >
+              {showConfirm ? <EyeSlash className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+            </button>
+          </div>
         </TalentField>
         <p className="text-[13px] leading-relaxed text-[#8B95A1]">{copy.generalHelperText}</p>
         {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={copy.submitIdle}>
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={copy.submitIdle}>
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>
 
       <TalentOrDivider />
       <TalentSocialButtons />
+      {/* 기업 인재 검색 노출 안내 — 가입하면 기본으로 켜진다(블라인드). 이메일·소셜 가입 모두에 해당해 맨 아래에 둔다. */}
+      <p className="mt-5 break-keep text-center text-[12.5px] leading-relaxed text-[#8B95A1]">
+        {t(
+          "가입하면 작성한 이력서가 이름·연락처를 가린 채 기업 인재 검색에 보일 수 있어요. 설정에서 언제든 끌 수 있어요.",
+          "After signing up, your resume may appear in company talent search with your name and contact hidden. You can turn this off anytime in Settings.",
+          "注册后，你的简历可能会在隐藏姓名和联系方式的情况下出现在企业人才搜索中。可随时在设置中关闭。",
+          "Sau khi đăng ký, CV của bạn có thể hiển thị trong tìm kiếm của doanh nghiệp (ẩn tên và liên hệ). Có thể tắt trong Cài đặt.",
+          "登録すると、履歴書が名前・連絡先を隠した状態で企業の人材検索に表示されることがあります。設定でいつでもオフにできます。",
+          "Setelah mendaftar, CV-mu bisa tampil di pencarian perusahaan dengan nama dan kontak disembunyikan. Bisa dimatikan di Pengaturan."
+        )}
+      </p>
     </TalentAuthLayout>
   );
 }

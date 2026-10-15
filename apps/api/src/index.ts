@@ -87,9 +87,18 @@ import {
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
   DRAFT_TEXT_SCHEMA,
+  CAREER_STRENGTHS_SCHEMA,
+  buildCareerStrengthsMessages,
+  ROLE_REQUIREMENTS_SCHEMA,
+  buildRoleRequirementsMessages,
+  ROLE_HAVE_SCHEMA,
+  buildRoleHaveMessages,
+  ROLE_COMMON_SCHEMA,
+  buildRoleCommonMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
 import { generateJson, isClaudeModel } from "./llm/generate";
+import { fetchPublicPageText, buildJobImportMessages, JOB_IMPORT_SCHEMA } from "./llm/job-import";
 import { generateJsonAnthropic } from "./llm/anthropic";
 import {
   REVIEW_FINDINGS_SCHEMA,
@@ -428,6 +437,61 @@ const careerCoachModel =
 const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
 // 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
 const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
+// 모의 면접(질문 생성·답변 피드백) 모델 — 사용자 결정(2026-10-12)으로 Claude Sonnet 우선.
+// ANTHROPIC_API_KEY 가 있으면 claude-sonnet-5, 없으면 gpt-4o. Claude 호출이 실패하면 그 요청만 gpt-4o 로 폴백한다.
+// env INTERVIEW_MODEL 로 바꿀 수 있다. (아직 eval 로 두 모델을 비교하지 않았다 — 바꾼 뒤 재측정 필요.)
+const interviewModel = process.env.INTERVIEW_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiInterviewModel);
+
+/** 모의 면접용 JSON 생성 — interviewModel(Claude 우선)로 시도하고, 실패하면 gpt-4o chat json_object 로. */
+async function interviewJson(args: { system: string; user: string; temperature: number; schema: Record<string, unknown>; schemaName: string }): Promise<Record<string, unknown>> {
+  if (isClaudeModel(interviewModel)) {
+    try {
+      const r = await generateJson<Record<string, unknown>>({ openai: openai!, model: interviewModel, system: args.system, user: args.user, schema: args.schema, schemaName: args.schemaName, temperature: args.temperature });
+      if (r.data) return r.data;
+      console.warn(`[interview] ${interviewModel} returned no data — falling back to ${openaiInterviewModel}`, r.error);
+    } catch (err) {
+      console.warn(`[interview] ${interviewModel} failed — falling back to ${openaiInterviewModel}`, err);
+    }
+  }
+  const completion = await openai!.chat.completions.create({
+    model: openaiInterviewModel,
+    temperature: args.temperature,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: args.system },
+      { role: "user", content: args.user }
+    ]
+  });
+  try {
+    const v = JSON.parse(completion.choices?.[0]?.message?.content ?? "{}");
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+const MOCK_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { question: { type: "string" }, intent: { type: "string" }, category: { type: "string" } }, required: ["question", "intent", "category"] }
+    }
+  },
+  required: ["questions"]
+} as const;
+const INTERVIEW_FEEDBACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    score: { type: "number" },
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    sampleAnswer: { type: "string" },
+    followUp: { type: "string" }
+  },
+  required: ["score", "strengths", "improvements", "sampleAnswer", "followUp"]
+} as const;
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -662,6 +726,8 @@ const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOO
 const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
 const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
+// 자소서 경험 발굴 캠페인(/experience) 신규 신청 알림 — 주소는 앱 설정에만(공개 레포라 코드에 넣지 않는다).
+const discordExperienceApplicationWebhookUrl = process.env.DISCORD_EXPERIENCE_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
@@ -2132,6 +2198,70 @@ async function sendSgcApplicationDiscordNotification(input: {
   }
 }
 
+/** 자소서 경험 발굴 캠페인 신규 신청 → 디스코드. 실패해도 신청은 그대로(로그만). */
+async function sendExperienceApplicationDiscordNotification(input: {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  nationality: string | null;
+  desiredRole: string;
+  consultMethod: string;
+  resumeUrl: string;
+  resumeFileName: string;
+  coverLetterUrl: string | null;
+  coverLetterFileName: string | null;
+  consentCaseStudy: boolean;
+  utmSource: string | null;
+  createdAt: Date;
+}) {
+  if (!discordExperienceApplicationWebhookUrl) return;
+  const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text);
+  // 디스코드 링크 문법이 깨지지 않게 파일 이름의 대괄호는 바꾼다.
+  const label = (name: string) => cut(name.replace(/[[\]]/g, "·"), 120);
+  const METHOD: Record<string, string> = { ONLINE: "온라인", OFFLINE: "오프라인", ANY: "상관없음" };
+  const opsUrl = `${opsAdminUrl || platformWebUrl}/dashboard/ops/operations/experience-applications`;
+  const files = [`이력서: [${label(input.resumeFileName)}](${input.resumeUrl})`];
+  if (input.coverLetterUrl) files.push(`자소서: [${label(input.coverLetterFileName ?? "자기소개서")}](${input.coverLetterUrl})`);
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0b46e8,
+        title: "📝 자소서 경험 발굴 캠페인 — 신규 신청",
+        description: "/events/experience 에서 새 상담 신청이 접수됐어요.",
+        fields: [
+          { name: "이름", value: cut(input.name || "-", 256), inline: true },
+          { name: "지원 직무", value: cut(input.desiredRole || "-", 256), inline: true },
+          { name: "상담 방식", value: METHOD[input.consultMethod] ?? input.consultMethod, inline: true },
+          { name: "국적", value: cut(input.nationality || "-", 256), inline: true },
+          { name: "이메일", value: cut(input.email || "-", 1024), inline: true },
+          { name: "휴대폰", value: cut(input.phone || "-", 256), inline: true },
+          { name: "첨부 파일", value: cut(files.join("\n"), 1024), inline: false },
+          { name: "사례 공개 동의", value: input.consentCaseStudy ? "동의" : "미동의", inline: true },
+          { name: "유입", value: cut(input.utmSource || "-", 256), inline: true },
+          { name: "바로가기", value: `[운영 콘솔에서 보기](${opsUrl})`, inline: false }
+        ],
+        footer: { text: `Aply • Experience Campaign • ${input.id}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordExperienceApplicationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("experience_application_discord_webhook_failed", { status: response.status, body: responseBody.slice(0, 500) });
+    }
+  } catch (error) {
+    console.error("experience_application_discord_webhook_error", { error: getErrorMessage(error) });
+  }
+}
+
 async function sendPositionCreateDiscordNotification(input: {
   positionId: string;
   positionTitle: string;
@@ -2816,6 +2946,19 @@ app.use(cors({
 // 보낼 수 있어 body 가 최대 ~36MB(+텍스트)에 달한다(핸들러에서 Blob 업로드로 옮겨
 // DB 는 URL 만 저장). body 파싱은 그 전 단계라 제한을 스키마 최대치+여유로 맞춘다.
 app.use(express.json({ limit: "40mb" }));
+
+// 로컬 개발 전용 — Blob 스토리지가 없는 로컬에서 저장한 첨부 파일(/events/experience 신청 등)을 내려준다.
+// 프로덕션에서는 등록하지 않는다.
+if (process.env.NODE_ENV !== "production") {
+  app.use(
+    "/local-uploads",
+    express.static(path.resolve(process.cwd(), ".local-uploads"), {
+      dotfiles: "deny",
+      index: false,
+      setHeaders: (res) => res.setHeader("Content-Disposition", "attachment")
+    })
+  );
+}
 
 type RateLimitBucket = { count: number; resetAt: number };
 const rateLimitStore = new Map<string, RateLimitBucket>();
@@ -3606,6 +3749,8 @@ const updateMyBasicInfoSchema = z.object({
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   birthDate: flexibleDateString.nullable().optional(),
   gender: z.string().trim().max(40).nullable().optional(),
+  // 국적 — ISO-3166 2글자 코드(KR, VN …). 외국인 여부(비자 안내·외국인 채용 필터)를 판단한다.
+  nationality: z.string().trim().max(120).nullable().optional(),
   profileImageData: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
 });
 
@@ -8033,6 +8178,125 @@ app.delete("/ops/sgc/applications/:id", authenticate, requireRoles([MemberRole.O
   }
 });
 
+// GET /ops/experience-applications — 자소서 경험 발굴 캠페인(/experience) 신청 목록.
+// 이름·이메일·지원 직무 검색 + 단계 필터 + 페이지. 운영자가 매주 월요일 검토 → 화요일 2명 선정.
+const EXPERIENCE_APPLICATION_STATUSES = ["RECEIVED", "REVIEWING", "SELECTED", "DONE", "DECLINED"] as const;
+const opsExperienceApplicationsQuerySchema = z.object({
+  status: z.enum(EXPERIENCE_APPLICATION_STATUSES).optional(),
+  q: z.string().trim().max(120).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+app.get("/ops/experience-applications", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsExperienceApplicationsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  }
+  const f = parsed.data;
+  const where: Prisma.ExperienceCampaignApplicationWhereInput = {
+    ...(f.status ? { status: f.status } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { email: { contains: f.q, mode: "insensitive" } },
+            { desiredRole: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  const [applications, total, statusCounts, totalAll] = await Promise.all([
+    prisma.experienceCampaignApplication.findMany({ where, orderBy: { createdAt: "desc" }, take, skip }),
+    prisma.experienceCampaignApplication.count({ where }),
+    prisma.experienceCampaignApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.experienceCampaignApplication.count()
+  ]);
+  return res.json({
+    ok: true,
+    total,
+    take,
+    skip,
+    totalAll,
+    statusCounts: Object.fromEntries(statusCounts.map((s) => [s.status, s._count._all])),
+    applications: applications.map((a) => ({
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      phone: a.phone,
+      nationality: a.nationality,
+      desiredRole: a.desiredRole,
+      experience: a.experience,
+      coverLetter: a.coverLetter,
+      resumeUrl: a.resumeUrl,
+      resumeFileName: a.resumeFileName,
+      coverLetterUrl: a.coverLetterUrl,
+      coverLetterFileName: a.coverLetterFileName,
+      consultMethod: a.consultMethod,
+      consentPrivacyAt: a.consentPrivacyAt.toISOString(),
+      consentVersion: a.consentVersion,
+      consentCaseStudy: a.consentCaseStudy,
+      status: a.status,
+      opsNote: a.opsNote,
+      selectedWeek: a.selectedWeek,
+      utmSource: a.utmSource,
+      utmMedium: a.utmMedium,
+      utmCampaign: a.utmCampaign,
+      utmContent: a.utmContent,
+      utmTerm: a.utmTerm,
+      referrer: a.referrer,
+      locale: a.locale,
+      userId: a.userId,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt.toISOString()
+    }))
+  });
+});
+
+// PATCH /ops/experience-applications/:id — 단계 변경 + 운영 메모 + 선정 주차.
+// 신청자 연락(선정 안내·일정 조율)은 운영팀이 직접 — 여기선 기록만 남긴다.
+const opsExperienceApplicationUpdateSchema = z.object({
+  status: z.enum(EXPERIENCE_APPLICATION_STATUSES).optional(),
+  opsNote: z.string().trim().max(4000).nullable().optional(),
+  selectedWeek: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-W\d{2}$/, "selectedWeek must be YYYY-Www")
+    .nullable()
+    .optional()
+});
+
+app.patch("/ops/experience-applications/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  if (!id) return res.status(400).json({ ok: false, message: "missing id" });
+  const parsed = opsExperienceApplicationUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+  }
+  const data: Prisma.ExperienceCampaignApplicationUpdateInput = {};
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.opsNote !== undefined) data.opsNote = parsed.data.opsNote || null;
+  if (parsed.data.selectedWeek !== undefined) data.selectedWeek = parsed.data.selectedWeek || null;
+  try {
+    const found = await prisma.experienceCampaignApplication.findUnique({ where: { id }, select: { id: true } });
+    if (!found) return res.status(404).json({ ok: false, message: "application not found" });
+    const updated = await prisma.experienceCampaignApplication.update({
+      where: { id },
+      data,
+      select: { id: true, status: true, opsNote: true, selectedWeek: true, updatedAt: true }
+    });
+    return res.json({ ok: true, application: { ...updated, updatedAt: updated.updatedAt.toISOString() } });
+  } catch (error) {
+    console.error("[ops/experience-applications][patch][failed]", {
+      id,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return res.status(500).json({ ok: false, message: "failed to update application" });
+  }
+});
+
 const companyConsultationCreateSchema = z.object({
   companyName: z.string().trim().min(1).max(120),
   contactName: z.string().trim().min(1).max(80),
@@ -9899,6 +10163,248 @@ app.post(
     }
 
     return res.json({ ok: true, leadId });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /public/experience-applications — "내 경험이 스펙이 되는 순간" 자소서 경험
+// 발굴 캠페인(/experience) 신청. 비회원 신청 가능(로그인 상태면 userId 만 연결).
+// 같은 이메일로 30일 안에 진행 중(RECEIVED/REVIEWING/SELECTED) 신청이 있으면 409.
+// ---------------------------------------------------------------------------
+
+// 개인정보 수집·이용 동의문 버전 — 웹(/experience) 동의문을 고치면 함께 올린다.
+// v2: 경험 소개·자기소개서 텍스트 → 이력서(필수)·자기소개서(선택) 파일 첨부로 수집 항목 변경.
+const EXPERIENCE_CONSENT_VERSION = "experience-2026-10-v4";
+
+// ---- 첨부 파일(multipart) -------------------------------------------------
+// 이력서(resume, 필수)·자기소개서(coverLetterFile, 선택) 각 1개, 10MB 이하.
+// PDF·Word·한글. 한글(HWP/HWPX)은 브라우저·OS 마다 mime 이 제각각(octet-stream 포함)이라 확장자도 같이 본다.
+const EXPERIENCE_FILE_MAX_BYTES = 10 * 1024 * 1024;
+const EXPERIENCE_FILE_EXT_MIME: Record<string, string[]> = {
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  hwp: ["application/x-hwp", "application/haansofthwp", "application/vnd.hancom.hwp"],
+  hwpx: ["application/vnd.hancom.hwpx", "application/haansofthwpx", "application/hwp+zip"]
+};
+// 확장자는 맞는데 mime 을 못 알아본 경우(octet-stream·zip 등)도 받는다 — 확장자가 기준.
+const EXPERIENCE_FILE_GENERIC_MIME = new Set(["application/octet-stream", "application/zip", "application/x-zip-compressed", ""]);
+const EXPERIENCE_FILE_CONTENT_TYPE: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  hwp: "application/x-hwp",
+  hwpx: "application/vnd.hancom.hwpx"
+};
+
+function experienceFileExt(name: string): string {
+  const m = /\.([a-z0-9]+)$/i.exec(name.trim());
+  return m ? m[1]!.toLowerCase() : "";
+}
+
+class ExperienceFileTypeError extends Error {}
+
+const experienceApplicationUpload = multer({
+  storage: multer.memoryStorage(),
+  // 브라우저는 파일 이름을 UTF-8 로 보낸다 — 기본값(latin1)이면 '자소서.pdf' 같은 한글 이름이 깨진다.
+  defParamCharset: "utf8",
+  limits: { fileSize: EXPERIENCE_FILE_MAX_BYTES, files: 2, fields: 30 },
+  fileFilter: (_req, file, cb) => {
+    const ext = experienceFileExt(file.originalname);
+    const allowed = EXPERIENCE_FILE_EXT_MIME[ext];
+    const mime = (file.mimetype || "").toLowerCase();
+    if (allowed && (allowed.includes(mime) || EXPERIENCE_FILE_GENERIC_MIME.has(mime))) return cb(null, true);
+    return cb(new ExperienceFileTypeError("unsupported file type"));
+  }
+}).fields([
+  { name: "resume", maxCount: 1 },
+  { name: "coverLetterFile", maxCount: 1 }
+]);
+
+// multer 오류(용량 초과·형식·필드 개수)를 500 대신 알아듣기 쉬운 400 으로.
+function experienceApplicationUploadMiddleware(req: express.Request, res: express.Response, next: express.NextFunction) {
+  experienceApplicationUpload(req, res, (err: unknown) => {
+    if (!err) return next();
+    if (err instanceof ExperienceFileTypeError) {
+      return res.status(400).json({ ok: false, code: "FILE_TYPE", message: "PDF·Word·한글(HWP) 파일만 올릴 수 있어요." });
+    }
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ ok: false, code: "FILE_TOO_LARGE", message: "파일은 10MB 이하로 올려 주세요." });
+      }
+      return res.status(400).json({ ok: false, code: "FILE_INVALID", message: "첨부 파일을 확인해 주세요. (이력서 1개, 자기소개서 1개까지)" });
+    }
+    return next(err);
+  });
+}
+
+// 로컬 개발 전용 저장소 — AZURE_STORAGE_CONNECTION_STRING 이 없는 로컬에서만 apps/api/.local-uploads 에 쓴다.
+// 프로덕션에서는 절대 쓰지 않는다(스토리지가 없으면 500 + 로그).
+const LOCAL_UPLOADS_DIR = path.resolve(process.cwd(), ".local-uploads");
+
+async function storeExperienceApplicationFile(
+  req: express.Request,
+  file: Express.Multer.File,
+  kind: "resume" | "cover-letter"
+): Promise<string> {
+  const ext = experienceFileExt(file.originalname);
+  const contentType = EXPERIENCE_FILE_CONTENT_TYPE[ext] ?? "application/octet-stream";
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  // 추측할 수 없는 이름 — Blob 은 공개 읽기(access: "blob")라 URL 을 아는 사람만 열 수 있다(기존 지원 서류와 같은 방식).
+  const blobName = `experience-applications/${month}/${kind}-${randomBytes(16).toString("hex")}.${ext || "bin"}`;
+  const container = getAzureContainerClient();
+  if (container) {
+    await container.createIfNotExists({ access: "blob" });
+    const client = container.getBlockBlobClient(blobName);
+    await client.uploadData(file.buffer, {
+      blobHTTPHeaders: {
+        blobContentType: contentType,
+        blobContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.originalname)}`
+      }
+    });
+    return client.url;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Azure Blob storage is not configured (AZURE_STORAGE_CONNECTION_STRING missing).");
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  const target = path.join(LOCAL_UPLOADS_DIR, blobName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, file.buffer);
+  return `${req.protocol}://${req.get("host")}/local-uploads/${blobName}`;
+}
+
+const optionalShort = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => (v ? v : undefined));
+
+const experienceApplicationCreateSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  email: z.string().trim().toLowerCase().email().max(200),
+  phone: optionalShort(40),
+  nationality: optionalShort(80),
+  desiredRole: z.string().trim().min(1).max(120),
+  consultMethod: z.enum(["ONLINE", "OFFLINE", "ANY"]),
+  // multipart 라 불리언도 문자열로 온다 — "true"/"false" 를 받아 바꾼다.
+  // 개인정보 수집·이용 동의(필수) — true 만 허용.
+  consentPrivacy: z.preprocess((v) => v === true || v === "true", z.literal(true)),
+  // 익명 사례 공개 동의(필수) — true 만 허용.
+  consentCaseStudy: z.preprocess((v) => v === true || v === "true", z.literal(true)),
+  utmSource: optionalShort(200),
+  utmMedium: optionalShort(200),
+  utmCampaign: optionalShort(200),
+  utmContent: optionalShort(200),
+  utmTerm: optionalShort(200),
+  referrer: optionalShort(500),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+app.post(
+  "/public/experience-applications",
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "experience-apply", message: "잠시 후 다시 시도해 주세요." }),
+  authenticateOptional,
+  experienceApplicationUploadMiddleware,
+  async (req, res) => {
+    const parsed = experienceApplicationCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[] | undefined>;
+    const resumeFile = files.resume?.[0];
+    const coverLetterFile = files.coverLetterFile?.[0];
+    if (!resumeFile || resumeFile.size === 0) {
+      return res.status(400).json({ ok: false, code: "RESUME_REQUIRED", message: "이력서 파일을 첨부해 주세요." });
+    }
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const dup = await prisma.experienceCampaignApplication.findFirst({
+        where: { email: input.email, status: { in: ["RECEIVED", "REVIEWING", "SELECTED"] }, createdAt: { gte: since } },
+        select: { id: true }
+      });
+      if (dup) {
+        return res.status(409).json({ ok: false, code: "DUPLICATE", message: "이미 신청하셨어요. 선정되면 연락드릴게요." });
+      }
+
+      const ipRaw =
+        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+        req.socket.remoteAddress ||
+        "";
+      const ipHash = ipRaw
+        ? createHash("sha256").update(`${ipRaw}|experience-apply`).digest("hex").slice(0, 32)
+        : null;
+
+      // 검증·중복 확인을 모두 통과한 뒤에만 올린다 — 400/409 에 고아 파일이 남지 않게.
+      let resumeUrl: string;
+      let coverLetterUrl: string | null = null;
+      try {
+        resumeUrl = await storeExperienceApplicationFile(req, resumeFile, "resume");
+        if (coverLetterFile && coverLetterFile.size > 0) {
+          coverLetterUrl = await storeExperienceApplicationFile(req, coverLetterFile, "cover-letter");
+        }
+      } catch (error) {
+        console.error("[public/experience-applications][upload][failed]", {
+          message: error instanceof Error ? error.message : String(error)
+        });
+        return res.status(500).json({ ok: false, message: "파일을 올리지 못했어요. 잠시 후 다시 시도해 주세요." });
+      }
+
+      const created = await prisma.experienceCampaignApplication.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          phone: input.phone ?? null,
+          nationality: input.nationality ?? null,
+          desiredRole: input.desiredRole,
+          resumeUrl,
+          resumeFileName: resumeFile.originalname.slice(0, 255),
+          coverLetterUrl,
+          coverLetterFileName: coverLetterUrl && coverLetterFile ? coverLetterFile.originalname.slice(0, 255) : null,
+          consultMethod: input.consultMethod,
+          consentPrivacyAt: new Date(),
+          consentVersion: EXPERIENCE_CONSENT_VERSION,
+          consentCaseStudy: input.consentCaseStudy ?? false,
+          utmSource: input.utmSource ?? null,
+          utmMedium: input.utmMedium ?? null,
+          utmCampaign: input.utmCampaign ?? null,
+          utmContent: input.utmContent ?? null,
+          utmTerm: input.utmTerm ?? null,
+          referrer: input.referrer ?? null,
+          locale: input.locale ?? "ko",
+          userId: req.auth?.userId ?? null,
+          ipHash
+        },
+        select: { id: true, createdAt: true, resumeFileName: true, coverLetterFileName: true }
+      });
+      // 운영 알림 — 응답을 기다리게 하지 않는다.
+      void sendExperienceApplicationDiscordNotification({
+        id: created.id,
+        name: input.name,
+        email: input.email,
+        phone: input.phone ?? null,
+        nationality: input.nationality ?? null,
+        desiredRole: input.desiredRole,
+        consultMethod: input.consultMethod,
+        resumeUrl,
+        resumeFileName: created.resumeFileName ?? "이력서",
+        coverLetterUrl,
+        coverLetterFileName: created.coverLetterFileName,
+        consentCaseStudy: input.consentCaseStudy ?? false,
+        utmSource: input.utmSource ?? null,
+        createdAt: created.createdAt
+      });
+      return res.status(201).json({ ok: true, id: created.id });
+    } catch (error) {
+      console.error("[public/experience-applications][create][failed]", {
+        message: error instanceof Error ? error.message : String(error)
+      });
+      return res.status(500).json({ ok: false, message: "신청을 저장하지 못했어요. 잠시 후 다시 시도해 주세요." });
+    }
   }
 );
 
@@ -13585,6 +14091,7 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         ...(parsed.data.phoneNumber !== undefined ? { phoneNumber: parsed.data.phoneNumber?.trim() || null } : {}),
         ...(parsed.data.birthDate !== undefined ? { birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null } : {}),
         ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {}),
+        ...(parsed.data.nationality !== undefined ? { nationality: parsed.data.nationality?.trim() || null } : {}),
         ...(profileImageUrlUpdate ?? {})
       }
     });
@@ -15891,6 +16398,232 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
   }
 });
 
+// POST /members/me/ai/career-strengths — 내 커리어 '기업이 보는 내 강점 3가지'.
+// 화면이 이력서·자소서 내용을 글로 묶어 보낸다(본인 서류, 8000자 상한). 결과는 화면이 서류가 바뀔 때까지 기억한다.
+const careerStrengthsSchema = z.object({
+  profile: z.string().min(30).max(8000),
+  targetRoles: z.array(z.string().max(60)).max(10).optional()
+});
+
+app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("career_strengths"), async (req, res) => {
+  const parsed = careerStrengthsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const { system, user } = buildCareerStrengthsMessages(parsed.data);
+    const { data } = await generateJson<{ strengths?: unknown }>({
+      openai,
+      model: openaiTranslationModel,
+      temperature: 0.3,
+      system,
+      user,
+      schema: CAREER_STRENGTHS_SCHEMA,
+      schemaName: "career_strengths"
+    });
+    const strengths = (Array.isArray(data?.strengths) ? data.strengths : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { keyword: typeof o.keyword === "string" ? o.keyword.trim() : "", evidence: typeof o.evidence === "string" ? stripCliches(o.evidence.trim()) : "" };
+      })
+      .filter((x) => x.keyword)
+      .slice(0, 3);
+    if (!strengths.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, strengths });
+  } catch (err) {
+    console.error("[ai/career-strengths] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
+// POST /members/me/ai/import-job — 모의 면접용 '공고 가져오기'. url(다른 서비스·회사 채용 페이지) 또는 text(붙여 넣은 공고).
+//  - Aply 공고 주소, 원티드 주소(이미 수집한 공고)는 DB 에서 바로 찾아 positionId 로 돌려준다(AI 호출 없음).
+//  - 그 밖의 주소는 서버가 안전하게 읽어(SSRF 차단: llm/job-import.ts) mini 로 회사·직무·업무·자격을 정리한다.
+//  - 페이지를 못 읽거나(로그인 필요·JS 렌더링) 공고가 아니면 code 로 알려 화면이 '내용 붙여넣기'를 권한다.
+const importJobSchema = z.object({ url: z.string().trim().max(2000).optional(), text: z.string().trim().max(20000).optional() }).refine((v) => !!(v.url || v.text), "url or text");
+
+app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("import_job"), async (req, res) => {
+  const parsed = importJobSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const { url, text } = parsed.data;
+  try {
+    if (url) {
+      const aply = url.match(/\/(?:talent|v2)\/jobs\/([0-9a-f-]{36})/i);
+      const wanted = url.match(/wanted\.co\.kr\/wd\/(\d+)/i);
+      const found = aply
+        ? await prisma.position.findUnique({ where: { id: aply[1] }, select: { id: true } })
+        : wanted
+          ? await prisma.position.findFirst({ where: { sourceProvider: "WANTED", sourceExternalId: wanted[1] }, select: { id: true } })
+          : null;
+      if (found) return res.json({ ok: true, positionId: found.id });
+    }
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    let pageTitle = "";
+    let body = text ?? "";
+    let sourceUrl: string | undefined;
+    if (!body && url) {
+      try {
+        const page = await fetchPublicPageText(url);
+        pageTitle = page.title;
+        body = page.text;
+        sourceUrl = page.url;
+      } catch (err) {
+        const code = err instanceof Error ? err.message : "fetch_failed";
+        return res.status(422).json({ ok: false, code: code === "private_address" || code.startsWith("bad_") ? "URL_NOT_ALLOWED" : "PAGE_UNREADABLE", message: "page could not be read" });
+      }
+    }
+    if (body.replace(/\s+/g, "").length < 80) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "too little content" });
+    const m = buildJobImportMessages({ pageTitle, text: body });
+    const { data } = await generateJson<{ isJob?: boolean; company?: string; title?: string; responsibilities?: string; requirements?: string; preferred?: string }>({ openai, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: JOB_IMPORT_SCHEMA, schemaName: "job_import" });
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    if (!data?.isJob || !str(data.title, 200) || !(str(data.responsibilities, 4000) || str(data.requirements, 4000))) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "not a job posting" });
+    return res.json({
+      ok: true,
+      job: {
+        title: str(data.title, 200),
+        company: str(data.company, 120),
+        mainResponsibilities: str(data.responsibilities, 4000),
+        requiredQualifications: str(data.requirements, 4000),
+        preferredQualifications: str(data.preferred, 3000),
+        sourceUrl: sourceUrl ?? (url || undefined)
+      }
+    });
+  } catch (err) {
+    console.error("[ai/import-job] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to import" });
+  }
+});
+
+// POST /members/me/ai/role-checklist — 내 커리어 '이 직무에 필요한 것'.
+// 화면이 관심 직무 '신입' 공고(최대 60곳, 없을 수도 있음)의 자격 요건과 내 서류 글을 보낸다.
+//  ⓪ 모델 지식(docReviewModel): 한국에서 이 직무 신입이 흔히 준비하는 것 — 공고 표본이 작거나 공고에 잘 안 적히는 것을 채운다.
+//  ① 추출(mini, 공고 12곳씩 나눠 병렬): 공고에 적힌 기술·경험·자격증·어학 + 공고 표기(aliases)
+//  ② 서버가 aliases 를 공고 글에 직접 대조해 '공고 N곳 중 M곳'을 센다(모델이 센 숫자는 쓰지 않음) → 자주 나온 것만
+//  ③ 기술·자격증·어학은 서버가 서류 글에서 aliases 를 찾아 판정, '경험'만 docReviewModel 이 판단(+ 없을 때 팁).
+//     고비용 모델이라 프리미엄 캡에 포함.
+const roleChecklistSchema = z.object({
+  role: z.string().min(1).max(60),
+  profile: z.string().min(30).max(8000),
+  jobs: z
+    .array(z.object({ title: z.string().max(200), required: z.string().max(800).optional(), preferred: z.string().max(600).optional() }))
+    .max(60)
+});
+
+/** 글에 표기가 있는가 — 영문·숫자 표기는 단어 경계로(Go 가 Google 에 걸리지 않게), 한글은 띄어쓰기 무시. */
+function hasTerm(text: string, alias: string): boolean {
+  const a = alias.trim();
+  if (a.length < 1) return false;
+  if (/^[\x00-\x7F]+$/.test(a)) {
+    const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+    return new RegExp(`(^|[^A-Za-z0-9+#])${esc}(?![A-Za-z0-9+#])`, "i").test(text);
+  }
+  return text.replace(/\s+/g, "").toLowerCase().includes(a.replace(/\s+/g, "").toLowerCase());
+}
+
+app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("role_checklist"), async (req, res) => {
+  const parsed = roleChecklistSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const { role, profile, jobs } = parsed.data;
+  const total = jobs.length;
+  try {
+    const chunks: (typeof jobs)[] = [];
+    for (let k = 0; k < jobs.length; k += 12) chunks.push(jobs.slice(k, k + 12));
+    // 공고 추출(묶음별) + 모델 지식('이 직무 신입이 흔히 준비하는 것')을 함께 부른다.
+    const common = buildRoleCommonMessages({ role });
+    const [commonRes, ...results] = await Promise.all([
+      generateJson<{ items?: unknown }>({ openai, model: docReviewModel, temperature: 0, system: common.system, user: common.user, schema: ROLE_COMMON_SCHEMA, schemaName: "role_common" }).catch(() => ({ data: null })),
+      ...chunks.map((chunk) => {
+        const m = buildRoleRequirementsMessages({ role, jobs: chunk });
+        return generateJson<{ items?: unknown }>({ openai: openai!, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: ROLE_REQUIREMENTS_SCHEMA, schemaName: "role_requirements" }).catch(() => ({ data: null }));
+      })
+    ]);
+    const cats = new Set(["skill", "experience", "certificate", "language"]);
+    const merged = new Map<string, { category: string; name: string; aliases: Set<string>; common: boolean }>();
+    const absorb = (data: { items?: unknown } | null, common: boolean) => {
+      for (const x of Array.isArray(data?.items) ? data.items : []) {
+        const o = (x ?? {}) as Record<string, unknown>;
+        const name = typeof o.name === "string" ? o.name.trim() : "";
+        if (!name || name.length > 30) continue;
+        const key = name.toLowerCase().replace(/\s+/g, "");
+        const cur = merged.get(key) ?? { category: typeof o.category === "string" && cats.has(o.category) ? o.category : "skill", name, aliases: new Set<string>([name]), common };
+        if (common) cur.common = true;
+        for (const a of Array.isArray(o.aliases) ? o.aliases : []) if (typeof a === "string" && a.trim() && a.trim().length <= 30) cur.aliases.add(a.trim());
+        merged.set(key, cur);
+      }
+    };
+    for (const r of results) absorb(r.data, false);
+    absorb(commonRes.data, true);
+    // 표기 정리 — 흔한 단어 하나뿐인 표기·너무 짧은 한글 표기는 세는 데 쓰지 않는다(아무 공고에나 걸려 숫자가 부푼다).
+    const GENERIC = new Set(["개발", "서비스", "운영", "경험", "프로젝트", "협업", "업무", "관리", "기획", "개발경험", "서비스개발", "서비스운영", "이해", "능력", "역량", "활용", "사용"]);
+    const usable = (a: string, category: string) => {
+      const n = a.replace(/\s+/g, "").toLowerCase();
+      if (GENERIC.has(n)) return false;
+      if (/^[\x00-\x7F]+$/.test(a)) return n.length >= 1;
+      return n.length >= (category === "experience" ? 4 : 2);
+    };
+    // 직무 이름 자체('백엔드 개발', '백엔드 경험', 표기 '백엔드')는 요건이 아니다 — 모든 공고에 걸려 1등이 된다.
+    const strip = (x: string) => x.toLowerCase().replace(/\s+/g, "").replace(/(개발자|개발|경험|엔지니어|역량|직무|업무)$/g, "");
+    const roleKeys = new Set(role.split(/[\/·&,()\s]+/).map(strip).filter((k) => k.length >= 2));
+    roleKeys.add(strip(role));
+    const groups = [...merged.values()]
+      .filter((x) => !/\d+\s*년|경력/.test(x.name)) // '경력 N년'은 요건이 아니라 연차
+      .filter((x) => !roleKeys.has(strip(x.name)))
+      .map((x) => ({ ...x, aliases: new Set([...x.aliases].filter((a) => usable(a, x.category) && !roleKeys.has(strip(a)))) }))
+      .filter((x) => x.aliases.size);
+    // 다른 항목의 '이름'을 표기로 가진 항목은 하나로(예: 'RESTful API' 의 표기 'REST API' → 'REST API' 항목) — 이름은 짧은 쪽.
+    // 표기끼리만 겹친다고 합치면 사슬처럼 번져(MySQL ↔ RDBMS ↔ PostgreSQL) 없는 기술이 '갖춤'이 된다.
+    const dedup: typeof groups = [];
+    for (const g of groups) {
+      const keys = new Set([...g.aliases].map((a) => a.replace(/\s+/g, "").toLowerCase()));
+      const gName = g.name.replace(/\s+/g, "").toLowerCase();
+      const hit = dedup.find((d) => keys.has(d.name.replace(/\s+/g, "").toLowerCase()) || [...d.aliases].some((a) => a.replace(/\s+/g, "").toLowerCase() === gName));
+      if (hit) {
+        for (const a of g.aliases) hit.aliases.add(a);
+        if (g.name.length < hit.name.length) hit.name = g.name;
+        if (g.common) hit.common = true;
+      } else dedup.push(g);
+    }
+    const texts = jobs.map((j) => `${j.title}\n${j.required ?? ""}\n${j.preferred ?? ""}`);
+    const counted = dedup.map((x) => ({ ...x, count: texts.filter((txt) => [...x.aliases].some((a) => hasTerm(txt, a))).length }));
+    // 공고에 자주 나온 것(최소 2곳이자 표본의 10% 이상) 8개 + 신입이 흔히 준비하는 것(모델 지식) — 합쳐 최대 12개.
+    // 모델 지식 항목도 공고에 나오면 그 수를 붙인다. 공고가 없거나 적으면 모델 지식만으로도 결과가 나온다.
+    const min = Math.max(2, Math.ceil(total * 0.1));
+    const frequent = counted.filter((x) => x.count >= min).sort((a, b) => b.count - a.count).slice(0, 8);
+    const commons = counted.filter((x) => x.common && !frequent.includes(x)).sort((a, b) => b.count - a.count);
+    const top = [...frequent, ...commons].slice(0, 12);
+    if (!top.length) return res.json({ ok: true, total, items: [] });
+
+    const literal = top.map((x) => [...x.aliases].some((a) => hasTerm(profile, a)));
+    const needJudge = top.map((x, i) => ({ x, i })).filter(({ x, i }) => x.category === "experience" && !/^[\x00-\x7F]+$/.test(x.name) && !literal[i]);
+    const verdicts = new Map<number, { have: boolean; tip: string }>();
+    const missingTips = top.map((x, i) => ({ x, i })).filter(({ x, i }) => (x.category !== "experience" || /^[\x00-\x7F]+$/.test(x.name)) && !literal[i]);
+    const judgeList = [...needJudge, ...missingTips];
+    if (judgeList.length) {
+      const judge = buildRoleHaveMessages({ role, profile, items: judgeList.map(({ x }) => ({ category: x.category, name: x.name })) });
+      const { data: verdict } = await generateJson<{ items?: unknown }>({ openai, model: docReviewModel, temperature: 0, system: judge.system, user: judge.user, schema: ROLE_HAVE_SCHEMA, schemaName: "role_have" });
+      for (const v of Array.isArray(verdict?.items) ? verdict.items : []) {
+        const o = (v ?? {}) as Record<string, unknown>;
+        const at = Number.isInteger(o.index) ? judgeList[(o.index as number) - 1] : undefined;
+        if (at) verdicts.set(at.i, { have: o.have === true, tip: typeof o.tip === "string" ? stripCliches(o.tip.trim()) : "" });
+      }
+    }
+    const items = top.map((x, i) => {
+      // 기술·자격증·어학: 서류에 표기가 있어야 갖춤(모델 판단은 팁만 씀). 경험: 표기가 있거나 모델이 갖췄다고 판단.
+      const v = verdicts.get(i);
+      // 영문 이름(기술명)은 '경험'으로 분류돼 와도 표기가 있어야만 갖춤 — 모델은 비슷한 기술(PostgreSQL→MySQL)도 갖췄다고 본다.
+      const judgeable = x.category === "experience" && !/^[\x00-\x7F]+$/.test(x.name);
+      const have = literal[i] || (judgeable && v?.have === true);
+      // 기술·자격증·어학인데 표기는 없고 모델은 해 본 것 같다고 본 경우 — 서류 검색·필터에 걸리도록 이름을 직접 적으라고 안내.
+      const tip = have ? "" : v?.have ? `경험이 있다면 서류에 '${x.name}'을 직접 적어 두세요. 기업이 그 말로 찾아요.` : (v?.tip ?? "");
+      return { category: x.category, name: x.name, count: x.count, common: x.common, have, tip };
+    });
+    return res.json({ ok: true, total, items });
+  } catch (err) {
+    console.error("[ai/role-checklist] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // resume-maker (AI 이력서 만들기) — 경험 인터뷰 질문 생성 + 구조화 문장 생성.
 // 기존 draft-resume-text 패턴 재사용(openai chat.completions, json_object,
@@ -16188,7 +16921,9 @@ function aiFeatureCost(feature: string): number {
 // gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
 // 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
-const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover"]);
+// 모의 면접(interview_questions·interview_feedback)은 나중에 유료로 받을 예정 — 지금은 테스트를 위해 이 하루 상한에서 뺀다.
+// (분당 상한·하루 총 상한은 그대로 적용된다.) 유료화할 때 다시 넣거나 결제 확인으로 바꾼다.
+const AI_PREMIUM_FEATURES = new Set(["review_resume", "review_cover", "role_checklist"]);
 const AI_PREMIUM_DAILY_CAP = 40;
 const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
 async function aiPremiumUsedToday(userId: string): Promise<number> {
@@ -26426,6 +27161,7 @@ app.post(
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-interview-q", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_questions"),
+  interviewCreditGuard("check"),
   async (req, res) => {
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -26474,18 +27210,7 @@ app.post(
         `${resumeText ? `\n[이력서]\n${resumeText}` : "\n(이력서 미제공 — 개인 이력과 무관한 표준/공고 기반 질문만 생성)"}` +
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
         `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { questions?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.6, schema: MOCK_QUESTIONS_SCHEMA, schemaName: "interview_questions" })) as { questions?: unknown };
       const allowedCats = new Set(["intro", "experience", "competency", "weakness"]);
       const questions = Array.isArray(j.questions)
         ? j.questions
@@ -26631,12 +27356,447 @@ app.post(
   }
 );
 
+// POST /members/me/ai/interview-prep — '면접 전날 볼 한 장'의 예상 질문 5개 + 모범 답안.
+// 공고(업무·자격) · 이 회사 면접 후기 질문 · 내 이력서·자소서 · 내가 연습한 답을 보고, 질문마다 왜 묻는지·모범 답안·말할 때 팁.
+// 모범 답안은 이력서 사실만으로(없는 경험·수치 금지). 모의 면접과 같은 모델(interviewModel, Claude 우선). 화면이 공고별로 기억한다.
+// ── 모의 면접 이용권 ─────────────────────────────
+// 모의 면접은 유료(2026-10 결정). 단위는 '답변 피드백 1개' — 이용권 1회 = 답변 5개.
+//  - 가입 후 처음 쓸 때 무료 1회(답변 5개)를 넣어 준다.
+//  - 차감: 답변 피드백(interview-feedback) 1개, 면접 전날 예상 질문 만들기(interview-prep) 1개. 질문 만들기는 무료.
+//  - '오늘의 질문'은 하루 1번 무료(daily: true) — 매일 들어오게 하는 장치.
+//  - 충전: 토스페이먼츠 결제(아래 /members/me/payments/*) · 운영자 지급.
+// 일반 AI 포인트(AiWallet — 매일 무료 적립)와는 따로 둔다. 같은 포인트로 차감하면 사실상 무료가 된다.
+const INTERVIEW_CREDITS_PER_SESSION = 5;
+const INTERVIEW_FREE_TRIAL_CREDITS = INTERVIEW_CREDITS_PER_SESSION;
+const INTERVIEW_DAILY_FREE_FEATURE = "__interview_daily_free__";
+// 판매 상품 — 금액은 서버가 정한다(클라이언트가 보낸 금액은 믿지 않는다). 가격은 임시값.
+const INTERVIEW_PRODUCTS = [
+  { key: "interview_1", sessions: 1, amount: 4900 },
+  { key: "interview_3", sessions: 3, amount: 12900 },
+  { key: "interview_10", sessions: 10, amount: 39000 }
+] as const;
+function interviewProduct(key: string) {
+  return INTERVIEW_PRODUCTS.find((p) => p.key === key) ?? null;
+}
+
+/** 지갑을 만들고(처음이면 무료 1회 + 원장) 잔액을 돌려준다. */
+async function interviewWalletEnsure(userId: string): Promise<number> {
+  const found = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  if (found) return found.credits;
+  try {
+    await prisma.$transaction([
+      prisma.interviewWallet.create({ data: { userId, credits: INTERVIEW_FREE_TRIAL_CREDITS, trialGranted: true } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: INTERVIEW_FREE_TRIAL_CREDITS, reason: "free_trial" } })
+    ]);
+    return INTERVIEW_FREE_TRIAL_CREDITS;
+  } catch {
+    // 동시에 두 요청이 만들려 한 경우 — 이미 만들어진 지갑을 읽는다.
+    const again = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return again?.credits ?? 0;
+  }
+}
+
+/** 오늘의 질문 무료 1번을 오늘 이미 썼나. */
+async function interviewDailyFreeUsed(userId: string): Promise<boolean> {
+  const row = await prisma.aiUsage.findUnique({ where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey: String(aiKstDayIndex()) } }, select: { count: true } });
+  return (row?.count ?? 0) > 0;
+}
+
+/** 차감 전 확인 — 잔액이 없으면 402. 오늘의 질문 무료면 표시만 해 둔다(차감은 응답 성공 후 interviewCreditSpend). */
+// 유료화 스위치 — 켜기 전까지는 차감하지 않는다(지금 프로덕션 /talent 화면엔 결제 창이 없어서, 서버만 먼저 나가도 막히지 않게).
+// v2 가 열릴 때(또는 결제 창을 붙인 뒤) API 앱 설정에 INTERVIEW_PAYWALL_ENABLED=true.
+const interviewPaywallOn = () => process.env.INTERVIEW_PAYWALL_ENABLED === "true";
+
+/** check: 질문 만들기처럼 잔액만 확인하고 차감하지 않는 자리(이용권 0이면 402). */
+function interviewCreditGuard(kind: "feedback" | "prep" | "check"): express.RequestHandler {
+  return async (req, res, next) => {
+    if (!interviewPaywallOn()) return next();
+    try {
+      const userId = req.auth!.userId;
+      const credits = await interviewWalletEnsure(userId);
+      if (kind === "feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
+        res.locals.interviewFree = true;
+        return next();
+      }
+      if (credits < 1) {
+        return res.status(402).json({ ok: false, code: "INTERVIEW_CREDITS_REQUIRED", message: "모의 면접 이용권이 필요해요.", credits });
+      }
+      if (kind !== "check") res.locals.interviewCharge = kind;
+      return next();
+    } catch (err) {
+      console.error("[interview-credit] guard failed", err);
+      return res.status(500).json({ ok: false, message: "failed to check interview credits" });
+    }
+  };
+}
+
+/** 응답이 성공했을 때 1개 차감(오늘의 질문 무료면 그날 무료를 쓴 것으로). 남은 잔액을 돌려준다. */
+async function interviewCreditSpend(userId: string, res: express.Response): Promise<number> {
+  if (res.locals.interviewFree) {
+    const periodKey = String(aiKstDayIndex());
+    await prisma.aiUsage.upsert({
+      where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey } },
+      create: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey, count: 1 },
+      update: { count: { increment: 1 } }
+    });
+  } else if (res.locals.interviewCharge) {
+    // 잔액이 1 이상일 때만 깎는다(동시 요청에도 음수가 되지 않게).
+    const r = await prisma.interviewWallet.updateMany({ where: { userId, credits: { gte: 1 } }, data: { credits: { decrement: 1 } } });
+    if (r.count === 1) await prisma.interviewCreditLog.create({ data: { userId, amount: -1, reason: String(res.locals.interviewCharge) } });
+  }
+  const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  return w?.credits ?? 0;
+}
+
+// 학생: 이용권 잔액 · 상품 · 최근 내역.
+app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const credits = await interviewWalletEnsure(userId);
+    const [logs, dailyFreeUsed] = await Promise.all([
+      prisma.interviewCreditLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, select: { amount: true, reason: true, createdAt: true } }),
+      interviewDailyFreeUsed(userId)
+    ]);
+    return res.json({
+      ok: true,
+      credits,
+      perSession: INTERVIEW_CREDITS_PER_SESSION,
+      dailyFreeUsed,
+      paywall: interviewPaywallOn(),
+      paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+      products: INTERVIEW_PRODUCTS.map((p) => ({ key: p.key, sessions: p.sessions, credits: p.sessions * INTERVIEW_CREDITS_PER_SESSION, amount: p.amount })),
+      logs
+    });
+  } catch (err) {
+    console.error("[interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load interview credits" });
+  }
+});
+
+// 학생: 결제 주문 만들기 — 금액·이름은 서버 상품표로. 토스 결제창에 넘길 orderId 를 돌려준다.
+const paymentOrderSchema = z.object({ productKey: z.string().max(40) });
+app.post("/members/me/payments/orders", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
+  const parsed = paymentOrderSchema.safeParse(req.body);
+  const product = parsed.success ? interviewProduct(parsed.data.productKey) : null;
+  if (!product) return res.status(400).json({ ok: false, message: "invalid product" });
+  if (!process.env.TOSS_SECRET_KEY) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  try {
+    const order = await prisma.paymentOrder.create({
+      data: {
+        id: `ivc-${randomBytes(12).toString("hex")}`,
+        userId: req.auth!.userId,
+        productKey: product.key,
+        orderName: `모의 면접 이용권 ${product.sessions}회`,
+        amount: product.amount,
+        credits: product.sessions * INTERVIEW_CREDITS_PER_SESSION
+      },
+      select: { id: true, orderName: true, amount: true }
+    });
+    return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
+  } catch (err) {
+    console.error("[payments/orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 학생: 결제 승인 — 토스 결제창이 성공 주소로 돌려보낸 paymentKey·orderId·amount 를 서버가 확인하고 토스에 승인 요청.
+// 금액이 주문과 다르면 거절. 이미 처리된 주문이면 같은 결과를 돌려준다(새로고침·중복 호출에도 한 번만 충전).
+const paymentConfirmSchema = z.object({ paymentKey: z.string().min(1).max(200), orderId: z.string().min(6).max(64), amount: z.coerce.number().int().positive() });
+app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "pay-confirm" }), async (req, res) => {
+  const parsed = paymentConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  const { paymentKey, orderId, amount } = parsed.data;
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status === "DONE") {
+      const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+      return res.json({ ok: true, alreadyDone: true, credits: w?.credits ?? 0, added: order.credits });
+    }
+    if (order.status !== "READY") return res.status(409).json({ ok: false, message: "order is not payable" });
+    if (order.amount !== amount) {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
+      return res.status(400).json({ ok: false, code: "AMOUNT_MISMATCH", message: "결제 금액이 맞지 않아요." });
+    }
+    const resp = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+      method: "POST",
+      headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": orderId },
+      body: JSON.stringify({ paymentKey, orderId, amount })
+    });
+    const body = (await resp.json().catch(() => ({}))) as { status?: string; method?: string; approvedAt?: string; code?: string; message?: string };
+    if (!resp.ok || body.status !== "DONE") {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: (body.code ?? `HTTP_${resp.status}`).slice(0, 120) } });
+      return res.status(400).json({ ok: false, code: body.code ?? "CONFIRM_FAILED", message: body.message ?? "결제를 승인하지 못했어요." });
+    }
+    await interviewWalletEnsure(userId);
+    // READY → DONE 으로 바뀐 경우에만 충전(동시 호출에도 한 번).
+    const credited = await prisma.$transaction(async (tx) => {
+      const moved = await tx.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "DONE", paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() } });
+      if (moved.count !== 1) return false;
+      await tx.interviewWallet.update({ where: { userId }, data: { credits: { increment: order.credits } } });
+      await tx.interviewCreditLog.create({ data: { userId, amount: order.credits, reason: "purchase", orderId } });
+      return true;
+    });
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, alreadyDone: !credited, credits: w?.credits ?? 0, added: order.credits });
+  } catch (err) {
+    console.error("[payments/confirm] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to confirm payment" });
+  }
+});
+
+// 운영자: 이용권 지급(보상·테스트) · 최근 결제 주문.
+const opsInterviewGrantSchema = z.object({ credits: z.number().int().min(-500).max(500).refine((n) => n !== 0) });
+app.post("/ops/interview-credits/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsInterviewGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = String(req.params.userId);
+  try {
+    await interviewWalletEnsure(userId);
+    await prisma.$transaction([
+      prisma.interviewWallet.update({ where: { userId }, data: { credits: { increment: parsed.data.credits } } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: parsed.data.credits, reason: "ops_grant" } })
+    ]);
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[ops/interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to grant" });
+  }
+});
+app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    // 결제 대기(READY)는 결제창만 열고 안 낸 것 — 기본은 빼고, ?all=1 이면 모두.
+    const all = req.query.all === "1";
+    const orders = await prisma.paymentOrder.findMany({
+      where: all ? {} : { status: { not: "READY" } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, userId: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+    });
+    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const items = orders.map((o) => ({ ...o, email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops/payment-orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load orders" });
+  }
+});
+
+// ── 환불(결제 취소) ─────────────────────────────
+// 학생 셀프 환불: 결제 후 7일 안 + 그 결제로 받은 이용권을 쓰지 않았을 때(남은 이용권 ≥ 그 결제분)만. 전액 환불.
+// 운영자 환불: 기간·사용 여부와 관계없이, 일부 금액·회수할 이용권 수를 정해서.
+// 순서: 이용권을 먼저 회수(잔액이 모자라면 중단) → 토스 취소 → 실패하면 회수한 이용권을 되돌린다(돈은 나갔는데 이용권이 남는 일이 없게).
+const SELF_REFUND_DAYS = 7;
+
+async function tossCancel(order: { id: string; paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
+  const resp = await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(order.paymentKey)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": `${order.id}-cancel-${cancelAmount ?? "all"}` },
+    body: JSON.stringify(cancelAmount ? { cancelReason: reason, cancelAmount } : { cancelReason: reason })
+  });
+  const body = (await resp.json().catch(() => ({}))) as { status?: string; code?: string; message?: string };
+  if (!resp.ok || (body.status !== "CANCELED" && body.status !== "PARTIAL_CANCELED")) return { ok: false, code: body.code ?? `HTTP_${resp.status}`, message: body.message ?? "결제를 취소하지 못했어요." };
+  return { ok: true };
+}
+
+/** 이용권 회수 → 토스 취소 → 주문 기록. deduct 만큼 잔액이 없으면 회수하지 않고 실패. */
+async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
+  const deduct = Math.max(0, opts.deduct);
+  if (deduct > 0) {
+    const r = await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
+    if (r.count !== 1) return { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
+  }
+  const cancel = await tossCancel(order, opts.reason, opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined);
+  if (!cancel.ok) {
+    if (deduct > 0) await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+    return cancel;
+  }
+  const refunded = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : order.amount;
+  await prisma.$transaction([
+    prisma.paymentOrder.update({ where: { id: order.id }, data: { status: refunded < order.amount ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded } }),
+    ...(deduct > 0 ? [prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } })] : [])
+  ]);
+  return { ok: true as const, refunded, deducted: deduct };
+}
+
+function selfRefundable(order: { status: string; approvedAt: Date | null; credits: number }, balance: number): boolean {
+  if (order.status !== "DONE" || !order.approvedAt) return false;
+  return Date.now() - order.approvedAt.getTime() <= SELF_REFUND_DAYS * 86_400_000 && balance >= order.credits;
+}
+
+// 학생: 내 결제 내역(최근 30건) — 셀프 환불 가능 여부 포함.
+app.get("/members/me/payments", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const balance = await interviewWalletEnsure(userId);
+    const orders = await prisma.paymentOrder.findMany({
+      where: { userId, status: { in: ["DONE", "CANCELED", "PARTIAL_CANCELED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, canceledAt: true, canceledAmount: true }
+    });
+    return res.json({ ok: true, credits: balance, refundDays: SELF_REFUND_DAYS, items: orders.map((o) => ({ ...o, refundable: selfRefundable(o, balance) })) });
+  } catch (err) {
+    console.error("[payments list] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load payments" });
+  }
+});
+
+// 학생: 셀프 환불(전액) — 7일 안 + 받은 이용권을 쓰지 않았을 때.
+const selfRefundSchema = z.object({ reason: z.string().trim().max(200).optional() });
+app.post("/members/me/payments/:orderId/cancel", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "pay-cancel" }), async (req, res) => {
+  const parsed = selfRefundSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    const balance = await interviewWalletEnsure(userId);
+    if (!selfRefundable(order, balance)) return res.status(409).json({ ok: false, code: "NOT_REFUNDABLE", message: `결제 후 ${SELF_REFUND_DAYS}일 안에, 이용권을 쓰지 않았을 때만 환불할 수 있어요.` });
+    const r = await refundOrder(order, { reason: parsed.data.reason || "고객 요청", deduct: order.credits, by: "self" });
+    if (!r.ok) return res.status(400).json(r);
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, refunded: r.refunded, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 환불(일부 금액 가능) — 회수할 이용권 수는 운영자가 정한다(기본: 그 결제분, 잔액이 모자라면 남은 만큼만).
+const opsRefundSchema = z.object({ reason: z.string().trim().min(1).max(200), cancelAmount: z.number().int().positive().optional(), deductCredits: z.number().int().min(0).max(5000).optional() });
+app.post("/ops/payment-orders/:orderId/cancel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsRefundSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status !== "DONE") return res.status(409).json({ ok: false, message: "환불할 수 있는 상태가 아니에요." });
+    if (parsed.data.cancelAmount && parsed.data.cancelAmount > order.amount) return res.status(400).json({ ok: false, message: "결제 금액보다 많이 환불할 수 없어요." });
+    const balance = await interviewWalletEnsure(order.userId);
+    const deduct = Math.min(parsed.data.deductCredits ?? order.credits, balance);
+    const r = await refundOrder(order, { reason: parsed.data.reason, deduct, cancelAmount: parsed.data.cancelAmount, by: "ops" });
+    if (!r.ok) return res.status(400).json(r);
+    return res.json({ ok: true, refunded: r.refunded, deducted: r.deducted });
+  } catch (err) {
+    console.error("[ops payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 이용권 지갑 목록(검색) · 내역.
+app.get("/ops/interview-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
+      select: { id: true, email: true, name: true, interviewWallet: { select: { credits: true, updatedAt: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({ ok: true, perSession: INTERVIEW_CREDITS_PER_SESSION, items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, credits: u.interviewWallet?.credits ?? null, updatedAt: u.interviewWallet?.updatedAt ?? null })) });
+  } catch (err) {
+    console.error("[ops interview-wallets] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+app.get("/ops/interview-credits/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.interviewCreditLog.findMany({ where: { userId: String(req.params.userId) }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, amount: true, reason: true, orderId: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops interview-credit logs] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load logs" });
+  }
+});
+
+const interviewPrepSchema = z.object({
+  jobText: z.string().max(6000).optional(),
+  company: z.string().max(120).optional(),
+  resumeText: z.string().max(8000).optional(),
+  coverLetterText: z.string().max(6000).optional(),
+  reportedQuestions: z.array(z.string().max(300)).max(10).optional(),
+  myAnswers: z.array(z.object({ question: z.string().max(400), answer: z.string().max(2000) })).max(8).optional()
+});
+const INTERVIEW_PREP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { question: { type: "string" }, why: { type: "string" }, answer: { type: "string" }, tip: { type: "string" } },
+        required: ["question", "why", "answer", "tip"]
+      }
+    }
+  },
+  required: ["questions"]
+} as const;
+
+app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), interviewCreditGuard("prep"), async (req, res) => {
+  const parsed = interviewPrepSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const d = parsed.data;
+  if (!d.jobText && !d.resumeText) return res.status(400).json({ ok: false, message: "job or resume required" });
+  try {
+    const system =
+      "당신은 한국 기업 면접을 잘 아는 면접 코치입니다. 지원자가 내일 면접을 봅니다. 이 면접에서 나올 가능성이 높은 질문 5개와, 질문마다 지원자가 그대로 말할 수 있는 모범 답안을 만들어 주세요.\n" +
+      "[질문 고르기]\n" +
+      "- [이 회사 면접에서 실제로 나온 질문]이 있으면 그중 1~2개를 반드시 포함하세요.\n" +
+      "- 1분 자기소개(또는 지원 동기) 1개, 공고의 주요 업무·자격 요건에 근거한 직무 질문 2개, 이력서 경험을 파고드는 질문 1개를 기본으로.\n" +
+      "- 질문은 실제 면접관 말투의 한 문장.\n" +
+      "[모범 답안]\n" +
+      "- 지원자의 이력서·자기소개서·연습한 답에 있는 사실만 쓰세요. 없는 회사·경험·수치를 지어내지 마세요. 근거가 부족하면 '○○' 같은 빈칸으로 남기고 tip 에 무엇을 채울지 적으세요.\n" +
+      "- 결론 먼저 → 구체적 경험(상황·행동·결과) → 이 회사·직무와 연결, 합니다체, 말로 40~60초(250~400자).\n" +
+      "- 지원자가 같은 질문에 연습한 답이 있으면 그 답을 바탕으로 더 낫게 다듬으세요.\n" +
+      "- why: 면접관이 이 질문으로 보려는 것 한 문장. tip: 말할 때 주의할 점 한 문장." +
+      aiLangDirective();
+    const user = [
+      d.company ? `회사: ${d.company}` : "",
+      d.jobText ? `[채용 공고]\n${d.jobText}` : "",
+      d.reportedQuestions?.length ? `[이 회사 면접에서 실제로 나온 질문]\n${d.reportedQuestions.map((q) => `- ${q}`).join("\n")}` : "",
+      d.resumeText ? `[이력서]\n${d.resumeText}` : "(이력서 없음)",
+      d.coverLetterText ? `[자기소개서]\n${d.coverLetterText}` : "",
+      d.myAnswers?.length ? `[지원자가 연습한 답]\n${d.myAnswers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const j = (await interviewJson({ system, user, temperature: 0.4, schema: INTERVIEW_PREP_SCHEMA, schemaName: "interview_prep" })) as { questions?: unknown };
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    const questions = (Array.isArray(j.questions) ? j.questions : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { question: str(o.question, 300), why: str(o.why, 200), answer: stripCliches(str(o.answer, 1200)), tip: str(o.tip, 200) };
+      })
+      .filter((q) => q.question && q.answer)
+      .slice(0, 5);
+    if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    const credits = await interviewCreditSpend(req.auth!.userId, res);
+    return res.json({ ok: true, questions, credits });
+  } catch (err) {
+    console.error("[ai/interview-prep] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(500).json({ ok: false, message: "failed to prepare" });
+  }
+});
+
 app.post(
   "/members/me/ai/interview-feedback",
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-interview-fb", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_feedback"),
+  interviewCreditGuard("feedback"),
   async (req, res) => {
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
@@ -26650,35 +27810,29 @@ app.post(
         "2. strengths: 답변에서 좋았던 점 1~3개(짧게).\n" +
         "3. improvements: 더 좋게 만들 구체적 조언 1~3개(짧게, 실행 가능하게).\n" +
         "4. sampleAnswer: 지원자의 이력서 사실에 근거한 더 나은 모범답안(STAR 구조 권장, 2~5문장). 없는 경험·수치를 지어내지 마세요.\n" +
-        "5. 격려하는 코치 말투. 정중하게.\n\n" +
-        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string }' +
+        "5. 격려하는 코치 말투. 정중하게.\n" +
+        "6. followUp: 실제 면접관이 이 답변을 듣고 바로 이어서 물을 꼬리 질문 1개(한 문장). 답변에서 추상적인 부분, 본인 역할이 불분명한 부분, 숫자·근거가 없는 부분, 이력서와 맞지 않는 부분을 파고드세요. 인신공격이 아니라 근거를 확인하는 톤. 답변에 없는 사실을 전제하지 마세요. 답변이 이미 충분히 구체적이면 빈 문자열.\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string, "followUp": string }' +
         aiLangDirective(locale);
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${resumeText ? `\n[이력서 요약]\n${resumeText}\n` : ""}` +
         `\n[면접 질문]\n${question}\n\n[지원자 답변]\n${answer}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.5, schema: INTERVIEW_FEEDBACK_SCHEMA, schemaName: "interview_feedback" })) as { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown; followUp?: unknown };
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
       const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
+      const credits = await interviewCreditSpend(req.auth!.userId, res);
       return res.json({
         ok: true,
+        credits,
         feedback: {
           score,
           strengths: strArr(j.strengths, 3),
           improvements: strArr(j.improvements, 3),
-          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : ""
+          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : "",
+          // 꼬리 질문 — 같은 호출에서 받는다(추가 호출·티켓 없음). 없으면 빈 문자열.
+          followUp: typeof j.followUp === "string" ? j.followUp.trim().slice(0, 300) : ""
         }
       });
     } catch (err) {
@@ -26772,6 +27926,131 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
     return res.json({ ok: true, item: { answeredCount: row.answeredCount, bestScore: row.bestScore } });
   } catch {
     return res.status(500).json({ ok: false, message: "failed to record practice" });
+  }
+});
+
+// 내 공고 모의 면접 답변(본인만) — '면접 전날 볼 한 장'이 최고 답변을 모아 보여 줄 때 쓴다.
+// ─────────────────────────────────────────────────────────────────────────
+// 모의 면접 콘텐츠 — 면접 후기(실제 나온 질문) · 잘 쓴 답 예시.
+// 공개 응답에는 누가 남겼는지(userId 등)를 넣지 않는다. 운영자가 hidden 으로 내릴 수 있다.
+// ─────────────────────────────────────────────────────────────────────────
+const interviewReportSchema = z.object({
+  applicationId: z.string().min(1).max(64),
+  questions: z.array(z.string().trim().min(4).max(300)).min(1).max(5)
+});
+
+// 학생: 면접 후기 남기기 — 내 지원 건만. 같은 지원 건으로 다시 남기면 바꾼다.
+app.post("/members/me/interview-questions", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = interviewReportSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const app0 = await prisma.application.findFirst({
+      where: { id: parsed.data.applicationId, candidateUserId: userId },
+      select: { id: true, positionId: true, position: { select: { title: true, additionalNotes: true, partnerOrganization: { select: { name: true } } } } }
+    });
+    if (!app0) return res.status(404).json({ ok: false, message: "application not found" });
+    const organizationName = app0.position.partnerOrganization?.name ?? extractSourceCompanyName(app0.position.additionalNotes) ?? "";
+    if (!organizationName) return res.status(400).json({ ok: false, message: "company unknown" });
+    const questions = [...new Set(parsed.data.questions.map((q) => q.trim()).filter(Boolean))];
+    await prisma.$transaction([
+      prisma.interviewQuestionReport.deleteMany({ where: { userId, applicationId: app0.id } }),
+      prisma.interviewQuestionReport.createMany({
+        data: questions.map((question) => ({ userId, applicationId: app0.id, positionId: app0.positionId, organizationName, positionTitle: app0.position.title, question }))
+      })
+    ]);
+    return res.json({ ok: true, count: questions.length });
+  } catch (err) {
+    console.error("[interview-questions] create failed", err);
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 학생: 후기를 이미 남긴 지원 건 — '어떤 질문이 나왔나요?'를 다시 묻지 않게.
+app.get("/members/me/interview-questions/reported", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const rows = await prisma.interviewQuestionReport.findMany({ where: { userId: req.auth!.userId, applicationId: { not: null } }, select: { applicationId: true }, distinct: ["applicationId"] });
+    return res.json({ ok: true, items: rows.map((r) => r.applicationId).filter(Boolean) });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+// 면접 후기 질문 — organization 이 있으면 그 회사 것(최근순), 없으면 최근 것 + 많이 나온 질문(최근 60일).
+app.get("/interview-questions", async (req, res) => {
+  const organization = typeof req.query.organization === "string" ? req.query.organization.trim().slice(0, 200) : "";
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 10));
+  try {
+    const recent = await prisma.interviewQuestionReport.findMany({
+      where: { hidden: false, ...(organization ? { organizationName: organization } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, question: true, organizationName: true, positionTitle: true, createdAt: true }
+    });
+    let popular: { question: string; count: number }[] = [];
+    if (!organization) {
+      const since = new Date(Date.now() - 60 * 86_400_000);
+      const rows = await prisma.interviewQuestionReport.findMany({ where: { hidden: false, createdAt: { gte: since } }, select: { question: true }, take: 2000 });
+      const counts = new Map<string, { question: string; count: number }>();
+      for (const r of rows) {
+        const key = r.question.replace(/\s+/g, "").replace(/[?.!。？]/g, "");
+        const cur = counts.get(key) ?? { question: r.question, count: 0 };
+        cur.count += 1;
+        counts.set(key, cur);
+      }
+      popular = [...counts.values()].filter((x) => x.count >= 2).sort((a, b) => b.count - a.count).slice(0, 5);
+    }
+    return res.json({ ok: true, items: recent, popular });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+const answerExampleSchema = z.object({
+  question: z.string().trim().min(4).max(600),
+  category: z.string().trim().max(40),
+  answer: z.string().trim().min(20).max(4000),
+  score: z.number().int().min(80).max(100)
+});
+
+// 학생: 잘 쓴 답을 익명 예시로 공개(동의한 것만, '잘해요' 80점 이상). 같은 질문은 최신 답으로 바꾼다.
+app.post("/members/me/answer-examples", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = answerExampleSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    await prisma.interviewAnswerExample.upsert({
+      where: { userId_question: { userId, question: parsed.data.question } },
+      create: { userId, ...parsed.data },
+      update: { answer: parsed.data.answer, score: parsed.data.score, category: parsed.data.category, hidden: false }
+    });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 같은 질문의 잘 쓴 답 예시(점수 높은 순 3개, 익명).
+app.get("/answer-examples", async (req, res) => {
+  const question = typeof req.query.question === "string" ? req.query.question.trim().slice(0, 600) : "";
+  if (!question) return res.json({ ok: true, items: [] });
+  try {
+    const rows = await prisma.interviewAnswerExample.findMany({ where: { question, hidden: false }, orderBy: [{ score: "desc" }, { createdAt: "desc" }], take: 3, select: { id: true, answer: true, score: true } });
+    return res.json({ ok: true, items: rows });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+app.get("/members/me/mock-interviews/:positionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
+  if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
+  try {
+    const row = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
+    const answers: MockAnswer[] = Array.isArray(row?.answers) ? (row!.answers as unknown as MockAnswer[]) : [];
+    return res.json({ ok: true, item: { positionId, bestScore: row?.bestScore ?? null, answers } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load mock interview" });
   }
 });
 
@@ -29970,6 +31249,35 @@ const applicationStatusUpdateSchema = z.object({
   memo: z.string().max(2000).optional()
 });
 
+// 내 지원에 낸 서류(제출 시점 스냅샷) — 면접 전에 '내가 뭐라고 썼더라'를 다시 보게. 본인 지원만.
+// 사진(data URL)·편집기 설정처럼 크고 읽을 필요 없는 값은 빼고 보낸다.
+app.get("/members/me/applications/:id/documents", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  try {
+    const app = await prisma.application.findFirst({
+      where: { id, candidateUserId: req.auth!.userId },
+      select: { id: true, submittedAt: true, resumeSnapshot: true, coverLetterSnapshot: true }
+    });
+    if (!app) return res.status(404).json({ ok: false, message: "application not found" });
+    const strip = (v: unknown): unknown => {
+      if (!v || typeof v !== "object" || Array.isArray(v)) return v ?? null;
+      const o = { ...(v as Record<string, unknown>) };
+      delete o.basicPhotoUrl;
+      delete o.builder;
+      delete o.poolOptIn;
+      if (o.renewalBasicInfo && typeof o.renewalBasicInfo === "object") {
+        const b = { ...(o.renewalBasicInfo as Record<string, unknown>) };
+        delete b.photoUrl;
+        o.renewalBasicInfo = b;
+      }
+      return o;
+    };
+    return res.json({ ok: true, item: { id: app.id, submittedAt: app.submittedAt, resume: strip(app.resumeSnapshot), coverLetter: app.coverLetterSnapshot ?? null } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load application documents" });
+  }
+});
+
 app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
     const items = await prisma.application.findMany({
@@ -30039,7 +31347,8 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 // 파트너 인재검색에 (연락처 마스킹 상태로) 노출한다. 별도 인재풀 동의 플래그는 요구하지
 // 않는다(프로덕션에서 아무도 동의 상태가 아니라 전원 안 뜨던 문제 → 가입=발견 가능 모델).
 // 완성도 필터(isResumeReasonablyComplete)와 연락처 마스킹은 엔드포인트에서 그대로 적용.
-const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true };
+// 학생이 노출을 끄면(talentPoolOptedOutAt) 인재 검색·추천·새 연결 요청에서 뺀다(이미 연결된 기업은 그대로 볼 수 있다).
+const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true, user: { talentPoolOptedOutAt: null } };
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
 // 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
@@ -30154,16 +31463,43 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean, blind = fa
 
 // 인재풀 이력서 행 → 검색 카드(점수 없음). GET/AI 검색 공용.
 type PoolResumeRow = { userId: string; updatedAt: Date; content: unknown; user: { name: string | null; realName: string | null; nationality: string | null } | null };
+/** 리뉴얼 에디터 이력서(renewalResume.items: {section, text, company})를 인재 카드 필드로 — 구형 필드(educations·skills…)가 없을 때. */
+function renewalCardFields(content: Record<string, unknown>) {
+  const doc = (content.renewalResume && typeof content.renewalResume === "object" ? content.renewalResume : null) as { targetRole?: unknown; summary?: unknown; items?: unknown } | null;
+  const items = Array.isArray(doc?.items) ? (doc!.items as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const of = (sec: string) => items.filter((i) => i && i.section === sec && (str(i.text) || str(i.company)));
+  const split = (t: string) => t.split(/[,，、\n·]|\s\/\s/).map((x) => x.trim()).filter(Boolean);
+  const edu = of("education")[0];
+  const eduText = edu ? str(edu.company) || str(edu.text).split("\n")[0] : "";
+  return {
+    school: eduText ? eduText.slice(0, 80) : null,
+    // 전공 — 본문 첫 마디만(괄호·마침표 앞까지). 예: "컴퓨터공학 학사 졸업 (GPA …). …" → "컴퓨터공학 학사 졸업"
+    major: edu && str(edu.company) && str(edu.text) ? str(edu.text).split(/[\n(.]/)[0].trim().slice(0, 60) || null : null,
+    skills: [...new Set(of("skill").flatMap((i) => split(str(i.text))))],
+    languages: of("language").flatMap((i) => split(str(i.text))),
+    careerCount: of("experience").length,
+    activityCount: of("project").length + of("activity").length + of("award").length,
+    summary: str(doc?.summary),
+    targetRole: str(doc?.targetRole)
+  };
+}
+
 function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const content = (r.content ?? {}) as Record<string, unknown>;
-  const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
-  const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
-  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
-  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
-  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
-  const languages = Array.isArray(content.languages)
+  // 리뉴얼(v2) 이력서는 renewalResume 에만 내용이 있다 — 구형 필드가 비면 거기서 채운다(안 그러면 카드가 거의 비어 보인다).
+  const rn = renewalCardFields(content);
+  const legacyEdu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
+  const edu = legacyEdu ?? (rn.school ? { schoolName: rn.school, major: rn.major } : undefined);
+  const legacySkills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
+  const skills = legacySkills.length ? legacySkills : rn.skills;
+  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : Array.from({ length: rn.careerCount });
+  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : Array.from({ length: rn.activityCount });
+  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : rn.summary;
+  const legacyLanguages = Array.isArray(content.languages)
     ? (content.languages as Record<string, unknown>[]).map((l) => [l?.language, l?.level].filter((x) => typeof x === "string" && x).join(" ")).filter(Boolean)
     : [];
+  const languages = legacyLanguages.length ? legacyLanguages : rn.languages;
   // 블라인드 — 능력만으로 판단하도록, 연결 수락(ACCEPTED) 전에는 이름·국적을 가린다.
   const unlocked = status === "ACCEPTED";
   // 요약(자기소개)에 섞인 이름·국적 제거 + TOPIK 중립화.
@@ -30175,7 +31511,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     nationality: unlocked ? (r.user?.nationality ?? (content.nationality as string) ?? null) : null,
     school: (edu?.schoolName as string) ?? null,
     major: (edu?.major as string) ?? null,
-    desiredJobRole: (content.desiredJobRole as string) ?? null,
+    desiredJobRole: (content.desiredJobRole as string) || rn.targetRole || null,
     workType: (content.workType as string) ?? null,
     // 국적을 가리는 것과 동일하게, 국적 프록시가 되는 비자/체류자격도 연결 수락 전에는 가린다.
     visa: unlocked ? ((content.basicVisa as string) ?? null) : null,
@@ -30499,6 +31835,7 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
         SELECT "userId", "embedding" <=> ${vec}::vector AS distance
         FROM "Resume"
         WHERE "isPrimary" = true AND "embedding" IS NOT NULL
+          AND "userId" IN (SELECT "id" FROM "User" WHERE "talentPoolOptedOutAt" IS NULL)
         ORDER BY "embedding" <=> ${vec}::vector
         LIMIT 80
       `;
@@ -31211,16 +32548,39 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
   }
 });
 
-// 학생: 인재풀 등록(대표 이력서 poolOptIn) 토글
+// 학생: 기업 인재 검색 노출 상태 + 기업에게 보이는 내 카드(블라인드, 파트너가 보는 것과 같은 모양).
+// 노출 기준은 POOL_RESUME_WHERE(대표 이력서 + 끄지 않음) + 카드 완성도(isResumeReasonablyComplete).
+app.get("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [user, primary, interested] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { talentPoolOptedOutAt: true } }),
+      prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } } }),
+      prisma.partnerSavedCandidate.findMany({ where: { candidateUserId: userId }, select: { organizationId: true }, distinct: ["organizationId"] })
+    ]);
+    const optedOut = !!user?.talentPoolOptedOutAt;
+    const card = primary ? buildCandidateCard(primary, null) : null;
+    const complete = !!card && isResumeReasonablyComplete(card);
+    return res.json({ ok: true, optedOut, hasResume: !!primary, complete, visible: !optedOut && complete, interestedCount: interested.length, card });
+  } catch (err) {
+    console.error("[members/me/talent-pool GET] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load talent pool status" });
+  }
+});
+
+// 학생: 기업 인재 검색 노출 켜기/끄기. 가입하면 기본 노출 — 끄면 talentPoolOptedOutAt 을 남기고 인재 검색·추천·새 연결 요청에서 빠진다.
+// (예전 '동의해야 노출' 모델의 talentPoolConsentedAt·content.poolOptIn 은 표시·레거시 호환용으로 함께 맞춘다.)
 const talentPoolSchema = z.object({ optIn: z.boolean() });
 app.post("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const parsed = talentPoolSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
+    await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: parsed.data.optIn ? { talentPoolOptedOutAt: null, talentPoolConsentedAt: new Date() } : { talentPoolOptedOutAt: new Date(), talentPoolConsentedAt: null }
+    });
     const primary = await prisma.resume.findFirst({ where: { userId: req.auth!.userId, isPrimary: true }, select: { id: true, content: true } });
-    if (!primary) return res.status(400).json({ ok: false, code: "NO_PRIMARY_RESUME", message: "대표 이력서가 필요해요." });
-    // 동의는 유저 레벨(talentPoolConsentedAt)이 원천. content.poolOptIn 은 프론트 표시·레거시 호환용 미러.
-    await prisma.user.update({ where: { id: req.auth!.userId }, data: { talentPoolConsentedAt: parsed.data.optIn ? new Date() : null } });
+    if (!primary) return res.json({ ok: true, optIn: parsed.data.optIn });
     const content = { ...((primary.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>) };
     if (parsed.data.optIn) content.poolOptIn = { consentedAt: new Date().toISOString() };
     else delete content.poolOptIn;

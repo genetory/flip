@@ -479,3 +479,100 @@ export function trackInsightView(slug: string, category: string, locale: string)
 export function trackInsightCtaClick(slug: string, cta: string) {
   safeSendEvent("insight_cta_click", { slug, cta });
 }
+
+// ---- 이력서·자소서 에디터 — 쉽고 빠르게 원하는 결과가 나오는지 재는 계측(GA4) ----
+//
+// 화면에는 아무것도 더하지 않는다(보내기만 하고 기다리지 않는다, 실패해도 조용히 버린다).
+// 이력서·자소서 원문, 사람 이름 같은 개인정보는 넣지 않는다 — 개수·시간·종류만.
+//
+// 보는 법: 진입(opened) → 시작 방식(start_selected) → 첫 내용(first_content) → 점검(ai_check_run)
+//   → PDF(pdf_download, 처음 연 뒤 걸린 분). AI 결과 수용률 = polish_applied / polish_requested.
+
+export type EditorDoc = "resume" | "cover";
+export type EditorEvent =
+  | "editor_opened"
+  | "editor_start_selected"
+  | "editor_import_applied"
+  | "editor_first_content"
+  | "editor_ai_check_run"
+  | "editor_ai_finding_dismissed"
+  | "editor_polish_requested"
+  | "editor_polish_applied"
+  | "editor_pdf_download";
+
+/** 지금 화면 경로로 어느 문서인지 — 부르는 쪽마다 문서 종류를 넘기지 않아도 되게. */
+export function editorDocOfPath(path: string): EditorDoc | null {
+  if (path.includes("/career/resume")) return "resume";
+  if (path.includes("/career/cover")) return "cover";
+  // v2 편집기(/v2/resume, /v2/cover 와 그 미리보기) — 목록(/v2/resumes, /v2/cover-letters)은 제외
+  if (/^\/v2\/resume(\/|$)/.test(path)) return "resume";
+  if (/^\/v2\/cover(\/|$)/.test(path)) return "cover";
+  return null;
+}
+
+const FIRST_OPEN_KEY = (doc: EditorDoc) => `aply.editor.firstOpen.${doc}`;
+
+/** 이 브라우저에서 이 문서 에디터를 처음 연 시각을 남긴다(이미 있으면 그대로). */
+export function markEditorFirstOpen(doc: EditorDoc) {
+  try {
+    if (!localStorage.getItem(FIRST_OPEN_KEY(doc))) localStorage.setItem(FIRST_OPEN_KEY(doc), String(Date.now()));
+  } catch {
+    // 저장소를 못 쓰는 환경 — 걸린 시간만 빠진다.
+  }
+}
+
+/** 처음 연 뒤 지난 분(없으면 undefined). */
+function minutesSinceFirstOpen(doc: EditorDoc): number | undefined {
+  try {
+    const at = Number(localStorage.getItem(FIRST_OPEN_KEY(doc)));
+    return at > 0 ? Math.round((Date.now() - at) / 60000) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function trackEditor(event: EditorEvent, params: Record<string, string | number | boolean> & { doc?: EditorDoc } = {}) {
+  const doc = params.doc ?? (typeof window === "undefined" ? null : editorDocOfPath(window.location.pathname));
+  if (!doc) return;
+  const extra = event === "editor_pdf_download" ? { minutes_since_first_open: minutesSinceFirstOpen(doc) } : {};
+  safeSendEvent(event, { ...params, doc, ...extra });
+}
+
+// ---- 모의 면접 허브 — 어디서 연습을 시작하는지(면접 임박 공고·공고·내 서류). 화면 변화 없음. ----
+export type InterviewStartMode = "upcoming" | "job" | "self";
+export function trackInterviewHubViewed(params: { upcoming: number; candidates: number; records: number }) {
+  safeSendEvent("interview_hub_viewed", params);
+}
+export function trackInterviewStart(mode: InterviewStartMode) {
+  safeSendEvent("interview_start_clicked", { mode });
+}
+/** 같은 질문에 고쳐 다시 답한 뒤 점수 변화 — 연습이 실제로 답을 낫게 만드는지 본다. */
+export function trackInterviewRetryScored(delta: number) {
+  safeSendEvent("interview_retry_scored", { delta, improved: delta > 0 });
+}
+/** 꼬리 질문에 답하기 시작 — 첫 답에서 멈추지 않고 파고드는 연습을 하는지. */
+export function trackInterviewFollowUpStarted() {
+  safeSendEvent("interview_followup_started", {});
+}
+/** '면접 전날 볼 한 장'을 열었는지 — 연습이 결과물로 이어지는지. */
+export function trackInterviewPrepSheetOpened() {
+  safeSendEvent("interview_prep_sheet_opened", {});
+}
+
+/** 포지션 탐색 '혹시 외국인이세요?' 카드 응답 — 외국인 비율·필터 사용 의향을 본다. */
+export function trackForeignerPrompt(answer: "yes" | "no" | "dismiss") {
+  safeSendEvent("jobs_foreigner_prompt", { answer });
+}
+
+// ---- 자소서 경험 발굴 캠페인(/experience) ----
+// 자유 입력·개인정보는 보내지 않는다. 고정 키(상담 방식·utm_source 등)만.
+export type ExperienceCampaignEvent =
+  | "experience_landing_view" // 페이지 진입
+  | "experience_cta_click" // 신청 버튼(히어로·하단 고정 등) — source 로 구분
+  | "experience_form_view" // 신청 폼이 화면에 보임
+  | "experience_form_submit" // 접수 완료
+  | "experience_form_duplicate"; // 같은 이메일로 이미 신청(409)
+
+export function trackExperienceCampaign(event: ExperienceCampaignEvent, params: Record<string, string | number | boolean> = {}) {
+  safeSendEvent(event, params);
+}

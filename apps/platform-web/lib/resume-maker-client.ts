@@ -726,3 +726,27 @@ export function builderContinuePath(resumeId: string, _resume: Pick<Resume, "con
   // 2컬럼 편집기(폼 + 실시간 미리보기)가 기본 진입점.
   return `/resume-maker/${resumeId}/edit`;
 }
+
+// 내 커리어 '기업이 보는 내 강점 3가지' (POST /members/me/ai/career-strengths).
+export type CareerStrength = { keyword: string; evidence: string };
+export async function getCareerStrengths(input: { profile: string; targetRoles?: string[] }): Promise<CareerStrength[]> {
+  const payload = (await aiPost<unknown>("/members/me/ai/career-strengths", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { strengths?: CareerStrength[] };
+  const list = (payload.strengths ?? []).filter((s) => s && s.keyword);
+  if (!list.length) throw new Error("강점을 찾지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return list;
+}
+
+// 내 커리어 '이 직무에 필요한 것' (POST /members/me/ai/role-checklist).
+export type RoleChecklistItem = { category: "certificate" | "skill" | "experience" | "language"; name: string; have: boolean; count: number; common?: boolean; tip: string };
+export async function getRoleChecklist(input: { role: string; profile: string; jobs: { title: string; required?: string; preferred?: string }[] }): Promise<{ total: number; items: RoleChecklistItem[] }> {
+  const payload = (await aiPost<unknown>("/members/me/ai/role-checklist", {
+    method: "POST",
+    body: JSON.stringify(input)
+  })) as unknown as { total?: number; items?: RoleChecklistItem[] };
+  const items = (payload.items ?? []).filter((x) => x && x.name);
+  if (!items.length) throw new Error("비교하지 못했어요. 잠시 후 다시 시도해 주세요.");
+  return { total: payload.total ?? 0, items };
+}

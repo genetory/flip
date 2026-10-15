@@ -18,6 +18,8 @@ model User {
   emailNotifications                   Boolean                       @default(true)
   // 기업 인재풀 공개 동의 시각(유저 레벨 원천). 대표 이력서 교체와 무관하게 노출 유지.
   talentPoolConsentedAt                DateTime?
+  // 기업 인재 검색 노출 끄기 시각 — 가입하면 기본 노출(블라인드), 학생이 끄면 여기 기록하고 인재 검색·연결 요청에서 뺀다.
+  talentPoolOptedOutAt                 DateTime?
   suspendedAt                          DateTime?
   suspendedReason                      String?
   realName                             String?
@@ -56,6 +58,7 @@ model User {
   couponRedemptions                    CouponRedemption[]
   aiUsages                             AiUsage[]
   aiWallet                             AiWallet?
+  interviewWallet                      InterviewWallet?
   aiPointLogs                          AiPointLog[]
   sgcApplication                       SgcApplication?               @relation("SgcApplicationUser")
   refreshTokens                        RefreshToken[]
@@ -123,6 +126,8 @@ model User {
   requestedPositionRevisions           PositionRevision[]            @relation("PositionRevisionRequester")
   reviewedPositionRevisions            PositionRevision[]            @relation("PositionRevisionReviewer")
   mockInterviewSessions                MockInterviewSession[]
+  interviewQuestionReports             InterviewQuestionReport[]
+  interviewAnswerExamples              InterviewAnswerExample[]
   applicantDocSummary                  ApplicantDocSummary?
 
   @@unique([email, authProvider])
@@ -2295,6 +2300,44 @@ model CoverLetter {
 
 // 공고별 모의 면접 연습 기록 — (userId, positionId) 당 한 행. 회사엔 "완료" 신호만,
 // 점수/답변은 지원자 전용(비공개).
+// 면접 후기 — 실제 면접을 본 학생이 '나온 질문'을 남긴다. 회사 이름으로 모아 같은 회사 공고에서 연습 질문으로 쓴다.
+// 공개 화면에는 질문 글만(누가 남겼는지 없이) 보여 준다. 운영자가 hidden 으로 내릴 수 있다.
+model InterviewQuestionReport {
+  id               String   @id @default(uuid())
+  userId           String
+  applicationId    String?
+  positionId       String?
+  organizationName String
+  positionTitle    String
+  question         String
+  hidden           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationName, createdAt])
+  @@index([positionId])
+  @@index([createdAt])
+  @@index([userId, applicationId])
+}
+
+// 잘 쓴 답 예시 — '잘해요'(80점 이상)를 받은 학생이 익명 공개에 동의한 답만. 같은 질문을 연습하는 사람에게 예시로 보여 준다.
+model InterviewAnswerExample {
+  id        String   @id @default(uuid())
+  userId    String
+  question  String
+  category  String
+  answer    String
+  score     Int
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, question])
+  @@index([question, score])
+}
+
 model MockInterviewSession {
   id              String   @id @default(uuid())
   userId          String
@@ -2340,6 +2383,53 @@ model AiWallet {
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 모의 면접 이용권 — 단위는 답변 피드백 1개(이용권 1회 = 5개). 가입 후 첫 사용 시 무료 1회. 결제·운영자 지급으로 충전.
+// 일반 AI 포인트(AiWallet, 매일 무료 적립)와 따로 둔다.
+model InterviewWallet {
+  userId       String   @id
+  credits      Int      @default(0)
+  trialGranted Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 모의 면접 이용권 원장 — free_trial | purchase | ops_grant | feedback | prep. amount: 충전 +, 사용 -.
+model InterviewCreditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int
+  reason    String
+  orderId   String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// 결제 주문(토스페이먼츠) — id 가 토스 orderId. 금액·충전량은 서버 상품표로 정한다. READY → DONE | FAILED, DONE → CANCELED | PARTIAL_CANCELED.
+model PaymentOrder {
+  id         String    @id
+  userId     String
+  productKey String
+  orderName  String
+  amount     Int
+  credits    Int
+  status     String    @default("READY")
+  paymentKey String?   @unique
+  method     String?
+  approvedAt DateTime?
+  failReason String?
+  // 환불(결제 취소) — CANCELED(전액) | PARTIAL_CANCELED(일부). cancelReason 앞에 self:/ops: 로 누가 했는지.
+  canceledAt     DateTime?
+  canceledAmount Int?
+  cancelReason   String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, createdAt])
 }
 
 // AI 포인트 획득 내역(원장) — 웰컴/매일 적립/쿠폰 충전 등 '받은' 기록. 내역 페이지 표시용.
@@ -2768,6 +2858,51 @@ model SgcApplication {
   @@index([status])
   @@index([createdAt])
   @@index([resumeId])
+}
+
+// "내 경험이 스펙이 되는 순간" 자소서 경험 발굴 캠페인(/experience) 신청.
+// 비회원도 신청 가능 — 연락은 이메일로 하므로 email 필수(소문자 정규화 저장).
+// 매주 2명 선정 → 자소서 전문가 1:1 상담·첨삭. 로그인 상태면 userId 만 같이 남긴다(FK 없음, VisaLead 와 동일).
+model ExperienceCampaignApplication {
+  id               String    @id @default(uuid())
+  name             String
+  email            String // trim + lowercase
+  phone            String?
+  nationality      String?
+  desiredRole      String // 지원 직무 (자유 입력)
+  experience       String? // 경험 소개 (v1 신청만 — v2부터는 파일 첨부로 대체)
+  coverLetter      String? // 기존 자기소개서 텍스트 (v1 신청만)
+  // v2 — 첨부 파일(Blob URL·원래 파일 이름). 이력서는 필수, 자기소개서는 선택.
+  resumeUrl           String?
+  resumeFileName      String?
+  coverLetterUrl      String?
+  coverLetterFileName String?
+  consultMethod    String // "ONLINE" | "OFFLINE" | "ANY"
+  // 개인정보 수집·이용 동의(필수) — 동의 시각과 동의문 버전을 함께 남긴다.
+  consentPrivacyAt DateTime
+  consentVersion   String
+  // 사례 공개 동의(선택) — 익명 Before/After 공개. 언제든 철회 가능.
+  consentCaseStudy Boolean   @default(false)
+  // 운영 단계 — RECEIVED → REVIEWING → SELECTED → DONE / DECLINED
+  status           String    @default("RECEIVED")
+  opsNote          String? // 운영 메모 (operator only)
+  selectedWeek     String? // 선정 주차 (예: "2026-W43")
+  // 유입 경로 — 신청 시 URL 의 utm_* 와 document.referrer
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  utmTerm          String?
+  referrer         String?
+  locale           String    @default("ko")
+  userId           String?
+  ipHash           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // Talent 행동 이벤트 스트림 — Passport·매칭 학습·퍼널 분석의 원장(History).

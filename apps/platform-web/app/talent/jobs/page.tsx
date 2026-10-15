@@ -3,15 +3,15 @@
 // 진입 계측. 그리고 목록 API 가 실패했을 때만 사람이 읽을 수 있는 안내를 위에 띄운다.
 //
 // 처음에는 제목·설명·최근 공고 링크를 서버에서 렌더했는데, JobsScreen 자체 헤더와 겹쳐
-// 화면 위에 중복으로 보여서 뺐다. 공고 본문은 개별 상세 페이지에서 서버 렌더된다.
+// 화면 위에 중복으로 보여서 뺐다. 하단 '최근 등록된 공고' 링크 목록도 사용자에게 군더더기라 뺐다 —
+// 크롤러는 공고 sitemap(/sitemaps/jobs/N.xml)으로 상세 페이지를 찾는다. 공고 본문은 상세 페이지에서 서버 렌더된다.
 import type { Metadata } from "next";
 import { JobsScreen } from "../../../components/talent/screens/JobsScreen";
 import { JsonLd } from "../../../components/seo/JsonLd";
 import { GrowthPageView } from "../../../components/seo/GrowthPageView";
 import { breadcrumbJsonLd } from "../../../lib/seo-jsonld";
 import { pageSeo } from "../../../lib/seo";
-import Link from "next/link";
-import { companyNameOf, fetchPublicPositions, hasIndexableBody, isClosed } from "../../../lib/server/positions";
+import { fetchPublicPositions, hasIndexableBody, isClosed } from "../../../lib/server/positions";
 
 export const metadata: Metadata = pageSeo({
   path: "/talent/jobs",
@@ -44,27 +44,7 @@ export default async function TalentJobsRoute() {
         </section>
       ) : null}
 
-      {/* 서버에서 읽은 최근 공고 — 셸 '안' 하단에 들어간다(셸 앞에 두면 GNB 위에 뜬다).
-          크롤러가 목록 HTML 에서 실제 공고를 볼 수 있게 하는 유일한 경로다. */}
-      <JobsScreen
-        seoSlot={
-          listed.length > 0 ? (
-            <nav aria-label="최근 등록된 공고">
-              <h2 className="text-[13px] font-bold text-[#8B95A1]">최근 등록된 공고</h2>
-              <ul className="mt-2 flex flex-col gap-1">
-                {listed.map((p) => (
-                  <li key={p.id} className="text-[13px] leading-relaxed">
-                    <Link href={`/talent/jobs/${p.id}`} className="text-[#4E5968] underline-offset-2 hover:underline">
-                      {p.title}
-                      {companyNameOf(p) ? <span className="text-[#8B95A1]"> · {companyNameOf(p)}</span> : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : undefined
-        }
-      />
+      <JobsScreen />
     </>
   );
 }

@@ -1,0 +1,24 @@
+/* 리뉴얼 v2 — 흰 바탕 토스 스타일의 공통 색. .v2 아래에서만 쓴다(기존 화면엔 영향 없음).
+   원칙: 흰 바탕 + 토스 회색 단계로 글의 위계를 만들고, 구획은 두꺼운 연회색 띠로 나눈다.
+   파랑(브랜드)은 주 버튼·링크에만. 주의(주황)는 '마감·다시 볼 것'에만. */
+.v2 {
+  --v2-bg: #ffffff;
+  --v2-band: #f2f4f6;
+  --v2-fill: #f9fafb;
+  --v2-ink: #191f28;
+  --v2-ink-2: #333d4b;
+  --v2-ink-3: #4e5968;
+  --v2-muted: #6b7684;
+  --v2-faint: #8b95a1;
+  --v2-line: #e5e8eb;
+  --v2-accent: #0b46e8;
+  --v2-accent-weak: #edf1fd;
+  --v2-attention: #f04452;
+  --v2-good: #00a661;
+
+  background: var(--v2-bg);
+  color: var(--v2-ink);
+  min-height: 100vh;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

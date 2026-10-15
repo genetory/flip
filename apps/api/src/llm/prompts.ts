@@ -391,3 +391,132 @@ export function buildPolishExperienceMessages(input: PolishExperienceInput): Llm
   const user = `${type ? `경험 유형: ${type}\n` : ""}경험 설명:\n${text}`;
   return { system, user };
 }
+
+// ── 내 커리어 '기업이 보는 내 강점 3가지' — 이력서·자소서를 읽고 강점 키워드 3개 + 근거 한 줄.
+export const CAREER_STRENGTHS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    strengths: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { keyword: { type: "string" }, evidence: { type: "string" } },
+        required: ["keyword", "evidence"]
+      }
+    }
+  },
+  required: ["strengths"]
+} as const;
+
+export function buildCareerStrengthsMessages(input: { profile: string; targetRoles?: string[] }): LlmMessages {
+  const system =
+    "당신은 한국 기업의 채용 담당자입니다. 지원자의 이력서·자기소개서를 읽고, 채용 담당자 눈에 띄는 이 지원자의 강점 3가지를 뽑아 주세요.\n" +
+    "[규칙]\n" +
+    "- 강점마다 keyword 는 2~12자의 짧은 명사구(예: '대용량 트래픽 처리', '고객 응대 경험', '데이터 기반 개선'). '성실함'·'열정' 같은 누구에게나 붙는 말은 피하세요.\n" +
+    "- evidence 는 그 강점을 보여주는 근거를 입력에서 찾아 한 문장(40자 안팎)으로. 입력에 없는 회사·수치·성과를 지어내지 마세요.\n" +
+    "- 서로 겹치지 않게 3개. 근거가 부족하면 있는 내용 안에서 가장 설득력 있는 것을 고르세요.\n" +
+    "- 관심 직무가 주어지면 그 직무에서 중요하게 보는 강점을 우선하세요." +
+    aiLangDirective();
+  const roles = input.targetRoles?.filter(Boolean).length ? `관심 직무: ${input.targetRoles!.filter(Boolean).join(", ")}\n\n` : "";
+  const user = `${roles}[지원자 서류]\n${input.profile}`;
+  return { system, user };
+}
+
+// ── 내 커리어 '이 직무에 필요한 것'.
+// ① 추출(공고 묶음별): 자격 요건에 실제로 적힌 기술·경험·자격증·어학의 이름 + 공고에 쓰인 표기(aliases).
+//    몇 곳에 나왔는지는 서버가 aliases 를 공고 글에 직접 대조해 센다 — 모델이 센 숫자·번호는 믿지 않는다.
+// ② 판정: 기술·자격증·어학은 서버가 서류 글에서 aliases 를 찾아 판정, '경험'만 모델이 판단(+ 없을 때 팁).
+export const ROLE_REQUIREMENTS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          category: { type: "string", enum: ["skill", "experience", "certificate", "language"] },
+          name: { type: "string" },
+          aliases: { type: "array", items: { type: "string" } }
+        },
+        required: ["category", "name", "aliases"]
+      }
+    }
+  },
+  required: ["items"]
+} as const;
+
+export function buildRoleRequirementsMessages(input: { role: string; jobs: { title: string; required?: string; preferred?: string }[] }): LlmMessages {
+  const system =
+    "당신은 채용 공고 분석가입니다. 같은 직무 공고들의 자격 요건(필수·우대)에 실제로 적힌 요구 사항을 빠짐없이 뽑아 주세요.\n" +
+    "[뽑는 것 — 구체적인 것만]\n" +
+    "- skill: 기술·도구·프로그래밍 언어·프레임워크·소프트웨어(예: Java, Spring, React, Figma, Excel, SQL, GA4, Photoshop).\n" +
+    "- experience: 구체적인 업무·프로젝트·도메인 경험(예: REST API 설계, 대용량 트래픽 처리, B2B 영업, 퍼포먼스 마케팅 집행). '관련 경력 N년'은 빼세요.\n" +
+    "- certificate: 자격증·시험(예: 정보처리기사, 컴활 1급, AWS 자격증).\n" +
+    "- language: 어학(예: 영어, 일본어, 중국어, TOEIC, 한국어·TOPIK).\n" +
+    "[뽑지 않는 것] 커뮤니케이션·책임감·성실·열정·협업 같은 태도·성향, '관련 전공' 같은 학위 일반, 근무 조건.\n" +
+    "[규칙]\n" +
+    "- 공고에 실제로 적힌 것만. 상식으로 덧붙이지 마세요.\n" +
+    "- 같은 뜻은 하나로 묶고 대표 이름을 name 에(예: Spring / Spring Boot / 스프링 → name 'Spring'). 'A 및 B'·'A/B'는 나눠서 한 항목에 하나만.\n" +
+    "- name 은 2~20자, 기술명은 공식 표기, 나머지는 한국어.\n" +
+    "- aliases: 공고 글에 실제로 쓰인 표기들(대표 이름 포함, 1~6개). 공고 글에서 그대로 찾을 수 있는 짧은 키워드로(예: ['Spring', 'Spring Boot', '스프링'], ['REST API', 'RESTful'], ['대용량 트래픽', '대규모 트래픽']).\n" +
+    "  '개발', '서비스', '운영', '경험', '프로젝트', '협업' 같은 흔한 단어 하나만으로 된 표기는 넣지 마세요 — 그 항목만 가리키는 구체적인 표기여야 해요.\n" +    "  aliases 는 '같은 것의 다른 표기'만이에요. 상위 개념이나 비슷한 다른 기술은 넣지 마세요(예: MySQL 의 aliases 에 SQL·RDBMS·PostgreSQL 금지).\n" +
+    "- 직무 이름 자체(예: '백엔드 개발', '프론트엔드 경험')는 항목으로 뽑지 마세요.\n" +
+    "- experience 는 다른 공고에서도 같은 이름으로 다시 찾을 수 있는 구체적인 일로(예: '결제 시스템', '대용량 트래픽 처리', 'MSA'). '서비스 개발 및 운영 경험', '코드 품질 향상' 같은 막연한 말은 빼세요.\n" +
+    "- 한 번만 나온 것도 뽑으세요. 최대 40개.";
+  const jobs = input.jobs.map((j, i) => `[공고 ${i + 1}] ${j.title}\n필수: ${j.required ?? ""}\n우대: ${j.preferred ?? ""}`).join("\n\n");
+  return { system, user: `직무: ${input.role}\n\n${jobs}` };
+}
+
+export const ROLE_HAVE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { index: { type: "integer" }, have: { type: "boolean" }, tip: { type: "string" } },
+        required: ["index", "have", "tip"]
+      }
+    }
+  },
+  required: ["items"]
+} as const;
+
+export function buildRoleHaveMessages(input: { role: string; profile: string; items: { category: string; name: string }[] }): LlmMessages {
+  const system =
+    "당신은 커리어 코치입니다. 직무 요구 항목 목록과 지원자 서류를 보고, 항목마다 서류에 있는지 판단해 주세요.\n" +
+    "[판정]\n" +
+    "- 서류의 경력·프로젝트·활동·자기소개서 내용을 꼼꼼히 읽으세요.\n" +
+    "- 그 일을 직접 한 내용이 있으면 have=true(예: 결제 회사에서 결제 API 운영 → '결제 시스템 경험' true). 비슷한 단어만 있고 실제로 한 일이 아니면 false.\n" +
+    "- 서류 어디에도 근거가 없을 때만 false.\n" +
+    "- tip: have=false 일 때만 한 문장(35자 안팎) — 어떻게 채우면 좋을지(이미 해 봤다면 이력서에 적으라는 안내도 좋아요). have=true 면 빈 문자열.\n" +
+    "- index 는 입력 항목 번호 그대로, 모든 항목에 대해 답하세요." +
+    aiLangDirective();
+  const list = input.items.map((x, i) => `${i + 1}. [${x.category}] ${x.name}`).join("\n");
+  return { system, user: `직무: ${input.role}\n\n[요구 항목]\n${list}\n\n[지원자 서류]\n${input.profile}` };
+}
+
+// ── '이 직무에 필요한 것' 보강 — 공고 표본이 작거나 공고에 잘 안 적히는 것(대표 자격증·어학 등)을
+// 모델이 아는 '한국에서 이 직무 신입이 흔히 준비하는 것'으로 채운다. 공고 항목과 표기로 합치고, 공고에 나오면 그 수를 쓴다.
+export const ROLE_COMMON_SCHEMA = ROLE_REQUIREMENTS_SCHEMA;
+
+export function buildRoleCommonMessages(input: { role: string }): LlmMessages {
+  const system =
+    "당신은 한국 채용 시장을 잘 아는 커리어 코치입니다. 한국에서 주어진 직무에 지원하는 신입·주니어(외국인 유학생 포함)가 보통 갖추거나 준비하는 것을 알려 주세요.\n" +
+    "[규칙]\n" +
+    "- 8개 안팎. 실제로 그 직무 신입 채용에서 흔히 보거나 준비하는 것만. 확실하지 않으면 넣지 마세요.\n" +
+    "- skill: 그 직무의 대표 기술·도구(예: 백엔드 → Java, Spring, SQL / 마케팅 → GA4, Meta 광고, 엑셀).\n" +
+    "- experience: 신입이 준비하는 경험 유형(예: 개인·팀 프로젝트 배포 경험, 직무 인턴, 공모전, 포트폴리오).\n" +
+    "- certificate: 그 직무에서 실제로 흔한 자격증만(예: 개발 → 정보처리기사, 회계 → 전산회계). 그 직무에 흔한 자격증이 없으면 넣지 마세요.\n" +
+    "- language: 외국인 지원자에게 흔히 요구되는 한국어 수준(TOPIK 급수)과 그 직무에서 흔한 외국어.\n" +
+    "- name 은 2~20자, 기술명은 공식 표기, 나머지는 한국어. aliases 는 같은 것의 흔한 표기 1~6개(대표 이름 포함, 예: ['Spring', 'Spring Boot', '스프링']). 상위 개념·비슷한 다른 기술은 넣지 마세요(MySQL 에 SQL 금지).\n" +
+    "- 직무 이름 자체(예: '백엔드 개발')는 항목으로 넣지 마세요.\n" +
+    "- '커뮤니케이션 능력' 같은 태도·성향과 학위·전공 일반은 빼세요.";
+  return { system, user: `직무: ${input.role}` };
+}

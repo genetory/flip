@@ -201,7 +201,8 @@ export function ApplicationsScreen() {
 }
 
 // 회사 문의 — 지원 건별 메시지 스레드(쪽지). 학생↔회사.
-function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+// 리뉴얼 v2(지원 현황)도 같은 팝업을 쓴다.
+export function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
   const tr = usePlatformT();
   useLockBodyScroll();
   const [messages, setMessages] = useState<ApplicationMessage[] | null>(null);
@@ -300,7 +301,8 @@ function MessageModal({ app, onClose }: { app: MyApplication; onClose: () => voi
   );
 }
 
-function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplication; withdrawing: boolean; onClose: () => void; onConfirm: () => void }) {
+// 리뉴얼 v2(지원 현황)도 같은 팝업을 쓴다.
+export function WithdrawModal({ app, withdrawing, onClose, onConfirm }: { app: MyApplication; withdrawing: boolean; onClose: () => void; onConfirm: () => void }) {
   const tr = usePlatformT();
   useLockBodyScroll();
   useEffect(() => {
@@ -465,7 +467,8 @@ function timelineEventMeta(t: PlatformT, code: string): { emoji: string; label: 
 }
 
 // 진행 내역 — 상태 변경·면접 이벤트를 시간순으로 보여주는 활동 타임라인.
-function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+// 리뉴얼 v2(지원 현황)도 같은 팝업을 쓴다.
+export function ProgressModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
   const tr = usePlatformT();
   useLockBodyScroll();
   const [events, setEvents] = useState<ApplicationTimelineEvent[] | null>(null);
@@ -687,7 +690,8 @@ function StatusBlock({ app, onSelectInterview }: { app: MyApplication; onSelectI
 }
 
 // 면접 시간 선택 — 회사가 제안한 슬롯 중 하나를 골라 확정한다.
-function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
+// 리뉴얼 v2(지원 현황)도 같은 팝업을 쓴다.
+export function InterviewSlotModal({ app, onClose }: { app: MyApplication; onClose: () => void }) {
   const tr = usePlatformT();
   const toast = useTalentPopup();
   useLockBodyScroll();

@@ -2,9 +2,9 @@
 
 // 모의 면접 — 한 문항씩 진행하며 답변·AI 피드백을 받고 저장한다.
 // item 있으면 회사 공고 기반(연습 기록을 회사에 노출), 없으면(self) 내 이력서·자기소개서 기반(계정에 저장).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { X, Sparkle, CaretLeft, CaretRight, CircleNotch } from "@phosphor-icons/react";
+import { X, Sparkle, CaretLeft, CaretRight, CircleNotch, PencilSimple } from "@phosphor-icons/react";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 import { useResumeDoc } from "../../../lib/talent/resume-doc";
@@ -15,6 +15,8 @@ import { catMeta, CATEGORY_ORDER } from "../../../lib/talent/mock-interview-cate
 import { mockCategoryLabelOf } from "../../../lib/talent/career-labels";
 import { talentAppRoutes } from "../../../lib/talent/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
+import { trackInterviewFollowUpStarted, trackInterviewRetryScored } from "../../../lib/analytics";
+import { recordImportedPractice } from "../../../lib/talent/imported-jobs";
 import { aiInterviewQuestions, aiInterviewFeedback, recordMockInterviewPractice, type PublicPositionListItem, type InterviewQuestion, type InterviewFeedback } from "../../../lib/member-profile-client";
 import { getAiUsage, type AiUsage } from "../../../lib/resume-maker-client";
 import { AiTicketStatusModal } from "../../resume-maker/AiTicketStatusModal";
@@ -23,7 +25,7 @@ import type { ResumeDoc } from "../../../lib/talent/resume-doc";
 import type { CoverDoc } from "../../../lib/talent/cover-doc";
 import type { BasicInfo } from "../../../lib/talent/basic-info";
 
-function resumeToText(doc: ResumeDoc | null, info: BasicInfo): string {
+export function resumeToText(doc: ResumeDoc | null, info: BasicInfo): string {
   if (!doc || !Array.isArray(doc.items)) return "";
   const lines: string[] = [];
   if (info.realName) lines.push(`이름: ${info.realName}`);
@@ -58,7 +60,11 @@ function jobToText(item: PublicPositionListItem): string {
     .slice(0, 6000);
 }
 
-type Slot = { answer: string; fb: InterviewFeedback | null };
+// prev — 같은 질문에 다시 답할 때 직전 평가. 고치는 동안 지난 지적을 보여 주고, 새 점수와 비교한다.
+// 꼬리 질문은 직전 질문 바로 뒤에 끼워 넣는다 — followUp 표시로 배지를 달리 단다.
+type Q = InterviewQuestion & { followUp?: boolean };
+
+type Slot = { answer: string; fb: InterviewFeedback | null; prev?: InterviewFeedback | null };
 
 // AI 티켓 부족(서버가 402 + AiWallet 잔액 차감) 여부.
 function isQuota(err: unknown): boolean {
@@ -84,7 +90,7 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
 
   // category: null = 유형 선택 화면. "authored"(회사 대표 질문) | 카테고리 키.
   const [category, setCategory] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<InterviewQuestion[] | null>(null);
+  const [questions, setQuestions] = useState<Q[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [idx, setIdx] = useState(0);
@@ -205,9 +211,15 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
 
   const total = questions?.length ?? 0;
   const atLast = total > 0 && idx >= total - 1;
+  const currentFb = slots[idx]?.fb ?? null;
+  const currentAnswer = slots[idx]?.answer ?? "";
 
+  // 평가받은 뒤 답을 고치기 시작하면 그 평가를 '직전 평가'로 넘긴다 — 다시 평가받으면 점수 변화를 보여 준다.
   function setAnswerText(i: number, v: string) {
-    setSlots((prev) => ({ ...prev, [i]: { answer: v, fb: null } }));
+    setSlots((prev) => {
+      const cur = prev[i];
+      return { ...prev, [i]: { answer: v, fb: null, prev: cur?.fb ?? cur?.prev ?? null } };
+    });
   }
 
   // 다음 질문 — 남은 질문이 있으면 이동, 없으면 새로 생성해서 이어간다.
@@ -246,9 +258,13 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
     setBusy(true);
     aiInterviewFeedback({ question: q.question, answer: a, resumeText: resumeText || undefined, desiredJobRole })
       .then((f) => {
-        setSlots((prev) => ({ ...prev, [idx]: { answer: a, fb: f } }));
+        const before = slots[idx]?.prev ?? null;
+        setSlots((prev) => ({ ...prev, [idx]: { answer: a, fb: f, prev: prev[idx]?.prev ?? null } }));
+        if (before) trackInterviewRetryScored(f.score - before.score);
         // 저장: 공고 모의 → 회사에 노출, self 모의 → 계정에 보관.
-        if (item?.id) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
+        // 가져온 외부 공고(ext-…)는 회사가 없는 공고라 서버 연습 기록 대신 계정의 가져온 공고에 남긴다(기록은 꼭 남아야 한다).
+        if (item?.id?.startsWith("ext-")) recordImportedPractice(item.id, { question: q.question, answer: a, score: f.score });
+        else if (item?.id) void recordMockInterviewPractice(item.id, { question: q.question, answer: a, score: f.score }).catch(() => {});
         else saveSelfMockAnswer({ question: q.question, category: q.category, answer: a, score: f.score, feedback: f });
         syncTickets();
       })
@@ -261,6 +277,32 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
         }
       })
       .finally(() => setBusy(false));
+  }
+
+  // 꼬리 질문 — 지금 질문 바로 뒤에 끼워 넣고 그리로 간다(이미 끼워 뒀으면 이동만). 평가와 함께 받아 온 거라 티켓 없음.
+  function answerFollowUp(text: string) {
+    if (!questions) return;
+    const next = questions[idx + 1];
+    if (next?.followUp && next.question === text) {
+      setIdx(idx + 1);
+      return;
+    }
+    const cur = questions[idx];
+    const fq: Q = {
+      question: text,
+      intent: t("방금 답변을 더 파고드는 질문이에요. 숫자·본인 역할·근거로 답해 보세요.", "This digs into your last answer. Answer with numbers, your own role, and evidence.", "这是针对刚才回答的追问。请用数字、本人角色和依据来回答。", "Câu này đào sâu câu trả lời vừa rồi. Hãy trả lời bằng số liệu, vai trò của bạn và căn cứ.", "今の回答を深掘りする質問です。数字・自分の役割・根拠で答えてみましょう。", "Ini menggali jawabanmu barusan. Jawab dengan angka, peranmu, dan bukti."),
+      category: cur.category,
+      followUp: true
+    };
+    // 뒤에 있던 질문들의 답은 한 칸씩 밀어 둔다.
+    setSlots((prev) => {
+      const out: Record<number, Slot> = {};
+      for (const [k, v] of Object.entries(prev)) out[Number(k) > idx ? Number(k) + 1 : Number(k)] = v;
+      return out;
+    });
+    setQuestions([...questions.slice(0, idx + 1), fq, ...questions.slice(idx + 1)]);
+    setIdx(idx + 1);
+    trackInterviewFollowUpStarted();
   }
 
   // 공고(item)가 있으면 이력서 없이도 진행 가능(공고/직무 기반). 자유 모의(self)만 이력서가 필요.
@@ -332,39 +374,66 @@ export function MockInterviewModal({ item, onClose }: { item?: PublicPositionLis
                 q={questions[idx]}
                 intentHint={item?.mockInterviewIntent && idx === 0 ? item.mockInterviewIntent : ""}
                 slot={slots[idx]}
-                busy={busy}
                 onChange={(v) => setAnswerText(idx, v)}
-                onFeedback={getFeedback}
+                onFollowUp={answerFollowUp}
               />
             </>
           )}
         </div>
 
-        {/* 하단 내비 — 이전 / 다음 질문(끝이면 새로 생성) */}
+        {/* 하단 — 지금 할 일 하나만 파란 버튼으로. 답하기 전엔 'AI 피드백 받기', 평가를 받았으면 '다음 질문'.
+            (예전엔 본문에도 파란·주황 버튼이 여럿이라 무엇을 누를지 헷갈렸다.) */}
         {category !== null && questions && total > 0 ? (
           <div className="flex items-center gap-2 border-t border-[#F2F4F6] px-5 py-3">
             <button
               type="button"
               onClick={() => setIdx((v) => Math.max(0, v - 1))}
               disabled={idx === 0}
-              className="flex h-[46px] items-center justify-center gap-1 rounded-2xl bg-[#F2F4F6] px-4 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40"
+              aria-label={t("이전 질문", "Previous question", "上一题", "Câu trước", "前の質問", "Pertanyaan sebelumnya")}
+              className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40"
             >
-              <CaretLeft className="h-4 w-4" weight="bold" /> {t("이전", "Prev", "上一个", "Trước", "前へ", "Sebelum")}
+              <CaretLeft className="h-4 w-4" weight="bold" />
             </button>
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={loadingMore || (atLast && !canGenerate)}
-              className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
-            >
-              {loadingMore ? (
-                <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("새 질문 생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…")}</>
-              ) : atLast && canGenerate ? (
-                <><Sparkle className="h-4 w-4" weight="fill" /> {t("새로운 질문 생성", "New question", "生成新问题", "Câu hỏi mới", "新しい質問を生成", "Pertanyaan baru")} <AiTicketCost feature="interview_questions" size="md" /></>
-              ) : (
-                <>{t("다음 질문", "Next", "下一题", "Tiếp", "次の質問", "Berikutnya")} <CaretRight className="h-4 w-4" weight="bold" /></>
-              )}
-            </button>
+            {currentFb ? (
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={loadingMore || (atLast && !canGenerate)}
+                className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("새 질문 생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…")}</>
+                ) : atLast && canGenerate ? (
+                  <>{t("다음 질문", "Next question", "下一题", "Câu tiếp theo", "次の質問", "Pertanyaan berikutnya")} <AiTicketCost feature="interview_questions" size="md" /></>
+                ) : (
+                  <>{t("다음 질문", "Next question", "下一题", "Câu tiếp theo", "次の質問", "Pertanyaan berikutnya")} <CaretRight className="h-4 w-4" weight="bold" /></>
+                )}
+              </button>
+            ) : (
+              <>
+                {/* 답하지 않고 넘어가기 — 보조 버튼. */}
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={busy || loadingMore || (atLast && !canGenerate)}
+                  className="flex h-[46px] shrink-0 items-center justify-center rounded-2xl px-3 text-[13.5px] font-semibold text-[#8B95A1] transition hover:text-[#4E5968] disabled:opacity-40"
+                >
+                  {t("건너뛰기", "Skip", "跳过", "Bỏ qua", "スキップ", "Lewati")}
+                </button>
+                <button
+                  type="button"
+                  onClick={getFeedback}
+                  disabled={!currentAnswer.trim() || busy}
+                  className="flex h-[46px] flex-1 items-center justify-center gap-1.5 rounded-2xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
+                >
+                  {busy ? (
+                    <><CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> {t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…")}</>
+                  ) : (
+                    <>{t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバックを受ける", "Dapatkan umpan balik AI")} <AiTicketCost feature="interview_feedback" size="md" /></>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         ) : null}
       </div>
@@ -387,83 +456,137 @@ function QuestionStep({
   q,
   intentHint,
   slot,
-  busy,
   onChange,
-  onFeedback
+  onFollowUp
 }: {
   index: number;
-  q: InterviewQuestion;
+  q: Q;
   intentHint: string;
   slot: Slot | undefined;
-  busy: boolean;
   onChange: (v: string) => void;
-  onFeedback: () => void;
+  onFollowUp: (question: string) => void;
 }) {
   const t = usePlatformT();
+  const answerRef = useRef<HTMLTextAreaElement | null>(null);
+  // 평가가 오면 점수가 보이는 데까지 굴린다 — 답변란 아래에 열려서 그대로 두면 점수를 못 보고 지나친다.
+  const feedbackRef = useRef<HTMLDivElement | null>(null);
+  const fbScore = slot?.fb?.score;
+  useEffect(() => {
+    if (fbScore === undefined) return;
+    feedbackRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [fbScore]);
   const meta = catMeta(q.category);
   const fb = slot?.fb ?? null;
   const answer = slot?.answer ?? "";
   return (
-    <div className="flex flex-col gap-3">
-      {intentHint ? (
-        <div className="rounded-2xl bg-[#F5F8FF] px-4 py-3">
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("이 회사가 보려는 포인트", "What this company looks for", "该公司关注的重点", "Điều công ty này tìm kiếm", "この会社が見たいポイント", "Yang dicari perusahaan ini")}</p>
-          <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#4E5968]">{intentHint}</p>
-        </div>
-      ) : null}
-
-      {/* 카테고리 + 질문 */}
+    <div className="flex flex-col gap-4">
+      {/* 질문 — 번호·유형은 작은 회색 글씨로, 질문만 크게. 의도는 상자 없이 한 줄. */}
       <div>
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}>
-          {meta.emoji} {mockCategoryLabelOf(t, q.category)}
-        </span>
-        <p className="mt-2.5 flex items-start gap-2 break-keep text-[16px] font-bold leading-relaxed text-[#191F28]">
-          <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[11px] font-black text-[#0B46E8]">{index + 1}</span>
-          <span>{q.question}</span>
+        <p className="text-[12px] font-semibold text-[#8B95A1]">
+          {index + 1} · {q.followUp ? `↳ ${t("꼬리 질문", "Follow-up", "追问", "Câu hỏi nối tiếp", "深掘り質問", "Pertanyaan lanjutan")}` : `${meta.emoji} ${mockCategoryLabelOf(t, q.category)}`}
         </p>
-        {q.intent ? (
-          <p className="mt-2 rounded-lg bg-[#F8FAFB] px-3 py-2 text-[12px] leading-relaxed text-[#8B95A1]">
-            <span className="font-bold text-[#0B46E8]">💡 {t("이 질문의 의도 · ", "Why this question · ", "此问题的意图 · ", "Ý đồ câu hỏi · ", "この質問の意図 · ", "Maksud pertanyaan · ")}</span>{q.intent}
+        <p className="mt-1.5 break-keep text-[17px] font-bold leading-relaxed text-[#191F28]">{q.question}</p>
+        {q.intent ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">💡 {q.intent}</p> : null}
+        {intentHint ? (
+          <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">
+            <span className="font-semibold text-[#6B7684]">{t("이 회사가 보려는 포인트", "What this company looks for", "该公司关注的重点", "Điều công ty này tìm kiếm", "この会社が見たいポイント", "Yang dicari perusahaan ini")}</span> · {intentHint}
           </p>
         ) : null}
       </div>
 
+      {/* 고치는 중 — 지난 평가의 지적을 옆에 둔다(무엇을 고칠지 보면서 쓰게). */}
+      {!fb && slot?.prev?.improvements.length ? (
+        <div className="rounded-xl bg-[#F8FAFB] px-3.5 py-3">
+          <p className="text-[12px] font-bold text-[#4E5968]">
+            {t(`지난 답변 ${slot.prev.score}점 · 이걸 고쳐 보세요`, `Last answer ${slot.prev.score} · Fix these`, `上次回答 ${slot.prev.score}分 · 试着改进这些`, `Lần trước ${slot.prev.score} điểm · Hãy sửa những điểm này`, `前回 ${slot.prev.score}点 · ここを直してみましょう`, `Jawaban lalu ${slot.prev.score} · Perbaiki ini`)}
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">{slot.prev.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#6B7684]">· {s}</li>)}</ul>
+        </div>
+      ) : null}
+
       <textarea
+        ref={answerRef}
         value={answer}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
         placeholder={t("답변을 적어보세요. (STAR: 상황·과제·행동·결과)", "Write your answer. (STAR: Situation, Task, Action, Result)", "写下你的回答。（STAR：情境·任务·行动·结果）", "Viết câu trả lời. (STAR: Tình huống·Nhiệm vụ·Hành động·Kết quả)", "回答を書いてください。（STAR：状況・課題・行動・結果）", "Tulis jawaban Anda. (STAR: Situasi·Tugas·Aksi·Hasil)")}
         className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[16px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
       />
-      <button
-        type="button"
-        onClick={onFeedback}
-        disabled={!answer.trim() || busy}
-        className="inline-flex items-center justify-center gap-1.5 self-start rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40"
-      >
-        <Sparkle className="h-3.5 w-3.5" weight="fill" /> {busy ? t("평가 중…", "Evaluating…", "评估中…", "Đang đánh giá…", "評価中…", "Menilai…") : fb ? t("다시 평가받기", "Re-evaluate", "重新评估", "Đánh giá lại", "再評価する", "Nilai ulang") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバックを受ける", "Dapatkan umpan balik AI")}
-        {!busy ? <AiTicketCost feature="interview_feedback" size="md" /> : null}
-      </button>
 
-      {fb ? <FeedbackCard fb={fb} /> : null}
+      {fb ? (
+        <div ref={feedbackRef} className="scroll-mt-3">
+          <FeedbackCard fb={fb} prev={slot?.prev ?? null} />
+          <button
+            type="button"
+            onClick={() => {
+              const el = answerRef.current;
+              if (!el) return;
+              el.focus();
+              el.setSelectionRange(el.value.length, el.value.length);
+              el.scrollIntoView({ block: "center", behavior: "smooth" });
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-1 py-1.5 text-[13px] font-bold text-[#0B46E8] transition hover:text-[#0A3ECB]"
+          >
+            <PencilSimple className="h-3.5 w-3.5" weight="bold" /> {t("고쳐서 다시 답하기", "Revise and answer again", "修改后再回答", "Sửa và trả lời lại", "直してもう一度答える", "Perbaiki dan jawab lagi")}
+          </button>
+        </div>
+      ) : null}
+
+      {/* 꼬리 질문 — 실제 면접은 첫 답에서 끝나지 않는다. 이어서 파고드는 질문에 바로 답해 보게 한다. */}
+      {fb?.followUp ? (
+        <div className="rounded-2xl border border-[#EEF1F5] p-4">
+          <p className="text-[12px] font-semibold text-[#8B95A1]">{t("면접관이 이어서 이렇게 물어볼 수 있어요", "The interviewer might follow up with", "面试官可能会接着这样问", "Người phỏng vấn có thể hỏi tiếp", "面接官はこう続けて聞くかもしれません", "Pewawancara mungkin bertanya lanjut")}</p>
+          <p className="mt-1 break-keep text-[14.5px] font-bold leading-relaxed text-[#191F28]">{fb.followUp}</p>
+          <button
+            type="button"
+            onClick={() => onFollowUp(fb.followUp!)}
+            className="mt-3 inline-flex items-center gap-1 rounded-xl border border-[#D6E0FA] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#F5F8FF]"
+          >
+            {t("이 질문에 답하기", "Answer this", "回答这个问题", "Trả lời câu này", "この質問に答える", "Jawab ini")} <CaretRight className="h-3.5 w-3.5" weight="bold" />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function FeedbackCard({ fb }: { fb: InterviewFeedback }) {
+function FeedbackCard({ fb, prev }: { fb: InterviewFeedback; prev: InterviewFeedback | null }) {
   const t = usePlatformT();
+  const delta = prev ? fb.score - prev.score : null;
+  // 모범 답안은 길어서 접어 둔다 — 먼저 내 답을 고쳐 보게.
+  const [showSample, setShowSample] = useState(false);
   return (
     <div className="mt-1 flex flex-col gap-2.5 rounded-2xl bg-[#F8FAFB] p-4">
+      {/* 점수 — 다시 답했으면 직전 점수와 나란히. 고친 만큼 오르는 걸 봐야 연습이 도움된다고 느낀다. */}
+      <div className="flex items-baseline gap-2">
+        {prev ? <span className="text-[15px] font-bold tabular-nums text-[#B0B8C1]">{prev.score} →</span> : null}
+        <span className="text-[22px] font-black tabular-nums text-[#191F28]">{fb.score}</span>
+        <span className="text-[12px] font-semibold text-[#8B95A1]">{t("점", "pts", "分", "điểm", "点", "poin")}</span>
+        {delta !== null && delta !== 0 ? (
+          <span className={`ml-1 rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums ${delta > 0 ? "bg-[#E7F7EF] text-[#0A9B59]" : "bg-[#F2F4F6] text-[#6B7684]"}`}>
+            {delta > 0 ? `+${delta}` : delta}
+          </span>
+        ) : null}
+      </div>
+      {fb.strengths.length ? (
+        <div>
+          <p className="text-[12px] font-bold text-[#4E5968]">{t("잘한 점", "What went well", "做得好的地方", "Điểm tốt", "良かった点", "Yang sudah baik")}</p>
+          <ul className="mt-1 flex flex-col gap-0.5">{fb.strengths.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
+        </div>
+      ) : null}
       {fb.improvements.length ? (
         <div>
-          <p className="text-[11.5px] font-bold text-[#E8890C]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
+          <p className="text-[12px] font-bold text-[#4E5968]">{t("개선하면 좋아요", "Areas to improve", "可改进之处", "Cần cải thiện", "改善するとよい点", "Perlu diperbaiki")}</p>
           <ul className="mt-1 flex flex-col gap-0.5">{fb.improvements.map((s, i) => <li key={i} className="break-keep text-[12.5px] text-[#4E5968]">· {s}</li>)}</ul>
         </div>
       ) : null}
       {fb.sampleAnswer ? (
-        <div>
-          <p className="text-[11.5px] font-bold text-[#0B46E8]">{t("모범답안(내 이력서 기반)", "Model answer (based on my resume)", "范例答案（基于我的简历）", "Câu trả lời mẫu (dựa trên CV của tôi)", "模範回答（私の履歴書に基づく）", "Jawaban model (berdasarkan resume saya)")}</p>
-          <p className="mt-1 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{fb.sampleAnswer}</p>
+        <div className="border-t border-[#EEF1F5] pt-2.5">
+          <button type="button" onClick={() => setShowSample((v) => !v)} aria-expanded={showSample} className="flex w-full items-center justify-between text-[12px] font-bold text-[#4E5968]">
+            {t("모범 답안 보기", "See a model answer", "查看范例答案", "Xem câu trả lời mẫu", "模範回答を見る", "Lihat jawaban model")}
+            <CaretRight className={`h-3.5 w-3.5 text-[#B0B8C1] transition ${showSample ? "rotate-90" : ""}`} weight="bold" />
+          </button>
+          {showSample ? <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{fb.sampleAnswer}</p> : null}
         </div>
       ) : null}
     </div>

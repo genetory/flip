@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
+import { trackEditor } from "../../../lib/analytics";
 import type { PlatformT } from "../../../lib/i18n";
 import type { PolishStyle } from "../../../lib/resume-maker-client";
 import { charCount } from "../../../lib/talent/cover-layout";
@@ -57,6 +58,7 @@ export function AiPolish({
     try {
       const polished = await polish(source, style);
       setResult({ style, original: source, polished });
+      trackEditor("editor_polish_requested", { style });
     } catch (err) {
       // 이용 한도 안내처럼 사람이 읽을 문구면 그대로, 'ai unavailable' 같은 내부 메시지면 일반 안내로.
       const msg = err instanceof Error ? err.message : "";
@@ -109,6 +111,7 @@ export function AiPolish({
               type="button"
               onClick={() => {
                 onApply(result.polished);
+                trackEditor("editor_polish_applied", { style: result.style });
                 setResult(null);
                 toast.success(t("다듬은 글로 바꿨어요", "Replaced with polished text", "已替换为润色后的文字", "Đã thay bằng bản đã chỉnh", "整えた文に置き換えました", "Diganti dengan hasil poles"));
               }}
