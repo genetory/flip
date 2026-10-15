@@ -13,7 +13,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { UploadSimple, CircleNotch } from "@phosphor-icons/react";
 import type { PlatformT } from "../../../lib/i18n";
-import { useAiPoints } from "../../../lib/ai-points";
+import { spendGate, useAiPoints } from "../../../lib/ai-points";
+import { CostBadge } from "../../v2/ai-points";
 import { Section, TINT_BTN } from "./editor-shared";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import type { CareerSection } from "../../../lib/talent/career-chat";
@@ -60,6 +61,8 @@ export function ImportFromFile<T>({
   const [applied, setApplied] = useState(false);
 
   const run = async (input: { pdfBase64?: string; text?: string }) => {
+    // v2 — 포인트를 쓰기 전 관문(모자라면 충전 창, 30P 이상이면 확인). 옛 화면(costFeature 없음)은 그대로.
+    if (costFeature && cost && !(await spendGate(cost, title))) return;
     setBusy(true);
     setError(null);
     setPreview(null);
@@ -159,7 +162,7 @@ export function ImportFromFile<T>({
             className={`${TINT_BTN} flex w-full items-center justify-center gap-1.5 ${btnSize} font-semibold leading-none`}
           >
             {busy ? <CircleNotch size={14} weight="bold" className="animate-spin" /> : <UploadSimple size={14} weight="bold" />}
-            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}{!busy && cost ? <span className="tabular-nums opacity-75">{` · ${cost.toLocaleString("en-US")}P`}</span> : null}</span>
+            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}</span>{!busy && cost ? <CostBadge cost={cost} /> : null}
           </button>
           <PasteBox t={t} busy={busy} onSubmit={(text) => void run({ text })} />
         </>

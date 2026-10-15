@@ -12,8 +12,8 @@ import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT } from "../../lib/i18n";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance, useInterviewCredits } from "../../lib/interview-credits";
 import { CreditLine } from "./interview-paywall";
-import { CostTag, InterviewPointsLine } from "./ai-points";
-import { formatPoints } from "../../lib/ai-points";
+import { CostBadge, CostTag, InterviewPointsLine } from "./ai-points";
+import { spendGate } from "../../lib/ai-points";
 import { addMyFavoritePosition, aiInterviewFeedback, getPublicPositionById, importJob, type ImportedJobDraft, type InterviewFeedback, type PublicPositionListItem } from "../../lib/member-profile-client";
 import { addImportedJob, importedToPosition } from "../../lib/talent/imported-jobs";
 import { draftResumeText } from "../../lib/resume-maker-client";
@@ -61,9 +61,13 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (typeof step === "number" && voice && questions[step]) speak(questions[step].ko);
   }, [step, voice, questions, speak]);
-  const begin = () => {
-    // 유료화가 켜져 있고 이용권이 질문 수보다 적으면 먼저 충전부터.
-    if (credits?.paywall && credits.credits < questions.length) {
+  const begin = async () => {
+    // 포인트 모드 — 세트 전체(답변 수 × 피드백 비용)를 쓰기 전에 확인(모자라면 충전 창).
+    if (credits?.points) {
+      const ok = await spendGate(credits.points.feedbackCost * questions.length, t("모의 면접 세트", "Mock interview set", "模拟面试套题", "Bộ phỏng vấn thử", "模擬面接セット", "Set simulasi"));
+      if (!ok) return;
+    } else if (credits?.paywall && credits.credits < questions.length) {
+      // 유료화가 켜져 있고 이용권이 질문 수보다 적으면 먼저 충전부터.
       openInterviewPaywall();
       return;
     }
@@ -118,10 +122,10 @@ export function InterviewSetSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         step === "intro" ? (
-          <Button full onClick={begin}>
+          <Button full onClick={() => void begin()}>
             {t("면접 시작", "Start interview", "开始面试", "Bắt đầu", "面接開始", "Mulai")}
             {/* 포인트 모드 — 세트 전체 비용(답변 수 × 답변 1개) */}
-            {credits?.points ? <span className="whitespace-nowrap tabular-nums opacity-80"> · {formatPoints(credits.points.feedbackCost * questions.length)}</span> : null}
+            {credits?.points ? <CostBadge cost={credits.points.feedbackCost * questions.length} /> : null}
           </Button>
         ) : typeof step === "number" ? (
           <Button full onClick={next} disabled={draft.trim().length < 10}>

@@ -113,3 +113,27 @@ export function isPointsError(e: unknown): boolean {
   const x = e as { status?: number; code?: string } | null;
   return x?.status === 402 && (x.code === "AI_POINTS_REQUIRED" || x.code === undefined);
 }
+
+// ── 쓰기 전 확인 ──
+/** 이 포인트 이상이면 쓰기 전에 한 번 묻는다(파일 가져오기·예상 질문·모의 면접 세트 등). */
+export const CONFIRM_FROM = 30;
+export type PointsConfirmRequest = { cost: number; label: string; resolve: (ok: boolean) => void };
+const confirmListeners = new Set<(r: PointsConfirmRequest) => void>();
+export function onPointsConfirm(cb: (r: PointsConfirmRequest) => void): () => void {
+  confirmListeners.add(cb);
+  return () => confirmListeners.delete(cb);
+}
+/**
+ * 포인트를 쓰기 전 관문 — 꺼져 있거나 비용이 0이면 통과, 잔액이 모자라면 충전 창을 열고 막는다,
+ * CONFIRM_FROM 이상이면 확인 창(취소하면 막음), 그 아래는 바로 통과. 상태를 아직 못 불러왔으면 통과(서버가 402 로 막는다).
+ */
+export async function spendGate(cost: number, label: string): Promise<boolean> {
+  const p = getAiPointsState();
+  if (!p?.enabled || !cost || cost <= 0) return true;
+  if (p.balance < cost) {
+    openPointsPaywall("needed");
+    return false;
+  }
+  if (cost < CONFIRM_FROM || confirmListeners.size === 0) return true;
+  return new Promise<boolean>((resolve) => confirmListeners.forEach((l) => l({ cost, label, resolve })));
+}

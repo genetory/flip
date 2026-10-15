@@ -8,6 +8,7 @@
 //   문항·조합     → 편집 중 행(/members/me/doc-versions, snapshot = null)
 // '새 버전으로 저장'은 그 순간의 문항·답변을 읽기 전용 저장본으로 남긴다(회사별 제출본).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { getAiPointsState, spendGate } from "../../../lib/ai-points";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CaretLeft, CaretRight, Copy, CursorClick, EyeSlash, Plus, Trash } from "@phosphor-icons/react";
 import { TalentGuard } from "../../talent/app/TalentGuard";
 import { useToast } from "../../toast/ToastProvider";
@@ -971,6 +972,8 @@ function BulkTidySection({ t, doc, onDoc }: { t: PlatformT; doc: CoverDoc; onDoc
 
   const run = async () => {
     if (busy) return;
+    const pts = getAiPointsState();
+    if (pts?.enabled && !(await spendGate((pts.costs.polish_intro ?? 0) * targets.length, t("문장 다듬기", "Polish sentences", "润色句子", "Chỉnh câu", "文章を整える", "Rapikan kalimat")))) return;
     setBusy(true);
     try {
       // 에피소드마다 한 번씩 부른다 — 자소서 다듬기는 문단 단위 배치 엔드포인트가 없다.

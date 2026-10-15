@@ -12,7 +12,7 @@ import { Button, Spinner } from "./ui";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { createPaymentOrder } from "../../lib/interview-credits";
-import { formatPoints, onPointsPaywall, refreshAiPoints, useAiCost, useAiPoints, type AiPointProduct } from "../../lib/ai-points";
+import { formatPoints, onPointsConfirm, onPointsPaywall, refreshAiPoints, useAiCost, useAiPoints, type AiPointProduct, type PointsConfirmRequest } from "../../lib/ai-points";
 import { CLIENT_KEY, COUPON, loadToss, type TossWidgets } from "./interview-paywall";
 
 export const PAYMENTS_HREF = "/talent/payments";
@@ -57,11 +57,68 @@ export function pointReasonLabel(t: PlatformT, r: string): string {
   return l ? t(...l) : t("AI 기능", "AI feature", "AI 功能", "Tính năng AI", "AI機能", "Fitur AI");
 }
 
-/** 버튼 글자 옆 비용 — " · 20P". 포인트가 꺼져 있으면 아무것도 그리지 않는다. */
+/** 비용 배지 — 버튼 글자 오른쪽의 작은 알약 "⚡20P". 버튼 색을 따라 옅게, 잔액이 모자라면 빨갛게. */
+export function CostBadge({ cost, className }: { cost: number; className?: string }) {
+  const p = useAiPoints();
+  if (!p?.enabled || !cost) return null;
+  const short = p.balance < cost;
+  return (
+    <span
+      aria-label={`${formatPoints(cost)}`}
+      className={`ml-1.5 inline-flex h-5 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-none ${short ? "bg-[#f04452] text-white" : "bg-[color-mix(in_srgb,currentColor_14%,transparent)]"} ${className ?? ""}`}
+    >
+      <span aria-hidden>⚡</span>
+      {formatPoints(cost)}
+    </span>
+  );
+}
+
+/** 기능 키로 비용 배지 — 포인트가 꺼져 있으면 아무것도 그리지 않는다. */
 export function CostTag({ feature, times = 1, className }: { feature: string; times?: number; className?: string }) {
   const cost = useAiCost(feature);
   if (!cost) return null;
-  return <span className={`whitespace-nowrap font-semibold tabular-nums opacity-75 ${className ?? ""}`}> · {formatPoints(cost * Math.max(1, times))}</span>;
+  return <CostBadge cost={cost * Math.max(1, times)} className={className} />;
+}
+
+/** 쓰기 전 확인 창(30P 이상) — spendGate() 신호를 받아 연다. v2 레이아웃에 하나. */
+export function PointsConfirmHost() {
+  const t = usePlatformT();
+  const p = useAiPoints();
+  const [req, setReq] = useState<PointsConfirmRequest | null>(null);
+  useEffect(() => onPointsConfirm((r) => setReq(r)), []);
+  if (!req) return null;
+  const close = (ok: boolean) => {
+    req.resolve(ok);
+    setReq(null);
+  };
+  const balance = p?.balance ?? 0;
+  return (
+    <Sheet
+      title={t(`${formatPoints(req.cost)}를 써요`, `This uses ${formatPoints(req.cost)}`, `将使用 ${formatPoints(req.cost)}`, `Sẽ dùng ${formatPoints(req.cost)}`, `${formatPoints(req.cost)}を使います`, `Memakai ${formatPoints(req.cost)}`)}
+      subtitle={req.label}
+      onClose={() => close(false)}
+      footer={
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="neutral" full onClick={() => close(false)}>
+            {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
+          </Button>
+          <Button full onClick={() => close(true)}>
+            {t("쓰고 시작하기", "Use & start", "使用并开始", "Dùng & bắt đầu", "使って始める", "Pakai & mulai")}
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex items-center justify-between rounded-2xl bg-[color:var(--v2-band)] px-4 py-4 text-[15px]">
+        <span className="text-[color:var(--v2-ink-3)]">{t("지금 잔액", "Balance now", "当前余额", "Số dư hiện tại", "現在の残高", "Saldo sekarang")}</span>
+        <span className="font-bold tabular-nums text-[color:var(--v2-ink)]">
+          {formatPoints(balance)} <span className="font-semibold text-[color:var(--v2-muted)]">→ {formatPoints(Math.max(0, balance - req.cost))}</span>
+        </span>
+      </div>
+      <p className="mt-3 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">
+        {t("성공했을 때만 빠져나가요. 실패하면 그대로 돌려드려요.", "Points are only used if it succeeds — otherwise nothing is charged.", "仅在成功时扣除，失败不扣。", "Chỉ trừ khi thành công; thất bại thì không trừ.", "成功したときだけ消費し、失敗したら戻ります。", "Hanya dipotong jika berhasil.")}
+      </p>
+    </Sheet>
+  );
 }
 
 /** 헤더·에디터 상단의 잔액 칩 — 쿠폰 그림 + "1,230P", 누르면 포인트·결제 내역. 로그인 + 포인트 켜짐일 때만. */

@@ -5,6 +5,7 @@
 // 실전 모드: 60초 안에 답하기. '잘해요'를 받으면 익명 예시로 공개할지 묻고, 내 답을 낸 뒤에만 다른 사람의 잘 쓴 답을 보여 준다.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Sheet } from "./sheets";
+import { CostBadge } from "./ai-points";
 import { Button, Spinner, Switch } from "./ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
@@ -312,7 +313,7 @@ export function PracticeSheet({
             {busy ? <Spinner /> : null}
             {busy ? t("AI가 읽고 있어요", "AI is reading…", "AI 正在阅读", "AI đang đọc…", "AIが読んでいます", "AI membaca…") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバック", "Dapatkan umpan balik AI")}
             {/* 비용 — 포인트 모드에서만. 오늘의 질문(하루 1번)은 차감이 없어 표시하지 않는다 */}
-            {!busy && credits?.points && !(daily && !credits.dailyFreeUsed) ? <span className="whitespace-nowrap tabular-nums opacity-80"> · {formatPoints(credits.points.feedbackCost)}</span> : null}
+            {!busy && credits?.points && !(daily && !credits.dailyFreeUsed) ? <CostBadge cost={credits.points.feedbackCost} /> : null}
           </Button>
         )
       }

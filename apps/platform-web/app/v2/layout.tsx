@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./v2.css";
 import { TalentPopupProvider } from "../../components/talent/feedback/TalentPopupProvider";
-import { PointsPaywallHost } from "../../components/v2/ai-points";
+import { PointsConfirmHost, PointsPaywallHost } from "../../components/v2/ai-points";
 
 // 리뉴얼 v2 — 기존 talent 화면(app/talent, components/talent)과 완전히 따로 만든다.
 // 열리는 곳: 스테이징·로컬만(middleware 에서 프로덕션은 404). 검색엔진에는 노출하지 않는다.
@@ -18,6 +18,7 @@ export default function V2Layout({ children }: { children: ReactNode }) {
     <TalentPopupProvider>
       {children}
       <PointsPaywallHost />
+      <PointsConfirmHost />
     </TalentPopupProvider>
   );
 }

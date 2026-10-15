@@ -15,8 +15,8 @@ import { usePlatformT } from "../../lib/i18n";
 import { aiInterviewPrep, getInterviewQuestions, getMyMockInterviewAnswers, getPublicPositionById, type InterviewReportItem, type MockInterviewAnswer, type PrepQuestion } from "../../lib/member-profile-client";
 import { useResumeDoc } from "../../lib/talent/resume-doc";
 import { isInterviewPaywallError, openInterviewPaywall, setInterviewCreditBalance } from "../../lib/interview-credits";
-import { getAiPointsState } from "../../lib/ai-points";
 import { CostTag } from "./ai-points";
+import { getAiPointsState, spendGate } from "../../lib/ai-points";
 import { useCoverDoc } from "../../lib/talent/cover-doc";
 import { useBasicInfo } from "../../lib/talent/basic-info";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
@@ -137,6 +137,8 @@ export function PrepSheetV2({ positionId, title, company, interviewAt, onPractic
 
   const jobText = ext ? [`공고: ${ext.title}`, ext.mainResponsibilities ? `주요 업무: ${ext.mainResponsibilities}` : "", ext.requiredQualifications ? `자격 요건: ${ext.requiredQualifications}` : "", ext.preferredQualifications ? `우대 사항: ${ext.preferredQualifications}` : ""].filter(Boolean).join("\n").slice(0, 6000) : job?.text ?? `공고: ${title}`;
   const makePrep = async () => {
+    const pts = getAiPointsState();
+    if (pts?.enabled && !(await spendGate(pts.costs.interview_prep ?? 0, t("면접 전날 볼 예상 질문", "Night-before likely questions", "面试前一天的预测问题", "Câu hỏi dự kiến đêm trước", "前日の予想質問", "Prediksi pertanyaan")))) return;
     setPrepBusy(true);
     setPrepError(null);
     try {
