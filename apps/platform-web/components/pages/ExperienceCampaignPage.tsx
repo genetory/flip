@@ -174,8 +174,11 @@ export function ExperienceCampaignPage() {
             </button>
             <span className="text-[14px] font-semibold text-white/80">{t("월요일까지 신청 · 화요일 선정", "Apply by Mon · picked Tue", "周一前申请 · 周二选定", "Hạn thứ Hai · chọn thứ Ba", "月曜までに申込 · 火曜に選定", "Daftar s.d. Senin · seleksi Selasa")}</span>
           </div>
+          {/* 경험이 이력서로 모이는 그림 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 이벤트 일러스트(투명 배경) */}
+          <img src="/img_resume_event_0.webp" alt="" aria-hidden className="relative mx-auto mt-6 h-[260px] w-[260px] object-contain min-[360px]:h-[300px] min-[360px]:w-[300px] md:h-[360px] md:w-[360px]" />
           {/* 자소서 미리보기 — 살짝 기운 종이 카드 */}
-          <div className="relative mx-auto mt-10 max-w-[420px] rotate-[-2deg] rounded-[24px] bg-white p-5 text-left text-[color:var(--v2-ink)] shadow-[0_24px_48px_-20px_rgba(0,0,0,0.45)]">
+          <div className="relative mx-auto -mt-10 max-w-[420px] rotate-[-2deg] rounded-[24px] bg-white p-5 text-left text-[color:var(--v2-ink)] shadow-[0_24px_48px_-20px_rgba(0,0,0,0.45)]">
             <p className="text-[12px] font-bold tracking-[0.08em] text-[color:var(--v2-faint)]">BEFORE</p>
             <p className="mt-1 text-[15px] leading-[1.55] text-[color:var(--v2-muted)] line-through decoration-[#f04452]/60 decoration-2">{tc(sample.before)}</p>
             <div aria-hidden className="my-3 border-t-2 border-dashed border-[color:var(--v2-band)]" />
@@ -189,7 +192,10 @@ export function ExperienceCampaignPage() {
         {/* ② 이런 고민 — 말풍선(채팅) */}
         <section className="px-5 py-16">
           <Headline eyebrow={t("이런 고민 있나요?", "Sound familiar?", "你也有这些烦恼吗？", "Bạn có trăn trở này?", "こんな悩み、ありませんか？", "Pernah merasa begini?")} title={t("혼자 쓰기\n막막했다면.", "Stuck writing\nit alone?", "一个人写\n无从下手？", "Tự viết mà\nbí ý tưởng?", "ひとりで書くのは\n大変ですよね。", "Bingung\nmenulis sendiri?")} />
-          <div className="mx-auto mt-10 flex max-w-[520px] flex-col gap-3">
+          {/* 고민하는 학생 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 이벤트 일러스트(투명 배경) */}
+          <img src="/img_resume_event_1.webp" alt="" aria-hidden className="mx-auto mt-6 h-[200px] w-[200px] object-contain md:h-[240px] md:w-[240px]" />
+          <div className="mx-auto mt-6 flex max-w-[520px] flex-col gap-3">
             {worries.map((w, i) => (
               <div key={w} className={`flex items-end gap-2 ${i % 2 ? "flex-row-reverse" : ""}`}>
                 <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[18px]">{["🙋", "🤔", "😥", "📝"][i]}</span>
@@ -210,7 +216,10 @@ export function ExperienceCampaignPage() {
         {/* ④ 혜택 — 쿠폰 카드 셋 + 주간 진행 */}
         <section className="px-5 py-16">
           <Headline eyebrow={t("이번 캠페인 혜택", "What you get", "本次活动福利", "Quyền lợi chiến dịch", "今回のキャンペーン特典", "Keuntungan kampanye")} title={t("전문가가\n직접 봐 드려요.", "An expert,\nwith you.", "专家\n亲自帮你看。", "Chuyên gia\ntrực tiếp góp ý.", "専門家が\n直接見ます。", "Ahli\nlangsung membantu.")} />
-          <div className="mx-auto mt-10 flex max-w-[560px] flex-col gap-3">
+          {/* 전문가와 1:1 상담 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- 이벤트 일러스트(투명 배경) */}
+          <img src="/img_resume_event_2.webp" alt="" aria-hidden className="mx-auto mt-6 h-[220px] w-[220px] object-contain min-[360px]:h-[240px] min-[360px]:w-[240px] md:h-[280px] md:w-[280px]" />
+          <div className="mx-auto mt-6 flex max-w-[560px] flex-col gap-3">
             {offers.map((o) => (
               <article key={o.title} className="relative flex overflow-hidden rounded-[24px] bg-white shadow-[0_10px_28px_-18px_rgba(11,70,232,0.45)]">
                 <span className={`flex w-[96px] shrink-0 items-center justify-center text-[22px] font-extrabold tracking-[-0.02em] min-[360px]:w-[108px] ${o.tone}`}>{o.mark}</span>
@@ -252,6 +261,9 @@ export function ExperienceCampaignPage() {
               <Completion t={t} />
             ) : (
               <>
+                {/* 이력서 올리기 */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- 이벤트 일러스트(투명 배경) */}
+                <img src="/img_resume_event_3.webp" alt="" aria-hidden className="mx-auto -mt-2 mb-2 h-[160px] w-[160px] object-contain md:h-[190px] md:w-[190px]" />
                 <div className="flex justify-center">
                   <span className="rounded-full bg-[#ffd84d] px-3 py-1 text-[13px] font-extrabold text-[#191f28]">{t(`이번 주 ${WEEKLY_SLOTS}자리`, `${WEEKLY_SLOTS} spots this week`, `本周${WEEKLY_SLOTS}个名额`, `Tuần này còn ${WEEKLY_SLOTS} suất`, `今週${WEEKLY_SLOTS}枠`, `${WEEKLY_SLOTS} kuota minggu ini`)}</span>
                 </div>
