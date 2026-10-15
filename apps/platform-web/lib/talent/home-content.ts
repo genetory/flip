@@ -169,9 +169,22 @@ export function featuredBanners(t: PlatformT): {
   from: string;
   to: string;
   image?: string; // 우측 일러스트(있을 때만)
+  cta?: string; // 배너 안 버튼 문구(있을 때만)
 }[] {
   return [
     // AI 포인트 전면 무료 전환 — '가입하면 AI 포인트 1000' 배너 제거.
+    // 이력서·자소서 경험 발굴 캠페인(/events/experience) — 맨 앞.
+    {
+      id: "b-experience",
+      tag: t("이벤트 · 무료 첨삭", "Event · Free review", "活动 · 免费修改", "Sự kiện · Sửa miễn phí", "イベント · 無料添削", "Event · Gratis"),
+      title: t("내 경험을\n이력서·자소서로", "Turn your story\ninto a resume", "把经历写成\n简历", "Biến trải nghiệm\nthành CV", "経験を\n履歴書に", "Ubah pengalaman\njadi CV"),
+      subtitle: t("매주 2명 · 전문가 1:1", "2 a week · 1:1 expert", "每周2名 · 专家1对1", "2 người/tuần · 1:1", "毎週2名 · 1対1", "2/minggu · ahli 1:1"),
+      cta: t("지금 신청하기", "Apply now", "立即申请", "Đăng ký ngay", "今すぐ申し込む", "Daftar sekarang"),
+      href: "/events/experience",
+      from: "#0b46e8",
+      to: "#4f7cff",
+      image: "/img_resume_event_0.webp"
+    },
     { id: "b2", tag: t("사주", "Saju", "四柱", "Tử vi", "四柱", "Saju"), title: t("사주가 알려주는\n나의 천직은?", "Your true calling,\nby Saju", "四柱揭示的\n你的天职?", "Nghề trời định\nqua Tử vi?", "四柱が教える\n私の天職は?", "Panggilan sejatimu\nlewat Saju?"), subtitle: t("생년월일만 넣으면 3분 완성", "Just your birth date · done in 3 min", "只需生日 · 3分钟完成", "Chỉ cần ngày sinh · xong trong 3 phút", "生年月日だけ · 3分で完成", "Cukup tanggal lahir · 3 menit"), href: "/events/saju", from: "#6D28D9", to: "#9333EA", image: "/img_saju_event_characters.webp" },
     { id: "b3", tag: t("MBTI", "MBTI", "MBTI", "MBTI", "MBTI", "MBTI"), title: t("내 MBTI에 딱 맞는\n직업은?", "The job that fits\nyour MBTI?", "最合你MBTI的\n职业是?", "Nghề hợp\nMBTI của bạn?", "私のMBTIに\nぴったりの職業は?", "Pekerjaan cocok\ndengan MBTI-mu?"), subtitle: t("3분 테스트로 바로 확인", "Find out in a 3-min test", "3分钟测试立即知道", "Biết ngay qua bài test 3 phút", "3分テストですぐ確認", "Cek lewat tes 3 menit"), href: "/events/mbti", from: "#7A3B12", to: "#C2410C", image: "/images/img_mbti_event_characters.webp" }
   ];
