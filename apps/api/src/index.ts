@@ -726,6 +726,8 @@ const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOO
 const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
 const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
+// 자소서 경험 발굴 캠페인(/experience) 신규 신청 알림 — 주소는 앱 설정에만(공개 레포라 코드에 넣지 않는다).
+const discordExperienceApplicationWebhookUrl = process.env.DISCORD_EXPERIENCE_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 const companyConsultationDiscordTestToken = process.env.COMPANY_CONSULTATION_DISCORD_TEST_TOKEN?.trim() ?? "";
 const emailFromAddress = process.env.EMAIL_FROM?.trim() ?? "";
 const emailReplyToAddress = process.env.EMAIL_REPLY_TO?.trim() || process.env.EMAIL_SUPPORT_ADDRESS?.trim() || "info@flip-ers.com";
@@ -2193,6 +2195,70 @@ async function sendSgcApplicationDiscordNotification(input: {
     console.error("sgc_application_discord_webhook_error", {
       error: getErrorMessage(error)
     });
+  }
+}
+
+/** 자소서 경험 발굴 캠페인 신규 신청 → 디스코드. 실패해도 신청은 그대로(로그만). */
+async function sendExperienceApplicationDiscordNotification(input: {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  nationality: string | null;
+  desiredRole: string;
+  consultMethod: string;
+  resumeUrl: string;
+  resumeFileName: string;
+  coverLetterUrl: string | null;
+  coverLetterFileName: string | null;
+  consentCaseStudy: boolean;
+  utmSource: string | null;
+  createdAt: Date;
+}) {
+  if (!discordExperienceApplicationWebhookUrl) return;
+  const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text);
+  // 디스코드 링크 문법이 깨지지 않게 파일 이름의 대괄호는 바꾼다.
+  const label = (name: string) => cut(name.replace(/[[\]]/g, "·"), 120);
+  const METHOD: Record<string, string> = { ONLINE: "온라인", OFFLINE: "오프라인", ANY: "상관없음" };
+  const opsUrl = `${opsAdminUrl || platformWebUrl}/dashboard/ops/operations/experience-applications`;
+  const files = [`이력서: [${label(input.resumeFileName)}](${input.resumeUrl})`];
+  if (input.coverLetterUrl) files.push(`자소서: [${label(input.coverLetterFileName ?? "자기소개서")}](${input.coverLetterUrl})`);
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0b46e8,
+        title: "📝 자소서 경험 발굴 캠페인 — 신규 신청",
+        description: "/experience 에서 새 상담 신청이 접수됐어요.",
+        fields: [
+          { name: "이름", value: cut(input.name || "-", 256), inline: true },
+          { name: "지원 직무", value: cut(input.desiredRole || "-", 256), inline: true },
+          { name: "상담 방식", value: METHOD[input.consultMethod] ?? input.consultMethod, inline: true },
+          { name: "국적", value: cut(input.nationality || "-", 256), inline: true },
+          { name: "이메일", value: cut(input.email || "-", 1024), inline: true },
+          { name: "휴대폰", value: cut(input.phone || "-", 256), inline: true },
+          { name: "첨부 파일", value: cut(files.join("\n"), 1024), inline: false },
+          { name: "사례 공개 동의", value: input.consentCaseStudy ? "동의" : "미동의", inline: true },
+          { name: "유입", value: cut(input.utmSource || "-", 256), inline: true },
+          { name: "바로가기", value: `[운영 콘솔에서 보기](${opsUrl})`, inline: false }
+        ],
+        footer: { text: `Aply • Experience Campaign • ${input.id}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordExperienceApplicationWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("experience_application_discord_webhook_failed", { status: response.status, body: responseBody.slice(0, 500) });
+    }
+  } catch (error) {
+    console.error("experience_application_discord_webhook_error", { error: getErrorMessage(error) });
   }
 }
 
@@ -10312,7 +10378,24 @@ app.post(
           userId: req.auth?.userId ?? null,
           ipHash
         },
-        select: { id: true }
+        select: { id: true, createdAt: true, resumeFileName: true, coverLetterFileName: true }
+      });
+      // 운영 알림 — 응답을 기다리게 하지 않는다.
+      void sendExperienceApplicationDiscordNotification({
+        id: created.id,
+        name: input.name,
+        email: input.email,
+        phone: input.phone ?? null,
+        nationality: input.nationality ?? null,
+        desiredRole: input.desiredRole,
+        consultMethod: input.consultMethod,
+        resumeUrl,
+        resumeFileName: created.resumeFileName ?? "이력서",
+        coverLetterUrl,
+        coverLetterFileName: created.coverLetterFileName,
+        consentCaseStudy: input.consentCaseStudy ?? false,
+        utmSource: input.utmSource ?? null,
+        createdAt: created.createdAt
       });
       return res.status(201).json({ ok: true, id: created.id });
     } catch (error) {
