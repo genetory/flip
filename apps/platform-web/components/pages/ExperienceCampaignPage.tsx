@@ -382,13 +382,15 @@ function Headline({ eyebrow, title, sub }: { eyebrow: string; title: string; sub
   );
 }
 
-/** 발표용(스테이징·로컬)인지 — 이때만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에선 예시에 늘 표시를 붙인다. */
+/** 발표용(스테이징·로컬, 또는 ?preview=client 링크)인지 — 이때만 '예시' 표시를 숨긴다. 프로덕션(실제 사용자)에선 예시에 늘 표시를 붙인다. */
 function usePreviewHost(): boolean {
   const [preview, setPreview] = useState(false);
   useEffect(() => {
     const h = window.location.hostname;
+    // 클라이언트 확인용 링크(?preview=client)도 발표 화면처럼 — 일반 방문자는 그대로 '예시' 표시
+    const clientPreview = new URLSearchParams(window.location.search).get("preview") === "client";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 호스트는 마운트 후에만 안다
-    setPreview(h.includes("staging") || h === "localhost" || h === "127.0.0.1");
+    setPreview(clientPreview || h.includes("staging") || h === "localhost" || h === "127.0.0.1");
   }, []);
   return preview;
 }
