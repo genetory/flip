@@ -354,6 +354,12 @@ function FeaturedBanners() {
                 <span className="inline-flex w-fit items-center rounded-full bg-white/20 px-2.5 py-0.5 text-[11.5px] font-bold">{b.tag}</span>
                 <p className="mt-2 whitespace-pre-line text-[18px] font-black leading-[1.3] tracking-[-0.02em] md:text-[22px]">{b.title}</p>
                 <p className="mt-1 text-[12.5px] text-white/85 md:text-[13.5px]">{b.subtitle}</p>
+                {b.cta ? (
+                  // 배너 전체가 링크라 버튼 모양만(중첩 링크 없이)
+                  <span className="mt-3 inline-flex h-9 items-center gap-1 rounded-full bg-white px-4 text-[13.5px] font-bold text-[#0b46e8] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.35)] md:mt-4 md:h-10 md:text-[14.5px]">
+                    {b.cta} <span aria-hidden>→</span>
+                  </span>
+                ) : null}
               </div>
             </Link>
           </div>
