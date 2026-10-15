@@ -57,7 +57,7 @@ export function pointReasonLabel(t: PlatformT, r: string): string {
   return l ? t(...l) : t("AI 기능", "AI feature", "AI 功能", "Tính năng AI", "AI機能", "Fitur AI");
 }
 
-/** 비용 배지 — 버튼 글자 오른쪽의 작은 알약 "⚡20P". 버튼 색을 따라 옅게, 잔액이 모자라면 빨갛게. */
+/** 비용 배지 — 버튼 글자 오른쪽의 작은 알약 "20P". 버튼 색을 따라 옅게, 잔액이 모자라면 빨갛게. */
 export function CostBadge({ cost, className }: { cost: number; className?: string }) {
   const p = useAiPoints();
   if (!p?.enabled || !cost) return null;
@@ -65,9 +65,8 @@ export function CostBadge({ cost, className }: { cost: number; className?: strin
   return (
     <span
       aria-label={`${formatPoints(cost)}`}
-      className={`ml-1.5 inline-flex h-5 shrink-0 items-center gap-0.5 whitespace-nowrap rounded-full px-1.5 text-[11px] font-bold tabular-nums leading-none ${short ? "bg-[#f04452] text-white" : "bg-[color-mix(in_srgb,currentColor_14%,transparent)]"} ${className ?? ""}`}
+      className={`ml-1.5 inline-flex h-5 min-w-[36px] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-2 text-center text-[11px] font-bold tabular-nums leading-none ${short ? "bg-[#f04452] text-white" : "bg-[color-mix(in_srgb,currentColor_14%,transparent)]"} ${className ?? ""}`}
     >
-      <span aria-hidden>⚡</span>
       {formatPoints(cost)}
     </span>
   );
