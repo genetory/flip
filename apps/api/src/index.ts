@@ -27763,7 +27763,8 @@ async function payappCall(params: Record<string, string>): Promise<Record<string
 }
 /** 페이앱 결제수단 코드 → 화면용 이름(모르는 코드는 그대로). */
 function payappMethodLabel(code: string | null): string {
-  const m: Record<string, string> = { "1": "휴대전화", "2": "카드", "6": "계좌이체", "7": "가상계좌", "15": "카카오페이", "16": "네이버페이", "25": "토스페이" };
+  // https://docs.payapp.kr/dev_center01.html — pay_type
+  const m: Record<string, string> = { "1": "카드", "2": "휴대전화", "6": "계좌이체", "7": "가상계좌", "15": "카카오페이", "16": "네이버페이", "21": "스마일페이", "23": "애플페이", "24": "내통장결제", "25": "토스페이" };
   return code ? (m[code] ?? `페이앱 ${code}`) : "페이앱";
 }
 /** 이 API 의 바깥 주소 — 페이앱 결제 통보를 받을 곳. API_PUBLIC_URL 이 없으면 요청 호스트(https). */
@@ -27836,7 +27837,6 @@ app.post("/members/me/payments/payapp/request", authenticate, requireRoles([Memb
     if (!order) return res.status(400).json({ ok: false, message: "invalid product" });
     // 돌아올 곳 — 우리 사이트 talent 주소만
     const back = parsed.data.back && parsed.data.back.startsWith("/talent/") && !parsed.data.back.startsWith("//") ? parsed.data.back : "/talent/payments";
-    const web = String(process.env.PLATFORM_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
     const out = await payappCall({
       cmd: "payrequest",
       userid: payappCfg().userid,
@@ -27846,7 +27846,8 @@ app.post("/members/me/payments/payapp/request", authenticate, requireRoles([Memb
       recvphone: parsed.data.phone,
       smsuse: "n", // 결제 링크 문자를 보내지 않는다 — 바로 결제창으로
       feedbackurl: `${apiPublicBase(req)}/payments/payapp/feedback`,
-      returnurl: `${web}/v2/payments/success?provider=payapp&orderId=${encodeURIComponent(order.id)}&back=${encodeURIComponent(back)}`,
+      // 페이앱은 결제 뒤 returnurl 로 POST 로 보낸다 — API 가 받아 303 으로 웹 결과 화면(GET)에 넘긴다
+      returnurl: `${apiPublicBase(req)}/payments/payapp/return?orderId=${encodeURIComponent(order.id)}&back=${encodeURIComponent(back)}`,
       var1: order.id,
       checkretry: "y", // 통보에 SUCCESS 를 못 받으면 페이앱이 다시 보낸다
       openpaytype: "card,kakaopay,naverpay,tosspay,phone"
@@ -27863,6 +27864,15 @@ app.post("/members/me/payments/payapp/request", authenticate, requireRoles([Memb
     console.error("[payapp/request] failed", err);
     return res.status(500).json({ ok: false, message: "failed to create order" });
   }
+});
+
+// 페이앱 결제 뒤 돌아오는 곳(returnurl) — 페이앱이 POST 로 보내므로 받아서 웹 결과 화면으로 303(GET). 결제 확정은 여기서 하지 않는다(통보에서만).
+app.all("/payments/payapp/return", (req, res) => {
+  const orderId = String(req.query.orderId ?? "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 64);
+  const raw = String(req.query.back ?? "");
+  const back = raw.startsWith("/talent/") && !raw.startsWith("//") ? raw : "/talent/payments";
+  const web = String(process.env.PLATFORM_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  return res.redirect(303, `${web}/v2/payments/success?provider=payapp&orderId=${encodeURIComponent(orderId)}&back=${encodeURIComponent(back)}`);
 });
 
 // 페이앱 결제 통보(feedbackurl) — 서버 대 서버 POST(폼 인코딩). 여기서만 결제를 확정한다.
@@ -27901,7 +27911,7 @@ app.post("/payments/payapp/feedback", express.urlencoded({ extended: false, limi
       const approvedAt = payDate ? new Date(`${payDate.replace(" ", "T")}+09:00`) : new Date();
       const credited = await fulfillPaidOrder(order, { paymentKey: mulNo, method: payappMethodLabel(f("pay_type") || null), approvedAt: Number.isNaN(approvedAt.getTime()) ? new Date() : approvedAt });
       console.info(`[payapp/feedback] ${credited ? "결제 완료" : "이미 처리한 결제"} ${orderId} ${order.amount}원`);
-    } else if (state === "8" || state === "9" || state === "64") {
+    } else if (state === "8" || state === "32" || state === "9" || state === "64") {
       // 요청 취소 · 승인 취소 — 우리 환불 흐름은 먼저 CANCELED 로 바꾸고 취소하므로, 여기 오는 DONE 주문은 페이앱 쪽에서 직접 취소한 것.
       const moved = await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "DONE" }, data: { status: "CANCELED", canceledAt: new Date(), canceledAmount: order.amount, cancelReason: "payapp: 페이앱에서 취소" } });
       if (moved.count === 1) {
@@ -28026,7 +28036,7 @@ app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR])
       where: all ? {} : { status: { not: "READY" } },
       orderBy: { createdAt: "desc" },
       take: 100,
-      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, paymentKey: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
     });
     const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
     const byId = new Map(users.map((u) => [u.id, u]));

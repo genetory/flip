@@ -25,6 +25,8 @@ type Order = {
   amount: number;
   credits: number;
   status: string;
+  provider?: string;
+  paymentKey?: string | null;
   method: string | null;
   approvedAt: string | null;
   failReason: string | null;
@@ -276,7 +278,11 @@ export default function PaymentManagementPage() {
                     {o.failReason ? <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{o.failReason}</div> : null}
                     {o.cancelReason ? <div style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{o.cancelReason}</div> : null}
                   </td>
-                  <td style={cell}>{o.method ?? "-"}</td>
+                  <td style={cell}>
+                    {o.method ?? "-"}
+                    {/* PG · 거래번호(페이앱은 결제요청번호 — 페이앱 판매자 화면에서 찾을 때) */}
+                    {o.provider ? <div style={{ fontSize: 11, color: "var(--ink-faint)", whiteSpace: "nowrap" }}>{o.provider === "payapp" ? "페이앱" : "토스"}{o.provider === "payapp" && o.paymentKey ? ` · ${o.paymentKey}` : ""}</div> : null}
+                  </td>
                   <td style={{ ...cell, textAlign: "right" }}>
                     {o.status === "DONE" ? (
                       <button type="button" style={{ ...btn, color: "var(--danger)" }} onClick={() => void refund(o)}>
