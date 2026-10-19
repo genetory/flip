@@ -148,7 +148,7 @@ export default function CorrectionNotebookPage() {
     <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-[880px] px-5 pt-8 md:pt-12">
+        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
           <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">Step 3 · 4</p>
           <h1 className="mt-1.5 text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}</h1>
           <p className="mt-2.5 max-w-[52ch] text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">
