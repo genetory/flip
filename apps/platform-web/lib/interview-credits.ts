@@ -8,6 +8,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { authedJsonFetch } from "./member-profile-client";
 import { getAiPointsState, openPointsPaywall, setAiPointsBalance, useAiPoints } from "./ai-points";
 
+export type PaymentProvider = "toss" | "payapp" | null;
 export type InterviewProduct = { key: string; sessions: number; credits: number; amount: number };
 export type InterviewCredits = {
   credits: number;
@@ -15,6 +16,8 @@ export type InterviewCredits = {
   dailyFreeUsed: boolean;
   paywall: boolean;
   paymentsEnabled: boolean;
+  /** 결제 PG — 'payapp'(페이앱: 결제창 주소로 이동) | 'toss'(토스 결제위젯). 옛 API 면 없음(토스로 본다). */
+  paymentProvider?: PaymentProvider;
   products: InterviewProduct[];
   logs: { amount: number; reason: string; createdAt: string }[];
   /** 포인트 모드일 때만 — 원래 잔액과 답변 1개 비용. */
@@ -72,6 +75,7 @@ export function useInterviewCredits(enabled = true): InterviewCredits | null {
     dailyFreeUsed: pts.dailyFreeUsed,
     paywall: feedbackCost > 0,
     paymentsEnabled: pts.paymentsEnabled,
+    paymentProvider: pts.paymentProvider,
     products: [],
     logs: [],
     points: { balance: pts.balance, feedbackCost, perSetCost: feedbackCost * pts.perSet, questionsCost: pts.costs.interview_questions ?? 0, prepCost: pts.costs.interview_prep ?? 0 }
@@ -99,6 +103,14 @@ export function isInterviewPaywallError(e: unknown): boolean {
 // ── 결제 ──
 export async function createPaymentOrder(productKey: string): Promise<{ orderId: string; orderName: string; amount: number; customerKey: string }> {
   return (await authedJsonFetch<never>("/members/me/payments/orders", { method: "POST", body: JSON.stringify({ productKey }) })) as unknown as { orderId: string; orderName: string; amount: number; customerKey: string };
+}
+/** 페이앱 결제 요청 — 주문을 만들고 페이앱 결제창 주소를 받는다(그 주소로 이동하면 된다). 결제 확정은 페이앱 통보로 서버가 한다. */
+export async function requestPayAppPayment(input: { productKey: string; phone: string; back: string }): Promise<{ orderId: string; payurl: string }> {
+  return (await authedJsonFetch<never>("/members/me/payments/payapp/request", { method: "POST", body: JSON.stringify(input) })) as unknown as { orderId: string; payurl: string };
+}
+/** 주문 상태 — 페이앱 결제 뒤 결과 화면이 확정을 기다리며 묻는다. */
+export async function getPaymentStatus(orderId: string): Promise<{ status: "READY" | "DONE" | "FAILED" | "CANCELED" | "PARTIAL_CANCELED"; kind: "points" | "interview"; added: number; balance: number; credits: number }> {
+  return (await authedJsonFetch<never>(`/members/me/payments/${encodeURIComponent(orderId)}/status`, { method: "GET" })) as unknown as { status: "READY" | "DONE" | "FAILED" | "CANCELED" | "PARTIAL_CANCELED"; kind: "points" | "interview"; added: number; balance: number; credits: number };
 }
 /** kind="points" 면 credits·balance 는 AI 포인트 잔액, added 는 충전된 포인트. */
 export async function confirmPayment(input: { paymentKey: string; orderId: string; amount: number }): Promise<{ kind?: "points"; credits: number; balance?: number; added: number; alreadyDone: boolean }> {

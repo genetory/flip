@@ -10,9 +10,63 @@ import { Sheet } from "./sheets";
 import { Button, Spinner } from "./ui";
 import { useAuthSession } from "../auth/AuthSessionProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
-import { createPaymentOrder, onInterviewPaywall, refreshInterviewCredits, useInterviewCredits, type InterviewProduct } from "../../lib/interview-credits";
+import { createPaymentOrder, onInterviewPaywall, refreshInterviewCredits, requestPayAppPayment, useInterviewCredits, type InterviewProduct, type PaymentProvider } from "../../lib/interview-credits";
 
 export const CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY ?? "";
+
+// ── 페이앱 ── 결제창이 페이앱 페이지라 위젯 없이: 휴대폰 번호(페이앱 필수, 문자는 안 보냄)만 받고 결제창 주소로 이동.
+const PHONE_KEY = "aply:payapp-phone";
+/** 결제 방식 — 'payapp' 이면 페이앱, 토스 키가 있고 결제가 켜져 있으면 토스, 아니면 결제 불가. 옛 API(provider 없음)는 토스로 본다. */
+export function payMode(enabled: boolean | undefined, provider: PaymentProvider | undefined): "payapp" | "toss" | null {
+  if (!enabled) return null;
+  if (provider === "payapp") return "payapp";
+  return CLIENT_KEY && (provider === "toss" || provider === undefined) ? "toss" : null;
+}
+export const cleanPhone = (v: string) => v.replace(/\D/g, "").slice(0, 11);
+export const validPhone = (v: string) => /^01[016789]\d{7,8}$/.test(cleanPhone(v));
+export function savedPhone(): string {
+  try {
+    return window.localStorage.getItem(PHONE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+/** 페이앱 결제창으로 — 번호를 기억해 두고(다음 결제 때 채움) 주문을 만든 뒤 결제창 주소로 이동. */
+export async function goPayApp(productKey: string, phone: string, back: string): Promise<void> {
+  const p = cleanPhone(phone);
+  try {
+    window.localStorage.setItem(PHONE_KEY, p);
+  } catch {
+    /* 기억 못 해도 결제는 계속 */
+  }
+  const r = await requestPayAppPayment({ productKey, phone: p, back });
+  window.location.href = r.payurl;
+}
+/** 페이앱 결제 — 휴대폰 번호 칸 + 다음 화면 안내. */
+export function PayAppFields({ t, phone, onPhone }: { t: PlatformT; phone: string; onPhone: (v: string) => void }) {
+  const shown = cleanPhone(phone).replace(/^(\d{3})(\d{3,4})(\d{0,4})$/, (_, a, b, c) => [a, b, c].filter(Boolean).join("-"));
+  const bad = phone.length > 0 && !validPhone(phone) && cleanPhone(phone).length >= 10;
+  return (
+    <div className="mt-5">
+      <label className="block text-[15px] font-bold text-[color:var(--v2-ink)]" htmlFor="payapp-phone">
+        {t("휴대폰 번호", "Mobile number", "手机号码", "Số điện thoại", "携帯電話番号", "Nomor HP")}
+      </label>
+      <input
+        id="payapp-phone"
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel"
+        value={shown}
+        onChange={(e) => onPhone(cleanPhone(e.target.value))}
+        placeholder="010-1234-5678"
+        className={`mt-2 h-12 w-full rounded-xl bg-[color:var(--v2-fill)] px-4 text-[16px] font-semibold tabular-nums text-[color:var(--v2-ink)] outline-none ring-1 transition placeholder:font-normal placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2 focus:ring-[color:var(--v2-accent)] ${bad ? "ring-[#f04452]" : "ring-transparent"}`}
+      />
+      <p className="mt-2 text-[13px] leading-[1.6] text-[color:var(--v2-muted)]">
+        {t("결제 확인용이에요(문자는 보내지 않아요). 다음 화면에서 카드·카카오페이·네이버페이·토스페이로 결제해요.", "Used to confirm the payment (no texts). Pay by card, KakaoPay, Naver Pay or Toss Pay on the next screen.", "用于确认支付（不发短信）。下一步可用银行卡、KakaoPay、Naver Pay、Toss Pay 支付。", "Dùng để xác nhận (không gửi tin nhắn). Trang sau: thẻ, KakaoPay, Naver Pay, Toss Pay.", "決済確認用です（SMSは送りません）。次の画面でカード・KakaoPay・Naver Pay・Toss Payで支払います。", "Untuk konfirmasi (tanpa SMS). Bayar dengan kartu, KakaoPay, Naver Pay, Toss Pay di layar berikutnya.")}
+      </p>
+    </div>
+  );
+}
 
 /** 남은 이용권을 '회 + 답변'으로 — 예: "1회 (답변 5개)", "1회 + 답변 3개", "답변 3개". */
 export function creditLabel(t: PlatformT, credits: number, per: number): string {
@@ -135,7 +189,9 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const widgets = useRef<TossWidgets | null>(null);
-  const payable = Boolean(CLIENT_KEY) && Boolean(credits?.paymentsEnabled);
+  const mode = payMode(credits?.paymentsEnabled, credits?.paymentProvider);
+  const payable = mode !== null;
+  const [phone, setPhone] = useState(savedPhone);
   const product = pick ?? credits?.products[1] ?? credits?.products[0] ?? null;
 
   useEffect(() => {
@@ -147,7 +203,7 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
   const userId = user?.id ?? null;
   const init = useRef<Promise<TossWidgets> | null>(null);
   useEffect(() => {
-    if (!payable || !amount || !userId) return;
+    if (mode !== "toss" || !amount || !userId) return;
     let alive = true;
     (async () => {
       try {
@@ -170,10 +226,22 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
     return () => {
       alive = false;
     };
-  }, [payable, amount, userId, t]);
+  }, [mode, amount, userId, t]);
 
   const pay = async () => {
-    if (!product || !widgets.current) return;
+    if (!product) return;
+    if (mode === "payapp") {
+      setBusy(true);
+      setError(null);
+      try {
+        await goPayApp(product.key, phone, pathname);
+      } catch (e) {
+        setError((e as { message?: string })?.message || t("결제를 시작하지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't start the payment. Try again soon.", "无法开始支付，请稍后再试。", "Không bắt đầu thanh toán được.", "決済を開始できませんでした。", "Gagal memulai pembayaran."));
+        setBusy(false);
+      }
+      return;
+    }
+    if (!widgets.current) return;
     setBusy(true);
     setError(null);
     try {
@@ -204,7 +272,7 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         payable ? (
-          <Button full onClick={() => void pay()} disabled={!ready || busy || !product}>
+          <Button full onClick={() => void pay()} disabled={(mode === "payapp" ? !validPhone(phone) : !ready) || busy || !product}>
             {busy ? <Spinner /> : null}
             {product ? t(`${product.amount.toLocaleString()}원 결제하기`, `Pay ₩${product.amount.toLocaleString()}`, `支付 ₩${product.amount.toLocaleString()}`, `Thanh toán ₩${product.amount.toLocaleString()}`, `₩${product.amount.toLocaleString()} を支払う`, `Bayar ₩${product.amount.toLocaleString()}`) : t("결제하기", "Pay", "支付", "Thanh toán", "支払う", "Bayar")}
           </Button>
@@ -255,7 +323,9 @@ function PaywallSheet({ onClose }: { onClose: () => void }) {
         </p>
       ) : null}
 
-      {payable ? (
+      {mode === "payapp" ? (
+        <PayAppFields t={t} phone={phone} onPhone={setPhone} />
+      ) : mode === "toss" ? (
         <div className="mt-5">
           {/* 토스페이먼츠 결제위젯이 그려지는 자리 */}
           <div id="toss-payment-method" />

@@ -18,6 +18,8 @@ export type AiPoints = {
   perSet: number;
   dailyFreeUsed: boolean;
   paymentsEnabled: boolean;
+  /** 결제 PG — 'payapp' | 'toss' | null(결제 꺼짐). 옛 API 면 없음(토스로 본다). */
+  paymentProvider?: "toss" | "payapp" | null;
   refundDays: number;
   products: AiPointProduct[];
   logs: AiPointLog[];

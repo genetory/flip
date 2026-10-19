@@ -27686,7 +27686,8 @@ app.get("/members/me/ai-points", authenticate, requireRoles([MemberRole.STUDENT]
       costs: aiPointCostsView(),
       perSet: INTERVIEW_CREDITS_PER_SESSION,
       dailyFreeUsed,
-      paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+      paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
       refundDays: SELF_REFUND_DAYS,
       products: aiPointProductsView(),
       logs
@@ -27712,7 +27713,8 @@ app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.
         perSession: INTERVIEW_CREDITS_PER_SESSION,
         dailyFreeUsed: await interviewDailyFreeUsed(userId),
         paywall: true,
-        paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+        paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
         products: [],
         logs: []
       });
@@ -27728,7 +27730,8 @@ app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.
       perSession: INTERVIEW_CREDITS_PER_SESSION,
       dailyFreeUsed,
       paywall: interviewPaywallOn(),
-      paymentsEnabled: Boolean(process.env.TOSS_SECRET_KEY),
+      paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
       products: INTERVIEW_PRODUCTS.map((p) => ({ key: p.key, sessions: p.sessions, credits: p.sessions * INTERVIEW_CREDITS_PER_SESSION, amount: p.amount })),
       logs
     });
@@ -27738,40 +27741,212 @@ app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.
   }
 });
 
-// 학생: 결제 주문 만들기 — 금액·이름은 서버 상품표로. 토스 결제창에 넘길 orderId 를 돌려준다.
+// ── 결제 PG ──
+// PAYMENT_PROVIDER=payapp|toss 로 고른다(없으면 키가 있는 쪽 — 페이앱 우선). 키가 없으면 결제 꺼짐(화면은 '결제 준비 중').
+// 페이앱: PAYAPP_USERID(판매자 아이디)·PAYAPP_LINKKEY·PAYAPP_LINKVAL(연동 KEY·VALUE, 비밀 — 브라우저로 내려보내지 않는다).
+// 흐름: 서버가 payrequest → 받은 payurl 로 사용자 이동 → 결제가 끝나면 페이앱이 /payments/payapp/feedback 으로 결과 통보(여기서만 확정) → returnurl(결과 화면)은 주문 상태를 확인만.
+const PAYAPP_API = "https://api.payapp.kr/oapi/apiLoad.html";
+const payappCfg = () => ({ userid: process.env.PAYAPP_USERID ?? "", linkkey: process.env.PAYAPP_LINKKEY ?? "", linkval: process.env.PAYAPP_LINKVAL ?? "" });
+function paymentProvider(): "payapp" | "toss" | null {
+  const c = payappCfg();
+  const payapp = Boolean(c.userid && c.linkkey && c.linkval);
+  const toss = Boolean(process.env.TOSS_SECRET_KEY);
+  const want = String(process.env.PAYMENT_PROVIDER ?? "").toLowerCase();
+  if (want === "payapp") return payapp ? "payapp" : null;
+  if (want === "toss") return toss ? "toss" : null;
+  return payapp ? "payapp" : toss ? "toss" : null;
+}
+async function payappCall(params: Record<string, string>): Promise<Record<string, string>> {
+  const resp = await fetch(PAYAPP_API, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, body: new URLSearchParams(params).toString() });
+  // 응답도 폼 인코딩(state=1&mul_no=…&payurl=…)
+  return Object.fromEntries(new URLSearchParams(await resp.text())) as Record<string, string>;
+}
+/** 페이앱 결제수단 코드 → 화면용 이름(모르는 코드는 그대로). */
+function payappMethodLabel(code: string | null): string {
+  const m: Record<string, string> = { "1": "휴대전화", "2": "카드", "6": "계좌이체", "7": "가상계좌", "15": "카카오페이", "16": "네이버페이", "25": "토스페이" };
+  return code ? (m[code] ?? `페이앱 ${code}`) : "페이앱";
+}
+/** 이 API 의 바깥 주소 — 페이앱 결제 통보를 받을 곳. API_PUBLIC_URL 이 없으면 요청 호스트(https). */
+function apiPublicBase(req: express.Request): string {
+  const env = String(process.env.API_PUBLIC_URL ?? "").replace(/\/+$/, "");
+  return env || `https://${req.get("host")}`;
+}
+
+/** 결제 주문 만들기 — 금액·이름·충전량은 서버 상품표로. 포인트 모드면 포인트 상품만, 아니면 예전 모의 면접 이용권 상품만. */
+async function createPaymentOrderRow(userId: string, productKey: string, provider: "toss" | "payapp") {
+  const pointsProduct = aiPointsOn() ? aiPointProduct(productKey) : null;
+  const product = !aiPointsOn() ? interviewProduct(productKey) : null;
+  if (pointsProduct) {
+    const total = pointsProduct.points + pointsProduct.bonus;
+    return prisma.paymentOrder.create({
+      data: { id: `pts-${randomBytes(12).toString("hex")}`, userId, provider, productKey: pointsProduct.key, orderName: `AI 포인트 ${total.toLocaleString("en-US")}P`, amount: pointsProduct.amount, credits: total },
+      select: { id: true, orderName: true, amount: true }
+    });
+  }
+  if (!product) return null;
+  return prisma.paymentOrder.create({
+    data: { id: `ivc-${randomBytes(12).toString("hex")}`, userId, provider, productKey: product.key, orderName: `모의 면접 이용권 ${product.sessions}회`, amount: product.amount, credits: product.sessions * INTERVIEW_CREDITS_PER_SESSION },
+    select: { id: true, orderName: true, amount: true }
+  });
+}
+
+/** 결제 확정 — READY → DONE 으로 바뀐 경우에만 충전(동시 호출·통보 재전송·새로고침에도 한 번). 충전했으면 true. */
+async function fulfillPaidOrder(order: { id: string; userId: string; productKey: string; credits: number }, paid: { paymentKey: string; method: string | null; approvedAt: Date }): Promise<boolean> {
+  const points = isPointsOrder(order);
+  if (points) await aiWalletReconcile(order.userId);
+  else await interviewWalletEnsure(order.userId);
+  return prisma.$transaction(async (tx) => {
+    const moved = await tx.paymentOrder.updateMany({ where: { id: order.id, status: "READY" }, data: { status: "DONE", paymentKey: paid.paymentKey, method: paid.method, approvedAt: paid.approvedAt } });
+    if (moved.count !== 1) return false;
+    if (points) {
+      await tx.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: order.credits } } });
+      await tx.aiPointLog.create({ data: { userId: order.userId, amount: order.credits, reason: "purchase" } });
+    } else {
+      await tx.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: order.credits } } });
+      await tx.interviewCreditLog.create({ data: { userId: order.userId, amount: order.credits, reason: "purchase", orderId: order.id } });
+    }
+    return true;
+  });
+}
+
+// 학생: 결제 주문 만들기(토스) — 토스 결제창에 넘길 orderId 를 돌려준다.
 const paymentOrderSchema = z.object({ productKey: z.string().max(40) });
 app.post("/members/me/payments/orders", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
   const parsed = paymentOrderSchema.safeParse(req.body);
-  // 포인트 모드면 포인트 충전 상품만, 아니면 예전 모의 면접 이용권 상품만 판다.
-  const pointsProduct = parsed.success && aiPointsOn() ? aiPointProduct(parsed.data.productKey) : null;
-  const product = parsed.success && !aiPointsOn() ? interviewProduct(parsed.data.productKey) : null;
-  if (!product && !pointsProduct) return res.status(400).json({ ok: false, message: "invalid product" });
-  if (!process.env.TOSS_SECRET_KEY) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid product" });
+  if (paymentProvider() !== "toss") return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
   try {
-    if (pointsProduct) {
-      const total = pointsProduct.points + pointsProduct.bonus;
-      const order = await prisma.paymentOrder.create({
-        data: { id: `pts-${randomBytes(12).toString("hex")}`, userId: req.auth!.userId, productKey: pointsProduct.key, orderName: `AI 포인트 ${total.toLocaleString("en-US")}P`, amount: pointsProduct.amount, credits: total },
-        select: { id: true, orderName: true, amount: true }
-      });
-      return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
-    }
-    if (!product) return res.status(400).json({ ok: false, message: "invalid product" });
-    const order = await prisma.paymentOrder.create({
-      data: {
-        id: `ivc-${randomBytes(12).toString("hex")}`,
-        userId: req.auth!.userId,
-        productKey: product.key,
-        orderName: `모의 면접 이용권 ${product.sessions}회`,
-        amount: product.amount,
-        credits: product.sessions * INTERVIEW_CREDITS_PER_SESSION
-      },
-      select: { id: true, orderName: true, amount: true }
-    });
+    const order = await createPaymentOrderRow(req.auth!.userId, parsed.data.productKey, "toss");
+    if (!order) return res.status(400).json({ ok: false, message: "invalid product" });
     return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
   } catch (err) {
     console.error("[payments/orders] failed", err);
     return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 학생: 페이앱 결제 요청 — 주문을 만들고 페이앱 결제창 주소(payurl)를 돌려준다. 휴대폰 번호는 페이앱이 꼭 받는 값(문자는 보내지 않음).
+const payappRequestSchema = z.object({ productKey: z.string().max(40), phone: z.string().regex(/^01[016789]\d{7,8}$/), back: z.string().max(300).optional() });
+app.post("/members/me/payments/payapp/request", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
+  const parsed = payappRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, code: "INVALID_PHONE", message: "휴대폰 번호를 다시 확인해 주세요." });
+  if (paymentProvider() !== "payapp") return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  try {
+    const order = await createPaymentOrderRow(req.auth!.userId, parsed.data.productKey, "payapp");
+    if (!order) return res.status(400).json({ ok: false, message: "invalid product" });
+    // 돌아올 곳 — 우리 사이트 talent 주소만
+    const back = parsed.data.back && parsed.data.back.startsWith("/talent/") && !parsed.data.back.startsWith("//") ? parsed.data.back : "/talent/payments";
+    const web = String(process.env.PLATFORM_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+    const out = await payappCall({
+      cmd: "payrequest",
+      userid: payappCfg().userid,
+      shopname: "Aply",
+      goodname: order.orderName,
+      price: String(order.amount),
+      recvphone: parsed.data.phone,
+      smsuse: "n", // 결제 링크 문자를 보내지 않는다 — 바로 결제창으로
+      feedbackurl: `${apiPublicBase(req)}/payments/payapp/feedback`,
+      returnurl: `${web}/v2/payments/success?provider=payapp&orderId=${encodeURIComponent(order.id)}&back=${encodeURIComponent(back)}`,
+      var1: order.id,
+      checkretry: "y", // 통보에 SUCCESS 를 못 받으면 페이앱이 다시 보낸다
+      openpaytype: "card,kakaopay,naverpay,tosspay,phone"
+    });
+    if (out.state !== "1" || !out.payurl || !out.mul_no) {
+      await prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "FAILED", failReason: `PAYAPP_${out.errno ?? "REQUEST"}`.slice(0, 120) } });
+      console.error("[payapp/request] 결제 요청 실패", out.errno, out.errorMessage);
+      return res.status(502).json({ ok: false, code: "PAYAPP_REQUEST_FAILED", message: "결제를 시작하지 못했어요. 잠시 후 다시 해 보세요." });
+    }
+    // 결제요청번호(mul_no)는 통보를 맞춰 볼 때 쓴다
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { paymentKey: out.mul_no } });
+    return res.json({ ok: true, orderId: order.id, payurl: out.payurl });
+  } catch (err) {
+    console.error("[payapp/request] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 페이앱 결제 통보(feedbackurl) — 서버 대 서버 POST(폼 인코딩). 여기서만 결제를 확정한다.
+//  - 판매자 아이디·연동 KEY·VALUE 가 맞는지, 결제요청번호·금액이 주문과 같은지 확인
+//  - 같은 통보가 여러 번 올 수 있다 → 이미 처리한 주문은 그대로 SUCCESS
+//  - 응답은 HTTP 200 + 본문 'SUCCESS' 만 성공(그 밖엔 페이앱이 다시 보낸다)
+app.post("/payments/payapp/feedback", express.urlencoded({ extended: false, limit: "100kb" }), async (req, res) => {
+  const text = (body: string) => res.status(200).type("text/plain").send(body);
+  const f = (k: string) => (typeof req.body?.[k] === "string" ? (req.body[k] as string) : "");
+  const c = payappCfg();
+  if (!(c.userid && c.linkkey && c.linkval) || f("userid") !== c.userid || f("linkkey") !== c.linkkey || f("linkval") !== c.linkval) {
+    console.warn("[payapp/feedback] 검증 실패 — 연동 정보가 맞지 않아요");
+    return text("FAIL");
+  }
+  const orderId = f("var1");
+  const mulNo = f("mul_no");
+  const state = f("pay_state");
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
+    if (!order || order.provider !== "payapp") {
+      console.warn(`[payapp/feedback] 주문 없음 ${orderId}`);
+      return text("FAIL");
+    }
+    if (order.paymentKey && order.paymentKey !== mulNo) {
+      console.warn(`[payapp/feedback] 결제요청번호 불일치 ${orderId} ${mulNo}`);
+      return text("FAIL");
+    }
+    if (state === "4") {
+      // 결제 완료 — 금액이 주문과 다르면 확정하지 않는다(운영자 확인 필요)
+      if (Number(f("price")) !== order.amount) {
+        console.error(`[payapp/feedback] 금액 불일치 ${orderId} 통보=${f("price")} 주문=${order.amount}`);
+        await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
+        return text("SUCCESS");
+      }
+      const payDate = f("pay_date");
+      const approvedAt = payDate ? new Date(`${payDate.replace(" ", "T")}+09:00`) : new Date();
+      const credited = await fulfillPaidOrder(order, { paymentKey: mulNo, method: payappMethodLabel(f("pay_type") || null), approvedAt: Number.isNaN(approvedAt.getTime()) ? new Date() : approvedAt });
+      console.info(`[payapp/feedback] ${credited ? "결제 완료" : "이미 처리한 결제"} ${orderId} ${order.amount}원`);
+    } else if (state === "8" || state === "9" || state === "64") {
+      // 요청 취소 · 승인 취소 — 우리 환불 흐름은 먼저 CANCELED 로 바꾸고 취소하므로, 여기 오는 DONE 주문은 페이앱 쪽에서 직접 취소한 것.
+      const moved = await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "DONE" }, data: { status: "CANCELED", canceledAt: new Date(), canceledAmount: order.amount, cancelReason: "payapp: 페이앱에서 취소" } });
+      if (moved.count === 1) {
+        // 받은 만큼 회수(이미 쓴 만큼은 회수하지 못한다 — 운영자가 확인)
+        const points = isPointsOrder(order);
+        const balance = points ? await aiWalletBalance(order.userId) : ((await prisma.interviewWallet.findUnique({ where: { userId: order.userId }, select: { credits: true } }))?.credits ?? 0);
+        const take = Math.min(balance, order.credits);
+        if (take > 0) {
+          if (points) {
+            await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { decrement: take } } });
+            await prisma.aiPointLog.create({ data: { userId: order.userId, amount: -take, reason: "refund" } });
+          } else {
+            await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { decrement: take } } });
+            await prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -take, reason: "refund", orderId } });
+          }
+        }
+        console.info(`[payapp/feedback] 페이앱 쪽 취소 ${orderId} 회수=${take}/${order.credits}`);
+      } else if (order.status === "READY") {
+        await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "FAILED", failReason: `PAYAPP_STATE_${state}` } });
+      }
+    } else if (state === "70" || state === "71") {
+      // 부분 취소 — 금액·회수량은 운영자가 확인(자동 회수하지 않음)
+      await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "DONE" }, data: { status: "PARTIAL_CANCELED", canceledAt: new Date(), cancelReason: "payapp: 페이앱에서 부분 취소" } });
+      console.warn(`[payapp/feedback] 페이앱 쪽 부분 취소 ${orderId} — 운영자 확인 필요`);
+    }
+    // 1(요청) · 10(입금 대기) 등은 기다린다
+    return text("SUCCESS");
+  } catch (err) {
+    console.error(`[payapp/feedback] 처리 실패 ${orderId}`, err);
+    return text("FAIL"); // 일시 오류 — 페이앱이 다시 보낸다
+  }
+});
+
+// 학생: 주문 상태 — 페이앱 결제 뒤 결과 화면이 확정(통보)을 기다리며 물어본다.
+app.get("/members/me/payments/:orderId/status", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) }, select: { userId: true, status: true, productKey: true, credits: true } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    const points = isPointsOrder(order);
+    const balance = points ? await aiWalletBalance(userId) : ((await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0);
+    return res.json({ ok: true, status: order.status, kind: points ? "points" : "interview", added: order.credits, balance, credits: balance });
+  } catch (err) {
+    console.error("[payments/status] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load order" });
   }
 });
 
@@ -27796,7 +27971,7 @@ app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.
       const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
       return res.json({ ok: true, alreadyDone: true, credits: w?.credits ?? 0, added: order.credits });
     }
-    if (order.status !== "READY") return res.status(409).json({ ok: false, message: "order is not payable" });
+    if (order.status !== "READY" || order.provider !== "toss") return res.status(409).json({ ok: false, message: "order is not payable" });
     if (order.amount !== amount) {
       await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
       return res.status(400).json({ ok: false, code: "AMOUNT_MISMATCH", message: "결제 금액이 맞지 않아요." });
@@ -27811,28 +27986,11 @@ app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.
       await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: (body.code ?? `HTTP_${resp.status}`).slice(0, 120) } });
       return res.status(400).json({ ok: false, code: body.code ?? "CONFIRM_FAILED", message: body.message ?? "결제를 승인하지 못했어요." });
     }
+    const credited = await fulfillPaidOrder(order, { paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() });
     if (isPointsOrder(order)) {
-      await aiWalletReconcile(userId);
-      // READY → DONE 으로 바뀐 경우에만 포인트 충전(동시 호출·새로고침에도 한 번).
-      const creditedPoints = await prisma.$transaction(async (tx) => {
-        const moved = await tx.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "DONE", paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() } });
-        if (moved.count !== 1) return false;
-        await tx.aiWallet.update({ where: { userId }, data: { balance: { increment: order.credits } } });
-        await tx.aiPointLog.create({ data: { userId, amount: order.credits, reason: "purchase" } });
-        return true;
-      });
       const balance = await aiWalletBalance(userId);
-      return res.json({ ok: true, kind: "points", alreadyDone: !creditedPoints, balance, credits: balance, added: order.credits });
+      return res.json({ ok: true, kind: "points", alreadyDone: !credited, balance, credits: balance, added: order.credits });
     }
-    await interviewWalletEnsure(userId);
-    // READY → DONE 으로 바뀐 경우에만 충전(동시 호출에도 한 번).
-    const credited = await prisma.$transaction(async (tx) => {
-      const moved = await tx.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "DONE", paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() } });
-      if (moved.count !== 1) return false;
-      await tx.interviewWallet.update({ where: { userId }, data: { credits: { increment: order.credits } } });
-      await tx.interviewCreditLog.create({ data: { userId, amount: order.credits, reason: "purchase", orderId } });
-      return true;
-    });
     const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
     return res.json({ ok: true, alreadyDone: !credited, credits: w?.credits ?? 0, added: order.credits });
   } catch (err) {
@@ -27868,7 +28026,7 @@ app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR])
       where: all ? {} : { status: { not: "READY" } },
       orderBy: { createdAt: "desc" },
       take: 100,
-      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
     });
     const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
     const byId = new Map(users.map((u) => [u.id, u]));
@@ -27899,32 +28057,54 @@ async function tossCancel(order: { id: string; paymentKey: string | null }, reas
   return { ok: true };
 }
 
-/** 이용권 회수 → 토스 취소 → 주문 기록. deduct 만큼 잔액이 없으면 회수하지 않고 실패. */
+/** 페이앱 결제 취소 — 전액 또는 일부(cancelAmount). 결제 다음 날 이후 카드 취소는 페이앱 정책상 막힐 수 있다(그땐 페이앱 판매자 화면에서). */
+async function payappCancel(order: { paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+  const c = payappCfg();
+  if (!c.userid || !c.linkkey || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
+  const out = await payappCall({ cmd: "paycancel", userid: c.userid, linkkey: c.linkkey, mul_no: order.paymentKey, cancelmemo: reason.slice(0, 100), ...(cancelAmount ? { partcancel: "1", cancelprice: String(cancelAmount) } : { partcancel: "0" }) });
+  if (out.state !== "1") return { ok: false, code: `PAYAPP_${out.errno ?? "CANCEL"}`, message: out.errorMessage || "결제를 취소하지 못했어요." };
+  return { ok: true };
+}
+
+/**
+ * 환불 — 이용권·포인트 회수 → 주문을 먼저 취소 상태로 → PG 취소 → 실패하면 둘 다 되돌린다.
+ * (주문을 먼저 바꿔 두는 건 페이앱이 취소 통보를 보낼 때 같은 주문을 또 회수하지 않게 하려는 것.) deduct 만큼 잔액이 없으면 회수하지 않고 실패.
+ */
 // 포인트 주문이면 AI 포인트에서, 예전 이용권 주문이면 이용권에서 회수한다.
-async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number; productKey: string }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
+async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number; productKey: string; provider: string }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
   const deduct = Math.max(0, opts.deduct);
   const points = isPointsOrder(order);
+  const giveBack = async () => {
+    if (deduct <= 0) return;
+    if (points) await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: deduct } } });
+    else await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+  };
   if (deduct > 0) {
     const r = points
       ? await prisma.aiWallet.updateMany({ where: { userId: order.userId, balance: { gte: deduct } }, data: { balance: { decrement: deduct } } })
       : await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
     if (r.count !== 1) return points ? { ok: false as const, code: "POINTS_USED", message: "충전한 포인트를 이미 써서 환불할 수 없어요." } : { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
   }
-  const cancel = await tossCancel(order, opts.reason, opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined);
+  const partial = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined;
+  const refunded = partial ?? order.amount;
+  const marked = await prisma.paymentOrder.updateMany({
+    where: { id: order.id, status: "DONE" },
+    data: { status: partial ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded }
+  });
+  if (marked.count !== 1) {
+    await giveBack();
+    return { ok: false as const, code: "NOT_REFUNDABLE", message: "이미 환불했거나 환불할 수 없는 결제예요." };
+  }
+  const cancel = order.provider === "payapp" ? await payappCancel(order, opts.reason, partial) : await tossCancel(order, opts.reason, partial);
   if (!cancel.ok) {
-    if (deduct > 0) {
-      if (points) await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: deduct } } });
-      else await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
-    }
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "DONE", canceledAt: null, cancelReason: null, canceledAmount: null } });
+    await giveBack();
     return cancel;
   }
-  const refunded = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : order.amount;
-  await prisma.$transaction([
-    prisma.paymentOrder.update({ where: { id: order.id }, data: { status: refunded < order.amount ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded } }),
-    ...(deduct > 0
-      ? [points ? prisma.aiPointLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund" } }) : prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } })]
-      : [])
-  ]);
+  if (deduct > 0) {
+    if (points) await prisma.aiPointLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund" } });
+    else await prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } });
+  }
   return { ok: true as const, refunded, deducted: deduct };
 }
 

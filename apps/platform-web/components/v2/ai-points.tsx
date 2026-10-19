@@ -14,7 +14,7 @@ import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { createPaymentOrder } from "../../lib/interview-credits";
 import { formatPoints, onPointsConfirm, onPointsPaywall, redeemPointCode, refreshAiPoints, useAiCost, useAiPoints, type AiPointProduct, type PointsConfirmRequest, type RedeemError } from "../../lib/ai-points";
 import { useToast } from "../toast/ToastProvider";
-import { CLIENT_KEY, COUPON, loadToss, type TossWidgets } from "./interview-paywall";
+import { CLIENT_KEY, COUPON, PayAppFields, goPayApp, loadToss, payMode, savedPhone, validPhone, type TossWidgets } from "./interview-paywall";
 
 export const PAYMENTS_HREF = "/talent/payments";
 
@@ -304,7 +304,9 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const widgets = useRef<TossWidgets | null>(null);
-  const payable = Boolean(CLIENT_KEY) && Boolean(pts?.paymentsEnabled);
+  const mode = payMode(pts?.paymentsEnabled, pts?.paymentProvider);
+  const payable = mode !== null;
+  const [phone, setPhone] = useState(savedPhone);
   const products = pts?.products ?? [];
   const product = pick ?? products.find((p) => p.badge === "popular") ?? products[0] ?? null;
   const feedbackCost = pts?.costs.interview_feedback ?? 0;
@@ -318,7 +320,7 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
   const userId = user?.id ?? null;
   const init = useRef<Promise<TossWidgets> | null>(null);
   useEffect(() => {
-    if (!payable || !amount || !userId) return;
+    if (mode !== "toss" || !amount || !userId) return;
     let alive = true;
     (async () => {
       try {
@@ -341,10 +343,22 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
     return () => {
       alive = false;
     };
-  }, [payable, amount, userId, t]);
+  }, [mode, amount, userId, t]);
 
   const pay = async () => {
-    if (!product || !widgets.current) return;
+    if (!product) return;
+    if (mode === "payapp") {
+      setBusy(true);
+      setError(null);
+      try {
+        await goPayApp(product.key, phone, pathname);
+      } catch (e) {
+        setError((e as { message?: string })?.message || t("결제를 시작하지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't start the payment. Try again soon.", "无法开始支付，请稍后再试。", "Không bắt đầu thanh toán được.", "決済を開始できませんでした。", "Gagal memulai pembayaran."));
+        setBusy(false);
+      }
+      return;
+    }
+    if (!widgets.current) return;
     setBusy(true);
     setError(null);
     try {
@@ -376,7 +390,7 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         payable ? (
-          <Button full onClick={() => void pay()} disabled={!ready || busy || !product}>
+          <Button full onClick={() => void pay()} disabled={(mode === "payapp" ? !validPhone(phone) : !ready) || busy || !product}>
             {busy ? <Spinner /> : null}
             {product ? t(`${product.amount.toLocaleString()}원 결제하기`, `Pay ₩${product.amount.toLocaleString()}`, `支付 ₩${product.amount.toLocaleString()}`, `Thanh toán ₩${product.amount.toLocaleString()}`, `₩${product.amount.toLocaleString()} を支払う`, `Bayar ₩${product.amount.toLocaleString()}`) : t("결제하기", "Pay", "支付", "Thanh toán", "支払う", "Bayar")}
           </Button>
@@ -427,7 +441,9 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
         </p>
       ) : null}
 
-      {payable ? (
+      {mode === "payapp" ? (
+        <PayAppFields t={t} phone={phone} onPhone={setPhone} />
+      ) : mode === "toss" ? (
         <div className="mt-5">
           <div id="toss-payment-method" />
           <div id="toss-agreement" />
