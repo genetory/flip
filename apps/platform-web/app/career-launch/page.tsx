@@ -12,7 +12,7 @@ export const metadata: Metadata = pageSeo({
   path: "/career-launch",
   title: "Career Launch — 4주 취업 준비 프로그램",
   description:
-    "4주 동안 강점 발견부터 한국식 이력서·자기소개서와 실전 모의면접까지. 외국인 구직자를 위한 무료 취업 준비 프로그램."
+    "4주 동안 강점 발견부터 한국식 이력서·자기소개서와 실전 모의면접까지. 외국인 구직자를 위한 4주 취업 준비 프로그램."
 });
 
 export default function CareerLaunchLandingRoute() {
