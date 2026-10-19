@@ -28067,13 +28067,24 @@ async function tossCancel(order: { id: string; paymentKey: string | null }, reas
   return { ok: true };
 }
 
-/** 페이앱 결제 취소 — 전액 또는 일부(cancelAmount). 결제 다음 날 이후 카드 취소는 페이앱 정책상 막힐 수 있다(그땐 페이앱 판매자 화면에서). */
-async function payappCancel(order: { paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+/**
+ * 페이앱 결제 취소 — 전액 또는 일부(cancelAmount).
+ * 판매자 정산 전이면 paycancel(바로 취소), 정산이 끝난 결제는 paycancel 이 거절되므로 paycancelreq(취소 요청 — 정산금을 페이앱에 반환하면 고객 환불이 진행되고, 끝나면 취소 통보가 온다)로 한 번 더.
+ */
+async function payappCancel(order: { paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true; settled?: { paybackprice: string; paybackbank: string } } | { ok: false; code: string; message: string }> {
   const c = payappCfg();
   if (!c.userid || !c.linkkey || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
-  const out = await payappCall({ cmd: "paycancel", userid: c.userid, linkkey: c.linkkey, mul_no: order.paymentKey, cancelmemo: reason.slice(0, 100), ...(cancelAmount ? { partcancel: "1", cancelprice: String(cancelAmount) } : { partcancel: "0" }) });
-  if (out.state !== "1") return { ok: false, code: `PAYAPP_${out.errno ?? "CANCEL"}`, message: out.errorMessage || "결제를 취소하지 못했어요." };
-  return { ok: true };
+  const base = { userid: c.userid, linkkey: c.linkkey, mul_no: order.paymentKey, cancelmemo: reason.slice(0, 100), ...(cancelAmount ? { partcancel: "1", cancelprice: String(cancelAmount) } : { partcancel: "0" }) };
+  const out = await payappCall({ cmd: "paycancel", ...base });
+  if (out.state === "1") return { ok: true };
+  // 정산이 끝난 결제 — 취소 요청으로
+  const req = await payappCall({ cmd: "paycancelreq", ...base });
+  if (req.state === "1") {
+    console.warn(`[payapp/cancel] 정산 후 취소 요청 mul_no=${order.paymentKey} 반환액=${req.paybackprice ?? "?"} 입금계좌=${req.paybackbank ?? "?"} — 페이앱에 정산금 반환 필요`);
+    return { ok: true, settled: { paybackprice: req.paybackprice ?? "", paybackbank: req.paybackbank ?? "" } };
+  }
+  console.error(`[payapp/cancel] 취소 실패 mul_no=${order.paymentKey} paycancel=${out.errorMessage ?? out.errno} paycancelreq=${req.errorMessage ?? req.errno}`);
+  return { ok: false, code: `PAYAPP_${out.errno ?? "CANCEL"}`, message: req.errorMessage || out.errorMessage || "결제를 취소하지 못했어요." };
 }
 
 /**
@@ -28110,6 +28121,10 @@ async function refundOrder(order: { id: string; userId: string; paymentKey: stri
     await prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "DONE", canceledAt: null, cancelReason: null, canceledAmount: null } });
     await giveBack();
     return cancel;
+  }
+  const settled = (cancel as { settled?: { paybackprice: string } }).settled;
+  if (settled) {
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { cancelReason: `${opts.by}: ${opts.reason} (정산 후 취소 요청 — 페이앱에 ${settled.paybackprice || refunded}원 반환 필요)`.slice(0, 200) } });
   }
   if (deduct > 0) {
     if (points) await prisma.aiPointLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund" } });
