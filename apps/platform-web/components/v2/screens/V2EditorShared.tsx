@@ -4,6 +4,7 @@
 // 편집기 구조(상단 바·왼쪽 목록·가운데 A4·오른쪽 패널)는 기존 편집기 그대로 두고 모양만 바꾼다.
 // 저장·계측·시트 잠금 같은 동작(훅)은 기존 것을 그대로 다시 내보낸다 — 두 벌로 갈라지지 않게.
 import Link from "next/link";
+import { isLaunchEditor } from "../../../lib/launch-editor-context";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, CheckCircle, CircleNotch, DownloadSimple, FloppyDisk, LockSimple, Trash, WarningCircle } from "@phosphor-icons/react";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
@@ -137,7 +138,17 @@ export function EditorTopBar<L, S>({
   );
   return (
     <header className="no-print flex h-16 shrink-0 items-center gap-2 overflow-x-auto border-b border-[color:var(--v2-band)] bg-white px-3 lg:h-[72px] lg:gap-4 lg:overflow-visible lg:px-5">
-      <Link href={exitHref} aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]">
+      <Link
+        href={exitHref}
+        onClick={(e) => {
+          // 커리어런치 결과물에서 연 에디터면 결과물로 돌아간다(새로 불러와 고친 내용이 보이게)
+          if (isLaunchEditor()) {
+            e.preventDefault();
+            window.location.href = "/career-launch/deliverables";
+          }
+        }}
+        aria-label={t("나가기", "Exit", "退出", "Thoát", "終了", "Keluar")}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)]">
         <ArrowLeft size={20} weight="bold" />
       </Link>
       <nav aria-label={t("문서", "Document", "文档", "Tài liệu", "文書", "Dokumen")} className="flex shrink-0 items-center rounded-xl bg-[color:var(--v2-band)] p-1">

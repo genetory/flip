@@ -1,5 +1,6 @@
 import { readAccessToken, refreshPlatformSession, storeAccessToken } from "./auth-client";
 import { getBrowserLocale } from "./auth-messages";
+import { launchEditorHeaders } from "./launch-editor-context";
 import { notifyAiBlocked } from "./ai-blocked";
 import {
   trackAiAnalysisCompleted,
@@ -161,6 +162,8 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        // 커리어런치에서 연 에디터면 컨텍스트 헤더(그때만 에디터 AI 포인트 면제) — lib/launch-editor-context
+        ...launchEditorHeaders(),
         ...(init.headers ?? {}),
         Authorization: `Bearer ${token}`
       }
@@ -224,6 +227,7 @@ async function authedMultipartFetch<T>(path: string, body: FormData) {
       method: "POST",
       credentials: "include",
       headers: {
+        ...launchEditorHeaders(),
         Authorization: `Bearer ${token}`
       },
       body

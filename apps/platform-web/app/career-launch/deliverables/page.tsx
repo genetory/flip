@@ -17,6 +17,10 @@ import { fetchCoverData, hasCoverContent, type CoverData } from "../../../lib/la
 import { fetchResumeScore, fetchCoverScore } from "../../../lib/launch/feedback-client";
 import { fetchProgress } from "../../../lib/launch/progress-client";
 import { useLaunchT } from "../../../lib/launch/i18n";
+import { getEditorLink, linkEditor, type EditorKind } from "../../../lib/launch/editor-link";
+import { LAUNCH_COVER_EDITOR, LAUNCH_RESUME_EDITOR } from "../../../lib/launch-editor-context";
+import { Sheet } from "../../../components/v2/sheets";
+import { Spinner } from "../../../components/v2/ui";
 
 type LaunchT = ReturnType<typeof useLaunchT>;
 
@@ -30,7 +34,8 @@ function DocCard({
   empty,
   emptyHint,
   openHref,
-  editHref,
+  onEdit,
+  editing,
   preview,
   t
 }: {
@@ -39,7 +44,9 @@ function DocCard({
   empty: boolean;
   emptyHint: string;
   openHref: string;
-  editHref: string;
+  /** 탤런트 에디터로 편집(커리어런치에서 열면 에디터 AI 를 포인트 없이). */
+  onEdit: () => void;
+  editing: boolean;
   preview: React.ReactNode;
   t: LaunchT;
 }) {
@@ -70,7 +77,9 @@ function DocCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Link href={editHref} className="inline-flex h-9 items-center gap-1 rounded-lg bg-white px-3 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"><PencilSimpleLine className="h-3.5 w-3.5" weight="bold" /> {t("수정", "Edit", "修改", "Sửa", "編集", "Edit")}</Link>
+          <button type="button" onClick={onEdit} disabled={editing} className="inline-flex h-9 items-center gap-1 rounded-lg bg-white px-3 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-60">
+            {editing ? <Spinner /> : <PencilSimpleLine className="h-3.5 w-3.5" weight="bold" />} {t("에디터로 편집", "Edit in editor", "在编辑器中编辑", "Sửa trong trình soạn", "エディタで編集", "Edit di editor")}
+          </button>
           <Link href={openHref} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1 rounded-lg bg-[color:var(--v2-accent)] px-3 text-[14px] font-semibold text-white transition hover:opacity-90">{t("열기", "Open", "打开", "Mở", "開く", "Buka")} <ArrowUpRight className="h-3.5 w-3.5" weight="bold" /></Link>
         </div>
       </div>
@@ -114,6 +123,47 @@ export default function DeliverablesPage() {
   const resumeEmpty = !hasResumeContent(resume);
   const coverEmpty = !hasCoverContent(cover);
 
+  // 에디터로 편집 — 탤런트 에디터와 '하나의 문서'로 연결하고 연다(커리어런치에서 열면 에디터 AI 를 포인트 없이).
+  // 처음이면 연결: 한쪽에만 내용이 있으면 그쪽으로, 둘 다 있으면 어느 내용으로 시작할지 묻는다.
+  const [editing, setEditing] = useState<EditorKind | null>(null);
+  const [choose, setChoose] = useState<EditorKind | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const goEditor = (kind: EditorKind) => {
+    window.location.href = kind === "resume" ? LAUNCH_RESUME_EDITOR : LAUNCH_COVER_EDITOR;
+  };
+  const failText = t("에디터를 열지 못했어요. 잠시 후 다시 해 보세요.", "Couldn't open the editor. Try again soon.", "无法打开编辑器，请稍后再试。", "Không mở được trình soạn. Thử lại sau.", "エディタを開けませんでした。", "Gagal membuka editor. Coba lagi.");
+  const openEditor = async (kind: EditorKind) => {
+    setEditing(kind);
+    setEditError(null);
+    try {
+      const st = (await getEditorLink())[kind];
+      if (st.linked) return goEditor(kind);
+      if (st.launchHasContent && st.talentHasContent) {
+        setChoose(kind);
+        setEditing(null);
+        return;
+      }
+      await linkEditor(kind, st.launchHasContent || !st.talentHasContent ? "launch" : "talent");
+      goEditor(kind);
+    } catch {
+      setEditError(failText);
+      setEditing(null);
+    }
+  };
+  const pick = async (use: "launch" | "talent") => {
+    if (!choose) return;
+    const kind = choose;
+    setEditing(kind);
+    try {
+      await linkEditor(kind, use);
+      goEditor(kind);
+    } catch {
+      setEditError(failText);
+      setEditing(null);
+      setChoose(null);
+    }
+  };
+
   return (
     <div className="cl-surface flex min-h-screen flex-col bg-[color:var(--v2-bg,#fff)]">
       <CareerLaunchHeader />
@@ -144,7 +194,8 @@ export default function DeliverablesPage() {
                     empty={resumeEmpty}
                     emptyHint={t("Step 2에서 이력서를 작성하면 여기에 미리보기가 나타나요.", "Build your resume in Step 2 to see a preview here.", "在Step 2撰写简历后，这里会显示预览。", "Tạo CV ở Step 2 để xem bản xem trước tại đây.", "Step 2で履歴書を作成するとここにプレビューが表示されます。", "Buat resume di Step 2 untuk melihat pratinjau di sini.")}
                     openHref="/career-launch/resume-preview"
-                    editHref="/career-launch/resume-collect"
+                    onEdit={() => void openEditor("resume")}
+                    editing={editing === "resume"}
                     preview={<ResumePreview content={toResumeContent(resume)} design={DEFAULT_DESIGN} preserveOrder />}
                   />
                   <DocCard
@@ -154,12 +205,14 @@ export default function DeliverablesPage() {
                     empty={coverEmpty}
                     emptyHint={t("Step 2에서 자기소개서를 작성하면 여기에 미리보기가 나타나요.", "Write your cover letter in Step 2 to see a preview here.", "在Step 2撰写自我介绍后，这里会显示预览。", "Viết thư giới thiệu ở Step 2 để xem bản xem trước tại đây.", "Step 2で自己紹介書を作成するとここにプレビューが表示されます。", "Tulis surat lamaran di Step 2 untuk melihat pratinjau di sini.")}
                     openHref="/career-launch/cover-preview"
-                    editHref="/career-launch/cover-collect"
+                    onEdit={() => void openEditor("cover")}
+                    editing={editing === "cover"}
                     preview={<CoverRender data={cover} />}
                   />
                 </div>
               </DashboardSection>
 
+              {editError ? <p className="-mt-4 text-[14px] text-[#f04452]">{editError}</p> : null}
               {/* 면접 준비 요약 */}
               <DashboardSection title={t("면접 준비", "Interview prep", "面试准备", "Chuẩn bị phỏng vấn", "面接準備", "Persiapan wawancara")} sub={t("모의면접 연습 결과", "Your mock interview results", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接の結果", "Hasil wawancara simulasi")}>
                 <div className="flex items-center gap-3.5 rounded-3xl bg-[color:var(--v2-band)] p-5">
@@ -184,6 +237,29 @@ export default function DeliverablesPage() {
           )}
         </div>
       </main>
+      {choose ? (
+        <Sheet
+          title={t("어떤 내용으로 시작할까요?", "Which version to start from?", "从哪个版本开始？", "Bắt đầu từ bản nào?", "どちらの内容で始めますか？", "Mulai dari versi mana?")}
+          subtitle={t("이제 내 이력서와 한 문서가 돼요", "Now one doc with My resume", "将与我的简历合为一份", "Gộp thành một với CV", "マイ履歴書と1つの文書に", "Jadi satu dengan resume")}
+          onClose={() => setChoose(null)}
+        >
+          <div className="flex flex-col gap-2.5">
+            <button type="button" disabled={editing !== null} onClick={() => void pick("launch")} className="rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-4 text-left transition hover:opacity-90 disabled:opacity-60">
+              <span className="block text-[16px] font-bold text-[color:var(--v2-ink)]">{t("커리어런치에서 쓴 내용", "What I wrote in Career Launch", "在 Career Launch 写的内容", "Nội dung viết ở Career Launch", "Career Launchで書いた内容", "Isi dari Career Launch")}</span>
+              <span className="mt-0.5 block text-[14px] text-[color:var(--v2-muted)]">{t("프로그램에서 만든 내용으로 내 이력서를 채워요. 자격증·수상처럼 프로그램에 없는 항목은 그대로 둬요.", "Fill My resume with the program's version. Items the program doesn't have, like certificates, stay.", "用项目内容填充我的简历，证书、奖项等项目没有的条目保留。", "Điền CV của tôi bằng bản trong chương trình. Mục chương trình không có (chứng chỉ…) được giữ.", "プログラムの内容でマイ履歴書を埋めます。資格・受賞などは残します。", "Isi resume saya dengan versi program. Item seperti sertifikat tetap ada.")}</span>
+            </button>
+            <button type="button" disabled={editing !== null} onClick={() => void pick("talent")} className="rounded-2xl bg-[color:var(--v2-fill)] px-4 py-4 text-left transition hover:bg-[color:var(--v2-band)] disabled:opacity-60">
+              <span className="block text-[16px] font-bold text-[color:var(--v2-ink)]">{t("내 이력서에 있던 내용", "What's already in My resume", "我的简历里已有的内容", "Nội dung có sẵn trong CV", "マイ履歴書の内容", "Isi resume saya yang ada")}</span>
+              <span className="mt-0.5 block text-[14px] text-[color:var(--v2-muted)]">{t("에디터에서 쓰던 내용을 그대로 쓰고, 커리어런치 결과물도 그 내용으로 바뀌어요.", "Keep the editor's version; your Career Launch deliverable updates to match.", "沿用编辑器里的内容，Career Launch 成果也会随之更新。", "Giữ bản trong trình soạn; kết quả Career Launch cập nhật theo.", "エディタの内容をそのまま使い、Career Launchの成果物もそれに合わせます。", "Pakai versi editor; hasil Career Launch ikut diperbarui.")}</span>
+            </button>
+            {editing ? (
+              <div className="flex justify-center py-2 text-[color:var(--v2-muted)]">
+                <Spinner />
+              </div>
+            ) : null}
+          </div>
+        </Sheet>
+      ) : null}
       <AplyFooter />
     </div>
   );

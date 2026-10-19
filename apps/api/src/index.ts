@@ -268,7 +268,9 @@ import {
   renewalToCareerCover,
   hasDerivedResumeContent,
   isHumanCollected,
-  canonicalJson
+  canonicalJson,
+  careerResumeToRenewal,
+  careerCoverToRenewal
 } from "./career-derive";
 import { createHash } from "crypto";
 
@@ -17366,6 +17368,35 @@ function sendAiUnavailable(res: import("express").Response): void {
 // 포인트: 호출 전에 비용만큼 원자적으로 선점(부족하면 402 AI_POINTS_REQUIRED) → 성공 응답(ok !== false, 4xx/5xx 아님)이면 확정,
 // 실패 응답·연결 끊김이면 되돌린다. 성공 응답에는 aiPoints: { balance, spent } 를 붙여 화면이 잔액을 바로 갱신한다.
 // 면제: 비용 0 · Career Launch 프로그램 안 기능(활성 수강생) · 오늘의 질문 피드백(하루 1번, daily:true).
+// 커리어런치 결과물에서 연 이력서·자소서 에디터 — 수강 중인 학생이면 이 기능들은 포인트 없이(사용자 결정: '커리어런치에서 열었을 때만').
+// 클라이언트가 에디터를 커리어런치에서 열었을 때만 X-Aply-Context: career-launch 를 붙인다(탤런트 메뉴로 연 에디터는 평소대로 차감).
+const CAREER_EDITOR_FEATURES = new Set([
+  "import_resume",
+  "import_cover_letter",
+  "polish_resume_items",
+  "polish_experience",
+  "polish_intro",
+  "draft_resume_text",
+  "draft_intro",
+  "summarize_intro",
+  "suggest_skills",
+  "translate_texts",
+  "generate_english_intro",
+  "experience_interview",
+  "experience_bullets",
+  "experience_title",
+  "experience_tasks",
+  "cover_letter",
+  "review_resume",
+  "review_cover"
+]);
+const fromCareerLaunch = (req: import("express").Request) => String(req.get("x-aply-context") ?? "").toLowerCase() === "career-launch";
+/** 이 요청의 기능을 커리어런치 혜택으로 포인트 없이 처리하나 — 프로그램 기능이거나, 커리어런치에서 연 에디터 기능이면서 수강 중. */
+async function careerLaunchFree(req: import("express").Request, userId: string, feature: string): Promise<boolean> {
+  const eligible = CAREER_PROGRAM_FEATURES.has(feature) || (CAREER_EDITOR_FEATURES.has(feature) && fromCareerLaunch(req));
+  return eligible && (await isActiveCareerLaunchStudent(userId));
+}
+
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
     if (when && !when(req)) return next();
@@ -17379,7 +17410,7 @@ function aiCharge(feature: string, when?: (req: import("express").Request) => bo
     const cost = aiFeatureCost(feature);
     if (cost <= 0) return next();
     try {
-      if (CAREER_PROGRAM_FEATURES.has(feature) && (await isActiveCareerLaunchStudent(userId))) return next();
+      if (await careerLaunchFree(req, userId, feature)) return next();
       // 오늘의 질문 — 하루 1번 차감 없이. 사용 표시는 성공 후 interviewCreditSpend 가 남긴다.
       if (feature === "interview_feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
         res.locals.interviewFree = true;
@@ -19524,6 +19555,7 @@ app.post(
       });
       // 저장 즉시 실제 aply.global Resume 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
       // 경력·활동·학력·스킬·어학은 '없음'도 정상 — 대화가 done 이면 데이터가 비어도 해당 스텝을
       // 완료 처리(doneSteps)해, 해당 항목이 없는 학생도 W2 를 막힘없이 진행한다(기본정보만 실제 내용 필요).
       const OPTIONAL_STEP: Record<string, string> = { edu: "w2-edu", exp: "w2-exp", expOther: "w2-exp-other", skill: "w2-skill", lang: "w2-lang" };
@@ -19587,6 +19619,7 @@ app.put("/career-launch/resume-data", authenticate, requireCareerEnrollment, asy
       update: { content: normalized as object }
     });
     await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
     // 섹션별 스텝 완료 반영 — 내용이 있으면 완료, 비면 미완료(단, emptyDone 명시 섹션은 완료).
     const emptyDone = Array.isArray(body.emptyDone) ? (body.emptyDone as unknown[]).filter((x): x is string => typeof x === "string") : [];
     const b = normalized.basic as Record<string, unknown>;
@@ -19665,6 +19698,7 @@ app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, 
     }
     // 리셋 결과를 실제 aply.global Resume 미러에도 반영.
     await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -19745,7 +19779,9 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
       prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
     ]);
 
-    if (!isHumanCollected(savedResume?.content)) {
+    // 커리어런치 결과물을 이 에디터 문서와 '하나의 문서'로 연결했으면(editorLink) 에디터가 기준 — 사람이 모은 데이터여도 따라간다.
+    const link = await getCareerEditorLink(userId);
+    if (link.resume === resumeId || !isHumanCollected(savedResume?.content)) {
       const loose = renewalToCareerResume(content);
       if (hasDerivedResumeContent(loose)) {
         const normalized: Record<string, unknown> = { ...normalizeResumeData(loose), [DERIVED_MARK]: resumeId };
@@ -19773,7 +19809,7 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
       }
     }
 
-    if (!isHumanCollected(savedCover?.content)) {
+    if (link.cover === resumeId || !isHumanCollected(savedCover?.content)) {
       const loose = renewalToCareerCover(content);
       const items = (loose.items as { answer?: string }[]) ?? [];
       if (items.some((x) => (x.answer ?? "").trim())) {
@@ -19791,6 +19827,109 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
     console.error("[career-derive] failed", { userId, resumeId, error: err instanceof Error ? err.message : String(err) });
   }
 }
+
+// ── 커리어런치 결과물 ↔ 탤런트 에디터 '하나의 문서' 연결(editorLink) ──
+// 결과물에서 [에디터로 편집]을 누르면 학생의 탤런트 에디터 문서(Resume.content.renewalResume/renewalCover)와 연결한다.
+//  - 에디터에서 고치면 → deriveCareerDataFromRenewal 이 커리어런치 데이터·주차 진행에 반영(연결된 문서는 사람이 모은 데이터여도 따라감)
+//  - 프로그램 안(대화형 작성·빌더)에서 고치면 → pushCareerToLinkedRenewal 이 에디터 문서에 반영(프로그램이 모르는 섹션·에디터 설정은 보존)
+// 연결 정보는 진행 상태(state.editorLink = { resume?: rowId, cover?: rowId })에 둔다 — 데이터 본문에 표시를 넣으면 프로그램 저장 때 지워진다.
+type CareerEditorKind = "resume" | "cover";
+async function getCareerEditorLink(userId: string): Promise<{ resume?: string; cover?: string }> {
+  const p = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
+  const l = (p?.state && typeof p.state === "object" ? (p.state as Record<string, unknown>).editorLink : null) as Record<string, unknown> | null;
+  return { resume: typeof l?.resume === "string" ? l.resume : undefined, cover: typeof l?.cover === "string" ? l.cover : undefined };
+}
+
+/** 프로그램 데이터를 연결된 에디터 문서에 반영. force=true 면 연결 직후 첫 채움(연결 정보 대신 rowId 를 직접 받는다). */
+async function pushCareerToLinkedRenewal(userId: string, kind: CareerEditorKind, rowId?: string): Promise<void> {
+  try {
+    const target = rowId ?? (await getCareerEditorLink(userId))[kind];
+    if (!target) return;
+    const row = await prisma.resume.findUnique({ where: { id: target }, select: { userId: true, content: true } });
+    if (!row || row.userId !== userId) return;
+    const content = { ...((row.content && typeof row.content === "object" ? row.content : {}) as Record<string, unknown>) };
+    if (kind === "resume") {
+      const data = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      const { doc, info } = careerResumeToRenewal(data?.content ?? {}, content.renewalResume, content.renewalBasicInfo);
+      content.renewalResume = doc;
+      content.renewalBasicInfo = info;
+    } else {
+      const data = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      content.renewalCover = careerCoverToRenewal(data?.content ?? {}, content.renewalCover);
+    }
+    await prisma.resume.update({ where: { id: target }, data: { content: content as object } });
+  } catch (err) {
+    console.error("[career-editor-link] push failed", { userId, kind, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+const careerHasResume = (c: unknown) => hasDerivedResumeContent((c && typeof c === "object" ? c : {}) as Record<string, unknown>);
+const careerHasCover = (c: unknown) => {
+  const items = ((c && typeof c === "object" ? (c as Record<string, unknown>).items : null) ?? []) as { answer?: string }[];
+  return Array.isArray(items) && items.some((x) => (x?.answer ?? "").trim());
+};
+function renewalHas(content: unknown, kind: CareerEditorKind): boolean {
+  const c = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+  const doc = (kind === "resume" ? c.renewalResume : c.renewalCover) as { items?: { text?: string }[] } | undefined;
+  return Array.isArray(doc?.items) && doc!.items!.some((i) => (i?.text ?? "").trim());
+}
+
+// GET /career-launch/editor-link — 결과물의 [에디터로 편집] 전에: 이미 연결됐는지, 양쪽에 내용이 있는지(둘 다 있으면 어느 쪽으로 시작할지 묻는다).
+app.get("/career-launch/editor-link", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [link, row, rd, cd] = await Promise.all([
+      getCareerEditorLink(userId),
+      findTalentResumeRow(userId),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+    const view = (kind: CareerEditorKind) => ({
+      linked: Boolean(link[kind] && row && link[kind] === row.id),
+      launchHasContent: kind === "resume" ? careerHasResume(rd?.content) : careerHasCover(cd?.content),
+      talentHasContent: row ? renewalHas(row.content, kind) : false
+    });
+    return res.json({ ok: true, resume: view("resume"), cover: view("cover") });
+  } catch (err) {
+    console.error("[career-editor-link] get failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+// POST /career-launch/editor-link { kind, use } — 연결. use='launch' 면 프로그램 내용으로 에디터 문서를 채우고, 'talent' 면 에디터 문서 내용으로 프로그램 데이터를 맞춘다.
+const careerEditorLinkSchema = z.object({ kind: z.enum(["resume", "cover"]), use: z.enum(["launch", "talent"]) });
+app.post("/career-launch/editor-link", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = careerEditorLinkSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  const { kind, use } = parsed.data;
+  try {
+    // 에디터 문서 행 — 없으면 만든다(에디터가 처음 저장할 때 만드는 '내 이력서'와 같은 모양). 커리어런치 복사본 행은 쓰지 않는다(그 행은 프로그램이 덮어쓴다).
+    let row = await findTalentResumeRow(userId);
+    if (!row) {
+      const now = Date.now();
+      const created = await prisma.resume.create({
+        data: { userId, title: "내 이력서", content: { renewalResume: { targetRole: "", items: [], createdAt: now, updatedAt: now } } as object },
+        select: { id: true, content: true }
+      });
+      row = created;
+    }
+    await updateCareerProgressState(userId, (prev) => {
+      const cur = (prev.editorLink && typeof prev.editorLink === "object" ? prev.editorLink : {}) as Record<string, unknown>;
+      prev.editorLink = { ...cur, [kind]: row!.id };
+      return prev;
+    });
+    if (use === "launch") await pushCareerToLinkedRenewal(userId, kind, row.id);
+    else {
+      const fresh = await prisma.resume.findUnique({ where: { id: row.id }, select: { content: true } });
+      await deriveCareerDataFromRenewal(userId, row.id, fresh?.content ?? row.content);
+    }
+    return res.json({ ok: true, resumeId: row.id });
+  } catch (err) {
+    console.error("[career-editor-link] link failed", err);
+    return res.status(500).json({ ok: false, message: "failed to link" });
+  }
+});
 
 // 자소서 병합 — 문항(question) 기준 union, 새 answer 우선(비어있으면 기존 유지).
 function mergeCoverData(saved: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
@@ -19915,6 +20054,7 @@ app.post(
       });
       // 저장 즉시 실제 aply.global CoverLetter 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
       return res.json({ ok: true, reply, data: coverData, done });
     } catch (err) {
       console.error("[career-launch/cover-chat] failed", err);
@@ -19946,6 +20086,7 @@ app.put("/career-launch/cover-data", authenticate, requireCareerEnrollment, asyn
       update: { content: normalized as object }
     });
     await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
     // 문항별 스텝 완료 반영 — 해당 섹션 질문의 답변이 있으면 완료, 없으면 미완료.
     const items = (normalized.items as { question?: string; answer?: string }[]) ?? [];
     const answered = (label: string) => items.some((it) => (it.question ?? "").trim() === label && (it.answer ?? "").trim().length > 0);
@@ -19986,6 +20127,7 @@ app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, a
     });
     // 리셋 결과를 실제 aply.global CoverLetter 미러에도 반영.
     await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -27673,6 +27815,7 @@ app.get("/members/me/ai-points", authenticate, requireRoles([MemberRole.STUDENT]
   try {
     const userId = req.auth!.userId;
     const balance = await aiWalletReconcile(userId);
+    const launchEditorFree = fromCareerLaunch(req) && (await isActiveCareerLaunchStudent(userId));
     const [logs, dailyFreeUsed] = await Promise.all([
       prisma.aiPointLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, amount: true, reason: true, createdAt: true } }),
       interviewDailyFreeUsed(userId)
@@ -27683,7 +27826,9 @@ app.get("/members/me/ai-points", authenticate, requireRoles([MemberRole.STUDENT]
       balance,
       won: AI_POINT_WON,
       daily: { welcome: aiWelcomeGrant(), grant: aiDailyGrant(), cap: aiDailyCap(), nextAt: aiQuotaResetAt() },
-      costs: aiPointCostsView(),
+      // 커리어런치에서 연 에디터면(수강 중) 에디터 기능 비용을 빼서 보낸다 — 화면에 가격·확인 창이 안 뜬다(실제 차감도 aiCharge 가 면제).
+      costs: launchEditorFree ? Object.fromEntries(Object.entries(aiPointCostsView()).filter(([k]) => !CAREER_EDITOR_FEATURES.has(k))) : aiPointCostsView(),
+      launchEditorFree,
       perSet: INTERVIEW_CREDITS_PER_SESSION,
       dailyFreeUsed,
       paymentsEnabled: paymentProvider() !== null,
