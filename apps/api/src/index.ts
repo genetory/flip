@@ -17709,7 +17709,12 @@ const bulkStudentSchema = z.object({
   major: z.string().trim().max(120).optional(),
   fileName: z.string().trim().max(300).optional(),
   pdfBase64: z.string().max(16_000_000).optional(),
-  text: z.string().trim().max(40000).optional()
+  text: z.string().trim().max(40000).optional(),
+  // 표에 있으면 — 국적(ISO 2글자), 한국어 수준(예: 'TOPIK 5급'), 희망 분야(줄바꿈·쉼표로 여러 개), 자기소개서 본문
+  nationality: z.string().trim().max(40).optional(),
+  koreanLevel: z.string().trim().max(40).optional(),
+  desiredFields: z.string().trim().max(400).optional(),
+  coverText: z.string().trim().max(20000).optional()
 });
 app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const parsed = bulkStudentSchema.safeParse(req.body);
@@ -17744,9 +17749,22 @@ app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR])
     // 이메일이 없으면 내부용 주소(로그인하지 않는 계정 — 유일 제약만 맞춘다)
     if (!finalEmail) finalEmail = `student-${randomBytes(6).toString("hex")}@bulk.aply.global`;
     const user = await prisma.user.create({
-      data: { email: finalEmail, emailVerified: false, realName: name, name, role: MemberRole.STUDENT, authProvider: AuthProvider.EMAIL, affiliation: d.affiliation || null, passwordHash: null, signupReferer: BULK_REF(d.batch) }
+      data: { email: finalEmail, emailVerified: false, realName: name, name, role: MemberRole.STUDENT, authProvider: AuthProvider.EMAIL, affiliation: d.affiliation || null, passwordHash: null, signupReferer: BULK_REF(d.batch), nationality: d.nationality || null }
     });
-    const content = imported ? importedToRenewalContent(imported, { name, email: isPendingEmail(finalEmail) ? "" : finalEmail }) : { renewalResume: { targetRole: d.major ? "" : "", items: [], createdAt: Date.now(), updatedAt: Date.now() }, renewalBasicInfo: { realName: name, email: isPendingEmail(finalEmail) ? "" : finalEmail, phone: "", address: "", photoUrl: "" } };
+    const content: Record<string, unknown> = imported
+      ? importedToRenewalContent(imported, { name, email: isPendingEmail(finalEmail) ? "" : finalEmail })
+      : { renewalResume: { targetRole: "", items: [], createdAt: Date.now(), updatedAt: Date.now() }, renewalBasicInfo: { realName: name, email: isPendingEmail(finalEmail) ? "" : finalEmail, phone: "", address: "", photoUrl: "" } };
+    // 표에서 온 정보 보강 — 희망 분야(목표 직무가 비었을 때), 한국어 수준(어학에 없을 때), 자기소개서
+    const doc = content.renewalResume as { targetRole?: string; items: Record<string, unknown>[] };
+    const fields = (d.desiredFields ?? "").split(/\n|,|\d+\.\s*/).map((x) => x.replace(/[⁠\s]+/g, " ").trim()).filter(Boolean);
+    if (!doc.targetRole && fields.length) doc.targetRole = fields.slice(0, 3).join(" · ");
+    if (d.koreanLevel && !doc.items.some((i) => i.section === "language" && /한국어|korean|topik/i.test(String(i.text ?? "")))) {
+      doc.items.push({ id: `bulk-lang-${Date.now().toString(36)}`, section: "language", text: `한국어 ${d.koreanLevel}`, startDate: "", endDate: "" });
+    }
+    if (d.coverText) {
+      const now = Date.now();
+      content.renewalCover = { items: [{ id: `bulk-cov-${now.toString(36)}`, question: "자기소개", text: d.coverText.slice(0, 8000) }], questions: ["자기소개"], createdAt: now, updatedAt: now };
+    }
     const resume = await prisma.resume.create({ data: { userId: user.id, title: "내 이력서", content: content as object, isPrimary: true } });
     void embedAndSaveResume(prisma, resume.id).catch(() => {});
     console.info(`[ops/bulk-students] created user=${user.id} parsed=${Boolean(imported)}`);
