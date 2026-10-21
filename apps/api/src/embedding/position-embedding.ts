@@ -1,8 +1,10 @@
-import OpenAI from "openai";
 import { PrismaClient } from "@prisma/client";
 
-const EMBEDDING_MODEL = "text-embedding-3-large";
-const EMBEDDING_DIMENSIONS = 768;
+// 의미 검색(임베딩)은 2026-10-21 OpenAI 사용 중단과 함께 꺼 두었다 — Claude 에는 임베딩 API 가 없다.
+// 다시 켤 때는 generateEmbedding 을 새 제공자(예: Voyage)로 구현하고 EMBEDDINGS_ENABLED 를 true 로.
+// 컬럼이 vector(768) 이라 차원이 다른 모델이면 마이그레이션 + 전체 재임베딩이 필요하다.
+// 꺼져 있는 동안: 검색은 키워드로, 홈 추천은 관심 직무 기반으로, 신규 공고 알림은 쉰다.
+export const EMBEDDINGS_ENABLED = false;
 const MAX_INPUT_CHARS = 8000;
 
 // Format a JS number[] for the pgvector text input format: "[v1,v2,...]".
@@ -13,14 +15,6 @@ function toPgVector(vector: number[]): string {
 
 export { toPgVector };
 
-let cachedClient: OpenAI | null = null;
-function getClient(): OpenAI | null {
-  if (cachedClient) return cachedClient;
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  cachedClient = new OpenAI({ apiKey: key });
-  return cachedClient;
-}
 
 type PositionEmbeddingInput = {
   title?: string | null;
@@ -76,28 +70,13 @@ export function buildPositionEmbeddingText(input: PositionEmbeddingInput): strin
 }
 
 export async function generateEmbedding(text: string): Promise<number[] | null> {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
-  const client = getClient();
-  if (!client) return null;
-  try {
-    const response = await client.embeddings.create({
-      model: EMBEDDING_MODEL,
-      input: trimmed,
-      dimensions: EMBEDDING_DIMENSIONS
-    });
-    const vector = response.data[0]?.embedding;
-    if (!Array.isArray(vector) || vector.length === 0) return null;
-    return vector;
-  } catch (error) {
-    console.error("[embedding] generate failed", error);
-    return null;
-  }
+  void text;
+  return null;
 }
 
 // In-memory LRU cache for query embeddings. Search queries are highly
 // repetitive ("개발자", "마케팅", company names...) so caching avoids
-// hitting OpenAI on every keystroke. Keyed by normalized (lowercased,
+// hitting the embedding API on every keystroke. Keyed by normalized (lowercased,
 // trimmed) text. Map insertion-order doubles as LRU recency.
 type QueryCacheEntry = { vector: number[]; expiresAt: number };
 const QUERY_CACHE_MAX = 1000;

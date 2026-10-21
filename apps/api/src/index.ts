@@ -57,6 +57,7 @@ import { checkEmailDeliverable } from "./email/deliverability";
 import {
   embedAndSavePosition,
   embedQueryCached,
+  EMBEDDINGS_ENABLED,
   expandQueryCandidates,
   keywordScore,
   toPgVector
@@ -5139,6 +5140,8 @@ function startCrawlerScheduler() {
 // - 하루 1회 실행, 최근 26h 신규 공고만, (userId, 공고) 중복 알림 방지.
 // - 실패는 로그만 남기고 조용히 넘어간다(치명 아님).
 async function runJobMatchAlertsOnce(): Promise<void> {
+  // 저장된 벡터만으로 돌면 임베딩 없는 신규 공고가 빠져 알림이 치우친다 → 꺼져 있으면 쉰다.
+  if (!EMBEDDINGS_ENABLED) return;
   const startedAt = Date.now();
   try {
     // 임베딩은 Unsupported 타입이라 전 구간 raw SQL 로 다룬다.
@@ -10580,7 +10583,8 @@ app.get("/positions/recommended", async (req, res) => {
   try {
     const userId = resolvePublicViewerUserId(req);
     const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 12);
-    if (!userId) return res.json({ ok: true, personalized: false, items: [] });
+    // 임베딩이 꺼져 있으면 예전 벡터만 남은 공고로 치우치므로 빈 목록 → 프론트가 관심직무 추천으로 폴백.
+    if (!userId || !EMBEDDINGS_ENABLED) return res.json({ ok: true, personalized: false, items: [] });
 
     // 대표 이력서 임베딩(vector→text 캐스트)로 조회. 없으면 폴백.
     const embRows = await prisma.$queryRaw<Array<{ emb: string }>>`
