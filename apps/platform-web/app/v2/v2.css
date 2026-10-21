@@ -15,6 +15,12 @@
   --v2-accent-weak: #edf1fd;
   --v2-attention: #f04452;
   --v2-good: #00a661;
+  /* 상태 배경·경고 — 파트너 앱 배지(합격·불합격·대기 등)용 */
+  --v2-attention-weak: #fdecee;
+  --v2-good-weak: #e7f8ef;
+  --v2-warn: #e8890c;
+  --v2-warn-weak: #fff3e6;
+  --v2-disabled: #b0b8c1;
 
   background: var(--v2-bg);
   color: var(--v2-ink);

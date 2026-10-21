@@ -70,11 +70,11 @@ export function PartnerNotificationsScreen() {
       <div className="flex flex-col gap-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-black text-[#0B46E8]">{unread}</span> : null}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("지원·메시지·면접 등 소식을 확인해요.", "Check updates like applications, messages, and interviews.", "查看申请、消息、面试等动态。", "Xem cập nhật về ứng tuyển, tin nhắn, phỏng vấn.", "応募・メッセージ・面接などのお知らせを確認します。", "Lihat kabar seperti lamaran, pesan, dan wawancara.")}</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("알림", "Notifications", "通知", "Thông báo", "通知", "Notifikasi")}{unread > 0 ? <span className="ml-1.5 align-middle text-[15px] font-bold text-[color:var(--v2-accent)]">{unread}</span> : null}</h1>
+            <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{t("지원·메시지·면접 등 소식을 확인해요.", "Check updates like applications, messages, and interviews.", "查看申请、消息、面试等动态。", "Xem cập nhật về ứng tuyển, tin nhắn, phỏng vấn.", "応募・メッセージ・面接などのお知らせを確認します。", "Lihat kabar seperti lamaran, pesan, dan wawancara.")}</p>
           </div>
           {unread > 0 ? (
-            <button type="button" onClick={readAll} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">
+            <button type="button" onClick={readAll} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[13.5px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-accent-weak)]">
               <Checks className="h-4 w-4" weight="bold" /> {t("모두 읽음", "Read all", "全部已读", "Đọc tất cả", "すべて既読", "Baca semua")}
             </button>
           ) : null}
@@ -85,13 +85,13 @@ export function PartnerNotificationsScreen() {
 
         {status === "ready" ? (
           (items ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>🔔</span>
-              <p className="mt-3 text-[15px] font-bold text-[#191F28]">{t("새로운 알림이 없어요", "No new notifications", "没有新通知", "Không có thông báo mới", "新しい通知はありません", "Tidak ada notifikasi baru")}</p>
-              <p className="mt-1 text-[13px] text-[#8B95A1]">{t("지원·메시지가 오면 여기에서 알려드릴게요.", "We'll let you know here when applications or messages arrive.", "有申请或消息时会在这里通知您。", "Chúng tôi sẽ báo tại đây khi có ứng tuyển hoặc tin nhắn.", "応募やメッセージが届くとここでお知らせします。", "Kami beri tahu di sini saat ada lamaran atau pesan.")}</p>
+            <div className="rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] p-8 text-center">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[22px]" aria-hidden>🔔</span>
+              <p className="mt-3 text-[15px] font-bold text-[color:var(--v2-ink)]">{t("새로운 알림이 없어요", "No new notifications", "没有新通知", "Không có thông báo mới", "新しい通知はありません", "Tidak ada notifikasi baru")}</p>
+              <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{t("지원·메시지가 오면 여기에서 알려드릴게요.", "We'll let you know here when applications or messages arrive.", "有申请或消息时会在这里通知您。", "Chúng tôi sẽ báo tại đây khi có ứng tuyển hoặc tin nhắn.", "応募やメッセージが届くとここでお知らせします。", "Kami beri tahu di sini saat ada lamaran atau pesan.")}</p>
             </div>
           ) : (
-            <div className="flex flex-col overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+            <div className="flex flex-col overflow-hidden rounded-2xl bg-[color:var(--v2-band)]">
               {(items ?? []).map((n, i) => (
                 <NotificationRow key={n.id} n={n} last={i === (items ?? []).length - 1} onRead={() => readOne(n.id)} />
               ))}
@@ -107,27 +107,27 @@ function NotificationRow({ n, last, onRead }: { n: ServerNotification; last: boo
   const href = resolveNotifLink(n);
   const inner = (
     <>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[19px]" aria-hidden>{emojiForType(n.type)}</span>
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[19px]" aria-hidden>{emojiForType(n.type)}</span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate text-[14.5px] font-bold text-[#191F28]">{n.title}</p>
-          <span className="ml-auto shrink-0 text-[11.5px] text-[#B0B8C1]">{formatRelativeTime(new Date(n.createdAt).getTime())}</span>
+          <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{n.title}</p>
+          <span className="ml-auto shrink-0 text-[11.5px] text-[color:var(--v2-disabled)]">{formatRelativeTime(new Date(n.createdAt).getTime())}</span>
         </div>
-        {n.message ? <p className="mt-0.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{n.message}</p> : null}
+        {n.message ? <p className="mt-0.5 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-faint)]">{n.message}</p> : null}
       </div>
-      {href ? <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[#C4CAD2]" /> : null}
+      {href ? <CaretRight className="mt-1 h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" /> : null}
     </>
   );
-  const base = `flex items-start gap-3.5 px-4 py-4 ${last ? "" : "border-b border-[#F2F4F6]"} ${n.readAt === null ? "bg-[#F5F8FF]" : ""}`;
+  const base = `flex items-start gap-3.5 px-4 py-4 ${last ? "" : "border-b border-[color:var(--v2-band)]"} ${n.readAt === null ? "bg-[color:var(--v2-accent-weak)]" : ""}`;
   if (href) {
     return (
-      <Link href={href} onClick={onRead} className={`${base} transition hover:bg-[#F6F8FB]`}>
+      <Link href={href} onClick={onRead} className={`${base} transition hover:bg-[color:var(--v2-fill)]`}>
         {inner}
       </Link>
     );
   }
   return (
-    <button type="button" onClick={onRead} className={`${base} w-full text-left transition hover:bg-[#F6F8FB]`}>
+    <button type="button" onClick={onRead} className={`${base} w-full text-left transition hover:bg-[color:var(--v2-fill)]`}>
       {inner}
     </button>
   );

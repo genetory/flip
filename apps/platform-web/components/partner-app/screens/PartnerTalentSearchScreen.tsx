@@ -114,18 +114,18 @@ export function PartnerTalentSearchScreen() {
       {loginModal}
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("인재 검색", "Talent search", "人才搜索", "Tìm nhân tài", "人材検索", "Cari talenta")}</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("Aply에 이력서를 등록하고 공개에 동의한 인재를 찾아보세요.", "Find talent who registered a resume on Aply and agreed to be listed.", "查找在 Aply 上传简历并同意公开的人才。", "Tìm nhân tài đã đăng hồ sơ trên Aply và đồng ý công khai.", "Aplyに履歴書を登録し公開に同意した人材を探しましょう。", "Temukan talenta yang mendaftar resume di Aply dan setuju ditampilkan.")}</p>
+          <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("인재 검색", "Talent search", "人才搜索", "Tìm nhân tài", "人材検索", "Cari talenta")}</h1>
+          <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{t("Aply에 이력서를 등록하고 공개에 동의한 인재를 찾아보세요.", "Find talent who registered a resume on Aply and agreed to be listed.", "查找在 Aply 上传简历并同意公开的人才。", "Tìm nhân tài đã đăng hồ sơ trên Aply và đồng ý công khai.", "Aplyに履歴書を登録し公開に同意した人材を探しましょう。", "Temukan talenta yang mendaftar resume di Aply dan setuju ditampilkan.")}</p>
         </div>
 
         {/* 블라인드 안내 — 편견 없는 능력 기반 열람 */}
-        <div className="flex items-start gap-2.5 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#0B46E8]" weight="fill" />
-          <p className="break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("이름·사진·성별·국적은 가려지고 스킬·경험·언어 능력만 보여요. 관심 인재로 저장하면 후보에게 관심이 전해지고, 연결을 수락하면 신원과 연락처가 공개돼요.", "Names, photos, gender, and nationality are hidden — you see only skills, experience, and language. Saving a candidate signals your interest; identity and contact are revealed once they accept your connection.", "姓名、照片、性别、国籍均隐藏，仅显示技能、经验和语言能力。收藏人才即向其传达关注；对方接受连接后公开身份与联系方式。", "Tên, ảnh, giới tính, quốc tịch được ẩn — chỉ hiện kỹ năng, kinh nghiệm, ngôn ngữ. Lưu ứng viên sẽ gửi tín hiệu quan tâm; danh tính và liên hệ hiện khi họ chấp nhận kết nối.", "名前・写真・性別・国籍は隠され、スキル・経験・語学力のみ表示。人材を保存すると関心が伝わり、接続を承諾すると身元と連絡先が公開されます。", "Nama, foto, gender, dan kebangsaan disembunyikan — hanya keahlian, pengalaman, dan bahasa yang terlihat. Menyimpan kandidat menandakan minat; identitas dan kontak muncul saat mereka menerima koneksi.")}</p>
+        <div className="flex items-start gap-2.5 rounded-2xl border border-[color:var(--v2-accent-weak)] bg-[color:var(--v2-accent-weak)] px-4 py-3">
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--v2-accent)]" weight="fill" />
+          <p className="break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{t("이름·사진·성별·국적은 가려지고 스킬·경험·언어 능력만 보여요. 관심 인재로 저장하면 후보에게 관심이 전해지고, 연결을 수락하면 신원과 연락처가 공개돼요.", "Names, photos, gender, and nationality are hidden — you see only skills, experience, and language. Saving a candidate signals your interest; identity and contact are revealed once they accept your connection.", "姓名、照片、性别、国籍均隐藏，仅显示技能、经验和语言能力。收藏人才即向其传达关注；对方接受连接后公开身份与联系方式。", "Tên, ảnh, giới tính, quốc tịch được ẩn — chỉ hiện kỹ năng, kinh nghiệm, ngôn ngữ. Lưu ứng viên sẽ gửi tín hiệu quan tâm; danh tính và liên hệ hiện khi họ chấp nhận kết nối.", "名前・写真・性別・国籍は隠され、スキル・経験・語学力のみ表示。人材を保存すると関心が伝わり、接続を承諾すると身元と連絡先が公開されます。", "Nama, foto, gender, dan kebangsaan disembunyikan — hanya keahlian, pengalaman, dan bahasa yang terlihat. Menyimpan kandidat menandakan minat; identitas dan kontak muncul saat mereka menerima koneksi.")}</p>
         </div>
 
         {/* 검색 / 관심 인재 */}
-        <div className="flex items-center gap-1 self-start rounded-full bg-[#F2F4F6] p-0.5">
+        <div className="flex items-center gap-1 self-start rounded-full bg-[color:var(--v2-band)] p-0.5">
           {([["search", t("인재 검색", "Search", "人才搜索", "Tìm kiếm", "人材検索", "Cari")], ["saved", t("관심 인재", "Saved", "收藏", "Đã lưu", "保存済み", "Tersimpan")]] as const).map(([key, label]) => (
             <button
               key={key}
@@ -136,7 +136,7 @@ export function PartnerTalentSearchScreen() {
                 setMode(key);
                 run(key, key === "search" ? query.trim() : "");
               }}
-              className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition ${mode === key ? "bg-white text-[#191F28] shadow-[0_1px_4px_rgba(11,18,39,0.08)]" : "text-[#8B95A1]"}`}
+              className={`inline-flex items-center gap-1 rounded-full px-3.5 py-1.5 text-[13.5px] font-bold transition ${mode === key ? "bg-white text-[color:var(--v2-ink)]" : "text-[color:var(--v2-faint)]"}`}
             >
               {key === "search" ? <Sparkle className="h-3.5 w-3.5" weight="fill" /> : <BookmarkSimple className="h-3.5 w-3.5" weight="fill" />}
               {label}
@@ -148,7 +148,7 @@ export function PartnerTalentSearchScreen() {
         {mode !== "saved" ? (
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B0B8C1]" />
+            <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[color:var(--v2-disabled)]" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -156,22 +156,22 @@ export function PartnerTalentSearchScreen() {
                 if (e.key === "Enter") submit();
               }}
               placeholder={t("예: 중국어 가능한 마케터 · 또는 직무·스킬 키워드", "e.g. Marketer who speaks Chinese · or role/skill keywords", "例：会中文的市场营销 · 或职务/技能关键词", "VD: Marketer biết tiếng Trung · hoặc từ khóa vị trí/kỹ năng", "例：中国語ができるマーケター · または職務・スキル", "Mis: Marketer bisa Mandarin · atau kata kunci peran/skill")}
-              className="w-full rounded-2xl border border-[#EEF1F5] bg-white py-3 pl-11 pr-10 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+              className="w-full rounded-2xl bg-[color:var(--v2-band)] py-3 pl-11 pr-10 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]"
             />
             {query ? (
-              <button type="button" onClick={() => setQuery("")} aria-label={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")} className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#B0B8C1] transition hover:bg-[#F2F4F6]">
+              <button type="button" onClick={() => setQuery("")} aria-label={t("지우기", "Clear", "清除", "Xóa", "クリア", "Hapus")} className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[color:var(--v2-disabled)] transition hover:bg-[color:var(--v2-band)]">
                 <X className="h-4 w-4" />
               </button>
             ) : null}
           </div>
-          <button type="button" onClick={submit} className="shrink-0 rounded-2xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}</button>
+          <button type="button" onClick={submit} className="shrink-0 rounded-2xl bg-[color:var(--v2-accent)] px-5 text-[14px] font-bold text-white transition hover:opacity-90">{t("검색", "Search", "搜索", "Tìm kiếm", "検索", "Cari")}</button>
         </div>
         ) : null}
 
         {/* 어학 필터 — 브라우즈 목록. AI 검색 결과에는 숨김. */}
         {mode === "search" && !aiUsed ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-0.5 text-[12px] font-bold text-[#8B95A1]">{t("어학", "Language", "语言", "Ngôn ngữ", "語学", "Bahasa")}</span>
+            <span className="mr-0.5 text-[12px] font-bold text-[color:var(--v2-faint)]">{t("어학", "Language", "语言", "Ngôn ngữ", "語学", "Bahasa")}</span>
             {["한국어", "영어", "중국어", "일본어", "베트남어"].map((L) => {
               const on = lang === L;
               return (
@@ -179,7 +179,7 @@ export function PartnerTalentSearchScreen() {
                   key={L}
                   type="button"
                   onClick={() => { const next = on ? "" : L; setLang(next); run("search", "", 1, next); }}
-                  className={`rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${on ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0B46E8]/40"}`}
+                  className={`rounded-full border px-3 py-1.5 text-[13.5px] font-semibold transition ${on ? "border-[color:var(--v2-accent)] bg-[color:var(--v2-accent)] text-white" : "border-[color:var(--v2-line)] bg-white text-[color:var(--v2-ink-3)] hover:border-[#0B46E8]/40"}`}
                 >
                   {L}
                 </button>
@@ -191,11 +191,11 @@ export function PartnerTalentSearchScreen() {
         {/* Verified 필터 — Career Launch로 검증된(Readiness·연결준비) 인재만. */}
         {mode === "search" && !aiUsed ? (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-0.5 text-[12px] font-bold text-[#8B95A1]">{t("검증", "Verified", "验证", "Xác minh", "検証", "Verifikasi")}</span>
+            <span className="mr-0.5 text-[12px] font-bold text-[color:var(--v2-faint)]">{t("검증", "Verified", "验证", "Xác minh", "検証", "Verifikasi")}</span>
             <button
               type="button"
               onClick={() => { const next = !verifiedOnly; setVerifiedOnly(next); run("search", "", 1, lang, next); }}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${verifiedOnly ? "border-[#0A9B59] bg-[#0A9B59] text-white" : "border-[#E5E8EB] bg-white text-[#4E5968] hover:border-[#0A9B59]/40"}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13.5px] font-semibold transition ${verifiedOnly ? "border-[color:var(--v2-good)] bg-[color:var(--v2-good)] text-white" : "border-[color:var(--v2-line)] bg-white text-[color:var(--v2-ink-3)] hover:border-[#0A9B59]/40"}`}
             >
               <ShieldCheck className="h-4 w-4" weight="fill" aria-hidden /> {t("Verified 인재만", "Verified only", "仅已验证人才", "Chỉ ứng viên đã xác minh", "検証済みのみ", "Hanya terverifikasi")}
             </button>
@@ -214,7 +214,7 @@ export function PartnerTalentSearchScreen() {
             )
           ) : (
             <>
-              <p className="text-[12.5px] text-[#8B95A1]">
+              <p className="text-[13.5px] text-[color:var(--v2-faint)]">
                 {aiUsed ? t("AI가 적합도 순으로 정렬했어요 · ", "AI sorted by match · ", "AI已按匹配度排序 · ", "AI đã sắp xếp theo độ phù hợp · ", "AIが適合度順に並べ替えました · ", "AI mengurutkan berdasarkan kecocokan · ") : ""}{t(`인재 ${items.length}명`, `${items.length} talent`, `${items.length}位人才`, `${items.length} nhân tài`, `${items.length}名の人材`, `${items.length} talenta`)}{items.length !== total ? t(` (전체 ${total})`, ` (of ${total})`, ` (共 ${total})`, ` (trên ${total})`, ` (全${total})`, ` (dari ${total})`) : ""}
               </p>
               <div className="flex flex-col gap-2.5">
@@ -242,7 +242,7 @@ function TalentPagination({ page, totalPages, onPage, t }: { page: number; total
   if (end < totalPages - 1) pages.push("ellipsis");
   if (totalPages > 1) pages.push(totalPages);
 
-  const navBtn = "flex h-9 w-9 items-center justify-center rounded-lg text-[#4E5968] transition hover:bg-[#F2F4F6] disabled:opacity-35 disabled:hover:bg-transparent";
+  const navBtn = "flex h-9 w-9 items-center justify-center rounded-lg text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)] disabled:opacity-35 disabled:hover:bg-transparent";
   return (
     <nav className="mt-3 flex items-center justify-center gap-1" aria-label={t("페이지 이동", "Pagination", "分页", "Phân trang", "ページ移動", "Paginasi")}>
       <button type="button" onClick={() => onPage(page - 1)} disabled={page <= 1} aria-label={t("이전", "Previous", "上一页", "Trước", "前へ", "Sebelumnya")} className={navBtn}>
@@ -250,14 +250,14 @@ function TalentPagination({ page, totalPages, onPage, t }: { page: number; total
       </button>
       {pages.map((p, i) =>
         p === "ellipsis" ? (
-          <span key={`e${i}`} className="px-1 text-[13px] text-[#B0B8C1]">…</span>
+          <span key={`e${i}`} className="px-1 text-[14px] text-[color:var(--v2-disabled)]">…</span>
         ) : (
           <button
             key={p}
             type="button"
             onClick={() => onPage(p)}
             aria-current={p === page ? "page" : undefined}
-            className={`h-9 min-w-9 rounded-lg px-2 text-[13px] font-bold tabular-nums transition ${p === page ? "bg-[#0B46E8] text-white" : "text-[#4E5968] hover:bg-[#F2F4F6]"}`}
+            className={`h-9 min-w-9 rounded-lg px-2 text-[14px] font-bold tabular-nums transition ${p === page ? "bg-[color:var(--v2-accent)] text-white" : "text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-band)]"}`}
           >
             {p}
           </button>
@@ -277,15 +277,15 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
     <Link
       href={`${partnerRoutes.talent}/${encodeURIComponent(c.candidateUserId)}`}
       onClick={(e) => { if (!ensure()) e.preventDefault(); }}
-      className="rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]"
+      className="rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)]"
     >
       <div className="flex items-start gap-3.5">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[17px] font-black text-[#0B46E8]">{(c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)).slice(0, 1)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[17px] font-bold text-[color:var(--v2-accent)]">{(c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)).slice(0, 1)}</span>
         <div className="order-last flex shrink-0 items-center gap-1.5">
           {c.interestCount && c.interestCount > 0 ? (
             <span
               title={t("관심을 표한 회사 수", "Companies interested", "关注公司数", "Số công ty quan tâm", "関心を示した会社数", "Jumlah perusahaan tertarik")}
-              className="inline-flex items-center gap-0.5 rounded-full bg-[#FFF1EC] px-2 py-0.5 text-[11px] font-black text-[#F5533D]"
+              className="inline-flex items-center gap-0.5 rounded-full bg-[color:var(--v2-warn-weak)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-attention)]"
             >
               <Fire className="h-3.5 w-3.5" weight="fill" /> {c.interestCount}
             </span>
@@ -299,81 +299,81 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
               e.stopPropagation();
               ensure(onToggleSave);
             }}
-            className={`-m-1 rounded-full p-2.5 transition ${saved ? "text-[#0B46E8]" : "text-[#C4CAD2] hover:text-[#4E5968]"}`}
+            className={`-m-1 rounded-full p-2.5 transition ${saved ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-disabled)] hover:text-[color:var(--v2-ink-3)]"}`}
           >
             <BookmarkSimple className="h-5 w-5" weight={saved ? "fill" : "regular"} />
           </button>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-[15px] font-bold text-[#191F28]">{c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)}</p>
+            <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId)}</p>
             {c.passport?.verified ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#E7F8EF] px-2 py-0.5 text-[11px] font-bold text-[#0A9B59]">
+              <span className="inline-flex items-center gap-1 rounded-md bg-[color:var(--v2-good-weak)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--v2-good)]">
                 <ShieldCheck className="h-3 w-3" weight="fill" aria-hidden />
                 {c.passport.tier === "gold" ? "Verified Gold" : c.passport.tier === "silver" ? "Verified Silver" : "Verified Bronze"} · {c.passport.readiness}
               </span>
             ) : null}
-            {typeof c.score === "number" ? <span className="rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
+            {typeof c.score === "number" ? <span className="rounded-md bg-[color:var(--v2-accent-weak)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-accent)]">{t(`적합 ${c.score}`, `Match ${c.score}`, `匹配 ${c.score}`, `Phù hợp ${c.score}`, `適合 ${c.score}`, `Cocok ${c.score}`)}</span> : null}
             {c.connectionStatus === "ACCEPTED" ? (
-              <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>
+              <span className="rounded-md bg-[color:var(--v2-good-weak)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-good)]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "接続済み", "Terhubung")}</span>
             ) : c.connectionStatus === "PENDING" ? (
-              <span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[11px] font-bold text-[#8B95A1]">{t("요청 보냄", "Requested", "已请求", "Đã gửi", "送信済み", "Diminta")}</span>
+              <span className="rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-faint)]">{t("요청 보냄", "Requested", "已请求", "Đã gửi", "送信済み", "Diminta")}</span>
             ) : null}
           </div>
-          {c.name && c.desiredJobRole ? <p className="mt-1 truncate text-[13px] font-semibold text-[#4E5968]">{c.desiredJobRole}</p> : null}
+          {c.name && c.desiredJobRole ? <p className="mt-1 truncate text-[14px] font-semibold text-[color:var(--v2-ink-3)]">{c.desiredJobRole}</p> : null}
 
           <div className="mt-2 flex flex-col gap-1">
-            {edu ? <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><GraduationCap className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{edu}</span></span> : null}
+            {edu ? <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] text-[color:var(--v2-faint)]"><GraduationCap className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" /> <span className="truncate">{edu}</span></span> : null}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              {c.nationality ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Globe className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> {c.nationality}</span> : null}
-              {c.languages.length ? <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Translate className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> <span className="truncate">{c.languages.slice(0, 2).join(", ")}</span></span> : null}
-              {c.careerCount > 0 ? <span className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]"><Briefcase className="h-4 w-4 shrink-0 text-[#B0B8C1]" /> {t(`경력 ${c.careerCount}`, `Career ${c.careerCount}`, `经历 ${c.careerCount}`, `Kinh nghiệm ${c.careerCount}`, `経歴 ${c.careerCount}`, `Pengalaman ${c.careerCount}`)}</span> : null}
+              {c.nationality ? <span className="flex items-center gap-1.5 text-[13.5px] text-[color:var(--v2-faint)]"><Globe className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" /> {c.nationality}</span> : null}
+              {c.languages.length ? <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] text-[color:var(--v2-faint)]"><Translate className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" /> <span className="truncate">{c.languages.slice(0, 2).join(", ")}</span></span> : null}
+              {c.careerCount > 0 ? <span className="flex items-center gap-1.5 text-[13.5px] text-[color:var(--v2-faint)]"><Briefcase className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" /> {t(`경력 ${c.careerCount}`, `Career ${c.careerCount}`, `经历 ${c.careerCount}`, `Kinh nghiệm ${c.careerCount}`, `経歴 ${c.careerCount}`, `Pengalaman ${c.careerCount}`)}</span> : null}
             </div>
           </div>
 
           {c.skills.length ? (
             <div className="mt-2 flex flex-wrap gap-1">
               {c.skills.slice(0, 6).map((s) => (
-                <span key={s} className="rounded-md bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-medium text-[#4E5968]">{s}</span>
+                <span key={s} className="rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--v2-ink-3)]">{s}</span>
               ))}
             </div>
           ) : null}
 
           {/* AI 이력서·자소서 요약 — 둘 다 항상 노출. 아직 없으면 '작성 안 됨' 안내. */}
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <div className="rounded-lg bg-[#F8FAFB] px-3 py-2">
-              <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("AI 이력서 요약", "AI resume summary", "AI简历摘要", "Tóm tắt hồ sơ AI", "AI履歴書要約", "Ringkasan resume AI")}</p>
+            <div className="rounded-lg bg-[color:var(--v2-fill)] px-3 py-2">
+              <p className="flex items-center gap-1 text-[10.5px] font-bold text-[color:var(--v2-faint)]"><Sparkle className="h-3 w-3 text-[color:var(--v2-accent)]" weight="fill" /> {t("AI 이력서 요약", "AI resume summary", "AI简历摘要", "Tóm tắt hồ sơ AI", "AI履歴書要約", "Ringkasan resume AI")}</p>
               {c.resumeBullets?.length ? (
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {c.resumeBullets.slice(0, 3).map((b, i) => (
-                    <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[#4E5968]">
-                      <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+                    <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[color:var(--v2-ink-3)]">
+                      <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[color:var(--v2-accent)]" aria-hidden />
                       <span className="min-w-0 flex-1 break-keep">{b}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#B0B8C1]">{t("아직 이력서가 작성되지 않았어요", "Resume not written yet", "尚未填写简历", "Chưa viết hồ sơ", "履歴書がまだ作成されていません", "Resume belum ditulis")}</p>
+                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">{t("아직 이력서가 작성되지 않았어요", "Resume not written yet", "尚未填写简历", "Chưa viết hồ sơ", "履歴書がまだ作成されていません", "Resume belum ditulis")}</p>
               )}
             </div>
-            <div className="rounded-lg bg-[#F8FAFB] px-3 py-2">
-              <p className="flex items-center gap-1 text-[10.5px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0A9B59]" weight="fill" /> {t("AI 자소서 요약", "AI cover summary", "AI求职信摘要", "Tóm tắt thư AI", "AI自己PR要約", "Ringkasan surat AI")}</p>
+            <div className="rounded-lg bg-[color:var(--v2-fill)] px-3 py-2">
+              <p className="flex items-center gap-1 text-[10.5px] font-bold text-[color:var(--v2-faint)]"><Sparkle className="h-3 w-3 text-[color:var(--v2-good)]" weight="fill" /> {t("AI 자소서 요약", "AI cover summary", "AI求职信摘要", "Tóm tắt thư AI", "AI自己PR要約", "Ringkasan surat AI")}</p>
               {c.coverBullets?.length ? (
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {c.coverBullets.slice(0, 3).map((b, i) => (
-                    <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[#4E5968]">
-                      <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[#0A9B59]" aria-hidden />
+                    <li key={i} className="flex gap-1.5 text-[12px] leading-relaxed text-[color:var(--v2-ink-3)]">
+                      <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-[color:var(--v2-good)]" aria-hidden />
                       <span className="min-w-0 flex-1 break-keep">{b}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[#B0B8C1]">{t("아직 자기소개서가 작성되지 않았어요", "Cover letter not written yet", "尚未填写求职信", "Chưa viết thư xin việc", "自己PRがまだ作成されていません", "Surat lamaran belum ditulis")}</p>
+                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">{t("아직 자기소개서가 작성되지 않았어요", "Cover letter not written yet", "尚未填写求职信", "Chưa viết thư xin việc", "自己PRがまだ作成されていません", "Surat lamaran belum ditulis")}</p>
               )}
             </div>
           </div>
 
-          {c.reason ? <p className="mt-2 break-keep rounded-lg bg-[#F5F8FF] px-2.5 py-1.5 text-[12px] leading-relaxed text-[#0B46E8]">{c.reason}</p> : null}
+          {c.reason ? <p className="mt-2 break-keep rounded-lg bg-[color:var(--v2-accent-weak)] px-2.5 py-1.5 text-[12px] leading-relaxed text-[color:var(--v2-accent)]">{c.reason}</p> : null}
         </div>
       </div>
     </Link>

@@ -243,19 +243,19 @@ export function PartnerCompanyScreen() {
       <TalentBackButton className="mb-4" />
       <div className="flex flex-col gap-5">
         <div>
-          <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{isCreate ? t("회사 등록", "Register company", "注册公司", "Đăng ký công ty", "会社登録", "Daftar perusahaan") : t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</h1>
-          <p className="mt-1 text-[13.5px] text-[#8B95A1]">{isCreate ? t("회사를 먼저 등록하면 공고 등록·지원자 관리를 시작할 수 있어요.", "Register your company to start posting jobs and managing applicants.", "先注册公司即可开始发布职位和管理申请者。", "Đăng ký công ty để bắt đầu đăng tin và quản lý ứng viên.", "会社を登録すると求人掲載・応募者管理を始められます。", "Daftarkan perusahaan untuk mulai memasang lowongan dan mengelola pelamar.") : t("지원자에게 보이는 우리 회사 정보예요.", "This is how applicants see your company.", "这是申请者看到的公司信息。", "Đây là thông tin công ty mà ứng viên nhìn thấy.", "応募者に表示される会社情報です。", "Ini info perusahaan yang dilihat pelamar.")}</p>
+          <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{isCreate ? t("회사 등록", "Register company", "注册公司", "Đăng ký công ty", "会社登録", "Daftar perusahaan") : t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</h1>
+          <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{isCreate ? t("회사를 먼저 등록하면 공고 등록·지원자 관리를 시작할 수 있어요.", "Register your company to start posting jobs and managing applicants.", "先注册公司即可开始发布职位和管理申请者。", "Đăng ký công ty để bắt đầu đăng tin và quản lý ứng viên.", "会社を登録すると求人掲載・応募者管理を始められます。", "Daftarkan perusahaan untuk mulai memasang lowongan dan mengelola pelamar.") : t("지원자에게 보이는 우리 회사 정보예요.", "This is how applicants see your company.", "这是申请者看到的公司信息。", "Đây là thông tin công ty mà ứng viên nhìn thấy.", "応募者に表示される会社情報です。", "Ini info perusahaan yang dilihat pelamar.")}</p>
         </div>
 
         {status === "loading" ? <TLoading /> : null}
         {status === "error" ? <TError onRetry={load} /> : null}
 
         {status === "ready" && isCreate ? (
-          <div className="flex items-start gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0B46E8] text-white"><Buildings className="h-5 w-5" weight="fill" /></span>
+          <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--v2-accent-weak)] bg-[color:var(--v2-accent-weak)] p-4">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] text-white"><Buildings className="h-5 w-5" weight="fill" /></span>
             <div className="min-w-0">
-              <p className="text-[13.5px] font-bold text-[#191F28]">{t("아직 소속된 회사가 없어요", "You don't belong to a company yet", "您还没有所属公司", "Bạn chưa thuộc công ty nào", "まだ所属会社がありません", "Anda belum tergabung di perusahaan")}</p>
-              <p className="mt-0.5 break-keep text-[12.5px] text-[#4E5968]">{t("회사명과 업종만 입력하면 바로 등록돼요. 등록하면 이 회사의 관리자(OWNER)가 됩니다.", "Just enter the company name and industry to register. You'll become the company OWNER.", "只需填写公司名称和行业即可注册。注册后您将成为该公司管理员（OWNER）。", "Chỉ cần nhập tên công ty và ngành để đăng ký. Bạn sẽ trở thành quản trị viên (OWNER) của công ty.", "会社名と業種を入力するだけで登録されます。登録するとこの会社の管理者（OWNER）になります。", "Cukup masukkan nama dan industri untuk mendaftar. Anda akan menjadi admin (OWNER) perusahaan.")}</p>
+              <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{t("아직 소속된 회사가 없어요", "You don't belong to a company yet", "您还没有所属公司", "Bạn chưa thuộc công ty nào", "まだ所属会社がありません", "Anda belum tergabung di perusahaan")}</p>
+              <p className="mt-0.5 break-keep text-[13.5px] text-[color:var(--v2-ink-3)]">{t("회사명과 업종만 입력하면 바로 등록돼요. 등록하면 이 회사의 관리자(OWNER)가 됩니다.", "Just enter the company name and industry to register. You'll become the company OWNER.", "只需填写公司名称和行业即可注册。注册后您将成为该公司管理员（OWNER）。", "Chỉ cần nhập tên công ty và ngành để đăng ký. Bạn sẽ trở thành quản trị viên (OWNER) của công ty.", "会社名と業種を入力するだけで登録されます。登録するとこの会社の管理者（OWNER）になります。", "Cukup masukkan nama dan industri untuk mendaftar. Anda akan menjadi admin (OWNER) perusahaan.")}</p>
             </div>
           </div>
         ) : null}
@@ -264,57 +264,57 @@ export function PartnerCompanyScreen() {
           <>
             {/* 프로필 완성도 — 미완성일 때만 */}
             {completeness < 100 ? (
-              <div className="rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+              <div className="rounded-2xl border border-[color:var(--v2-accent-weak)] bg-[color:var(--v2-accent-weak)] p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13.5px] font-bold text-[#191F28]">{t("프로필 완성도", "Profile completeness", "资料完整度", "Mức hoàn thiện hồ sơ", "プロフィール完成度", "Kelengkapan profil")}</p>
-                  <span className="text-[18px] font-black tabular-nums text-[#0B46E8]">{completeness}%</span>
+                  <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{t("프로필 완성도", "Profile completeness", "资料完整度", "Mức hoàn thiện hồ sơ", "プロフィール完成度", "Kelengkapan profil")}</p>
+                  <span className="text-[18px] font-bold tabular-nums text-[color:var(--v2-accent)]">{completeness}%</span>
                 </div>
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-[#0B46E8] transition-[width]" style={{ width: `${completeness}%` }} />
+                  <div className="h-full rounded-full bg-[color:var(--v2-accent)] transition-[width]" style={{ width: `${completeness}%` }} />
                 </div>
-                <p className="mt-2 break-keep text-[12px] text-[#8B95A1]">{t("로고·소개·업종·규모·주소를 채우면 지원자에게 더 신뢰를 줘요.", "Filling in logo, intro, industry, size, and address builds more trust with applicants.", "填写标志、简介、行业、规模和地址能赢得申请者更多信任。", "Điền logo, giới thiệu, ngành, quy mô và địa chỉ giúp tạo niềm tin với ứng viên.", "ロゴ・紹介・業種・規模・住所を埋めると応募者からの信頼が高まります。", "Mengisi logo, intro, industri, ukuran, dan alamat menambah kepercayaan pelamar.")}</p>
+                <p className="mt-2 break-keep text-[12px] text-[color:var(--v2-faint)]">{t("로고·소개·업종·규모·주소를 채우면 지원자에게 더 신뢰를 줘요.", "Filling in logo, intro, industry, size, and address builds more trust with applicants.", "填写标志、简介、行业、规模和地址能赢得申请者更多信任。", "Điền logo, giới thiệu, ngành, quy mô và địa chỉ giúp tạo niềm tin với ứng viên.", "ロゴ・紹介・業種・規模・住所を埋めると応募者からの信頼が高まります。", "Mengisi logo, intro, industri, ukuran, dan alamat menambah kepercayaan pelamar.")}</p>
               </div>
             ) : null}
 
             {/* 로고 · 사무실 사진 */}
-            <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <h2 className="text-[15px] font-bold text-[#191F28]">{t("회사 로고", "Company logo", "公司标志", "Logo công ty", "会社ロゴ", "Logo perusahaan")}</h2>
-              <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("정사각형 이미지를 권장해요.", "A square image is recommended.", "建议使用正方形图片。", "Nên dùng ảnh vuông.", "正方形の画像を推奨します。", "Disarankan gambar persegi.")}</p>
+            <section className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+              <h2 className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("회사 로고", "Company logo", "公司标志", "Logo công ty", "会社ロゴ", "Logo perusahaan")}</h2>
+              <p className="mt-1 text-[13.5px] text-[color:var(--v2-faint)]">{t("정사각형 이미지를 권장해요.", "A square image is recommended.", "建议使用正方形图片。", "Nên dùng ảnh vuông.", "正方形の画像を推奨します。", "Disarankan gambar persegi.")}</p>
               <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onPickLogo} />
               <div className="mt-3 flex items-center gap-4">
                 {logo ? (
-                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F5F6F8]">
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                     <Image src={logo} alt={t("회사 로고", "Company logo", "公司标志", "Logo công ty", "会社ロゴ", "Logo perusahaan")} fill sizes="80px" className="object-cover" unoptimized />
                     <button type="button" onClick={() => setLogo(null)} aria-label={t("로고 삭제", "Delete logo", "删除标志", "Xóa logo", "ロゴ削除", "Hapus logo")} className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
                       <X className="h-3.5 w-3.5" weight="bold" />
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => logoInputRef.current?.click()} className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] text-[#B0B8C1] transition hover:border-[#B0C4F5]">
+                  <button type="button" onClick={() => logoInputRef.current?.click()} className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] text-[color:var(--v2-disabled)] transition hover:border-[#B0C4F5]">
                     <ImageSquare className="h-6 w-6" />
                   </button>
                 )}
-                <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading === "logo"} className="rounded-xl bg-[#F2F4F6] px-3.5 py-2 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploading === "logo"} className="rounded-xl bg-[color:var(--v2-band)] px-3.5 py-2 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
                   {uploading === "logo" ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : logo ? t("로고 변경", "Change logo", "更换标志", "Đổi logo", "ロゴ変更", "Ganti logo") : t("로고 올리기", "Upload logo", "上传标志", "Tải logo", "ロゴを追加", "Unggah logo")}
                 </button>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <section className="rounded-2xl bg-[color:var(--v2-band)] p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-[15px] font-bold text-[#191F28]">{t("관련 사진", "Photos", "相关照片", "Ảnh liên quan", "関連写真", "Foto terkait")}</h2>
-                  <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t(`사무실·팀·제품 등 · 최대 ${MAX_OFFICE_PHOTOS}장 · ${officePhotos.length}장 등록됨`, `Office, team, product, etc. · up to ${MAX_OFFICE_PHOTOS} · ${officePhotos.length} added`, `办公室·团队·产品等 · 最多${MAX_OFFICE_PHOTOS}张 · 已添加${officePhotos.length}张`, `Văn phòng, nhóm, sản phẩm... · tối đa ${MAX_OFFICE_PHOTOS} · đã thêm ${officePhotos.length}`, `オフィス・チーム・製品など · 最大${MAX_OFFICE_PHOTOS}枚 · ${officePhotos.length}枚登録済み`, `Kantor, tim, produk, dll. · maks ${MAX_OFFICE_PHOTOS} · ${officePhotos.length} ditambahkan`)}</p>
+                  <h2 className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("관련 사진", "Photos", "相关照片", "Ảnh liên quan", "関連写真", "Foto terkait")}</h2>
+                  <p className="mt-1 text-[13.5px] text-[color:var(--v2-faint)]">{t(`사무실·팀·제품 등 · 최대 ${MAX_OFFICE_PHOTOS}장 · ${officePhotos.length}장 등록됨`, `Office, team, product, etc. · up to ${MAX_OFFICE_PHOTOS} · ${officePhotos.length} added`, `办公室·团队·产品等 · 最多${MAX_OFFICE_PHOTOS}张 · 已添加${officePhotos.length}张`, `Văn phòng, nhóm, sản phẩm... · tối đa ${MAX_OFFICE_PHOTOS} · đã thêm ${officePhotos.length}`, `オフィス・チーム・製品など · 最大${MAX_OFFICE_PHOTOS}枚 · ${officePhotos.length}枚登録済み`, `Kantor, tim, produk, dll. · maks ${MAX_OFFICE_PHOTOS} · ${officePhotos.length} ditambahkan`)}</p>
                 </div>
                 <input ref={officeInputRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickOffice} />
-                <button type="button" onClick={() => officeInputRef.current?.click()} disabled={uploading === "office" || officePhotos.length >= MAX_OFFICE_PHOTOS} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#F2F4F6] px-3 py-2 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                <button type="button" onClick={() => officeInputRef.current?.click()} disabled={uploading === "office" || officePhotos.length >= MAX_OFFICE_PHOTOS} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-[color:var(--v2-band)] px-3 py-2 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
                   <Plus className="h-4 w-4" weight="bold" /> {uploading === "office" ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : t("사진 추가", "Add photo", "添加照片", "Thêm ảnh", "写真追加", "Tambah foto")}
                 </button>
               </div>
               {officePhotos.length ? (
                 <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
                   {officePhotos.map((src, i) => (
-                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                    <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                       <Image src={src} alt={t(`관련 사진 ${i + 1}`, `Photo ${i + 1}`, `照片 ${i + 1}`, `Ảnh ${i + 1}`, `写真 ${i + 1}`, `Foto ${i + 1}`)} fill sizes="90px" className="object-cover" unoptimized />
                       <button type="button" onClick={() => setOfficePhotos((prev) => prev.filter((_, j) => j !== i))} aria-label={t("사진 삭제", "Delete photo", "删除照片", "Xóa ảnh", "写真削除", "Hapus foto")} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
                         <X className="h-3 w-3" weight="bold" />
@@ -323,15 +323,15 @@ export function PartnerCompanyScreen() {
                   ))}
                 </div>
               ) : (
-                <button type="button" onClick={() => officeInputRef.current?.click()} className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] py-8 text-[#B0B8C1] transition hover:border-[#B0C4F5]">
+                <button type="button" onClick={() => officeInputRef.current?.click()} className="mt-3 flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] py-8 text-[color:var(--v2-disabled)] transition hover:border-[#B0C4F5]">
                   <ImageSquare className="h-7 w-7" />
-                  <span className="text-[13px] font-semibold">{t("회사 관련 사진을 올려보세요", "Upload photos of your company", "上传公司相关照片", "Tải ảnh về công ty của bạn", "会社の関連写真をアップロード", "Unggah foto perusahaan Anda")}</span>
+                  <span className="text-[14px] font-semibold">{t("회사 관련 사진을 올려보세요", "Upload photos of your company", "上传公司相关照片", "Tải ảnh về công ty của bạn", "会社の関連写真をアップロード", "Unggah foto perusahaan Anda")}</span>
                 </button>
               )}
             </section>
 
-            <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <h2 className="text-[15px] font-bold text-[#191F28]">{t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
+            <section className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+              <h2 className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</h2>
               <div className="mt-4 flex flex-col gap-3.5">
                 <Field label={t("회사명", "Company name", "公司名称", "Tên công ty", "会社名", "Nama perusahaan")}><Input value={form.name} onChange={(v) => set("name", v)} placeholder={t("회사명", "Company name", "公司名称", "Tên công ty", "会社名", "Nama perusahaan")} /></Field>
                 <Field label={t("업종", "Industry", "行业", "Ngành", "業種", "Industri")}>
@@ -355,14 +355,14 @@ export function PartnerCompanyScreen() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <section className="rounded-2xl bg-[color:var(--v2-band)] p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-[15px] font-bold text-[#191F28]">{t("회사 소개", "About the company", "公司介绍", "Giới thiệu công ty", "会社紹介", "Tentang perusahaan")}</h2>
+                <h2 className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("회사 소개", "About the company", "公司介绍", "Giới thiệu công ty", "会社紹介", "Tentang perusahaan")}</h2>
                 <button
                   type="button"
                   onClick={polishDescription}
                   disabled={polishing}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#EDF1FD] px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#DFE7FB] disabled:opacity-50"
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent-weak)] px-3 py-2 text-[13.5px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-accent-weak)] disabled:opacity-50"
                 >
                   {polishing ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}
                   {polishing ? t("다듬는 중…", "Polishing…", "润色中…", "Đang trau chuốt…", "仕上げ中…", "Menyempurnakan…") : t("AI로 다듬기", "Polish with AI", "AI润色", "Trau chuốt bằng AI", "AIで仕上げ", "Sempurnakan dengan AI")}
@@ -376,18 +376,18 @@ export function PartnerCompanyScreen() {
 
             {/* 회사 인증 — 서류 제출(사업자등록증·4대보험). 생성 직후엔 저장 후 노출 */}
             {!isCreate ? (
-              <section className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+              <section className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[15px] font-bold text-[#191F28]">{t("회사 인증", "Company verification", "公司认证", "Xác minh công ty", "会社認証", "Verifikasi perusahaan")}</h2>
-                    <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("서류를 제출하면 인증 배지가 부여돼요. 지원자에게 신뢰를 줍니다.", "Submit documents to earn a verified badge. It builds trust with applicants.", "提交材料即可获得认证徽章，赢得申请者信任。", "Nộp giấy tờ để nhận huy hiệu xác minh. Tạo niềm tin với ứng viên.", "書類を提出すると認証バッジが付与されます。応募者に信頼を与えます。", "Kirim dokumen untuk mendapat lencana verifikasi. Menambah kepercayaan pelamar.")}</p>
+                    <h2 className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("회사 인증", "Company verification", "公司认证", "Xác minh công ty", "会社認証", "Verifikasi perusahaan")}</h2>
+                    <p className="mt-1 text-[13.5px] text-[color:var(--v2-faint)]">{t("서류를 제출하면 인증 배지가 부여돼요. 지원자에게 신뢰를 줍니다.", "Submit documents to earn a verified badge. It builds trust with applicants.", "提交材料即可获得认证徽章，赢得申请者信任。", "Nộp giấy tờ để nhận huy hiệu xác minh. Tạo niềm tin với ứng viên.", "書類を提出すると認証バッジが付与されます。応募者に信頼を与えます。", "Kirim dokumen untuk mendapat lencana verifikasi. Menambah kepercayaan pelamar.")}</p>
                   </div>
                   {verification?.isApproved ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#E7F8EF] px-2.5 py-1 text-[12px] font-bold text-[#0A9B59]"><SealCheck className="h-4 w-4" weight="fill" /> {t("인증 완료", "Verified", "已认证", "Đã xác minh", "認証済み", "Terverifikasi")}</span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-good-weak)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-good)]"><SealCheck className="h-4 w-4" weight="fill" /> {t("인증 완료", "Verified", "已认证", "Đã xác minh", "認証済み", "Terverifikasi")}</span>
                   ) : verification?.hasRequiredDocuments ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#FFF3E6] px-2.5 py-1 text-[12px] font-bold text-[#E8890C]">{t("심사 중", "In review", "审核中", "Đang xét", "審査中", "Ditinjau")}</span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-warn-weak)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-warn)]">{t("심사 중", "In review", "审核中", "Đang xét", "審査中", "Ditinjau")}</span>
                   ) : (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#F2F4F6] px-2.5 py-1 text-[12px] font-bold text-[#8B95A1]">{t("미인증", "Unverified", "未认证", "Chưa xác minh", "未認証", "Belum verifikasi")}</span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-band)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-faint)]">{t("미인증", "Unverified", "未认证", "Chưa xác minh", "未認証", "Belum verifikasi")}</span>
                   )}
                 </div>
                 <input ref={bizInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPickDoc("biz", e)} />
@@ -397,7 +397,7 @@ export function PartnerCompanyScreen() {
                   <DocRow label={t("4대보험 가입자 명부", "Insurance subscriber list", "四大保险参保名单", "Danh sách bảo hiểm", "社会保険加入者名簿", "Daftar peserta asuransi")} value={insDoc} busy={uploadingDoc === "ins"} onPick={() => insInputRef.current?.click()} onRemove={() => setInsDoc(null)} />
                 </div>
                 {!verification?.isApproved ? (
-                  <p className="mt-3 break-keep text-[12px] text-[#8B95A1]">{t("두 서류를 올리고 아래 ", "Upload both documents and press ", "上传两份材料并点击下方的", "Tải cả hai giấy tờ rồi nhấn ", "両方の書類をアップロードして下の", "Unggah kedua dokumen lalu tekan ")}<b className="font-bold text-[#4E5968]">{t("저장하기", "Save", "保存", "Lưu", "保存", "Simpan")}</b>{t("를 누르면 심사가 진행돼요. 서류는 이미지(사진·캡처)로 올려주세요.", " below to start the review. Upload documents as images (photos or screenshots).", "开始审核。请以图片（照片或截图）形式上传材料。", " bên dưới để bắt đầu xét duyệt. Vui lòng tải giấy tờ dưới dạng ảnh (ảnh chụp hoặc chụp màn hình).", "を押すと審査が始まります。書類は画像（写真・スクリーンショット）でアップロードしてください。", " di bawah untuk mulai peninjauan. Unggah dokumen sebagai gambar (foto atau tangkapan layar).")}</p>
+                  <p className="mt-3 break-keep text-[12px] text-[color:var(--v2-faint)]">{t("두 서류를 올리고 아래 ", "Upload both documents and press ", "上传两份材料并点击下方的", "Tải cả hai giấy tờ rồi nhấn ", "両方の書類をアップロードして下の", "Unggah kedua dokumen lalu tekan ")}<b className="font-bold text-[color:var(--v2-ink-3)]">{t("저장하기", "Save", "保存", "Lưu", "保存", "Simpan")}</b>{t("를 누르면 심사가 진행돼요. 서류는 이미지(사진·캡처)로 올려주세요.", " below to start the review. Upload documents as images (photos or screenshots).", "开始审核。请以图片（照片或截图）形式上传材料。", " bên dưới để bắt đầu xét duyệt. Vui lòng tải giấy tờ dưới dạng ảnh (ảnh chụp hoặc chụp màn hình).", "を押すと審査が始まります。書類は画像（写真・スクリーンショット）でアップロードしてください。", " di bawah untuk mulai peninjauan. Unggah dokumen sebagai gambar (foto atau tangkapan layar).")}</p>
                 ) : null}
               </section>
             ) : null}
@@ -406,7 +406,7 @@ export function PartnerCompanyScreen() {
               type="button"
               onClick={save}
               disabled={saving || uploading !== null || uploadingDoc !== null}
-              className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[#0B46E8] px-5 text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+              className="inline-flex h-[52px] items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] px-5 text-[15px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
             >
               {saving ? (isCreate ? t("등록 중…", "Registering…", "注册中…", "Đang đăng ký…", "登録中…", "Mendaftar…") : t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")) : isCreate ? t("회사 등록하기", "Register company", "注册公司", "Đăng ký công ty", "会社を登録", "Daftar perusahaan") : t("저장하기", "Save", "保存", "Lưu", "保存", "Simpan")}
             </button>
@@ -420,21 +420,21 @@ export function PartnerCompanyScreen() {
 function DocRow({ label, value, busy, onPick, onRemove }: { label: string; value: string | null; busy: boolean; onPick: () => void; onRemove: () => void }) {
   const t = usePlatformT();
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#EEF1F5] bg-[#FAFBFC] p-3">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${value ? "bg-[#E7F8EF] text-[#0A9B59]" : "bg-[#F2F4F6] text-[#B0B8C1]"}`}>
+    <div className="flex items-center gap-3 rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] p-3">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${value ? "bg-[color:var(--v2-good-weak)] text-[color:var(--v2-good)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-disabled)]"}`}>
         {value ? <SealCheck className="h-5 w-5" weight="fill" /> : <FileArrowUp className="h-5 w-5" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-bold text-[#191F28]">{label}</p>
-        <p className={`mt-0.5 text-[12px] ${value ? "text-[#0A9B59]" : "text-[#8B95A1]"}`}>{busy ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : value ? t("제출됨", "Submitted", "已提交", "Đã nộp", "提出済み", "Terkirim") : t("미제출", "Not submitted", "未提交", "Chưa nộp", "未提出", "Belum")}</p>
+        <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{label}</p>
+        <p className={`mt-0.5 text-[12px] ${value ? "text-[color:var(--v2-good)]" : "text-[color:var(--v2-faint)]"}`}>{busy ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : value ? t("제출됨", "Submitted", "已提交", "Đã nộp", "提出済み", "Terkirim") : t("미제출", "Not submitted", "未提交", "Chưa nộp", "未提出", "Belum")}</p>
       </div>
       {value ? (
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={onPick} disabled={busy} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">{t("변경", "Change", "更换", "Đổi", "変更", "Ganti")}</button>
-          <button type="button" onClick={onRemove} disabled={busy} className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50">{t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</button>
+          <button type="button" onClick={onPick} disabled={busy} className="rounded-lg bg-[color:var(--v2-band)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">{t("변경", "Change", "更换", "Đổi", "変更", "Ganti")}</button>
+          <button type="button" onClick={onRemove} disabled={busy} className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)] disabled:opacity-50">{t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</button>
         </div>
       ) : (
-        <button type="button" onClick={onPick} disabled={busy} className="shrink-0 rounded-lg bg-[#EDF1FD] px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#DFE7FB] disabled:opacity-50">{t("올리기", "Upload", "上传", "Tải lên", "アップロード", "Unggah")}</button>
+        <button type="button" onClick={onPick} disabled={busy} className="shrink-0 rounded-lg bg-[color:var(--v2-accent-weak)] px-3 py-1.5 text-[12px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-accent-weak)] disabled:opacity-50">{t("올리기", "Upload", "上传", "Tải lên", "アップロード", "Unggah")}</button>
       )}
     </div>
   );
@@ -443,25 +443,25 @@ function DocRow({ label, value, busy, onPick, onRemove }: { label: string; value
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{label}</span>
+      <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{label}</span>
       {children}
     </label>
   );
 }
 function Input({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30" />
   );
 }
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none [color-scheme:light] focus:ring-2 focus:ring-[#0B46E8]/30">
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light] focus:ring-2 focus:ring-[#0B46E8]/30">
       {children}
     </select>
   );
 }
 function Textarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className="w-full resize-none rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className="w-full resize-none rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] leading-relaxed text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30" />
   );
 }

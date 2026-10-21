@@ -137,10 +137,10 @@ export function PartnerPositionsScreen() {
       <div className="flex flex-col gap-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t("공고 관리", "Manage postings", "职位管理", "Quản lý tin", "求人管理", "Kelola lowongan")}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("채용 공고를 올리고 상태·지원 현황을 관리해요.", "Post jobs and manage their status and applications.", "发布招聘职位并管理状态和申请情况。", "Đăng tin và quản lý trạng thái, đơn ứng tuyển.", "求人を掲載し、状態や応募状況を管理します。", "Posting lowongan dan kelola status serta lamaran.")}</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("공고 관리", "Manage postings", "职位管理", "Quản lý tin", "求人管理", "Kelola lowongan")}</h1>
+            <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{t("채용 공고를 올리고 상태·지원 현황을 관리해요.", "Post jobs and manage their status and applications.", "发布招聘职位并管理状态和申请情况。", "Đăng tin và quản lý trạng thái, đơn ứng tuyển.", "求人を掲載し、状態や応募状況を管理します。", "Posting lowongan dan kelola status serta lamaran.")}</p>
           </div>
-          <Link href={partnerRoutes.positionNew} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+          <Link href={partnerRoutes.positionNew} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-3.5 py-2.5 text-[14px] font-bold text-white transition hover:opacity-90">
             <Plus className="h-4 w-4" weight="bold" /> {t("새 공고", "New", "新建", "Tin mới", "新規", "Baru")}
           </Link>
         </div>
@@ -152,15 +152,15 @@ export function PartnerPositionsScreen() {
           <>
             {/* 검색 */}
             <div className="relative">
-              <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B0B8C1]" />
+              <MagnifyingGlass className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[color:var(--v2-disabled)]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("공고명·직무·근무지 검색", "Search title, role, location", "搜索职位名·岗位·地点", "Tìm tên tin, vị trí, nơi làm", "求人名・職種・勤務地で検索", "Cari judul, peran, lokasi")}
-                className="w-full rounded-2xl border border-[#EEF1F5] bg-white py-3 pl-11 pr-10 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                className="w-full rounded-2xl bg-[color:var(--v2-band)] py-3 pl-11 pr-10 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]"
               />
               {query ? (
-                <button type="button" onClick={() => setQuery("")} aria-label={t("검색어 지우기", "Clear search", "清除搜索", "Xóa tìm kiếm", "検索をクリア", "Hapus pencarian")} className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#B0B8C1] transition hover:bg-[#F2F4F6]">
+                <button type="button" onClick={() => setQuery("")} aria-label={t("검색어 지우기", "Clear search", "清除搜索", "Xóa tìm kiếm", "検索をクリア", "Hapus pencarian")} className="absolute right-2.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[color:var(--v2-disabled)] transition hover:bg-[color:var(--v2-band)]">
                   <X className="h-4 w-4" />
                 </button>
               ) : null}
@@ -176,10 +176,10 @@ export function PartnerPositionsScreen() {
                     type="button"
                     onClick={() => setTab(tb.key)}
                     aria-current={on ? "page" : undefined}
-                    className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${on ? "text-[#191F28]" : "text-[#B0B8C1] hover:text-[#8B95A1]"}`}
+                    className={`relative shrink-0 pb-1.5 text-[15px] font-bold transition ${on ? "text-[color:var(--v2-ink)]" : "text-[color:var(--v2-disabled)] hover:text-[color:var(--v2-faint)]"}`}
                   >
                     {tabLabel(tb.key)} ({counts[tb.key]})
-                    {on ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[#0B46E8]" /> : null}
+                    {on ? <span className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-[color:var(--v2-accent)]" /> : null}
                   </button>
                 );
               })}
@@ -187,13 +187,13 @@ export function PartnerPositionsScreen() {
 
             {/* 정렬 */}
             <div className="flex items-center justify-end">
-              <div className="flex items-center gap-1 rounded-full bg-[#F2F4F6] p-0.5">
+              <div className="flex items-center gap-1 rounded-full bg-[color:var(--v2-band)] p-0.5">
                 {([["latest", t("최신순", "Latest", "最新", "Mới nhất", "新着順", "Terbaru")], ["applicants", t("지원 많은순", "Most applied", "申请最多", "Nhiều ứng tuyển", "応募が多い順", "Terbanyak melamar")]] as const).map(([key, label]) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setSort(key)}
-                    className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${sort === key ? "bg-white text-[#191F28] shadow-[0_1px_4px_rgba(11,18,39,0.08)]" : "text-[#8B95A1]"}`}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${sort === key ? "bg-white text-[color:var(--v2-ink)]" : "text-[color:var(--v2-faint)]"}`}
                   >
                     {label}
                   </button>
@@ -203,10 +203,10 @@ export function PartnerPositionsScreen() {
 
             {/* 리스트 */}
             {list.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[22px]" aria-hidden>📋</span>
-                <p className="mt-3 text-[15px] font-bold text-[#191F28]">{q ? t("검색 결과가 없어요", "No results", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil") : t("공고가 없어요", "No postings", "暂无职位", "Chưa có tin", "求人がありません", "Belum ada lowongan")}</p>
-                {!q ? <p className="mt-1 text-[13px] text-[#8B95A1]">{t("첫 채용 공고를 올려보세요.", "Post your first job.", "发布你的第一个职位。", "Đăng tin tuyển dụng đầu tiên.", "最初の求人を掲載しましょう。", "Posting lowongan pertama Anda.")}</p> : null}
+              <div className="rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] p-8 text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[22px]" aria-hidden>📋</span>
+                <p className="mt-3 text-[15px] font-bold text-[color:var(--v2-ink)]">{q ? t("검색 결과가 없어요", "No results", "没有搜索结果", "Không có kết quả", "検索結果がありません", "Tidak ada hasil") : t("공고가 없어요", "No postings", "暂无职位", "Chưa có tin", "求人がありません", "Belum ada lowongan")}</p>
+                {!q ? <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{t("첫 채용 공고를 올려보세요.", "Post your first job.", "发布你的第一个职位。", "Đăng tin tuyển dụng đầu tiên.", "最初の求人を掲載しましょう。", "Posting lowongan pertama Anda.")}</p> : null}
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -269,39 +269,39 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
   const metaSub = [metaVisa, metaLang].filter(Boolean).join("   ·   ");
 
   return (
-    <Link href={`${partnerRoutes.positions}/${p.id}`} className="flex gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+    <Link href={`${partnerRoutes.positions}/${p.id}`} className="flex gap-4 rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:bg-[color:var(--v2-line)]">
       {/* 썸네일 — 없어도 뷰 표시 */}
-      <span className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#EEF1F5] bg-[#F2F4F6]">
+      <span className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
         {thumb ? (
           <Image src={thumb} alt="" fill sizes="88px" className="object-cover" unoptimized />
         ) : (
-          <ImageSquare className="h-7 w-7 text-[#C4CAD2]" />
+          <ImageSquare className="h-7 w-7 text-[color:var(--v2-disabled)]" />
         )}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-bold ${s.cls}`}>{positionLabel(p.status)}</span>
           {p.mockInterviewIntent || (p.mockInterviewQuestions?.length ?? 0) > 0 ? (
-            <span className="shrink-0 whitespace-nowrap rounded-md bg-[#EDF1FD] px-2.5 py-1 text-[11px] font-bold text-[#0B46E8]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</span>
+            <span className="shrink-0 whitespace-nowrap rounded-md bg-[color:var(--v2-accent-weak)] px-2.5 py-1 text-[11px] font-bold text-[color:var(--v2-accent)]">🎤 {t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Simulasi")}</span>
           ) : null}
-          <span className="ml-auto shrink-0 whitespace-nowrap text-[11.5px] text-[#B0B8C1]">{t(`${new Date(p.createdAt).toLocaleDateString("ko-KR")} 작성`, `Created ${new Date(p.createdAt).toLocaleDateString("en-US")}`, `${new Date(p.createdAt).toLocaleDateString("zh-CN")} 创建`, `Tạo ${new Date(p.createdAt).toLocaleDateString("vi-VN")}`, `${new Date(p.createdAt).toLocaleDateString("ja-JP")} 作成`, `Dibuat ${new Date(p.createdAt).toLocaleDateString("id-ID")}`)}</span>
+          <span className="ml-auto shrink-0 whitespace-nowrap text-[11.5px] text-[color:var(--v2-disabled)]">{t(`${new Date(p.createdAt).toLocaleDateString("ko-KR")} 작성`, `Created ${new Date(p.createdAt).toLocaleDateString("en-US")}`, `${new Date(p.createdAt).toLocaleDateString("zh-CN")} 创建`, `Tạo ${new Date(p.createdAt).toLocaleDateString("vi-VN")}`, `${new Date(p.createdAt).toLocaleDateString("ja-JP")} 作成`, `Dibuat ${new Date(p.createdAt).toLocaleDateString("id-ID")}`)}</span>
         </div>
 
-        <p className="mt-2 truncate text-[15.5px] font-bold text-[#191F28]">{p.title || t("제목 없는 공고", "Untitled posting", "无标题职位", "Tin chưa có tiêu đề", "無題の求人", "Lowongan tanpa judul")}</p>
-        {role ? <p className="mt-0.5 truncate text-[12.5px] font-semibold text-[#0B46E8]">{role}</p> : null}
+        <p className="mt-2 truncate text-[15.5px] font-bold text-[color:var(--v2-ink)]">{p.title || t("제목 없는 공고", "Untitled posting", "无标题职位", "Tin chưa có tiêu đề", "無題の求人", "Lowongan tanpa judul")}</p>
+        {role ? <p className="mt-0.5 truncate text-[13.5px] font-semibold text-[color:var(--v2-accent)]">{role}</p> : null}
 
         {/* 핵심 메타 — 담백한 텍스트 라인 */}
-        <p className="mt-1.5 truncate text-[12.5px] text-[#8B95A1]">{metaPrimary}</p>
-        {metaSub ? <p className="mt-0.5 truncate text-[12px] text-[#B0B8C1]">{metaSub}</p> : null}
+        <p className="mt-1.5 truncate text-[13.5px] text-[color:var(--v2-faint)]">{metaPrimary}</p>
+        {metaSub ? <p className="mt-0.5 truncate text-[12px] text-[color:var(--v2-disabled)]">{metaSub}</p> : null}
 
         {/* 지표 + 빠른 상태 변경 — 읽기전용 수치(회색)와 이동 링크(파랑)를 명확히 구분 */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-[#F5F6F8] pt-2.5">
-          <span className="text-[12.5px] text-[#8B95A1]">{t("채용", "Hiring", "招聘", "Tuyển", "採用", "Rekrut")} <b className="font-bold text-[#4E5968]">{p.hiringCount ?? "-"}</b></span>
-          <span className="text-[12.5px] text-[#8B95A1]">{t("조회", "Views", "浏览", "Lượt xem", "閲覧", "Dilihat")} <b className="font-bold text-[#4E5968]">{p.viewCount ?? 0}</b></span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-[color:var(--v2-band)] pt-2.5">
+          <span className="text-[13.5px] text-[color:var(--v2-faint)]">{t("채용", "Hiring", "招聘", "Tuyển", "採用", "Rekrut")} <b className="font-bold text-[color:var(--v2-ink-3)]">{p.hiringCount ?? "-"}</b></span>
+          <span className="text-[13.5px] text-[color:var(--v2-faint)]">{t("조회", "Views", "浏览", "Lượt xem", "閲覧", "Dilihat")} <b className="font-bold text-[color:var(--v2-ink-3)]">{p.viewCount ?? 0}</b></span>
           <button
             type="button"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}`); }}
-            className="text-[12.5px] font-semibold text-[#0B46E8] transition hover:underline"
+            className="text-[13.5px] font-semibold text-[color:var(--v2-accent)] transition hover:underline"
           >
             {t(`지원 ${applicants}명`, `${applicants} applied`, `${applicants}人申请`, `${applicants} ứng tuyển`, `${applicants}名応募`, `${applicants} melamar`)}
           </button>
@@ -309,7 +309,7 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`${partnerRoutes.applicants}?position=${encodeURIComponent(p.id)}&tab=mock`); }}
-              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-[#0B46E8] transition hover:underline"
+              className="inline-flex items-center gap-1 text-[13.5px] font-semibold text-[color:var(--v2-accent)] transition hover:underline"
             >
               <Microphone className="h-3.5 w-3.5" weight="fill" /> {t(`모의 ${mockCount}명`, `${mockCount} mock`, `模拟 ${mockCount}名`, `${mockCount} thử`, `模擬 ${mockCount}名`, `${mockCount} simulasi`)}
             </button>
@@ -321,7 +321,7 @@ function PositionCard({ p, applicants, mockCount, onSetStatus }: { p: PartnerPos
                   key={a.next}
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSetStatus(p.id, a.next); }}
-                  className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-2.5 text-[12px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]"
+                  className="rounded-lg border border-[color:var(--v2-line)] bg-white px-3 py-2.5 text-[12px] font-bold text-[color:var(--v2-ink-3)] transition hover:border-[#0B46E8]/40 hover:text-[color:var(--v2-accent)]"
                 >
                   {a.label}
                 </button>

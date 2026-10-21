@@ -203,12 +203,12 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className={`rounded-md px-2 py-1 text-[11.5px] font-bold ${PARTNER_POSITION_STATUS[p.status].cls}`}>{positionLabel(p.status)}</span>
             <div className="ml-auto flex flex-wrap gap-2">
-              <button type="button" onClick={remove} disabled={busy} className="inline-flex h-[40px] items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13px] font-bold text-[#F04452] transition hover:bg-[#FBDDE1] disabled:opacity-50">{t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</button>
+              <button type="button" onClick={remove} disabled={busy} className="inline-flex h-[40px] items-center justify-center rounded-xl bg-[color:var(--v2-attention-weak)] px-4 text-[14px] font-bold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)] disabled:opacity-50">{t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}</button>
               {p.status !== "CLOSED" ? (
-                <button type="button" onClick={close} disabled={busy} className="inline-flex h-[40px] items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">{t("마감", "Close", "关闭", "Đóng", "締切", "Tutup")}</button>
+                <button type="button" onClick={close} disabled={busy} className="inline-flex h-[40px] items-center justify-center rounded-xl bg-[color:var(--v2-band)] px-4 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">{t("마감", "Close", "关闭", "Đóng", "締切", "Tutup")}</button>
               ) : null}
-              <button type="button" onClick={duplicate} disabled={busy} className="inline-flex h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[#F2F4F6] px-4 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50"><Copy className="h-4 w-4" weight="bold" /> {t("복제", "Duplicate", "复制", "Nhân bản", "複製", "Duplikat")}</button>
-              <Link href={`${partnerRoutes.positions}/${p.id}/edit`} className="inline-flex h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[#0B46E8] px-4 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+              <button type="button" onClick={duplicate} disabled={busy} className="inline-flex h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-band)] px-4 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50"><Copy className="h-4 w-4" weight="bold" /> {t("복제", "Duplicate", "复制", "Nhân bản", "複製", "Duplikat")}</button>
+              <Link href={`${partnerRoutes.positions}/${p.id}/edit`} className="inline-flex h-[40px] items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14px] font-bold text-white transition hover:opacity-90">
                 <PencilSimple className="h-4 w-4" weight="bold" /> {t("수정하기", "Edit", "编辑", "Chỉnh sửa", "編集", "Edit")}
               </Link>
             </div>
@@ -217,14 +217,14 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
           {/* 이 공고에 맞는 추천 Talent — Rule-based 매칭 점수순(지원 대기 없이 먼저 찾기) */}
           {recommended.length ? (
             <div className="mb-6">
-              <h2 className="mb-1 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이 공고에 맞는 추천 Talent", "Recommended talent for this role", "适合该职位的推荐人才", "Nhân tài phù hợp vị trí này", "この求人におすすめの人材", "Talenta rekomendasi untuk posisi ini")}</h2>
-              <p className="mb-3 break-keep text-[12.5px] text-[#8B95A1]">{t("직무·언어·Readiness를 종합한 매칭 점수순이에요. 눌러서 인터뷰를 제안하세요.", "Ranked by a match score across role, language, and readiness. Tap to invite for an interview.", "按职务、语言、准备度综合匹配分排序。点击可发起面试邀约。", "Xếp theo điểm khớp về vị trí, ngôn ngữ, mức sẵn sàng. Nhấn để mời phỏng vấn.", "職務・言語・準備度を総合したマッチスコア順です。タップして面接を打診しましょう。", "Diurutkan berdasarkan skor kecocokan peran, bahasa, kesiapan. Ketuk untuk undang wawancara.")}</p>
+              <h2 className="mb-1 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("이 공고에 맞는 추천 Talent", "Recommended talent for this role", "适合该职位的推荐人才", "Nhân tài phù hợp vị trí này", "この求人におすすめの人材", "Talenta rekomendasi untuk posisi ini")}</h2>
+              <p className="mb-3 break-keep text-[13.5px] text-[color:var(--v2-faint)]">{t("직무·언어·Readiness를 종합한 매칭 점수순이에요. 눌러서 인터뷰를 제안하세요.", "Ranked by a match score across role, language, and readiness. Tap to invite for an interview.", "按职务、语言、准备度综合匹配分排序。点击可发起面试邀约。", "Xếp theo điểm khớp về vị trí, ngôn ngữ, mức sẵn sàng. Nhấn để mời phỏng vấn.", "職務・言語・準備度を総合したマッチスコア順です。タップして面接を打診しましょう。", "Diurutkan berdasarkan skor kecocokan peran, bahasa, kesiapan. Ketuk untuk undang wawancara.")}</p>
               {!explained ? (
                 <button
                   type="button"
                   onClick={() => void explainMatches()}
                   disabled={explaining}
-                  className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[#DCE3F0] bg-white px-3.5 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:border-[#0B46E8]/50 disabled:opacity-60"
+                  className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-[color:var(--v2-line)] bg-white px-3.5 py-1.5 text-[12px] font-bold text-[color:var(--v2-accent)] transition hover:border-[#0B46E8]/50 disabled:opacity-60"
                 >
                   <Sparkle className="h-3.5 w-3.5" weight="fill" aria-hidden />
                   {explaining
@@ -236,19 +236,19 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
                 {recommended.map((c) => {
                   const nm = c.name ?? blindTalentName(t, c.desiredJobRole, c.candidateUserId);
                   return (
-                    <Link key={c.candidateUserId} href={`${partnerRoutes.talent}/${c.candidateUserId}`} className="group flex w-[230px] shrink-0 flex-col gap-2.5 rounded-2xl border border-[#EEF1F5] bg-white p-4 transition hover:border-[#0B46E8]/40 hover:shadow-[0_6px_20px_-12px_rgba(11,70,232,0.3)]">
+                    <Link key={c.candidateUserId} href={`${partnerRoutes.talent}/${c.candidateUserId}`} className="group flex w-[230px] shrink-0 flex-col gap-2.5 rounded-2xl bg-[color:var(--v2-band)] p-4 transition hover:border-[#0B46E8]/40">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[14px] font-black text-[#0B46E8]">{nm.slice(0, 1)}</span>
-                        <span className="rounded-lg bg-[#0B46E8] px-2 py-1 text-[12px] font-black text-white">{t(`매칭 ${c.matchPercent}`, `Match ${c.matchPercent}`, `匹配 ${c.matchPercent}`, `Khớp ${c.matchPercent}`, `適合 ${c.matchPercent}`, `Cocok ${c.matchPercent}`)}</span>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)] text-[14px] font-bold text-[color:var(--v2-accent)]">{nm.slice(0, 1)}</span>
+                        <span className="rounded-lg bg-[color:var(--v2-accent)] px-2 py-1 text-[12px] font-bold text-white">{t(`매칭 ${c.matchPercent}`, `Match ${c.matchPercent}`, `匹配 ${c.matchPercent}`, `Khớp ${c.matchPercent}`, `適合 ${c.matchPercent}`, `Cocok ${c.matchPercent}`)}</span>
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <p className="truncate text-[13.5px] font-bold text-[#191F28]">{nm}</p>
-                          {c.passport?.verified ? <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[#0A9B59]" weight="fill" aria-hidden /> : null}
+                          <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{nm}</p>
+                          {c.passport?.verified ? <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[color:var(--v2-good)]" weight="fill" aria-hidden /> : null}
                         </div>
-                        {c.desiredJobRole ? <p className="truncate text-[11.5px] text-[#8B95A1]">{c.desiredJobRole}</p> : null}
+                        {c.desiredJobRole ? <p className="truncate text-[11.5px] text-[color:var(--v2-faint)]">{c.desiredJobRole}</p> : null}
                       </div>
-                      {c.matchReason ? <p className="break-keep text-[11.5px] leading-relaxed text-[#4E5968]">{c.matchReason}</p> : null}
+                      {c.matchReason ? <p className="break-keep text-[11.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{c.matchReason}</p> : null}
                     </Link>
                   );
                 })}
@@ -258,7 +258,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
 
           {/* 지원자 */}
           <div className="mb-6">
-            <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`지원자 (${applicants.length})`, `Applicants (${applicants.length})`, `申请者 (${applicants.length})`, `Ứng viên (${applicants.length})`, `応募者 (${applicants.length})`, `Pelamar (${applicants.length})`)}</h2>
+            <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`지원자 (${applicants.length})`, `Applicants (${applicants.length})`, `申请者 (${applicants.length})`, `Ứng viên (${applicants.length})`, `応募者 (${applicants.length})`, `Pelamar (${applicants.length})`)}</h2>
             {applicants.length ? (
               <>
                 <div className="flex flex-col gap-2.5">
@@ -278,7 +278,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
           {/* 모의 면접 참여자 — 지원 안 해도 표시, 제안 가능 */}
           {participants.length ? (
             <div className="mb-6">
-              <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`모의 면접 참여자 (${participants.length})`, `Mock participants (${participants.length})`, `模拟面试参与者 (${participants.length})`, `Người phỏng vấn thử (${participants.length})`, `模擬面接参加者 (${participants.length})`, `Peserta simulasi (${participants.length})`)}</h2>
+              <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`모의 면접 참여자 (${participants.length})`, `Mock participants (${participants.length})`, `模拟面试参与者 (${participants.length})`, `Người phỏng vấn thử (${participants.length})`, `模擬面接参加者 (${participants.length})`, `Peserta simulasi (${participants.length})`)}</h2>
               <div className="flex flex-col gap-2.5">
                 {recentParticipants.slice(0, 3).map((m) => (
                   <PartnerParticipantCard
@@ -291,7 +291,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
               {participants.length > 3 ? (
                 <PartnerMoreLink href={`${partnerRoutes.applicants}?position=${encodeURIComponent(positionId)}&tab=mock`} className="mt-2.5" />
               ) : null}
-              <p className="mt-2 text-[12px] text-[#8B95A1]">{t("지원하지 않았어도 이 공고 모의 면접을 푼 사람이에요. 제안을 보내 먼저 연결할 수 있어요.", "These people tried this posting's mock interview without applying. Send a proposal to connect first.", "这些人未申请但做过本职位的模拟面试。可发送邀请先行联系。", "Những người này đã thử phỏng vấn của tin dù chưa ứng tuyển. Gửi đề xuất để kết nối trước.", "応募していなくてもこの求人の模擬面接を受けた人です。提案を送って先につながれます。", "Mereka mencoba wawancara simulasi lowongan ini tanpa melamar. Kirim ajakan untuk terhubung lebih dulu.")}</p>
+              <p className="mt-2 text-[12px] text-[color:var(--v2-faint)]">{t("지원하지 않았어도 이 공고 모의 면접을 푼 사람이에요. 제안을 보내 먼저 연결할 수 있어요.", "These people tried this posting's mock interview without applying. Send a proposal to connect first.", "这些人未申请但做过本职位的模拟面试。可发送邀请先行联系。", "Những người này đã thử phỏng vấn của tin dù chưa ứng tuyển. Gửi đề xuất để kết nối trước.", "応募していなくてもこの求人の模擬面接を受けた人です。提案を送って先につながれます。", "Mereka mencoba wawancara simulasi lowongan ini tanpa melamar. Kirim ajakan untuk terhubung lebih dulu.")}</p>
             </div>
           ) : null}
 
@@ -299,21 +299,21 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
           {(() => {
             const configured = Boolean(p.mockInterviewIntent || (p.mockInterviewQuestions?.length ?? 0) > 0);
             return (
-              <div className="mb-6 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] p-4">
+              <div className="mb-6 rounded-2xl border border-[color:var(--v2-accent-weak)] bg-[color:var(--v2-accent-weak)] p-4">
                 <div className="flex items-center gap-2">
                   <span className="text-[17px]" aria-hidden>🎤</span>
-                  <p className="text-[14.5px] font-bold text-[#191F28]">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</p>
-                  <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${configured ? "bg-[#E7F8EF] text-[#0A9B59]" : "bg-[#FFF3E6] text-[#E8890C]"}`}>{configured ? t("설정됨", "Set up", "已设置", "Đã cài", "設定済み", "Sudah diatur") : t("미설정", "Not set", "未设置", "Chưa cài", "未設定", "Belum diatur")}</span>
-                  <Link href={`${partnerRoutes.positions}/${p.id}/edit`} className="ml-auto shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">{configured ? t("수정", "Edit", "编辑", "Sửa", "編集", "Ubah") : t("추가하기", "Add", "添加", "Thêm", "追加", "Tambah")}</Link>
+                  <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")}</p>
+                  <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${configured ? "bg-[color:var(--v2-good-weak)] text-[color:var(--v2-good)]" : "bg-[color:var(--v2-warn-weak)] text-[color:var(--v2-warn)]"}`}>{configured ? t("설정됨", "Set up", "已设置", "Đã cài", "設定済み", "Sudah diatur") : t("미설정", "Not set", "未设置", "Chưa cài", "未設定", "Belum diatur")}</span>
+                  <Link href={`${partnerRoutes.positions}/${p.id}/edit`} className="ml-auto shrink-0 rounded-lg bg-white px-3 py-1.5 text-[12px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-accent-weak)]">{configured ? t("수정", "Edit", "编辑", "Sửa", "編集", "Ubah") : t("추가하기", "Add", "添加", "Thêm", "追加", "Tambah")}</Link>
                 </div>
                 {configured ? (
                   <>
-                    {p.mockInterviewIntent ? <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{p.mockInterviewIntent}</p> : null}
+                    {p.mockInterviewIntent ? <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{p.mockInterviewIntent}</p> : null}
                     {(p.mockInterviewQuestions?.length ?? 0) > 0 ? (
                       <ol className="mt-2.5 flex flex-col gap-1.5">
                         {p.mockInterviewQuestions!.map((q, i) => (
-                          <li key={i} className="flex gap-2 rounded-xl bg-white px-3 py-2 text-[12.5px] leading-relaxed text-[#191F28]">
-                            <span className="shrink-0 font-bold text-[#0B46E8]">Q{i + 1}</span>
+                          <li key={i} className="flex gap-2 rounded-xl bg-white px-3 py-2 text-[13.5px] leading-relaxed text-[color:var(--v2-ink)]">
+                            <span className="shrink-0 font-bold text-[color:var(--v2-accent)]">Q{i + 1}</span>
                             <span className="min-w-0 break-keep">{q}</span>
                           </li>
                         ))}
@@ -321,7 +321,7 @@ export function PartnerPositionDetailScreen({ positionId }: { positionId: string
                     ) : null}
                   </>
                 ) : (
-                  <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{t("지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 준비 잘 된 지원자가 모입니다.", "Applicants can practice this position's mock interview and get AI feedback before applying, so well-prepared candidates gather.", "申请者可在申请前练习本职位的模拟面试并获得 AI 反馈，从而吸引准备充分的候选人。", "Ứng viên có thể luyện phỏng vấn thử cho vị trí này và nhận phản hồi AI trước khi ứng tuyển, thu hút ứng viên chuẩn bị kỹ.", "応募者は応募前にこのポジションの模擬面接を練習しAIフィードバックを受けられます。準備の整った応募者が集まります。", "Pelamar bisa berlatih wawancara simulasi posisi ini dan mendapat masukan AI sebelum melamar, sehingga kandidat yang siap berkumpul.")}</p>
+                  <p className="mt-1.5 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{t("지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 준비 잘 된 지원자가 모입니다.", "Applicants can practice this position's mock interview and get AI feedback before applying, so well-prepared candidates gather.", "申请者可在申请前练习本职位的模拟面试并获得 AI 反馈，从而吸引准备充分的候选人。", "Ứng viên có thể luyện phỏng vấn thử cho vị trí này và nhận phản hồi AI trước khi ứng tuyển, thu hút ứng viên chuẩn bị kỹ.", "応募者は応募前にこのポジションの模擬面接を練習しAIフィードバックを受けられます。準備の整った応募者が集まります。", "Pelamar bisa berlatih wawancara simulasi posisi ini dan mendapat masukan AI sebelum melamar, sehingga kandidat yang siap berkumpul.")}</p>
                 )}
               </div>
             );

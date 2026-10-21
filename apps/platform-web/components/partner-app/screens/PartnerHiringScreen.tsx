@@ -44,8 +44,8 @@ export function PartnerHiringScreen() {
     <PartnerAppShell>
       <div className="mx-auto w-full max-w-3xl px-4 py-6 md:py-8">
         <header className="mb-5">
-          <h1 className="text-[22px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[26px]">{t("채용 진행", "Hiring pipeline", "招聘进度", "Tiến trình tuyển dụng", "採用進行", "Alur rekrutmen")}</h1>
-          <p className="mt-1.5 break-keep text-[13.5px] text-[#8B95A1]">{t("인터뷰를 제안한 인재를 단계별로 관리하세요. 후보를 눌러 상세에서 다음 단계로 진행할 수 있어요.", "Manage the talent you've invited, stage by stage. Tap a candidate to advance them from their detail page.", "按阶段管理已邀约的人才。点击候选人可在详情页推进下一步。", "Quản lý nhân tài đã mời theo từng giai đoạn. Nhấn vào ứng viên để tiến bước ở trang chi tiết.", "面接を打診した人材を段階ごとに管理。候補者をタップして詳細から次の段階へ。", "Kelola talenta yang diundang per tahap. Ketuk kandidat untuk melanjutkan dari halaman detail.")}</p>
+          <h1 className="text-[22px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[26px]">{t("채용 진행", "Hiring pipeline", "招聘进度", "Tiến trình tuyển dụng", "採用進行", "Alur rekrutmen")}</h1>
+          <p className="mt-1.5 break-keep text-[14.5px] text-[color:var(--v2-faint)]">{t("인터뷰를 제안한 인재를 단계별로 관리하세요. 후보를 눌러 상세에서 다음 단계로 진행할 수 있어요.", "Manage the talent you've invited, stage by stage. Tap a candidate to advance them from their detail page.", "按阶段管理已邀约的人才。点击候选人可在详情页推进下一步。", "Quản lý nhân tài đã mời theo từng giai đoạn. Nhấn vào ứng viên để tiến bước ở trang chi tiết.", "面接を打診した人材を段階ごとに管理。候補者をタップして詳細から次の段階へ。", "Kelola talenta yang diundang per tahap. Ketuk kandidat untuk melanjutkan dari halaman detail.")}</p>
         </header>
 
         {status === "loading" ? <TListSkeleton /> : null}
@@ -67,9 +67,9 @@ export function PartnerHiringScreen() {
                   { v: items.filter((i) => i.status === "PASSED").length, label: t("합격", "Passed", "已通过", "Đạt", "合格", "Lulus"), ink: "#0A9B59" },
                   { v: items.length, label: t("전체", "Total", "全部", "Tổng", "全体", "Total"), ink: "#0B1227" }
                 ].map((s) => (
-                  <div key={s.label} className="rounded-2xl border border-[#EEF1F5] bg-white p-3.5 text-center">
-                    <p className="text-[22px] font-black tabular-nums" style={{ color: s.ink }}>{s.v}</p>
-                    <p className="mt-0.5 text-[11.5px] font-semibold text-[#8B95A1]">{s.label}</p>
+                  <div key={s.label} className="rounded-2xl bg-[color:var(--v2-band)] p-3.5 text-center">
+                    <p className="text-[22px] font-bold tabular-nums" style={{ color: s.ink }}>{s.v}</p>
+                    <p className="mt-0.5 text-[11.5px] font-semibold text-[color:var(--v2-faint)]">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -79,32 +79,32 @@ export function PartnerHiringScreen() {
                 return (
                   <section key={stage.label}>
                     <div className="mb-2 flex items-center gap-2">
-                      <span className={`h-2 w-2 rounded-full ${stage.accent ? "bg-[#0A9B59]" : "bg-[#0B46E8]"}`} aria-hidden />
-                      <h2 className="text-[14px] font-black tracking-[-0.01em] text-[#191F28]">{stage.label}</h2>
-                      <span className="text-[12.5px] font-bold text-[#8B95A1]">{group.length}</span>
+                      <span className={`h-2 w-2 rounded-full ${stage.accent ? "bg-[color:var(--v2-good)]" : "bg-[color:var(--v2-accent)]"}`} aria-hidden />
+                      <h2 className="text-[14px] font-bold tracking-[-0.01em] text-[color:var(--v2-ink)]">{stage.label}</h2>
+                      <span className="text-[13.5px] font-bold text-[color:var(--v2-faint)]">{group.length}</span>
                     </div>
                     <div className="flex flex-col gap-2">
                       {group.map((it) => (
                         <Link
                           key={it.connectionId}
                           href={`${partnerRoutes.talent}/${it.candidateUserId}`}
-                          className="group flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-white p-3.5 transition hover:border-[#0B46E8]/40"
+                          className="group flex items-center gap-3 rounded-2xl bg-[color:var(--v2-band)] p-3.5 transition hover:border-[#0B46E8]/40"
                         >
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[15px] font-bold text-[color:var(--v2-accent)]">
                             {(it.name ?? blindTalentName(t, null, it.candidateUserId)).slice(0, 1)}
                           </span>
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <p className="text-[14.5px] font-bold text-[#191F28]">{it.name ?? blindTalentName(t, null, it.candidateUserId)}</p>
+                              <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{it.name ?? blindTalentName(t, null, it.candidateUserId)}</p>
                               {it.verified ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-[#E7F8EF] px-2 py-0.5 text-[10.5px] font-bold text-[#0A9B59]">
+                                <span className="inline-flex items-center gap-1 rounded-md bg-[color:var(--v2-good-weak)] px-2 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-good)]">
                                   <ShieldCheck className="h-3 w-3" weight="fill" aria-hidden /> Verified
                                 </span>
                               ) : null}
                             </div>
-                            <p className="mt-0.5 text-[12px] text-[#8B95A1]">Readiness {it.readiness}</p>
+                            <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">Readiness {it.readiness}</p>
                           </div>
-                          <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2] transition group-hover:translate-x-0.5 group-hover:text-[#0B46E8]" weight="bold" aria-hidden />
+                          <CaretRight className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)] transition group-hover:translate-x-0.5 group-hover:text-[color:var(--v2-accent)]" weight="bold" aria-hidden />
                         </Link>
                       ))}
                     </div>
