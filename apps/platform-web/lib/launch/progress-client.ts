@@ -48,6 +48,8 @@ export type PostingInterviewItem = {
   feedback: string;
   strengths?: string[];
   improvements?: string[];
+  /** 말로 답했을 때만 — 말하기 리포트(lib/launch/speaking). */
+  speakingData?: import("./speaking").SpeakingData;
 };
 // 공고별 모의면접 기록 — 문항별 답변·점수·모범답안을 누적 저장해 나중에 다시 보고 오답노트처럼 재도전한다.
 export type PostingInterviewLog = {

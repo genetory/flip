@@ -11,6 +11,7 @@ import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../..
 import { fetchProgress, type PostingInterviewLog, type PostingInterviewItem } from "../../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
+import { SpeakingGrowthCard } from "../../../components/launch/SpeakingGrowthCard";
 
 function scoreTone(s: number): { text: string; bg: string } {
   if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-[color:var(--v2-band)]" };
@@ -266,6 +267,9 @@ export default function CorrectionNotebookPage() {
               })}
               </>
               ) : null}
+
+              {/* 말하기 성장 — 말로 답한 문항의 처음 vs 최근 */}
+              <SpeakingGrowthCard logs={[...pLogs, ...bLogs]} />
 
               {postingLowCount > 0 ? (
                 <DashboardSection title={t(`면접 히스토리 ${postingLowCount}문항`, `Interview history · ${postingLowCount}`, `面试记录 ${postingLowCount}`, `Lịch sử phỏng vấn · ${postingLowCount}`, `面接履歴 ${postingLowCount}`, `Riwayat wawancara · ${postingLowCount}`)}>

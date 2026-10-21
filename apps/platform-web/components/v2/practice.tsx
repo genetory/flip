@@ -620,6 +620,11 @@ export function useDictation({ onStart, onFinal }: { onStart?: () => void; onFin
   const recRef = useRef<Recognition | null>(null);
   const speechStart = useRef(0);
   const spoken = useRef("");
+  // 한 답변 전체(마이크를 껐다 켜도 이어서) — 말하기 분석용. resetTotals() 로 새 답변 시작.
+  const [totals, setTotals] = useState<{ ms: number; chars: number; fillers: number; pauses: number; transcript: string } | null>(null);
+  const totalMs = useRef(0);
+  const totalText = useRef("");
+  const pauses = useRef(0);
   const Rec = getRecognition();
   const onFinalRef = useRef(onFinal);
   const onStartRef = useRef(onStart);
@@ -641,12 +646,23 @@ export function useDictation({ onStart, onFinal }: { onStart?: () => void; onFin
       const buf = new Uint8Array(analyser.frequencyBinCount);
       let raf = 0;
       let last = 0;
+      let silentMs = 0;
+      let spokeYet = false;
       const tick = (ts: number) => {
         if (ts - last > 80) {
           analyser.getByteTimeDomainData(buf);
           let peak = 0;
           for (const v of buf) peak = Math.max(peak, Math.abs(v - 128));
-          setLevel(Math.min(1, peak / 64));
+          const lv = Math.min(1, peak / 64);
+          setLevel(lv);
+          // 말을 시작한 뒤 3초 넘게 조용하다가 다시 말하면 '긴 멈춤' 1번
+          const dt = last ? ts - last : 0;
+          if (lv < 0.08) silentMs += dt;
+          else {
+            if (spokeYet && silentMs > 3000) pauses.current += 1;
+            silentMs = 0;
+            spokeYet = true;
+          }
           last = ts;
         }
         raf = requestAnimationFrame(tick);
@@ -712,6 +728,10 @@ export function useDictation({ onStart, onFinal }: { onStart?: () => void; onFin
       meterStop.current = null;
       const text = spoken.current.trim();
       if (text) setSpeech({ ms: Date.now() - speechStart.current, chars: text.replace(/\s+/g, "").length, fillers: (text.match(FILLERS) ?? []).length });
+      totalMs.current += Date.now() - speechStart.current;
+      if (text) totalText.current = `${totalText.current} ${text}`.trim();
+      const all = totalText.current;
+      if (all) setTotals({ ms: totalMs.current, chars: all.replace(/\s+/g, "").length, fillers: (all.match(FILLERS) ?? []).length, pauses: pauses.current, transcript: all });
     };
     recRef.current = rec;
     setListening(true);
@@ -721,7 +741,15 @@ export function useDictation({ onStart, onFinal }: { onStart?: () => void; onFin
 
   const stop = () => recRef.current?.stop();
   const reset = () => setSpeech(null);
-  return { supported: !!Rec, listening, interim, level, heard, micError, speech, toggle, stop, reset };
+  /** 새 답변 — 누적 기록(시간·글자·군말·멈춤·받아쓴 원문)을 비운다. */
+  const resetTotals = () => {
+    totalMs.current = 0;
+    totalText.current = "";
+    pauses.current = 0;
+    setTotals(null);
+    setSpeech(null);
+  };
+  return { supported: !!Rec, listening, interim, level, heard, micError, speech, totals, toggle, stop, reset, resetTotals };
 }
 
 export function DictationControls({ t, dict, disabled, right }: { t: PlatformT; dict: Dictation; disabled?: boolean; right?: React.ReactNode }) {

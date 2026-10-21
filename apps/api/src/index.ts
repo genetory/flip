@@ -16953,7 +16953,8 @@ const CAREER_PROGRAM_FEATURES = new Set([
   "career_report",
   "career_interview_retry",
   "career_resume_bullet",
-  "career_cover_question"
+  "career_cover_question",
+  "career_speaking_analysis"
 ]);
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -24029,6 +24030,90 @@ app.post("/career-launch/posting-interview/score", authenticate, requireCareerEn
   } catch (err) {
     console.error("[posting-interview/score] failed", err);
     return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
+// ── 말로 하는 면접 — 한국어 말하기 분석 ─────────────────────────────
+// 학생이 마이크로 답한 받아쓰기 원문 + 말한 시간·멈춤 횟수로, 내용 점수와 별개인 '말하기 리포트'를 만든다.
+// 숫자(말 빠르기·군말·문장 길이·말투 끝맺음)는 규칙으로 세고, 어색한 표현 고치기·말로 하기 좋은 답은 AI 가 만든다.
+// 안전: 발음·억양·국적을 평가하지 않는다(소리는 받지 않는다 — 받아쓴 글만). 역량 판단이 아니라 말하기 연습 도움.
+const SPEAK_FILLERS = /(^|\s)(음+|어+|그+|저기|뭐랄까|약간|좀|이제|막|그니까|그러니까)(?=\s|$|[,.])/g;
+/** 받아쓴 글을 말 끝맺음 기준으로 문장으로 나눈다(음성 인식은 마침표를 잘 안 찍는다). */
+function splitSpokenSentences(text: string): string[] {
+  const marked = text.replace(/(습니다|입니다|됩니다|합니다|니다|어요|아요|에요|예요|해요|이죠|죠|네요|거든요|는데요|다)(?=\s|$|[.?!,])/g, "$1\u0001");
+  return marked
+    .split(/\u0001|[.?!]\s*/)
+    .map((x) => x.replace(/^[\s,]+/, "").trim())
+    .filter((x) => x.replace(/\s+/g, "").length >= 4);
+}
+function speakingMetrics(transcript: string, durationSec: number, pauses: number) {
+  const plain = transcript.replace(/\s+/g, "");
+  const chars = plain.length;
+  const minutes = Math.max(durationSec, 1) / 60;
+  const cpm = Math.round(chars / minutes);
+  const fillers = (transcript.match(SPEAK_FILLERS) ?? []).length;
+  const sentences = splitSpokenSentences(transcript);
+  const lens = sentences.map((x) => x.replace(/\s+/g, "").length);
+  const avgSentence = lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : chars;
+  const longSentences = sentences.filter((x) => x.replace(/\s+/g, "").length > 70).length;
+  const formal = (transcript.match(/니다(?=\s|$|[.?!,])/g) ?? []).length; // 합니다체
+  const polite = (transcript.match(/(어요|아요|에요|예요|해요|죠|네요|거든요|는데요)(?=\s|$|[.?!,])/g) ?? []).length; // 해요체
+  const casual = (transcript.match(/(?<!니)(다|어|야|지)(?=\s|$|[.?!,])/g) ?? []).length; // 반말 끝맺음(대략 — '~는데' 같은 연결어는 빼고)
+  const pace = cpm < 150 ? "slow" : cpm > 320 ? "fast" : "good";
+  return { chars, durationSec: Math.round(durationSec), cpm, pace, fillers, pauses: Math.max(0, Math.round(pauses)), sentences: sentences.length, avgSentence, longSentences, endings: { formal, polite, casual } };
+}
+const SPEAKING_REPORT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["oneLine", "honorific", "honorificNote", "fixes", "spokenVersion", "tips"],
+  properties: {
+    oneLine: { type: "string", description: "말하기에서 가장 먼저 고칠 한 가지를 '~해 보세요'로 끝나는 행동 조언 한 문장으로(내용 요약 금지). 예: '첫 문장에서 \'음, 어\' 없이 \'제 강점은 ~입니다\'로 바로 시작해 보세요.'" },
+    honorific: { type: "string", enum: ["consistent", "mixed", "casual"], description: "면접 말투 — 합니다체/해요체로 일관되면 consistent, 섞이면 mixed, 반말이 있으면 casual" },
+    honorificNote: { type: "string", description: "말투에 대한 짧은 조언(예: '~했어요'와 '~했습니다'가 섞여요. 면접에선 '~했습니다'로 맞춰 보세요)" },
+    fixes: {
+      type: "array",
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["original", "better", "why"],
+        properties: {
+          original: { type: "string", description: "학생이 실제로 말한 어색하거나 틀린 표현(받아쓰기에서 그대로 인용)" },
+          better: { type: "string", description: "면접에서 자연스러운 한국어 표현" },
+          why: { type: "string", description: "짧은 이유(조사·어휘·높임말·너무 긴 문장 등)" }
+        }
+      }
+    },
+    spokenVersion: { type: "string", description: "학생의 답을 사실은 그대로 두고, 면접에서 말로 하기 좋게 다듬은 버전. 첫 문장은 질문에 대한 결론(예: '제 강점은 ~입니다'), 그다음 근거 경험, 마지막에 한 문장 정리. 한 문장 40자 안팎, 합니다체. 400자 이내." },
+    tips: { type: "array", maxItems: 3, items: { type: "string", description: "다음 답변 때 말하기 연습 팁" } }
+  }
+} as const;
+const speakingBody = z.object({
+  question: z.string().trim().min(2).max(600),
+  transcript: z.string().trim().min(2).max(6000),
+  durationSec: z.number().min(1).max(1800),
+  pauses: z.number().int().min(0).max(200).optional()
+});
+// POST /career-launch/speaking-analysis — 말로 한 답변의 말하기 리포트(내용 점수와 별개). 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/speaking-analysis", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "cl-speaking" }), aiCharge("career_speaking_analysis"), async (req, res) => {
+  const parsed = speakingBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  const { question, transcript, durationSec, pauses } = parsed.data;
+  const metrics = speakingMetrics(transcript, durationSec, pauses ?? 0);
+  if (!openai) return res.json({ ok: true, metrics, report: null });
+  try {
+    const system =
+      "너는 한국 기업 면접을 준비하는 외국인 학생의 한국어 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 자연스럽고 또렷하게 말하도록 도와줘. " +
+      "받아쓰기라 띄어쓰기·마침표가 없거나 인식 오류가 있을 수 있어 — 인식 오류로 보이는 건 지적하지 마. 발음·억양·국적은 평가하지 마(소리는 없다). 내용 평가(직무 역량)는 하지 말고 말하기만. " +
+      "fixes 는 학생이 실제로 말한 표현만 인용해(지어내지 마). spokenVersion 은 학생이 말한 사실만 써. 한국어로.";
+    const user = `[면접 질문]\n${question}\n\n[학생이 말한 답(받아쓰기)]\n${transcript}\n\n[측정]\n말한 시간 ${metrics.durationSec}초 · 분당 ${metrics.cpm}자 · 군말 ${metrics.fillers}번 · 3초 넘게 멈춤 ${metrics.pauses}번 · 문장 ${metrics.sentences}개(평균 ${metrics.avgSentence}자, 70자 넘는 문장 ${metrics.longSentences}개) · 끝맺음 합니다체 ${metrics.endings.formal} / 해요체 ${metrics.endings.polite} / 반말 추정 ${metrics.endings.casual}`;
+    const report = await careerChatComplete(system, user, "cl_speaking_report", SPEAKING_REPORT_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_speaking_analysis" });
+    return res.json({ ok: true, metrics, report });
+  } catch (err) {
+    console.error("[career/speaking] failed", err);
+    // 숫자 리포트는 그대로 준다 — AI 부분만 빠진다.
+    return res.json({ ok: true, metrics, report: null });
   }
 });
 

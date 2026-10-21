@@ -7,6 +7,7 @@ import { CaretDown, CircleNotch, ArrowClockwise, PaperPlaneRight } from "@phosph
 import { useLaunchT } from "../../lib/launch/i18n";
 import type { PostingScore } from "../../lib/launch/posting-interview";
 import type { PostingInterviewItem } from "../../lib/launch/progress-client";
+import { SpeakingReportCard } from "./SpeakingReportCard";
 
 function scoreTone(s: number): { text: string; bg: string } {
   if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-white" };
@@ -31,7 +32,7 @@ export function PostingResultList({ items, rescore, onItemsChange }: { items: Po
     setErr("");
     try {
       const s = await rescore(items[i].question, a);
-      onItemsChange(items.map((it, j) => (j === i ? { ...it, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements } : it)));
+      onItemsChange(items.map((it, j) => (j === i ? { ...it, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements, speakingData: undefined } : it)));
       setRetryIdx(null);
       setRetryText("");
     } catch (e) {
@@ -77,6 +78,7 @@ export function PostingResultList({ items, rescore, onItemsChange }: { items: Po
                     <p className="mt-0.5 whitespace-pre-wrap break-keep text-[color:var(--v2-ink-2)]">{it.modelAnswer}</p>
                   </div>
                 ) : null}
+                {it.speakingData ? <SpeakingReportCard data={it.speakingData} /> : null}
                 {canRetry ? (
                   retryIdx === i ? (
                     <div>
