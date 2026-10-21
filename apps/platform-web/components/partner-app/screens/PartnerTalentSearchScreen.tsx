@@ -334,12 +334,12 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
           {c.skills.length ? (
             <div className="mt-2 flex flex-wrap gap-1">
               {c.skills.slice(0, 6).map((s) => (
-                <span key={s} className="rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--v2-ink-3)]">{s}</span>
+                <span key={s} className="rounded-md bg-white px-2.5 py-0.5 text-[11px] font-medium text-[color:var(--v2-ink-3)]">{s}</span>
               ))}
             </div>
           ) : null}
 
-          {/* AI 이력서·자소서 요약 — 둘 다 항상 노출. 아직 없으면 '작성 안 됨' 안내. */}
+          {/* AI 이력서·자소서 요약 — 둘 다 항상 노출. 이력서 내용이 있는데 요약이 아직이면 '준비 중'(서버가 뒤에서 만든다), 정말 없으면 '작성 안 됨'. */}
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <div className="rounded-lg bg-[color:var(--v2-fill)] px-3 py-2">
               <p className="flex items-center gap-1 text-[10.5px] font-bold text-[color:var(--v2-faint)]"><Sparkle className="h-3 w-3 text-[color:var(--v2-accent)]" weight="fill" /> {t("AI 이력서 요약", "AI resume summary", "AI简历摘要", "Tóm tắt hồ sơ AI", "AI履歴書要約", "Ringkasan resume AI")}</p>
@@ -353,7 +353,11 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">{t("아직 이력서가 작성되지 않았어요", "Resume not written yet", "尚未填写简历", "Chưa viết hồ sơ", "履歴書がまだ作成されていません", "Resume belum ditulis")}</p>
+                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">
+                  {c.school || c.skills.length || c.careerCount > 0 || c.summary
+                    ? t("요약을 준비하고 있어요 · 상세에서 바로 볼 수 있어요", "Summary in progress · see details", "摘要准备中 · 可在详情查看", "Đang tóm tắt · xem chi tiết", "要約を準備中 · 詳細で確認", "Ringkasan disiapkan · lihat detail")
+                    : t("아직 이력서가 작성되지 않았어요", "Resume not written yet", "尚未填写简历", "Chưa viết hồ sơ", "履歴書がまだ作成されていません", "Resume belum ditulis")}
+                </p>
               )}
             </div>
             <div className="rounded-lg bg-[color:var(--v2-fill)] px-3 py-2">
@@ -368,7 +372,11 @@ function CandidateCard({ c, saved, onToggleSave, ensure }: { c: PartnerCandidate
                   ))}
                 </ul>
               ) : (
-                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">{t("아직 자기소개서가 작성되지 않았어요", "Cover letter not written yet", "尚未填写求职信", "Chưa viết thư xin việc", "自己PRがまだ作成されていません", "Surat lamaran belum ditulis")}</p>
+                <p className="mt-1 break-keep text-[12px] leading-relaxed text-[color:var(--v2-disabled)]">
+                  {c.resumeBullets?.length
+                    ? t("자기소개서가 없어요", "No cover letter", "暂无求职信", "Chưa có thư", "自己PRはありません", "Belum ada surat")
+                    : t("자기소개서 요약이 아직 없어요", "No cover letter summary yet", "暂无求职信摘要", "Chưa có tóm tắt thư", "自己PRの要約はまだありません", "Belum ada ringkasan surat")}
+                </p>
               )}
             </div>
           </div>

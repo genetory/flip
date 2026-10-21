@@ -32747,11 +32747,15 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
     const users = await prisma.user.findMany({ where: { id: { in: blindIds } }, select: { id: true, realName: true, name: true, nationality: true } });
     for (const u of users) termsByUser.set(u.id, identityTerms(u.realName, u.name, u.nationality));
   }
+  const missing: string[] = [];
   for (const c of cards) {
     const row = byUser.get(c.candidateUserId);
-    // version = `${updatedAtMs}:${contentSig}` (구버전은 접두 ms 만) — 대표 이력서 updatedAt 이 일치하면 사용.
+    // 요약 캐시 버전은 'v<프롬프트>:<내용 서명>'(예전엔 이력서 updatedAt). 목록은 내용 서명을 다시 계산하지 않으므로
+    // 현재 프롬프트 버전의 요약이면 쓴다(서류가 바뀌면 상세를 열 때 다시 만들어 갱신된다). 예전 updatedAt 형식도 그대로 인정.
     const ms = String(new Date(c.updatedAt).getTime());
-    if (row && (row.version === ms || row.version.startsWith(`${ms}:`))) {
+    const usable = row && row.version && (row.version.startsWith(`v${DOC_SUMMARY_PROMPT_V}:`) || row.version === ms || row.version.startsWith(`${ms}:`)) && (row.resumeBullets.length || row.coverBullets.length);
+    if (!usable) missing.push(c.candidateUserId);
+    if (row && usable) {
       // 블라인드 — 요약 bullets에서 이름·국적 제거 + TOPIK '한국어 등급' 중립화.
       const blind = c.contactUnlocked === false;
       const terms = termsByUser.get(c.candidateUserId) ?? [];
@@ -32760,7 +32764,16 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
       c.coverBullets = blind ? row.coverBullets.map(scrub) : row.coverBullets;
     }
   }
+  // 아직 요약이 없는 후보는 뒤에서 몇 명씩 만들어 둔다(다음에 목록을 열면 보인다). 같은 후보를 동시에 두 번 만들지 않게 표시.
+  for (const id of missing.slice(0, 6)) {
+    if (docSummaryWarming.has(id)) continue;
+    docSummaryWarming.add(id);
+    void getOrCreateDocSummary(id)
+      .catch(() => null)
+      .finally(() => docSummaryWarming.delete(id));
+  }
 }
+const docSummaryWarming = new Set<string>();
 
 // 자기소개서에 실제 답변이 있는 유저 집합.
 // 이력서가 "어느정도 완성" 됐는지 — 핵심 신호 2개 이상.
