@@ -101,6 +101,7 @@ model User {
   careerInterviewAnswers               CareerInterviewAnswer[]       @relation("CareerInterviewAnswerStudent")
   careerInterviewWeaknesses            CareerInterviewWeakness[]     @relation("CareerInterviewWeaknessStudent")
   careerInterviewCorrections           CareerInterviewCorrection[]   @relation("CareerInterviewCorrectionStudent")
+  studentSourceFiles                   StudentSourceFile[]           @relation("StudentSourceFileUser")
   careerInterviewCorrectionAttempts    CareerInterviewCorrectionAttempt[] @relation("CareerInterviewCorrectionAttemptStudent")
   careerInterviewGrowthReport          CareerInterviewGrowthReport?  @relation("CareerInterviewGrowthReportStudent")
   careerLeagueScores                   CareerLeagueScore[]           @relation("CareerLeagueScoreStudent")
@@ -203,6 +204,22 @@ model EmailVerificationToken {
   @@index([userId])
   @@index([expiresAt])
   @@index([usedAt])
+}
+
+// 운영자 일괄 등록 학생의 원본 이력서 파일 — 운영팀만 본다(기업 화면에 내보내지 않음 — 원본엔 연락처가 있다). 파일은 스토리지, 여기엔 위치만.
+model StudentSourceFile {
+  id              String   @id @default(uuid())
+  userId          String
+  fileName        String
+  blobName        String
+  contentType     String   @default("application/octet-stream")
+  size            Int      @default(0)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  user User @relation("StudentSourceFileUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model RefreshToken {

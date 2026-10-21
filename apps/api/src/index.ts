@@ -17775,6 +17775,88 @@ app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR])
   }
 });
 
+// ── 원본 이력서 파일 — 운영팀만(기업 화면에는 내보내지 않음: 원본엔 연락처가 있다) ──
+// 스토리지 주소는 화면에 내려주지 않고, 운영자 인증을 거친 다운로드 엔드포인트로만 준다.
+const SOURCE_FILE_TYPES: Record<string, string> = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+async function storeStudentSourceFile(userId: string, fileName: string, buffer: Buffer): Promise<{ blobName: string; contentType: string }> {
+  const ext = (fileName.split(".").pop() ?? "").toLowerCase();
+  const contentType = SOURCE_FILE_TYPES[ext] ?? "application/octet-stream";
+  const blobName = `bulk-students/${userId}/${randomBytes(16).toString("hex")}.${SOURCE_FILE_TYPES[ext] ? ext : "bin"}`;
+  const container = getAzureContainerClient();
+  if (container) {
+    await container.createIfNotExists({ access: "blob" });
+    await container.getBlockBlobClient(blobName).uploadData(buffer, { blobHTTPHeaders: { blobContentType: contentType } });
+    return { blobName, contentType };
+  }
+  if (process.env.NODE_ENV === "production") throw new Error("Azure Blob storage is not configured");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  const target = path.join(LOCAL_UPLOADS_DIR, blobName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, buffer);
+  return { blobName, contentType };
+}
+async function readStudentSourceFile(blobName: string): Promise<Buffer | null> {
+  const container = getAzureContainerClient();
+  if (container) {
+    try {
+      return (await container.getBlockBlobClient(blobName).downloadToBuffer()) as Buffer;
+    } catch {
+      return null;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  return fs.readFile(path.join(LOCAL_UPLOADS_DIR, blobName)).catch(() => null);
+}
+async function deleteStudentSourceFiles(userId: string): Promise<void> {
+  const rows = await prisma.studentSourceFile.findMany({ where: { userId }, select: { blobName: true } });
+  const container = getAzureContainerClient();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  for (const r of rows) {
+    if (container) await container.getBlockBlobClient(r.blobName).deleteIfExists().catch(() => {});
+    else await fs.unlink(path.join(LOCAL_UPLOADS_DIR, r.blobName)).catch(() => {});
+  }
+}
+
+// POST /ops/bulk-students/:userId/files { fileName, base64 } — 원본 파일 올리기(일괄 등록한 학생만, 12MB 까지).
+app.post("/ops/bulk-students/:userId/files", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const body = z.object({ fileName: z.string().trim().min(1).max(300), base64: z.string().min(10).max(17_000_000) }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const u = await prisma.user.findUnique({ where: { id: String(req.params.userId) }, select: { id: true, signupReferer: true } });
+    if (!u || !(u.signupReferer ?? "").startsWith("ops-bulk:")) return res.status(404).json({ ok: false, message: "일괄 등록한 학생이 아니에요." });
+    const buffer = Buffer.from(body.data.base64.replace(/^data:[^,]*,/, ""), "base64");
+    if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "파일이 12MB 를 넘어요." });
+    const exists = await prisma.studentSourceFile.findFirst({ where: { userId: u.id, fileName: body.data.fileName, size: buffer.byteLength }, select: { id: true } });
+    if (exists) return res.json({ ok: true, id: exists.id, existed: true });
+    const { blobName, contentType } = await storeStudentSourceFile(u.id, body.data.fileName, buffer);
+    const row = await prisma.studentSourceFile.create({ data: { userId: u.id, fileName: body.data.fileName, blobName, contentType, size: buffer.byteLength, createdByUserId: req.auth!.userId } });
+    return res.json({ ok: true, id: row.id });
+  } catch (err) {
+    console.error("[ops/bulk-students] file upload failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "파일을 올리지 못했어요." });
+  }
+});
+
+// GET /ops/bulk-students/files/:fileId — 원본 파일 내려받기(운영자만).
+app.get("/ops/bulk-students/files/:fileId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const row = await prisma.studentSourceFile.findUnique({ where: { id: String(req.params.fileId) } });
+    if (!row) return res.status(404).json({ ok: false, message: "파일이 없어요." });
+    const buf = await readStudentSourceFile(row.blobName);
+    if (!buf) return res.status(404).json({ ok: false, message: "파일을 찾지 못했어요." });
+    res.setHeader("Content-Type", row.contentType);
+    res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(row.fileName)}`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(buf);
+  } catch (err) {
+    console.error("[ops/bulk-students] file download failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
 // GET /ops/bulk-students?batch= — 묶음별 등록 현황(이력서가 채워졌는지).
 app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   try {
@@ -17783,11 +17865,11 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
       where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
       orderBy: { createdAt: "desc" },
       take: 1000,
-      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 } }
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
     });
     const items = users.map((u) => {
       const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[] } };
-      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, createdAt: u.createdAt };
+      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, files: u.studentSourceFiles, createdAt: u.createdAt };
     });
     const counts = new Map<string, number>();
     for (const it of items) counts.set(it.batch, (counts.get(it.batch) ?? 0) + 1);
@@ -17803,6 +17885,7 @@ app.delete("/ops/bulk-students/:userId", authenticate, requireRoles([MemberRole.
   try {
     const u = await prisma.user.findUnique({ where: { id: String(req.params.userId) }, select: { id: true, signupReferer: true, passwordHash: true } });
     if (!u || !(u.signupReferer ?? "").startsWith("ops-bulk:") || u.passwordHash) return res.status(404).json({ ok: false, message: "일괄 등록한 계정만 지울 수 있어요." });
+    await deleteStudentSourceFiles(u.id);
     await prisma.user.delete({ where: { id: u.id } });
     return res.json({ ok: true });
   } catch (err) {

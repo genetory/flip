@@ -4,6 +4,7 @@
 // 대표 이력서로 넣는다 → 기업 인재 검색에 나온다(학생 로그인은 하지 않음).
 // 노션: 표 ••• → 내보내기(Markdown & CSV, 파일 포함) → zip 압축을 푼 폴더를 [폴더 고르기]로 통째로 고르면 CSV·PDF 를 알아서 찾는다.
 // 개인정보는 브라우저에서 바로 서버로만 보낸다(다른 곳에 저장하지 않음).
+// 원본 이력서 파일도 함께 보관 — 운영팀만 본다(기업 화면에는 내보내지 않음: 원본엔 연락처가 있다).
 import { useEffect, useMemo, useState } from "react";
 
 function readCookie(key: string) {
@@ -57,7 +58,7 @@ const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
 type Row = { key: string; name: string; email: string; major: string; file: File | null; fileLabel: string };
 type Result = { status: "created" | "exists" | "error"; message?: string; items?: number; userId?: string };
-type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; batch: string; resumeItems: number; createdAt: string };
+type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; batch: string; resumeItems: number; files: { id: string; fileName: string; size: number }[]; createdAt: string };
 
 const box: React.CSSProperties = { border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 16 };
 const input: React.CSSProperties = { height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", width: "100%" };
@@ -140,6 +141,10 @@ export default function OpsBulkStudentsPage() {
         const res = await fetch(`${api}/ops/bulk-students`, { method: "POST", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const d = (await res.json().catch(() => null)) as { ok?: boolean; status?: "created" | "exists"; message?: string; itemCount?: number; parseError?: string | null; userId?: string } | null;
         if (!res.ok || !d?.ok) throw new Error(d?.message || `HTTP ${res.status}`);
+        // 원본 파일 보관(운영팀만) — 새로 만든 학생만
+        if (d.status === "created" && d.userId && r.file && body.pdfBase64) {
+          await fetch(`${api}/ops/bulk-students/${encodeURIComponent(d.userId)}/files`, { method: "POST", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify({ fileName: r.file.name, base64: body.pdfBase64 }) }).catch(() => {});
+        }
         setResults((p) => ({ ...p, [r.key]: { status: d.status ?? "created", message: d.parseError || d.message, items: d.itemCount, userId: d.userId } }));
       } catch (e) {
         setResults((p) => ({ ...p, [r.key]: { status: "error", message: e instanceof Error ? e.message : "실패" } }));
@@ -165,6 +170,19 @@ export default function OpsBulkStudentsPage() {
     void loadList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 원본 열기 — 운영자 인증이 필요해 주소를 바로 열지 않고 받아서 연다
+  const openFile = async (f: { id: string; fileName: string }) => {
+    const res = await fetch(`${api}/ops/bulk-students/files/${encodeURIComponent(f.id)}`, { headers: auth() });
+    if (!res.ok) return window.alert("파일을 열지 못했어요.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    if (/\.pdf$/i.test(f.fileName)) a.target = "_blank";
+    else a.download = f.fileName;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   const remove = async (u: Listed) => {
     if (!window.confirm(`${u.name} 학생을 지울까요? 계정과 이력서가 함께 지워져요.`)) return;
@@ -299,6 +317,19 @@ export default function OpsBulkStudentsPage() {
                     <td style={cell}>{u.affiliation ?? "-"}</td>
                     <td style={cell}>{u.batch}</td>
                     <td style={{ ...cell, color: u.resumeItems ? "var(--ink)" : "var(--danger)" }}>이력서 항목 {u.resumeItems}개</td>
+                    <td style={cell}>
+                      {u.files?.length ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {u.files.map((f, i) => (
+                            <button key={f.id} type="button" style={{ ...ghost, height: 28, fontSize: 12 }} title={f.fileName} onClick={() => void openFile(f)}>
+                              원본 {i + 1}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--ink-faint)" }}>원본 없음</span>
+                      )}
+                    </td>
                     <td style={{ ...cell, textAlign: "right" }}>
                       <button type="button" style={{ ...ghost, color: "var(--danger)" }} onClick={() => void remove(u)}>
                         지우기
@@ -310,7 +341,7 @@ export default function OpsBulkStudentsPage() {
             </table>
           </div>
         ) : null}
-        <p style={{ marginTop: 10, fontSize: 12, color: "var(--ink-faint)" }}>노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요.</p>
+        <p style={{ marginTop: 10, fontSize: 12, color: "var(--ink-faint)" }}>노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요. 원본 파일은 운영팀만 볼 수 있어요(기업 화면에는 정리된 이력서만 나가요 — 원본엔 연락처가 있어서).</p>
       </section>
     </div>
   );
