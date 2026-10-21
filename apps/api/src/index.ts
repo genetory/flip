@@ -17637,6 +17637,163 @@ app.post(
   }
 );
 
+// ── 운영자 학생 일괄 등록(학교 제휴 등) — 인재 검색 노출용 ─────────────────────
+// 운영자가 학생별 계정을 만들고 이력서 파일을 AI 로 읽어 대표 이력서(에디터 문서)로 넣는다 → 기업 인재 검색에 나온다(학생 로그인은 하지 않음).
+// 등록 묶음은 User.signupReferer = 'ops-bulk:<묶음 이름>' 으로 표시(DB 변경 없이 묶음별로 보기·되돌리기).
+// 개인정보는 DB 에만 — 코드·로그에 이름·이메일을 남기지 않는다(로그는 개수·id 만).
+const BULK_REF = (batch: string) => `ops-bulk:${batch}`.slice(0, 512);
+const isPendingEmail = (email: string) => email.endsWith("@bulk.aply.global");
+
+/** 가져오기 모양(imported) → 에디터 문서(renewalResume + renewalBasicInfo). 웹 lib/talent/import-to-renewal 와 같은 규칙. */
+function importedToRenewalContent(imported: Record<string, unknown>, fallback: { name?: string; email?: string }): Record<string, unknown> {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const arr = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
+  const month = (v: unknown) => {
+    const t = str(v);
+    if (!t) return "";
+    if (/현재|재직|진행|present|current/i.test(t)) return "현재";
+    const m = t.replace(/[./]/g, "-").match(/(\d{4})-(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+    const y = t.match(/^(\d{4})$/);
+    return y ? `${y[1]}-01` : "";
+  };
+  const SECTION: Record<string, string> = { career: "experience", intern: "experience", part_time: "experience", school_project: "project", personal_project: "project", side_project: "project", competition: "award", club: "activity", external_activity: "activity", volunteer: "activity", education: "education", etc: "activity" };
+  const STATUS: Record<string, string> = { ENROLLED: "재학", GRADUATED: "졸업", LEAVE_OF_ABSENCE: "휴학", DROPPED_OUT: "중퇴", OTHER: "" };
+  const TYPE: Record<string, string> = { HIGH_SCHOOL: "고등학교", ASSOCIATE: "전문학사", BACHELOR: "학사", MASTER: "석사", DOCTOR: "박사", BOOTCAMP: "부트캠프", CERTIFICATE: "수료", OTHER: "" };
+  let n = 0;
+  const id = (p: string) => `bulk-${p}-${Date.now().toString(36)}-${(n++).toString(36)}`;
+  const items: Record<string, unknown>[] = [];
+  const push = (section: string, text: string, company?: string, start = "", end = "") => {
+    if (!text.trim() && !(company ?? "").trim()) return;
+    items.push({ id: id(section), section, text: text.trim(), ...(company?.trim() ? { company: company.trim() } : {}), startDate: start, endDate: end });
+  };
+  for (const e of arr(imported.educations)) {
+    const detail = [str(e.major), TYPE[str(e.educationType)] ?? "", STATUS[str(e.status)] ?? ""].filter(Boolean).join(" · ");
+    push("education", detail, str(e.schoolName), month(e.startDate), month(e.endDate));
+  }
+  for (const x of arr(imported.experiences)) {
+    const title = str(x.title);
+    const org = str(x.org);
+    const text = [title && org ? title : "", str(x.description)].filter(Boolean).join("\n");
+    push(SECTION[str(x.type)] ?? "activity", text || title, org || title, month(x.startDate), month(x.endDate));
+  }
+  for (const c of arr(imported.certifications)) {
+    const d = month(c.date);
+    if (str(c.name)) push("certificate", str(c.name), str(c.issuer), d, d);
+  }
+  const langs = arr(imported.languages).map((l) => [str(l.language), str(l.level)].filter(Boolean).join(" ")).filter(Boolean);
+  if (langs.length) push("language", langs.join(" / "));
+  const skills = (Array.isArray(imported.skills) ? imported.skills : []).map(str).filter(Boolean);
+  if (skills.length) push("skill", skills.join(", "));
+  const now = Date.now();
+  return {
+    renewalResume: {
+      targetRole: str(imported.desiredJobRole),
+      items,
+      summary: str(imported.summary) || str(imported.selfIntroduction),
+      links: arr(imported.links).map((l) => ({ label: str(l.label), url: str(l.url) })).filter((l) => l.url),
+      createdAt: now,
+      updatedAt: now
+    },
+    renewalBasicInfo: { realName: str(imported.basicName) || fallback.name || "", email: fallback.email || str(imported.basicEmail), phone: str(imported.basicPhone), address: str(imported.basicResidence), photoUrl: "" }
+  };
+}
+
+// POST /ops/bulk-students — 학생 한 명 등록(운영 콘솔이 한 명씩 돌린다 — AI 파싱이 있어 요청을 짧게).
+// body: { batch, affiliation?, name?, email?, major?, fileName?, pdfBase64?, text? }. 같은 이메일이 이미 있으면 만들지 않고 알려 준다.
+const bulkStudentSchema = z.object({
+  batch: z.string().trim().min(1).max(120),
+  affiliation: z.string().trim().max(120).optional(),
+  name: z.string().trim().max(80).optional(),
+  email: z.string().trim().toLowerCase().email().max(200).optional().or(z.literal("")),
+  major: z.string().trim().max(120).optional(),
+  fileName: z.string().trim().max(300).optional(),
+  pdfBase64: z.string().max(16_000_000).optional(),
+  text: z.string().trim().max(40000).optional()
+});
+app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = bulkStudentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  const d = parsed.data;
+  try {
+    const email = d.email || "";
+    if (email) {
+      const exists = await prisma.user.findFirst({ where: { email }, select: { id: true, role: true } });
+      if (exists) return res.json({ ok: true, status: "exists", userId: exists.id, message: "이미 가입된 이메일이에요." });
+    }
+    // 이력서 읽기(파일이 있으면) — 실패해도 계정은 만든다(이력서는 비워 두고 알려 줌)
+    let imported: Record<string, unknown> | null = null;
+    let parseError: string | null = null;
+    if (d.pdfBase64 || d.text) {
+      if (!openai) parseError = "AI 를 쓸 수 없어 이력서를 읽지 못했어요.";
+      else {
+        const r = await parseResumeSource({ pdfBase64: d.pdfBase64, text: d.text });
+        if (r.ok) imported = r.imported;
+        else parseError = r.message;
+      }
+    }
+    const name = d.name || (typeof imported?.basicName === "string" ? (imported.basicName as string).trim() : "") || "";
+    if (!name) return res.status(400).json({ ok: false, message: "이름을 알 수 없어요(표의 이름 칸이나 이력서에 이름이 필요해요)." });
+    // 이메일이 없으면 이력서의 이메일, 그것도 없으면 '받기 전' 임시 주소(학생이 계정 받을 때 진짜 이메일을 넣는다)
+    const fromResume = typeof imported?.basicEmail === "string" ? (imported.basicEmail as string).trim().toLowerCase() : "";
+    let finalEmail = email || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromResume) ? fromResume : "");
+    if (finalEmail && !email) {
+      const dup = await prisma.user.findFirst({ where: { email: finalEmail }, select: { id: true } });
+      if (dup) return res.json({ ok: true, status: "exists", userId: dup.id, message: "이력서의 이메일로 이미 가입된 계정이 있어요." });
+    }
+    // 이메일이 없으면 내부용 주소(로그인하지 않는 계정 — 유일 제약만 맞춘다)
+    if (!finalEmail) finalEmail = `student-${randomBytes(6).toString("hex")}@bulk.aply.global`;
+    const user = await prisma.user.create({
+      data: { email: finalEmail, emailVerified: false, realName: name, name, role: MemberRole.STUDENT, authProvider: AuthProvider.EMAIL, affiliation: d.affiliation || null, passwordHash: null, signupReferer: BULK_REF(d.batch) }
+    });
+    const content = imported ? importedToRenewalContent(imported, { name, email: isPendingEmail(finalEmail) ? "" : finalEmail }) : { renewalResume: { targetRole: d.major ? "" : "", items: [], createdAt: Date.now(), updatedAt: Date.now() }, renewalBasicInfo: { realName: name, email: isPendingEmail(finalEmail) ? "" : finalEmail, phone: "", address: "", photoUrl: "" } };
+    const resume = await prisma.resume.create({ data: { userId: user.id, title: "내 이력서", content: content as object, isPrimary: true } });
+    void embedAndSaveResume(prisma, resume.id).catch(() => {});
+    console.info(`[ops/bulk-students] created user=${user.id} parsed=${Boolean(imported)}`);
+    return res.json({ ok: true, status: "created", userId: user.id, noEmail: isPendingEmail(finalEmail), resumeParsed: Boolean(imported), itemCount: Array.isArray((content as { renewalResume?: { items?: unknown[] } }).renewalResume?.items) ? (content as { renewalResume: { items: unknown[] } }).renewalResume.items.length : 0, parseError });
+  } catch (err) {
+    console.error("[ops/bulk-students] failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "등록하지 못했어요." });
+  }
+});
+
+// GET /ops/bulk-students?batch= — 묶음별 등록 현황(이력서가 채워졌는지).
+app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const batch = String(req.query.batch ?? "").trim();
+    const users = await prisma.user.findMany({
+      where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 } }
+    });
+    const items = users.map((u) => {
+      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[] } };
+      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, createdAt: u.createdAt };
+    });
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.batch, (counts.get(it.batch) ?? 0) + 1);
+    return res.json({ ok: true, items, batches: [...counts].map(([b2, count]) => ({ batch: b2, count })) });
+  } catch (err) {
+    console.error("[ops/bulk-students] list failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// DELETE /ops/bulk-students/:userId — 잘못 등록한 학생 지우기(일괄 등록한 계정만).
+app.delete("/ops/bulk-students/:userId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: String(req.params.userId) }, select: { id: true, signupReferer: true, passwordHash: true } });
+    if (!u || !(u.signupReferer ?? "").startsWith("ops-bulk:") || u.passwordHash) return res.status(404).json({ ok: false, message: "일괄 등록한 계정만 지울 수 있어요." });
+    await prisma.user.delete({ where: { id: u.id } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[ops/bulk-students] delete failed", err);
+    return res.status(500).json({ ok: false, message: "지우지 못했어요." });
+  }
+});
+
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 // POLISH_STYLE_GUIDE 는 ./llm/prompts 로 이관(단일 소스). 위 import 참고.
@@ -29610,36 +29767,30 @@ function pickEnum<T extends readonly string[]>(v: unknown, allowed: T, fallback:
   return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T[number]) : fallback;
 }
 
-app.post(
-  "/members/me/ai/import-resume",
-  authenticate,
-  requireRoles([MemberRole.STUDENT]),
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("import_resume"),
-  async (req, res) => {
-    const parsed = importResumeSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-
+/**
+ * 기존 이력서(PDF base64 또는 텍스트) → 이력서 빌더 가져오기 모양(imported). 이력서 가져오기와 운영자 일괄 등록이 같이 쓴다.
+ * 원문에 없는 사실은 비운다. 실패는 { ok:false, status, message }.
+ */
+async function parseResumeSource(input: { text?: string; pdfBase64?: string }): Promise<{ ok: true; imported: Record<string, unknown> } | { ok: false; status: number; message: string }> {
     // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출.
-    let sourceText = parsed.data.text?.trim() ?? "";
-    if (!sourceText && parsed.data.pdfBase64) {
+    let sourceText = input.text?.trim() ?? "";
+    if (!sourceText && input.pdfBase64) {
       try {
-        const base64 = parsed.data.pdfBase64.replace(/^data:[^,]*,/, "");
+        const base64 = input.pdfBase64.replace(/^data:[^,]*,/, "");
         const buffer = Buffer.from(base64, "base64");
-        if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "file too large" });
+        if (buffer.byteLength > 12 * 1024 * 1024) return { ok: false as const, status: 413, message: "file too large" };
         const { extractText, getDocumentProxy } = await import("unpdf");
         const pdf = await getDocumentProxy(new Uint8Array(buffer));
         const extracted = await extractText(pdf, { mergePages: true });
         sourceText = (Array.isArray(extracted.text) ? extracted.text.join("\n") : extracted.text).trim();
       } catch (err) {
         console.error("[ai/import-resume] pdf parse failed", err);
-        return res.status(422).json({ ok: false, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." });
+        return { ok: false as const, status: 422, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." };
       }
     }
     sourceText = sourceText.slice(0, 40000);
     if (sourceText.replace(/\s+/g, "").length < 20) {
-      return res.status(422).json({ ok: false, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." });
+      return { ok: false as const, status: 422, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." };
     }
 
     // 2) LLM 으로 구조화.
@@ -29662,7 +29813,7 @@ app.post(
         '  "skills": [string],\n' +
         '  "links": [{ "label": string, "url": string }]\n' +
         "}";
-      const completion = await openai.chat.completions.create({
+      const completion = await openai!.chat.completions.create({
         model: openaiTranslationModel,
         temperature: 0.2,
         response_format: { type: "json_object" },
@@ -29720,11 +29871,26 @@ app.post(
           return { label: pickStr(o.label, 60), url: pickStr(o.url, 300) };
         }).filter((l) => l.url)
       };
-      return res.json({ ok: true, imported });
-    } catch (err) {
-      console.error("[ai/import-resume] failed", err);
-      return res.status(500).json({ ok: false, message: "failed to import resume" });
-    }
+      return { ok: true as const, imported };
+  } catch (err) {
+    console.error("[parseResumeSource] failed", err);
+    return { ok: false as const, status: 500, message: "failed to import resume" };
+  }
+}
+
+app.post(
+  "/members/me/ai/import-resume",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("import_resume"),
+  async (req, res) => {
+    const parsed = importResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const r = await parseResumeSource({ text: parsed.data.text, pdfBase64: parsed.data.pdfBase64 });
+    if (!r.ok) return res.status(r.status).json({ ok: false, message: r.message });
+    return res.json({ ok: true, imported: r.imported });
   }
 );
 

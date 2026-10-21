@@ -109,7 +109,8 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
     links: [
       { label: "전체 사용자", href: "/dashboard/ops/support/users", icon: Users },
       { label: "이력서", href: "/dashboard/ops/support/resumes", icon: FileUser },
-      { label: "이력서 인재풀", href: "/dashboard/ops/operations/resume-pool", icon: UserCheck }
+      { label: "이력서 인재풀", href: "/dashboard/ops/operations/resume-pool", icon: UserCheck },
+      { label: "학생 일괄 등록", href: "/dashboard/ops/operations/bulk-students", icon: Users }
     ]
   },
   {
