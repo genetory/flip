@@ -24,6 +24,7 @@ const GATED_PREFIXES = [
   "/career-launch/interview",
   "/career-launch/basic-interview",
   "/career-launch/corrections",
+  "/career-launch/intro-practice",
   "/career-launch/deliverables",
   "/career-launch/survey",
   "/career-launch/culture"

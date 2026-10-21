@@ -13,10 +13,9 @@ import { requestBasicQuestions, scoreBasicAnswer, type BasicFocus } from "../../
 import { fetchProgress, patchProgress, type PostingInterviewItem } from "../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../lib/analytics";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { usePlatformT } from "../../lib/i18n";
-import { DictationControls, SpeakButton, useDictation, useSpeak } from "../v2/practice";
-import { analyzeSpeaking, type SpeakingData } from "../../lib/launch/speaking";
+import { SpeakButton } from "../v2/practice";
 import { SpeakingReportCard } from "./SpeakingReportCard";
+import { FollowUpBadge, FollowUpButton, VoiceAnswerControls, useVoiceAnswer } from "./voice-answer";
 
 function scoreTone(s: number): { text: string; bg: string } {
   if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-[#E7F7EF]" };
@@ -42,14 +41,22 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
-  // 말로 답하기 — 받아쓴 글은 답변 칸에 이어 붙고(고칠 수 있음), 한 답변 동안의 말한 시간·멈춤은 dict.totals 에 쌓인다.
-  const pt = usePlatformT();
-  const qTts = useSpeak();
-  const dict = useDictation({ onFinal: (add) => setInput((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
-  const totalsRef = useRef(dict.totals);
-  useEffect(() => {
-    totalsRef.current = dict.totals;
-  }, [dict.totals]);
+  // 말로 답하기 — 받아쓴 글은 답변 칸에 이어 붙고(고칠 수 있음), 제출하면 말하기 리포트도 받는다.
+  const voice = useVoiceAnswer((add) => setInput((a) => (a.trim() ? `${a.trim()} ${add}` : add)));
+  const pt = voice.pt;
+  const qTts = voice.tts;
+  // 꼬리 질문 — 질문 자리(idx)별 깊이·면접관 의도
+  const [follow, setFollow] = useState<Record<number, { depth: number; intent: string }>>({});
+  const depthAt = (i: number) => follow[i]?.depth ?? 0;
+  const askFollowUp = (q: string, intent: string) => {
+    const at = idx + 1;
+    setQuestions((prev) => [...prev.slice(0, at), q, ...prev.slice(at)]);
+    setFollow((prev) => ({ ...prev, [at]: { depth: depthAt(idx) + 1, intent } }));
+    setIdx(at);
+    setLastScore(null);
+    setInput("");
+    voice.reset();
+  };
 
   const focusLabel: Record<BasicFocus, string> = {
     self: t("자기소개 면접", "Self-Introduction Interview", "自我介绍面试", "Phỏng vấn giới thiệu", "自己紹介面接", "Wawancara Perkenalan"),
@@ -84,22 +91,11 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     const a = input.trim();
     if (!a || scoring) return;
     setScoring(true);
-    qTts.stop();
-    // 듣는 중이면 멈추고 마지막 말까지 받아 적힐 때까지 잠깐 기다린다
-    if (dict.listening) {
-      dict.stop();
-      await new Promise((r) => window.setTimeout(r, 900));
-    }
-    const voice = totalsRef.current;
+    const v = await voice.capture();
     try {
       const q = questions[idx];
-      const [s, sp] = await Promise.all([
-        scoreBasicAnswer(focus, q, a),
-        voice && voice.transcript ? analyzeSpeaking({ question: q, transcript: voice.transcript, durationSec: Math.max(1, voice.ms / 1000), pauses: voice.pauses }).catch(() => null) : Promise.resolve(null)
-      ]);
-      const speakingData: SpeakingData | undefined = sp ? { mode: "voice", at: new Date().toISOString(), metrics: sp.metrics, report: sp.report, transcript: voice!.transcript } : undefined;
-      if (speakingData) trackCareerFunnel("career_speaking_analyzed", { focus, cpm: sp!.metrics.cpm });
-      const item: PostingInterviewItem = { question: q, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements, ...(speakingData ? { speakingData } : {}) };
+      const [s, speakingData] = await Promise.all([scoreBasicAnswer(focus, q, a), voice.analyze(q, v)]);
+      const item: PostingInterviewItem = { question: q, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements, ...(speakingData ? { speakingData } : {}), ...(depthAt(idx) > 0 ? { followUp: true } : {}) };
       setItems((prev) => [...prev, item]);
       setLastScore(item);
     } catch {
@@ -120,8 +116,7 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
         setIdx((i) => i + 1);
         setLastScore(null);
         setInput("");
-        dict.resetTotals();
-        qTts.stop();
+        voice.reset();
       } else {
         setNextError(true);
       }
@@ -214,7 +209,10 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[13px]" aria-hidden>🎤</span>
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{t(`면접관 질문 ${idx + 1}`, `Interviewer · Q${idx + 1}`, `面试官提问 ${idx + 1}`, `Người PV · Câu ${idx + 1}`, `面接官の質問 ${idx + 1}`, `Pewawancara · Q${idx + 1}`)}</p>
                 </div>
-                <div className="mt-3 flex items-start justify-between gap-3">
+                <div className="mt-3">
+                  <FollowUpBadge depth={depthAt(idx)} intent={follow[idx]?.intent} />
+                </div>
+                <div className="flex items-start justify-between gap-3">
                   <p className="break-keep text-[18px] font-bold leading-[1.5] tracking-[-0.01em] text-[color:var(--v2-ink)]">{questions[idx]}</p>
                   {/* 면접관처럼 질문을 소리로 */}
                   <SpeakButton t={pt} tts={qTts} text={questions[idx] ?? ""} />
@@ -248,6 +246,8 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                     ) : null}
                     {lastScore.speakingData ? <SpeakingReportCard data={lastScore.speakingData} /> : null}
                     <div className="mt-1 flex flex-col gap-2">
+                      {/* 실전처럼 — 면접관이 방금 답을 파고든다(질문당 최대 2번) */}
+                      <FollowUpButton question={questions[idx]} answer={lastScore.answer} context={label} depth={depthAt(idx)} onReady={askFollowUp} />
                       <button type="button" onClick={() => void next()} disabled={loadingNext} className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[color:var(--v2-accent)] px-5 py-3 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
                         {loadingNext ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}
                         {loadingNext ? t("다음 질문 준비 중…", "Preparing next…", "准备下一题…", "Đang chuẩn bị…", "次の質問を準備中…", "Menyiapkan…") : t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Soal berikutnya")}
@@ -263,8 +263,7 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                   <div className="mt-4">
                     <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={6} placeholder={t("말로 답하거나 직접 써 보세요. 받아 적은 글은 고칠 수 있어요.", "Speak or type your answer. You can edit the transcript.", "把它当作真实面试来作答。", "Trả lời như phỏng vấn thật.", "本番の面接だと思って答えてください。", "Jawab seakan wawancara nyata.")} className="w-full resize-none rounded-2xl bg-white p-4 text-[16px] leading-relaxed text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:ring-2" />
                     {/* 말로 답하기 — 실제 면접처럼. 말한 시간·군말·멈춤을 재서 제출하면 말하기 리포트도 받는다 */}
-                    <DictationControls t={pt} dict={dict} disabled={scoring} />
-                    {!dict.supported ? <p className="mt-2 text-[12px] text-[color:var(--v2-faint)]">{t("말로 답하기는 크롬·엣지·사파리에서 쓸 수 있어요.", "Voice answers work in Chrome, Edge and Safari.", "语音作答支持 Chrome、Edge、Safari。", "Trả lời bằng giọng dùng được trên Chrome, Edge, Safari.", "音声回答はChrome・Edge・Safariで使えます。", "Jawaban suara bisa di Chrome, Edge, Safari.")}</p> : null}
+                    <VoiceAnswerControls voice={voice} disabled={scoring} />
                     <div className="mt-2.5 flex items-center justify-between gap-3">
                       <span className="hidden text-[11.5px] text-[color:var(--v2-faint)] sm:block">{t("💡 결론 먼저, 그다음 경험·근거 순으로", "💡 Conclusion first, then evidence", "💡 先结论，再举证据", "💡 Kết luận trước, rồi dẫn chứng", "💡 結論→根拠の順で", "💡 Kesimpulan dulu, lalu bukti")}</span>
                       <button type="button" onClick={() => void submit()} disabled={scoring || !input.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-[color:var(--v2-accent)] px-5 py-3 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">{scoring ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{scoring ? t("채점 중…", "Scoring…", "评分中…", "Đang chấm…", "採点中…", "Menilai…") : t("답변 제출", "Submit answer", "提交回答", "Gửi câu trả lời", "回答を提出", "Kirim jawaban")}</button>

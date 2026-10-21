@@ -183,6 +183,15 @@ export default function CorrectionNotebookPage() {
                 </Link>
               ))}
             </div>
+            {/* 1분 자기소개 — 모든 면접의 첫 질문, 60초 타이머로 말하고 다듬기 */}
+            <Link href="/career-launch/intro-practice" className="mt-2.5 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-ink)] p-3.5 transition active:scale-[0.99] md:hover:opacity-90">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-[17px]" aria-hidden>⏱</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold text-white">{t("1분 자기소개 훈련", "1-minute self-intro", "1分钟自我介绍训练", "Giới thiệu 1 phút", "1分自己紹介トレーニング", "Perkenalan 1 menit")}</span>
+                <span className="block truncate text-[13px] text-white/70">{t("모든 면접의 첫 질문 — 60초 타이머로 말하고 다듬어요", "Every interview's first question — speak to a 60s timer", "所有面试的第一题——60 秒计时练习", "Câu đầu mọi buổi PV — nói trong 60 giây", "全面接の最初の質問 — 60秒で話して磨く", "Pertanyaan pertama — bicara 60 detik")}</span>
+              </span>
+              <ArrowRight size={15} weight="bold" className="shrink-0 text-white/70" />
+            </Link>
             {/* 공고별 — 가고 싶은 공고 기준 맞춤 면접(공고 선택 흐름) */}
             <Link href="/career-launch/program?week=4" className="mt-2.5 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] p-3.5 transition active:scale-[0.99] md:hover:opacity-80">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[color:var(--v2-accent)]"><Buildings className="h-5 w-5" weight="duotone" aria-hidden /></span>

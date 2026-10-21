@@ -55,7 +55,7 @@ export function PostingResultList({ items, rescore, onItemsChange }: { items: Po
                 <span className={`text-[9.5px] font-bold uppercase tracking-wide ${tone.text}`}>/ 100</span>
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-bold text-[color:var(--v2-faint)]">Q{i + 1}</span>
+                <span className="block text-[11px] font-bold text-[color:var(--v2-faint)]">Q{i + 1}{it.followUp ? ` · ${t("꼬리 질문", "Follow-up", "追问", "Hỏi tiếp", "追加質問", "Lanjutan")}` : ""}</span>
                 <span className="block break-keep text-[15px] font-semibold leading-snug text-[color:var(--v2-ink)] line-clamp-2">{it.question}</span>
               </span>
               <CaretDown className={`h-4 w-4 shrink-0 text-[color:var(--v2-faint)] transition ${isOpen ? "rotate-180" : ""}`} weight="bold" />

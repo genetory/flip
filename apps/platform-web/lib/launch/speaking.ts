@@ -30,3 +30,27 @@ export type SpeakingData = { mode: "voice"; at: string; metrics: SpeakingMetrics
 export async function analyzeSpeaking(input: { question: string; transcript: string; durationSec: number; pauses: number }): Promise<{ metrics: SpeakingMetrics; report: SpeakingReport | null }> {
   return (await authedJsonFetch<never>("/career-launch/speaking-analysis", { method: "POST", body: JSON.stringify(input) })) as unknown as { metrics: SpeakingMetrics; report: SpeakingReport | null };
 }
+
+// ── 꼬리 질문 면접관 ──
+export async function requestFollowUp(input: { question: string; answer: string; context?: string; depth: number }): Promise<{ followUp: string; intent: string }> {
+  return (await authedJsonFetch<never>("/career-launch/follow-up", { method: "POST", body: JSON.stringify(input) })) as unknown as { followUp: string; intent: string };
+}
+
+// ── 1분 자기소개 ──
+export type IntroKey = "intro" | "strength" | "evidence" | "closing";
+export type Intro1minResult = {
+  score: number;
+  opening: { ok: boolean; note: string };
+  structure: { key: IntroKey; ok: boolean; note: string }[];
+  timeNote: string;
+  improved: string;
+  tips: string[];
+  chars: number;
+  seconds: number;
+  estimated: boolean; // 글로 쓴 경우 — 말하면 걸릴 시간 추정
+};
+export async function evaluateIntro1min(input: { text: string; durationSec?: number; voice: boolean }): Promise<Intro1minResult> {
+  return ((await authedJsonFetch<never>("/career-launch/intro-1min", { method: "POST", body: JSON.stringify(input) })) as unknown as { result: Intro1minResult }).result;
+}
+/** 1분 자기소개 연습 기록(state.introPractice) — 처음과 최근을 비교한다. */
+export type IntroAttempt = { at: string; text: string; seconds: number; voice: boolean; score: number; speakingData?: SpeakingData };

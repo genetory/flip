@@ -16954,7 +16954,9 @@ const CAREER_PROGRAM_FEATURES = new Set([
   "career_interview_retry",
   "career_resume_bullet",
   "career_cover_question",
-  "career_speaking_analysis"
+  "career_speaking_analysis",
+  "career_follow_up",
+  "career_intro_1min"
 ]);
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
@@ -24030,6 +24032,104 @@ app.post("/career-launch/posting-interview/score", authenticate, requireCareerEn
   } catch (err) {
     console.error("[posting-interview/score] failed", err);
     return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
+// ── 꼬리 질문 면접관 ────────────────────────────────────────────
+// 학생 답의 가장 약한 고리(막연한 말·숫자 없는 성과·내 역할 불분명·결과 없음·앞뒤 안 맞음)를 하나 골라 실제 면접관처럼 한 번 더 파고든다.
+const FOLLOW_UP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["followUp", "intent"],
+  properties: {
+    followUp: { type: "string", description: "면접관이 이어서 묻는 꼬리 질문 한 개(존댓말, 한두 문장, 학생 답의 구체적인 부분을 인용해서)" },
+    intent: { type: "string", description: "이 질문으로 확인하려는 것(학생에게 보여 줄 짧은 힌트, 예: '성과를 숫자로 말할 수 있는지')" }
+  }
+} as const;
+const followUpBody = z.object({
+  question: z.string().trim().min(2).max(600),
+  answer: z.string().trim().min(2).max(4000),
+  context: z.string().trim().max(3000).optional(), // 공고 요약이나 면접 유형
+  depth: z.number().int().min(1).max(3).optional()
+});
+// POST /career-launch/follow-up — 꼬리 질문 한 개. 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/follow-up", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "cl-follow" }), aiCharge("career_follow_up"), async (req, res) => {
+  const parsed = followUpBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return sendAiUnavailable(res);
+  const userId = req.auth!.userId;
+  const { question, answer, context, depth } = parsed.data;
+  try {
+    const system =
+      "너는 한국 기업의 실무 면접관이야. 지원자(외국인 유학생일 수 있음)의 답을 듣고 가장 약한 고리 하나를 골라 꼬리 질문을 한 개 해. 우선순위: 막연한 표현의 구체화 → 성과를 숫자·결과로 → 그 일에서 '본인'이 한 역할 → 어려웠던 점과 해결 → 앞뒤가 안 맞는 부분. " +
+      `${(depth ?? 1) >= 2 ? "이미 한 번 꼬리 질문을 했으니 이번엔 조금 더 압박감 있게(하지만 예의 있게) 물어. " : ""}` +
+      "지원자의 국적·나이·성별·한국어 실력을 문제 삼는 질문은 하지 마. 학생 답에 있는 내용을 인용해서 물어. 한국어 존댓말로.";
+    const user = `${context ? `[면접 맥락]\n${context}\n\n` : ""}[원래 질문]\n${question}\n\n[지원자 답]\n${answer}`;
+    const out = await careerChatComplete(system, user, "cl_follow_up", FOLLOW_UP_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_follow_up" });
+    return res.json({ ok: true, followUp: String(out.followUp ?? "").trim(), intent: String(out.intent ?? "").trim() });
+  } catch (err) {
+    console.error("[career/follow-up] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(502).json({ ok: false, message: "ai response empty" });
+  }
+});
+
+// ── 1분 자기소개 집중 훈련 ──────────────────────────────────────
+// 모든 면접의 첫 질문. 60초 안에 '한 줄 소개 → 강점 → 근거 경험 → 입사 후 한마디'가 들어가는지 보고, 60초 분량으로 다듬은 버전을 준다.
+const INTRO_1MIN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["score", "opening", "structure", "timeNote", "improved", "tips"],
+  properties: {
+    score: { type: "integer", minimum: 0, maximum: 100, description: "1분 자기소개로서의 완성도" },
+    opening: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "note"],
+      properties: { ok: { type: "boolean", description: "첫 문장에 '나는 어떤 사람/지원자인지' 한 줄 소개가 있는가" }, note: { type: "string" } }
+    },
+    structure: {
+      type: "array",
+      minItems: 4,
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["key", "ok", "note"],
+        properties: { key: { type: "string", enum: ["intro", "strength", "evidence", "closing"] }, ok: { type: "boolean" }, note: { type: "string", description: "짧게(한 문장)" } }
+      }
+    },
+    timeNote: { type: "string", description: "길이에 대한 조언(60초 기준, 말한 시간·글자 수 근거)" },
+    improved: { type: "string", description: "학생이 말한 사실만으로 다듬은 1분 자기소개(합니다체, 280~330자, 한 줄 소개로 시작해 입사 후 한마디로 끝)" },
+    tips: { type: "array", maxItems: 3, items: { type: "string" } }
+  }
+} as const;
+const intro1minBody = z.object({ text: z.string().trim().min(10).max(3000), durationSec: z.number().min(1).max(600).optional(), voice: z.boolean().optional() });
+// POST /career-launch/intro-1min — 1분 자기소개 평가 + 60초 분량으로 다듬은 버전. 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/intro-1min", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "cl-intro1" }), aiCharge("career_intro_1min"), async (req, res) => {
+  const parsed = intro1minBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!openai) return sendAiUnavailable(res);
+  const userId = req.auth!.userId;
+  const { text, durationSec, voice } = parsed.data;
+  const chars = text.replace(/\s+/g, "").length;
+  // 글로 쓴 경우 말하면 걸릴 시간 추정(분당 약 270자)
+  const estSec = Math.round((chars / 270) * 60);
+  const sec = voice && durationSec ? Math.round(durationSec) : estSec;
+  try {
+    const profile = await buildCandidateProfileSummary(userId).catch(() => "");
+    const system =
+      "너는 한국 기업 면접 코치야. 외국인 학생의 '1분 자기소개'를 평가해. 좋은 1분 자기소개는 ①한 줄 소개(어떤 지원자인지) ②핵심 강점 하나 ③그 강점의 근거 경험(가능하면 숫자) ④입사 후 한마디 순서이고 280~330자(말로 약 60초)야. " +
+      "채점 기준(합 100): 한 줄 소개 20 · 핵심 강점 25 · 근거 경험 30(구체적일수록, 숫자 있으면 만점) · 입사 후 한마디 15 · 길이와 흐름 10. 각 요소는 '있지만 약하면' 부분 점수를 줘. structure 의 ok 는 그 요소가 들어 있으면 true(약해도 true, note 에 보완점), 아예 없을 때만 false. " +
+      "improved 는 학생이 말한 내용을 뼈대로 써 — 학생이 말한 이름·국적·전공 같은 정체성은 그대로 두고, 아래 프로필은 학생 말에 없는 근거 경험을 보충할 때만 써(프로필과 학생 말이 다르면 학생 말을 따른다). 새 경험·숫자는 지어내지 마. 국적·한국어 실력을 평가하지 마. 한국어로.";
+    // 학생 말을 먼저, 프로필은 '참고용'으로 — 다르면 학생 말을 따르게(이름·국적을 프로필로 바꾸지 않게)
+    const user = `[학생의 1분 자기소개 — ${voice ? "말로 한 것(받아쓰기)" : "글로 쓴 것"}]\n${text}\n\n[길이] ${chars}자 · ${voice ? `실제 말한 시간 ${sec}초` : `말하면 약 ${sec}초 예상`}\n\n[참고용 프로필 — 학생 말과 다르면 무시하고, 이름은 반드시 학생이 말한 이름 그대로]\n${profile || "(없음)"}`;
+    const out = await careerChatComplete(system, user, "cl_intro_1min", INTRO_1MIN_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_intro_1min" });
+    return res.json({ ok: true, result: { ...out, chars, seconds: sec, estimated: !voice } });
+  } catch (err) {
+    console.error("[career/intro-1min] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(502).json({ ok: false, message: "ai response empty" });
   }
 });
 
