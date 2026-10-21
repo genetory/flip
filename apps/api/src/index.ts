@@ -24035,6 +24035,14 @@ app.post("/career-launch/posting-interview/score", authenticate, requireCareerEn
   }
 });
 
+/** 한국 국적 학생인가 — 말하기·자기소개 코칭 문구를 맞춘다(국적을 모르면 외국인 구직자로 본다 — 프로그램 대상). */
+const KOREAN_NATIONALITY = new Set(["kr", "kor", "korea", "southkorea", "republicofkorea", "한국", "대한민국", "남한"]);
+async function careerStudentIsKorean(userId: string): Promise<boolean> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { nationality: true } }).catch(() => null);
+  const v = (u?.nationality ?? "").trim().toLowerCase().replace(/[\s.]/g, "");
+  return Boolean(v) && KOREAN_NATIONALITY.has(v);
+}
+
 // ── 꼬리 질문 면접관 ────────────────────────────────────────────
 // 학생 답의 가장 약한 고리(막연한 말·숫자 없는 성과·내 역할 불분명·결과 없음·앞뒤 안 맞음)를 하나 골라 실제 면접관처럼 한 번 더 파고든다.
 const FOLLOW_UP_SCHEMA = {
@@ -24118,8 +24126,9 @@ app.post("/career-launch/intro-1min", authenticate, requireCareerEnrollment, rat
   const sec = voice && durationSec ? Math.round(durationSec) : estSec;
   try {
     const profile = await buildCandidateProfileSummary(userId).catch(() => "");
+    const korean = await careerStudentIsKorean(userId);
     const system =
-      "너는 한국 기업 면접 코치야. 외국인 학생의 '1분 자기소개'를 평가해. 좋은 1분 자기소개는 ①한 줄 소개(어떤 지원자인지) ②핵심 강점 하나 ③그 강점의 근거 경험(가능하면 숫자) ④입사 후 한마디 순서이고 280~330자(말로 약 60초)야. " +
+      `너는 한국 기업 면접 코치야. ${korean ? "학생" : "외국인 학생"}의 '1분 자기소개'를 평가해. ` + "좋은 1분 자기소개는 ①한 줄 소개(어떤 지원자인지) ②핵심 강점 하나 ③그 강점의 근거 경험(가능하면 숫자) ④입사 후 한마디 순서이고 280~330자(말로 약 60초)야. " +
       "채점 기준(합 100): 한 줄 소개 20 · 핵심 강점 25 · 근거 경험 30(구체적일수록, 숫자 있으면 만점) · 입사 후 한마디 15 · 길이와 흐름 10. 각 요소는 '있지만 약하면' 부분 점수를 줘. structure 의 ok 는 그 요소가 들어 있으면 true(약해도 true, note 에 보완점), 아예 없을 때만 false. " +
       "improved 는 학생이 말한 내용을 뼈대로 써 — 학생이 말한 이름·국적·전공 같은 정체성은 그대로 두고, 아래 프로필은 학생 말에 없는 근거 경험을 보충할 때만 써(프로필과 학생 말이 다르면 학생 말을 따른다). 새 경험·숫자는 지어내지 마. 국적·한국어 실력을 평가하지 마. 한국어로.";
     // 학생 말을 먼저, 프로필은 '참고용'으로 — 다르면 학생 말을 따르게(이름·국적을 프로필로 바꾸지 않게)
@@ -24203,8 +24212,11 @@ app.post("/career-launch/speaking-analysis", authenticate, requireCareerEnrollme
   const metrics = speakingMetrics(transcript, durationSec, pauses ?? 0);
   if (!openai) return res.json({ ok: true, metrics, report: null });
   try {
+    const korean = await careerStudentIsKorean(userId);
     const system =
-      "너는 한국 기업 면접을 준비하는 외국인 학생의 한국어 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 자연스럽고 또렷하게 말하도록 도와줘. " +
+      (korean
+        ? "너는 한국 기업 면접을 준비하는 학생의 면접 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 또렷하고 간결하게(군말 없이, 결론부터, 면접에 맞는 말투로) 말하도록 도와줘. "
+        : "너는 한국 기업 면접을 준비하는 외국인 학생의 한국어 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 자연스럽고 또렷하게 말하도록 도와줘. ") +
       "받아쓰기라 띄어쓰기·마침표가 없거나 인식 오류가 있을 수 있어 — 인식 오류로 보이는 건 지적하지 마. 발음·억양·국적은 평가하지 마(소리는 없다). 내용 평가(직무 역량)는 하지 말고 말하기만. " +
       "fixes 는 학생이 실제로 말한 표현만 인용해(지어내지 마). spokenVersion 은 학생이 말한 사실만 써. 한국어로.";
     const user = `[면접 질문]\n${question}\n\n[학생이 말한 답(받아쓰기)]\n${transcript}\n\n[측정]\n말한 시간 ${metrics.durationSec}초 · 분당 ${metrics.cpm}자 · 군말 ${metrics.fillers}번 · 3초 넘게 멈춤 ${metrics.pauses}번 · 문장 ${metrics.sentences}개(평균 ${metrics.avgSentence}자, 70자 넘는 문장 ${metrics.longSentences}개) · 끝맺음 합니다체 ${metrics.endings.formal} / 해요체 ${metrics.endings.polite} / 반말 추정 ${metrics.endings.casual}`;
@@ -24218,12 +24230,14 @@ app.post("/career-launch/speaking-analysis", authenticate, requireCareerEnrollme
 });
 
 // ── 기본 모의면접(카드형) — 내 이력서·자소서 기반, 유형별(self/job/fit/pressure) 질문 생성·채점 ──
-const BASIC_FOCUS = z.enum(["self", "job", "fit", "pressure"]);
+const BASIC_FOCUS = z.enum(["self", "job", "fit", "pressure", "global"]);
 const BASIC_FOCUS_RULE: Record<string, string> = {
   self: "자기소개 면접: 지원 동기, 성격의 장단점·강점, 성장 배경·가치관, 입사 후 포부 등 '이 사람이 누구인지'를 묻는 질문. 이력서 경력을 하나씩 캐묻지 말 것.",
   job: "직무 면접: 학생의 경력·프로젝트·스킬을 근거로 실제로 한 일, 성과, 문제 해결 방식, 직무 이해도를 파고드는 실무 질문.",
   fit: "인성·컬처핏 면접: 협업·갈등 해결, 가치관, 일하는 태도, (유학생인 경우) 한국 조직 적응 등 태도를 보는 질문.",
-  pressure: "압박 면접: 답변의 근거·수치·본인 역할을 검증하고 약점을 파고드는 까다로운 질문(인신공격이 아니라 근거 확인)."
+  pressure: "압박 면접: 답변의 근거·수치·본인 역할을 검증하고 약점을 파고드는 까다로운 질문(인신공격이 아니라 근거 확인).",
+  global:
+    "외국인 지원자 면접: 한국 기업이 외국인(유학생) 지원자에게 실제로 자주 묻는 질문 — 왜 본국이 아니라 한국에서 일하려는지, 왜 이 회사·직무인지, 비자 상태와 근무 가능 기간·장기 근속 계획, 한국어 수준과 업무 소통 방식, 한국 조직 문화(위계·보고·회식·빠른 업무 속도) 적응, 외국인으로서의 강점(언어·해외 시장·다문화 경험). 학생 서류의 국적·전공·경험에 맞춰 구체적으로. 종교·결혼·출산·가족 계획처럼 차별적이거나 사생활을 묻는 질문은 절대 하지 말 것."
 };
 async function basicDocContext(uid: string): Promise<string> {
   const [summary, resumeRow, coverRow] = await Promise.all([
@@ -24273,6 +24287,9 @@ app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnro
     const systemPrompt =
       `너는 '${focus}' 유형의 한국 기업 면접관이야. 학생의 이력서·자기소개서를 참고해 답변을 평가해. ` +
       "score 는 0~100 정수. modelAnswer 는 이 학생에게 어울리는 모범답안을 1인칭 2~4문장으로(학생 서류의 실제 경험 활용, 없는 사실 금지). feedback 은 코칭 2~3문장. strengths·improvements 각 1~3개. 격려하는 톤. " +
+      (focus === "global"
+        ? "외국인 지원자 질문 평가 기준: 한국·이 회사를 고른 이유가 구체적인지(막연한 '한국이 좋아서'는 약함), 장기 근속 의지가 보이는지, 비자·근무 기간은 아는 사실을 정확하고 자신 있게 말하는지(모르는 건 단정하지 말고 확인하겠다고), 한국어 수준은 솔직하되 업무 소통 방법과 노력을 보여 주는지, 문화 질문은 존중과 실제 적응 경험으로 답하는지. 국적 자체를 평가하지 마. modelAnswer 에 비자 종류·기간 같은 사실은 학생 서류에 있을 때만 쓰고, 없으면 '[내 비자 종류]'처럼 채울 자리로 남겨. "
+        : "") +
       'JSON 한 개 객체로만 응답: { "score": number, "modelAnswer": string, "feedback": string, "strengths": string[], "improvements": string[] }' + aiLangDirective(locale);
     const userPrompt = `${ctx}\n\n[질문]\n${question}\n\n[학생 답변]\n${answer}`;
     const pj = (await careerChatComplete(systemPrompt, userPrompt, "basic_interview_score", POSTING_SCORE_SCHEMA)) as { score?: unknown; modelAnswer?: unknown; feedback?: unknown; strengths?: unknown; improvements?: unknown };
@@ -24687,7 +24704,7 @@ app.post(
 );
 
 // ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
-const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접" };
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접", global: "외국인 지원자 면접" };
 // 프롬프트/형식이 바뀌면 올려서 기존 캐시를 한 번 무효화. 이후로는 생성 1회 후 재사용(토큰 절약).
 const FINAL_FEEDBACK_VERSION = 2;
 app.post(

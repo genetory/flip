@@ -3,7 +3,8 @@
 import { notifyAiBlocked } from "../ai-blocked";
 import type { PostingScore } from "./posting-interview";
 
-export type BasicFocus = "self" | "job" | "fit" | "pressure";
+// global = 외국인 지원자에게 자주 나오는 질문(왜 한국에서·비자·근무 기간·한국어·조직 문화 적응)
+export type BasicFocus = "self" | "job" | "fit" | "pressure" | "global";
 
 const TOKEN_KEY = "platform_access_token";
 function apiBase(): string {

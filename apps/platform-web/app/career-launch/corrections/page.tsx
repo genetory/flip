@@ -3,7 +3,7 @@
 // UX Phase 5 — 면접 오답노트. 상태 코드 대신 사용자 그룹, 점수보다 문제·다음 행동 우선. 반복 압박 최소화.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown, Buildings } from "@phosphor-icons/react";
+import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown, Buildings, Airplane } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
@@ -12,6 +12,8 @@ import { fetchProgress, type PostingInterviewLog, type PostingInterviewItem } fr
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
 import { SpeakingGrowthCard } from "../../../components/launch/SpeakingGrowthCard";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { isForeignNationality } from "../../../lib/nationality";
 
 function scoreTone(s: number): { text: string; bg: string } {
   if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-[color:var(--v2-band)]" };
@@ -106,6 +108,9 @@ function Card({ c, qa, isOpen, onToggle }: { c: CorrectionCard; qa?: { it: Posti
 
 export default function CorrectionNotebookPage() {
   const t = useLaunchT();
+  // 외국인 지원자 면접은 외국인에게만 — 한국 국적이면 숨긴다(국적을 모르면 보여 준다 — 프로그램 대상이 주로 외국인 구직자).
+  const { user } = useAuthSession();
+  const showGlobal = isForeignNationality(user?.nationality) !== false;
   const [vm, setVm] = useState<CorrectionsVM | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [pLogs, setPLogs] = useState<PostingInterviewLog[]>([]); // 공고별
@@ -171,8 +176,10 @@ export default function CorrectionNotebookPage() {
                 { focus: "self", Icon: IdentificationCard, title: t("자기소개 면접", "Intro interview", "自我介绍面试", "PV giới thiệu", "自己紹介面接", "Wawancara perkenalan"), desc: t("지원 동기·성격·강점", "Motivation, personality, strengths", "动机·性格·优势", "Động lực, tính cách, điểm mạnh", "志望動機・性格・強み", "Motivasi, kepribadian, kelebihan") },
                 { focus: "job", Icon: Target, title: t("직무 면접", "Job interview", "职务面试", "PV chuyên môn", "職務面接", "Wawancara peran"), desc: t("경력·프로젝트·성과", "Experience, projects, results", "经历·项目·成果", "Kinh nghiệm, dự án, kết quả", "経歴・プロジェクト・成果", "Pengalaman, proyek, hasil") },
                 { focus: "fit", Icon: GlobeHemisphereEast, title: t("인성·컬처핏 면접", "Fit interview", "人性面试", "PV văn hóa", "人柄面接", "Wawancara kecocokan"), desc: t("협업·가치관·조직 적응", "Teamwork, values, fit", "协作·价值观·适应", "Hợp tác, giá trị, thích nghi", "協働・価値観・適応", "Kerja sama, nilai, adaptasi") },
-                { focus: "pressure", Icon: Fire, title: t("압박 면접", "Pressure interview", "压力面试", "PV áp lực", "圧迫面接", "Wawancara tekanan"), desc: t("근거 검증·꼬리질문", "Verification & follow-ups", "验证·追问", "Kiểm chứng & câu đuổi", "根拠検証・追加質問", "Verifikasi & lanjutan") }
-              ] as const).map(({ focus, Icon, title, desc }) => (
+                { focus: "pressure", Icon: Fire, title: t("압박 면접", "Pressure interview", "压力面试", "PV áp lực", "圧迫面接", "Wawancara tekanan"), desc: t("근거 검증·꼬리질문", "Verification & follow-ups", "验证·追问", "Kiểm chứng & câu đuổi", "根拠検証・追加質問", "Verifikasi & lanjutan") },
+                // 외국인 지원자에게만 나오는 질문 — 왜 한국에서·비자·근무 기간·한국어·조직 문화
+                { focus: "global", Icon: Airplane, title: t("외국인 지원자 면접", "International applicant", "外国申请者面试", "PV ứng viên nước ngoài", "外国人応募者面接", "Pelamar asing"), desc: t("왜 한국에서·비자·한국어·문화", "Why Korea, visa, Korean, culture", "为何韩国·签证·韩语·文化", "Vì sao Hàn·visa·tiếng Hàn·văn hóa", "なぜ韓国・ビザ・韓国語・文化", "Kenapa Korea, visa, bahasa, budaya") }
+              ] as const).filter((c) => c.focus !== "global" || showGlobal).map(({ focus, Icon, title, desc }) => (
                 <Link key={focus} href={`/career-launch/basic-interview?focus=${focus}`} className="flex items-center gap-3 rounded-2xl bg-white p-3.5 transition active:scale-[0.99] md:hover:opacity-80">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"><Icon className="h-5 w-5" weight="duotone" aria-hidden /></span>
                   <span className="min-w-0 flex-1">

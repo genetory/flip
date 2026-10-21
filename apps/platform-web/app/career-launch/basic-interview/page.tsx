@@ -7,7 +7,7 @@ import type { BasicFocus } from "../../../lib/launch/basic-interview";
 function Inner() {
   const sp = useSearchParams();
   const raw = sp.get("focus");
-  const focus: BasicFocus = raw === "job" ? "job" : raw === "fit" ? "fit" : raw === "pressure" ? "pressure" : "self";
+  const focus: BasicFocus = raw === "job" ? "job" : raw === "fit" ? "fit" : raw === "pressure" ? "pressure" : raw === "global" ? "global" : "self";
   return <BasicInterviewSession focus={focus} />;
 }
 

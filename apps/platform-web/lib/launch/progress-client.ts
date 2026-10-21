@@ -60,7 +60,7 @@ export type PostingInterviewLog = {
   title?: string;
   at: string; // ISO
   source?: "posting" | "basic"; // 공고별 / 기본(내 서류) — 재도전 채점 방식 구분
-  focus?: "self" | "job" | "fit" | "pressure"; // 기본 면접 유형(source="basic")
+  focus?: "self" | "job" | "fit" | "pressure" | "global"; // 기본 면접 유형(source="basic")
   posting?: import("./interview").InterviewJobPosting; // 공고별 재도전 채점에 필요
   items?: PostingInterviewItem[]; // 카드형(신규)
   // 구버전(채팅형) 호환 — 읽기 전용으로만 표시.

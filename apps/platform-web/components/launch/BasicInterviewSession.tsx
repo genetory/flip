@@ -62,7 +62,8 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     self: t("자기소개 면접", "Self-Introduction Interview", "自我介绍面试", "Phỏng vấn giới thiệu", "自己紹介面接", "Wawancara Perkenalan"),
     job: t("직무 면접", "Job Interview", "职务面试", "Phỏng vấn chuyên môn", "職務面接", "Wawancara Pekerjaan"),
     fit: t("인성·컬처핏 면접", "Personality & Culture-Fit", "人品·文化契合面试", "Phỏng vấn tính cách & văn hóa", "人柄・カルチャーフィット面接", "Wawancara Kepribadian & Budaya"),
-    pressure: t("압박 면접", "Pressure Interview", "压力面试", "Phỏng vấn áp lực", "圧迫面接", "Wawancara Tekanan")
+    pressure: t("압박 면접", "Pressure Interview", "压力面试", "Phỏng vấn áp lực", "圧迫面接", "Wawancara Tekanan"),
+    global: t("외국인 지원자 면접", "Questions for international applicants", "外国申请者面试", "PV cho ứng viên nước ngoài", "外国人応募者面接", "Wawancara pelamar asing")
   };
   const label = focusLabel[focus];
 
