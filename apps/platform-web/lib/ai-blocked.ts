@@ -1,7 +1,7 @@
 // AI 가드레일·오류를 전역 UI 로 알린다.
 //  - verify: 403 인증필요 → '인증 메일 받기' 모달
 //  - limit: 429 레이트·일일한도 → 토스트
-//  - unavailable: 503(AI_UNAVAILABLE, OpenAI 크레딧 소진·다운) 또는 500 → 친절한 토스트
+//  - unavailable: 503(AI_UNAVAILABLE, AI 크레딧 소진·다운) 또는 500 → 친절한 토스트
 // 각 AI 클라이언트는 이 함수만 호출하고, <AiBlockedHandler/> 가 모달·토스트로 안내한다.
 //  - points: 402 AI_POINTS_REQUIRED(AI 포인트 부족) → 포인트 충전 시트(v2 화면의 PointsPaywallHost)
 export type AiBlockedDetail = { kind: "verify" | "limit" | "unavailable" | "points"; message: string };
@@ -16,7 +16,7 @@ export function notifyAiBlocked(status: number, code: string | undefined, messag
   let kind: "verify" | "limit" | "unavailable" | null = null;
   if (status === 403 && code === "AI_VERIFY_REQUIRED") kind = "verify";
   else if (status === 429) kind = "limit";
-  // AI 생성 엔드포인트에서만 호출되므로, 5xx(OpenAI 크레딧 소진·업스트림 다운 포함)는
+  // AI 생성 엔드포인트에서만 호출되므로, 5xx(AI 크레딧 소진·업스트림 다운 포함)는
   // 코드 버그가 아니라 'AI 일시 사용 불가'로 안내한다.
   else if (status === 503 || status === 500 || status === 502 || status === 504) kind = "unavailable";
   if (!kind) return;

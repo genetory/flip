@@ -1,7 +1,8 @@
 // AI 커리어 상담 — 첫 취업 준비생이 자기 자신을 이해하고, 어울리는 직무·직업 방향,
 // 어떤 공고를 봐야 하는지, 이력서·자기소개서를 어떻게 쓰면 좋은지 대화로 알아가게 돕는다.
-// OPENAI_API_KEY 가 없거나 실패하면 502 → 클라이언트가 부드러운 폴백 메시지를 보여준다.
+// ANTHROPIC_API_KEY 가 없거나 실패하면 502 → 클라이언트가 부드러운 폴백 메시지를 보여준다.
 import { NextResponse } from "next/server";
+import { claudeJsonObject, hasClaudeKey } from "../../../lib/server/claude-json";
 
 export const runtime = "nodejs";
 
@@ -46,8 +47,7 @@ const SYSTEM = `너는 'aply'의 다정한 AI 커리어 상담사야. 한국에�
 반드시 JSON 객체로만 답해: {"reply": "사용자에게 건네는 말", "jobCategories": ["직무 후보 목록에서 고른 어울리는 직무명(정리 단계에서만 1~3개, 그 외에는 빈 배열)"]}`;
 
 export async function POST(req: Request) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return NextResponse.json({ error: "no_key" }, { status: 502 });
+  if (!hasClaudeKey()) return NextResponse.json({ error: "no_key" }, { status: 502 });
 
   let messages: ChatMsg[] = [];
   let pool: string[] = [];
@@ -78,26 +78,18 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n\n");
 
-  const model = process.env.OPENAI_CAREER_MODEL || process.env.OPENAI_TRANSLATION_MODEL || "gpt-4o-mini";
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: `${SYSTEM}\n\n${context}` },
-          ...convo
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        max_tokens: 700
-      })
+    const parsed = await claudeJsonObject<{ reply?: string; jobCategories?: unknown }>({
+      system: `${SYSTEM}\n\n${context}`,
+      messages: convo,
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { reply: { type: "string" }, jobCategories: { type: "array", items: { type: "string" } } },
+        required: ["reply", "jobCategories"]
+      }
     });
-    if (!res.ok) return NextResponse.json({ error: "upstream", status: res.status }, { status: 502 });
-    const data = await res.json();
-    const raw = data?.choices?.[0]?.message?.content;
-    const parsed = JSON.parse(raw) as { reply?: string; jobCategories?: unknown };
+    if (!parsed) return NextResponse.json({ error: "upstream" }, { status: 502 });
 
     const reply = typeof parsed.reply === "string" ? parsed.reply.trim() : "";
     if (!reply) return NextResponse.json({ error: "empty" }, { status: 502 });

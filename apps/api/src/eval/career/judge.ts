@@ -1,6 +1,6 @@
 // 커리어런치 코칭 대화 전용 LLM-as-judge. 자소서 judge 와 별개 기준(말투·코칭기술·근거·진행).
 // 판정은 temperature 0 으로 결정적(회귀를 신뢰성 있게 잡기 위함).
-import type OpenAI from "openai";
+import { claudeJson } from "../../llm/claude";
 
 export type CoachJudgeScore = {
   tone: number; // 말투·자연스러움(친근한 존댓말, 사람 같은 자연스러움)
@@ -39,21 +39,12 @@ const RUBRIC = `당신은 한국 취업 코칭 부트캠프의 헤드 코치이�
 rationale: 가장 큰 감점 요인과 '어떻게 고치면 더 좋아질지'를 한국어 1~2문장으로 구체적으로. 점수를 후하게 주지 마세요.`;
 
 export async function judgeCoachTurn(
-  openai: OpenAI,
   contextForJudge: string,
   reply: string,
   model: string
 ): Promise<CoachJudgeScore> {
   const userMsg = `${contextForJudge}\n\n[코치의 답변(reply)]\n${reply}`;
-  const resp = await openai.responses.create({
-    model,
-    temperature: 0,
-    input: [
-      { role: "system", content: RUBRIC },
-      { role: "user", content: userMsg }
-    ],
-    text: { format: { type: "json_schema", name: "coach_judge", schema: COACH_JUDGE_SCHEMA, strict: true } }
-  });
-  const raw = (resp as { output_text?: string }).output_text ?? "{}";
-  return JSON.parse(raw) as CoachJudgeScore;
+  const r = await claudeJson<CoachJudgeScore>({ model, system: RUBRIC, user: userMsg, schema: COACH_JUDGE_SCHEMA, effort: "medium" });
+  if (!r.data) throw new Error(r.error ?? "judge_failed");
+  return r.data;
 }

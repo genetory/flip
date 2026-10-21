@@ -10,7 +10,7 @@
 - 두 가지로 채점한다:
   - **규칙 검사(checks.ts)** — 결정적. 환각 숫자, 과장어, 분량 목표, 1인칭·존댓말, 키워드 반영,
     줄글 여부, 한국어 여부 등. 가중 통과율(0~100%).
-  - **LLM-as-judge(judge.ts)** — 강한 모델(기본 gpt-4o)이 근거성·자연스러움·적합성·구성·종합을
+  - **LLM-as-judge(judge.ts)** — 강한 모델(기본 claude-opus-5-5)이 근거성·자연스러움·적합성·구성·종합을
     각 0~5로 채점.
 
 ## 실행
@@ -23,18 +23,18 @@ npm run eval -- --dry
 # 규칙검사 로직 자체 점검(모델 불필요)
 npm run eval -- --selftest
 
-# 라이브 평가(생성 + 규칙검사 + judge) — OpenAI 키 필요
-OPENAI_API_KEY=sk-... npm run eval
+# 라이브 평가(생성 + 규칙검사 + judge) — Anthropic 키 필요
+ANTHROPIC_API_KEY=... npm run eval
 
 # 옵션
 npm run eval -- --feature cover_letter     # 특정 기능만
-OPENAI_API_KEY=... npm run eval -- --no-judge   # 규칙검사만(비용 절감)
+ANTHROPIC_API_KEY=... npm run eval -- --no-judge   # 규칙검사만(비용 절감)
 ```
 
 ### 환경변수
-- `EVAL_GENERATOR_MODEL` — 생성 모델(기본 = `OPENAI_TRANSLATION_MODEL` = `gpt-4o-mini`, 즉 프로덕션과 동일).
-  모델 업그레이드 효과를 보려면 `EVAL_GENERATOR_MODEL=gpt-4o npm run eval` 로 비교.
-- `EVAL_JUDGE_MODEL` — judge 모델(기본 `gpt-4o`).
+- `EVAL_GENERATOR_MODEL` — 생성 모델(기본 = 기능별 프로덕션 모델: 자소서 Sonnet 5.5, 짧은 필드 Haiku 5.5).
+  모델 비교는 `EVAL_GENERATOR_MODEL=claude-sonnet-5-5 npm run eval` 처럼 강제.
+- `EVAL_JUDGE_MODEL` — judge 모델(기본 `claude-opus-5-5`).
 
 ## 결과
 - 콘솔에 케이스별 점수 + 요약표.

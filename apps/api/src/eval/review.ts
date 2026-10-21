@@ -9,12 +9,12 @@
 //
 //   npm run eval:review                      # 기본 모델(= 프로덕션 docReviewModel)
 //   REPEAT=6 npm run eval:review             # 반복 늘리기
-//   MODEL=gpt-4o-mini npm run eval:review    # 모델 바꿔 비교
+//   MODEL=claude-haiku-5-5 npm run eval:review # 모델 바꿔 비교
 //   ONLY="잘 쓴" npm run eval:review          # 케이스 좁히기(비용 절약)
 //   AGREE=2 npm run eval:review              # 두 번 돌려 교집합만(오탐 억제, 호출 2배)
 //   npm run eval:review -- --dry             # 프롬프트만 출력(모델 호출 없음, 비용 0)
 //
-// ── 측정 기록 (gpt-4o, 2026-10) ──────────────────────────────
+// ── 측정 기록 (gpt-4o, 2026-10 · Claude 전환 전 수치 — Sonnet 5.5 로 재측정 필요) ──────────────────────────────
 // 오탐(잘 쓴 글을 지적)은 이 기능의 최대 위험이라 따로 재 왔다.
 //   자소서 프롬프트에 '잘 쓴 답변' 기준을 넣기 전: 6회 중 1회.
 //   넣은 뒤: '전부 잘 쓴' 케이스 이력서 10회·자소서 18회 연속 0회, 다른 케이스 포함 1/32 수준.
@@ -23,13 +23,12 @@
 import { config as loadDotenv } from "dotenv";
 loadDotenv();
 loadDotenv({ path: "../../.env" });
-import OpenAI from "openai";
 import { generateJson } from "../llm/generate";
 import { REVIEW_FINDINGS_SCHEMA, buildCoverReviewPrompt, buildResumeReviewPrompt, normalizeReviewFindings } from "../llm/review";
 
 const REPEAT = Number(process.env.REPEAT ?? 4);
 // 프로덕션 기본값(index.ts docReviewModel)과 같게 둔다 — 다른 모델 변수를 섞지 않는다.
-const MODEL = process.env.MODEL ?? process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
+const MODEL = process.env.MODEL ?? process.env.DOC_REVIEW_MODEL ?? "claude-sonnet-5-5";
 const DRY = process.argv.includes("--dry");
 /** AGREE=2 면 한 번 재는 데 두 번 돌려 **양쪽에서 모두 지적된 블록만** 남긴다.
  *  오탐은 확률적으로 나오고(측정상 6회 중 1회) 진짜 지적은 매번 나오므로, 교집합을 쓰면
@@ -185,11 +184,10 @@ async function main() {
     }
     return;
   }
-  if (!process.env.OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY 가 없습니다. --dry 는 키 없이 돌 수 있습니다.");
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error("ANTHROPIC_API_KEY 가 없습니다. --dry 는 키 없이 돌 수 있습니다.");
     process.exit(1);
   }
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   console.log(`모델 ${MODEL} · 케이스당 ${REPEAT}회${AGREE > 1 ? ` · 합의 ${AGREE}회` : ""}${ONLY ? ` · "${ONLY}" 만` : ""}`);
   let failed = 0;
 
@@ -212,7 +210,6 @@ async function main() {
       const rounds = await Promise.all(
         Array.from({ length: AGREE }, () =>
           generateJson<{ findings?: unknown }>({
-            openai,
             model: MODEL,
             temperature: 0.2,
             system,

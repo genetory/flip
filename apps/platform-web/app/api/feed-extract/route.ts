@@ -2,6 +2,7 @@
 // 공유 피드에 올린 글에서 이력서/자소서에 쓸 내용을 판단·구조화해 돌려준다.
 // 커리어와 무관한 글은 아무것도 뽑지 않는다(none). 키 없거나 실패 시 502 → 클라이언트 폴백.
 import { NextResponse } from "next/server";
+import { claudeJsonObject, hasClaudeKey } from "../../../lib/server/claude-json";
 
 export const runtime = "nodejs";
 
@@ -49,8 +50,7 @@ function sanitize(parsed: Extracted): Extracted {
 }
 
 export async function POST(req: Request) {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return NextResponse.json({ error: "no_key" }, { status: 502 });
+  if (!hasClaudeKey()) return NextResponse.json({ error: "no_key" }, { status: 502 });
 
   let body: { text?: string; name?: string };
   try {
@@ -61,36 +61,25 @@ export async function POST(req: Request) {
   const text = (body.text ?? "").trim();
   if (!text) return NextResponse.json({ error: "empty" }, { status: 400 });
 
-  const model = process.env.OPENAI_CAREER_MODEL || process.env.OPENAI_TRANSLATION_MODEL || "gpt-4o-mini";
   const userContent = [body.name ? `작성자: ${body.name}` : "", `피드 글:\n${text}`].filter(Boolean).join("\n");
-
-  const payload = JSON.stringify({
-    model,
-    messages: [
-      { role: "system", content: SYSTEM },
-      { role: "user", content: userContent }
-    ],
-    response_format: { type: "json_object" },
-    temperature: 0.3,
-    max_tokens: 500
+  const part = (k1: string) => ({
+    type: "object",
+    additionalProperties: false,
+    properties: { [k1]: { type: "string" }, text: { type: "string" } },
+    required: [k1, "text"]
   });
 
-  const callOpenAI = () =>
-    fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: payload
-    });
-
   try {
-    let res = await callOpenAI();
-    if (res.status === 429) {
-      await new Promise((r) => setTimeout(r, 1500));
-      res = await callOpenAI();
-    }
-    if (!res.ok) return NextResponse.json({ error: "upstream", status: res.status }, { status: 502 });
-    const data = await res.json();
-    const parsed = JSON.parse(data?.choices?.[0]?.message?.content ?? "{}") as Extracted;
+    const parsed = await claudeJsonObject<Extracted>({
+      system: SYSTEM,
+      messages: [{ role: "user", content: userContent }],
+      schema: {
+        type: "object",
+        additionalProperties: false,
+        properties: { resume: part("section"), cover: part("question") }
+      }
+    });
+    if (!parsed) return NextResponse.json({ error: "upstream" }, { status: 502 });
     return NextResponse.json(sanitize(parsed));
   } catch {
     return NextResponse.json({ error: "failed" }, { status: 502 });

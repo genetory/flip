@@ -735,12 +735,12 @@ export function ResumeCoachPanel({
             <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-foreground/85">
               <p>
                 {tr(
-                  "선택하신 항목의 이력서 내용이 분석을 위해 OpenAI 의 GPT 모델로 전송됩니다.",
-                  "Your selected resume text will be sent to OpenAI's GPT model for analysis.",
-                  "您所选项目的简历内容将发送至 OpenAI GPT 模型进行分析。",
-                  "Nội dung hồ sơ bạn chọn sẽ được gửi đến mô hình GPT của OpenAI để phân tích.",
-                  "選択した履歴書のテキストは分析のためOpenAIのGPTモデルに送信されます。",
-                  "Konten resume yang Anda pilih akan dikirim ke model GPT OpenAI untuk dianalisis."
+                  "선택하신 항목의 이력서 내용이 분석을 위해 Anthropic 의 Claude 모델로 전송됩니다.",
+                  "Your selected resume text will be sent to Anthropic's Claude model for analysis.",
+                  "您所选项目的简历内容将发送至 Anthropic Claude 模型进行分析。",
+                  "Nội dung hồ sơ bạn chọn sẽ được gửi đến mô hình Claude của Anthropic để phân tích.",
+                  "選択した履歴書のテキストは分析のためAnthropicのClaudeモデルに送信されます。",
+                  "Konten resume yang Anda pilih akan dikirim ke model Claude Anthropic untuk dianalisis."
                 )}
               </p>
               <p>

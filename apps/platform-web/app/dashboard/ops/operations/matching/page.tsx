@@ -1029,7 +1029,7 @@ export default function MatchingManagementPage() {
                               <div className="ops-matching-bullet-block">
                                 <span className="ops-matching-bullet-title">매칭률 개선 피드백</span>
                                 <ul className="ops-matching-bullet-list">
-                                  {cleanedFeedback.length === 0 ? <li>OpenAI 피드백 없음</li> : null}
+                                  {cleanedFeedback.length === 0 ? <li>AI 피드백 없음</li> : null}
                                   {cleanedFeedback.map((tip, idx) => (
                                     <li key={`${match.candidate.id}-feedback-${idx}`}>{tip}</li>
                                   ))}
@@ -1080,7 +1080,7 @@ export default function MatchingManagementPage() {
                               <div className="ops-matching-bullet-block">
                                 <span className="ops-matching-bullet-title">매칭률 개선 피드백</span>
                                 <ul className="ops-matching-bullet-list">
-                                  {cleanedFeedback.length === 0 ? <li>OpenAI 피드백 없음</li> : null}
+                                  {cleanedFeedback.length === 0 ? <li>AI 피드백 없음</li> : null}
                                   {cleanedFeedback.map((tip, idx) => (
                                     <li key={`${match.position.id}-feedback-${idx}`}>{tip}</li>
                                   ))}

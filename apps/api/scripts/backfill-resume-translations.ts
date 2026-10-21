@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Prisma, PrismaClient } from "@prisma/client";
-import OpenAI from "openai";
+import { claudeJsonRaw, hasLlm, LIGHT_MODEL } from "../src/llm/claude";
 
 // 기존 Resume 행 중 한국어 캐시(translations.ko)가 비어 있거나 외국어 본문이
 // 새로 들어와 캐시가 부족한 row 를 일괄 번역해 채워 넣는다. API 의
@@ -14,7 +14,7 @@ import OpenAI from "openai";
 //   - needsKoreanTranslation(): 한글 비중 50%+ 이거나 10자 미만이면 skip
 //   - 변경 안 된 단위는 기존 캐시 그대로 → row 당 추가 호출 없음
 //   - --limit N 으로 한 번에 최대 N row 만 처리 (cost 사전 캡)
-//   - OPENAI_API_KEY 가 없으면 즉시 종료 (apply 모드일 때)
+//   - ANTHROPIC_API_KEY 가 없으면 즉시 종료 (apply 모드일 때)
 //
 // 사용:
 //   DATABASE_URL=... npm exec --workspace=apps/api -- \
@@ -25,8 +25,8 @@ import OpenAI from "openai";
 //     tsx scripts/backfill-resume-translations.ts --apply --limit 20
 
 const prisma = new PrismaClient();
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-const TRANSLATION_MODEL = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+const llmReady = hasLlm();
+const TRANSLATION_MODEL = LIGHT_MODEL;
 
 const SYSTEM_PROMPT =
   "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. " +
@@ -97,7 +97,7 @@ async function buildKoreanTranslations(
 ): Promise<ResumeTranslations | null> {
   const units = collectTranslationUnits(content);
   if (units.length === 0) return previous?.ko ? { ko: previous.ko } : null;
-  if (!openai) return previous?.ko ? { ko: previous.ko } : null;
+  if (!llmReady) return previous?.ko ? { ko: previous.ko } : null;
 
   const prevKo = previous?.ko ?? {};
   const prevContent = content as Record<string, unknown>;
@@ -114,16 +114,7 @@ async function buildKoreanTranslations(
 
   const promises = units.map(async (unit) => {
     try {
-      const completion = await openai!.chat.completions.create({
-        model: TRANSLATION_MODEL,
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: unit.text }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: TRANSLATION_MODEL, system: SYSTEM_PROMPT, user: unit.text });
       let parsedJson: { ko?: unknown } = {};
       try {
         parsedJson = JSON.parse(raw);
@@ -187,8 +178,8 @@ async function main() {
   const limit = parseLimit();
   console.info(`Mode: ${apply ? "APPLY (will translate + save)" : "DRY-RUN (preview only)"}`);
   if (limit > 0) console.info(`Limit: ${limit} rows max`);
-  if (apply && !openai) {
-    console.error("❌ OPENAI_API_KEY 가 없습니다. apply 모드는 실행 불가.");
+  if (apply && !llmReady) {
+    console.error("❌ ANTHROPIC_API_KEY 가 없습니다. apply 모드는 실행 불가.");
     process.exit(1);
   }
 

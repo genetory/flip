@@ -8,7 +8,6 @@ import cors from "cors";
 import express from "express";
 import multer from "multer";
 import nodemailer from "nodemailer";
-import OpenAI from "openai";
 import swaggerUi from "swagger-ui-express";
 import {
   Prisma,
@@ -97,9 +96,9 @@ import {
   buildRoleCommonMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
-import { generateJson, isClaudeModel } from "./llm/generate";
+import { generateJson } from "./llm/generate";
+import { claudeJson, claudeJsonRaw, claudeText, hasLlm, LIGHT_MODEL, QUALITY_MODEL } from "./llm/claude";
 import { fetchPublicPageText, buildJobImportMessages, JOB_IMPORT_SCHEMA } from "./llm/job-import";
-import { generateJsonAnthropic } from "./llm/anthropic";
 import {
   REVIEW_FINDINGS_SCHEMA,
   buildCoverReviewPrompt,
@@ -400,76 +399,32 @@ async function writeAuditLog(
   }
 }
 const port = Number(process.env.API_PORT ?? 4000);
-// Phase 15 — SDK 기본 timeout(10분)·retry를 명시적으로 제한: 멈춘 요청이 커넥션/비용을 오래 잡지 않게.
-// 값은 env로 조정 가능(기본 120s, 재시도 2). 정상 생성이 잘리지 않도록 넉넉히 두되 10분 hang은 차단.
-const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS ?? 120_000);
-const OPENAI_MAX_RETRIES = Number(process.env.OPENAI_MAX_RETRIES ?? 2);
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: OPENAI_TIMEOUT_MS, maxRetries: OPENAI_MAX_RETRIES })
-  : null;
-const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
-const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
-// 자소서(플래그십)는 한국어 산문 자연스러움이 가장 좋은 Claude Sonnet 을 쓴다.
-// eval(strict judge, 3x): 자소서 평균 3.17→3.75, 근거성 유지. 짧은 이력서 필드는 이득이 없어 mini 유지.
-// ANTHROPIC_API_KEY 가 없는 환경에서는 안전하게 gpt-4o-mini 로 폴백. env 로 모델 교체 가능.
-const coverLetterModel =
-  process.env.COVER_LETTER_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiTranslationModel);
-// 커리어런치 '대화형 코칭'(학생 대면) 모델. eval 상 Claude 가 코칭 스타일(공감·주제유지·쉬운 선택형)을
-// 더 일관되게 지킴(수치는 gpt-4o 와 근소). 라이브 학생 대상이라 명시 플래그로만 전환 —
-// 프로덕션에 ANTHROPIC 키가 이미 있어도 CAREER_COACH_USE_CLAUDE=1 이 없으면 gpt-4o 유지.
-// w2 채점·문서생성 등 비대화형은 이 모델을 쓰지 않는다(gpt-4o 그대로).
-const careerCoachModel =
-  process.env.CAREER_COACH_MODEL ??
-  (process.env.CAREER_COACH_USE_CLAUDE === "1" && process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiMatchingModel);
+// LLM 은 전부 Claude(src/llm/claude.ts). 2026-10 OpenAI 사용 중단.
+// 키(ANTHROPIC_API_KEY)가 없으면 AI 기능은 503 으로 꺼진다 — 아래 `!llmReady` 가드들이 그 역할을 한다.
+const llmReady = hasLlm();
+// 가벼운 작업(번역·요약·다듬기·추출·짧은 필드) — Haiku 5.5. 이전 gpt-4o-mini 자리.
+const lightModel = LIGHT_MODEL;
+// 판단 품질이 곧 가치인 작업(매칭 재정렬·준비도 피드백·인재 인사이트·커리어런치 채점/생성) — Sonnet 5.5.
+const qualityModel = QUALITY_MODEL;
+// 자소서(플래그십)는 한국어 산문 품질 때문에 원래 Claude Sonnet 이었다. env 로 교체 가능.
+const coverLetterModel = process.env.COVER_LETTER_MODEL ?? QUALITY_MODEL;
+// 커리어런치 '대화형 코칭'(학생 대면). eval 상 Claude 가 코칭 스타일(공감·주제유지·쉬운 선택형)을 더 일관되게 지켰다.
+const careerCoachModel = process.env.CAREER_COACH_MODEL ?? QUALITY_MODEL;
 // 문서 '전체 점검'(이력서·자소서) 모델. 이 기능의 핵심은 **잘 쓴 글을 건드리지 않는** 판단이다.
 // 오탐은 놓치는 것보다 나쁘다 — 멀쩡한 항목을 지적받으면 사용자가 점검 자체를 믿지 않는다.
-//
-// 같은 입력을 4회씩 돌려 재어 본 결과(src/llm/review.ts 프롬프트 기준):
-//   gpt-4o-mini — 문제 섞인 문서에선 정상 항목을 안 건드리는데, **전부 잘 쓴 문서**에선
-//                 억지로 찾아낸다(이력서 정상 2항목에 4회 중 8건, 자소서 정상 답변 3/3).
-//   gpt-4o      — 네 경우(이력서·자소서 × 문제있음·전부정상) 모두 오탐 0, 잡아야 할 것은 4/4.
-// 그래서 다른 AI 기능과 달리 점검은 mini 를 쓰지 않는다. 생성기의 '짧은 이력서 필드는 mini'
-// 방침과 어긋나 보이지만 그건 '필드 생성' 얘기고, 이쪽은 문서 전체를 읽는 판단 작업이다.
-//
-// 환경마다 모델이 갈리면 로컬에서 재어 본 것이 프로덕션과 달라진다 → 모델명을 그대로 못 박는다.
-// 다른 모델 변수(openaiMatchingModel 등)를 재사용하지 않는 이유: 그 변수는 env 로 바뀌기 때문에
-// 측정한 모델과 실제로 도는 모델이 조용히 달라진다(실제로 로컬 OPENAI_MATCHING_MODEL 이
-// 접근 권한 없는 모델로 잡혀 있어 점검이 전 케이스 0건으로 나왔다).
+// OpenAI 시절 측정: 작은 모델(gpt-4o-mini)은 전부 잘 쓴 문서에서 억지로 지적을 만들었고 gpt-4o 는 오탐 0.
+// 그래서 점검은 작은 모델(Haiku)을 쓰지 않는다.
+// 환경마다 모델이 갈리면 로컬에서 재어 본 것이 프로덕션과 달라진다 → 다른 모델 변수를 재사용하지 않고 못 박는다.
 // 모델을 바꾸려면 DOC_REVIEW_MODEL 을 올리고 `npm run eval:review` 를 다시 돌려 확인한다.
-const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
-// 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
-const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
-// 모의 면접(질문 생성·답변 피드백) 모델 — 사용자 결정(2026-10-12)으로 Claude Sonnet 우선.
-// ANTHROPIC_API_KEY 가 있으면 claude-sonnet-5, 없으면 gpt-4o. Claude 호출이 실패하면 그 요청만 gpt-4o 로 폴백한다.
-// env INTERVIEW_MODEL 로 바꿀 수 있다. (아직 eval 로 두 모델을 비교하지 않았다 — 바꾼 뒤 재측정 필요.)
-const interviewModel = process.env.INTERVIEW_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiInterviewModel);
+const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "claude-sonnet-5-5";
+// 모의 면접(질문 생성·답변 피드백) — 사용자 결정(2026-10-12)으로 Sonnet. env INTERVIEW_MODEL 로 교체 가능.
+const interviewModel = process.env.INTERVIEW_MODEL ?? QUALITY_MODEL;
 
-/** 모의 면접용 JSON 생성 — interviewModel(Claude 우선)로 시도하고, 실패하면 gpt-4o chat json_object 로. */
+/** 모의 면접용 JSON 생성. 실패하면 빈 객체(호출부가 502 처리). */
 async function interviewJson(args: { system: string; user: string; temperature: number; schema: Record<string, unknown>; schemaName: string }): Promise<Record<string, unknown>> {
-  if (isClaudeModel(interviewModel)) {
-    try {
-      const r = await generateJson<Record<string, unknown>>({ openai: openai!, model: interviewModel, system: args.system, user: args.user, schema: args.schema, schemaName: args.schemaName, temperature: args.temperature });
-      if (r.data) return r.data;
-      console.warn(`[interview] ${interviewModel} returned no data — falling back to ${openaiInterviewModel}`, r.error);
-    } catch (err) {
-      console.warn(`[interview] ${interviewModel} failed — falling back to ${openaiInterviewModel}`, err);
-    }
-  }
-  const completion = await openai!.chat.completions.create({
-    model: openaiInterviewModel,
-    temperature: args.temperature,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: args.system },
-      { role: "user", content: args.user }
-    ]
-  });
-  try {
-    const v = JSON.parse(completion.choices?.[0]?.message?.content ?? "{}");
-    return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
+  const r = await generateJson<Record<string, unknown>>({ model: interviewModel, system: args.system, user: args.user, schema: args.schema, schemaName: args.schemaName });
+  if (!r.data) console.warn(`[interview] ${interviewModel} returned no data`, r.error);
+  return r.data ?? {};
 }
 const MOCK_QUESTIONS_SCHEMA = {
   type: "object",
@@ -6132,7 +6087,7 @@ async function rerankCandidateMatchesWithOpenAI(params: {
 }) {
   const { position, baseMatches, limit } = params;
   const shortlist = baseMatches.slice(0, Math.max(limit * 3, 18));
-  if (!openai || shortlist.length === 0) {
+  if (!llmReady || shortlist.length === 0) {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
 
@@ -6148,17 +6103,10 @@ async function rerankCandidateMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "너는 채용 매칭 랭커다. 제공된 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: qualityModel,
+      system: "너는 채용 매칭 랭커다. 제공된 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             task: "position_to_candidates_rerank",
             position,
             shortlist: shortlist.map((item) => ({
@@ -6171,14 +6119,8 @@ async function rerankCandidateMatchesWithOpenAI(params: {
               baseScore: item.score,
               baseReasons: item.reasons
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "candidate_matching_rerank",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6197,13 +6139,10 @@ async function rerankCandidateMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("empty output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
     const baseById = new Map(shortlist.map((entry) => [entry.item.id, entry]));
@@ -6238,7 +6177,7 @@ async function rerankPositionMatchesWithOpenAI(params: {
 }) {
   const { candidate, baseMatches, limit } = params;
   const shortlist = baseMatches.slice(0, Math.max(limit * 3, 18));
-  if (!openai || shortlist.length === 0) {
+  if (!llmReady || shortlist.length === 0) {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
 
@@ -6254,17 +6193,10 @@ async function rerankPositionMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "너는 채용 매칭 랭커다. 제공된 공고 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: qualityModel,
+      system: "너는 채용 매칭 랭커다. 제공된 공고 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             task: "candidate_to_positions_rerank",
             candidate,
             shortlist: shortlist.map((item) => ({
@@ -6278,14 +6210,8 @@ async function rerankPositionMatchesWithOpenAI(params: {
               baseScore: item.score,
               baseReasons: item.reasons
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "position_matching_rerank",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6304,13 +6230,10 @@ async function rerankPositionMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("empty output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
     const baseById = new Map(shortlist.map((entry) => [entry.item.id, entry]));
@@ -6436,7 +6359,7 @@ const careerReadinessNarrativeSchema = z.object({
 });
 
 async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, _locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
 
   const summary = {
     score,
@@ -6463,12 +6386,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
       : null
   };
 
-  const response = await openai.responses.create({
-    model: openaiMatchingModel,
-    input: [
-      {
-        role: "system",
-        content: [
+  const response = await claudeJson({
+    model: qualityModel,
+    system: [
           "You are a Korea-employment career coach helping international students plan their job search in Korea.",
           "Given a candidate snapshot and an overall readiness score (0-100), produce constructive feedback.",
           "Strengths: 3-5 short bullets highlighting what the candidate already has going for them in the Korean job market.",
@@ -6476,18 +6396,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
           "RecommendedRoles: 3-5 specific role titles realistic for this candidate (e.g., 'Global Marketing Assistant', 'Market Research Intern', 'Translation Support').",
           "반드시 모든 항목(strengths·improvements·recommendedRoles의 각 bullet)을 한국어로, 다정하고 예의 바른 존댓말로 작성해줘. 딱딱한 평가체가 아니라 응원하는 톤으로.",
           "Keep each bullet under 120 characters and avoid generic platitudes."
-        ].join(" ")
-      },
-      {
-        role: "user",
-        content: JSON.stringify({ task: "career_readiness_report", ...summary })
-      }
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "career_readiness_report",
-        schema: {
+        ].join(" "),
+    user: JSON.stringify({ task: "career_readiness_report", ...summary }),
+    schema: {
           type: "object",
           additionalProperties: false,
           required: ["strengths", "improvements", "recommendedRoles"],
@@ -6497,11 +6408,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
             recommendedRoles: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 }
           }
         }
-      }
-    }
   });
 
-  const raw = response.output_text;
+  const raw = response.raw;
   const parsed = careerReadinessNarrativeSchema.parse(JSON.parse(raw));
   return parsed;
 }
@@ -6512,7 +6421,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
   limit: number;
 }) {
   const { position, candidates, limit } = params;
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
   if (candidates.length === 0) return { source: "openai" as const, matches: [] as Array<RuleMatch<MatchingCandidate>> };
   const startedAt = Date.now();
   const prefilterCount = Math.min(openaiMatchingMaxPool, Math.max(limit, limit * openaiMatchingPrefilterMultiplier));
@@ -6543,7 +6452,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
 
   logMatchingEvent("openai.request.start", {
     mode: "position_to_candidates",
-    model: openaiMatchingModel,
+    model: qualityModel,
     positionId: position.id,
     candidateCount: candidates.length,
     candidatePoolCount: candidatePool.length,
@@ -6552,12 +6461,9 @@ async function generateCandidateMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content: [
+    const response = await claudeJson({
+      model: qualityModel,
+      system: [
             "너는 채용 매칭 전문가다. 제공된 후보자 목록 내부에서만 상위 후보를 선별한다.",
             "반드시 2단계로 판단한다.",
             "1) 하드 필터(탈락 조건): 명시된 필수조건 충돌 시 제외하거나 강한 패널티를 준다.",
@@ -6577,11 +6483,8 @@ async function generateCandidateMatchesWithOpenAI(params: {
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
             "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
-          ].join("\n")
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+          ].join("\n"),
+      user: JSON.stringify({
             task: "position_to_candidates_direct_match",
             limit,
             position,
@@ -6638,14 +6541,8 @@ async function generateCandidateMatchesWithOpenAI(params: {
                 }))
               }
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "candidate_matching_direct",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6698,13 +6595,10 @@ async function generateCandidateMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("openai_empty_output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
 
@@ -6737,7 +6631,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
 
     logMatchingEvent("openai.request.success", {
       mode: "position_to_candidates",
-      model: openaiMatchingModel,
+      model: qualityModel,
       positionId: position.id,
       matchedCount: matches.length,
       elapsedMs: Date.now() - startedAt
@@ -6747,7 +6641,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
   } catch (error) {
     logMatchingEvent("openai.request.error", {
       mode: "position_to_candidates",
-      model: openaiMatchingModel,
+      model: qualityModel,
       positionId: position.id,
       elapsedMs: Date.now() - startedAt,
       error: getErrorMessage(error)
@@ -6762,7 +6656,7 @@ async function generatePositionMatchesWithOpenAI(params: {
   limit: number;
 }) {
   const { candidate, positions, limit } = params;
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
   if (positions.length === 0) return { source: "openai" as const, matches: [] as Array<RuleMatch<MatchingPosition>> };
   const startedAt = Date.now();
   const prefilterCount = Math.min(openaiMatchingMaxPool, Math.max(limit, limit * openaiMatchingPrefilterMultiplier));
@@ -6793,7 +6687,7 @@ async function generatePositionMatchesWithOpenAI(params: {
 
   logMatchingEvent("openai.request.start", {
     mode: "candidate_to_positions",
-    model: openaiMatchingModel,
+    model: qualityModel,
     candidateId: candidate.id,
     positionCount: positions.length,
     positionPoolCount: positionPool.length,
@@ -6802,12 +6696,9 @@ async function generatePositionMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content: [
+    const response = await claudeJson({
+      model: qualityModel,
+      system: [
             "너는 채용 매칭 전문가다. 제공된 공고 목록 내부에서만 상위 공고를 선별한다.",
             "반드시 2단계로 판단한다.",
             "1) 하드 필터(탈락 조건): 후보자 필수 선호/조건과 충돌하는 공고는 제외하거나 강한 패널티를 준다.",
@@ -6827,11 +6718,8 @@ async function generatePositionMatchesWithOpenAI(params: {
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
             "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
-          ].join("\n")
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+          ].join("\n"),
+      user: JSON.stringify({
             task: "candidate_to_positions_direct_match",
             limit,
             candidate,
@@ -6873,14 +6761,8 @@ async function generatePositionMatchesWithOpenAI(params: {
                 5
               ).map((item) => truncateText(item))
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "position_matching_direct",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6933,13 +6815,10 @@ async function generatePositionMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("openai_empty_output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
 
@@ -6972,7 +6851,7 @@ async function generatePositionMatchesWithOpenAI(params: {
 
     logMatchingEvent("openai.request.success", {
       mode: "candidate_to_positions",
-      model: openaiMatchingModel,
+      model: qualityModel,
       candidateId: candidate.id,
       matchedCount: matches.length,
       elapsedMs: Date.now() - startedAt
@@ -6982,7 +6861,7 @@ async function generatePositionMatchesWithOpenAI(params: {
   } catch (error) {
     logMatchingEvent("openai.request.error", {
       mode: "candidate_to_positions",
-      model: openaiMatchingModel,
+      model: qualityModel,
       candidateId: candidate.id,
       elapsedMs: Date.now() - startedAt,
       error: getErrorMessage(error)
@@ -9048,33 +8927,20 @@ app.post("/community/translate", async (req, res) => {
   if (!parsedBody.success) {
     return res.status(400).json({ ok: false, message: "invalid body", errors: parsedBody.error.flatten() });
   }
-  if (!openai) {
+  if (!llmReady) {
     return res.status(503).json({ ok: false, message: "translation service unavailable" });
   }
 
   try {
-    const response = await openai.responses.create({
-      model: openaiTranslationModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: lightModel,
+      system: "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON.",
+      user: JSON.stringify({
             targetLanguage: parsedBody.data.targetLanguage,
             sourceLanguageHint: parsedBody.data.sourceLanguageHint ?? null,
             text: parsedBody.data.text
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "community_translate_result",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -9082,13 +8948,10 @@ app.post("/community/translate", async (req, res) => {
               detectedLanguage: { type: "string", minLength: 2, maxLength: 40 }
             },
             required: ["translatedText", "detectedLanguage"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) {
       return res.status(500).json({ ok: false, message: "empty translation output" });
     }
@@ -10916,7 +10779,8 @@ app.get("/positions", async (req, res) => {
   const KEYWORD_WEIGHT = 0.35;
   const ANN_POOL_SIZE = 100;
   const trimmedSearch = (search ?? "").trim();
-  if (trimmedSearch && openai) {
+  if (trimmedSearch) {
+    // 임베딩 키가 없으면 null → 아래 키워드 경로로 떨어진다.
     const queryVector = await embedQueryCached(trimmedSearch);
     if (queryVector) {
       const vectorLiteral = toPgVector(queryVector);
@@ -11632,14 +11496,14 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
   } as const;
 
   try {
-    if (!openai) {
+    if (!llmReady) {
       logMatchingEvent("run.request.rejected", {
         mode: parsed.data.mode,
         reason: "openai_unavailable"
       });
       return res.status(503).json({
         ok: false,
-        message: "openai matching is not configured (set OPENAI_API_KEY in .env and restart api)"
+        message: "ai matching is not configured (set ANTHROPIC_API_KEY in .env and restart api)"
       });
     }
 
@@ -14629,7 +14493,7 @@ const careerReadinessLocaleSchema = z.object({
 });
 
 app.post("/members/me/career-readiness", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
-  if (!openai) {
+  if (!llmReady) {
     return res.status(503).json({ ok: false, message: "AI service is not configured" });
   }
   const userId = req.auth!.userId;
@@ -16171,7 +16035,7 @@ app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([Membe
 // for a single resume section. Body specifies which section and which item
 // (e.g. careers[2] description). Returns a single suggested rewrite the
 // frontend can show inline with an [Apply] button. Cheap model so each
-// click costs sub-cent. Falls back gracefully when OPENAI_API_KEY missing.
+// click costs sub-cent. Falls back gracefully when ANTHROPIC_API_KEY missing.
 const coachSuggestSchema = z.object({
   targetSection: z.enum(["selfIntroduction", "summary", "careers", "activities"]),
   targetItemIndex: z.number().int().nonnegative().optional(),
@@ -16184,7 +16048,7 @@ app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRol
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   const parsed = coachSuggestSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   try {
     const resume = await prisma.resume.findFirst({
@@ -16236,16 +16100,7 @@ app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRol
       "JSON 한 개의 객체만 응답하세요. 형식: { \"rewrite\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점이 개선됐는지 한국어로 설명.";
     const userPrompt = `다음 ${label}을(를) ${toneNote}로 다듬어 주세요:\n\n${sourceText}`;
 
-    const completion = await openai.chat.completions.create({
-      model: openaiTranslationModel,
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
-    });
-    const raw = completion.choices?.[0]?.message?.content ?? "";
+    const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
     let parsedJson: { rewrite?: unknown; why?: unknown } = {};
     try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
     const rewrite = typeof parsedJson.rewrite === "string" ? parsedJson.rewrite.trim() : "";
@@ -16281,7 +16136,7 @@ app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles(
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   const parsed = coachChatSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   try {
     const resume = await prisma.resume.findFirst({
@@ -16318,16 +16173,12 @@ app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles(
       "한국어로 답변하며, 답변은 4-6 문장 이내로 간결하게 작성하세요.\n" +
       `사용자의 이력서 요약: ${resumeSummary}`;
 
-    const completion = await openai.chat.completions.create({
-      model: openaiTranslationModel,
-      temperature: 0.6,
-      max_tokens: 500,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content }))
-      ]
+    const { text: reply } = await claudeText({
+      model: lightModel,
+      system: systemPrompt,
+      messages: parsed.data.messages.map((m) => ({ role: m.role, content: m.content })),
+      maxTokens: 1500
     });
-    const reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
     if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
     return res.json({ ok: true, reply });
   } catch (err) {
@@ -16366,7 +16217,7 @@ const draftResumeTextSchema = z.object({
 app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("draft_resume_text"), async (req, res) => {
   const parsed = draftResumeTextSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   const { currentText, fieldType, mode, hints } = parsed.data;
   // generate 모드는 빈 입력 OK, 그 외에는 currentText 또는 hints 중 하나는 있어야 함.
@@ -16381,8 +16232,7 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
     // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
     const { system: systemPrompt, user: userPrompt } = buildDraftResumeTextMessages(parsed.data);
     const { data } = await generateJson<{ text?: unknown; why?: unknown }>({
-      openai,
-      model: openaiTranslationModel,
+      model: lightModel,
       temperature: 0.5,
       system: systemPrompt,
       user: userPrompt,
@@ -16410,12 +16260,11 @@ const careerStrengthsSchema = z.object({
 app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("career_strengths"), async (req, res) => {
   const parsed = careerStrengthsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const { system, user } = buildCareerStrengthsMessages(parsed.data);
     const { data } = await generateJson<{ strengths?: unknown }>({
-      openai,
-      model: openaiTranslationModel,
+      model: lightModel,
       temperature: 0.3,
       system,
       user,
@@ -16458,7 +16307,7 @@ app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STU
           : null;
       if (found) return res.json({ ok: true, positionId: found.id });
     }
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     let pageTitle = "";
     let body = text ?? "";
     let sourceUrl: string | undefined;
@@ -16475,7 +16324,7 @@ app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STU
     }
     if (body.replace(/\s+/g, "").length < 80) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "too little content" });
     const m = buildJobImportMessages({ pageTitle, text: body });
-    const { data } = await generateJson<{ isJob?: boolean; company?: string; title?: string; responsibilities?: string; requirements?: string; preferred?: string }>({ openai, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: JOB_IMPORT_SCHEMA, schemaName: "job_import" });
+    const { data } = await generateJson<{ isJob?: boolean; company?: string; title?: string; responsibilities?: string; requirements?: string; preferred?: string }>({ model: lightModel, temperature: 0, system: m.system, user: m.user, schema: JOB_IMPORT_SCHEMA, schemaName: "job_import" });
     const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
     if (!data?.isJob || !str(data.title, 200) || !(str(data.responsibilities, 4000) || str(data.requirements, 4000))) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "not a job posting" });
     return res.json({
@@ -16524,7 +16373,7 @@ function hasTerm(text: string, alias: string): boolean {
 app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("role_checklist"), async (req, res) => {
   const parsed = roleChecklistSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   const { role, profile, jobs } = parsed.data;
   const total = jobs.length;
   try {
@@ -16533,10 +16382,10 @@ app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole
     // 공고 추출(묶음별) + 모델 지식('이 직무 신입이 흔히 준비하는 것')을 함께 부른다.
     const common = buildRoleCommonMessages({ role });
     const [commonRes, ...results] = await Promise.all([
-      generateJson<{ items?: unknown }>({ openai, model: docReviewModel, temperature: 0, system: common.system, user: common.user, schema: ROLE_COMMON_SCHEMA, schemaName: "role_common" }).catch(() => ({ data: null })),
+      generateJson<{ items?: unknown }>({ model: docReviewModel, temperature: 0, system: common.system, user: common.user, schema: ROLE_COMMON_SCHEMA, schemaName: "role_common" }).catch(() => ({ data: null })),
       ...chunks.map((chunk) => {
         const m = buildRoleRequirementsMessages({ role, jobs: chunk });
-        return generateJson<{ items?: unknown }>({ openai: openai!, model: openaiTranslationModel, temperature: 0, system: m.system, user: m.user, schema: ROLE_REQUIREMENTS_SCHEMA, schemaName: "role_requirements" }).catch(() => ({ data: null }));
+        return generateJson<{ items?: unknown }>({ model: lightModel, temperature: 0, system: m.system, user: m.user, schema: ROLE_REQUIREMENTS_SCHEMA, schemaName: "role_requirements" }).catch(() => ({ data: null }));
       })
     ]);
     const cats = new Set(["skill", "experience", "certificate", "language"]);
@@ -16602,7 +16451,7 @@ app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole
     const judgeList = [...needJudge, ...missingTips];
     if (judgeList.length) {
       const judge = buildRoleHaveMessages({ role, profile, items: judgeList.map(({ x }) => ({ category: x.category, name: x.name })) });
-      const { data: verdict } = await generateJson<{ items?: unknown }>({ openai, model: docReviewModel, temperature: 0, system: judge.system, user: judge.user, schema: ROLE_HAVE_SCHEMA, schemaName: "role_have" });
+      const { data: verdict } = await generateJson<{ items?: unknown }>({ model: docReviewModel, temperature: 0, system: judge.system, user: judge.user, schema: ROLE_HAVE_SCHEMA, schemaName: "role_have" });
       for (const v of Array.isArray(verdict?.items) ? verdict.items : []) {
         const o = (v ?? {}) as Record<string, unknown>;
         const at = Number.isInteger(o.index) ? judgeList[(o.index as number) - 1] : undefined;
@@ -16628,8 +16477,8 @@ app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole
 
 // ---------------------------------------------------------------------------
 // resume-maker (AI 이력서 만들기) — 경험 인터뷰 질문 생성 + 구조화 문장 생성.
-// 기존 draft-resume-text 패턴 재사용(openai chat.completions, json_object,
-// gpt-4o-mini). AI 생성 규칙(없는 사실/숫자 금지, 과장 금지, 행동-역할-문제-결과)
+// 기존 draft-resume-text 패턴 재사용(json 객체 응답,
+// 가벼운 모델). AI 생성 규칙(없는 사실/숫자 금지, 과장 금지, 행동-역할-문제-결과)
 // 을 system prompt 에 강제. 톤 변경(더 담백/전문 등)은 별도 엔드포인트 없이
 // /ai/draft-resume-text(mode=improve, hints=톤)를 재사용한다.
 // ---------------------------------------------------------------------------
@@ -16743,7 +16592,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceInterviewSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "당신은 외국인 지원자의 이력서를 돕는 친절한 커리어 코치입니다. 사용자의 경험을 이력서 문장으로 정리하기 위해, 빠진 정보를 찾는 추가 질문을 만듭니다.\n\n" +
@@ -16760,16 +16609,7 @@ app.post(
         (parsed.data.priorQa && parsed.data.priorQa.length
           ? `\n\n이미 받은 답변:\n${parsed.data.priorQa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`
           : "");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { coachNote?: unknown; questions?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const allQuestions = parseAiQuestions(parsedJson.questions);
@@ -16797,7 +16637,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceBulletsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "당신은 한국 기업 채용을 돕는 이력서 코치입니다. 사용자의 경험과 인터뷰 답변을 이력서에 바로 쓸 수 있는 문장으로 정리합니다.\n\n" +
@@ -16814,16 +16654,7 @@ app.post(
       const userPrompt =
         buildExperienceContextText(parsed.data) +
         `\n\n인터뷰 답변:\n${parsed.data.qa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: {
         summary?: unknown;
         resumeBullets?: unknown;
@@ -16912,7 +16743,7 @@ const AI_FEATURE_COST: Record<string, number> = {
   review_resume: 20,
   review_cover: 20,
   polish_resume_items: 20,
-  // 모의 면접 답변 피드백 1개(gpt-4o) — 5문항 세트 = 100P. 오늘의 질문은 하루 1번 차감 없이.
+  // 모의 면접 답변 피드백 1개(상위 모델) — 5문항 세트 = 100P. 오늘의 질문은 하루 1번 차감 없이.
   interview_feedback: 20,
   // 가벼움(10)
   draft_resume_text: 10,
@@ -16962,9 +16793,9 @@ function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
 }
 
-// gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
+// 상위 모델(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
-// 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
+// 전체 점검은 둘 다 상위 모델(고원가)을 쓰므로 함께 캡에 넣는다.
 // 모의 면접(interview_questions·interview_feedback)은 나중에 유료로 받을 예정 — 지금은 테스트를 위해 이 하루 상한에서 뺀다.
 // (분당 상한·하루 총 상한은 그대로 적용된다.) 유료화할 때 다시 넣거나 결제 확인으로 바꾼다.
 const AI_PREMIUM_FEATURES = new Set(["review_resume", "review_cover", "role_checklist"]);
@@ -17043,7 +16874,7 @@ async function aiGate(userId: string | undefined, feature: string): Promise<AiGa
   if (!(await aiBumpAndWithin(userId, AI_DAILY_TOTAL_FEATURE, dayKey, AI_DAILY_TOTAL_CAP))) {
     return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
   }
-  // 4) 고비용(gpt-4o) 모델 일일 캡
+  // 4) 고비용(상위) 모델 일일 캡
   if (AI_PREMIUM_FEATURES.has(feature) && !(await aiBumpAndWithin(userId, AI_PREMIUM_USAGE_FEATURE, dayKey, AI_PREMIUM_DAILY_CAP))) {
     return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
   }
@@ -17730,7 +17561,7 @@ app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR])
     let imported: Record<string, unknown> | null = null;
     let parseError: string | null = null;
     if (d.pdfBase64 || d.text) {
-      if (!openai) parseError = "AI 를 쓸 수 없어 이력서를 읽지 못했어요.";
+      if (!llmReady) parseError = "AI 를 쓸 수 없어 이력서를 읽지 못했어요.";
       else {
         const r = await parseResumeSource({ pdfBase64: d.pdfBase64, text: d.text });
         if (r.ok) imported = r.imported;
@@ -17915,13 +17746,12 @@ app.post(
   async (req, res) => {
     const parsed = polishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
       const { system: systemPrompt, user: userPrompt } = buildPolishIntroMessages(parsed.data);
       const { data } = await generateJson<{ polished?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.5,
         system: systemPrompt,
         user: userPrompt,
@@ -17954,7 +17784,7 @@ app.post(
   async (req, res) => {
     const parsed = summarizeIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -17965,16 +17795,7 @@ app.post(
         "3. 한국어. 간결한 명사형 또는 진술형. 따옴표 없이.\n\n" +
         'JSON 한 개 객체로만 응답: { "summary": string }' + aiLangDirective(locale);
       const userPrompt = `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n\n` : ""}자기소개:\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { summary?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const summary = typeof parsedJson.summary === "string" ? parsedJson.summary.trim().replace(/^["']|["']$/g, "").slice(0, 80) : "";
@@ -18426,9 +18247,8 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
   }
 }
 
-// Career Launch AI 대화 공용 호출 — 고품질 모델(gpt-5.x, Responses API + json_schema)로
-// 먼저 시도하고, 실패 시 gpt-4o-mini(chat.completions, json_object)로 폴백해 항상 파싱된
-// 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
+// Career Launch AI 대화 공용 호출 — 상위 모델(Sonnet, 구조화 출력)로 먼저 시도하고,
+// 실패 시 가벼운 모델로 한 번 더 시도해 항상 파싱된 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
 // 전담 코치 진행 원칙(Phase 3) — 대화형 챗(스키마에 reply 필드)에만 주입한다.
 const CAREER_COACH_DIRECTIVES = [
   "[코치 진행 원칙 — 반드시 지켜]",
@@ -18554,7 +18374,7 @@ async function careerChatComplete(
   // promptVersion 은 비용/오류 집계에 프롬프트 버전 차원을 남긴다(선택).
   ctx?: { userId: string; feature: string; promptVersion?: string }
 ): Promise<Record<string, unknown>> {
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("llm_unavailable");
   // 대화형(스키마에 reply 필드)인 경우에만 코치 원칙을 붙인다(채점·생성 프롬프트는 제외).
   const isConversational = Boolean((schema as { properties?: Record<string, unknown> })?.properties?.reply);
   let sys = system;
@@ -18575,47 +18395,22 @@ async function careerChatComplete(
   const run = async (): Promise<Record<string, unknown>> => {
     let retried = 0;
     try {
-      // 대화형 코칭이고 코치 모델이 Claude면 Anthropic 경로. 실패하면 아래 gpt-4o 경로로 그레이스풀 폴백.
-      if (isConversational && isClaudeModel(careerCoachModel)) {
-        const a = await generateJsonAnthropic<Record<string, unknown>>({ model: careerCoachModel, system: sys, user, schema, schemaName, temperature: 0.6 });
-        if (a.data) {
-          void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: careerCoachModel, promptVersion: ctx?.promptVersion, inputTokens: a.usage?.inputTokens ?? 0, outputTokens: a.usage?.outputTokens ?? 0, retried: 0, failed: false });
-          return await afterComplete(a.data);
-        }
-        console.warn("[career-chat] claude 경로 실패, gpt-4o 로 폴백:", a.error);
-        retried = 1;
+      // 대화형 코칭은 코치 모델, 채점·문서생성 등 비대화형은 상위 모델. 실패하면 가벼운 모델로 한 번 더.
+      const primary = isConversational ? careerCoachModel : qualityModel;
+      const a = await generateJson<Record<string, unknown>>({ model: primary, system: sys, user, schema, schemaName, strict });
+      if (a.data) {
+        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: primary, promptVersion: ctx?.promptVersion, inputTokens: a.usage?.inputTokens ?? 0, outputTokens: a.usage?.outputTokens ?? 0, retried: 0, failed: false });
+        return await afterComplete(a.data);
       }
-      try {
-        const response = await openai!.responses.create({
-          model: openaiMatchingModel,
-          input: [
-            { role: "system", content: sys },
-            { role: "user", content: user }
-          ],
-          text: { format: { type: "json_schema", name: schemaName, schema, ...(strict ? { strict: true } : {}) } }
-        });
-        const u = (response as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
-        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: u?.input_tokens ?? 0, outputTokens: u?.output_tokens ?? 0, retried: 0, failed: false });
-        return await afterComplete(JSON.parse(response.output_text ?? "{}") as Record<string, unknown>);
-      } catch (err) {
-        console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
-        retried = 1;
-        const completion = await openai!.chat.completions.create({
-          model: openaiTranslationModel,
-          temperature: 0.6,
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: sys },
-            { role: "user", content: user }
-          ]
-        });
-        const u = (completion as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
-        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiTranslationModel, promptVersion: ctx?.promptVersion, inputTokens: u?.prompt_tokens ?? 0, outputTokens: u?.completion_tokens ?? 0, retried: 1, failed: false });
-        return await afterComplete(JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>);
-      }
+      console.warn(`[career-chat] ${primary} 실패, ${lightModel} 로 폴백:`, a.error);
+      retried = 1;
+      const b = await generateJson<Record<string, unknown>>({ model: lightModel, system: sys, user, schema, schemaName, strict });
+      if (!b.data) throw new Error(b.error ?? "llm_failed");
+      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: lightModel, promptVersion: ctx?.promptVersion, inputTokens: b.usage?.inputTokens ?? 0, outputTokens: b.usage?.outputTokens ?? 0, retried: 1, failed: false });
+      return await afterComplete(b.data);
     } catch (fatal) {
       // 두 경로 모두 실패 — 실패 카운트만 기록하고 상위로 던진다.
-      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: 0, outputTokens: 0, retried, failed: true });
+      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: isConversational ? careerCoachModel : qualityModel, promptVersion: ctx?.promptVersion, inputTokens: 0, outputTokens: 0, retried, failed: true });
       throw fatal;
     }
   };
@@ -18925,7 +18720,7 @@ app.post(
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, selected, exclude, pool, locale } = parsed.data;
     const poolRoles = new Set(pool.map((p) => p.role));
     const excludeSet = new Set(exclude);
@@ -19041,7 +18836,7 @@ app.post(
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, selected, materials: gathered, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -19096,7 +18891,7 @@ app.post(
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -19180,7 +18975,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceMiningSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -19294,7 +19089,7 @@ app.post(
   async (req, res) => {
     const parsed = strengthStorySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -19753,7 +19548,7 @@ app.post(
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -20263,7 +20058,7 @@ app.post(
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -21065,7 +20860,7 @@ app.post("/career-launch/week2/application-target/:id/structure", authenticate, 
     const target = await ownTarget(userId, String(req.params.id));
     if (!target) return res.status(404).json({ ok: false, message: "not found" });
     if (!target.rawContent) return res.status(400).json({ ok: false, message: "no raw content" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const systemPrompt = "너는 채용공고 파서야. 아래 공고 원문을 구조화된 JSON으로 정리해줘. 원문에 없는 내용은 만들지 마. 자소서 문항이 명시돼 있으면 coverLetterPrompts 에 담아.";
     let raw: unknown;
     try {
@@ -21092,7 +20887,7 @@ app.post("/career-launch/week2/application-target/:id/analyze", authenticate, re
     const target = await ownTarget(userId, String(req.params.id));
     if (!target) return res.status(404).json({ ok: false, message: "not found" });
     if (!force && target.analysisData) return res.json({ ok: true, analysis: target.analysisData, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd: target.structuredData });
     const systemPrompt = "너는 커리어 코치야. 아래 기준 공고와 사용자 경험을 비교해 요구역량을 구조화 분석해줘. 이미 갖춘 것(matched, 근거 경험 id 연결)·부족한 것(missing)·확인 필요(needsCheck)·이력서/자소서에서 강조할 것·넣지 말아야 할 과장(avoidOverclaiming)·면접에서 검증될 것을 정리해. " + NO_FABRICATION;
     let raw: unknown;
@@ -21128,7 +20923,7 @@ app.post("/career-launch/week2/resume-version", authenticate, requireCareerEnrol
       if (!target) return res.status(404).json({ ok: false, message: "target not found" });
       jd = target.analysisData ?? target.structuredData;
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
     const systemPrompt =
       `너는 커리어 코치야. 사용자의 확인된 정보로 ${variant === "targeted" ? "이 공고에 맞춘" : "대표"} 이력서 초안을 만들어줘. ` +
@@ -21178,7 +20973,7 @@ app.post("/career-launch/week2/cover-prompts", authenticate, requireCareerEnroll
         jd = target.analysisData ?? target.structuredData;
       }
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd });
     const systemPrompt = "공고에 자소서 문항이 없어. 이 공고와 직무에 맞는 권장 자소서 문항 4~6개를 만들어줘(지원동기·직무경험·문제해결·협업·입사후기여 등에서 적절히). 공고가 요구하지 않는 문항을 필수처럼 표시하지 마. 각 문항에 intent 와 추천 근거 경험을 연결해.";
     let raw: unknown;
@@ -21211,7 +21006,7 @@ app.post("/career-launch/week2/cover-version", authenticate, requireCareerEnroll
       const target = await ownTarget(userId, applicationTargetId);
       jd = target?.analysisData ?? target?.structuredData;
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
     const systemPrompt =
       "너는 커리어 코치야. 아래 문항들에 대해 사용자의 확인된 경험을 근거로 자기소개서 초안을 써줘. " +
@@ -21276,7 +21071,7 @@ app.post("/career-launch/week2/consistency", authenticate, requireCareerEnrollme
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } })
     ]);
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd: target.analysisData ?? target.structuredData });
     const docCtx = `[이력서 버전]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1600)}\n\n[자소서 버전]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1400)}`;
     const systemPrompt =
@@ -21333,7 +21128,7 @@ app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, r
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
       prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } })
     ]);
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const jd = target.analysisData ?? target.structuredData;
     const rCtx = `[이력서]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1200)}`;
     const cCtx = `[자소서]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1000)}`;
@@ -21397,7 +21192,7 @@ app.post("/career-launch/week2/interview-questions", authenticate, requireCareer
     const pkg = applicationTargetId ? await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } }) : await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } });
     const existing = await prisma.careerInterviewQuestionSet.findFirst({ where: { studentUserId: userId, applicationPackageId: pkg?.id ?? null }, orderBy: { createdAt: "desc" } });
     if (!force && existing) return res.json({ ok: true, questionSet: existing, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const target = applicationTargetId ? await ownTarget(userId, applicationTargetId) : null;
     const [resumeV, coverV] = await Promise.all([
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume" }, orderBy: { updatedAt: "desc" } }),
@@ -21501,7 +21296,7 @@ const IV_GROWTH_SCHEMA = { type: "object", additionalProperties: false, required
 
 // 답변 평가(LLM). 실패 시 null.
 async function evaluateInterviewAnswer(question: string, answerText: string, ctx: string): Promise<import("./career-week34").AnswerEvaluation | null> {
-  if (!openai) return null;
+  if (!llmReady) return null;
   const sys =
     "너는 면접 평가관이야. 아래 질문과 사용자 답변을 8축(questionUnderstanding·relevance·specificity·evidence·structure·jobConnection·consistency·delivery)으로 0~100 채점하고 total 을 계산해. " +
     "텍스트 기반이므로 말투·표정·시선은 평가하지 마. 잘한 점, 핵심 문제, 문제 구간, 개선 이유, 추천 답변 구조, 활용할 경험, 추천 꼬리질문을 줘. " +
@@ -21537,7 +21332,7 @@ app.post("/career-launch/interview/session/start", authenticate, requireCareerEn
     let baseQuestions = Array.isArray(qset?.questions) ? (qset!.questions as Array<{ question?: string; type?: string; sourceReference?: string; difficulty?: string; evaluationCriteria?: string[] }>) : [];
     if (baseQuestions.length === 0) {
       // 예상질문이 없으면 생성(간단). 없으면 실패.
-      if (!openai) return sendAiUnavailable(res);
+      if (!llmReady) return sendAiUnavailable(res);
       const ctx = await buildInterviewCtx(userId, pkg);
       try {
         const raw = (await careerChatComplete("이 지원자의 공고·이력서·자소서를 근거로 실전 모의면접 핵심 질문 8개를 만들어줘. 각 질문에 type·difficulty 를 붙여. " + IV_SAFETY, ctx, "iv_qgen", { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "object", additionalProperties: false, required: ["question", "type", "difficulty"], properties: { question: { type: "string" }, type: { type: "string" }, difficulty: { type: "string" } } } } } })) as { questions?: Array<{ question: string; type: string; difficulty: string }> };
@@ -21643,7 +21438,7 @@ app.post("/career-launch/interview/session/:id/complete", authenticate, requireC
 
     // 최초면접만 심층 분석(비용 절약). 최종면접은 성장 리포트에서 처리.
     if (session.sessionType !== "initial_mock") return res.json({ ok: true, session: { ...session, status: "completed" }, total });
-    if (!openai) return res.json({ ok: true, total, analyzed: false });
+    if (!llmReady) return res.json({ ok: true, total, analyzed: false });
     const qa = questions.map((q) => { const a = answers.find((x) => x.questionId === q.id); return `Q(${q.type}): ${q.question}\nA: ${(a?.answerText ?? "").slice(0, 600)}\n[문제] ${((a?.evaluationData as { keyProblem?: string } | null)?.keyProblem ?? "")}`; }).join("\n\n");
     const pkg = await prisma.careerApplicationPackage.findUnique({ where: { id: session.applicationPackageId ?? "" } }).catch(() => null);
     const ctx = await buildInterviewCtx(userId, pkg);
@@ -21748,7 +21543,7 @@ app.post("/career-launch/week4/correction/:id/coach", authenticate, requireCaree
     const c = await ownCorrection(userId, String(req.params.id));
     if (!c) return res.status(404).json({ ok: false, message: "not found" });
     if (c.coachingData && !((req.body as { force?: boolean })?.force)) return res.json({ ok: true, coaching: c.coachingData, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const origAnswer = c.originalAnswerId ? await prisma.careerInterviewAnswer.findUnique({ where: { id: c.originalAnswerId } }) : null;
     const pkg = await activePackage(userId);
     const ctx = await buildInterviewCtx(userId, pkg);
@@ -21837,7 +21632,7 @@ app.post("/career-launch/week4/correction/:id/similar", authenticate, requireCar
     const userId = req.auth!.userId;
     const c = await ownCorrection(userId, String(req.params.id));
     if (!c) return res.status(404).json({ ok: false, message: "not found" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     let similar: unknown = null;
     try {
       const raw = await careerChatComplete("아래 원본 질문과 같은 역량을 '다른 맥락·다른 표현'으로 검증하는 유사 질문 1개를 만들어줘. 단어만 바꾸지 말고 같은 역량을 다르게 물어. " + IV_SAFETY, `[원본 질문]\n${c.question}`, "iv_similar", IV_SIMILAR_SCHEMA);
@@ -21912,7 +21707,7 @@ app.post("/career-launch/week4/growth", authenticate, requireCareerEnrollment, r
     });
     // 정성 리포트(LLM).
     let qualitative: unknown = null;
-    if (openai) {
+    if (llmReady) {
       try {
         const raw = await careerChatComplete("최초 면접과 최종 면접 결과를 비교해 성장 리포트를 써줘. 가장 개선된 항목, 남은 약점, 강하게 확인된 역량, 면접관이 추가 확인할 부분, 면접 당일 주의사항, 다음 7일·30일 행동계획, 코치 최종 메시지. 점수만 강조하지 말고 격려하는 톤으로. " + IV_SAFETY, `[성장지표]\n${JSON.stringify(growth)}\n[남은 취약]\n${weaknesses.filter((w) => w.status === "open").map((w) => w.title).join(", ")}`, "iv_growth", IV_GROWTH_SCHEMA);
         const p = GrowthReportSchema.safeParse(raw);
@@ -22683,7 +22478,7 @@ async function buildReadinessInput(cohortId: string) {
       enrolledCount,
       participantLimit: cohort.participantLimit,
       featureFlagsSet: Object.values(flags).some(Boolean),
-      llmEnvReady: Boolean(openai),
+      llmEnvReady: Boolean(llmReady),
       surveyConfigured: survey !== null,
       supportContactSet: Boolean(mon.supportContact),
       manualChecks: (mon.manualChecks ?? {}) as Record<string, boolean>
@@ -24023,7 +23818,7 @@ app.post("/career-launch/ops/interventions/:id/ai-summary", authenticate, requir
   try {
     const iv = await prisma.careerIntervention.findUnique({ where: { id: String(req.params.id) } });
     if (!iv) return res.status(404).json({ ok: false, message: "not found" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ev = (iv.evidence && typeof iv.evidence === "object" ? iv.evidence : {}) as { facts?: string[]; signals?: Record<string, unknown> };
     const sys = "너는 커리어 프로그램 운영 보조야. 아래 '사실 데이터'만 근거로 운영자용 요약을 만들어줘. 사실과 AI 해석을 명확히 구분하고(facts / interpretation / recommendedAction / dataToCheck / nextCheck), 학생의 의도나 심리를 단정하지 마. 진단하지 마.";
     const schema = { type: "object", additionalProperties: false, required: ["interpretation", "recommendedAction", "dataToCheck", "nextCheck"], properties: { interpretation: { type: "string" }, recommendedAction: { type: "string" }, dataToCheck: { type: "array", items: { type: "string" } }, nextCheck: { type: "string" } } } as const;
@@ -24132,7 +23927,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, focus, jobPosting, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -24248,7 +24043,7 @@ const POSTING_QUESTIONS_SCHEMA = { type: "object", additionalProperties: false, 
 app.post("/career-launch/posting-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "posting-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = postingQuestionsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const { jobPosting, count, locale } = parsed.data;
     const n = count ?? 6;
@@ -24272,7 +24067,7 @@ const POSTING_SCORE_SCHEMA = { type: "object", additionalProperties: false, requ
 app.post("/career-launch/posting-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "posting-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = postingScoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const { jobPosting, question, answer, locale } = parsed.data;
     const systemPrompt =
@@ -24322,7 +24117,7 @@ const followUpBody = z.object({
 app.post("/career-launch/follow-up", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "cl-follow" }), aiCharge("career_follow_up"), async (req, res) => {
   const parsed = followUpBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return sendAiUnavailable(res);
+  if (!llmReady) return sendAiUnavailable(res);
   const userId = req.auth!.userId;
   const { question, answer, context, depth } = parsed.data;
   try {
@@ -24375,7 +24170,7 @@ const intro1minBody = z.object({ text: z.string().trim().min(10).max(3000), dura
 app.post("/career-launch/intro-1min", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "cl-intro1" }), aiCharge("career_intro_1min"), async (req, res) => {
   const parsed = intro1minBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return sendAiUnavailable(res);
+  if (!llmReady) return sendAiUnavailable(res);
   const userId = req.auth!.userId;
   const { text, durationSec, voice } = parsed.data;
   const chars = text.replace(/\s+/g, "").length;
@@ -24468,7 +24263,7 @@ app.post("/career-launch/speaking-analysis", authenticate, requireCareerEnrollme
   const userId = req.auth!.userId;
   const { question, transcript, durationSec, pauses } = parsed.data;
   const metrics = speakingMetrics(transcript, durationSec, pauses ?? 0);
-  if (!openai) return res.json({ ok: true, metrics, report: null });
+  if (!llmReady) return res.json({ ok: true, metrics, report: null });
   try {
     const korean = await careerStudentIsKorean(userId);
     const system =
@@ -24510,7 +24305,7 @@ const basicQSchema = z.object({ focus: BASIC_FOCUS, count: z.number().int().min(
 app.post("/career-launch/basic-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "basic-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = basicQSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const uid = req.auth!.userId;
     const { focus, count, locale, asked } = parsed.data;
@@ -24537,7 +24332,7 @@ const basicScoreSchema = z.object({ focus: BASIC_FOCUS, question: z.string().tri
 app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "basic-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = basicScoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const uid = req.auth!.userId;
     const { focus, question, answer, locale } = parsed.data;
@@ -24826,7 +24621,7 @@ app.post("/career-launch/profile-headline", authenticate, requireCareerEnrollmen
     const cached = (state.profileHeadline && typeof state.profileHeadline === "object" ? state.profileHeadline : {}) as { sig?: string; headline?: string; subline?: string };
     if (cached.headline && cached.sig === sig) return res.json({ ok: true, headline: cached.headline, subline: cached.subline ?? "", cached: true });
     if (parsed.data.generate === false) return res.json({ ok: true, headline: cached.headline ?? null, subline: cached.subline ?? null, stale: Boolean(cached.headline), needsGenerate: true });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     {
       const deny = await aiGate(uid, "career_week_feedback");
       if (deny) return res.status(deny.status).json(deny.body);
@@ -24928,7 +24723,7 @@ app.post(
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
       // 내용이 바뀐 경우엔 옛 피드백을 함께 돌려주고 stale=true 로 표시(사라지지 않게 — 최신화는 '다시 받기'로).
       if (parsed.data.generate === false) return res.json({ ok: true, feedback: cachedText, stale: Boolean(cachedText), needsGenerate: true });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
       {
         const deny = await aiGate(uid, "career_week_feedback");
@@ -25003,7 +24798,7 @@ app.post(
       }
       // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
       if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
       {
         const deny = await aiGate(uid, "career_final_feedback");
@@ -25131,7 +24926,7 @@ app.post(
         return res.json({ ok: true, report: cached.data, stale, cached: true, jobKey: activeJob });
       }
       if (!generate) return res.json({ ok: true, report: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
@@ -25273,7 +25068,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 채용 담당자 관점의 이력서 코치야. 학생의 이력서를 심층 평가한다. 4항목을 0~100으로: " +
@@ -25366,7 +25161,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 심층 평가한다. 5항목을 0~100으로: " +
@@ -25465,7 +25260,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
       const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
@@ -25632,7 +25427,7 @@ app.post(
         return res.json({ ok: true, recommendation: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, recommendation: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const expText = expBank.length
         ? expBank
@@ -25730,7 +25525,7 @@ app.post(
         return res.json({ ok: true, result: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 지원자의 이력서를 처음 보는 채용담당자다. 이 이력서를 딱 10초 동안 훑어봤다고 가정하고 아래에만 답한다.\n" +
@@ -25812,7 +25607,7 @@ app.post(
       if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
         return res.json({ ok: true, result: null, needsResume: true });
       }
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
       const expText = expBank.length
         ? expBank.map((e) => (typeof e.experience === "string" ? `- ${e.experience}` : "")).filter(Boolean).join("\n")
@@ -25917,7 +25712,7 @@ app.post(
         return res.json({ ok: true, stories: (cached.data as { stories?: unknown }).stories ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, stories: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const expText = expBank
         .map((e) => {
@@ -26023,7 +25818,7 @@ app.post(
         return res.json({ ok: true, result: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 자기소개서 심사관이다. 아래 자기소개서를 두 관점으로 검토한다.\n" +
@@ -26108,7 +25903,7 @@ app.post(
         return res.json({ ok: true, answers: (cached.data as { answers?: unknown }).answers ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, answers: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const storyText = stories.length
         ? stories.map((s) => `- [${typeof s.category === "string" ? s.category : ""}] ${typeof s.title === "string" ? s.title : ""}`).join("\n")
@@ -26170,7 +25965,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewRetrySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const uid = req.auth!.userId;
     const { question, answer, locale } = parsed.data;
     try {
@@ -26231,7 +26026,7 @@ app.post(
   async (req, res) => {
     const parsed = resumeBulletSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "너는 신입 채용 전문 Resume Coach다. 학생이 쓴 거친 이력서 문장 하나를 채용담당자가 읽기 좋은 개조식 불렛으로 다듬는다.\n" +
@@ -26279,7 +26074,7 @@ app.post(
   async (req, res) => {
     const parsed = coverQuestionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const uid = req.auth!.userId;
     try {
       const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
@@ -26366,7 +26161,7 @@ app.post(
         return res.json({ ok: true, questions: (cached.data as { questions?: unknown }).questions ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, questions: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 이 채용의 면접관이다. 지원자의 이력서·자기소개서·선정 직무를 분석해 실제 면접에서 나올 가능성이 높은 예상 질문을 생성한다.\n" +
@@ -27670,7 +27465,7 @@ app.post(
   async (req, res) => {
     const parsed = tailorResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { resumeText, jobText, coverLetterText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -27713,8 +27508,7 @@ app.post(
         required: ["score", "matched", "missing", "summary", "suggestions"]
       };
       const { data } = await generateJson<{ score?: unknown; matched?: unknown; missing?: unknown; summary?: unknown; suggestions?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.4,
         system: systemPrompt,
         user: userPrompt,
@@ -27789,12 +27583,11 @@ app.post(
   async (req, res) => {
     const parsed = reviewResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { items } = parsed.data;
       const { system, user } = buildResumeReviewPrompt(parsed.data);
       const { data, error } = await generateJson<{ findings?: unknown }>({
-        openai,
         model: docReviewModel,
         temperature: 0.2,
         system,
@@ -27843,12 +27636,11 @@ app.post(
   async (req, res) => {
     const parsed = reviewCoverSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { questions } = parsed.data;
       const { system, user } = buildCoverReviewPrompt(parsed.data);
       const { data, error } = await generateJson<{ findings?: unknown }>({
-        openai,
         model: docReviewModel,
         temperature: 0.2,
         system,
@@ -27961,7 +27753,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { jobText, coverLetterText, desiredJobRole, askedQuestions, count, category, locale } = parsed.data;
       const resumeText = (parsed.data.resumeText ?? "").trim();
@@ -28058,7 +27850,7 @@ app.post(
   async (req, res) => {
     const parsed = positionDraftSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { title, jobRole, employmentType, companyName, locale } = parsed.data;
       const systemPrompt =
@@ -28074,16 +27866,7 @@ app.post(
         `${jobRole ? `[직무] ${jobRole}\n` : ""}` +
         `${employmentType ? `[고용 형태] ${employmentType}\n` : ""}` +
         `${companyName ? `[회사] ${companyName}\n` : ""}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let j: { mainResponsibilities?: unknown; requiredQualifications?: unknown; preferredQualifications?: unknown } = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const clean = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 2000) : "");
@@ -28116,7 +27899,7 @@ app.post(
   async (req, res) => {
     const parsed = companyPolishSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, name, industry, locale } = parsed.data;
       const systemPrompt =
@@ -28130,16 +27913,7 @@ app.post(
         `${name ? `[회사명] ${name}\n` : ""}` +
         `${industry ? `[업종] ${industry}\n` : ""}` +
         `[소개 초안]\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let j: { description?: unknown } = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const description = typeof j.description === "string" ? j.description.trim().slice(0, 2000) : "";
@@ -28927,7 +28701,7 @@ const INTERVIEW_PREP_SCHEMA = {
 app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), interviewCreditGuard("prep"), async (req, res) => {
   const parsed = interviewPrepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   const d = parsed.data;
   if (!d.jobText && !d.resumeText) return res.status(400).json({ ok: false, message: "job or resume required" });
   try {
@@ -28982,7 +28756,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { question, answer, resumeText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -29292,7 +29066,7 @@ app.post(
   async (req, res) => {
     const parsed = suggestSkillsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { desiredJobRole, jobCategories, major, experiences, have, locale } = parsed.data;
       const systemPrompt =
@@ -29313,16 +29087,7 @@ app.post(
       ]
         .filter(Boolean)
         .join("\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: ctx || "정보가 거의 없습니다. 신입 지원자에게 무난한 범용 스킬을 추천하세요." }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: ctx || "정보가 거의 없습니다. 신입 지원자에게 무난한 범용 스킬을 추천하세요." });
       let parsedJson: { skills?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const haveLower = new Set((have ?? []).map((s) => s.toLowerCase()));
@@ -29357,7 +29122,7 @@ app.post(
   async (req, res) => {
     const parsed = englishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, desiredJobRole, jobCategories } = parsed.data;
       const systemPrompt =
@@ -29372,16 +29137,7 @@ app.post(
         .filter(Boolean)
         .join("\n");
       const userPrompt = `${ctx ? `${ctx}\n\n` : ""}Korean self-introduction:\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { english?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const english = typeof parsedJson.english === "string" ? parsedJson.english.trim().slice(0, 4000) : "";
@@ -29411,7 +29167,7 @@ app.post(
   async (req, res) => {
     const parsed = translateTextsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { texts } = parsed.data;
       const target = parsed.data.target ?? "en";
@@ -29427,16 +29183,7 @@ app.post(
         "4. Preserve the EXACT same count and order. Empty input stays empty.\n\n" +
         'Each input line is "<index>␟<text>". Respond with a single JSON object only: ' +
         `{ "texts": string[] } where texts[index] is the ${targetName} translation, same length and order.`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: numbered }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: numbered });
       let parsedJson: { texts?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const out = Array.isArray(parsedJson.texts) ? parsedJson.texts : [];
@@ -29488,7 +29235,7 @@ app.post(
   async (req, res) => {
     const parsed = draftIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { desiredJobRole, jobCategories, experiences, education, skills, languages, locale } = parsed.data;
       const expText = (experiences ?? [])
@@ -29525,16 +29272,7 @@ app.post(
       ]
         .filter(Boolean)
         .join("\n\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: ctx }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: ctx });
       let parsedJson: { draft?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const draft = typeof parsedJson.draft === "string" ? parsedJson.draft.trim().slice(0, 4000) : "";
@@ -29596,14 +29334,13 @@ app.post(
   async (req, res) => {
     const parsed = coverLetterSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       // 구조화 출력(json_schema) 우선 + json_object 폴백 → 파싱 실패 무음 502 제거.
       // systemCacheable/systemVariable 을 그대로 넘겨 Claude 경로에서 고정부만 프롬프트 캐시에 태운다.
       const { system: systemPrompt, user: ctx, systemCacheable, systemVariable } = buildCoverLetterMessages(parsed.data);
       const { data, usage } = await generateJson<{ text?: unknown }>({
-        openai,
         model: coverLetterModel,
         temperature: 0.6,
         system: systemPrompt,
@@ -29652,13 +29389,12 @@ app.post(
   async (req, res) => {
     const parsed = polishExperienceSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       const { system: systemPrompt, user: userPrompt } = buildPolishExperienceMessages(parsed.data);
       const { data } = await generateJson<{ polished?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.5,
         system: systemPrompt,
         user: userPrompt,
@@ -29703,14 +29439,13 @@ app.post(
   async (req, res) => {
     const parsed = polishResumeItemsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { items, locale } = parsed.data;
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       const { system: systemPrompt, user: userPrompt } = buildResumeItemsMessages(items, locale);
       const { data } = await generateJson<{ texts?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.4,
         system: systemPrompt,
         user: userPrompt,
@@ -29748,7 +29483,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceTitleSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "사용자가 적은 경험 설명을 보고, 이력서 경험 카드에 쓸 짧은 '경험명'을 지어주세요.\n" +
@@ -29756,16 +29491,7 @@ app.post(
         "2. 사용자가 적지 않은 회사명·직무·수치를 지어내지 마세요.\n3. 한국어.\n\n" +
         'JSON 한 개 객체로만 응답: { "title": string }' + aiLangDirective(parsed.data.locale);
       const userPrompt = `${parsed.data.type ? `유형: ${parsed.data.type}\n` : ""}경험 설명:\n${parsed.data.rawInput}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { title?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const title = typeof parsedJson.title === "string" ? parsedJson.title.trim().slice(0, 40) : "";
@@ -29798,7 +29524,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceTasksSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { type, title, org, rawInput, locale } = parsed.data;
     if (!title && !org && !rawInput) return res.status(400).json({ ok: false, message: "need at least one hint" });
     try {
@@ -29817,16 +29543,7 @@ app.post(
         org ? `조직/장소: ${org}` : "",
         rawInput ? `사용자 메모: ${rawInput}` : ""
       ].filter(Boolean).join("\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: hint }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: hint });
       let parsedJson: { tasks?: unknown; note?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const tasks = Array.isArray(parsedJson.tasks)
@@ -29914,16 +29631,7 @@ async function parseResumeSource(input: { text?: string; pdfBase64?: string }): 
         '  "skills": [string],\n' +
         '  "links": [{ "label": string, "url": string }]\n' +
         "}";
-      const completion = await openai!.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `다음은 기존 이력서 원문입니다:\n\n${sourceText}` }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: `다음은 기존 이력서 원문입니다:\n\n${sourceText}` });
       let j: Record<string, unknown> = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
 
@@ -29988,7 +29696,7 @@ app.post(
   async (req, res) => {
     const parsed = importResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const r = await parseResumeSource({ text: parsed.data.text, pdfBase64: parsed.data.pdfBase64 });
     if (!r.ok) return res.status(r.status).json({ ok: false, message: r.message });
     return res.json({ ok: true, imported: r.imported });
@@ -30012,7 +29720,7 @@ app.post(
   async (req, res) => {
     const parsed = importCoverLetterSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
     // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출(import-resume 와 동일).
     let sourceText = parsed.data.text?.trim() ?? "";
@@ -30045,16 +29753,7 @@ app.post(
         "3. 답변(answer)은 원문 표현을 최대한 보존하되, 머리말·번호 없이 줄글로 정리합니다.\n" +
         "4. 회사명이 보이면 company 로.\n\n" +
         'JSON: { "company": string, "items": [{ "prompt": string, "answer": string }] }';
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `다음은 기존 자기소개서 원문입니다:\n\n${sourceText}` }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: `다음은 기존 자기소개서 원문입니다:\n\n${sourceText}` });
       let j: Record<string, unknown> = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -33029,8 +32728,8 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
     }
     const query = parsed.data.query;
     // 하이브리드 인재검색 — 시맨틱(이력서 임베딩 ANN)으로 후보를 선별하고 키워드와 블렌드.
-    // 임베딩/openai 없으면 최근순 풀 + 키워드로 폴백.
-    const qVec = openai ? await embedQueryCached(query) : null;
+    // 임베딩 없으면 최근순 풀 + 키워드로 폴백.
+    const qVec = await embedQueryCached(query);
     const distByUser = new Map<string, number>();
     let poolUserIds: string[] | null = null;
     if (qVec) {
@@ -33078,8 +32777,8 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
       })
       .sort((a, b) => b.hybrid - a.hybrid);
 
-    // openai 없으면 하이브리드(=키워드) 상위 반환.
-    if (!openai) {
+    // llmReady 없으면 하이브리드(=키워드) 상위 반환.
+    if (!llmReady) {
       const items = scored.filter((x) => x.hybrid > 0).slice(0, 24).map((x) => x.c);
       await attachCachedDocSummaries(items);
       await attachInterestCounts(items);
@@ -33227,25 +32926,16 @@ async function explainMatchesWithOpenAI(
   items: { candidateUserId: string; desiredJobRole?: string | null; skills?: string[]; languages?: string[]; matchPercent: number; verified: boolean; readiness: number }[]
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  if (!openai || items.length === 0) return out;
+  if (!llmReady || items.length === 0) return out;
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        { role: "system", content: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라." },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: lightModel,
+      system: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             position: { title: pos.title, role: pos.preferredJobRole, languages: pos.communicationLanguages },
             candidates: items.map((it) => ({ id: it.candidateUserId, desiredRole: it.desiredJobRole ?? null, skills: (it.skills ?? []).slice(0, 8), languages: it.languages ?? [], matchPercent: it.matchPercent, verified: it.verified, readiness: it.readiness }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "match_explanations",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -33260,12 +32950,9 @@ async function explainMatchesWithOpenAI(
               }
             },
             required: ["explanations"]
-          },
-          strict: true
-        }
-      }
+          }
     });
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) return out;
     const parsed = JSON.parse(outputText) as { explanations?: { id: string; reason: string }[] };
     for (const e of parsed.explanations ?? []) if (e?.id && e?.reason) out.set(e.id, e.reason.trim());
@@ -38166,24 +37853,13 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
     return out;
   }
 
-  if (!openai) return { resumeBullets: [], coverBullets: [], disabled: true };
+  if (!llmReady) return { resumeBullets: [], coverBullets: [], disabled: true };
 
-  const response = await openai.responses.create({
-    model: openaiTranslationModel,
-    input: [
-      {
-        role: "system",
-        content:
-          "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다."
-      },
-      { role: "user", content: JSON.stringify({ resume: resumeText, coverLetter: coverText }) }
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "applicant_doc_summary",
-        strict: true,
-        schema: {
+  const response = await claudeJson({
+    model: lightModel,
+    system: "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다.",
+    user: JSON.stringify({ resume: resumeText, coverLetter: coverText }),
+    schema: {
           type: "object",
           additionalProperties: false,
           properties: {
@@ -38192,11 +37868,9 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
           },
           required: ["resumeBullets", "coverBullets"]
         }
-      }
-    }
   });
 
-  const outputText = (response as { output_text?: string }).output_text;
+  const outputText = response.raw;
   const parsed = outputText ? (JSON.parse(outputText) as { resumeBullets?: unknown; coverBullets?: unknown }) : {};
   const clean = (arr: unknown): string[] =>
     Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
@@ -38360,30 +38034,24 @@ async function getOrCreateCandidateInsight(candidateUserId: string): Promise<Can
   const version = `i${CANDIDATE_INSIGHT_V}:${(sig >>> 0).toString(36)}`;
   const row = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId }, select: { insightData: true, insightVersion: true } });
   if (row?.insightVersion === version && row.insightData) return row.insightData as unknown as CandidateInsight;
-  if (!openai) return null;
+  if (!llmReady) return null;
   // 기업에 보이는 판단 정보라 정확도가 중요 — 문서 점검과 같은 상위 모델(작은 모델은 오탐·뭉뚱그림이 많다)
-  const response = await openai.responses.create({
-    model: openaiMatchingModel,
-    input: [
-      {
-        role: "system",
-        content:
-          "너는 기업 채용 담당자를 돕는 어시스턴트다. 인재의 이력서·자기소개서를 읽고, 담당자가 '연락해 볼지'를 30초 안에 판단할 수 있게 정리한다. 모든 내용은 서류에 있는 사실에서만 근거를 찾는다(추측·과장 금지, 서류에 없으면 빈 배열). 국적·성별·나이·종교로 판단하지 않는다. 연락처·이름은 쓰지 않는다. 한국어로.\n" +
+  const response = await claudeJson({
+    model: qualityModel, effort: "medium",
+    system: "너는 기업 채용 담당자를 돕는 어시스턴트다. 인재의 이력서·자기소개서를 읽고, 담당자가 '연락해 볼지'를 30초 안에 판단할 수 있게 정리한다. 모든 내용은 서류에 있는 사실에서만 근거를 찾는다(추측·과장 금지, 서류에 없으면 빈 배열). 국적·성별·나이·종교로 판단하지 않는다. 연락처·이름은 쓰지 않는다. 한국어로.\n" +
           "규칙:\n" +
           "- headline: '전공·학년(또는 경력 단계) + 핵심 역량 + 대표 경험' 형식의 자연스러운 한 문장. 희망 직무 문구를 따옴표로 그대로 옮기지 마. 예) '컴퓨터공학 3학년, 웹·백엔드 개발 역량과 팀 프로젝트 3건 경험'\n" +
           "- fitRoles: 회사가 실제로 뽑는 구체적인 직무명(예: '프론트엔드 개발 인턴', '호텔 프론트 데스크 인턴', '글로벌 마케팅 어시스턴트'). '인턴'·'사무직'처럼 뭉뚱그린 이름 금지. 근거가 뚜렷한 순서로.\n" +
           "- strengths: 한 줄 강점 + 그 근거가 된 서류 속 경험·수치.\n" +
           "- keyExperiences: 가장 직무 관련성이 큰 경험만, '무엇을 했고 결과가 어땠는지'.\n" +
           "- readiness: 학년·졸업 예정 시기·교환학생 여부·희망 근무 형태·근무 가능 시기처럼 '언제·어떤 형태로 일할 수 있는지'만. 역량 평가는 넣지 마.\n" +
-          "- checkPoints: 서류만으로는 불분명해서 연락·면접 때 확인하면 좋은 점을 '~ 확인 필요' 형태로(예: '한국어로 업무 소통이 가능한 수준인지 확인 필요', '인턴 가능 기간·주당 근무 시간 확인 필요'). 강점을 쓰지 마."
-      },
-      { role: "user", content: JSON.stringify({ affiliation: user?.affiliation ?? "", desiredRole: targetRole, resume: resumeText.slice(0, 12000), coverLetter: coverText.slice(0, 6000) }) }
-    ],
-    text: { format: { type: "json_schema", name: "candidate_insight", strict: true, schema: CANDIDATE_INSIGHT_SCHEMA as unknown as Record<string, unknown> } }
+          "- checkPoints: 서류만으로는 불분명해서 연락·면접 때 확인하면 좋은 점을 '~ 확인 필요' 형태로(예: '한국어로 업무 소통이 가능한 수준인지 확인 필요', '인턴 가능 기간·주당 근무 시간 확인 필요'). 강점을 쓰지 마.",
+    user: JSON.stringify({ affiliation: user?.affiliation ?? "", desiredRole: targetRole, resume: resumeText.slice(0, 12000), coverLetter: coverText.slice(0, 6000) }),
+    schema: CANDIDATE_INSIGHT_SCHEMA
   });
   let parsed: CandidateInsight | null = null;
   try {
-    parsed = JSON.parse((response as { output_text?: string }).output_text ?? "") as CandidateInsight;
+    parsed = JSON.parse(response.raw ?? "") as CandidateInsight;
   } catch {
     parsed = null;
   }
@@ -38428,18 +38096,16 @@ async function getOrCreateCompanySummary(org: { id: string; description: string 
   for (let i = 0; i < text.length; i += 1) sig = ((sig << 5) + sig + text.charCodeAt(i)) | 0;
   const version = (sig >>> 0).toString(36);
   if (org.descriptionSummary && org.descriptionSummaryVersion === version) return org.descriptionSummary;
-  if (!openai) return null;
-  const response = await openai.responses.create({
-    model: openaiTranslationModel,
-    input: [
-      { role: "system", content: "회사 소개를 구직자가 한눈에 파악할 수 있게 한국어 한 문장(45자 내외)으로 요약해라. 과장·홍보 문구 없이 사실 기반으로, 무슨 회사인지·강점 위주로." },
-      { role: "user", content: text }
-    ],
-    text: { format: { type: "json_schema", name: "company_summary", strict: true, schema: { type: "object", additionalProperties: false, properties: { summary: { type: "string" } }, required: ["summary"] } } }
+  if (!llmReady) return null;
+  const response = await claudeJson({
+    model: lightModel,
+    system: "회사 소개를 구직자가 한눈에 파악할 수 있게 한국어 한 문장(45자 내외)으로 요약해라. 과장·홍보 문구 없이 사실 기반으로, 무슨 회사인지·강점 위주로.",
+    user: text,
+    schema: { type: "object", additionalProperties: false, properties: { summary: { type: "string" } }, required: ["summary"] }
   });
   const parsed = (() => {
     try {
-      return JSON.parse((response as { output_text?: string }).output_text ?? "{}") as { summary?: unknown };
+      return JSON.parse(response.raw ?? "{}") as { summary?: unknown };
     } catch {
       return {};
     }
@@ -39136,7 +38802,7 @@ async function buildKoreanTranslations(
 ): Promise<ResumeTranslations | null> {
   const units = collectTranslationUnits(content);
   if (units.length === 0) return previous?.ko ? { ko: previous.ko } : null;
-  if (!openai) return previous?.ko ? { ko: previous.ko } : null;
+  if (!llmReady) return previous?.ko ? { ko: previous.ko } : null;
 
   const prevKo = previous?.ko ?? {};
   const prevContent = content as Record<string, unknown>;
@@ -39162,23 +38828,15 @@ async function buildKoreanTranslations(
   // 비용 통제는 needsKoreanTranslation 의 길이/비율 컷오프로 제한.
   const promises = units.map(async (unit) => {
     try {
-      const completion = await openai!.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
+      const raw = await claudeJsonRaw({
+        model: lightModel,
+        system:
               "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. " +
               "원문에 있는 사실만 사용하고, 새 사실/수치/회사명/날짜를 추가하지 마세요. 의미를 부풀리지 마세요. " +
               "회사명·학교명·자격증명 같은 고유명사는 영문 그대로 두거나 (한국어 표기) 형태로 자연스럽게 표기. " +
-              "JSON 한 개의 객체만 응답: { \"ko\": string }"
-          },
-          { role: "user", content: unit.text }
-        ]
+              "JSON 한 개의 객체만 응답: { \"ko\": string }",
+        user: unit.text
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
       let parsedJson: { ko?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* skip */ }
       const ko = typeof parsedJson.ko === "string" ? parsedJson.ko.trim() : "";
