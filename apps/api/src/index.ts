@@ -38277,6 +38277,136 @@ app.get("/partner/candidates/:candidateUserId/document-summary", authenticate, r
   }
 });
 
+// ── AI 인재 인사이트 — 인재 검색 상세에서 '이 사람이 어떤 직무에 어울리는지' 등 연락 여부를 판단할 정보 ──
+// 이력서·자기소개서(+소속)에서만 근거를 뽑는다(추측 금지, 국적·성별·나이로 판단 금지). 서류가 바뀔 때만 다시 만든다(ApplicantDocSummary.insight*).
+// 블라인드 — 연결 수락 전에는 서류 요약과 같은 규칙(이름·국적 가림, 연락처 가림, TOPIK → 한국어 초·중·고급).
+const CANDIDATE_INSIGHT_V = 2;
+const CANDIDATE_INSIGHT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["headline", "fitRoles", "strengths", "keyExperiences", "skills", "languages", "readiness", "checkPoints"],
+  properties: {
+    headline: { type: "string", description: "이 인재를 한 줄로(45자 내외, 사실 기반 — 예: '사이버보안·클라우드 지향 IT 전공 3학년, 네트워크 프로젝트 경험')" },
+    fitRoles: {
+      type: "array",
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["role", "level", "why"],
+        properties: {
+          role: { type: "string", description: "어울리는 직무(구체적으로, 예: '보안 관제 인턴', '데이터 분석 어시스턴트')" },
+          level: { type: "string", enum: ["strong", "good", "possible"], description: "strong=서류 근거가 뚜렷, good=관련 경험 있음, possible=관심·기초 역량" },
+          why: { type: "string", description: "서류에 있는 근거 한 문장" }
+        }
+      }
+    },
+    strengths: {
+      type: "array",
+      maxItems: 4,
+      items: { type: "object", additionalProperties: false, required: ["title", "evidence"], properties: { title: { type: "string" }, evidence: { type: "string", description: "서류 속 근거(경험·수치)" } } }
+    },
+    keyExperiences: {
+      type: "array",
+      maxItems: 4,
+      items: { type: "object", additionalProperties: false, required: ["title", "detail"], properties: { title: { type: "string" }, detail: { type: "string", description: "무엇을 했고 결과가 어땠는지 한 문장" } } }
+    },
+    skills: { type: "array", maxItems: 10, items: { type: "string" } },
+    languages: { type: "array", maxItems: 4, items: { type: "string", description: "언어와 수준(서류에 있는 그대로)" } },
+    readiness: { type: "array", maxItems: 4, items: { type: "string", description: "학년·졸업 예정·교환학생 여부·희망 근무 형태·근무 가능 시기 등(서류에 있을 때만)" } },
+    checkPoints: { type: "array", maxItems: 3, items: { type: "string", description: "연락·면접 전에 확인하면 좋을 점(서류에서 불분명한 것)" } }
+  }
+} as const;
+type CandidateInsight = {
+  headline: string;
+  fitRoles: { role: string; level: "strong" | "good" | "possible"; why: string }[];
+  strengths: { title: string; evidence: string }[];
+  keyExperiences: { title: string; detail: string }[];
+  skills: string[];
+  languages: string[];
+  readiness: string[];
+  checkPoints: string[];
+};
+async function getOrCreateCandidateInsight(candidateUserId: string): Promise<CandidateInsight | null> {
+  const [primary, user] = await Promise.all([
+    prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }], select: { content: true } }),
+    prisma.user.findUnique({ where: { id: candidateUserId }, select: { affiliation: true } })
+  ]);
+  const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
+  const resumeText = resumeDocToText(c.renewalResume) || resumeContentToText(c);
+  let coverText = coverDocToText(c.renewalCover);
+  if (!coverText.trim()) {
+    const cl = await prisma.coverLetter.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { items: true } });
+    coverText = coverLetterItemsToText(cl?.items);
+  }
+  const targetRole = typeof (c.renewalResume as { targetRole?: unknown } | undefined)?.targetRole === "string" ? String((c.renewalResume as { targetRole: string }).targetRole) : "";
+  if (!resumeText.trim() && !coverText.trim()) return null;
+  const input = `${user?.affiliation ?? ""}\n${targetRole}\n${resumeText}\n${coverText}`;
+  let sig = 5381;
+  for (let i = 0; i < input.length; i += 1) sig = ((sig << 5) + sig + input.charCodeAt(i)) | 0;
+  const version = `i${CANDIDATE_INSIGHT_V}:${(sig >>> 0).toString(36)}`;
+  const row = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId }, select: { insightData: true, insightVersion: true } });
+  if (row?.insightVersion === version && row.insightData) return row.insightData as unknown as CandidateInsight;
+  if (!openai) return null;
+  // 기업에 보이는 판단 정보라 정확도가 중요 — 문서 점검과 같은 상위 모델(작은 모델은 오탐·뭉뚱그림이 많다)
+  const response = await openai.responses.create({
+    model: openaiMatchingModel,
+    input: [
+      {
+        role: "system",
+        content:
+          "너는 기업 채용 담당자를 돕는 어시스턴트다. 인재의 이력서·자기소개서를 읽고, 담당자가 '연락해 볼지'를 30초 안에 판단할 수 있게 정리한다. 모든 내용은 서류에 있는 사실에서만 근거를 찾는다(추측·과장 금지, 서류에 없으면 빈 배열). 국적·성별·나이·종교로 판단하지 않는다. 연락처·이름은 쓰지 않는다. 한국어로.\n" +
+          "규칙:\n" +
+          "- headline: '전공·학년(또는 경력 단계) + 핵심 역량 + 대표 경험' 형식의 자연스러운 한 문장. 희망 직무 문구를 따옴표로 그대로 옮기지 마. 예) '컴퓨터공학 3학년, 웹·백엔드 개발 역량과 팀 프로젝트 3건 경험'\n" +
+          "- fitRoles: 회사가 실제로 뽑는 구체적인 직무명(예: '프론트엔드 개발 인턴', '호텔 프론트 데스크 인턴', '글로벌 마케팅 어시스턴트'). '인턴'·'사무직'처럼 뭉뚱그린 이름 금지. 근거가 뚜렷한 순서로.\n" +
+          "- strengths: 한 줄 강점 + 그 근거가 된 서류 속 경험·수치.\n" +
+          "- keyExperiences: 가장 직무 관련성이 큰 경험만, '무엇을 했고 결과가 어땠는지'.\n" +
+          "- readiness: 학년·졸업 예정 시기·교환학생 여부·희망 근무 형태·근무 가능 시기처럼 '언제·어떤 형태로 일할 수 있는지'만. 역량 평가는 넣지 마.\n" +
+          "- checkPoints: 서류만으로는 불분명해서 연락·면접 때 확인하면 좋은 점을 '~ 확인 필요' 형태로(예: '한국어로 업무 소통이 가능한 수준인지 확인 필요', '인턴 가능 기간·주당 근무 시간 확인 필요'). 강점을 쓰지 마."
+      },
+      { role: "user", content: JSON.stringify({ affiliation: user?.affiliation ?? "", desiredRole: targetRole, resume: resumeText.slice(0, 12000), coverLetter: coverText.slice(0, 6000) }) }
+    ],
+    text: { format: { type: "json_schema", name: "candidate_insight", strict: true, schema: CANDIDATE_INSIGHT_SCHEMA as unknown as Record<string, unknown> } }
+  });
+  let parsed: CandidateInsight | null = null;
+  try {
+    parsed = JSON.parse((response as { output_text?: string }).output_text ?? "") as CandidateInsight;
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.headline) return null;
+  await prisma.applicantDocSummary
+    .upsert({ where: { candidateUserId }, create: { candidateUserId, version: "", insightData: parsed as object, insightVersion: version }, update: { insightData: parsed as object, insightVersion: version } })
+    .catch(() => {});
+  return parsed;
+}
+
+// GET /partner/candidates/:candidateUserId/insight — AI 인재 인사이트(인재풀 후보만). 연결 수락 전엔 블라인드.
+app.get("/partner/candidates/:candidateUserId/insight", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const candidateUserId = String(req.params.candidateUserId ?? "");
+  try {
+    if (req.auth!.role !== MemberRole.OPERATOR) {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const inPool = await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: { id: true } });
+    if (!inPool) return res.status(404).json({ ok: false, message: "candidate not in pool" });
+    let insight = await getOrCreateCandidateInsight(candidateUserId);
+    if (!insight) return res.json({ ok: true, insight: null });
+    const conn = req.auth!.role === MemberRole.OPERATOR ? { status: "ACCEPTED" } : await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } }, select: { status: true } });
+    if (conn?.status !== "ACCEPTED") {
+      const u = await prisma.user.findUnique({ where: { id: candidateUserId }, select: { realName: true, name: true, nationality: true } });
+      const terms = identityTerms(u?.realName, u?.name, u?.nationality);
+      const scrub = (v: unknown): unknown => (typeof v === "string" ? redactContactText(redactIdentityText(neutralizeTopik(v), terms)) : Array.isArray(v) ? v.map(scrub) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, scrub(x)])) : v);
+      insight = scrub(insight) as CandidateInsight;
+    }
+    return res.json({ ok: true, insight });
+  } catch (err) {
+    console.error("[partner/insight] failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
 // 회사 소개(description+strengths) → 한 줄 LLM 요약. version(입력 해시)로 org 에 캐싱.
 async function getOrCreateCompanySummary(org: { id: string; description: string | null; strengths: string | null; descriptionSummary: string | null; descriptionSummaryVersion: string | null }): Promise<string | null> {
   const text = [(org.description ?? "").trim(), (org.strengths ?? "").trim()].filter(Boolean).join("\n");

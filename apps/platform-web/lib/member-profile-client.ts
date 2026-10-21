@@ -1748,6 +1748,21 @@ export async function connectPartnerCandidate(candidateUserId: string, message?:
     body: JSON.stringify(message ? { message } : {})
   });
 }
+/** AI 인재 인사이트 — 인재 검색 상세에서 연락 여부 판단용(어울리는 직무·강점·핵심 경험·준비 상태·확인할 점). 연결 전엔 블라인드. */
+export type PartnerCandidateInsight = {
+  headline: string;
+  fitRoles: { role: string; level: "strong" | "good" | "possible"; why: string }[];
+  strengths: { title: string; evidence: string }[];
+  keyExperiences: { title: string; detail: string }[];
+  skills: string[];
+  languages: string[];
+  readiness: string[];
+  checkPoints: string[];
+};
+export async function getPartnerCandidateInsight(candidateUserId: string): Promise<PartnerCandidateInsight | null> {
+  const result = await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/insight`, { method: "GET" });
+  return ((result as unknown as { insight?: PartnerCandidateInsight | null }).insight ?? null);
+}
 export async function getPartnerCandidateDocumentSummary(candidateUserId: string): Promise<{ resumeBullets: string[]; coverBullets: string[] }> {
   const result = await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/document-summary`, { method: "GET" });
   const r = result as unknown as { resumeBullets?: string[]; coverBullets?: string[] };
