@@ -54,8 +54,6 @@ export function CareerLaunchHeader() {
     { key: "program", href: "/career-launch/program", label: t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah") },
     { key: "artifacts", href: "/career-launch/deliverables", label: t("나의 결과물", "My deliverables", "我的成果", "Kết quả của tôi", "私の成果物", "Hasil saya") },
     { key: "corrections", href: "/career-launch/corrections", label: t("면접 오답노트", "Interview notes", "面试错题本", "Sổ sửa lỗi PV", "面接復習ノート", "Catatan wawancara") },
-    // 지원 현황 — 결과물로 실제 지원하고 결과까지 기록(추천 공고·공고 분석·불합격 회고)
-    { key: "applications", href: "/career-launch/applications", label: t("지원 현황", "Applications", "投递进度", "Ứng tuyển", "応募状況", "Lamaran") },
     // 커리어 프로필(패스포트·경험은행·점수) — 홈에서 상세를 뺀 대신 여기서 접근한다.
     { key: "profile", href: "/career-launch/profile", label: t("프로필", "Profile", "档案", "Hồ sơ", "プロフィール", "Profil") }
   ];

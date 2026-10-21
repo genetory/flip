@@ -10,12 +10,12 @@ datasource db {
 }
 
 model User {
-  id                                   String                             @id @default(uuid())
+  id                                   String                        @id @default(uuid())
   email                                String
-  emailVerified                        Boolean                            @default(false)
-  isActive                             Boolean                            @default(true)
+  emailVerified                        Boolean                       @default(false)
+  isActive                             Boolean                       @default(true)
   // 이메일 알림 수신 여부(인앱 알림은 항상 유지). 사용자가 설정에서 끌 수 있다.
-  emailNotifications                   Boolean                            @default(true)
+  emailNotifications                   Boolean                       @default(true)
   // 기업 인재풀 공개 동의 시각(유저 레벨 원천). 대표 이력서 교체와 무관하게 노출 유지.
   talentPoolConsentedAt                DateTime?
   // 기업 인재 검색 노출 끄기 시각 — 가입하면 기본 노출(블라인드), 학생이 끄면 여기 기록하고 인재 검색·연결 요청에서 뺀다.
@@ -33,9 +33,9 @@ model User {
   profileImageUrl                      String?
   adminMemo                            String?
   passwordHash                         String?
-  authProvider                         AuthProvider                       @default(EMAIL)
+  authProvider                         AuthProvider                  @default(EMAIL)
   providerId                           String?
-  role                                 MemberRole                         @default(STUDENT)
+  role                                 MemberRole                    @default(STUDENT)
   partnerType                          PartnerType?
   partnerOrgRole                       PartnerOrgUserRole?
   partnerOrganizationId                String?
@@ -46,11 +46,11 @@ model User {
   signupIp                             String?
   signupUserAgent                      String?
   signupReferer                        String?
-  createdAt                            DateTime                           @default(now())
-  updatedAt                            DateTime                           @updatedAt
-  positionParticipants                 PositionMatchingParticipant[]      @relation("PositionParticipantAuthor")
-  positionProgressLogs                 PositionProgressLog[]              @relation("PositionLogAuthor")
-  positionStatusHistories              PositionStatusHistory[]            @relation("PositionStatusAuthor")
+  createdAt                            DateTime                      @default(now())
+  updatedAt                            DateTime                      @updatedAt
+  positionParticipants                 PositionMatchingParticipant[] @relation("PositionParticipantAuthor")
+  positionProgressLogs                 PositionProgressLog[]         @relation("PositionLogAuthor")
+  positionStatusHistories              PositionStatusHistory[]       @relation("PositionStatusAuthor")
   candidateProfile                     CandidateProfile?
   resumes                              Resume[]
   coverLetters                         CoverLetter[]
@@ -60,72 +60,71 @@ model User {
   aiWallet                             AiWallet?
   interviewWallet                      InterviewWallet?
   aiPointLogs                          AiPointLog[]
-  sgcApplication                       SgcApplication?                    @relation("SgcApplicationUser")
+  sgcApplication                       SgcApplication?               @relation("SgcApplicationUser")
   refreshTokens                        RefreshToken[]
   emailVerificationTokens              EmailVerificationToken[]
   communityPosts                       CommunityPost[]
   communityPostLikes                   CommunityPostLike[]
   communityPostComments                CommunityPostComment[]
-  partnerApplicantWorkflowsAsPartner   PartnerApplicantWorkflow[]         @relation("PartnerApplicantWorkflowPartnerUser")
-  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[]         @relation("PartnerApplicantWorkflowCandidateUser")
-  candidateConnectionsAsPartner        CandidateConnectionRequest[]       @relation("CandidateConnPartner")
-  candidateConnectionsAsCandidate      CandidateConnectionRequest[]       @relation("CandidateConnCandidate")
-  talentEvents                         TalentEvent[]                      @relation("TalentEventUser")
-  applications                         Application[]                      @relation("ApplicationCandidate")
-  applicationStatusChanges             ApplicationStatusHistory[]         @relation("ApplicationStatusChangedBy")
-  reportedIssues                       IssueReport[]                      @relation("IssueReportReporter")
-  subjectIssues                        IssueReport[]                      @relation("IssueReportSubject")
-  assignedIssues                       IssueReport[]                      @relation("IssueReportAssignee")
-  assignmentsAssigned                  Assignment[]                       @relation("AssignmentAssignedBy")
-  assignmentsReviewed                  Assignment[]                       @relation("AssignmentReviewedBy")
-  programFeedbacks                     ProgramFeedback[]                  @relation("ProgramFeedbackAuthor")
-  careerLaunchFeedbacksReceived        CareerLaunchFeedback[]             @relation("CareerLaunchFeedbackStudent")
-  careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]             @relation("CareerLaunchFeedbackAuthor")
-  careerLaunchQuestionsAsked           CareerLaunchQuestion[]             @relation("CareerLaunchQuestionStudent")
-  careerLaunchQuestionsAnswered        CareerLaunchQuestion[]             @relation("CareerLaunchQuestionAnswerer")
-  careerResumeData                     CareerResumeData?                  @relation("CareerResumeDataStudent")
-  careerCoverLetterData                CareerCoverLetterData?             @relation("CareerCoverLetterDataStudent")
-  careerLaunchProgress                 CareerLaunchProgress?              @relation("CareerLaunchProgressStudent")
-  careerProfile                        CareerProfile?                     @relation("CareerProfileStudent")
-  careerProfileEvents                  CareerProfileEvent[]               @relation("CareerProfileEventStudent")
-  careerExperiences                    CareerExperience[]                 @relation("CareerExperienceStudent")
-  careerJobTrials                      CareerJobTrial[]                   @relation("CareerJobTrialStudent")
-  careerTargetJobs                     CareerTargetJob[]                  @relation("CareerTargetJobStudent")
-  careerJobDecisionReport              CareerJobDecisionReport?           @relation("CareerJobDecisionReportStudent")
-  careerApplicationTargets             CareerApplicationTarget[]          @relation("CareerApplicationTargetStudent")
-  careerDocumentVersions               CareerDocumentVersion[]            @relation("CareerDocumentVersionStudent")
-  careerApplicationPackages            CareerApplicationPackage[]         @relation("CareerApplicationPackageStudent")
-  careerInterviewQuestionSets          CareerInterviewQuestionSet[]       @relation("CareerInterviewQuestionSetStudent")
-  careerInterviewSessions              CareerInterviewSession[]           @relation("CareerInterviewSessionStudent")
-  careerInterviewQuestions             CareerInterviewQuestion[]          @relation("CareerInterviewQuestionStudent")
-  careerInterviewAnswers               CareerInterviewAnswer[]            @relation("CareerInterviewAnswerStudent")
-  careerInterviewWeaknesses            CareerInterviewWeakness[]          @relation("CareerInterviewWeaknessStudent")
-  careerInterviewCorrections           CareerInterviewCorrection[]        @relation("CareerInterviewCorrectionStudent")
-  careerApplicationRecords             CareerApplicationRecord[]          @relation("CareerApplicationRecordStudent")
+  partnerApplicantWorkflowsAsPartner   PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowPartnerUser")
+  partnerApplicantWorkflowsAsCandidate PartnerApplicantWorkflow[]    @relation("PartnerApplicantWorkflowCandidateUser")
+  candidateConnectionsAsPartner        CandidateConnectionRequest[]  @relation("CandidateConnPartner")
+  candidateConnectionsAsCandidate      CandidateConnectionRequest[]  @relation("CandidateConnCandidate")
+  talentEvents                         TalentEvent[]                 @relation("TalentEventUser")
+  applications                         Application[]                 @relation("ApplicationCandidate")
+  applicationStatusChanges             ApplicationStatusHistory[]    @relation("ApplicationStatusChangedBy")
+  reportedIssues                       IssueReport[]                 @relation("IssueReportReporter")
+  subjectIssues                        IssueReport[]                 @relation("IssueReportSubject")
+  assignedIssues                       IssueReport[]                 @relation("IssueReportAssignee")
+  assignmentsAssigned                  Assignment[]                  @relation("AssignmentAssignedBy")
+  assignmentsReviewed                  Assignment[]                  @relation("AssignmentReviewedBy")
+  programFeedbacks                     ProgramFeedback[]             @relation("ProgramFeedbackAuthor")
+  careerLaunchFeedbacksReceived        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackStudent")
+  careerLaunchFeedbacksAuthored        CareerLaunchFeedback[]        @relation("CareerLaunchFeedbackAuthor")
+  careerLaunchQuestionsAsked           CareerLaunchQuestion[]        @relation("CareerLaunchQuestionStudent")
+  careerLaunchQuestionsAnswered        CareerLaunchQuestion[]        @relation("CareerLaunchQuestionAnswerer")
+  careerResumeData                     CareerResumeData?             @relation("CareerResumeDataStudent")
+  careerCoverLetterData                CareerCoverLetterData?        @relation("CareerCoverLetterDataStudent")
+  careerLaunchProgress                 CareerLaunchProgress?         @relation("CareerLaunchProgressStudent")
+  careerProfile                        CareerProfile?                @relation("CareerProfileStudent")
+  careerProfileEvents                  CareerProfileEvent[]          @relation("CareerProfileEventStudent")
+  careerExperiences                    CareerExperience[]            @relation("CareerExperienceStudent")
+  careerJobTrials                      CareerJobTrial[]              @relation("CareerJobTrialStudent")
+  careerTargetJobs                     CareerTargetJob[]             @relation("CareerTargetJobStudent")
+  careerJobDecisionReport              CareerJobDecisionReport?      @relation("CareerJobDecisionReportStudent")
+  careerApplicationTargets             CareerApplicationTarget[]     @relation("CareerApplicationTargetStudent")
+  careerDocumentVersions               CareerDocumentVersion[]       @relation("CareerDocumentVersionStudent")
+  careerApplicationPackages            CareerApplicationPackage[]    @relation("CareerApplicationPackageStudent")
+  careerInterviewQuestionSets          CareerInterviewQuestionSet[]  @relation("CareerInterviewQuestionSetStudent")
+  careerInterviewSessions              CareerInterviewSession[]      @relation("CareerInterviewSessionStudent")
+  careerInterviewQuestions             CareerInterviewQuestion[]     @relation("CareerInterviewQuestionStudent")
+  careerInterviewAnswers               CareerInterviewAnswer[]       @relation("CareerInterviewAnswerStudent")
+  careerInterviewWeaknesses            CareerInterviewWeakness[]     @relation("CareerInterviewWeaknessStudent")
+  careerInterviewCorrections           CareerInterviewCorrection[]   @relation("CareerInterviewCorrectionStudent")
   careerInterviewCorrectionAttempts    CareerInterviewCorrectionAttempt[] @relation("CareerInterviewCorrectionAttemptStudent")
-  careerInterviewGrowthReport          CareerInterviewGrowthReport?       @relation("CareerInterviewGrowthReportStudent")
-  careerLeagueScores                   CareerLeagueScore[]                @relation("CareerLeagueScoreStudent")
-  careerAchievements                   CareerAchievement[]                @relation("CareerAchievementStudent")
-  careerInterventions                  CareerIntervention[]               @relation("CareerInterventionStudent")
-  careerEnrollments                    CareerEnrollment[]                 @relation("CareerEnrollmentStudent")
-  careerEmploymentOutcomes             CareerEmploymentOutcome[]          @relation("CareerEmploymentOutcomeStudent")
-  careerLaunchSatisfactions            CareerLaunchSatisfaction[]         @relation("CareerLaunchSatisfactionStudent")
-  careerPilotSurveys                   CareerPilotSurvey[]                @relation("CareerPilotSurveyStudent")
-  careerQualitativeFeedbacks           CareerQualitativeFeedback[]        @relation("CareerQualitativeFeedbackStudent")
-  careerActivityEvents                 CareerActivityEvent[]              @relation("CareerActivityEventStudent")
-  organizationMemberships              OrganizationMembership[]           @relation("OrgMembershipUser")
-  careerStaffAssignments               CareerStaffAssignment[]            @relation("CareerStaffAssignmentUser")
-  careerLaunchCertificatesReceived     CareerLaunchCertificate[]          @relation("CareerLaunchCertificateStudent")
-  careerLaunchCertificatesIssued       CareerLaunchCertificate[]          @relation("CareerLaunchCertificateIssuer")
-  certificatesIssued                   Certificate[]                      @relation("CertificateIssuer")
-  recommendationsIssued                Recommendation[]                   @relation("RecommendationIssuer")
-  schoolCreditReviews                  SchoolCreditRequest[]              @relation("SchoolCreditReviewer")
+  careerInterviewGrowthReport          CareerInterviewGrowthReport?  @relation("CareerInterviewGrowthReportStudent")
+  careerLeagueScores                   CareerLeagueScore[]           @relation("CareerLeagueScoreStudent")
+  careerAchievements                   CareerAchievement[]           @relation("CareerAchievementStudent")
+  careerInterventions                  CareerIntervention[]          @relation("CareerInterventionStudent")
+  careerEnrollments                    CareerEnrollment[]            @relation("CareerEnrollmentStudent")
+  careerEmploymentOutcomes             CareerEmploymentOutcome[]     @relation("CareerEmploymentOutcomeStudent")
+  careerLaunchSatisfactions            CareerLaunchSatisfaction[]    @relation("CareerLaunchSatisfactionStudent")
+  careerPilotSurveys                   CareerPilotSurvey[]           @relation("CareerPilotSurveyStudent")
+  careerQualitativeFeedbacks           CareerQualitativeFeedback[]   @relation("CareerQualitativeFeedbackStudent")
+  careerActivityEvents                 CareerActivityEvent[]         @relation("CareerActivityEventStudent")
+  organizationMemberships              OrganizationMembership[]      @relation("OrgMembershipUser")
+  careerStaffAssignments               CareerStaffAssignment[]       @relation("CareerStaffAssignmentUser")
+  careerLaunchCertificatesReceived     CareerLaunchCertificate[]     @relation("CareerLaunchCertificateStudent")
+  careerLaunchCertificatesIssued       CareerLaunchCertificate[]     @relation("CareerLaunchCertificateIssuer")
+  certificatesIssued                   Certificate[]                 @relation("CertificateIssuer")
+  recommendationsIssued                Recommendation[]              @relation("RecommendationIssuer")
+  schoolCreditReviews                  SchoolCreditRequest[]         @relation("SchoolCreditReviewer")
   notifications                        Notification[]
-  applicationComments                  ApplicationComment[]               @relation("ApplicationCommentAuthor")
-  partnerOrganization                  PartnerOrganization?               @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
+  applicationComments                  ApplicationComment[]          @relation("ApplicationCommentAuthor")
+  partnerOrganization                  PartnerOrganization?          @relation(fields: [partnerOrganizationId], references: [id], onDelete: SetNull)
   createdPartnerJoinCodes              PartnerOrganizationJoinCode[]
-  requestedPositionRevisions           PositionRevision[]                 @relation("PositionRevisionRequester")
-  reviewedPositionRevisions            PositionRevision[]                 @relation("PositionRevisionReviewer")
+  requestedPositionRevisions           PositionRevision[]            @relation("PositionRevisionRequester")
+  reviewedPositionRevisions            PositionRevision[]            @relation("PositionRevisionReviewer")
   mockInterviewSessions                MockInterviewSession[]
   interviewQuestionReports             InterviewQuestionReport[]
   interviewAnswerExamples              InterviewAnswerExample[]
@@ -1135,21 +1134,21 @@ model CareerJobDecisionReport {
 
 // Week 2(지원 패키지, Phase 5) — 기준 채용공고. 원문(rawContent)과 AI 구조화/분석을 분리 저장.
 model CareerApplicationTarget {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   studentUserId  String
   cohortId       String?
   positionId     String? // APLY 내부 공고면 느슨 참조(FK 아님)
-  sourceType     String   @default("paste") // internal | saved | url | paste | manual
+  sourceType     String    @default("paste") // internal | saved | url | paste | manual
   sourceUrl      String?
   companyName    String?
   jobTitle       String?
   rawContent     String? // 원문
-  structuredData Json     @default("{}") // JdStructured
+  structuredData Json      @default("{}") // JdStructured
   analysisData   Json? // JdAnalysis
-  status         String   @default("captured") // captured | structured | analyzed
-  capturedAt     DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         String    @default("captured") // captured | structured | analyzed
+  capturedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   student User @relation("CareerApplicationTargetStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1158,20 +1157,20 @@ model CareerApplicationTarget {
 
 // Week 2 — 문서 버전(대표/공고맞춤). 대표 이력서를 덮어쓰지 않고 별도 버전으로 관리.
 model CareerDocumentVersion {
-  id                  String   @id @default(uuid())
+  id                  String    @id @default(uuid())
   studentUserId       String
   cohortId            String?
   documentType        String // resume | cover
-  variant             String   @default("master") // master | targeted
+  variant             String    @default("master") // master | targeted
   applicationTargetId String? // targeted 면 어느 공고 기준
-  version             Int      @default(1)
-  content             Json     @default("{}") // ResumeVersionContent | CoverVersionContent
-  sourceLinks         Json     @default("[]") // SourceLink[] — 문장별 근거/검증
+  version             Int       @default(1)
+  content             Json      @default("{}") // ResumeVersionContent | CoverVersionContent
+  sourceLinks         Json      @default("[]") // SourceLink[] — 문장별 근거/검증
   validationData      Json? // 검증 집계
   generatedBy         String? // ai | user | hybrid
   promptVersion       String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   student User @relation("CareerDocumentVersionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1251,11 +1250,11 @@ model CareerInterviewQuestion {
   question           String
   type               String
   sourceData         Json? // 생성 근거
-  evaluationCriteria Json     @default("[]")
-  difficulty         String   @default("medium")
-  order              Int      @default(0)
+  evaluationCriteria Json      @default("[]")
+  difficulty         String    @default("medium")
+  order              Int       @default(0)
   parentQuestionId   String? // 꼬리질문이면 부모
-  createdAt          DateTime @default(now())
+  createdAt          DateTime  @default(now())
 
   student User @relation("CareerInterviewQuestionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1293,13 +1292,13 @@ model CareerInterviewWeakness {
   weaknessType         String
   title                String
   evidence             Json     @default("[]")
-  severity             String   @default("medium")
-  occurrenceCount      Int      @default(1)
-  priority             Int      @default(5)
+  severity             String    @default("medium")
+  occurrenceCount      Int       @default(1)
+  priority             Int       @default(5)
   coachingStrategy     String?
-  status               String   @default("open") // open | resolved
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  status               String    @default("open") // open | resolved
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   student User @relation("CareerInterviewWeaknessStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1307,53 +1306,28 @@ model CareerInterviewWeakness {
 }
 
 // Week 4 — 오답노트(취약점 기반 재훈련 단위).
-// Career Launch 지원 현황 — 학생이 직접 기록하는 지원. 어플라이·원티드 공고(positionId) 또는 외부 공고(회사·직무·링크).
-// 단계: planned(지원 예정) → applied → doc_passed(서류 통과) → interview → offer | rejected | withdrawn. stageHistory = [{stage, at, note?}].
-// analysisData = 이 공고와 내 서류 비교(강조할 점·부족한 점·예상 질문), retroData = 불합격 회고(원인·다음 행동·연습 질문).
-model CareerApplicationRecord {
-  id              String    @id @default(uuid())
-  studentUserId   String
-  positionId      String?
-  companyName     String    @default("")
-  jobTitle        String    @default("")
-  sourceUrl       String?
-  stage           String    @default("planned")
-  stageHistory    Json      @default("[]")
-  rejectedAtStage String? // doc | interview
-  analysisData    Json?
-  retroData       Json?
-  appliedAt       DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  student User @relation("CareerApplicationRecordStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
-
-  @@unique([studentUserId, positionId])
-  @@index([studentUserId, updatedAt])
-}
-
 model CareerInterviewCorrection {
-  id                   String    @id @default(uuid())
-  studentUserId        String
-  cohortId             String?
-  weaknessId           String?
-  originalQuestionId   String?
-  originalAnswerId     String?
-  question             String    @default("")
-  questionType         String?
-  status               String    @default("discovered") // discovered|coaching|retrying|transfer_test|passed|paused|archived
-  coachingData         Json?
-  passCriteria         Json?
-  attemptCount         Int       @default(0)
-  transferAttemptCount Int       @default(0)
-  initialScore         Int?
-  latestScore          Int?
-  passedAt             DateTime?
-  passReason           Json?
-  lastPracticedAt      DateTime?
-  nextPracticeAt       DateTime?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  studentUserId       String
+  cohortId            String?
+  weaknessId          String?
+  originalQuestionId  String?
+  originalAnswerId    String?
+  question            String    @default("")
+  questionType        String?
+  status              String    @default("discovered") // discovered|coaching|retrying|transfer_test|passed|paused|archived
+  coachingData        Json?
+  passCriteria        Json?
+  attemptCount        Int       @default(0)
+  transferAttemptCount Int      @default(0)
+  initialScore        Int?
+  latestScore         Int?
+  passedAt            DateTime?
+  passReason          Json?
+  lastPracticedAt     DateTime?
+  nextPracticeAt      DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   student User @relation("CareerInterviewCorrectionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1501,20 +1475,20 @@ model CareerCohortGoal {
 }
 
 model CareerIntervention {
-  id              String    @id @default(uuid())
-  studentUserId   String
-  enrollmentId    String?
-  cohortId        String?
-  priority        String    @default("medium") // critical|high|medium|low|resolved
-  status          String    @default("open") // open|assigned|contacted|in_review|waiting_user|resolved|dismissed
-  reasonCodes     String[]  @default([])
-  evidence        Json?
-  aiSummary       Json?
+  id             String    @id @default(uuid())
+  studentUserId  String
+  enrollmentId   String?
+  cohortId       String?
+  priority       String    @default("medium") // critical|high|medium|low|resolved
+  status         String    @default("open") // open|assigned|contacted|in_review|waiting_user|resolved|dismissed
+  reasonCodes    String[]  @default([])
+  evidence       Json?
+  aiSummary      Json?
   assignedAdminId String?
-  nextReviewAt    DateTime?
-  resolvedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  nextReviewAt   DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   student User @relation("CareerInterventionStudent", fields: [studentUserId], references: [id], onDelete: Cascade)
 
@@ -1654,18 +1628,18 @@ model CareerCohort {
 
 // 기관(대학 외 기관 포함). 채용사 PartnerOrganization 과 별개(교육/운영 테넌트).
 model Organization {
-  id             String   @id @default(uuid())
-  name           String
-  type           String // university | college | vocational_school | public_agency | employment_center | nonprofit | corporate_program | other
-  status         String   @default("prospect") // prospect|onboarding|active|suspended|expired|archived
-  slug           String?  @unique
+  id            String   @id @default(uuid())
+  name          String
+  type          String // university | college | vocational_school | public_agency | employment_center | nonprofit | corporate_program | other
+  status        String   @default("prospect") // prospect|onboarding|active|suspended|expired|archived
+  slug          String?  @unique
   primaryContact String?
-  contactEmail   String?
-  timezone       String?  @default("Asia/Seoul")
-  locale         String?  @default("ko")
-  configuration  Json? // { branding, privacy, reportConfig, dataRetentionPolicy, settings }
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  contactEmail  String?
+  timezone      String?  @default("Asia/Seoul")
+  locale        String?  @default("ko")
+  configuration Json? // { branding, privacy, reportConfig, dataRetentionPolicy, settings }
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   memberships OrganizationMembership[]
   licenses    OrganizationLicense[]
@@ -2437,24 +2411,24 @@ model InterviewCreditLog {
 
 // 결제 주문(토스페이먼츠·페이앱) — id 가 주문번호(토스 orderId, 페이앱 var1). 금액·충전량은 서버 상품표로 정한다. READY → DONE | FAILED, DONE → CANCELED | PARTIAL_CANCELED.
 model PaymentOrder {
-  id             String    @id
-  userId         String
-  productKey     String
-  orderName      String
-  amount         Int
-  credits        Int
-  status         String    @default("READY")
-  provider       String    @default("toss") // 'toss' | 'payapp' — 환불 시 어느 PG 로 취소할지
-  paymentKey     String?   @unique // 토스 paymentKey, 페이앱은 결제요청번호(mul_no)
-  method         String?
-  approvedAt     DateTime?
-  failReason     String?
+  id         String    @id
+  userId     String
+  productKey String
+  orderName  String
+  amount     Int
+  credits    Int
+  status     String    @default("READY")
+  provider   String    @default("toss") // 'toss' | 'payapp' — 환불 시 어느 PG 로 취소할지
+  paymentKey String?   @unique // 토스 paymentKey, 페이앱은 결제요청번호(mul_no)
+  method     String?
+  approvedAt DateTime?
+  failReason String?
   // 환불(결제 취소) — CANCELED(전액) | PARTIAL_CANCELED(일부). cancelReason 앞에 self:/ops: 로 누가 했는지.
   canceledAt     DateTime?
   canceledAmount Int?
   cancelReason   String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([userId, createdAt])
 }
@@ -2892,41 +2866,41 @@ model SgcApplication {
 // 비회원도 신청 가능 — 연락은 이메일로 하므로 email 필수(소문자 정규화 저장).
 // 매주 2명 선정 → 자소서 전문가 1:1 상담·첨삭. 로그인 상태면 userId 만 같이 남긴다(FK 없음, VisaLead 와 동일).
 model ExperienceCampaignApplication {
-  id                  String   @id @default(uuid())
-  name                String
-  email               String // trim + lowercase
-  phone               String?
-  nationality         String?
-  desiredRole         String // 지원 직무 (자유 입력)
-  experience          String? // 경험 소개 (v1 신청만 — v2부터는 파일 첨부로 대체)
-  coverLetter         String? // 기존 자기소개서 텍스트 (v1 신청만)
+  id               String    @id @default(uuid())
+  name             String
+  email            String // trim + lowercase
+  phone            String?
+  nationality      String?
+  desiredRole      String // 지원 직무 (자유 입력)
+  experience       String? // 경험 소개 (v1 신청만 — v2부터는 파일 첨부로 대체)
+  coverLetter      String? // 기존 자기소개서 텍스트 (v1 신청만)
   // v2 — 첨부 파일(Blob URL·원래 파일 이름). 이력서는 필수, 자기소개서는 선택.
   resumeUrl           String?
   resumeFileName      String?
   coverLetterUrl      String?
   coverLetterFileName String?
-  consultMethod       String // "ONLINE" | "OFFLINE" | "ANY"
+  consultMethod    String // "ONLINE" | "OFFLINE" | "ANY"
   // 개인정보 수집·이용 동의(필수) — 동의 시각과 동의문 버전을 함께 남긴다.
-  consentPrivacyAt    DateTime
-  consentVersion      String
+  consentPrivacyAt DateTime
+  consentVersion   String
   // 사례 공개 동의(선택) — 익명 Before/After 공개. 언제든 철회 가능.
-  consentCaseStudy    Boolean  @default(false)
+  consentCaseStudy Boolean   @default(false)
   // 운영 단계 — RECEIVED → REVIEWING → SELECTED → DONE / DECLINED
-  status              String   @default("RECEIVED")
-  opsNote             String? // 운영 메모 (operator only)
-  selectedWeek        String? // 선정 주차 (예: "2026-W43")
+  status           String    @default("RECEIVED")
+  opsNote          String? // 운영 메모 (operator only)
+  selectedWeek     String? // 선정 주차 (예: "2026-W43")
   // 유입 경로 — 신청 시 URL 의 utm_* 와 document.referrer
-  utmSource           String?
-  utmMedium           String?
-  utmCampaign         String?
-  utmContent          String?
-  utmTerm             String?
-  referrer            String?
-  locale              String   @default("ko")
-  userId              String?
-  ipHash              String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  utmTerm          String?
+  referrer         String?
+  locale           String    @default("ko")
+  userId           String?
+  ipHash           String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([email])
   @@index([status])
