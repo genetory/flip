@@ -158,6 +158,13 @@ export type ClaudeJsonResult<T> = { data: T | null; raw: string; usage?: LlmUsag
 export async function claudeJson<T = Record<string, unknown>>(
   a: BaseArgs & { schema?: Record<string, unknown> }
 ): Promise<ClaudeJsonResult<T>> {
+  const r = await claudeJsonInner<T>(a);
+  // 실패는 호출부가 조용히 빈 결과로 처리하는 곳이 많다 — 원인을 운영 로그에서 볼 수 있게 남긴다.
+  if (!r.data) console.warn(`[llm] ${a.model} json failed: ${r.error ?? "unknown"}`, r.raw ? `raw=${r.raw.slice(0, 200)}` : "");
+  return r;
+}
+
+async function claudeJsonInner<T>(a: BaseArgs & { schema?: Record<string, unknown> }): Promise<ClaudeJsonResult<T>> {
   let anthropic: Anthropic;
   try {
     anthropic = client();
@@ -210,6 +217,5 @@ export async function claudeJson<T = Record<string, unknown>>(
 /** 기존 `JSON.parse(raw)` 호출부용 — JSON 객체 문자열을 돌려준다(실패하면 "{}"). */
 export async function claudeJsonRaw(a: BaseArgs & { schema?: Record<string, unknown> }): Promise<string> {
   const r = await claudeJson(a);
-  if (!r.data && r.error) console.warn(`[llm] ${a.model} json failed:`, r.error);
   return r.data ? JSON.stringify(r.data) : "{}";
 }

@@ -16497,7 +16497,10 @@ app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole
     const frequent = counted.filter((x) => x.count >= min).sort((a, b) => b.count - a.count).slice(0, 8);
     const commons = counted.filter((x) => x.common && !frequent.includes(x)).sort((a, b) => b.count - a.count);
     const top = [...frequent, ...commons].slice(0, 12);
-    if (!top.length) return res.json({ ok: true, total, items: [] });
+    if (!top.length) {
+      console.warn("[ai/role-checklist] empty", { role, jobs: total, commonOk: Boolean(commonRes.data), chunkOk: results.filter((r) => r.data).length, chunks: results.length, merged: merged.size, groups: dedup.length });
+      return res.json({ ok: true, total, items: [] });
+    }
 
     const literal = top.map((x) => [...x.aliases].some((a) => hasTerm(profile, a)));
     const needJudge = top.map((x, i) => ({ x, i })).filter(({ x, i }) => x.category === "experience" && !/^[\x00-\x7F]+$/.test(x.name) && !literal[i]);
