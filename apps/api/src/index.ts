@@ -682,6 +682,8 @@ async function postFeedbackToDiscord(input: {
 // 웹훅 URL은 시크릿이라 소스에 하드코딩하지 않는다(PUBLIC 레포). env 로만 주입.
 const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL?.trim() ?? "";
 const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
+// 인재 검색에서 기업이 '연결 요청'을 보낼 때 운영팀 알림. 전용 채널이 없으면 포지션 지원 채널로 보낸다.
+const discordCandidateConnectWebhookUrl = process.env.DISCORD_CANDIDATE_CONNECT_WEBHOOK_URL?.trim() || discordPositionApplyWebhookUrl;
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
 const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 // 자소서 경험 발굴 캠페인(/experience) 신규 신청 알림 — 주소는 앱 설정에만(공개 레포라 코드에 넣지 않는다).
@@ -1233,6 +1235,55 @@ async function sendCommunityPostDiscordNotification(input: {
     console.error("community_post_discord_webhook_error", {
       error: getErrorMessage(error)
     });
+  }
+}
+
+// 기업 → 인재 연결 요청 알림. 실패해도 요청 저장은 끝난 상태라 로그만 남긴다.
+async function sendCandidateConnectDiscordNotification(input: {
+  requestId: string;
+  organizationName: string | null;
+  requesterName: string | null;
+  requesterEmail: string | null;
+  candidateUserId: string;
+  candidateName: string | null;
+  candidateAffiliation: string | null;
+  message: string | null;
+  createdAt: Date;
+}) {
+  if (!discordCandidateConnectWebhookUrl) return;
+  const cut = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+  const requester = [input.requesterName, input.requesterEmail].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  const candidate = [input.candidateName, input.candidateAffiliation].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0b46e8,
+        title: "🤝 인재 연결 요청",
+        description: input.message?.trim() ? cut(input.message.trim(), 1500) : "(메시지 없음)",
+        fields: [
+          { name: "기업", value: cut(input.organizationName?.trim() || "-", 256), inline: true },
+          { name: "요청자", value: cut(requester || "-", 256), inline: true },
+          { name: "인재", value: cut(candidate || "-", 256), inline: true },
+          { name: "인재 ID", value: input.candidateUserId, inline: true },
+          { name: "Env", value: resolveRuntimeEnvironment(), inline: true },
+          { name: "인재 보기", value: `[파트너 인재 상세](${platformWebUrl}/partner/talent/${encodeURIComponent(input.candidateUserId)})`, inline: false }
+        ],
+        footer: { text: `Aply • Candidate Connect · ${input.requestId.slice(0, 8)}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordCandidateConnectWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) console.error("candidate_connect_discord_webhook_failed", { status: response.status });
+  } catch (error) {
+    console.error("candidate_connect_discord_webhook_error", { error: getErrorMessage(error) });
   }
 }
 
@@ -33120,6 +33171,23 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
     });
     emitTalentEvent(candidateUserId, TalentEventType.INTERVIEW_INVITED, { actorType: "company", entityType: "connection", entityId: created.id, metadata: { partnerOrganizationId: affiliation?.organization?.id ?? null } });
     const orgName = affiliation?.organization?.name ?? "운영팀";
+    void (async () => {
+      const [requester, candidate] = await Promise.all([
+        prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true, realName: true, email: true } }),
+        prisma.user.findUnique({ where: { id: candidateUserId }, select: { name: true, realName: true, affiliation: true } })
+      ]);
+      await sendCandidateConnectDiscordNotification({
+        requestId: created.id,
+        organizationName: affiliation?.organization?.name ?? null,
+        requesterName: requester?.realName || requester?.name || null,
+        requesterEmail: requester?.email ?? null,
+        candidateUserId,
+        candidateName: candidate?.realName || candidate?.name || null,
+        candidateAffiliation: candidate?.affiliation ?? null,
+        message: parsed.data.message ?? null,
+        createdAt: created.createdAt
+      });
+    })().catch((e) => console.error("[partner/connect] discord notify failed", e));
     await createNotification({
       userId: candidateUserId,
       type: "CANDIDATE_CONNECTION_REQUEST",
