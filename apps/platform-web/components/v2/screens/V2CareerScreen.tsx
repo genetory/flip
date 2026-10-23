@@ -703,11 +703,17 @@ export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; i
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [all, setAll] = useState(false);
+  const [thin, setThin] = useState(false);
   const result = saved[current] ?? null;
   const roleLabel = jobTaxonomyLabelOf(t, current);
 
   const run = async () => {
     const profile = profileText(t, resume, cover);
+    // 서버 기준(30자)과 같다 — 미만이면 요청하지 않고 팝업으로 채울 곳을 안내한다.
+    if (profile.trim().length < 30) {
+      setThin(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -910,6 +916,33 @@ export function RoleChecklist({ t, interests, resume, cover }: { t: PlatformT; i
         </div>
       )}
       {error ? <p className="pb-3 text-[14px] text-[color:var(--v2-attention)]">{error}</p> : null}
+      {thin ? (
+        <Sheet
+          title={t("비교할 서류 내용이 부족해요", "Not enough to compare yet", "材料内容不足，无法比较", "Chưa đủ nội dung để so sánh", "比較できる内容が足りません", "Belum cukup untuk dibandingkan")}
+          onClose={() => setThin(false)}
+          footer={
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="neutral" full onClick={() => setThin(false)}>
+                {t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")}
+              </Button>
+              <Button full href={R.resume}>
+                {t("이력서 채우기", "Fill resume", "填写简历", "Điền hồ sơ", "履歴書を書く", "Isi resume")}
+              </Button>
+            </div>
+          }
+        >
+          <p className="text-[16px] leading-[1.65] text-[color:var(--v2-ink-2)]">
+            {t(
+              `'${roleLabel}'에 필요한 것과 비교하려면 이력서나 자기소개서에 해 본 일·쓸 줄 아는 기술·자격증을 조금 더 적어 주세요. 몇 줄만 있어도 비교할 수 있어요.`,
+              `To compare with what '${roleLabel}' needs, add a bit more to your resume or cover letter — things you've done, tools you use, certificates. A few lines is enough.`,
+              `要与'${roleLabel}'的要求比较，请在简历或自我介绍中多写一些做过的事、会用的技能和证书。几行就够了。`,
+              `Để so sánh với yêu cầu của '${roleLabel}', hãy viết thêm việc đã làm, kỹ năng, chứng chỉ vào hồ sơ hoặc thư. Vài dòng là đủ.`,
+              `「${roleLabel}」に必要なものと比べるには、履歴書か自己PRにやったこと・使えるスキル・資格をもう少し書いてください。数行で大丈夫です。`,
+              `Untuk membandingkan dengan kebutuhan '${roleLabel}', tambahkan pengalaman, keahlian, atau sertifikat di resume atau surat lamaran. Beberapa baris sudah cukup.`
+            )}
+          </p>
+        </Sheet>
+      ) : null}
     </Section>
   );
 }

@@ -16408,6 +16408,7 @@ app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STU
 //     고비용 모델이라 프리미엄 캡에 포함.
 const roleChecklistSchema = z.object({
   role: z.string().min(1).max(60),
+  // 화면(RoleChecklist)도 같은 기준(30자)으로 먼저 막고 팝업으로 안내한다 — 둘을 같이 바꿀 것.
   profile: z.string().min(30).max(8000),
   jobs: z
     .array(z.object({ title: z.string().max(200), required: z.string().max(800).optional(), preferred: z.string().max(600).optional() }))
