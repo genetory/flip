@@ -2,15 +2,15 @@
 // LLM 품질 평가 하니스 러너.
 //
 // 사용:
-//   OPENAI_API_KEY=sk-... npx tsx src/eval/run.ts            # 라이브 실행(생성 + 규칙검사 + LLM judge)
+//   ANTHROPIC_API_KEY=... npx tsx src/eval/run.ts           # 라이브 실행(생성 + 규칙검사 + LLM judge)
 //   npx tsx src/eval/run.ts --dry                            # 프롬프트만 조립해 출력(모델 호출 없음)
 //   npx tsx src/eval/run.ts --selftest                       # 규칙검사 로직 자체 점검(모델 불필요)
 //   npx tsx src/eval/run.ts --feature cover_letter           # 특정 기능만
 //   npx tsx src/eval/run.ts --no-judge                       # 규칙검사만(judge 생략, 비용 절감)
 //
 // 환경변수:
-//   EVAL_GENERATOR_MODEL (기본 = OPENAI_TRANSLATION_MODEL = gpt-4o-mini, 즉 프로덕션과 동일)
-//   EVAL_JUDGE_MODEL     (기본 gpt-4o)
+//   EVAL_GENERATOR_MODEL (기본 = 기능별 프로덕션 모델, features.ts)
+//   EVAL_JUDGE_MODEL     (기본 claude-opus-5-5 — 생성 모델보다 강한 모델로 채점)
 //
 // 결과: eval-report/report-<timestamp>.json + 콘솔 요약 표. promptVersion 별로 비교하려면
 // 프롬프트를 바꾼 뒤 다시 돌려 avgCheckScore·avgJudgeOverall 변화를 본다.
@@ -18,7 +18,6 @@
 // 프롬프트 비교는 --repeat 5 이상을 권장한다(경계 케이스가 표본 하나로 뒤집힌 전례 있음).
 import { promises as fs } from "fs";
 import path from "path";
-import OpenAI from "openai";
 import { FEATURES } from "./features";
 import { stripCliches } from "../llm/prompts";
 import { generateJson } from "../llm/generate";
@@ -38,7 +37,7 @@ const DRY = has("--dry");
 const SELFTEST = has("--selftest");
 const NO_JUDGE = has("--no-judge");
 const FEATURE = opt("--feature") as FeatureId | undefined;
-const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "gpt-4o";
+const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "claude-opus-5-5";
 // 생성 온도(0.6)로 인해 단일 런 점수는 흔들린다. --repeat N 으로 케이스당 N번 생성·평가해
 // 평균을 내면 프롬프트 변경의 신호가 노이즈 위로 올라온다(judge 는 temp 0 이라 출력이 고정되면 재현적).
 const REPEAT = Math.max(1, Number(opt("--repeat") ?? "1") || 1);
@@ -85,12 +84,10 @@ function dry(): void {
 }
 
 async function live(): Promise<void> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    console.error("OPENAI_API_KEY 가 없습니다. --dry 로 프롬프트만 보거나 키를 설정해 실행하세요.");
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error("ANTHROPIC_API_KEY 가 없습니다. --dry 로 프롬프트만 보거나 키를 설정해 실행하세요.");
     process.exit(2);
   }
-  const openai = new OpenAI({ apiKey });
   const cases = selectCases();
   const results: CaseResult[] = [];
   const generatorModel = FEATURES[cases[0]?.feature ?? "cover_letter"].model();
@@ -111,8 +108,7 @@ async function live(): Promise<void> {
       let error: string | undefined;
       try {
         // 프로덕션과 동일한 구조화 생성 경로(json_schema + 폴백).
-        const { data, via, error: genErr } = await generateJson<Record<string, unknown>>({
-          openai,
+        const { data, error: genErr } = await generateJson<Record<string, unknown>>({
           model: spec.model(),
           temperature: spec.temperature,
           system,
@@ -121,7 +117,6 @@ async function live(): Promise<void> {
           schemaName: spec.schemaName
         });
         if (genErr) error = genErr;
-        if (via === "chat") console.log(`      · ${c.id}: 구조화(responses) 실패 → chat 폴백`);
         // 프로덕션 파이프라인과 동일하게 상투어 정리를 적용해 '실제 출력'을 평가한다.
         output = stripCliches(spec.extract(data ?? {}).trim());
         if (!output && !error) error = "empty_output";
@@ -134,7 +129,7 @@ async function live(): Promise<void> {
       let judge;
       if (output && !NO_JUDGE) {
         try {
-          judge = await judgeCase(openai, c, output, JUDGE_MODEL);
+          judge = await judgeCase(c, output, JUDGE_MODEL);
         } catch (e) {
           error = (error ? error + "; " : "") + "judge_failed:" + ((e as Error).message?.slice(0, 80) ?? "");
         }

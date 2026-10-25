@@ -280,7 +280,8 @@ function HomeCompanies() {
 }
 
 /* 최상단 피처드 배너 — 광고·이벤트 (무한 루프 캐러셀 + 페이지 도트 + 자동 넘김) */
-function FeaturedBanners() {
+// 리뉴얼 v2 홈도 같은 배너(사주·MBTI)를 그대로 쓴다.
+export function FeaturedBanners() {
   const t = usePlatformT();
   const banners = featuredBanners(t);
   const ref = useRef<HTMLDivElement>(null);

@@ -107,12 +107,12 @@ export function TermsContent() {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
-            "시행일: 2026년 1월 1일",
-            "Effective date: January 1, 2026",
-            "生效日期：2026年1月1日",
-            "Ngày hiệu lực: 1 tháng 1 năm 2026",
-            "施行日：2026年1月1日",
-            "Tanggal berlaku: 1 Januari 2026"
+            "공고일: 2026년 10월 13일 · 시행일: 2026년 10월 20일",
+            "Published: October 13, 2026 · Effective: October 20, 2026",
+            "公布日期：2026年10月13日 · 生效日期：2026年10月20日",
+            "Ngày công bố: 13/10/2026 · Ngày hiệu lực: 20/10/2026",
+            "公示日：2026年10月13日 · 施行日：2026年10月20日",
+            "Diumumkan: 13 Oktober 2026 · Berlaku: 20 Oktober 2026"
           )}
         </p>
 
@@ -258,6 +258,16 @@ export function TermsContent() {
                   "Hỗ trợ kết nối sự nghiệp",
                   "キャリアネットワーキング支援",
                   "Dukungan jaringan karier"
+                )}
+              </li>
+              <li>
+                {t(
+                  "기업 인재 검색: 회원이 작성한 이력서·자기소개서를 성명·연락처 등 식별 정보를 가린 형태로 기업 회원에게 보여 주고, 회원이 기업의 연결 요청을 수락한 경우에 한해 연락처를 공개하는 서비스(회원은 설정에서 언제든 노출을 끌 수 있습니다)",
+                  "Company talent search: showing members' resumes and cover letters to corporate members with identifying information such as name and contact hidden, and disclosing contact details only when the member accepts a company's connection request (members can turn off visibility anytime in Settings)",
+                  "企业人才搜索：以隐藏姓名、联系方式等识别信息的形式向企业会员展示会员撰写的简历和自我介绍，仅在会员接受企业的连接请求时公开联系方式（会员可随时在设置中关闭展示）",
+                  "Tìm kiếm nhân tài: hiển thị CV và thư giới thiệu của thành viên cho doanh nghiệp với thông tin nhận dạng như họ tên, liên hệ được ẩn, và chỉ công khai liên hệ khi thành viên chấp nhận yêu cầu kết nối (có thể tắt trong Cài đặt)",
+                  "企業の人材検索：会員が作成した履歴書・自己紹介書を氏名・連絡先など識別情報を隠した形で企業会員に表示し、会員が企業のつながり申請を承諾した場合に限り連絡先を公開するサービス（会員は設定でいつでも表示をオフにできます）",
+                  "Pencarian talenta perusahaan: menampilkan CV dan surat lamaran anggota kepada anggota perusahaan dengan identitas seperti nama dan kontak disembunyikan, dan membuka kontak hanya jika anggota menerima permintaan koneksi (dapat dinonaktifkan di Pengaturan)"
                 )}
               </li>
             </ul>
@@ -492,12 +502,12 @@ export function TermsContent() {
             </h2>
             <p className="mt-2 text-muted-foreground">
               {t(
-                "본 약관은 2026년 1월 1일부터 시행합니다.",
-                "These Terms take effect on January 1, 2026.",
-                "本条款自2026年1月1日起施行。",
-                "Điều khoản này có hiệu lực từ ngày 1 tháng 1 năm 2026.",
-                "本規約は2026年1月1日から施行します。",
-                "Ketentuan ini berlaku mulai 1 Januari 2026."
+                "본 약관은 2026년 10월 20일부터 시행합니다.",
+                "These Terms take effect on October 20, 2026.",
+                "本条款自2026年10月20日起施行。",
+                "Điều khoản này có hiệu lực từ ngày 20 tháng 10 năm 2026.",
+                "本規約は2026年10月20日から施行します。",
+                "Ketentuan ini berlaku mulai 20 Oktober 2026."
               )}
             </p>
           </div>

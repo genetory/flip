@@ -7,11 +7,11 @@
 //     npx tsx apps/api/scripts/create-english-resume-for-student.ts
 
 import { PrismaClient, Prisma } from "@prisma/client";
-import OpenAI from "openai";
+import { claudeJsonRaw, hasLlm, LIGHT_MODEL } from "../src/llm/claude";
 
 const prisma = new PrismaClient();
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-const model = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
+const llmReady = hasLlm();
+const model = LIGHT_MODEL;
 const TARGET_EMAIL = "student@test.com";
 
 const content = {
@@ -70,18 +70,9 @@ const SYSTEM_PROMPT =
   "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. 원문에 있는 사실만 사용하고, 새 사실/수치/회사명/날짜를 추가하지 마세요. 회사명·학교명은 영문 그대로 두거나 (한국어 표기) 형태로 자연스럽게 표기. JSON 한 개의 객체만 응답: { \"ko\": string }";
 
 async function translateOne(text: string): Promise<string | null> {
-  if (!openai) return null;
+  if (!llmReady) return null;
   try {
-    const completion = await openai.chat.completions.create({
-      model,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: text }
-      ]
-    });
-    const raw = completion.choices?.[0]?.message?.content ?? "";
+    const raw = await claudeJsonRaw({ model, system: SYSTEM_PROMPT, user: text });
     const parsed = JSON.parse(raw) as { ko?: unknown };
     return typeof parsed.ko === "string" ? parsed.ko.trim() : null;
   } catch (e) {

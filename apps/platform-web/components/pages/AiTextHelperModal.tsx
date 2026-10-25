@@ -317,12 +317,12 @@ export function AiTextHelperModal({
             <div className="mt-4 space-y-3 text-[13px] leading-relaxed text-foreground/85">
               <p>
                 {tr(
-                  "입력하신 내용·키워드가 분석을 위해 OpenAI 의 GPT 모델로 전송됩니다.",
-                  "Your input will be sent to OpenAI's GPT model for analysis.",
-                  "您输入的内容/关键词将发送至 OpenAI GPT 模型进行分析。",
-                  "Nội dung bạn nhập sẽ được gửi đến mô hình GPT của OpenAI để phân tích.",
-                  "入力した内容・キーワードは分析のためOpenAIのGPTモデルに送信されます。",
-                  "Konten yang Anda masukkan akan dikirim ke model GPT OpenAI untuk dianalisis."
+                  "입력하신 내용·키워드가 분석을 위해 Anthropic 의 Claude 모델로 전송됩니다.",
+                  "Your input will be sent to Anthropic's Claude model for analysis.",
+                  "您输入的内容/关键词将发送至 Anthropic Claude 模型进行分析。",
+                  "Nội dung bạn nhập sẽ được gửi đến mô hình Claude của Anthropic để phân tích.",
+                  "入力した内容・キーワードは分析のためAnthropicのClaudeモデルに送信されます。",
+                  "Konten yang Anda masukkan akan dikirim ke model Claude Anthropic untuk dianalisis."
                 )}
               </p>
               <p>

@@ -27,18 +27,18 @@ export function CareerLaunchIntro({ className = "" }: { className?: string }) {
   ];
 
   return (
-    <div className={`overflow-hidden rounded-2xl border border-[#E7EDFB] bg-[#F8FAFF] ${className}`}>
+    <div className={`overflow-hidden rounded-3xl bg-[color:var(--v2-band)] ${className}`}>
       <img
         src="/img_global_career_launch.webp"
         alt={t("Career Launch", "Career Launch", "Career Launch", "Career Launch", "Career Launch", "Career Launch")}
         className="block h-auto w-full"
         loading="lazy"
       />
-      <div className="p-5">
-      <span className="inline-flex items-center rounded-full bg-[#0B46E8] px-2.5 py-0.5 text-[11px] font-bold text-white">
+      <div className="p-5 md:p-6">
+      <span className="inline-flex items-center rounded-full bg-[color:var(--v2-accent-weak)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)]">
         {t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah")}
       </span>
-      <p className="mt-2.5 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">
+      <p className="mt-3 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
         {t(
           "AI 코치와 함께 취업 진단부터 이력서·자기소개서·모의면접까지 4단계에 걸쳐 끝내고, 완성한 서류로 APLY 채용에 바로 연결돼요.",
           "With an AI coach, finish everything from a career check to your resume, cover letter, and mock interview across 4 steps — then connect straight to APLY hiring with your completed docs.",
@@ -50,11 +50,11 @@ export function CareerLaunchIntro({ className = "" }: { className?: string }) {
       </p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         {steps.map((s, i) => (
-          <div key={i} className="flex items-center gap-2 rounded-xl border border-[#EEF1F5] bg-white px-3 py-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[#0B46E8]">
+          <div key={i} className="flex min-w-0 items-center gap-2 rounded-2xl bg-white px-2.5 py-3 min-[360px]:px-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">
               <s.icon className="h-4 w-4" weight="fill" />
             </span>
-            <span className="min-w-0 text-[12.5px] font-semibold leading-tight text-[#191F28]">{s.label}</span>
+            <span className="min-w-0 text-[13px] font-semibold leading-tight text-[color:var(--v2-ink-2)]">{s.label}</span>
           </div>
         ))}
       </div>

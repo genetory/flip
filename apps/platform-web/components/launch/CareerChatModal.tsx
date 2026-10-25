@@ -29,5 +29,5 @@ export function CareerChatModal({ onClose, children }: { onClose: () => void; ch
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div className="fixed inset-0 z-[60] bg-[#F1F1F4]">{children}</div>;
+  return <div className="fixed inset-0 z-[60] bg-white">{children}</div>;
 }

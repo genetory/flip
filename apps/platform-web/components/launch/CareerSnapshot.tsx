@@ -20,10 +20,10 @@ type Snap = {
 function Stat({ label, value, suffix }: { label: string; value: number | null; suffix?: string }) {
   return (
     <div>
-      <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{label}</p>
-      <p className="mt-1 text-[24px] font-black leading-none tracking-[-0.02em] text-[#0B1227]">
-        {value == null ? <span className="text-[#D1D6DB]">—</span> : value}
-        {value != null && suffix ? <span className="text-[13px] font-bold text-[#B0B8C1]"> {suffix}</span> : null}
+      <p className="text-[12px] font-semibold text-[color:var(--v2-faint)]">{label}</p>
+      <p className="mt-1 text-[24px] font-bold leading-none tracking-[-0.02em] text-[color:var(--v2-ink)]">
+        {value == null ? <span className="text-[color:var(--v2-line)]">—</span> : value}
+        {value != null && suffix ? <span className="text-[13px] font-bold text-[color:var(--v2-faint)]"> {suffix}</span> : null}
       </p>
     </div>
   );
@@ -58,21 +58,21 @@ export function CareerSnapshot() {
   return (
     <div>
       <SectionTitle sub={t("각 주차에서 만든 점수와 경험을 한눈에 모았어요", "Your scores and experiences from each week, at a glance", "汇总各周生成的分数与经验，一目了然", "Tổng hợp điểm và kinh nghiệm từ mỗi tuần", "各週で作ったスコアと経験を一目で", "Skor dan pengalaman tiap minggu dalam sekilas")}>{t("내 커리어 스냅샷", "My career snapshot", "我的职业快照", "Ảnh chụp nghề của tôi", "私のキャリアスナップショット", "Snapshot karierku")}</SectionTitle>
-      <div className="rounded-3xl border border-[#EEF1F5] bg-white p-6 md:p-7">
+      <div className="rounded-3xl bg-[color:var(--v2-band)] p-6 md:p-7">
         {snap.career != null ? (
-          <div className="flex items-end justify-between gap-4 border-b border-[#F2F4F6] pb-5">
+          <div className="flex items-end justify-between gap-4 border-b border-[color:var(--v2-line)] pb-5">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">Career Score</p>
-              <p className="mt-1.5 text-[46px] font-black leading-none tracking-[-0.03em] text-[#0B1227]">
+              <p className="text-[13px] font-semibold text-[color:var(--v2-accent)]">Career Score</p>
+              <p className="mt-1.5 text-[46px] font-bold leading-none tracking-[-0.03em] text-[color:var(--v2-ink)]">
                 {snap.career}
-                <span className="text-[18px] font-bold text-[#B0B8C1]"> / 100</span>
+                <span className="text-[18px] font-bold text-[color:var(--v2-faint)]"> / 100</span>
               </p>
             </div>
             {snap.before != null && snap.before !== snap.career ? (
               <div className="text-right">
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("시작 대비", "Since start", "较起点", "So với đầu", "開始比", "Sejak awal")}</p>
-                <p className="mt-1 text-[18px] font-black tabular-nums text-[#B0B8C1]">
-                  {snap.before} → <span className="text-[#0A9B59]">{snap.career}</span>
+                <p className="text-[12px] font-semibold text-[color:var(--v2-faint)]">{t("시작 대비", "Since start", "较起点", "So với đầu", "開始比", "Sejak awal")}</p>
+                <p className="mt-1 text-[18px] font-bold tabular-nums text-[color:var(--v2-faint)]">
+                  {snap.before} → <span className="text-[color:var(--v2-good)]">{snap.career}</span>
                 </p>
               </div>
             ) : null}
@@ -87,8 +87,8 @@ export function CareerSnapshot() {
         </div>
 
         {snap.topRole ? (
-          <p className="mt-5 border-t border-[#F2F4F6] pt-4 text-[13px] text-[#4E5968]">
-            {t("추천 직무", "Top role", "推荐职务", "Nghề gợi ý", "おすすめ職種", "Peran teratas")} · <span className="font-bold text-[#191F28]">{snap.topRole}</span>
+          <p className="mt-5 border-t border-[color:var(--v2-line)] pt-4 text-[14px] text-[color:var(--v2-ink-3)]">
+            {t("추천 직무", "Top role", "推荐职务", "Nghề gợi ý", "おすすめ職種", "Peran teratas")} · <span className="font-bold text-[color:var(--v2-ink)]">{snap.topRole}</span>
           </p>
         ) : null}
       </div>

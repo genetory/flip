@@ -112,29 +112,29 @@ export default function CareerSurveyPage() {
   }
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-[#F2F4F6]">
+    <div className="isolate flex min-h-screen flex-col bg-[color:var(--v2-bg,#fff)]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1">
         <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
-          <Link href="/career-launch/dashboard" className="text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">← {t("대시보드", "Dashboard", "仪表板", "Bảng điều khiển", "ダッシュボード", "Dasbor")}</Link>
-          <h1 className="mt-4 text-[26px] font-extrabold tracking-tight text-[#191F28]">{t("취업 성과 설문", "Employment outcome survey", "就业成果调查", "Khảo sát kết quả việc làm", "就職成果アンケート", "Survei hasil kerja")}</h1>
-          <p className="mt-2 text-[14px] leading-relaxed text-[#4E5968]">
+          <Link href="/career-launch/dashboard" className="text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">← {t("대시보드", "Dashboard", "仪表板", "Bảng điều khiển", "ダッシュボード", "Dasbor")}</Link>
+          <h1 className="mt-4 text-[26px] font-bold leading-[1.38] tracking-[-0.02em] md:text-[30px] text-[color:var(--v2-ink)]">{t("취업 성과 설문", "Employment outcome survey", "就业成果调查", "Khảo sát kết quả việc làm", "就職成果アンケート", "Survei hasil kerja")}</h1>
+          <p className="mt-2.5 text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {t("프로그램 이후 취업 진행 상황을 알려주세요. 여러분의 성과는 프로그램을 더 좋게 만드는 데 쓰입니다.", "Let us know how your job search is going after the program. Your outcomes help make the program better.", "请告诉我们项目结束后的求职进展。您的成果将帮助我们改进项目。", "Hãy cho chúng tôi biết tiến trình tìm việc sau chương trình. Kết quả của bạn giúp cải thiện chương trình.", "プログラム後の就職状況を教えてください。皆さんの成果はプログラムの改善に活用されます。", "Beri tahu kami perkembangan pencarian kerja Anda setelah program. Hasil Anda membantu meningkatkan program.")}
           </p>
 
           {loading ? (
-            <div className="mt-6 flex items-center gap-2 rounded-2xl bg-white p-5 text-[14px] text-[#8B95A1] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+            <div className="mt-6 flex items-center gap-2 rounded-3xl bg-[color:var(--v2-band)] p-5 text-[14px] text-[color:var(--v2-faint)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
           ) : error && !data ? (
-            <div className="mt-6 rounded-2xl bg-white p-5 text-[14px] text-[#e5484d] shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">{error}</div>
+            <div className="mt-6 rounded-3xl bg-[color:var(--v2-band)] p-5 text-[14px] text-[color:var(--v2-attention)]">{error}</div>
           ) : (
             <>
-              <div className="mt-6 rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,.04),0_4px_16px_rgba(0,0,0,.05)]">
-                <p className="text-[15px] font-bold text-[#191F28]">{t("현재 취업 상태", "Current employment status", "当前就业状态", "Tình trạng việc làm hiện tại", "現在の就職状況", "Status kerja saat ini")}</p>
+              <div className="mt-6 rounded-3xl bg-[color:var(--v2-band)] p-5 md:p-6">
+                <p className="text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("현재 취업 상태", "Current employment status", "当前就业状态", "Tình trạng việc làm hiện tại", "現在の就職状況", "Status kerja saat ini")}</p>
                 <div className="mt-3 flex flex-col gap-2">
                   {OPTIONS.map((o) => (
-                    <label key={o.value} className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3.5 py-3 text-[14px] font-semibold transition ${status === o.value ? "bg-[#e8f2fe] text-[#1b64da]" : "bg-[#f7f8fa] text-[#4E5968] hover:bg-[#eef0f3]"}`}>
-                      <input type="radio" name="status" checked={status === o.value} onChange={() => setStatus(o.value)} className="accent-[#3182f6]" />
+                    <label key={o.value} className={`flex cursor-pointer items-center gap-2.5 rounded-2xl px-4 py-3.5 text-[15px] font-semibold transition ${status === o.value ? "bg-white text-[color:var(--v2-accent)] ring-2 ring-[color:var(--v2-accent)]" : "bg-white text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-fill)]"}`}>
+                      <input type="radio" name="status" checked={status === o.value} onChange={() => setStatus(o.value)} className="accent-[color:var(--v2-accent)]" />
                       {statusLabel(t, o.value)}
                     </label>
                   ))}
@@ -143,24 +143,24 @@ export default function CareerSurveyPage() {
                 {needsCompany ? (
                   <div className="mt-4 flex flex-col gap-3">
                     <label className="flex flex-col gap-1.5">
-                      <span className="text-[12px] font-bold text-[#8B95A1]">{t("회사명", "Company name", "公司名称", "Tên công ty", "会社名", "Nama perusahaan")}</span>
-                      <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={t("예: 플리퍼스", "e.g. Flipers", "例：Flipers", "vd: Flipers", "例：Flipers", "mis. Flipers")} className="rounded-xl bg-[#f7f8fa] px-3.5 py-2.5 text-[14px] outline-none placeholder:text-[#B0B8C1]" />
+                      <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("회사명", "Company name", "公司名称", "Tên công ty", "会社名", "Nama perusahaan")}</span>
+                      <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder={t("예: 플리퍼스", "e.g. Flipers", "例：Flipers", "vd: Flipers", "例：Flipers", "mis. Flipers")} className="h-12 rounded-2xl bg-white px-4 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2 placeholder:text-[color:var(--v2-faint)]" />
                     </label>
                     <label className="flex flex-col gap-1.5">
-                      <span className="text-[12px] font-bold text-[#8B95A1]">{t("직무 (선택)", "Role (optional)", "职务（选填）", "Vị trí (tùy chọn)", "職務（任意）", "Peran (opsional)")}</span>
-                      <input value={position} onChange={(e) => setPosition(e.target.value)} placeholder={t("예: 마케팅", "e.g. Marketing", "例：市场营销", "vd: Marketing", "例：マーケティング", "mis. Marketing")} className="rounded-xl bg-[#f7f8fa] px-3.5 py-2.5 text-[14px] outline-none placeholder:text-[#B0B8C1]" />
+                      <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("직무 (선택)", "Role (optional)", "职务（选填）", "Vị trí (tùy chọn)", "職務（任意）", "Peran (opsional)")}</span>
+                      <input value={position} onChange={(e) => setPosition(e.target.value)} placeholder={t("예: 마케팅", "e.g. Marketing", "例：市场营销", "vd: Marketing", "例：マーケティング", "mis. Marketing")} className="h-12 rounded-2xl bg-white px-4 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] focus:ring-2 placeholder:text-[color:var(--v2-faint)]" />
                     </label>
                   </div>
                 ) : null}
 
-                {error ? <p className="mt-3 text-[12.5px] font-semibold text-[#e5484d]">{error}</p> : null}
-                {saved ? <p className="mt-3 text-[12.5px] font-semibold text-[#3182f6]">{t("제출되었습니다. 감사합니다!", "Submitted. Thank you!", "已提交，谢谢！", "Đã gửi. Cảm ơn bạn!", "送信されました。ありがとうございます！", "Terkirim. Terima kasih!")}</p> : null}
+                {error ? <p className="mt-3 text-[12.5px] font-semibold text-[color:var(--v2-attention)]">{error}</p> : null}
+                {saved ? <p className="mt-3 text-[12.5px] font-semibold text-[color:var(--v2-accent)]">{t("제출되었습니다. 감사합니다!", "Submitted. Thank you!", "已提交，谢谢！", "Đã gửi. Cảm ơn bạn!", "送信されました。ありがとうございます！", "Terkirim. Terima kasih!")}</p> : null}
 
                 <button
                   type="button"
                   onClick={() => void submit()}
                   disabled={saving}
-                  className="mt-5 w-full rounded-xl bg-[#3182f6] px-4 py-3 text-[14px] font-bold text-white transition-all disabled:opacity-60"
+                  className="mt-5 h-12 w-full rounded-xl bg-[color:var(--v2-accent)] px-4 text-[16px] font-semibold text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
                 >
                   {saving ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("제출하기", "Submit", "提交", "Gửi", "送信する", "Kirim")}
                 </button>

@@ -218,12 +218,12 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   // UX Phase 3 — 상담 시작 화면(빈 채팅창으로 시작하지 않음). 시작 클릭 시 실제 상담 진입.
   if (!started) {
     return (
-      <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+      <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
         {embedded ? (
-          <div className="border-b border-[#EEF1F5]">
+          <div className="border-b border-[color:var(--v2-line)]">
             <div className="mx-auto w-full max-w-5xl px-5 py-3">
-              <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-              <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("1:1 커리어 상담", "1:1 career coaching", "1:1 职业咨询", "Tư vấn nghề 1:1", "1:1キャリア相談", "Konseling karier 1:1")}</p>
+              <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+              <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("1:1 커리어 상담", "1:1 career coaching", "1:1 职业咨询", "Tư vấn nghề 1:1", "1:1キャリア相談", "Konseling karier 1:1")}</p>
             </div>
           </div>
         ) : (
@@ -251,12 +251,12 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
   }
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
       {embedded ? (
-        <div className="border-b border-[#EEF1F5]">
+        <div className="border-b border-[color:var(--v2-line)]">
           <div className="mx-auto w-full max-w-5xl px-5 py-3">
-            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-            <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("관심 직무 찾기", "Find your roles", "寻找兴趣职务", "Tìm nghề quan tâm", "関心のある職種探し", "Cari peran diminati")}</p>
+            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("관심 직무 찾기", "Find your roles", "寻找兴趣职务", "Tìm nghề quan tâm", "関心のある職種探し", "Cari peran diminati")}</p>
           </div>
         </div>
       ) : (
@@ -267,39 +267,39 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
           {/* 헤더 — 첫 커리어 상담과 동일: 페이지일 때만 1주차·종료하고 나가기(모달은 상단바 X로 나감) */}
           {embedded ? null : (
             <div className="flex items-center justify-between gap-3">
-              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+              <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">
                 <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
               </Link>
-              <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+              <Link href="/career-launch/week/1" className="rounded-xl bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
             </div>
           )}
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 관심 직무", "Step 1 · Jobs", "Step 1 · 职务", "Step 1 · Công việc", "Step 1 · 職務", "Step 1 · Pekerjaan")}</p>
-            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</h1>
-            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{t("Step 1 · 관심 직무", "Step 1 · Jobs", "Step 1 · 职务", "Step 1 · Công việc", "Step 1 · 職務", "Step 1 · Pekerjaan")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[24px]">{t("관심 직무 찾기", "Find Your Jobs of Interest", "寻找感兴趣的职务", "Tìm công việc bạn quan tâm", "興味のある職務を探す", "Temukan Pekerjaan yang Kamu Minati")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t(`AI와 대화하며 마음에 드는 직무 ${MAX_PICK}개를 골라요`, `Chat with AI and pick your ${MAX_PICK} favorite jobs`, `与 AI 对话，挑选 ${MAX_PICK} 个你喜欢的职务`, `Trò chuyện với AI và chọn ${MAX_PICK} công việc bạn thích`, `AIと話しながらお気に入りの職務を${MAX_PICK}つ選びます`, `Mengobrol dengan AI dan pilih ${MAX_PICK} pekerjaan favoritmu`)} · ⏱ {t("약 10분", "About 10 min", "约 10 分钟", "Khoảng 10 phút", "約10分", "Sekitar 10 menit")}</p>
           </div>
 
           {/* 대화 */}
-          <div className="mt-4 min-h-[42vh] space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
+          <div className="mt-4 min-h-[42vh] space-y-4 rounded-3xl bg-white py-4 md:py-5">
             {messages.map((m, i) => {
               if (m.kind === "text") {
                 return m.role === "bot" ? (
                   <div key={i} className="flex items-end gap-2">
-                    <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
+                    <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-4 py-3 text-[15px] leading-relaxed text-[color:var(--v2-ink)]">
                       <RichText text={m.text} />
                     </div>
                   </div>
                 ) : (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
+                    <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-br-md bg-[color:var(--v2-accent)] px-4 py-3 text-[15px] leading-relaxed text-white"><RichText text={m.text} /></div>
                   </div>
                 );
               }
               // 추천 직무 묶음(채팅 안에서 바로 선택)
               return (
                 <div key={i} className="flex items-start gap-2">
-                  <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                  <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
                   <div className="grid w-full max-w-[88%] gap-2">
                     {m.jobs.map((job) => {
                       const isSel = selected.includes(job.role);
@@ -309,24 +309,24 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                           key={job.id}
                           type="button"
                           onClick={disabled ? undefined : () => toggleJob(job.role)}
-                          className={`rounded-2xl border bg-white p-3.5 text-left transition ${
-                            isSel ? "border-[#0B46E8] ring-1 ring-[#0B46E8]/30" : disabled ? "border-[#EEF1F5] opacity-55" : "border-[#EEF1F5] hover:border-[#0B46E8]/40"
+                          className={`rounded-2xl p-3.5 text-left transition ${
+                            isSel ? "bg-[color:var(--v2-accent-weak)] ring-2 ring-[color:var(--v2-accent)]" : disabled ? "bg-[color:var(--v2-band)] opacity-55" : "bg-[color:var(--v2-band)] hover:bg-[color:var(--v2-line)]"
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <span
-                              className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-black ${
-                                isSel ? "border-[#0B46E8] bg-[#0B46E8] text-white" : "border-[#C9CDD2] text-transparent"
+                              className={`flex h-5 w-5 flex-none items-center justify-center rounded-md border-2 text-[11px] font-bold ${
+                                isSel ? "border-[color:var(--v2-accent)] bg-[color:var(--v2-accent)] text-white" : "border-[color:var(--v2-faint)] text-transparent"
                               }`}
                             >
                               ✓
                             </span>
-                            <p className="text-[14.5px] font-bold text-[#191F28]">{jobName(job.role)}</p>
+                            <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{jobName(job.role)}</p>
                           </div>
-                          {jobReason(job.id) ? <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[#4E5968]">{jobReason(job.id)}</p> : null}
+                          {jobReason(job.id) ? <p className="mt-1.5 pl-7 text-[12.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{jobReason(job.id)}</p> : null}
                           <div className="mt-2 flex flex-wrap gap-1.5 pl-7">
                             {jobSkills(job.skills).map((s) => (
-                              <span key={s} className="rounded-full bg-[#F2F4F6] px-2 py-0.5 text-[11px] font-semibold text-[#4E5968]">
+                              <span key={s} className="rounded-full bg-[color:var(--v2-band)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--v2-ink-3)]">
                                 {s}
                               </span>
                             ))}
@@ -341,7 +341,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                           type="button"
                           onClick={() => send(t("추천해준 것 말고 다른 직무도 보고 싶어요", "I'd like to see roles other than the recommendations.", "我想看看推荐以外的其他职务。", "Tôi muốn xem các công việc khác ngoài gợi ý.", "おすすめ以外の職種も見てみたいです。", "Saya ingin lihat peran selain rekomendasi."))}
                           disabled={loading}
-                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                          className="rounded-full bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50"
                         >
                           🔄 {t("다른 직무 보기", "See other jobs", "查看其他职务", "Xem công việc khác", "他の職務を見る", "Lihat pekerjaan lain")}
                         </button>
@@ -349,7 +349,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                           type="button"
                           onClick={() => setCustomOpen((o) => !o)}
                           disabled={selected.length >= MAX_PICK}
-                          className="rounded-full border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] disabled:opacity-50"
+                          className="rounded-full bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50"
                         >
                           ✏️ {t("직접 입력", "Enter manually", "手动输入", "Nhập trực tiếp", "自分で入力", "Masukkan sendiri")}
                         </button>
@@ -366,13 +366,13 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                               }}
                               autoFocus
                               placeholder={t("예: UX 리서처", "e.g. UX Researcher", "例：UX 研究员", "VD: UX Researcher", "例：UXリサーチャー", "cth: UX Researcher")}
-                              className="h-8 w-40 rounded-full border border-[#E5E8EB] bg-white px-3 text-[12px] text-[#191F28] placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:outline-none"
+                              className="h-8 w-40 rounded-full bg-[color:var(--v2-band)] px-3 text-[12px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2"
                             />
                             <button
                               type="button"
                               onClick={addCustom}
                               disabled={!custom.trim()}
-                              className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${custom.trim() ? "bg-[#0B46E8] text-white" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"}`}
+                              className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${custom.trim() ? "bg-[color:var(--v2-accent)] text-white" : "cursor-not-allowed bg-[color:var(--v2-line)] text-[color:var(--v2-faint)]"}`}
                             >
                               {t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
                             </button>
@@ -386,11 +386,11 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
             })}
             {loading ? (
               <div className="flex items-end gap-2">
-                <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-3.5 py-3 shadow-[0_1px_2px_rgba(17,24,39,0.05)]">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.2s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2] [animation-delay:-0.1s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#C9CDD2]" />
+                <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                <div className="inline-flex items-center gap-1 rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-3.5 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.2s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.1s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)]" />
                 </div>
               </div>
             ) : null}
@@ -402,7 +402,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                     key={c}
                     type="button"
                     onClick={() => send(c)}
-                    className="rounded-full border border-[#0B46E8]/30 bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                    className="rounded-full bg-[color:var(--v2-accent-weak)] px-3.5 py-2 text-[13px] font-bold text-[color:var(--v2-accent)] transition hover:opacity-80"
                   >
                     {c}
                   </button>
@@ -411,7 +411,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
             ) : null}
             <div ref={endRef} />
           </div>
-          <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
+          <p className="mt-2 text-center text-[11.5px] text-[color:var(--v2-faint)]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
 
           {/* 저장 후엔 대화 종료 — 다시 선정 or 대시보드. 아니면 입력 + 선정 완료 */}
           {saved ? (
@@ -421,14 +421,14 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                   <button
                     type="button"
                     onClick={() => onClose?.()}
-                    className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                    className="flex h-[46px] shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] sm:flex-1 px-4 text-[14px] font-bold text-white transition hover:opacity-90"
                   >
                     {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                   </button>
                 ) : (
                   <Link
                     href="/career-launch/week/1"
-                    className="flex h-[46px] flex-1 items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                    className="flex h-[46px] shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] sm:flex-1 px-4 text-[14px] font-bold text-white transition hover:opacity-90"
                   >
                     {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                   </Link>
@@ -436,7 +436,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                 <button
                   type="button"
                   onClick={restartChat}
-                  className="h-[46px] shrink-0 rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40"
+                  className="h-[46px] shrink-0 rounded-xl bg-[color:var(--v2-band)] px-4 text-[13.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
                 >
                   {t("처음부터 다시 선정", "Select again from scratch", "从头重新选择", "Chọn lại từ đầu", "最初から選び直す", "Pilih ulang dari awal")}
                 </button>
@@ -456,7 +456,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                       key={q.send}
                       type="button"
                       onClick={() => send(q.label)}
-                      className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+                      className="rounded-full bg-[color:var(--v2-band)] px-4 py-2.5 text-[12.5px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
                     >
                       {q.label}
                     </button>
@@ -466,7 +466,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
               {/* 통합 입력 바(텍스트필드+전송 44px 정렬). '선정 완료'는 전체폭 하단 행으로 분리해 높이 충돌 제거. */}
               <div className="space-y-2">
                 <form
-                  className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
+                  className="flex items-end gap-1.5 rounded-2xl bg-[color:var(--v2-band)] p-1.5 ring-[color:var(--v2-accent)] transition focus-within:bg-white focus-within:ring-2"
                   onSubmit={(e) => {
                     e.preventDefault();
                     send(input);
@@ -485,14 +485,14 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                     rows={1}
                     placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                     disabled={loading}
-                    className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
+                    className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[color:var(--v2-ink)] placeholder:text-[color:var(--v2-faint)] focus:outline-none focus:ring-0 disabled:opacity-60"
                   />
                   <button
                     type="submit"
                     disabled={!input.trim() || loading}
                     aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
                     className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
-                      input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"
+                      input.trim() && !loading ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
                     }`}
                   >
                     <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
@@ -500,7 +500,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                 </form>
                 {selected.length > 0 ? (
                   <div className="space-y-1.5">
-                    <p className="text-center text-[11.5px] text-[#8B95A1]">
+                    <p className="text-center text-[11.5px] text-[color:var(--v2-faint)]">
                       {selected.length < MAX_PICK
                         ? t(`최대 ${MAX_PICK}개까지 더 골라도 되고, 이대로 완료해도 돼요`, `Pick up to ${MAX_PICK}, or finish as is`, `最多可选${MAX_PICK}个，也可就此完成`, `Chọn tối đa ${MAX_PICK}, hoặc hoàn tất luôn`, `最大${MAX_PICK}個まで、このまま完了もOK`, `Pilih hingga ${MAX_PICK}, atau selesai begini`)
                         : t("3개 다 골랐어요 👍", "All 3 picked 👍", "已选满3个 👍", "Đã chọn đủ 3 👍", "3つ選びました 👍", "Sudah pilih 3 👍")}
@@ -508,7 +508,7 @@ export function JobsChat({ embedded = false, onClose }: { embedded?: boolean; on
                     <button
                       type="button"
                       onClick={save}
-                      className="w-full rounded-xl bg-[#0B46E8] px-4 py-3 text-[13.5px] font-black text-white transition hover:bg-[#0A3ECB]"
+                      className="w-full rounded-xl bg-[color:var(--v2-accent)] px-4 py-3 text-[13.5px] font-bold text-white transition hover:opacity-90"
                     >
                       {t("선정 완료", "Confirm selection", "完成选择", "Hoàn tất chọn", "選定完了", "Selesai memilih")} ({selected.length}/{MAX_PICK})
                     </button>

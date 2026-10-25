@@ -25,7 +25,7 @@ export function CareerLaunchHeader() {
     setMenuOpen(false);
   }, [pathname]);
 
-  // 최상단(scrollY 0)에선 배경 없이 투명, 스크롤되면 프로스티드 배경이 나타나게.
+  // v2 — 늘 흰 바탕. 최상단(scrollY 0)에선 아래 선 없이, 스크롤되면 연회색 선이 나타나게.
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -66,8 +66,8 @@ export function CareerLaunchHeader() {
   const onNav = (key: string) => trackCareerFunnel("career_navigation_clicked", { destination: key });
 
   return (
-    <header className={`sticky top-0 z-40 transition-colors duration-200 ${menuOpen || scrolled ? "border-b border-[#EEF1F5]/60 bg-white/55 backdrop-blur-md supports-[backdrop-filter]:bg-white/55" : "border-b border-transparent bg-transparent"}`}>
-      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
+    <header className={`sticky top-0 z-40 bg-white/95 backdrop-blur transition-colors duration-200 ${menuOpen || scrolled ? "border-b border-[color:var(--v2-band)]" : "border-b border-transparent"}`}>
+      <div className="mx-auto flex h-16 max-w-[1080px] items-center justify-between gap-3 px-5">
         <div className="flex items-center gap-1.5">
           {/* 모바일 햄버거 */}
           {user ? (
@@ -76,14 +76,14 @@ export function CareerLaunchHeader() {
               aria-label={t("메뉴", "Menu", "菜单", "Menu", "メニュー", "Menu")}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((v) => !v)}
-              className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-2xl text-[#4E5968] transition hover:bg-[#F6F8FB] md:hidden"
+              className="-ml-1.5 flex h-10 w-10 items-center justify-center rounded-xl text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-band)] md:hidden"
             >
-              {menuOpen ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
+              {menuOpen ? <X className="h-6 w-6" /> : <List className="h-6 w-6" />}
             </button>
           ) : null}
-          <Link href="/career-launch/dashboard" aria-label="Career Launch" className="flex items-center gap-2">
-            <Image src="/img_logo.webp" alt="" width={72} height={24} className="h-5 w-auto" priority />
-            <span className="hidden rounded-md bg-[#EDF1FD] px-2.5 py-0.5 text-[11px] font-bold text-[#0B46E8] sm:inline">Career Launch</span>
+          <Link href="/career-launch/dashboard" aria-label="Career Launch" className="flex shrink-0 items-center gap-2">
+            <Image src="/img_logo.webp" alt="" width={96} height={30} className="h-6 w-auto md:h-7" priority />
+            <span className="hidden rounded-full bg-[color:var(--v2-accent-weak)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--v2-accent)] sm:inline">Career Launch</span>
           </Link>
         </div>
 
@@ -98,8 +98,8 @@ export function CareerLaunchHeader() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   onClick={() => onNav(item.key)}
-                  className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition ${
-                    active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB] hover:text-[#191F28]"
+                  className={`shrink-0 rounded-xl px-3 py-2 text-[15px] transition lg:px-3.5 lg:text-[16px] ${
+                    active ? "font-bold text-[color:var(--v2-ink)]" : "font-medium text-[color:var(--v2-faint)] hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-ink-3)]"
                   }`}
                 >
                   {item.label}
@@ -110,14 +110,14 @@ export function CareerLaunchHeader() {
         ) : null}
 
         {user ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <LaunchNotificationBell />
             <Link
               href="/career-launch/settings"
               aria-label={t("내 설정", "My settings", "我的设置", "Cài đặt của tôi", "設定", "Pengaturan")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition hover:bg-[#F6F8FB]"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-[color:var(--v2-band)]"
             >
-              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[#F2F4F6] text-[12px] font-bold text-[#4E5968]">
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-[color:var(--v2-band)] text-[12px] font-bold text-[color:var(--v2-ink-3)]">
                 {profilePhoto ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profilePhoto} alt="" className="h-full w-full object-cover" />
@@ -135,7 +135,7 @@ export function CareerLaunchHeader() {
 
       {/* 모바일 메뉴(햄버거) */}
       {user && menuOpen ? (
-        <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="border-t border-[#EEF1F5]/60 bg-white/85 backdrop-blur-md px-3 py-2 md:hidden">
+        <nav aria-label={t("주요 메뉴", "Main menu", "主菜单", "Menu chính", "メインメニュー", "Menu utama")} className="border-t border-[color:var(--v2-band)] bg-white px-3 py-2 md:hidden">
           <ul className="flex flex-col">
             {nav.map((item) => {
               const active = isActive(item.href);
@@ -148,8 +148,8 @@ export function CareerLaunchHeader() {
                       onNav(item.key);
                       setMenuOpen(false);
                     }}
-                    className={`flex items-center rounded-xl px-3 py-3 text-[15px] font-semibold transition ${
-                      active ? "bg-[#EDF1FD] text-[#0B46E8]" : "text-[#4E5968] hover:bg-[#F6F8FB]"
+                    className={`flex items-center rounded-xl px-3 py-3.5 text-[16px] transition ${
+                      active ? "bg-[color:var(--v2-band)] font-bold text-[color:var(--v2-ink)]" : "font-medium text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-fill)]"
                     }`}
                   >
                     {item.label}

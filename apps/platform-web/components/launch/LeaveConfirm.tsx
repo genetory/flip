@@ -35,14 +35,14 @@ export function LeaveConfirm({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4" onClick={onStay}>
-      <div className="w-full max-w-[360px] rounded-3xl bg-white p-6 shadow-[0_24px_60px_-20px_rgba(11,18,39,0.4)]" onClick={(e) => e.stopPropagation()}>
-        <p className="text-[16px] font-black tracking-[-0.01em] text-[#191F28]">{titleText}</p>
-        <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[#8B95A1]">{descText}</p>
+      <div className="w-full max-w-[360px] rounded-3xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
+        <p className="text-[16px] font-bold tracking-[-0.01em] text-[color:var(--v2-ink)]">{titleText}</p>
+        <p className="mt-2 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-faint)]">{descText}</p>
         <div className="mt-5 flex gap-2">
-          <button type="button" onClick={onStay} className="flex-1 rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[13.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]">
+          <button type="button" onClick={onStay} className="flex-1 rounded-xl bg-[color:var(--v2-band)] px-4 py-2.5 text-[13.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
             {stayText}
           </button>
-          <button type="button" onClick={onConfirm} className="flex-1 rounded-xl bg-[#F04452] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#D93A47]">
+          <button type="button" onClick={onConfirm} className="flex-1 rounded-xl bg-[color:var(--v2-attention)] px-4 py-2.5 text-[13.5px] font-bold text-white transition hover:opacity-90">
             {confirmText}
           </button>
         </div>

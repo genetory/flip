@@ -1,5 +1,6 @@
 import { readAccessToken, refreshPlatformSession, storeAccessToken } from "./auth-client";
 import { getBrowserLocale } from "./auth-messages";
+import { launchEditorHeaders } from "./launch-editor-context";
 import { notifyAiBlocked } from "./ai-blocked";
 import {
   trackAiAnalysisCompleted,
@@ -161,6 +162,8 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
       credentials: "include",
       headers: {
         "Content-Type": "application/json",
+        // 커리어런치에서 연 에디터면 컨텍스트 헤더(그때만 에디터 AI 포인트 면제) — lib/launch-editor-context
+        ...launchEditorHeaders(),
         ...(init.headers ?? {}),
         Authorization: `Bearer ${token}`
       }
@@ -203,6 +206,11 @@ export async function authedJsonFetch<T>(path: string, init: RequestInit = {}) {
   if (method === "POST" && path.startsWith("/members/me/ai/") && typeof window !== "undefined") {
     window.dispatchEvent(new Event("aply:ai-usage-changed"));
   }
+  // AI 포인트가 차감된 응답엔 남은 잔액(aiPoints.balance)이 실려 온다 — 잔액을 보는 곳(헤더 칩 등)에 알린다(lib/ai-points).
+  const aiPoints = (payload as { aiPoints?: { balance?: unknown } }).aiPoints;
+  if (aiPoints && typeof aiPoints.balance === "number" && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("aply:ai-points", { detail: { balance: aiPoints.balance } }));
+  }
 
   return payload;
 }
@@ -219,6 +227,7 @@ async function authedMultipartFetch<T>(path: string, body: FormData) {
       method: "POST",
       credentials: "include",
       headers: {
+        ...launchEditorHeaders(),
         Authorization: `Bearer ${token}`
       },
       body
@@ -926,6 +935,13 @@ export type MyApplication = {
   unreadMessages: number;
 };
 
+// 내 지원에 낸 서류(제출 시점 스냅샷). resume 은 이력서 content(리뉴얼·옛 형식이 섞여 있다), coverLetter 는 {title, company, items}.
+export type MyApplicationDocuments = { id: string; submittedAt: string; resume: Record<string, unknown> | null; coverLetter: { title?: string; company?: string | null; items?: unknown[] } | null };
+export async function getMyApplicationDocuments(applicationId: string): Promise<MyApplicationDocuments> {
+  const r = (await authedJsonFetch<never>(`/members/me/applications/${encodeURIComponent(applicationId)}/documents`, { method: "GET" })) as unknown as { item: MyApplicationDocuments };
+  return r.item;
+}
+
 export async function getMyApplications() {
   const result = await authedJsonFetch<MyApplication>("/members/me/applications", {
     method: "GET"
@@ -1531,11 +1547,14 @@ export async function aiInterviewQuestions(input: { resumeText: string; jobText?
   return Array.isArray(r.questions) ? r.questions : [];
 }
 
-export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string };
-export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string }): Promise<InterviewFeedback> {
+// followUp — 면접관이 이 답을 듣고 이어서 물을 꼬리 질문(없으면 빈 문자열·예전 응답엔 없음).
+// credits — 피드백 뒤 남은 모의 면접 이용권(답변 단위). 유료화가 꺼져 있으면 차감 없이 그대로.
+export type InterviewFeedback = { score: number; strengths: string[]; improvements: string[]; sampleAnswer: string; followUp?: string; credits?: number };
+/** daily: 오늘의 질문(하루 1번 이용권 없이). */
+export async function aiInterviewFeedback(input: { question: string; answer: string; resumeText?: string; desiredJobRole?: string; locale?: string; daily?: boolean }): Promise<InterviewFeedback> {
   const result = await authedJsonFetch<never>("/members/me/ai/interview-feedback", { method: "POST", body: JSON.stringify(input) });
-  const r = result as unknown as { feedback?: InterviewFeedback };
-  return r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" };
+  const r = result as unknown as { feedback?: InterviewFeedback; credits?: number };
+  return { ...(r.feedback ?? { score: 0, strengths: [], improvements: [], sampleAnswer: "" }), credits: r.credits };
 }
 
 // 모의 면접 연습 기록(문항별 답변·점수 저장 → 회사에 결과 노출).
@@ -1547,6 +1566,11 @@ export async function recordMockInterviewPractice(positionId: string, data: { qu
 }
 
 export type MockInterviewAnswer = { question: string; answer: string; score: number | null };
+// 내 공고 모의 면접 답변(본인 것) — '면접 전날 볼 한 장'.
+export async function getMyMockInterviewAnswers(positionId: string): Promise<MockInterviewAnswer[]> {
+  const result = (await authedJsonFetch<never>(`/members/me/mock-interviews/${encodeURIComponent(positionId)}`, { method: "GET" })) as unknown as { item?: { answers?: MockInterviewAnswer[] } };
+  return result.item?.answers ?? [];
+}
 export type MockInterviewResult = { score: number | null; answeredCount: number; answers: MockInterviewAnswer[] };
 
 // 공고 모의 면접 참여자(회사용) + 제안.
@@ -1724,6 +1748,21 @@ export async function connectPartnerCandidate(candidateUserId: string, message?:
     body: JSON.stringify(message ? { message } : {})
   });
 }
+/** AI 인재 인사이트 — 인재 검색 상세에서 연락 여부 판단용(어울리는 직무·강점·핵심 경험·준비 상태·확인할 점). 연결 전엔 블라인드. */
+export type PartnerCandidateInsight = {
+  headline: string;
+  fitRoles: { role: string; level: "strong" | "good" | "possible"; why: string }[];
+  strengths: { title: string; evidence: string }[];
+  keyExperiences: { title: string; detail: string }[];
+  skills: string[];
+  languages: string[];
+  readiness: string[];
+  checkPoints: string[];
+};
+export async function getPartnerCandidateInsight(candidateUserId: string): Promise<PartnerCandidateInsight | null> {
+  const result = await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/insight`, { method: "GET" });
+  return ((result as unknown as { insight?: PartnerCandidateInsight | null }).insight ?? null);
+}
 export async function getPartnerCandidateDocumentSummary(candidateUserId: string): Promise<{ resumeBullets: string[]; coverBullets: string[] }> {
   const result = await authedJsonFetch<never>(`/partner/candidates/${encodeURIComponent(candidateUserId)}/document-summary`, { method: "GET" });
   const r = result as unknown as { resumeBullets?: string[]; coverBullets?: string[] };
@@ -1806,6 +1845,7 @@ export async function updateMyBasicInfo(input: {
   phoneNumber?: string | null;
   birthDate?: string | null;
   gender?: string | null;
+  nationality?: string | null;
   profileImageData?: string | null;
 }) {
   const result = await authedJsonFetch<{
@@ -2402,4 +2442,48 @@ export async function postDraftResumeText(input: DraftResumeTextInput): Promise<
   })) as unknown as { draft?: DraftResumeTextResult };
   if (!result.draft) throw new Error("draft response missing payload");
   return result.draft;
+}
+
+// ── 모의 면접 콘텐츠 — 면접 후기(실제 나온 질문) · 잘 쓴 답 예시 ─────────────────────
+export type InterviewReportItem = { id: string; question: string; organizationName: string; positionTitle: string; createdAt: string };
+export async function reportInterviewQuestions(applicationId: string, questions: string[]): Promise<void> {
+  await authedJsonFetch<never>("/members/me/interview-questions", { method: "POST", body: JSON.stringify({ applicationId, questions }) });
+}
+export async function getReportedApplicationIds(): Promise<string[]> {
+  const r = (await authedJsonFetch<never>("/members/me/interview-questions/reported", { method: "GET" })) as unknown as { items?: string[] };
+  return r.items ?? [];
+}
+export async function getInterviewQuestions(opts?: { organization?: string; limit?: number }): Promise<{ items: InterviewReportItem[]; popular: { question: string; count: number }[] }> {
+  const url = new URL(`${getApiBaseUrl()}/interview-questions`);
+  if (opts?.organization) url.searchParams.set("organization", opts.organization);
+  if (opts?.limit) url.searchParams.set("limit", String(opts.limit));
+  const response = await fetch(url.toString(), { method: "GET" });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; items?: InterviewReportItem[]; popular?: { question: string; count: number }[] };
+  if (!response.ok || payload.ok !== true) return { items: [], popular: [] };
+  return { items: payload.items ?? [], popular: payload.popular ?? [] };
+}
+export async function shareAnswerExample(input: { question: string; category: string; answer: string; score: number }): Promise<void> {
+  await authedJsonFetch<never>("/members/me/answer-examples", { method: "POST", body: JSON.stringify(input) });
+}
+export async function getAnswerExamples(question: string): Promise<{ id: string; answer: string; score: number }[]> {
+  const url = new URL(`${getApiBaseUrl()}/answer-examples`);
+  url.searchParams.set("question", question);
+  const response = await fetch(url.toString(), { method: "GET" });
+  const payload = (await readApiPayload(response)) as { ok?: boolean; items?: { id: string; answer: string; score: number }[] };
+  return response.ok && payload.ok === true ? payload.items ?? [] : [];
+}
+
+// 모의 면접용 '공고 가져오기' — URL(다른 서비스·회사 채용 페이지) 또는 붙여 넣은 공고 글.
+// Aply·원티드(수집된) 공고는 positionId, 그 밖은 정리된 job 을 돌려준다. 못 읽으면 MemberProfileApiError(code: PAGE_UNREADABLE·NOT_A_JOB·URL_NOT_ALLOWED).
+export type ImportedJobDraft = { title: string; company: string; mainResponsibilities: string; requiredQualifications: string; preferredQualifications: string; sourceUrl?: string };
+export async function importJob(input: { url?: string; text?: string }): Promise<{ positionId?: string; job?: ImportedJobDraft }> {
+  const r = (await authedJsonFetch<never>("/members/me/ai/import-job", { method: "POST", body: JSON.stringify(input) })) as unknown as { positionId?: string; job?: ImportedJobDraft };
+  return { positionId: r.positionId, job: r.job };
+}
+
+// '면접 전날 볼 한 장' — AI 예상 질문 5개와 모범 답안.
+export type PrepQuestion = { question: string; why: string; answer: string; tip: string };
+export async function aiInterviewPrep(input: { jobText?: string; company?: string; resumeText?: string; coverLetterText?: string; reportedQuestions?: string[]; myAnswers?: { question: string; answer: string }[] }): Promise<{ questions: PrepQuestion[]; credits?: number }> {
+  const r = (await authedJsonFetch<never>("/members/me/ai/interview-prep", { method: "POST", body: JSON.stringify(input) })) as unknown as { questions?: PrepQuestion[]; credits?: number };
+  return { questions: r.questions ?? [], credits: r.credits };
 }

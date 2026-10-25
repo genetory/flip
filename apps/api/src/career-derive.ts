@@ -89,7 +89,7 @@ export function renewalToCareerCover(content: unknown): Record<string, unknown> 
     cur.push(text);
     merged.set(q, cur);
   }
-  return { items: [...merged.entries()].map(([question, parts]) => ({ question, answer: parts.join("\n\n") })) };
+  return { company: str(doc.companyName), items: [...merged.entries()].map(([question, parts]) => ({ question, answer: parts.join("\n\n") })) };
 }
 
 /** 내용이 하나라도 있나 — 빈 파생으로 기존 행을 덮지 않기 위한 확인. */
@@ -127,4 +127,96 @@ export function canonicalJson(v: unknown): string {
       .join(",")}}`;
   }
   return JSON.stringify(v ?? null);
+}
+
+// ── 반대 방향: Career Launch 수집 데이터 → 리뉴얼 에디터 문서 ──
+// 커리어런치 결과물을 탤런트 에디터와 '하나의 문서'로 쓸 때(editorLink), 프로그램 안에서 고친 내용을
+// 에디터 문서(Resume.content.renewalResume/renewalCover)에 반영한다. 프로그램 쪽에 대응 칸이 없는
+// 에디터 항목(자격증·수상 등)과 에디터 전용 설정(목표 직무·링크·사진·문항 목록·공고 등)은 그대로 둔다.
+
+let seq = 0;
+const newId = () => `cl-${Date.now().toString(36)}-${(seq++).toString(36)}`;
+
+/** "2023.03 ~ 현재" / "2021.03-2023.02" → { startDate:"2023-03", endDate:"현재" } (에디터 날짜 모양). */
+export function parsePeriod(period: string): { startDate: string; endDate: string } {
+  const month = (t: string) => {
+    const s = t.trim();
+    if (!s) return "";
+    if (/현재|재직|진행|present|current/i.test(s)) return "현재";
+    const m = s.replace(/[./]/g, "-").match(/(\d{4})-(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+    const y = s.match(/^(\d{4})$/);
+    return y ? `${y[1]}-01` : "";
+  };
+  const parts = String(period ?? "").split(/\s*[~–—]\s*|\s+-\s+/);
+  return { startDate: month(parts[0] ?? ""), endDate: month(parts[1] ?? "") };
+}
+
+/** 커리어런치 이력서가 다루는 에디터 섹션 — 이 섹션 항목은 프로그램 데이터로 교체하고, 나머지는 보존한다. */
+const CL_RESUME_SECTIONS = new Set(["education", "experience", "activity", "project", "skill", "language"]);
+
+/**
+ * Career Launch 이력서 → 에디터 문서. prevDoc(기존 renewalResume)의 에디터 전용 값과 프로그램이 모르는 섹션 항목은 유지.
+ * 기본 정보는 prevInfo(renewalBasicInfo)에서 빈 칸만 채운다(에디터에서 고친 이름·연락처를 덮지 않게).
+ */
+export function careerResumeToRenewal(career: unknown, prevDoc: unknown, prevInfo: unknown): { doc: Record<string, unknown>; info: Record<string, unknown> } {
+  const c = asObj(career);
+  const prev = asObj(prevDoc);
+  const basic = asObj(c.basic);
+  const kept = asArr(prev.items).filter((i) => !CL_RESUME_SECTIONS.has(str(i.section)));
+  const items: Record<string, unknown>[] = [];
+  for (const e of asArr(c.educations)) {
+    const text = [str(e.major), str(e.degree), str(e.note)].filter(Boolean).join("\n");
+    if (!str(e.school) && !text) continue;
+    items.push({ id: newId(), section: "education", company: str(e.school), text: text || str(e.school), ...parsePeriod(str(e.period)) });
+  }
+  for (const x of asArr(c.experiences)) {
+    const bullets = Array.isArray(x.bullets) ? (x.bullets as unknown[]).map(str).filter(Boolean) : [];
+    const text = [str(x.title), ...bullets].filter(Boolean).join("\n");
+    if (!text && !str(x.org)) continue;
+    items.push({ id: newId(), section: str(x.kind) === "work" ? "experience" : "activity", company: str(x.org), text: text || str(x.org), ...parsePeriod(str(x.period)) });
+  }
+  const skills = Array.isArray(c.skills) ? (c.skills as unknown[]).map(str).filter(Boolean) : [];
+  if (skills.length) items.push({ id: newId(), section: "skill", text: skills.join(", "), startDate: "", endDate: "" });
+  for (const l of asArr(c.languages)) {
+    if (!str(l.language)) continue;
+    items.push({ id: newId(), section: "language", company: str(l.language), text: str(l.level) || str(l.language), startDate: "", endDate: "" });
+  }
+  const now = Date.now();
+  const doc: Record<string, unknown> = {
+    ...prev,
+    targetRole: str(prev.targetRole),
+    items: [...items, ...kept],
+    summary: str(basic.summary) || str(prev.summary),
+    createdAt: typeof prev.createdAt === "number" && prev.createdAt > 0 ? prev.createdAt : now,
+    updatedAt: now
+  };
+  const pi = asObj(prevInfo);
+  const info: Record<string, unknown> = {
+    realName: str(pi.realName) || str(basic.name),
+    email: str(pi.email) || str(basic.email),
+    phone: str(pi.phone) || str(basic.phone),
+    address: str(pi.address),
+    photoUrl: str(pi.photoUrl)
+  };
+  return { doc, info };
+}
+
+/** Career Launch 자소서 → 에디터 문서. 문항 하나 = 항목 하나. 문항 목록·공고·키워드 등 에디터 전용 값은 유지. */
+export function careerCoverToRenewal(career: unknown, prevDoc: unknown): Record<string, unknown> {
+  const c = asObj(career);
+  const prev = asObj(prevDoc);
+  const qa = asArr(c.items).filter((i) => str(i.question));
+  const items = qa.filter((i) => str(i.answer)).map((i) => ({ id: newId(), question: str(i.question), text: str(i.answer) }));
+  const prevQs = Array.isArray(prev.questions) ? (prev.questions as unknown[]).map(str).filter(Boolean) : [];
+  const questions = [...new Set([...qa.map((i) => str(i.question)), ...prevQs])];
+  const now = Date.now();
+  return {
+    ...prev,
+    items,
+    ...(questions.length ? { questions } : {}),
+    companyName: str(c.company) || str(prev.companyName),
+    createdAt: typeof prev.createdAt === "number" && prev.createdAt > 0 ? prev.createdAt : now,
+    updatedAt: now
+  };
 }

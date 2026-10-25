@@ -22,12 +22,12 @@ export function PrivacyPolicyContent() {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {t(
-            "공고일자: 2025년 11월 12일 · 시행일자: 2025년 11월 12일",
-            "Published: November 12, 2025 · Effective: November 12, 2025",
-            "公布日期：2025年11月12日 · 生效日期：2025年11月12日",
-            "Ngày công bố: 12 tháng 11 năm 2025 · Ngày hiệu lực: 12 tháng 11 năm 2025",
-            "公示日：2025年11月12日 · 施行日：2025年11月12日",
-            "Tanggal pengumuman: 12 November 2025 · Tanggal berlaku: 12 November 2025"
+            "공고일자: 2026년 10월 13일 · 시행일자: 2026년 10월 20일",
+            "Published: October 13, 2026 · Effective: October 20, 2026",
+            "公布日期：2026年10月13日 · 生效日期：2026年10月20日",
+            "Ngày công bố: 13 tháng 10 năm 2026 · Ngày hiệu lực: 20 tháng 10 năm 2026",
+            "公示日：2026年10月13日 · 施行日：2026年10月20日",
+            "Tanggal pengumuman: 13 Oktober 2026 · Tanggal berlaku: 20 Oktober 2026"
           )}
         </p>
 
@@ -543,6 +543,59 @@ export function PrivacyPolicyContent() {
                 </tbody>
               </table>
             </div>
+            {/* 기업 인재 검색 — 가입하면 기본 노출(블라인드), 설정에서 끌 수 있다. 서비스 화면 안내와 같은 내용. */}
+            <h3 className="mt-6 text-sm font-semibold text-foreground">
+              {t("기업 인재 검색(블라인드 열람)", "Company talent search (blind viewing)", "企业人才搜索（匿名查看）", "Tìm kiếm nhân tài của doanh nghiệp (xem ẩn danh)", "企業の人材検索（ブラインド閲覧）", "Pencarian talenta perusahaan (tampilan anonim)")}
+            </h3>
+            <p className="mt-2 text-muted-foreground">
+              {t("회원이 작성한 대표 이력서와 자기소개서는 회원 가입 시 안내한 바에 따라 아래와 같이 기업 회원에게 열람됩니다. 회원은 언제든 이를 거부(노출 해제)할 수 있습니다.", "As notified at sign-up, the primary resume and cover letter written by a member are viewable by corporate members as described below. Members may refuse this (turn off visibility) at any time.", "根据注册时的告知，会员撰写的代表简历和自我介绍将按如下方式供企业会员查看。会员可随时拒绝（关闭展示）。", "Như đã thông báo khi đăng ký, CV và thư giới thiệu chính của thành viên được doanh nghiệp xem như dưới đây. Thành viên có thể từ chối (tắt hiển thị) bất cứ lúc nào.", "会員登録時の案内のとおり、会員が作成した代表履歴書と自己紹介書は以下のとおり企業会員に閲覧されます。会員はいつでもこれを拒否（表示の解除）できます。", "Sesuai pemberitahuan saat pendaftaran, CV dan surat lamaran utama anggota dapat dilihat oleh anggota perusahaan sebagaimana berikut. Anggota dapat menolak (menonaktifkan) kapan saja.")}
+            </p>
+            <div className="mt-3 overflow-hidden rounded-xl border border-border/60">
+              <table className="w-full text-xs">
+                <tbody>
+                  <tr className="border-b border-border/60">
+                    <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">
+                      {t("제공받는 자", "Recipient", "接收方", "Bên tiếp nhận", "提供を受ける者", "Penerima")}
+                    </th>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {t("Aply에 가입해 인재 검색을 이용하는 기업 회원(파트너사)", "Corporate members (partner companies) registered on Aply who use talent search", "在Aply注册并使用人才搜索的企业会员（合作公司）", "Thành viên doanh nghiệp (đối tác) đăng ký Aply và sử dụng tìm kiếm nhân tài", "Aplyに登録し人材検索を利用する企業会員（パートナー社）", "Anggota perusahaan (mitra) yang terdaftar di Aply dan menggunakan pencarian talenta")}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border/60">
+                    <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">
+                      {t("제공 목적", "Purpose of Provision", "提供目的", "Mục đích cung cấp", "提供目的", "Tujuan Penyediaan")}
+                    </th>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {t("채용 후보자 탐색, 관심 표시 및 연결(채용 제안) 요청", "Searching for hiring candidates, expressing interest, and requesting connections (job offers)", "搜索招聘候选人、表示关注及发送连接（招聘邀请）请求", "Tìm kiếm ứng viên, bày tỏ quan tâm và gửi yêu cầu kết nối (lời mời tuyển dụng)", "採用候補者の検索、関心表示及びつながり（採用提案）の申請", "Mencari kandidat, menyatakan minat, dan meminta koneksi (tawaran kerja)")}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border/60">
+                    <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">
+                      {t("제공 항목", "Items Provided", "提供项目", "Mục cung cấp", "提供項目", "Item yang Disediakan")}
+                    </th>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {t("[학생 회원]의 대표 이력서·자기소개서 내용(학력, 희망 직무, 경력·활동, 스킬, 어학 등). 성명·사진·연락처·국적·비자 등 개인을 식별할 수 있는 정보는 가린 상태로 제공하며, 글 속에 적힌 성명·연락처도 지워서 보여 줍니다. 연락처(이메일·전화번호)와 성명은 회원이 해당 기업의 연결 요청을 수락한 경우에 한해 그 기업에 제공합니다.", "The content of the [student member]'s primary resume and cover letter (education, desired role, experience and activities, skills, languages, etc.). Identifying information such as name, photo, contact details, nationality and visa is hidden, and names or contact details written in the text are removed. Contact details (email, phone) and name are provided to a company only when the member accepts that company's connection request.", "[学生会员]代表简历及自我介绍的内容（学历、期望职位、经历与活动、技能、语言等）。姓名、照片、联系方式、国籍、签证等可识别个人的信息将被隐藏，文中写到的姓名和联系方式也会删除。仅在会员接受该企业的连接请求时，才向该企业提供联系方式（邮箱、电话）和姓名。", "Nội dung CV và thư giới thiệu chính của [thành viên sinh viên] (học vấn, vị trí mong muốn, kinh nghiệm và hoạt động, kỹ năng, ngoại ngữ...). Thông tin nhận dạng như họ tên, ảnh, liên hệ, quốc tịch, thị thực được ẩn, và họ tên/liên hệ trong nội dung cũng bị xóa. Thông tin liên hệ (email, điện thoại) và họ tên chỉ được cung cấp cho doanh nghiệp khi thành viên chấp nhận yêu cầu kết nối của doanh nghiệp đó.", "[学生会員]の代表履歴書・自己紹介書の内容（学歴、希望職種、経歴・活動、スキル、語学など）。氏名・写真・連絡先・国籍・ビザなど個人を識別できる情報は隠した状態で提供し、本文中の氏名・連絡先も削除して表示します。連絡先（メール・電話番号）と氏名は、会員がその企業のつながり申請を承諾した場合に限りその企業に提供します。", "Isi CV dan surat lamaran utama [anggota pelajar] (pendidikan, peran yang diinginkan, pengalaman dan kegiatan, keterampilan, bahasa, dll.). Informasi identitas seperti nama, foto, kontak, kewarganegaraan, dan visa disembunyikan, termasuk nama/kontak di dalam teks. Kontak (email, telepon) dan nama hanya diberikan kepada perusahaan jika anggota menerima permintaan koneksi perusahaan tersebut.")}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-border/60">
+                    <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">
+                      {t("보유 및 이용 기간", "Retention and Use Period", "保有及使用期间", "Thời gian lưu giữ và sử dụng", "保有及び利用期間", "Periode Penyimpanan dan Penggunaan")}
+                    </th>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {t("회원 탈퇴 또는 노출 해제 시까지(연결을 수락해 제공된 연락처는 해당 채용 절차 종료 시까지)", "Until the member withdraws or turns off visibility (contact details provided upon an accepted connection: until the related hiring process ends)", "至会员注销或关闭展示时为止（接受连接后提供的联系方式：至相关招聘程序结束时为止）", "Cho đến khi thành viên hủy tài khoản hoặc tắt hiển thị (liên hệ đã cung cấp khi chấp nhận kết nối: đến khi quy trình tuyển dụng liên quan kết thúc)", "会員退会又は表示の解除時まで（承諾により提供した連絡先は当該採用手続の終了時まで）", "Hingga anggota keluar atau menonaktifkan visibilitas (kontak yang diberikan setelah koneksi diterima: hingga proses rekrutmen terkait selesai)")}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th className="w-1/3 bg-muted/50 px-3 py-2 text-left font-medium text-foreground">
+                      {t("거부할 권리", "Right to Refuse", "拒绝的权利", "Quyền từ chối", "拒否する権利", "Hak Menolak")}
+                    </th>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {t("회원은 [설정 > 기업 인재 검색]에서 언제든 노출을 끌 수 있으며, 끄면 인재 검색·추천과 새 연결 요청에서 제외됩니다. 노출을 끄더라도 그 밖의 서비스 이용에는 제한이 없습니다.", "Members can turn off visibility at any time in [Settings > Talent search]; once off, they are excluded from talent search, recommendations and new connection requests. Turning it off does not limit the use of other services.", "会员可随时在[设置 > 企业人才搜索]中关闭展示，关闭后将不再出现在人才搜索、推荐及新的连接请求中。关闭展示不影响其他服务的使用。", "Thành viên có thể tắt hiển thị bất cứ lúc nào tại [Cài đặt > Tìm kiếm nhân tài]; khi tắt sẽ bị loại khỏi tìm kiếm, đề xuất và yêu cầu kết nối mới. Việc tắt không hạn chế các dịch vụ khác.", "会員は[設定 > 企業の人材検索]でいつでも表示をオフにでき、オフにすると人材検索・推薦及び新たなつながり申請から除外されます。オフにしてもその他のサービス利用に制限はありません。", "Anggota dapat menonaktifkan visibilitas kapan saja di [Pengaturan > Pencarian talenta]; setelah nonaktif, tidak muncul di pencarian, rekomendasi, dan permintaan koneksi baru. Hal ini tidak membatasi layanan lainnya.")}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div>
@@ -948,22 +1001,22 @@ export function PrivacyPolicyContent() {
           <div className="border-t border-border/60 pt-6 text-muted-foreground">
             <p>
               {t(
-                "공고일자: 2025년 11월 12일",
-                "Published: November 12, 2025",
-                "公布日期：2025年11月12日",
-                "Ngày công bố: 12 tháng 11 năm 2025",
-                "公示日：2025年11月12日",
-                "Tanggal pengumuman: 12 November 2025"
+                "공고일자: 2026년 10월 13일",
+                "Published: October 13, 2026",
+                "公布日期：2026年10月13日",
+                "Ngày công bố: 13 tháng 10 năm 2026",
+                "公示日：2026年10月13日",
+                "Tanggal pengumuman: 13 Oktober 2026"
               )}
             </p>
             <p>
               {t(
-                "시행일자: 2025년 11월 12일",
-                "Effective: November 12, 2025",
-                "生效日期：2025年11月12日",
-                "Ngày hiệu lực: 12 tháng 11 năm 2025",
-                "施行日：2025年11月12日",
-                "Tanggal berlaku: 12 November 2025"
+                "시행일자: 2026년 10월 20일",
+                "Effective: October 20, 2026",
+                "生效日期：2026年10月20日",
+                "Ngày hiệu lực: 20 tháng 10 năm 2026",
+                "施行日：2026年10月20日",
+                "Tanggal berlaku: 20 Oktober 2026"
               )}
             </p>
           </div>

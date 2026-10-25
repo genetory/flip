@@ -13,7 +13,6 @@ import { SectionChatModal } from "../../../components/launch/SectionChatModal";
 import { fetchCoverData, saveCoverData, requestCoverChat, type CoverData } from "../../../lib/launch/cover-data";
 import { LeaveConfirm } from "../../../components/launch/LeaveConfirm";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
 import { useLaunchT } from "../../../lib/launch/i18n";
@@ -148,18 +147,17 @@ export default function CoverCollectPage() {
 
   if (!isReady || !loaded) {
     return (
-      <div className="isolate flex min-h-screen flex-col bg-white">
-        <LaunchAmbientBackground />
+      <div className="flex min-h-screen flex-col bg-white">
         <CareerLaunchHeader />
         <main className="flex flex-1 items-center justify-center">
-          <span className="text-[13px] text-[#8B95A1]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>
+          <span className="text-[15px] text-[color:var(--v2-muted)]">{t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</span>
         </main>
         <AplyFooter />
       </div>
     );
   }
 
-  const taClass = "min-h-[120px] w-full resize-y rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-3 text-[14px] leading-relaxed text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]";
+  const taClass = "min-h-[120px] w-full resize-y rounded-2xl bg-[color:var(--v2-fill)] p-4 text-[16px] leading-[1.65] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2";
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -169,18 +167,18 @@ export default function CoverCollectPage() {
           {/* 상단 바 — 문항을 아래로 스크롤하며 타이핑해도 저장/취소가 항상 손에 닿도록
               헤더(top-14) 바로 아래에 고정. 스크롤 시 backdrop-blur 로 본문과 분리한다. */}
           <div className="sticky top-14 z-30 -mx-5 flex items-center justify-between gap-3 bg-white/85 px-5 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-white/75">
-            <button type="button" onClick={onBack} className="-ml-1.5 inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <button type="button" onClick={onBack} className="-ml-1.5 inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}
             </button>
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
               <SaveIndicator state={saveState} dirty={dirty} t={t} />
-              <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8] lg:hidden">
+              <button type="button" onClick={() => setShowPreview((v) => !v)} className="inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] min-[360px]:px-3 min-[360px]:text-[14px] lg:hidden">
                 <Eye className="h-4 w-4" weight="bold" /> {t("미리보기", "Preview", "预览", "Xem trước", "プレビュー", "Pratinjau")}
               </button>
-              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="rounded-lg border border-[#E5E8EB] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28] disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={onCancel} disabled={!dirty || saveState === "saving"} className="inline-flex h-9 items-center whitespace-nowrap rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] min-[360px]:px-3 min-[360px]:text-[14px] disabled:cursor-not-allowed disabled:opacity-40">
                 {t("취소", "Cancel", "取消", "Hủy", "取消", "Batal")}
               </button>
-              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-4 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" onClick={onSave} disabled={!dirty || saveState === "saving"} className="inline-flex h-9 items-center gap-1 whitespace-nowrap rounded-lg bg-[color:var(--v2-accent)] px-2.5 text-[13px] font-semibold min-[360px]:px-3.5 min-[360px]:text-[14px] text-white transition hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
                 {saveState === "saving" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <Check className="h-4 w-4" weight="bold" />}
                 {t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}
               </button>
@@ -188,34 +186,34 @@ export default function CoverCollectPage() {
           </div>
 
           <div className="mt-3.5">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
-            <h1 className="mt-2 break-keep text-[24px] font-black leading-[1.2] tracking-[-0.03em] text-[#191F28] md:text-[30px]">{t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
-            <p className="mt-2 break-keep text-[14px] leading-relaxed text-[#8B95A1] md:text-[14.5px]">{t("기본 문항으로 시작하되, 문항 제목을 바꾸거나 지원하는 회사 문항에 맞춰 추가·삭제할 수 있어요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Start from the default sections, but rename them or add/remove to match the company's prompts. Tap 'Save' above when you're done.", "从默认文项开始，也可改标题或按公司要求增删。完成后点击上方‘保存’。", "Bắt đầu từ mục mặc định, nhưng bạn có thể đổi tên hoặc thêm/xóa theo yêu cầu công ty. Xong thì nhấn 'Lưu' ở trên.", "デフォルト項目から始め、タイトル変更や会社の設問に合わせて追加・削除できます。書き終えたら上の『保存』を押してください。", "Mulai dari bagian bawaan, tapi bisa ganti judul atau tambah/hapus sesuai perusahaan. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
+            <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">{t("자기소개서", "Cover letter", "自我介绍书", "Thư giới thiệu", "自己紹介書", "Surat lamaran")}</p>
+            <h1 className="mt-1.5 break-keep text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{t("내 자기소개서 작성", "Write your cover letter", "撰写我的自我介绍书", "Viết thư giới thiệu", "自己紹介書を作成", "Tulis surat lamaran")}</h1>
+            <p className="mt-2.5 break-keep text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)] md:text-[17px]">{t("기본 문항으로 시작하되, 문항 제목을 바꾸거나 지원하는 회사 문항에 맞춰 추가·삭제할 수 있어요. 다 쓰면 위의 ‘저장’을 눌러 저장하세요.", "Start from the default sections, but rename them or add/remove to match the company's prompts. Tap 'Save' above when you're done.", "从默认文项开始，也可改标题或按公司要求增删。完成后点击上方‘保存’。", "Bắt đầu từ mục mặc định, nhưng bạn có thể đổi tên hoặc thêm/xóa theo yêu cầu công ty. Xong thì nhấn 'Lưu' ở trên.", "デフォルト項目から始め、タイトル変更や会社の設問に合わせて追加・削除できます。書き終えたら上の『保存』を押してください。", "Mulai dari bagian bawaan, tapi bisa ganti judul atau tambah/hapus sesuai perusahaan. Setelah selesai, ketuk 'Simpan' di atas.")}</p>
           </div>
 
-          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="flex flex-col gap-6">
               {/* 지원 회사(선택) */}
               <div>
                 <SectionTitle>{t("지원 회사", "Target company", "目标公司", "Công ty ứng tuyển", "応募先", "Perusahaan tujuan")}</SectionTitle>
-                <input value={company} onChange={(e) => setCompanyVal(e.target.value)} placeholder={t("예: OO전자 (선택)", "e.g., OO Corp (optional)", "例：OO电子（可选）", "VD: Công ty OO (tùy chọn)", "例：OO電子（任意）", "Cth: OO Corp (opsional)")} className="w-full rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+                <input value={company} onChange={(e) => setCompanyVal(e.target.value)} placeholder={t("예: OO전자 (선택)", "e.g., OO Corp (optional)", "例：OO电子（可选）", "VD: Công ty OO (tùy chọn)", "例：OO電子（任意）", "Cth: OO Corp (opsional)")} className="w-full rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[16px] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:bg-white focus:ring-2" />
               </div>
 
               {items.map((it, i) => (
                 <section key={i}>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-[13px] font-black tabular-nums text-[#0B46E8]">{String(i + 1).padStart(2, "0")}</span>
+                    <span className="text-[14px] font-bold tabular-nums text-[color:var(--v2-accent)]">{String(i + 1).padStart(2, "0")}</span>
                     {/* 문항 제목 — 직접 편집 */}
                     <input
                       value={it.title}
                       onChange={(e) => setTitle(i, e.target.value)}
                       placeholder={t("문항 제목 (예: 지원 동기)", "Section title (e.g., Motivation)", "文项标题（例：申请动机）", "Tiêu đề mục (VD: Động lực)", "設問タイトル（例：志望動機）", "Judul bagian (cth: Motivasi)")}
-                      className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-1 py-1 text-[16.5px] font-black tracking-[-0.02em] text-[#0B1227] outline-none transition hover:border-[#E5E8EB] focus:border-[#0B46E8] focus:bg-white"
+                      className="min-w-0 flex-1 rounded-xl bg-transparent px-1.5 py-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-fill)] focus:bg-white focus:ring-2"
                     />
-                    <button type="button" onClick={() => setChatIdx(i)} className="inline-flex flex-none items-center gap-1 rounded-lg bg-[#191F28] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0B1227]">
+                    <button type="button" onClick={() => setChatIdx(i)} className="inline-flex h-9 flex-none items-center gap-1 rounded-lg bg-[color:var(--v2-ink)] px-3 text-[14px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
                       <Sparkle className="h-3.5 w-3.5" weight="fill" /> {aiLabel}
                     </button>
-                    <button type="button" onClick={() => removeItem(i)} aria-label={t("문항 삭제", "Delete section", "删除文项", "Xóa mục", "設問を削除", "Hapus bagian")} className="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-[#C4CAD2] transition hover:bg-[#FDECEC] hover:text-[#F04452]">
+                    <button type="button" onClick={() => removeItem(i)} aria-label={t("문항 삭제", "Delete section", "删除文项", "Xóa mục", "設問を削除", "Hapus bagian")} className="flex h-9 w-9 flex-none items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-attention)]">
                       <Trash className="h-4 w-4" weight="bold" />
                     </button>
                   </div>
@@ -223,7 +221,7 @@ export default function CoverCollectPage() {
                 </section>
               ))}
 
-              <button type="button" onClick={addItem} className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#C9D3E8] bg-[#FAFBFF] px-4 py-3 text-[13.5px] font-bold text-[#0B46E8] transition hover:border-[#0B46E8]/50 hover:bg-[#F4F8FF]">
+              <button type="button" onClick={addItem} className="inline-flex h-12 w-full items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent-weak)] px-4 text-[16px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80 active:scale-[0.99]">
                 <Plus className="h-4 w-4" weight="bold" /> {t("문항 추가", "Add a section", "添加文项", "Thêm mục", "設問を追加", "Tambah bagian")}
               </button>
             </div>
@@ -231,11 +229,11 @@ export default function CoverCollectPage() {
             {/* 실시간 A4 미리보기 */}
             <div className={`${showPreview ? "block" : "hidden"} lg:block`}>
               <div className="lg:sticky lg:top-20">
-                <p className="mb-2.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
-                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-2xl bg-[#F2F4F6] p-3">
+                <p className="mb-2.5 text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("실시간 미리보기", "Live preview", "实时预览", "Xem trước trực tiếp", "リアルタイムプレビュー", "Pratinjau langsung")}</p>
+                <div className="max-h-[calc(100vh-9rem)] overflow-y-auto rounded-3xl bg-[color:var(--v2-band)] p-3">
                   <CoverRender data={preview} />
                 </div>
-                <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[12.5px] font-bold text-[#0B46E8] transition hover:underline">
+                <Link href="/career-launch/cover-preview" target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-[15px] font-semibold text-[color:var(--v2-accent)] transition hover:opacity-80">
                   {t("전체 화면으로 보기", "Open full screen", "全屏查看", "Xem toàn màn hình", "全画面で見る", "Lihat layar penuh")} <ArrowUpRight className="inline h-3.5 w-3.5 align-text-bottom" weight="bold" aria-hidden />
                 </Link>
               </div>
@@ -269,20 +267,20 @@ export default function CoverCollectPage() {
 function SaveIndicator({ state, dirty, t }: { state: SaveState; dirty: boolean; t: ReturnType<typeof useLaunchT> }) {
   if (state === "saving") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#8B95A1]">
+      <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[color:var(--v2-faint)]">
         <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> {t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…")}
       </span>
     );
   }
   if (state === "error") {
-    return <span className="text-[12px] font-semibold text-[#F04452]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
+    return <span className="text-[13px] font-semibold text-[color:var(--v2-attention)]">{t("저장 실패", "Save failed", "保存失败", "Lưu thất bại", "保存失敗", "Gagal simpan")}</span>;
   }
   if (dirty) {
-    return <span className="text-[12px] font-semibold text-[#C77700]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
+    return <span className="text-[13px] font-semibold text-[color:var(--v2-ink-3)]">{t("저장 안 된 변경", "Unsaved changes", "有未保存更改", "Thay đổi chưa lưu", "未保存の変更", "Perubahan belum disimpan")}</span>;
   }
   if (state === "saved") {
     return (
-      <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#12B76A]">
+      <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-good)]">
         <Check className="h-3.5 w-3.5" weight="bold" /> {t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan")}
       </span>
     );

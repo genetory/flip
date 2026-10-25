@@ -33,9 +33,9 @@ import {
 } from "../../../lib/member-profile-client";
 
 const ORG_ROLE_CLS: Record<PartnerOrgMember["role"], string> = {
-  OWNER: "bg-[#EDF1FD] text-[#0B46E8]",
-  ADMIN: "bg-[#E7F8EF] text-[#0A9B59]",
-  MEMBER: "bg-[#F2F4F6] text-[#8B95A1]"
+  OWNER: "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]",
+  ADMIN: "bg-[color:var(--v2-good-weak)] text-[color:var(--v2-good)]",
+  MEMBER: "bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
 };
 function orgRoleLabel(t: PlatformT, role: PartnerOrgMember["role"]): string {
   switch (role) {
@@ -49,18 +49,18 @@ function orgRoleLabel(t: PlatformT, role: PartnerOrgMember["role"]): string {
 }
 
 function SectionHeader({ title }: { title: string }) {
-  return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</p>;
+  return <p className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</p>;
 }
 
 // 스탯 카드 — 라벨 + 큰 갯수. 누르면 관련 목록으로. (탤런트 설정과 동일)
 function StatCard({ title, count, href }: { title: string; count: number; href: string }) {
   return (
-    <Link href={href} className="block rounded-2xl border border-[#EEF1F5] bg-white px-5 py-4 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+    <Link href={href} className="block rounded-2xl bg-[color:var(--v2-band)] px-5 py-4 transition hover:bg-[color:var(--v2-line)]">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[12.5px] font-normal text-[#8B95A1]">{title}</p>
-        <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+        <p className="text-[13.5px] font-normal text-[color:var(--v2-faint)]">{title}</p>
+        <CaretRight className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" />
       </div>
-      <p className="mt-0.5 text-[24px] font-black tracking-[-0.02em] text-[#191F28]">{count}</p>
+      <p className="mt-0.5 text-[24px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{count}</p>
     </Link>
   );
 }
@@ -68,14 +68,14 @@ function StatCard({ title, count, href }: { title: string; count: number; href: 
 function Item({ label, href, external }: { label: string; href: string; external?: boolean }) {
   const inner = (
     <div className="flex items-center gap-3 px-5 py-4">
-      <span className="flex-1 text-[14.5px] text-[#191F28]">{label}</span>
-      <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
+      <span className="flex-1 text-[14.5px] text-[color:var(--v2-ink)]">{label}</span>
+      <CaretRight className="h-4 w-4 text-[color:var(--v2-disabled)]" />
     </div>
   );
   return external ? (
-    <a href={href} className="block transition hover:bg-[#F6F8FB]">{inner}</a>
+    <a href={href} className="block transition hover:bg-[color:var(--v2-fill)]">{inner}</a>
   ) : (
-    <Link href={href} className="block transition hover:bg-[#F6F8FB]">{inner}</Link>
+    <Link href={href} className="block transition hover:bg-[color:var(--v2-fill)]">{inner}</Link>
   );
 }
 
@@ -199,31 +199,31 @@ export function PartnerSettingsScreen() {
         {/* 기본 정보 */}
         <section>
           <SectionHeader title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} />
-          <div className="rounded-3xl bg-[#F5F8FF] p-6">
+          <div className="rounded-3xl bg-[color:var(--v2-accent-weak)] p-6">
             <div className="flex items-center gap-4">
               {user?.profileImageUrl ? (
-                <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+                <span className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-white">
                   <Image src={user.profileImageUrl} alt="" fill sizes="64px" className="object-cover" unoptimized />
                 </span>
               ) : (
-                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">
+                <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[24px] font-bold text-[color:var(--v2-accent)]">
                   {name.slice(0, 1)}
                 </span>
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <p className="truncate text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{name}</p>
+                  <p className="truncate text-[19px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{name}</p>
                   {emailVerified ? (
-                    <SealCheck className="h-[18px] w-[18px] shrink-0 text-[#0B46E8]" weight="fill" aria-label={t("이메일 인증됨", "Email verified", "邮箱已验证", "Email đã xác minh", "メール認証済み", "Email terverifikasi")} />
+                    <SealCheck className="h-[18px] w-[18px] shrink-0 text-[color:var(--v2-accent)]" weight="fill" aria-label={t("이메일 인증됨", "Email verified", "邮箱已验证", "Email đã xác minh", "メール認証済み", "Email terverifikasi")} />
                   ) : (
-                    <span className="shrink-0 rounded-md bg-[#FFF3E6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">{t("인증 안됨", "Unverified", "未验证", "Chưa xác minh", "未認証", "Belum diverifikasi")}</span>
+                    <span className="shrink-0 rounded-md bg-[color:var(--v2-warn-weak)] px-2.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-warn)]">{t("인증 안됨", "Unverified", "未验证", "Chưa xác minh", "未認証", "Belum diverifikasi")}</span>
                   )}
                 </div>
-                {user?.email ? <p className="mt-0.5 truncate text-[13px] text-[#8B95A1]">{user.email}</p> : null}
+                {user?.email ? <p className="mt-0.5 truncate text-[14px] text-[color:var(--v2-faint)]">{user.email}</p> : null}
               </div>
               <Link
                 href={partnerRoutes.profile}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2.5 text-[13px] font-bold text-[#4E5968] shadow-[0_2px_10px_rgba(11,18,39,0.06)] transition hover:text-[#0B46E8]"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2.5 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:text-[color:var(--v2-accent)]"
               >
                 <PencilSimple className="h-4 w-4" /> {t("프로필 편집", "Edit profile", "编辑资料", "Sửa hồ sơ", "プロフィール編集", "Edit profil")}
               </Link>
@@ -245,53 +245,53 @@ export function PartnerSettingsScreen() {
         {/* 회사 — 회사 프로필(탤런트 '내 커리어'와 동일 위치) */}
         <section>
           <SectionHeader title={t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")} />
-          <Link href={partnerRoutes.company} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+          <Link href={partnerRoutes.company} className="flex items-center gap-3.5 rounded-2xl bg-[color:var(--v2-band)] p-5 transition hover:bg-[color:var(--v2-line)]">
             {org?.companyLogoImageData ? (
-              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
+              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                 <Image src={org.companyLogoImageData} alt="" fill sizes="44px" className="object-cover" unoptimized />
               </span>
             ) : (
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-5 w-5" weight="fill" /></span>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"><Buildings className="h-5 w-5" weight="fill" /></span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14.5px] font-bold text-[#191F28]">{org?.name || t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{t("지원자에게 보이는 우리 회사 정보를 관리해요.", "Manage the company info applicants see.", "管理申请者可见的公司信息。", "Quản lý thông tin công ty mà ứng viên thấy.", "応募者に表示される会社情報を管理します。", "Kelola info perusahaan yang dilihat pelamar.")}</p>
+              <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{org?.name || t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</p>
+              <p className="mt-0.5 text-[13.5px] text-[color:var(--v2-faint)]">{t("지원자에게 보이는 우리 회사 정보를 관리해요.", "Manage the company info applicants see.", "管理申请者可见的公司信息。", "Quản lý thông tin công ty mà ứng viên thấy.", "応募者に表示される会社情報を管理します。", "Kelola info perusahaan yang dilihat pelamar.")}</p>
             </div>
-            <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+            <CaretRight className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" />
           </Link>
         </section>
 
         {/* 회사 팀원 */}
         <section>
           <SectionHeader title={t("회사 팀원", "Team members", "公司团队", "Thành viên công ty", "会社メンバー", "Anggota tim")} />
-          <TCard className="divide-y divide-[#F2F4F6]">
+          <TCard className="divide-y divide-[color:var(--v2-band)]">
             {members.length === 0 ? (
-              <p className="px-5 py-4 text-[13px] text-[#8B95A1]">{t("소속된 팀원 정보를 불러오는 중이에요.", "Loading team members.", "正在加载团队成员信息。", "Đang tải thành viên.", "メンバー情報を読み込み中です。", "Memuat anggota tim.")}</p>
+              <p className="px-5 py-4 text-[14px] text-[color:var(--v2-faint)]">{t("소속된 팀원 정보를 불러오는 중이에요.", "Loading team members.", "正在加载团队成员信息。", "Đang tải thành viên.", "メンバー情報を読み込み中です。", "Memuat anggota tim.")}</p>
             ) : (
               members.map((m) => {
                 const rCls = ORG_ROLE_CLS[m.role];
                 const manageable = canManage && !m.isMe && m.role !== "OWNER";
                 return (
                   <div key={m.id} className="flex items-center gap-3 px-5 py-4">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[15px] font-black text-[#0B46E8]">{m.name.slice(0, 1)}</span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[15px] font-bold text-[color:var(--v2-accent)]">{m.name.slice(0, 1)}</span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <p className="truncate text-[14.5px] font-bold text-[#191F28]">{m.name}</p>
-                        {m.isMe ? <span className="shrink-0 rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#4E5968]">{t("나", "Me", "我", "Tôi", "自分", "Saya")}</span> : null}
-                        {!m.emailVerified ? <span className="shrink-0 rounded-md bg-[#FFF3E6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#E8890C]">{t("인증 안됨", "Unverified", "未验证", "Chưa xác minh", "未認証", "Belum diverifikasi")}</span> : null}
+                        <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{m.name}</p>
+                        {m.isMe ? <span className="shrink-0 rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-ink-3)]">{t("나", "Me", "我", "Tôi", "自分", "Saya")}</span> : null}
+                        {!m.emailVerified ? <span className="shrink-0 rounded-md bg-[color:var(--v2-warn-weak)] px-2.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-warn)]">{t("인증 안됨", "Unverified", "未验证", "Chưa xác minh", "未認証", "Belum diverifikasi")}</span> : null}
                       </div>
-                      <p className="mt-0.5 truncate text-[12.5px] text-[#8B95A1]">{m.email}</p>
+                      <p className="mt-0.5 truncate text-[13.5px] text-[color:var(--v2-faint)]">{m.email}</p>
                     </div>
                     {manageable ? (
                       <div className="flex shrink-0 items-center gap-1.5">
-                        <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
+                        <div className="flex items-center gap-0.5 rounded-full bg-[color:var(--v2-band)] p-0.5">
                           {(["MEMBER", "ADMIN"] as const).map((role) => (
-                            <button key={role} type="button" disabled={memberBusy === m.id} onClick={() => m.role !== role && changeRole(m.id, role)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-50 ${m.role === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
+                            <button key={role} type="button" disabled={memberBusy === m.id} onClick={() => m.role !== role && changeRole(m.id, role)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-50 ${m.role === role ? "bg-white text-[color:var(--v2-ink)]" : "text-[color:var(--v2-faint)]"}`}>
                               {orgRoleLabel(t, role)}
                             </button>
                           ))}
                         </div>
-                        <button type="button" disabled={memberBusy === m.id} onClick={() => removeMember(m.id, m.name)} className="rounded-lg px-2 py-1.5 text-[11.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-50">{t("내보내기", "Remove", "移除", "Xóa", "削除", "Keluarkan")}</button>
+                        <button type="button" disabled={memberBusy === m.id} onClick={() => removeMember(m.id, m.name)} className="rounded-lg px-2 py-1.5 text-[11.5px] font-bold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)] disabled:opacity-50">{t("내보내기", "Remove", "移除", "Xóa", "削除", "Keluarkan")}</button>
                       </div>
                     ) : (
                       <span className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-bold ${rCls}`}>{orgRoleLabel(t, m.role)}</span>
@@ -305,12 +305,12 @@ export function PartnerSettingsScreen() {
           {canManage ? (
             <>
               {/* 이메일로 팀원 초대 */}
-              <div className="mt-3 rounded-2xl border border-[#EEF1F5] bg-white p-4">
+              <div className="mt-3 rounded-2xl bg-[color:var(--v2-band)] p-4">
                 <div className="flex items-center gap-1.5">
-                  <EnvelopeSimple className="h-4 w-4 text-[#0B46E8]" weight="fill" />
-                  <p className="text-[13.5px] font-bold text-[#191F28]">{t("이메일로 팀원 초대", "Invite by email", "邮件邀请成员", "Mời qua email", "メールで招待", "Undang via email")}</p>
+                  <EnvelopeSimple className="h-4 w-4 text-[color:var(--v2-accent)]" weight="fill" />
+                  <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{t("이메일로 팀원 초대", "Invite by email", "邮件邀请成员", "Mời qua email", "メールで招待", "Undang via email")}</p>
                 </div>
-                <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("초대 메일의 링크에서 이메일을 확인하면 자동으로 우리 회사에 합류해요.", "They join automatically after confirming the link in the invite email.", "对方在邀请邮件链接中确认邮箱后会自动加入公司。", "Họ tự động tham gia sau khi xác nhận liên kết trong email mời.", "招待メールのリンクでメールを確認すると自動的に会社に参加します。", "Mereka bergabung otomatis setelah mengonfirmasi tautan di email undangan.")}</p>
+                <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{t("초대 메일의 링크에서 이메일을 확인하면 자동으로 우리 회사에 합류해요.", "They join automatically after confirming the link in the invite email.", "对方在邀请邮件链接中确认邮箱后会自动加入公司。", "Họ tự động tham gia sau khi xác nhận liên kết trong email mời.", "招待メールのリンクでメールを確認すると自動的に会社に参加します。", "Mereka bergabung otomatis setelah mengonfirmasi tautan di email undangan.")}</p>
                 <div className="mt-3 flex flex-col gap-2">
                   <input
                     type="email"
@@ -318,17 +318,17 @@ export function PartnerSettingsScreen() {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") sendInvite(); }}
                     placeholder={t("초대할 이메일 주소", "Email to invite", "邀请的邮箱地址", "Email cần mời", "招待するメールアドレス", "Email untuk diundang")}
-                    className="w-full rounded-xl bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30"
+                    className="w-full rounded-xl bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30"
                   />
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5 rounded-full bg-[#F2F4F6] p-0.5">
+                    <div className="flex items-center gap-0.5 rounded-full bg-[color:var(--v2-band)] p-0.5">
                       {(["MEMBER", "ADMIN"] as const).map((role) => (
-                        <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${inviteRole === role ? "bg-white text-[#191F28] shadow-[0_1px_3px_rgba(11,18,39,0.1)]" : "text-[#8B95A1]"}`}>
+                        <button key={role} type="button" onClick={() => setInviteRole(role)} className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${inviteRole === role ? "bg-white text-[color:var(--v2-ink)]" : "text-[color:var(--v2-faint)]"}`}>
                           {orgRoleLabel(t, role)}
                         </button>
                       ))}
                     </div>
-                    <button type="button" onClick={sendInvite} disabled={sendingInvite || !inviteEmail.trim()} className="ml-auto shrink-0 rounded-xl bg-[#0B46E8] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                    <button type="button" onClick={sendInvite} disabled={sendingInvite || !inviteEmail.trim()} className="ml-auto shrink-0 rounded-xl bg-[color:var(--v2-accent)] px-4 py-2.5 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">
                       {sendingInvite ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…") : t("초대 보내기", "Send invite", "发送邀请", "Gửi lời mời", "招待を送る", "Kirim undangan")}
                     </button>
                   </div>
@@ -337,15 +337,15 @@ export function PartnerSettingsScreen() {
 
               {/* 대기 중 초대 */}
               {invites.length ? (
-                <TCard className="mt-3 divide-y divide-[#F2F4F6]">
+                <TCard className="mt-3 divide-y divide-[color:var(--v2-band)]">
                   {invites.map((inv) => (
                     <div key={inv.id} className="flex items-center gap-3 px-5 py-3.5">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F2F4F6] text-[#8B95A1]"><EnvelopeSimple className="h-4 w-4" /></span>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"><EnvelopeSimple className="h-4 w-4" /></span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13.5px] font-bold text-[#191F28]">{inv.email}</p>
-                        <p className="mt-0.5 text-[12px] text-[#8B95A1]">{inv.expired ? t("만료됨", "Expired", "已过期", "Hết hạn", "期限切れ", "Kedaluwarsa") : t("초대 대기 중", "Pending", "待接受", "Đang chờ", "招待待ち", "Menunggu")} · {orgRoleLabel(t, inv.partnerOrgRole)}</p>
+                        <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{inv.email}</p>
+                        <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{inv.expired ? t("만료됨", "Expired", "已过期", "Hết hạn", "期限切れ", "Kedaluwarsa") : t("초대 대기 중", "Pending", "待接受", "Đang chờ", "招待待ち", "Menunggu")} · {orgRoleLabel(t, inv.partnerOrgRole)}</p>
                       </div>
-                      <button type="button" onClick={() => revokeInvite(inv.id)} aria-label={t("초대 취소", "Cancel invite", "取消邀请", "Hủy lời mời", "招待取消", "Batal undang")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#8B95A1] transition hover:bg-[#FDECEE] hover:text-[#F04452]"><X className="h-4 w-4" weight="bold" /></button>
+                      <button type="button" onClick={() => revokeInvite(inv.id)} aria-label={t("초대 취소", "Cancel invite", "取消邀请", "Hủy lời mời", "招待取消", "Batal undang")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--v2-faint)] transition hover:bg-[color:var(--v2-attention-weak)] hover:text-[color:var(--v2-attention)]"><X className="h-4 w-4" weight="bold" /></button>
                     </div>
                   ))}
                 </TCard>
@@ -355,17 +355,17 @@ export function PartnerSettingsScreen() {
               <div className="mt-3">
                 {inviteCode ? (
                   <>
-                    <div className="flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-[#F5F8FF] px-4 py-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--v2-accent-weak)] bg-[color:var(--v2-accent-weak)] px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold text-[#8B95A1]">{t("초대 코드", "Invite code", "邀请码", "Mã mời", "招待コード", "Kode undangan")}</p>
-                        <p className="truncate text-[16px] font-black tracking-[0.04em] text-[#0B1227]">{inviteCode}</p>
+                        <p className="text-[11px] font-bold text-[color:var(--v2-faint)]">{t("초대 코드", "Invite code", "邀请码", "Mã mời", "招待コード", "Kode undangan")}</p>
+                        <p className="truncate text-[16px] font-bold tracking-[0.04em] text-[color:var(--v2-ink)]">{inviteCode}</p>
                       </div>
-                      <button type="button" onClick={copyInvite} className="shrink-0 rounded-lg bg-white px-3 py-2 text-[12.5px] font-bold text-[#0B46E8] transition hover:bg-[#EDF1FD]">{t("복사", "Copy", "复制", "Sao chép", "コピー", "Salin")}</button>
+                      <button type="button" onClick={copyInvite} className="shrink-0 rounded-lg bg-white px-3 py-2 text-[13.5px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-accent-weak)]">{t("복사", "Copy", "复制", "Sao chép", "コピー", "Salin")}</button>
                     </div>
-                    <p className="mt-1.5 text-[12px] text-[#8B95A1]">{t("가입 후 코드를 입력하면 합류해요. 이메일 초대가 더 간편해요.", "They join by entering the code after signing up. Email invites are easier.", "注册后输入邀请码即可加入。邮件邀请更方便。", "Họ tham gia bằng cách nhập mã sau khi đăng ký. Mời qua email tiện hơn.", "登録後にコードを入力すると参加できます。メール招待がより簡単です。", "Mereka bergabung dengan memasukkan kode setelah mendaftar. Undangan email lebih mudah.")}</p>
+                    <p className="mt-1.5 text-[12px] text-[color:var(--v2-faint)]">{t("가입 후 코드를 입력하면 합류해요. 이메일 초대가 더 간편해요.", "They join by entering the code after signing up. Email invites are easier.", "注册后输入邀请码即可加入。邮件邀请更方便。", "Họ tham gia bằng cách nhập mã sau khi đăng ký. Mời qua email tiện hơn.", "登録後にコードを入力すると参加できます。メール招待がより簡単です。", "Mereka bergabung dengan memasukkan kode setelah mendaftar. Undangan email lebih mudah.")}</p>
                   </>
                 ) : (
-                  <button type="button" onClick={makeInvite} disabled={inviting} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#EEF1F5] bg-white py-3 text-[13px] font-bold text-[#8B95A1] transition hover:bg-[#F6F8FB] disabled:opacity-50">
+                  <button type="button" onClick={makeInvite} disabled={inviting} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-[color:var(--v2-line)] bg-white py-3 text-[14px] font-bold text-[color:var(--v2-faint)] transition hover:bg-[color:var(--v2-fill)] disabled:opacity-50">
                     <UserPlus className="h-4 w-4" weight="bold" /> {inviting ? t("생성 중…", "Creating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…") : t("또는 초대 코드로 공유", "Or share an invite code", "或用邀请码分享", "Hoặc chia sẻ mã mời", "または招待コードで共有", "Atau bagikan kode undangan")}
                   </button>
                 )}
@@ -379,12 +379,12 @@ export function PartnerSettingsScreen() {
           <SectionHeader title={t("언어", "Language", "语言", "Ngôn ngữ", "言語", "Bahasa")} />
           <TCard>
             <div className="flex items-center gap-3 px-5 py-4">
-              <span className="flex-1 text-[14.5px] text-[#191F28]">{t("표시 언어", "Display language", "显示语言", "Ngôn ngữ hiển thị", "表示言語", "Bahasa tampilan")}</span>
+              <span className="flex-1 text-[14.5px] text-[color:var(--v2-ink)]">{t("표시 언어", "Display language", "显示语言", "Ngôn ngữ hiển thị", "表示言語", "Bahasa tampilan")}</span>
               <select
                 value={locale}
                 onChange={(e) => setLocale(e.target.value as PlatformLocale)}
                 aria-label={t("표시 언어", "Display language", "显示语言", "Ngôn ngữ hiển thị", "表示言語", "Bahasa tampilan")}
-                className="rounded-xl border border-[#E5E8EB] bg-white px-3 py-2 text-[13.5px] font-semibold text-[#191F28] outline-none focus:border-[#0B46E8]"
+                className="rounded-xl border border-[color:var(--v2-line)] bg-white px-3 py-2 text-[14.5px] font-semibold text-[color:var(--v2-ink)] outline-none focus:border-[color:var(--v2-accent)]"
               >
                 {PLATFORM_LOCALES.map((l) => (
                   <option key={l} value={l}>{LOCALE_LABELS[l]}</option>
@@ -397,7 +397,7 @@ export function PartnerSettingsScreen() {
         {/* 알림 */}
         <section>
           <SectionHeader title={t("알림", "Notification", "通知", "Thông báo", "通知", "Notifikasi")} />
-          <Link href={partnerRoutes.notifications} className="flex items-center justify-center gap-1 rounded-2xl border border-[#EEF1F5] bg-white py-3.5 text-[14px] font-bold text-[#0B46E8] transition hover:bg-[#F6F8FB]">
+          <Link href={partnerRoutes.notifications} className="flex items-center justify-center gap-1 rounded-2xl bg-[color:var(--v2-band)] py-3.5 text-[14px] font-bold text-[color:var(--v2-accent)] transition hover:bg-[color:var(--v2-line)]">
             {t("알림함 열기", "Open notifications", "打开通知箱", "Mở hộp thông báo", "通知を開く", "Buka notifikasi")} <CaretRight className="h-4 w-4" weight="bold" />
           </Link>
         </section>
@@ -405,12 +405,12 @@ export function PartnerSettingsScreen() {
         {/* 계정 */}
         <section>
           <SectionHeader title={t("계정", "Account", "账户", "Tài khoản", "アカウント", "Akun")} />
-          <TCard className="divide-y divide-[#F2F4F6]">
+          <TCard className="divide-y divide-[color:var(--v2-band)]">
             <Item label={t("계정 정보 관리", "Manage account", "管理账户信息", "Quản lý tài khoản", "アカウント管理", "Kelola akun")} href={getAccountUrl()} />
-            <a href="mailto:info@flip-ers.com" className="block transition hover:bg-[#F6F8FB]">
+            <a href="mailto:info@flip-ers.com" className="block transition hover:bg-[color:var(--v2-fill)]">
               <div className="flex items-center gap-3 px-5 py-4">
-                <span className="flex-1 text-[14.5px] text-[#191F28]">{t("고객센터 · 문의", "Support · Contact", "客服 · 咨询", "Hỗ trợ · Liên hệ", "サポート · お問い合わせ", "Dukungan · Kontak")}</span>
-                <CaretRight className="h-4 w-4 text-[#C4CAD2]" />
+                <span className="flex-1 text-[14.5px] text-[color:var(--v2-ink)]">{t("고객센터 · 문의", "Support · Contact", "客服 · 咨询", "Hỗ trợ · Liên hệ", "サポート · お問い合わせ", "Dukungan · Kontak")}</span>
+                <CaretRight className="h-4 w-4 text-[color:var(--v2-disabled)]" />
               </div>
             </a>
             <Item label={t("개인정보처리방침", "Privacy Policy", "隐私政策", "Chính sách bảo mật", "プライバシーポリシー", "Kebijakan privasi")} href="/legal/privacy" />
@@ -422,7 +422,7 @@ export function PartnerSettingsScreen() {
         <button
           type="button"
           onClick={() => void logout()}
-          className="mt-2 flex items-center justify-center gap-2 rounded-2xl border border-[#EEF1F5] bg-white py-4 text-[14px] font-semibold text-[#F04452] transition hover:bg-[#FFF5F5]"
+          className="mt-2 flex items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-band)] py-4 text-[14px] font-semibold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)]"
         >
           <SignOut className="h-[18px] w-[18px]" /> {t("로그아웃", "Log out", "退出登录", "Đăng xuất", "ログアウト", "Keluar")}
         </button>

@@ -213,14 +213,14 @@ export default function LaunchDashboardPage() {
   if (!isReady || !isAuthenticated) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
+        <span className="inline-flex items-center gap-2 text-[13px] text-[color:var(--v2-faint)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중...", "Loading...", "加载中...", "Đang tải...", "読み込み中...", "Memuat...")}</span>
       </main>
     );
   }
 
   return (
     <EnrollmentGate>
-    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-[color:var(--v2-bg)]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
@@ -229,7 +229,7 @@ export default function LaunchDashboardPage() {
           <h1 className="sr-only">{t("오늘의 커리어 준비", "Today's career prep", "今日的求职准备", "Chuẩn bị nghề hôm nay", "今日のキャリア準備", "Persiapan karier hari ini")}</h1>
           {/* 운영자는 학생 화면을 본인 계정으로 전부 체험할 수 있음 — 콘솔 복귀 링크 */}
           {user?.role === "OPERATOR" ? (
-            <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-lg border border-[#F0B429]/40 bg-[#FFF9EC] px-3 py-1.5 text-[12.5px] font-bold text-[#B7791F] transition hover:bg-[#FEF3D6]">
+            <Link href="/career-launch/ops/students" className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-[color:var(--v2-band)] px-3.5 py-2 text-[13px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
               {t("← 운영자 콘솔 · 지금은 학생 화면 체험 중", "← Operator console · Now previewing the student view", "← 运营者控制台 · 当前正在预览学生页面", "← Bảng điều khiển quản trị · Đang xem thử giao diện học viên", "← 運営者コンソール · 現在は学生画面をプレビュー中", "← Konsol operator · Sedang melihat tampilan siswa")}
             </Link>
           ) : null}
@@ -243,15 +243,15 @@ export default function LaunchDashboardPage() {
           {vm ? (
             <div className="mt-1"><BoardingPassHero vm={vm} displayName={displayName} overall={overall} /></div>
           ) : (
-          <section className="mt-1 overflow-hidden rounded-2xl border border-[#E7EDFB] bg-gradient-to-br from-[#F4F8FF] via-white to-white">
+          <section className="mt-1 overflow-hidden rounded-3xl bg-[color:var(--v2-band)]">
             <div className="flex flex-col md:flex-row md:items-center">
               {/* 데스크톱: 텍스트 좌 · 이미지 우 / 모바일: 이미지 상 · 텍스트 하 */}
               <div className="order-2 flex-1 p-6 md:order-1 md:py-8 md:pl-8 md:pr-2">
-                <p className="cl-eyebrow text-[#3182F6]">CAREER LAUNCH</p>
-                <h2 className="cl-headline mt-2 text-[#0B1227]">
+                <p className="text-[13px] font-semibold text-[color:var(--v2-accent)]">CAREER LAUNCH</p>
+                <h2 className="mt-2 text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">
                   {t("전담 코치와 함께하는 4단계, 취업 준비 완성", "Four steps with your coach — job-ready", "与专属教练同行的4个步骤，完成求职准备", "4 bước cùng coach — sẵn sàng xin việc", "専属コーチと4ステップで就活準備を完成", "Empat langkah bersama coach — siap melamar")}
                 </h2>
-                <p className="cl-lead mt-2.5 max-w-xl break-keep text-[#4E5968]">
+                <p className="mt-2.5 max-w-xl break-keep text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)]">
                   {t(
                     "직무 탐색부터 이력서·자기소개서, 실전 모의면접까지 — 4단계에 걸쳐 실제 지원에 쓰는 결과물을 완성해요.",
                     "From finding your role to resume, cover letter, and mock interviews — build the real deliverables you'll apply with across four steps.",
@@ -261,7 +261,7 @@ export default function LaunchDashboardPage() {
                     "Dari eksplorasi peran hingga resume, cover letter, dan wawancara simulasi — selesaikan hasil nyata untuk melamar dalam empat langkah."
                   )}
                 </p>
-                <span className="mt-4 inline-flex items-center rounded-full bg-[#0B46E8] px-3 py-1 text-[11.5px] font-bold text-white">
+                <span className="mt-4 inline-flex items-center rounded-full bg-[color:var(--v2-accent-weak)] px-3 py-1.5 text-[13px] font-semibold text-[color:var(--v2-accent)]">
                   {t("4단계 프로그램", "4-step program", "4个步骤的项目", "Chương trình 4 bước", "4ステッププログラム", "Program 4 langkah")}
                 </span>
               </div>

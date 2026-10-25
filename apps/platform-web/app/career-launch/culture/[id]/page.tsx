@@ -9,7 +9,6 @@ import { WEEKS } from "../../../../lib/launch/data";
 import { useLocalizedCulture } from "../../../../lib/launch/culture-i18n";
 import { Card } from "../../../../components/launch/ui";
 import { CareerLaunchHeader } from "../../../../components/launch/CareerLaunchHeader";
-import { LaunchAmbientBackground } from "../../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../../components/AplyFooter";
 import { useLaunchT } from "../../../../lib/launch/i18n";
 
@@ -67,37 +66,36 @@ export default function CultureLessonPage() {
   };
 
   return (
-    <div className="isolate flex min-h-screen flex-col bg-background">
-      <LaunchAmbientBackground />
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href={backHref} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+        <div className="mx-auto w-full max-w-[880px] px-5 pt-6 md:pt-10">
+          <Link href={backHref} className="inline-flex items-center gap-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
             <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {backLabel}
           </Link>
 
           {!lesson ? (
-            <Card className="mt-4 text-[14px] text-[#4E5968]">{t("학습 내용을 찾을 수 없어요. 대시보드로 돌아가주세요.", "We couldn't find this lesson. Please go back to the dashboard.", "找不到该学习内容，请返回仪表盘。", "Không tìm thấy nội dung học này. Vui lòng quay lại bảng điều khiển.", "この学習内容が見つかりません。ダッシュボードに戻ってください。", "Materi pembelajaran ini tidak ditemukan. Silakan kembali ke dasbor.")}</Card>
+            <Card className="mt-4 text-[15px] text-[color:var(--v2-ink-3)]">{t("학습 내용을 찾을 수 없어요. 대시보드로 돌아가주세요.", "We couldn't find this lesson. Please go back to the dashboard.", "找不到该学习内容，请返回仪表盘。", "Không tìm thấy nội dung học này. Vui lòng quay lại bảng điều khiển.", "この学習内容が見つかりません。ダッシュボードに戻ってください。", "Materi pembelajaran ini tidak ditemukan. Silakan kembali ke dasbor.")}</Card>
           ) : (
             <>
               {/* 헤더 */}
-              <div className="mt-3 rounded-2xl border border-[#CFE0FF] bg-[#EDF1FD] p-5 md:p-6">
+              <div className="mt-4 rounded-3xl bg-[color:var(--v2-accent-weak)] p-5 md:p-6">
                 <div className="flex items-center gap-2">
                   <span className="text-[20px]">{lesson.emoji}</span>
-                  <p className="text-[12.5px] font-bold text-[#0B46E8]">{t("한국 직장 문화·예절", "Korean Workplace Culture & Etiquette", "韩国职场文化与礼仪", "Văn hóa & phép tắc nơi làm việc Hàn Quốc", "韓国の職場文化・マナー", "Budaya & Etika Kerja Korea")}</p>
+                  <p className="text-[14px] font-semibold text-[color:var(--v2-accent)]">{t("한국 직장 문화·예절", "Korean Workplace Culture & Etiquette", "韩国职场文化与礼仪", "Văn hóa & phép tắc nơi làm việc Hàn Quốc", "韓国の職場文化・マナー", "Budaya & Etika Kerja Korea")}</p>
                 </div>
-                <h1 className="mt-1.5 text-[20px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[24px]">{lesson.title}</h1>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-[#4E5968] md:text-[14px]">{lesson.intro}</p>
+                <h1 className="mt-1.5 text-[24px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[28px]">{lesson.title}</h1>
+                <p className="mt-2 text-[16px] leading-[1.6] text-[color:var(--v2-ink-3)]">{lesson.intro}</p>
               </div>
 
               {/* 학습 목표 */}
               {lesson.objectives?.length ? (
-                <div className="mt-4 rounded-2xl border border-[#E5E8EB] bg-white p-4 md:p-5">
-                  <p className="text-[12.5px] font-bold text-[#0B46E8]">🎯 {t("이 학습을 마치면", "After this lesson, you'll be able to", "完成本课后你将能够", "Sau bài học này, bạn sẽ có thể", "この学習を終えると", "Setelah pelajaran ini, kamu akan bisa")}</p>
+                <div className="mt-4 rounded-3xl bg-[color:var(--v2-band)] p-5">
+                  <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">🎯 {t("이 학습을 마치면", "After this lesson, you'll be able to", "完成本课后你将能够", "Sau bài học này, bạn sẽ có thể", "この学習を終えると", "Setelah pelajaran ini, kamu akan bisa")}</p>
                   <ul className="mt-2 space-y-1.5">
                     {lesson.objectives.map((o, i) => (
-                      <li key={i} className="flex gap-2 break-keep text-[13.5px] leading-relaxed text-[#333D4B]">
-                        <span className="text-[#0B46E8]">✓</span>
+                      <li key={i} className="flex gap-2 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-2)]">
+                        <span className="text-[color:var(--v2-accent)]">✓</span>
                         {o}
                       </li>
                     ))}
@@ -112,28 +110,28 @@ export default function CultureLessonPage() {
                     <div key={si}>
                       <div className="flex items-center gap-2">
                         {sec.emoji ? <span className="text-[16px]">{sec.emoji}</span> : null}
-                        <h2 className="text-[15.5px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[16.5px]">{sec.heading}</h2>
+                        <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{sec.heading}</h2>
                       </div>
                       {sec.summary ? (
-                        <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#8B95A1]">{sec.summary}</p>
+                        <p className="mt-1.5 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-muted)]">{sec.summary}</p>
                       ) : null}
                       <div className="mt-3 space-y-3">
                         {sec.items.map((p, i) => (
                           <Card key={i} className="flex gap-3 md:!p-5">
-                            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#0B46E8] text-[12.5px] font-black text-white">
+                            <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[13px] font-bold text-[color:var(--v2-accent)]">
                               {i + 1}
                             </span>
                             <div>
-                              <p className="text-[14.5px] font-bold text-[#191F28]">{p.title}</p>
-                              <p className="mt-1 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{p.body}</p>
+                              <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{p.title}</p>
+                              <p className="mt-1 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{p.body}</p>
                               {p.example ? (
-                                <div className="mt-2 rounded-lg border border-[#E5E8EB] bg-[#F8FAFC] px-3 py-2.5">
-                                  <p className="text-[11px] font-bold text-[#8B95A1]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</p>
-                                  <p className="mt-1 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#333D4B]">{p.example}</p>
+                                <div className="mt-2.5 rounded-xl bg-white px-3.5 py-3">
+                                  <p className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("예시", "Example", "示例", "Ví dụ", "例", "Contoh")}</p>
+                                  <p className="mt-1 whitespace-pre-wrap break-keep text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">{p.example}</p>
                                 </div>
                               ) : null}
                               {p.tip ? (
-                                <p className="mt-2 flex gap-1.5 break-keep rounded-lg bg-[#F6FFE9] px-2.5 py-2 text-[12.5px] leading-relaxed text-[#3A6B00]">
+                                <p className="mt-2.5 flex gap-1.5 break-keep rounded-xl bg-[color:var(--v2-accent-weak)] px-3.5 py-3 text-[14px] leading-[1.6] text-[color:var(--v2-ink-2)]">
                                   <span className="flex-none">💡</span>
                                   {p.tip}
                                 </p>
@@ -150,12 +148,12 @@ export default function CultureLessonPage() {
                 <div className="mt-6 space-y-3">
                   {(lesson.points ?? []).map((p, i) => (
                     <Card key={i} className="flex gap-3 md:!p-5">
-                      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[#0B46E8] text-[12.5px] font-black text-white">
+                      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[13px] font-bold text-[color:var(--v2-accent)]">
                         {i + 1}
                       </span>
                       <div>
-                        <p className="text-[14.5px] font-bold text-[#191F28]">{p.title}</p>
-                        <p className="mt-1 break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{p.body}</p>
+                        <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{p.title}</p>
+                        <p className="mt-1 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{p.body}</p>
                       </div>
                     </Card>
                   ))}
@@ -166,19 +164,19 @@ export default function CultureLessonPage() {
               {quiz.length ? (
                 <div className="mt-9">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-[15.5px] font-black tracking-[-0.01em] text-[#0B1227] md:text-[16.5px]">📝 {t("이해도 확인 퀴즈", "Comprehension Quiz", "理解检测测验", "Bài kiểm tra mức độ hiểu", "理解度チェッククイズ", "Kuis Pemahaman")}</h2>
-                    <span className="text-[12.5px] font-bold text-[#8B95A1]">
+                    <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">📝 {t("이해도 확인 퀴즈", "Comprehension Quiz", "理解检测测验", "Bài kiểm tra mức độ hiểu", "理解度チェッククイズ", "Kuis Pemahaman")}</h2>
+                    <span className="text-[14px] font-semibold text-[color:var(--v2-faint)]">
                       {answeredCount}/{quiz.length}
                     </span>
                   </div>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-[#8B95A1]">{t("배운 내용을 가볍게 확인해봐요. 정답을 고르면 해설이 나와요.", "Quickly check what you learned. Pick an answer to see the explanation.", "轻松检验一下所学内容。选择答案后会显示解析。", "Kiểm tra nhẹ nhàng những gì bạn đã học. Chọn đáp án để xem lời giải.", "学んだ内容を軽く確認しましょう。答えを選ぶと解説が表示されます。", "Cek ringan apa yang kamu pelajari. Pilih jawaban untuk melihat penjelasannya.")}</p>
+                  <p className="mt-1.5 text-[15px] leading-[1.6] text-[color:var(--v2-muted)]">{t("배운 내용을 가볍게 확인해봐요. 정답을 고르면 해설이 나와요.", "Quickly check what you learned. Pick an answer to see the explanation.", "轻松检验一下所学内容。选择答案后会显示解析。", "Kiểm tra nhẹ nhàng những gì bạn đã học. Chọn đáp án để xem lời giải.", "学んだ内容を軽く確認しましょう。答えを選ぶと解説が表示されます。", "Cek ringan apa yang kamu pelajari. Pilih jawaban untuk melihat penjelasannya.")}</p>
                   <div className="mt-4 space-y-4">
                     {quiz.map((q, qi) => {
                       const picked = answers[qi];
                       const answered = picked !== undefined;
                       return (
                         <Card key={qi} className="md:!p-5">
-                          <p className="break-keep text-[14px] font-bold text-[#191F28]">
+                          <p className="break-keep text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">
                             Q{qi + 1}. {q.question}
                           </p>
                           <div className="mt-3 space-y-2">
@@ -194,21 +192,21 @@ export default function CultureLessonPage() {
                                     : "dim";
                               const cls =
                                 state === "correct"
-                                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                  ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)] ring-2 ring-inset ring-[color:var(--v2-accent)]"
                                   : state === "wrong"
-                                    ? "border-red-300 bg-red-50 text-red-700"
+                                    ? "bg-white text-[color:var(--v2-attention)] ring-2 ring-inset ring-[color:var(--v2-attention)]"
                                     : state === "dim"
-                                      ? "border-[#EEF1F5] bg-white text-[#B0B8C1]"
-                                      : "border-[#E5E8EB] bg-white text-[#333D4B] hover:border-[#0B46E8] hover:text-[#0B46E8]";
+                                      ? "bg-white/60 text-[color:var(--v2-faint)]"
+                                      : "bg-white text-[color:var(--v2-ink-2)] md:hover:bg-[color:var(--v2-fill)] active:scale-[0.99]";
                               return (
                                 <button
                                   key={oi}
                                   type="button"
                                   disabled={answered}
                                   onClick={() => setAnswers((a) => ({ ...a, [qi]: oi }))}
-                                  className={`flex w-full items-center gap-2 rounded-xl border px-3.5 py-2.5 text-left text-[13.5px] font-medium transition ${cls} ${answered ? "cursor-default" : ""}`}
+                                  className={`flex w-full items-center gap-2.5 rounded-2xl px-4 py-3.5 text-left text-[15px] font-medium transition ${cls} ${answered ? "cursor-default" : ""}`}
                                 >
-                                  <span className="flex-none text-[12px] font-bold opacity-70">{String.fromCharCode(65 + oi)}</span>
+                                  <span className="flex-none text-[13px] font-bold opacity-70">{String.fromCharCode(65 + oi)}</span>
                                   <span className="break-keep">{opt}</span>
                                   {answered && isAnswer ? <span className="ml-auto flex-none">✓</span> : null}
                                   {answered && isPicked && !isAnswer ? <span className="ml-auto flex-none">✕</span> : null}
@@ -218,8 +216,8 @@ export default function CultureLessonPage() {
                           </div>
                           {answered ? (
                             <p
-                              className={`mt-3 break-keep rounded-lg px-3 py-2.5 text-[12.5px] leading-relaxed ${
-                                picked === q.answer ? "bg-emerald-50 text-emerald-800" : "bg-[#F8FAFC] text-[#4E5968]"
+                              className={`mt-3 break-keep rounded-xl px-3.5 py-3 text-[14px] leading-[1.6] ${
+                                picked === q.answer ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-ink-2)]" : "bg-white text-[color:var(--v2-ink-3)]"
                               }`}
                             >
                               {picked === q.answer
@@ -233,7 +231,7 @@ export default function CultureLessonPage() {
                     })}
                   </div>
                   {quizDone ? (
-                    <p className="mt-4 rounded-xl border border-[#CFE0FF] bg-[#EDF1FD] px-4 py-3 text-center text-[13.5px] font-bold text-[#0B46E8]">
+                    <p className="mt-4 rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3.5 text-center text-[15px] font-bold text-[color:var(--v2-accent)]">
                       {t(
                         `퀴즈 완료! ${quiz.length}문제 중 ${correctCount}문제를 맞혔어요`,
                         `Quiz complete! You got ${correctCount} of ${quiz.length} right`,
@@ -251,12 +249,12 @@ export default function CultureLessonPage() {
               {/* 완료 체크 */}
               {done ? (
                 <div className="mt-7 flex flex-col gap-2 sm:flex-row">
-                  <div className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#EDF1FD] py-3 text-[14px] font-bold text-[#0B46E8]">
+                  <div className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[color:var(--v2-accent-weak)] text-[16px] font-semibold text-[color:var(--v2-accent)]">
                     ✓ {t("학습 완료", "Lesson complete", "学习完成", "Hoàn thành bài học", "学習完了", "Pelajaran selesai")}
                   </div>
                   <Link
                     href={backHref}
-                    className="flex items-center justify-center rounded-xl bg-[#0B46E8] px-5 py-3 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                    className="flex h-12 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
                   >
                     {t(`${backLabel}로 →`, `To ${backLabel} →`, `返回${backLabel} →`, `Về ${backLabel} →`, `${backLabel}へ →`, `Ke ${backLabel} →`)}
                   </Link>
@@ -267,8 +265,8 @@ export default function CultureLessonPage() {
                     type="button"
                     onClick={complete}
                     disabled={!quizDone || saving}
-                    className={`mt-7 flex w-full items-center justify-center rounded-xl py-3.5 text-[14.5px] font-bold transition ${
-                      quizDone && !saving ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#E5E8EB] text-[#B0B8C1]"
+                    className={`mt-7 flex h-14 w-full items-center justify-center rounded-2xl text-[17px] font-semibold transition active:scale-[0.99] ${
+                      quizDone && !saving ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"
                     }`}
                   >
                     {saving
@@ -276,10 +274,10 @@ export default function CultureLessonPage() {
                       : t("다 읽었어요 · 학습 완료", "I've read it all · Mark complete", "已全部读完 · 完成学习", "Đã đọc hết · Hoàn thành bài học", "全部読みました · 学習完了", "Sudah dibaca semua · Tandai selesai")}
                   </button>
                   {saveError ? (
-                    <p className="mt-2 text-center text-[12.5px] font-semibold text-[#F04452]">{t("완료를 저장하지 못했어요. 잠시 후 다시 눌러주세요.", "We couldn't save your completion. Please try again in a moment.", "未能保存完成状态，请稍后再试。", "Chưa lưu được hoàn thành. Vui lòng thử lại sau.", "完了を保存できませんでした。しばらくしてからもう一度押してください。", "Gagal menyimpan penyelesaian. Coba lagi sebentar lagi.")}</p>
+                    <p className="mt-2 text-center text-[14px] font-semibold text-[color:var(--v2-attention)]">{t("완료를 저장하지 못했어요. 잠시 후 다시 눌러주세요.", "We couldn't save your completion. Please try again in a moment.", "未能保存完成状态，请稍后再试。", "Chưa lưu được hoàn thành. Vui lòng thử lại sau.", "完了を保存できませんでした。しばらくしてからもう一度押してください。", "Gagal menyimpan penyelesaian. Coba lagi sebentar lagi.")}</p>
                   ) : null}
                   {!quizDone ? (
-                    <p className="mt-2 text-center text-[12.5px] text-[#8B95A1]">{t("퀴즈를 모두 풀면 학습을 완료할 수 있어요", "Finish all quiz questions to complete this lesson.", "答完所有测验题目即可完成本课学习。", "Hoàn thành tất cả câu hỏi để kết thúc bài học.", "すべてのクイズを解くと学習を完了できます。", "Selesaikan semua soal kuis untuk menuntaskan pelajaran ini.")}</p>
+                    <p className="mt-2.5 text-center text-[14px] text-[color:var(--v2-faint)]">{t("퀴즈를 모두 풀면 학습을 완료할 수 있어요", "Finish all quiz questions to complete this lesson.", "答完所有测验题目即可完成本课学习。", "Hoàn thành tất cả câu hỏi để kết thúc bài học.", "すべてのクイズを解くと学習を完了できます。", "Selesaikan semua soal kuis untuk menuntaskan pelajaran ini.")}</p>
                   ) : null}
                 </>
               )}

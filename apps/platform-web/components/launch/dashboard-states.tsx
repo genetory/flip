@@ -25,16 +25,16 @@ export function DashboardSection({ title, sub, action, children }: { title: stri
 // 빈 상태 — 왜 비었는지 + 만들 수 있는 행동. 의미 없는 빈 그래프 금지.
 export function EmptyState({ title, description, ctaLabel, onCta, href }: { title: string; description?: string; ctaLabel?: string; onCta?: () => void; href?: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[#E5E8EB] bg-[#FBFCFD] px-4 py-6 text-center">
-      <p className="text-[14px] font-semibold text-[#4E5968]">{title}</p>
-      {description ? <p className="mt-1 text-[12.5px] text-[#8B95A1]">{description}</p> : null}
+    <div className="rounded-3xl bg-[color:var(--v2-fill)] px-5 py-8 text-center">
+      <p className="text-[16px] font-semibold text-[color:var(--v2-ink-3)]">{title}</p>
+      {description ? <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-faint)]">{description}</p> : null}
       {ctaLabel ? (
         href ? (
-          <a href={href} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-[#191F28] px-3.5 py-2 text-[13px] font-semibold text-white">
+          <a href={href} className="mt-4 inline-flex h-10 items-center gap-1 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[15px] font-semibold text-white transition hover:opacity-90">
             {ctaLabel} <ArrowRight size={14} weight="bold" />
           </a>
         ) : (
-          <button onClick={onCta} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-[#191F28] px-3.5 py-2 text-[13px] font-semibold text-white">
+          <button onClick={onCta} className="mt-4 inline-flex h-10 items-center gap-1 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[15px] font-semibold text-white transition hover:opacity-90">
             {ctaLabel} <ArrowRight size={14} weight="bold" />
           </button>
         )
@@ -47,11 +47,11 @@ export function EmptyState({ title, description, ctaLabel, onCta, href }: { titl
 export function ErrorState({ onRetry, message }: { onRetry?: () => void; message?: string }) {
   const t = useLaunchT();
   return (
-    <div role="alert" className="rounded-2xl border border-[#F2D2D2] bg-[#FEF6F6] px-4 py-5 text-center">
-      <p className="text-[14px] font-semibold text-[#C0392B]">{message ?? t("진행 내용을 불러오지 못했어요.", "Couldn't load your progress.", "无法加载进度。", "Không tải được tiến độ.", "進行内容を読み込めませんでした。", "Gagal memuat progres.")}</p>
-      <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("작성한 내용은 저장되어 있어요. 잠시 후 다시 확인해 주세요.", "Your work is saved. Please check again in a moment.", "你填写的内容已保存，请稍后再查看。", "Nội dung đã lưu. Vui lòng kiểm tra lại sau.", "入力内容は保存されています。少し後にもう一度ご確認ください。", "Isianmu tersimpan. Silakan cek lagi sebentar lagi.")}</p>
+    <div role="alert" className="rounded-3xl bg-[#FEF2F3] px-5 py-6 text-center">
+      <p className="text-[16px] font-semibold text-[color:var(--v2-attention)]">{message ?? t("진행 내용을 불러오지 못했어요.", "Couldn't load your progress.", "无法加载进度。", "Không tải được tiến độ.", "進行内容を読み込めませんでした。", "Gagal memuat progres.")}</p>
+      <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-muted)]">{t("작성한 내용은 저장되어 있어요. 잠시 후 다시 확인해 주세요.", "Your work is saved. Please check again in a moment.", "你填写的内容已保存，请稍后再查看。", "Nội dung đã lưu. Vui lòng kiểm tra lại sau.", "入力内容は保存されています。少し後にもう一度ご確認ください。", "Isianmu tersimpan. Silakan cek lagi sebentar lagi.")}</p>
       {onRetry ? (
-        <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#4E5968]">
+        <button onClick={onRetry} className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-xl bg-white px-4 text-[15px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]">
           <ArrowClockwise size={14} weight="bold" /> {t("다시 불러오기", "Retry", "重新加载", "Tải lại", "再読み込み", "Muat ulang")}
         </button>
       ) : null}
@@ -64,15 +64,15 @@ export function ResumeState({ days, onCta, href }: { days: number | null; onCta?
   const t = useLaunchT();
   const cont = t("이어서 진행하기", "Continue", "继续进行", "Tiếp tục", "続けて進める", "Lanjutkan");
   return (
-    <div className="rounded-2xl border border-[#DDE7FB] bg-[#F4F8FF] px-4 py-5">
-      <p className="text-[14px] font-semibold text-[#191F28]">{t(`잠시 멈춰 있었네요${days ? ` (${days}일)` : ""} — 이어서 하면 돼요`, `You paused for a bit${days ? ` (${days} day${days > 1 ? "s" : ""})` : ""} — pick up anytime`, `稍作停顿${days ? `（${days}天）` : ""}——随时可以继续`, `Bạn đã tạm dừng${days ? ` (${days} ngày)` : ""} — tiếp tục bất cứ lúc nào`, `少し止まっていましたね${days ? `（${days}日）` : ""} — 続きからで大丈夫`, `Sempat berhenti${days ? ` (${days} hari)` : ""} — lanjutkan kapan saja`)}</p>
-      <p className="mt-1 text-[12.5px] text-[#4E5968]">{t("이전에 작성한 내용은 모두 저장돼 있어요. 5분이면 다음 단계부터 이어갈 수 있어요.", "Everything you wrote is saved. In 5 minutes you can continue from the next step.", "之前填写的内容都已保存。5分钟即可从下一步继续。", "Mọi thứ bạn đã viết đều được lưu. Chỉ 5 phút để tiếp tục từ bước tiếp theo.", "以前の入力はすべて保存されています。5分あれば次のステップから続けられます。", "Semua yang kamu tulis tersimpan. Dalam 5 menit kamu bisa lanjut dari langkah berikutnya.")}</p>
+    <div className="rounded-3xl bg-[color:var(--v2-accent-weak)] px-5 py-6">
+      <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{t(`잠시 멈춰 있었네요${days ? ` (${days}일)` : ""} — 이어서 하면 돼요`, `You paused for a bit${days ? ` (${days} day${days > 1 ? "s" : ""})` : ""} — pick up anytime`, `稍作停顿${days ? `（${days}天）` : ""}——随时可以继续`, `Bạn đã tạm dừng${days ? ` (${days} ngày)` : ""} — tiếp tục bất cứ lúc nào`, `少し止まっていましたね${days ? `（${days}日）` : ""} — 続きからで大丈夫`, `Sempat berhenti${days ? ` (${days} hari)` : ""} — lanjutkan kapan saja`)}</p>
+      <p className="mt-1 text-[14px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("이전에 작성한 내용은 모두 저장돼 있어요. 5분이면 다음 단계부터 이어갈 수 있어요.", "Everything you wrote is saved. In 5 minutes you can continue from the next step.", "之前填写的内容都已保存。5分钟即可从下一步继续。", "Mọi thứ bạn đã viết đều được lưu. Chỉ 5 phút để tiếp tục từ bước tiếp theo.", "以前の入力はすべて保存されています。5分あれば次のステップから続けられます。", "Semua yang kamu tulis tersimpan. Dalam 5 menit kamu bisa lanjut dari langkah berikutnya.")}</p>
       {href ? (
-        <a href={href} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-[#3182F6] px-3.5 py-2 text-[13px] font-semibold text-white">
+        <a href={href} className="mt-4 inline-flex h-10 items-center gap-1 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[15px] font-semibold text-white transition hover:opacity-90">
           {cont} <ArrowRight size={14} weight="bold" />
         </a>
       ) : (
-        <button onClick={onCta} className="mt-3 inline-flex items-center gap-1 rounded-xl bg-[#3182F6] px-3.5 py-2 text-[13px] font-semibold text-white">
+        <button onClick={onCta} className="mt-4 inline-flex h-10 items-center gap-1 rounded-xl bg-[color:var(--v2-accent)] px-4 text-[15px] font-semibold text-white transition hover:opacity-90">
           {cont} <ArrowRight size={14} weight="bold" />
         </button>
       )}
@@ -82,5 +82,5 @@ export function ResumeState({ days, onCta, href }: { days: number | null; onCta?
 
 // 카드 스켈레톤 — 전체 페이지 스피너 대신 카드 단위. 레이아웃 이동 최소화.
 export function CardSkeleton({ height = 96 }: { height?: number }) {
-  return <div className="animate-pulse rounded-2xl bg-[#EEF1F5]" style={{ height }} aria-hidden />;
+  return <div className="animate-pulse rounded-2xl bg-[color:var(--v2-band)]" style={{ height }} aria-hidden />;
 }

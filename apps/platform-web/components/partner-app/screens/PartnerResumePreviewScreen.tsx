@@ -42,8 +42,8 @@ export function PartnerResumePreviewScreen({ applicantId }: { applicantId: strin
       {status === "ready" && app ? (
         <div className="flex flex-col gap-5">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${app.name} 님의 이력서`, `${app.name}'s resume`, `${app.name} 的简历`, `Sơ yếu lý lịch của ${app.name}`, `${app.name} さんの履歴書`, `Resume ${app.name}`)}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t(`${app.positionTitle} 지원`, `Applied to ${app.positionTitle}`, `申请 ${app.positionTitle}`, `Ứng tuyển ${app.positionTitle}`, `${app.positionTitle} に応募`, `Melamar ${app.positionTitle}`)}</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`${app.name} 님의 이력서`, `${app.name}'s resume`, `${app.name} 的简历`, `Sơ yếu lý lịch của ${app.name}`, `${app.name} さんの履歴書`, `Resume ${app.name}`)}</h1>
+            <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{t(`${app.positionTitle} 지원`, `Applied to ${app.positionTitle}`, `申请 ${app.positionTitle}`, `Ứng tuyển ${app.positionTitle}`, `${app.positionTitle} に応募`, `Melamar ${app.positionTitle}`)}</p>
           </div>
 
           {doc ? (
@@ -51,16 +51,16 @@ export function PartnerResumePreviewScreen({ applicantId }: { applicantId: strin
               <ResumeA4Preview doc={doc} info={info} />
             </div>
           ) : app.resumeShareSlug ? (
-            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-6 text-center">
-              <p className="text-[15px] font-bold text-[#191F28]">{t("이 지원자는 예전 형식의 이력서를 사용해요", "This applicant uses an old-format resume", "该申请者使用旧格式简历", "Ứng viên này dùng sơ yếu lý lịch định dạng cũ", "この応募者は旧形式の履歴書を使用しています", "Pelamar ini memakai resume format lama")}</p>
-              <p className="mt-1 text-[13px] text-[#8B95A1]">{t("공유 페이지에서 이력서를 확인할 수 있어요.", "You can view the resume on the share page.", "可在分享页面查看简历。", "Bạn có thể xem sơ yếu lý lịch trên trang chia sẻ.", "共有ページで履歴書を確認できます。", "Resume bisa dilihat di halaman berbagi.")}</p>
-              <a href={`/resume/share/${app.resumeShareSlug}?view=preview`} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-6 text-center">
+              <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("이 지원자는 예전 형식의 이력서를 사용해요", "This applicant uses an old-format resume", "该申请者使用旧格式简历", "Ứng viên này dùng sơ yếu lý lịch định dạng cũ", "この応募者は旧形式の履歴書を使用しています", "Pelamar ini memakai resume format lama")}</p>
+              <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{t("공유 페이지에서 이력서를 확인할 수 있어요.", "You can view the resume on the share page.", "可在分享页面查看简历。", "Bạn có thể xem sơ yếu lý lịch trên trang chia sẻ.", "共有ページで履歴書を確認できます。", "Resume bisa dilihat di halaman berbagi.")}</p>
+              <a href={`/resume/share/${app.resumeShareSlug}?view=preview`} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[14px] font-bold text-white transition hover:opacity-90">
                 {t("이력서 열기 ↗", "Open resume ↗", "打开简历 ↗", "Mở sơ yếu lý lịch ↗", "履歴書を開く ↗", "Buka resume ↗")}
               </a>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-              <p className="text-[15px] font-bold text-[#191F28]">{t("제출된 이력서가 없어요", "No resume submitted", "未提交简历", "Chưa nộp sơ yếu lý lịch", "提出された履歴書はありません", "Belum ada resume")}</p>
+            <div className="rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] p-8 text-center">
+              <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("제출된 이력서가 없어요", "No resume submitted", "未提交简历", "Chưa nộp sơ yếu lý lịch", "提出された履歴書はありません", "Belum ada resume")}</p>
             </div>
           )}
         </div>

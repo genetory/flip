@@ -6,15 +6,15 @@ import Link from "next/link";
 
 export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F1F1F4] px-6">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-[0_16px_40px_-20px_rgba(11,18,39,0.3)]">
-        <p className="text-[15px] font-bold text-[#191F28]">잠시 문제가 발생했어요</p>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-[#8B95A1]">Something went wrong. 잠시 후 다시 시도해 주세요.</p>
-        <div className="mt-5 flex justify-center gap-2">
-          <button type="button" onClick={reset} className="inline-flex h-11 items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
+    <main className="flex min-h-screen items-center justify-center bg-white px-5">
+      <div className="w-full max-w-sm rounded-3xl bg-[color:var(--v2-band,#f2f4f6)] px-5 py-10 text-center">
+        <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink,#191f28)]">잠시 문제가 발생했어요</p>
+        <p className="mt-2 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3,#4e5968)]">Something went wrong. 잠시 후 다시 시도해 주세요.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button type="button" onClick={reset} className="inline-flex h-12 items-center justify-center rounded-xl bg-[color:var(--v2-accent,#0b46e8)] px-5 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">
             다시 시도 · Retry
           </button>
-          <Link href="/career-launch" className="inline-flex h-11 items-center justify-center rounded-xl border border-[#E5E8EC] bg-white px-5 text-[14px] font-bold text-[#4E5968] transition hover:text-[#191F28]">
+          <Link href="/career-launch" className="inline-flex h-12 items-center justify-center rounded-xl bg-white px-5 text-[16px] font-semibold text-[color:var(--v2-ink-3,#4e5968)] transition hover:bg-[color:var(--v2-fill,#f9fafb)]">
             대시보드
           </Link>
         </div>

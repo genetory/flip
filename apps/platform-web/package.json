@@ -10,6 +10,7 @@
     "check:i18n": "node scripts/check-resume-i18n.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@next/third-parties": "^16.2.6",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-accordion": "^1.2.12",

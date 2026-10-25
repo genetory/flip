@@ -37,6 +37,8 @@ import {
 import { generateCoverLetter, polishSelfIntro, reviewCover, importCoverLetter } from "../../../lib/resume-maker-client";
 import { importedCoverToItems } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile } from "./ImportFromFile";
+import { StartChooser } from "./StartChooser";
+import { trackEditor } from "../../../lib/analytics";
 import { RecentChanges, type ChangePoint } from "./RecentChanges";
 import { diffCoverDocs } from "../../../lib/talent/doc-diff";
 import { restoreCoverVersion } from "../../../lib/talent/renewal-docs-store";
@@ -44,7 +46,7 @@ import { AiPolish } from "./AiPolish";
 import { ClicheHints } from "../career/ClicheHints";
 import { coverIssueQuotes, scanCover, type CoverScan, type CoverScanIssue } from "../../../lib/talent/cover-scan";
 import { ModularCoverPages } from "./ModularCoverPages";
-import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, useEditorOpenedMetric, useFirstContentMetric, TINT_BTN, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange } from "./editor-shared";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 export function CoverEditorScreen() {
@@ -59,10 +61,37 @@ function EditorGate() {
   const t = usePlatformT();
   const doc = useCoverDoc();
   const status = useRenewalDocsStatus();
-  // 아직 자소서가 없으면 빈 문서로 시작한다 — 첫 에피소드를 쓰는 순간 계정에 저장된다.
+  // 아직 자소서가 없으면 먼저 '새로 만들기 / 써 둔 자소서로 만들기'를 고르게 한다(StartChooser).
+  // 새로 만들기는 빈 문서로 시작하고 첫 에피소드를 쓰는 순간 계정에 저장된다.
+  // 가져오기를 적용하면 그 순간 문서가 저장돼 doc 이 생기므로 자연히 에디터로 넘어간다.
   const empty = useMemo(() => generateCoverDoc(), []);
+  const [startNew, setStartNew] = useState(false);
+  useEditorOpenedMetric("cover", status === "loaded", !!doc);
 
   if (status !== "loaded") return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
+  if (!doc && !startNew) {
+    return (
+      <StartChooser
+        t={t}
+        kind="cover"
+        exitHref="/talent/career"
+        onNew={() => setStartNew(true)}
+        importPanel={
+          <ImportFromFile
+            t={t}
+            title={t("자기소개서 가져오기", "Import your cover letter", "导入自我介绍", "Nhập thư giới thiệu", "自己紹介書を取り込む", "Impor surat lamaran")}
+            hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 답변은 에피소드로 들어가고, 어느 문항에 쓸지는 직접 고르면 돼요.", "Upload a PDF or paste the text. Answers become episodes, and you choose which question each one goes to.", "请上传 PDF 或粘贴内容。答案会成为经历，放入哪个题目由你决定。", "Tải PDF hoặc dán nội dung. Câu trả lời thành đoạn kể, bạn chọn dùng cho câu nào.", "PDFを上げるか本文を貼り付けてください。回答はエピソードになり、どの設問に使うかは自分で選べます。", "Unggah PDF atau tempel teks. Jawaban jadi episode, kamu pilih untuk pertanyaan mana.")}
+            parse={async (input) => importedCoverToItems((await importCoverLetter(input)).items)}
+            summarize={(items) => (items.length ? [{ label: t("에피소드", "Episodes", "经历", "Đoạn kể", "エピソード", "Episode"), count: items.length }] : [])}
+            onApply={(items) => {
+              trackEditor("editor_import_applied", { doc: "cover", where: "start", count: items.length });
+              saveCoverDoc({ ...empty, items }, { label: "파일에서 가져오기", force: true });
+            }}
+          />
+        }
+      />
+    );
+  }
   return <Editor doc={doc ?? empty} />;
 }
 
@@ -83,6 +112,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
   // 'props' 는 에피소드를 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
   const [sheet, setSheet] = useState<"none" | "modules" | "props">("none");
   const mainLock = useSheetScrollLock(sheet !== "none");
+  useFirstContentMetric("cover", doc.items.some((it) => it.text.trim()));
   useDropEmptyItems({
     items: doc.items,
     isEmpty: (it) => !it.text.trim(),
@@ -122,6 +152,7 @@ function Editor({ doc }: { doc: CoverDoc }) {
   const changePoints: ChangePoint[] = coverHistory.map((v) => ({ savedAt: v.savedAt, label: v.label, change: diffCoverDocs(v.doc, doc) }));
 
   const applyCoverImport = (items: CoverItem[]) => {
+    trackEditor("editor_import_applied", { doc: "cover", where: "panel", count: items.length });
     setImportUndo(doc);
     saveCoverDoc({ ...doc, items: [...doc.items, ...items] }, { label: "파일에서 가져오기", force: true });
   };

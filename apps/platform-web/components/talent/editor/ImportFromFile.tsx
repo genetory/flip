@@ -13,6 +13,8 @@
 import { useRef, useState, type ReactNode } from "react";
 import { UploadSimple, CircleNotch } from "@phosphor-icons/react";
 import type { PlatformT } from "../../../lib/i18n";
+import { spendGate, useAiPoints } from "../../../lib/ai-points";
+import { CostBadge } from "../../v2/ai-points";
 import { Section, TINT_BTN } from "./editor-shared";
 import { sectionLabelOf } from "../../../lib/talent/career-labels";
 import type { CareerSection } from "../../../lib/talent/career-chat";
@@ -27,10 +29,16 @@ export function ImportFromFile<T>({
   parse,
   summarize,
   onApply,
-  onUndo
+  onUndo,
+  costFeature,
+  tall = false
 }: {
   t: PlatformT;
   title: string;
+  /** AI 포인트 비용을 보일 기능 키(v2 에서만 넘긴다) — 포인트가 켜져 있을 때만 붙인다. */
+  costFeature?: string;
+  /** v2 에디터 — 다른 버튼과 같은 높이(40px)·모서리(12px)·글자(14px). 옛 화면은 그대로 36px. */
+  tall?: boolean;
   hint: string;
   /** 파일(dataUrl) 또는 붙여넣은 텍스트 → 가져온 결과. 서버 호출은 여기서 한다. */
   parse: (input: { pdfBase64?: string; text?: string }) => Promise<T>;
@@ -41,12 +49,20 @@ export function ImportFromFile<T>({
   onUndo?: (() => void) | null;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  // 비용 표시 — costFeature 가 있을 때만 포인트 상태를 불러온다(옛 화면은 부르지 않음).
+  const pts = useAiPoints(Boolean(costFeature));
+  const cost = costFeature && pts?.enabled ? (pts.costs[costFeature] ?? null) : null;
+  // 버튼 크기 — tall(v2)이면 h-10·rounded-xl·14px, 아니면 예전 h-9·rounded-[10px]·13px
+  const btnSize = tall ? "h-10 rounded-xl text-[14px]" : "h-9 rounded-[10px] text-[13px]";
+  const subBtnSize = tall ? "h-10 rounded-xl text-[14px]" : "h-9 rounded-[10px] text-[12.5px]";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ parsed: T; summary: ImportSummary } | null>(null);
   const [applied, setApplied] = useState(false);
 
   const run = async (input: { pdfBase64?: string; text?: string }) => {
+    // v2 — 포인트를 쓰기 전 관문(모자라면 충전 창, 30P 이상이면 확인). 옛 화면(costFeature 없음)은 그대로.
+    if (costFeature && cost && !(await spendGate(cost, title))) return;
     setBusy(true);
     setError(null);
     setPreview(null);
@@ -113,14 +129,14 @@ export function ImportFromFile<T>({
                 setPreview(null);
                 setApplied(true);
               }}
-              className={`${TINT_BTN} h-9 rounded-[10px] text-[13px] font-semibold leading-none`}
+              className={`${TINT_BTN} ${btnSize} font-semibold leading-none`}
             >
               {t("넣기", "Add", "添加", "Thêm", "追加", "Tambah")}
             </button>
             <button
               type="button"
               onClick={() => setPreview(null)}
-              className="h-9 rounded-[10px] bg-white text-[12.5px] font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:bg-[#F7F8FA]"
+              className={`${subBtnSize} bg-white font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:bg-[#F7F8FA]`}
             >
               {t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}
             </button>
@@ -143,10 +159,10 @@ export function ImportFromFile<T>({
             type="button"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
-            className={`${TINT_BTN} flex h-9 w-full items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold leading-none`}
+            className={`${TINT_BTN} flex w-full items-center justify-center gap-1.5 ${btnSize} font-semibold leading-none`}
           >
             {busy ? <CircleNotch size={14} weight="bold" className="animate-spin" /> : <UploadSimple size={14} weight="bold" />}
-            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}</span>
+            <span>{busy ? t("읽는 중…", "Reading…", "读取中…", "Đang đọc…", "読み取り中…", "Membaca…") : t("파일 고르기 (PDF)", "Choose a file (PDF)", "选择文件 (PDF)", "Chọn tệp (PDF)", "ファイルを選ぶ (PDF)", "Pilih berkas (PDF)")}</span>{!busy && cost ? <CostBadge cost={cost} /> : null}
           </button>
           <PasteBox t={t} busy={busy} onSubmit={(text) => void run({ text })} />
         </>
@@ -160,7 +176,7 @@ export function ImportFromFile<T>({
             onUndo();
             setApplied(false);
           }}
-          className="h-9 w-full rounded-[10px] bg-white text-[12.5px] font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]"
+          className={`${subBtnSize} w-full bg-white font-semibold text-[#4E5968] ring-1 ring-[#E5E8EB] transition hover:text-[#F04452]`}
         >
           {t("가져오기 되돌리기", "Undo import", "撤销导入", "Hoàn tác nhập", "取り込みを元に戻す", "Batalkan impor")}
         </button>

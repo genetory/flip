@@ -1,5 +1,6 @@
 // 평가 대상 기능 레지스트리 — 프롬프트 빌더(단일 소스)와 출력 파서를 연결.
 // 여기 buildMessages 는 실제 API(index.ts)가 쓰는 것과 동일한 함수다.
+import { LIGHT_MODEL, QUALITY_MODEL } from "../llm/claude";
 import {
   buildCoverLetterMessages,
   buildPolishExperienceMessages,
@@ -30,11 +31,10 @@ export type FeatureSpec = {
 };
 
 // 기능별 생성 모델(비용/품질 티어링). 우선순위:
-//   EVAL_GENERATOR_MODEL(전역 강제, A/B용) > 기능별 env > 기본값(gpt-4o-mini = 프로덕션 현행)
-// 예) 바이오프: COVER_LETTER_MODEL=claude-sonnet-* RESUME_TEXT_MODEL=claude-haiku-*
-const DEFAULT_GEN = () => process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
-const coverModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.COVER_LETTER_MODEL ?? DEFAULT_GEN();
-const resumeTextModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.RESUME_TEXT_MODEL ?? DEFAULT_GEN();
+//   EVAL_GENERATOR_MODEL(전역 강제, A/B용) > 기능별 env > 기본값(= 프로덕션 현행: 자소서 Sonnet, 짧은 필드 Haiku)
+// 예) 바이오프: COVER_LETTER_MODEL=claude-haiku-5-5 RESUME_TEXT_MODEL=claude-sonnet-5-5
+const coverModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.COVER_LETTER_MODEL ?? QUALITY_MODEL;
+const resumeTextModel = () => process.env.EVAL_GENERATOR_MODEL ?? process.env.RESUME_TEXT_MODEL ?? LIGHT_MODEL;
 
 export const FEATURES: Record<FeatureId, FeatureSpec> = {
   cover_letter: {

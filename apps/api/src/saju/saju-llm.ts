@@ -1,18 +1,7 @@
-import OpenAI from "openai";
+import { claudeJsonRaw, hasLlm, LIGHT_MODEL } from "../llm/claude";
 import lunar from "lunar-javascript";
 
-// gpt-4o-mini is plenty for this kind of cultural / narrative text and
-// keeps the per-prediction cost negligible (~$0.001).
-const MODEL = "gpt-4o-mini";
-
-let cachedClient: OpenAI | null = null;
-function getClient(): OpenAI | null {
-  if (cachedClient) return cachedClient;
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  cachedClient = new OpenAI({ apiKey: key });
-  return cachedClient;
-}
+// 가벼운 모델(Haiku)이면 이런 문화·서사 텍스트에 충분하고 예측 1건 비용이 미미하다.
 
 export type SajuPredictionInput = {
   name: string;
@@ -89,8 +78,7 @@ export async function translateSajuContent(
   content: SajuTranslatableContent,
   targetLocale: string
 ): Promise<SajuTranslatableContent | null> {
-  const client = getClient();
-  if (!client) return null;
+  if (!hasLlm()) return null;
   const { languageName, bcp47 } = resolveLanguageDirective(targetLocale);
   const prompt = [
     `Translate the following saju reading payload into ${languageName} (BCP47: ${bcp47}).`,
@@ -126,19 +114,11 @@ export async function translateSajuContent(
     JSON.stringify(content)
   ].join("\n");
   try {
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You translate JSON content into ${languageName} (${bcp47}) and return strict JSON only.`
-        },
-        { role: "user", content: prompt }
-      ]
+    const raw = await claudeJsonRaw({
+      model: LIGHT_MODEL,
+      system: `You translate JSON content into ${languageName} (${bcp47}) and return strict JSON only.`,
+      user: prompt
     });
-    const raw = response.choices[0]?.message?.content?.trim();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SajuTranslatableContent>;
     if (typeof parsed.interpretation !== "string" || !parsed.details) return null;
@@ -204,7 +184,7 @@ export async function translateSajuContent(
 // Compute the actual sexagenary (heavenly-stem + earthly-branch) pillars
 // for the year and month from the birth date. Anchoring the LLM prompt
 // on these CONCRETE Korean characters dramatically increases output
-// variety — without them gpt-4o-mini converges on the same "warm
+// variety — without them the model converges on the same "warm
 // balanced creative" reading regardless of input.
 const HEAVENLY_STEMS = ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"];
 const EARTHLY_BRANCHES = ["자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"];
@@ -537,24 +517,15 @@ function buildPrompt(input: SajuPredictionInput): string {
 export async function generateSajuPrediction(
   input: SajuPredictionInput
 ): Promise<SajuPredictionResult | null> {
-  const client = getClient();
-  if (!client) return null;
+  if (!hasLlm()) return null;
   const { languageName, bcp47 } = resolveLanguageDirective(input.locale);
   const prompt = buildPrompt(input);
   try {
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You always respond as a single pure JSON object. The "interpretation", "strengths", "workEnvironment", "cautionAdvice", and "reason" text fields are written in ${languageName} (${bcp47}); the "recommendedRoleNames" entries and "details.roleReasonings[].role" stay in Korean exactly as given in the taxonomy.`
-        },
-        { role: "user", content: prompt }
-      ]
+    const raw = await claudeJsonRaw({
+      model: LIGHT_MODEL,
+      system: `You always respond as a single pure JSON object. The "interpretation", "strengths", "workEnvironment", "cautionAdvice", and "reason" text fields are written in ${languageName} (${bcp47}); the "recommendedRoleNames" entries and "details.roleReasonings[].role" stay in Korean exactly as given in the taxonomy.`,
+      user: prompt
     });
-    const raw = response.choices[0]?.message?.content?.trim();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<{
       interpretation: string;

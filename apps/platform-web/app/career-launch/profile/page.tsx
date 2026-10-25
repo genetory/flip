@@ -123,7 +123,7 @@ export default function CareerProfilePage() {
   const initial = (name.charAt(0) || "A").toUpperCase();
 
   return (
-    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
+    <div className="cl-surface isolate flex min-h-screen flex-col bg-[color:var(--v2-bg,#fff)]">
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
@@ -137,7 +137,7 @@ export default function CareerProfilePage() {
               type="button"
               onClick={() => void onShare()}
               disabled={sharing}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0B46E8] px-5 py-4 text-[15px] font-black tracking-[-0.01em] text-white shadow-[0_12px_28px_-12px_rgba(11,70,232,0.65)] transition hover:bg-[#0A3ECB] active:scale-[0.99] disabled:opacity-60"
+              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[color:var(--v2-accent)] px-5 text-[16px] font-semibold tracking-[-0.01em] text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
             >
               {shareCopied ? (
                 <>
@@ -153,18 +153,18 @@ export default function CareerProfilePage() {
             </button>
 
             {/* 공개 프로필 꾸미기 — 사진·한 줄 소개·문서 */}
-            <div className="rounded-3xl bg-white p-5 shadow-[0_4px_16px_-8px_rgba(20,24,31,0.16)] md:p-6">
-              <p className="text-[14.5px] font-black tracking-[-0.01em] text-[#191F28]">{t("공개 프로필 꾸미기", "Style your public profile", "美化公开档案", "Tùy chỉnh hồ sơ công khai", "公開プロフィールを整える", "Atur profil publik")}</p>
-              <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("공유 링크로 보이는 화면(사진·한 줄 소개)을 다듬어요.", "Tune what the share link shows — photo and headline.", "调整分享链接显示的照片和标语。", "Chỉnh ảnh và tiêu đề hiển thị qua link chia sẻ.", "共有リンクで見える写真・紹介を整えます。", "Atur foto dan headline yang tampil di link.")}</p>
+            <div className="rounded-3xl bg-[color:var(--v2-band)] p-5 md:p-6">
+              <p className="text-[18px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("공개 프로필 꾸미기", "Style your public profile", "美化公开档案", "Tùy chỉnh hồ sơ công khai", "公開プロフィールを整える", "Atur profil publik")}</p>
+              <p className="mt-1 break-keep text-[14px] leading-relaxed text-[color:var(--v2-muted)]">{t("공유 링크로 보이는 화면(사진·한 줄 소개)을 다듬어요.", "Tune what the share link shows — photo and headline.", "调整分享链接显示的照片和标语。", "Chỉnh ảnh và tiêu đề hiển thị qua link chia sẻ.", "共有リンクで見える写真・紹介を整えます。", "Atur foto dan headline yang tampil di link.")}</p>
 
               {/* 사진 · 배경 */}
               <div className="mt-4 flex items-center gap-3.5">
-                <label className="group relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-[#F4F6F9] ring-1 ring-[#ECEEF1]">
+                <label className="group relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-2xl bg-white">
                   {photo ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={photo} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <span className="text-[20px] font-black text-[#0B46E8]">{initial}</span>
+                    <span className="text-[20px] font-bold text-[color:var(--v2-accent)]">{initial}</span>
                   )}
                   <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
                     {mediaBusy === "photo" ? <CircleNotch className="h-4 w-4 animate-spin text-white" weight="bold" /> : <Camera className="h-4 w-4 text-white" weight="fill" />}
@@ -172,16 +172,16 @@ export default function CareerProfilePage() {
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]"><Camera className="h-4 w-4" weight="bold" /> {t("프로필 사진", "Photo", "头像", "Ảnh", "写真", "Foto")}<input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
-                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#E5E8EB] bg-white px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:text-[#191F28]">{mediaBusy === "bg" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <ImageIcon className="h-4 w-4" weight="bold" />} {t("배경 사진", "Cover", "背景", "Nền", "背景", "Latar")}<input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickBg(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+                  <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:text-[color:var(--v2-ink)]"><Camera className="h-4 w-4" weight="bold" /> {t("프로필 사진", "Photo", "头像", "Ảnh", "写真", "Foto")}<input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+                  <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-white px-3.5 text-[14px] font-semibold text-[color:var(--v2-ink-3)] transition hover:text-[color:var(--v2-ink)]">{mediaBusy === "bg" ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <ImageIcon className="h-4 w-4" weight="bold" />} {t("배경 사진", "Cover", "背景", "Nền", "背景", "Latar")}<input type="file" accept="image/*" className="hidden" onChange={(e) => { void onPickBg(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
                 </div>
               </div>
 
               {/* 한 줄 소개 — AI 또는 직접 입력 */}
-              <div className="mt-3.5 rounded-2xl bg-[#F4F6F9] p-4">
+              <div className="mt-3.5 rounded-2xl bg-white p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#A8ADB8]">{t("한 줄 소개", "Headline", "标语", "Tiêu đề", "紹介", "Headline")}</p>
-                  <button type="button" onClick={onGenHeadline} disabled={hlBusy} className="inline-flex items-center gap-1 text-[11.5px] font-bold text-[#0B46E8] disabled:opacity-60">{hlBusy ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}{hlBusy ? t("생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…") : t("AI로 만들기", "Write with AI", "用AI生成", "Tạo bằng AI", "AIで作成", "Buat dgn AI")}</button>
+                  <p className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("한 줄 소개", "Headline", "标语", "Tiêu đề", "紹介", "Headline")}</p>
+                  <button type="button" onClick={onGenHeadline} disabled={hlBusy} className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-accent)] disabled:opacity-60">{hlBusy ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}{hlBusy ? t("생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…") : t("AI로 만들기", "Write with AI", "用AI生成", "Tạo bằng AI", "AIで作成", "Buat dgn AI")}</button>
                 </div>
                 <textarea
                   value={headline}
@@ -189,11 +189,11 @@ export default function CareerProfilePage() {
                   rows={2}
                   maxLength={120}
                   placeholder={t("나를 한 줄로 소개해요. 직접 쓰거나 'AI로 만들기'를 눌러요.", "Introduce yourself in one line — write it or tap 'Write with AI'.", "用一句话介绍自己，或点击'用AI生成'。", "Giới thiệu một dòng, hoặc nhấn 'Tạo bằng AI'.", "一言で自己紹介。直接書くかAIで作成。", "Perkenalkan diri satu baris atau pakai AI.")}
-                  className="mt-2 w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none transition placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                  className="mt-2 w-full resize-none rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[16px] leading-relaxed text-[color:var(--v2-ink)] outline-none transition placeholder:text-[color:var(--v2-faint)] focus:ring-2 focus:ring-[color:var(--v2-accent)]"
                 />
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <span className="text-[11px] text-[#B0B8C1]">{headline.length}/120</span>
-                  <button type="button" onClick={onSaveHeadline} disabled={hlSaving} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B46E8] px-3.5 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">{hlSaving ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : hlSaved ? <Check className="h-3.5 w-3.5" weight="bold" /> : null}{hlSaved ? t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</button>
+                  <span className="text-[12px] text-[color:var(--v2-faint)]">{headline.length}/120</span>
+                  <button type="button" onClick={onSaveHeadline} disabled={hlSaving} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 disabled:opacity-60">{hlSaving ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : hlSaved ? <Check className="h-3.5 w-3.5" weight="bold" /> : null}{hlSaved ? t("저장됨", "Saved", "已保存", "Đã lưu", "保存済み", "Tersimpan") : t("저장", "Save", "保存", "Lưu", "保存", "Simpan")}</button>
                 </div>
               </div>
             </div>

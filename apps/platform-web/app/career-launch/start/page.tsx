@@ -49,7 +49,7 @@ function DashboardRedirect({ label }: { label: string }) {
 function FullscreenSpinner({ label }: { label: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
-      <span className="inline-flex items-center gap-2 text-[13px] text-[#8B95A1]">
+      <span className="inline-flex items-center gap-2 text-[15px] text-[color:var(--v2-faint)]">
         <CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {label}
       </span>
     </div>

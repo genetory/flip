@@ -45,12 +45,14 @@ import { resumeIssueQuotes, scanResume, type ResumeScan, type ResumeScanIssue } 
 import { polishExperienceText, polishSelfIntro, polishResumeItems, reviewResume, importResume } from "../../../lib/resume-maker-client";
 import { importedResumeToPreview, type ImportPreview } from "../../../lib/talent/import-to-renewal";
 import { ImportFromFile, resumeImportSummary } from "./ImportFromFile";
+import { StartChooser } from "./StartChooser";
+import { trackEditor } from "../../../lib/analytics";
 import { RecentChanges, type ChangePoint } from "./RecentChanges";
 import { diffResumeDocs } from "../../../lib/talent/doc-diff";
 import { restoreResumeVersion } from "../../../lib/talent/renewal-docs-store";
 import { useToast } from "../../toast/ToastProvider";
 import { AiPolish } from "./AiPolish";
-import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
+import { EditorTopBar, Field, FullMessage, INPUT_CLS, SavedPanel, Section, DesktopHintToast, SHEET_CLS, sheetStyle, useSheetScrollLock, useDropEmptyItems, useEditorOpenedMetric, useFirstContentMetric, ToolButton, useAiReview,  useDocVersionStore, useHiddenIssues, useRevealOnChange, TINT_BTN } from "./editor-shared";
 import { useVisualViewport } from "../../../lib/useVisualViewport";
 
 
@@ -71,12 +73,37 @@ function EditorGate() {
   const status = useRenewalDocsStatus();
   const info = useBasicInfo();
 
-  // 이력서가 없어도 빈 문서로 바로 편집을 시작한다(자소서 에디터와 동일).
-  // 예전에는 구 화면으로 보냈는데, 그 경로가 사라지면 '눌러도 반응 없음'이 된다.
-  // 첫 편집이 saveResumeDoc 을 타면서 계정에 저장된다.
+  // 이력서가 없으면 먼저 '새로 만들기 / 써 둔 이력서로 만들기'를 고르게 한다(StartChooser).
+  // 새로 만들기는 빈 문서로 편집을 시작하고, 첫 편집이 saveResumeDoc 을 타면서 계정에 저장된다.
+  // 가져오기를 적용하면 그 순간 문서가 저장돼 doc 이 생기므로 자연히 에디터로 넘어간다.
   const empty = useMemo(() => generateResumeDoc([]), []);
+  const [startNew, setStartNew] = useState(false);
+  useEditorOpenedMetric("resume", status === "loaded", !!doc);
 
   if (status !== "loaded") return <FullMessage text={t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")} />;
+  if (!doc && !startNew) {
+    return (
+      <StartChooser
+        t={t}
+        kind="resume"
+        exitHref="/talent/career"
+        onNew={() => setStartNew(true)}
+        importPanel={
+          <ImportFromFile
+            t={t}
+            title={t("이력서 가져오기", "Import your resume", "导入简历", "Nhập CV", "履歴書を取り込む", "Impor CV")}
+            hint={t("PDF를 올리거나 내용을 붙여넣어 주세요. 가져온 뒤 바로 고칠 수 있어요.", "Upload a PDF or paste the text. You can edit it right after.", "请上传 PDF 或粘贴内容。导入后可立即修改。", "Tải PDF hoặc dán nội dung. Có thể sửa ngay sau đó.", "PDFを上げるか本文を貼り付けてください。取り込んだ後すぐ直せます。", "Unggah PDF atau tempel teks. Bisa langsung diedit.")}
+            parse={async (input) => importedResumeToPreview(await importResume(input))}
+            summarize={(p) => resumeImportSummary(t, p.countsBySection)}
+            onApply={(p) => {
+              trackEditor("editor_import_applied", { doc: "resume", where: "start", count: p.items.length });
+              saveResumeDoc({ ...empty, items: p.items, targetRole: p.targetRole, summary: p.summary, links: p.links }, { label: "파일에서 가져오기", force: true });
+            }}
+          />
+        }
+      />
+    );
+  }
   return <Editor doc={doc ?? empty} info={info} />;
 }
 
@@ -95,6 +122,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   // 'props' 는 항목을 고르면 함께 열린다 — 고르자마자 편집할 수 있게.
   const [sheet, setSheet] = useState<"none" | "props">("none");
   const mainLock = useSheetScrollLock(sheet !== "none");
+  useFirstContentMetric("resume", doc.items.some((it) => [it.text, it.company, it.startDate, it.endDate].some((v) => v?.trim())));
   useDropEmptyItems({
     items: doc.items,
     isEmpty: (it) => ![it.text, it.company, it.startDate, it.endDate].some((v) => v?.trim()),
@@ -259,6 +287,7 @@ function Editor({ doc, info }: { doc: ResumeDoc; info: BasicInfo }) {
   const changePoints: ChangePoint[] = history.map((v) => ({ savedAt: v.savedAt, label: v.label, change: diffResumeDocs(v.doc, doc) }));
 
   const applyImport = (p: ImportPreview) => {
+    trackEditor("editor_import_applied", { doc: "resume", where: "panel", count: p.items.length });
     setImportUndo(doc);
     saveResumeDoc(
       {
@@ -607,7 +636,7 @@ function Inspector(props: {
   // 빈 묶음을 눌렀을 때만 따로 기억한다(고를 항목이 없어 선택이 안 바뀌므로).
   const [sectionTab, setSectionTab] = useState<"basic" | CareerSection | null>(null);
   useEffect(() => setSectionTab(null), [id]);
-  // 모듈을 고르면 그 편집 영역으로 굴려 준다 — 위쪽 전체 도구에 가려지지 않게.
+  // 모바일 시트에서는 모듈을 고르면 그 편집 영역으로 굴려 준다(데스크톱 패널은 맨 위 고정 — useRevealOnChange).
   // 항목을 고르면 그 편집 영역으로, '전체 점검' 으로 열었으면 점검 목록으로 데려다 준다.
   const reveal = useRevealOnChange<HTMLDivElement>(props.focus?.startsWith("item:") ? props.focus : id);
   // '점검' 으로 열면 맨 위에서 시작한다 — 점검 목록이 첫 블록이라 굴릴 필요가 없다.

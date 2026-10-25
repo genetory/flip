@@ -12,8 +12,10 @@ import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { partnerRoutes } from "../../../lib/partner/app-nav";
 import { usePlatformT, type PlatformT } from "../../../lib/i18n";
 import { convertImageFileToWebpDataUrl, estimateDataUrlBytes } from "../../../lib/image-upload";
+import { useAuthSession } from "../../auth/AuthSessionProvider";
 import {
   getMyPartnerPositionById,
+  getMyPartnerOrganization,
   createMyPartnerPosition,
   updateMyPartnerPosition,
   aiDraftPositionContent,
@@ -159,6 +161,27 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   const [uploadingImg, setUploadingImg] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
+  // 신규 등록은 파트너 승인(운영중)이 나야 가능 — 서버도 막지만, 다 쓰고 나서 '저장 실패'를 보지 않게 들어올 때 먼저 확인한다.
+  const { user } = useAuthSession();
+  // 운영자·수정 화면은 확인 없이 통과. 파트너 신규 등록만 조직 권한(canPostPositions)을 불러와 본다.
+  const bypass = isEdit || user?.role === "OPERATOR";
+  const [orgAllowed, setOrgAllowed] = useState<boolean | null>(null);
+  const postAllowed = bypass ? true : orgAllowed;
+  const setPostAllowed = setOrgAllowed;
+  useEffect(() => {
+    if (bypass || !user) return;
+    let alive = true;
+    getMyPartnerOrganization()
+      .then((org) => {
+        if (alive) setOrgAllowed(Boolean(org?.permissions?.canPostPositions));
+      })
+      .catch(() => {
+        if (alive) setOrgAllowed(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [bypass, user]);
 
   function load() {
     if (!positionId) return;
@@ -255,7 +278,13 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
         toast.success(t("공고를 등록했어요", "Posting created", "职位已提交", "Đã tạo tin", "求人を登録しました", "Lowongan dibuat"));
       }
       router.push(isEdit ? `${partnerRoutes.positions}/${positionId}` : partnerRoutes.positions);
-    } catch {
+    } catch (error) {
+      // 승인 전(403) — 일반 실패와 구분해 관리자 문의로 안내
+      if ((error as { status?: number })?.status === 403) {
+        setPostAllowed(false);
+        toast.error(t("파트너 승인 후 공고를 등록할 수 있어요. 관리자에게 문의해 주세요.", "You can post after your partner account is approved. Please contact the admin.", "合作伙伴审核通过后才能发布职位，请联系管理员。", "Bạn có thể đăng tin sau khi tài khoản đối tác được duyệt. Vui lòng liên hệ quản trị viên.", "パートナー承認後に求人を登録できます。管理者にお問い合わせください。", "Anda bisa memposting setelah akun mitra disetujui. Silakan hubungi admin."));
+        return;
+      }
       toast.error(t("저장에 실패했어요. 잠시 후 다시 시도해주세요.", "Couldn't save. Please try again later.", "保存失败，请稍后再试。", "Không lưu được. Vui lòng thử lại sau.", "保存に失敗しました。しばらくして再度お試しください。", "Gagal menyimpan. Coba lagi nanti."));
     } finally {
       setSaving(false);
@@ -265,28 +294,31 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
   return (
     <PartnerAppShell>
       <TalentBackButton className="mb-4" />
-      {status === "loading" ? <TLoading /> : null}
+      {status === "loading" || (!isEdit && postAllowed === null) ? <TLoading /> : null}
       {status === "error" ? <TError onRetry={load} /> : null}
 
-      {status === "ready" ? (
+      {/* 승인 전 — 등록 대신 안내와 관리자 문의 */}
+      {!isEdit && postAllowed === false ? <PostBlocked t={t} /> : null}
+
+      {status === "ready" && (isEdit || postAllowed === true) ? (
         <div className="flex flex-col gap-10">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{isEdit ? t("공고 수정", "Edit posting", "编辑职位", "Sửa tin", "求人を編集", "Ubah lowongan") : t("새 공고 등록", "New posting", "创建职位", "Tạo tin mới", "求人を新規登録", "Lowongan baru")}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{t("채용하려는 포지션 정보를 작성해요.", "Fill in the details of the position you're hiring for.", "填写你要招聘的职位信息。", "Điền thông tin vị trí bạn muốn tuyển.", "採用したいポジションの情報を入力します。", "Isi detail posisi yang Anda rekrut.")}</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{isEdit ? t("공고 수정", "Edit posting", "编辑职位", "Sửa tin", "求人を編集", "Ubah lowongan") : t("새 공고 등록", "New posting", "创建职位", "Tạo tin mới", "求人を新規登録", "Lowongan baru")}</h1>
+            <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{t("채용하려는 포지션 정보를 작성해요.", "Fill in the details of the position you're hiring for.", "填写你要招聘的职位信息。", "Điền thông tin vị trí bạn muốn tuyển.", "採用したいポジションの情報を入力します。", "Isi detail posisi yang Anda rekrut.")}</p>
           </div>
 
           {/* 기본 정보 */}
           <section>
             <SectionHeader title={t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")} />
-            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
             <div className="flex flex-col gap-3.5">
               {/* 공고 사진 — 맨 위 */}
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className="text-[12.5px] font-normal text-[#4E5968]">{t("공고 사진 · 최대 5장", "Photos · up to 5", "职位照片 · 最多 5 张", "Ảnh tin · tối đa 5", "求人写真 · 最大5枚", "Foto · maks 5")} {form.thumbnailImages.length ? t(`· ${form.thumbnailImages.length}장`, `· ${form.thumbnailImages.length}`, `· ${form.thumbnailImages.length}张`, `· ${form.thumbnailImages.length}`, `· ${form.thumbnailImages.length}枚`, `· ${form.thumbnailImages.length}`) : ""}</span>
+                  <span className="text-[13.5px] font-normal text-[color:var(--v2-ink-3)]">{t("공고 사진 · 최대 5장", "Photos · up to 5", "职位照片 · 最多 5 张", "Ảnh tin · tối đa 5", "求人写真 · 最大5枚", "Foto · maks 5")} {form.thumbnailImages.length ? t(`· ${form.thumbnailImages.length}장`, `· ${form.thumbnailImages.length}`, `· ${form.thumbnailImages.length}张`, `· ${form.thumbnailImages.length}`, `· ${form.thumbnailImages.length}枚`, `· ${form.thumbnailImages.length}`) : ""}</span>
                   <input ref={imgRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickImages} />
                   {form.thumbnailImages.length ? (
-                    <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg || form.thumbnailImages.length >= 5} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                    <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg || form.thumbnailImages.length >= 5} className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[color:var(--v2-band)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
                       <Plus className="h-3.5 w-3.5" weight="bold" /> {uploadingImg ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : t("추가", "Add", "添加", "Thêm", "追加", "Tambah")}
                     </button>
                   ) : null}
@@ -294,7 +326,7 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
                 {form.thumbnailImages.length ? (
                   <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                     {form.thumbnailImages.map((src, i) => (
-                      <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                      <div key={`${i}-${src.slice(0, 24)}`} className="relative aspect-square overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                         <Image src={src} alt={t(`공고 사진 ${i + 1}`, `Photo ${i + 1}`, `职位照片 ${i + 1}`, `Ảnh ${i + 1}`, `求人写真 ${i + 1}`, `Foto ${i + 1}`)} fill sizes="90px" className="object-cover" unoptimized />
                         <button type="button" onClick={() => set("thumbnailImages", form.thumbnailImages.filter((_, j) => j !== i))} aria-label={t("사진 삭제", "Delete photo", "删除照片", "Xóa ảnh", "写真を削除", "Hapus foto")} className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0B1227]/70 text-white">
                           <X className="h-3 w-3" weight="bold" />
@@ -303,9 +335,9 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
                     ))}
                   </div>
                 ) : (
-                  <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg} className="flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] py-7 text-[#B0B8C1] transition hover:border-[#B0C4F5] disabled:opacity-50">
+                  <button type="button" onClick={() => imgRef.current?.click()} disabled={uploadingImg} className="flex w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] py-7 text-[color:var(--v2-disabled)] transition hover:border-[#B0C4F5] disabled:opacity-50">
                     <ImageSquare className="h-6 w-6" />
-                    <span className="text-[12.5px] font-semibold">{uploadingImg ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : t("공고에 보여줄 사진을 올려보세요", "Upload photos to show on the posting", "上传要在职位上展示的照片", "Tải ảnh để hiển thị trên tin", "求人に表示する写真をアップロード", "Unggah foto untuk lowongan")}</span>
+                    <span className="text-[13.5px] font-semibold">{uploadingImg ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : t("공고에 보여줄 사진을 올려보세요", "Upload photos to show on the posting", "上传要在职位上展示的照片", "Tải ảnh để hiển thị trên tin", "求人に表示する写真をアップロード", "Unggah foto untuk lowongan")}</span>
                   </button>
                 )}
               </div>
@@ -332,10 +364,10 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
               <Field label={t("근무 시간", "Work hours", "工作时间", "Giờ làm việc", "勤務時間", "Jam kerja")}><Input value={form.workingHours} onChange={(v) => set("workingHours", v)} placeholder={t("예) 주 5일 · 09:00~18:00", "e.g. 5 days/week · 09:00–18:00", "例) 每周 5 天 · 09:00~18:00", "VD) 5 ngày/tuần · 09:00~18:00", "例) 週5日 · 09:00~18:00", "Cth) 5 hari/minggu · 09:00~18:00")} /></Field>
               <Field label={t("선호 직무", "Preferred role", "偏好岗位", "Vị trí ưu tiên", "希望職種", "Peran diutamakan")}><Input value={form.preferredJobRole} onChange={(v) => set("preferredJobRole", v)} placeholder={t("예) 서버 개발", "e.g. Server development", "例) 服务器开发", "VD) Phát triển server", "例) サーバー開発", "Cth) Pengembangan server")} /></Field>
               {/* 외국인 지원 가능 — 켜면 포지션 탐색의 '외국인 지원 가능' 뱃지·필터 노출 대상이 된다. */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#EEF1F5] bg-[#FAFBFC] px-3.5 py-3">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] px-3.5 py-3">
                 <div className="min-w-0">
-                  <p className="text-[13.5px] font-bold text-[#191F28]">{t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}</p>
-                  <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[#8B95A1]">{t("켜면 포지션 탐색에서 '외국인 지원 가능' 뱃지와 외국인 필터에 노출돼요.", "When on, this posting shows the 'Open to foreigners' badge and appears in the foreigner filter.", "开启后，该职位会显示‘外国人可申请’徽章并出现在外国人筛选中。", "Khi bật, tin này hiển thị nhãn 'Người nước ngoài có thể ứng tuyển' và xuất hiện trong bộ lọc.", "オンにすると『外国人応募可』バッジと外国人フィルターに表示されます。", "Jika aktif, lowongan ini menampilkan lencana 'Terbuka untuk WNA' dan muncul di filter.")}</p>
+                  <p className="text-[14.5px] font-bold text-[color:var(--v2-ink)]">{t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}</p>
+                  <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[color:var(--v2-faint)]">{t("켜면 포지션 탐색에서 '외국인 지원 가능' 뱃지와 외국인 필터에 노출돼요.", "When on, this posting shows the 'Open to foreigners' badge and appears in the foreigner filter.", "开启后，该职位会显示‘外国人可申请’徽章并出现在外国人筛选中。", "Khi bật, tin này hiển thị nhãn 'Người nước ngoài có thể ứng tuyển' và xuất hiện trong bộ lọc.", "オンにすると『外国人応募可』バッジと外国人フィルターに表示されます。", "Jika aktif, lowongan ini menampilkan lencana 'Terbuka untuk WNA' dan muncul di filter.")}</p>
                 </div>
                 <button
                   type="button"
@@ -343,7 +375,7 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
                   aria-checked={form.foreignerFriendly}
                   aria-label={t("외국인 지원 가능", "Open to foreigners", "外国人可申请", "Người nước ngoài có thể ứng tuyển", "外国人応募可", "Terbuka untuk WNA")}
                   onClick={() => set("foreignerFriendly", !form.foreignerFriendly)}
-                  className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${form.foreignerFriendly ? "bg-[#0B46E8]" : "bg-[#E5E8EB]"}`}
+                  className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${form.foreignerFriendly ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-line)]"}`}
                 >
                   <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${form.foreignerFriendly ? "translate-x-[22px]" : "translate-x-1"}`} />
                 </button>
@@ -355,14 +387,14 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
           {/* 상세 내용 */}
           <section>
             <SectionHeader title={t("상세 내용", "Details", "详细内容", "Nội dung chi tiết", "詳細内容", "Detail")} />
-            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-            <div className="mb-3.5 flex items-center justify-between gap-3 rounded-xl bg-[#F5F8FF] px-3.5 py-3">
-              <p className="min-w-0 flex-1 break-keep text-[12.5px] text-[#4E5968]">{t("제목·직무만 있으면 AI가 주요 업무·자격 요건·우대 사항 초안을 만들어드려요.", "With just a title and role, AI drafts the responsibilities, requirements and preferred qualifications.", "只需标题和岗位，AI 就能为你生成主要工作、任职要求和优先条件的草稿。", "Chỉ cần tiêu đề và vị trí, AI sẽ soạn công việc chính, yêu cầu và ưu tiên.", "タイトルと職種だけでAIが主な業務・応募要件・優遇事項の下書きを作成します。", "Cukup judul dan peran, AI membuat draf tugas, syarat, dan nilai plus.")}</p>
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+            <div className="mb-3.5 flex items-center justify-between gap-3 rounded-xl bg-[color:var(--v2-accent-weak)] px-3.5 py-3">
+              <p className="min-w-0 flex-1 break-keep text-[13.5px] text-[color:var(--v2-ink-3)]">{t("제목·직무만 있으면 AI가 주요 업무·자격 요건·우대 사항 초안을 만들어드려요.", "With just a title and role, AI drafts the responsibilities, requirements and preferred qualifications.", "只需标题和岗位，AI 就能为你生成主要工作、任职要求和优先条件的草稿。", "Chỉ cần tiêu đề và vị trí, AI sẽ soạn công việc chính, yêu cầu và ưu tiên.", "タイトルと職種だけでAIが主な業務・応募要件・優遇事項の下書きを作成します。", "Cukup judul dan peran, AI membuat draf tugas, syarat, dan nilai plus.")}</p>
               <button
                 type="button"
                 onClick={aiDraft}
                 disabled={drafting}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[color:var(--v2-accent)] px-3 py-2 text-[13.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-50"
               >
                 {drafting ? <CircleNotch className="h-3.5 w-3.5 animate-spin" weight="bold" /> : <Sparkle className="h-3.5 w-3.5" weight="fill" />}
                 {drafting ? t("생성 중…", "Generating…", "生成中…", "Đang tạo…", "生成中…", "Membuat…") : t("AI로 초안 작성", "AI draft", "AI 起草", "Nháp bằng AI", "AIで下書き", "Draf AI")}
@@ -381,23 +413,23 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
           {/* 모의 면접 */}
           <section>
             <SectionHeader title={t("모의 면접", "Mock interview", "模拟面试", "Phỏng vấn thử", "模擬面接", "Wawancara simulasi")} />
-            <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-              <p className="mb-3 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 면접에서 보려는 포인트만 적으면 AI가 질문을 만들고, 대표 질문을 직접 넣어도 됩니다.", "Applicants can practice this position's mock interview and get AI feedback before applying. Just note what you want to assess and AI writes the questions, or add your own key questions.", "申请者可在申请前练习本职位的模拟面试并获得 AI 反馈。只需写下你想考察的要点，AI 就会生成问题，你也可以自行添加代表性问题。", "Ứng viên có thể luyện phỏng vấn thử vị trí này và nhận phản hồi AI trước khi ứng tuyển. Chỉ cần ghi điểm muốn đánh giá, AI sẽ tạo câu hỏi, hoặc bạn tự thêm câu hỏi.", "応募者は応募前にこのポジションの模擬面接を練習しAIフィードバックを受けられます。見たいポイントを書けばAIが質問を作成し、代表質問を直接入れることもできます。", "Pelamar bisa berlatih wawancara simulasi posisi ini dan mendapat masukan AI sebelum melamar. Cukup tulis poin yang ingin dinilai, AI membuat pertanyaan, atau tambahkan sendiri.")}</p>
+            <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+              <p className="mb-3 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("지원자가 지원 전에 이 포지션 모의 면접을 연습하고 AI 피드백을 받을 수 있어요. 면접에서 보려는 포인트만 적으면 AI가 질문을 만들고, 대표 질문을 직접 넣어도 됩니다.", "Applicants can practice this position's mock interview and get AI feedback before applying. Just note what you want to assess and AI writes the questions, or add your own key questions.", "申请者可在申请前练习本职位的模拟面试并获得 AI 反馈。只需写下你想考察的要点，AI 就会生成问题，你也可以自行添加代表性问题。", "Ứng viên có thể luyện phỏng vấn thử vị trí này và nhận phản hồi AI trước khi ứng tuyển. Chỉ cần ghi điểm muốn đánh giá, AI sẽ tạo câu hỏi, hoặc bạn tự thêm câu hỏi.", "応募者は応募前にこのポジションの模擬面接を練習しAIフィードバックを受けられます。見たいポイントを書けばAIが質問を作成し、代表質問を直接入れることもできます。", "Pelamar bisa berlatih wawancara simulasi posisi ini dan mendapat masukan AI sebelum melamar. Cukup tulis poin yang ingin dinilai, AI membuat pertanyaan, atau tambahkan sendiri.")}</p>
               <div className="flex flex-col gap-3.5">
                 <Field label={t("면접에서 보려는 포인트", "What to assess", "想考察的要点", "Điểm muốn đánh giá", "見たいポイント", "Poin penilaian")}>
                   <Textarea value={form.mockInterviewIntent} onChange={(v) => set("mockInterviewIntent", v)} placeholder={t("예) 문제를 정의하고 우선순위를 정하는 방식, 협업 경험, 고객 관점 사고", "e.g. How they frame problems and set priorities, collaboration experience, customer-centric thinking", "例) 定义问题和排定优先级的方式、协作经验、客户视角思维", "VD) Cách xác định vấn đề và ưu tiên, kinh nghiệm hợp tác, tư duy hướng khách hàng", "例) 問題を定義し優先順位を決める方法、協働経験、顧客視点の思考", "Cth) Cara mendefinisikan masalah dan prioritas, pengalaman kolaborasi, pola pikir berorientasi pelanggan")} />
                 </Field>
                 <div>
-                  <span className="mb-1.5 block text-[12.5px] font-normal text-[#4E5968]">{t("대표 질문", "Key questions", "代表性问题", "Câu hỏi chính", "代表質問", "Pertanyaan utama")} <span className="text-[#B0B8C1]">{t("(선택 · 없으면 AI가 생성)", "(optional · AI generates if empty)", "（可选 · 留空则由 AI 生成）", "(tùy chọn · để trống thì AI tạo)", "（任意 · 空欄ならAIが生成）", "(opsional · kosong maka AI buat)")}</span></span>
+                  <span className="mb-1.5 block text-[13.5px] font-normal text-[color:var(--v2-ink-3)]">{t("대표 질문", "Key questions", "代表性问题", "Câu hỏi chính", "代表質問", "Pertanyaan utama")} <span className="text-[color:var(--v2-disabled)]">{t("(선택 · 없으면 AI가 생성)", "(optional · AI generates if empty)", "（可选 · 留空则由 AI 生成）", "(tùy chọn · để trống thì AI tạo)", "（任意 · 空欄ならAIが生成）", "(opsional · kosong maka AI buat)")}</span></span>
                   <div className="flex flex-col gap-2">
                     {form.mockInterviewQuestions.map((q, i) => (
                       <div key={i} className="flex items-center gap-1.5">
-                        <input value={q} onChange={(e) => set("mockInterviewQuestions", form.mockInterviewQuestions.map((x, j) => (j === i ? e.target.value : x)))} placeholder={t(`질문 ${i + 1}`, `Question ${i + 1}`, `问题 ${i + 1}`, `Câu hỏi ${i + 1}`, `質問 ${i + 1}`, `Pertanyaan ${i + 1}`)} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
-                        <button type="button" onClick={() => set("mockInterviewQuestions", form.mockInterviewQuestions.filter((_, j) => j !== i))} aria-label={t("질문 삭제", "Delete question", "删除问题", "Xóa câu hỏi", "質問を削除", "Hapus pertanyaan")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]"><X className="h-4 w-4" /></button>
+                        <input value={q} onChange={(e) => set("mockInterviewQuestions", form.mockInterviewQuestions.map((x, j) => (j === i ? e.target.value : x)))} placeholder={t(`질문 ${i + 1}`, `Question ${i + 1}`, `问题 ${i + 1}`, `Câu hỏi ${i + 1}`, `質問 ${i + 1}`, `Pertanyaan ${i + 1}`)} className="min-w-0 flex-1 rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30" />
+                        <button type="button" onClick={() => set("mockInterviewQuestions", form.mockInterviewQuestions.filter((_, j) => j !== i))} aria-label={t("질문 삭제", "Delete question", "删除问题", "Xóa câu hỏi", "質問を削除", "Hapus pertanyaan")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--v2-disabled)] transition hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-attention)]"><X className="h-4 w-4" /></button>
                       </div>
                     ))}
                     {form.mockInterviewQuestions.length < 10 ? (
-                      <button type="button" onClick={() => set("mockInterviewQuestions", [...form.mockInterviewQuestions, ""])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> {t("질문 추가", "Add question", "添加问题", "Thêm câu hỏi", "質問を追加", "Tambah pertanyaan")}</button>
+                      <button type="button" onClick={() => set("mockInterviewQuestions", [...form.mockInterviewQuestions, ""])} className="inline-flex w-fit items-center gap-1 text-[13.5px] font-bold text-[color:var(--v2-accent)]"><Plus className="h-3.5 w-3.5" weight="bold" /> {t("질문 추가", "Add question", "添加问题", "Thêm câu hỏi", "質問を追加", "Tambah pertanyaan")}</button>
                     ) : null}
                   </div>
                 </div>
@@ -408,15 +440,15 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
           {/* 액션 — 우측 하단 */}
           <div className="flex flex-wrap justify-end gap-2.5">
             {isEdit ? (
-              <button type="button" onClick={() => save()} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+              <button type="button" onClick={() => save()} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] px-6 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">
                 {saving ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("저장하기", "Save", "保存", "Lưu", "保存", "Simpan")}
               </button>
             ) : (
               <>
-                <button type="button" onClick={() => save("DRAFT")} disabled={saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[#F2F4F6] px-5 text-[14px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">
+                <button type="button" onClick={() => save("DRAFT")} disabled={saving} className="inline-flex h-[46px] min-w-[110px] items-center justify-center rounded-2xl bg-[color:var(--v2-band)] px-5 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">
                   {t("임시저장", "Save draft", "存草稿", "Lưu nháp", "下書き保存", "Simpan draf")}
                 </button>
-                <button type="button" onClick={() => save("PENDING_REVIEW")} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[#0B46E8] px-6 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">
+                <button type="button" onClick={() => save("PENDING_REVIEW")} disabled={saving} className="inline-flex h-[46px] min-w-[120px] items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] px-6 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">
                   {saving ? t("등록 중…", "Submitting…", "提交中…", "Đang gửi…", "登録中…", "Mengirim…") : t("검토 요청하기", "Request review", "申请审核", "Yêu cầu duyệt", "審査を依頼", "Minta tinjauan")}
                 </button>
               </>
@@ -430,34 +462,53 @@ export function PartnerPositionEditorScreen({ positionId }: { positionId?: strin
 
 // 섹션 타이틀 — 카드 밖. 다른 섹션 페이지와 동일한 스타일.
 function SectionHeader({ title }: { title: string }) {
-  return <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>;
+  return <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[12.5px] font-normal text-[#4E5968]">{label}</span>
+      <span className="mb-1.5 block text-[13.5px] font-normal text-[color:var(--v2-ink-3)]">{label}</span>
       {children}
     </label>
   );
 }
 function Input({ value, onChange, placeholder, type, inputMode }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string; inputMode?: "numeric" }) {
   return (
-    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} type={type} inputMode={inputMode} className="w-full rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] text-[#191F28] outline-none [color-scheme:light] placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} type={type} inputMode={inputMode} className="w-full rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light] placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30" />
   );
 }
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
     <div className="relative">
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full appearance-none rounded-lg bg-[#F5F6F8] py-2.5 pl-3.5 pr-9 text-[14px] text-[#191F28] outline-none [color-scheme:light] focus:ring-2 focus:ring-[#0B46E8]/30">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full appearance-none rounded-lg bg-[color:var(--v2-band)] py-2.5 pl-3.5 pr-9 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light] focus:ring-2 focus:ring-[#0B46E8]/30">
         {children}
       </select>
-      <CaretDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+      <CaretDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--v2-faint)]" weight="bold" />
     </div>
   );
 }
 function Textarea({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className="w-full resize-none rounded-lg bg-[#F5F6F8] px-3.5 py-2.5 text-[14px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:ring-2 focus:ring-[#0B46E8]/30" />
+    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} className="w-full resize-none rounded-lg bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[14px] leading-relaxed text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:ring-2 focus:ring-[#0B46E8]/30" />
+  );
+}
+
+/** 승인 전 파트너 — 공고 등록 대신 안내 + 관리자 문의. */
+function PostBlocked({ t }: { t: PlatformT }) {
+  return (
+    <div className="rounded-2xl bg-[color:var(--v2-band)] px-6 py-10 text-center">
+      <span aria-hidden className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--v2-warn-weak)] text-[26px]">⏳</span>
+      <h1 className="mt-4 text-[19px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("아직 파트너 승인 전이에요", "Your partner account isn't approved yet", "合作伙伴尚未通过审核", "Tài khoản đối tác chưa được duyệt", "まだパートナー承認前です", "Akun mitra belum disetujui")}</h1>
+      <p className="mx-auto mt-2 max-w-[360px] text-[14px] leading-[1.6] text-[#5A6473]">
+        {t("관리자 승인이 나면 공고를 등록할 수 있어요. 승인이 늦어지거나 궁금한 점이 있으면 관리자에게 문의해 주세요.", "You can post once an admin approves your account. If it's taking a while or you have questions, please contact the admin.", "管理员审核通过后即可发布职位。如审核较慢或有疑问，请联系管理员。", "Bạn có thể đăng tin khi quản trị viên duyệt tài khoản. Nếu lâu hoặc có thắc mắc, vui lòng liên hệ quản trị viên.", "管理者の承認後に求人を登録できます。承認が遅い場合やご不明点は管理者にお問い合わせください。", "Anda bisa memposting setelah admin menyetujui akun. Jika lama atau ada pertanyaan, hubungi admin.")}
+      </p>
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <a href="mailto:info@flip-ers.com?subject=%5BAply%20%ED%8C%8C%ED%8A%B8%EB%84%88%5D%20%EC%8A%B9%EC%9D%B8%20%EB%AC%B8%EC%9D%98" className="inline-flex h-11 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[14.5px] font-bold text-white transition hover:opacity-90">
+          {t("관리자에게 문의하기", "Contact the admin", "联系管理员", "Liên hệ quản trị viên", "管理者に問い合わせる", "Hubungi admin")}
+        </a>
+        <span className="text-[13.5px] text-[color:var(--v2-faint)]">info@flip-ers.com</span>
+      </div>
+    </div>
   );
 }

@@ -3,21 +3,23 @@
 // UX Phase 5 — 면접 오답노트. 상태 코드 대신 사용자 그룹, 점수보다 문제·다음 행동 우선. 반복 압박 최소화.
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown, Buildings } from "@phosphor-icons/react";
+import { ArrowRight, Target, IdentificationCard, GlobeHemisphereEast, Fire, CaretDown, Buildings, Airplane } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "../../../components/launch/CareerLaunchHeader";
-import { LaunchAmbientBackground } from "../../../components/launch/LaunchAmbientBackground";
 import { AplyFooter } from "../../../components/AplyFooter";
 import { EmptyState, ErrorState, CardSkeleton, DashboardSection } from "../../../components/launch/dashboard-states";
 import { fetchCorrections, type CorrectionsVM, type CorrectionCard } from "../../../lib/launch/hub-client";
 import { fetchProgress, type PostingInterviewLog, type PostingInterviewItem } from "../../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../../lib/analytics";
 import { useLaunchT } from "../../../lib/launch/i18n";
+import { SpeakingGrowthCard } from "../../../components/launch/SpeakingGrowthCard";
+import { useAuthSession } from "../../../components/auth/AuthSessionProvider";
+import { isForeignNationality } from "../../../lib/nationality";
 
 function scoreTone(s: number): { text: string; bg: string } {
-  if (s >= 80) return { text: "text-[#0A9B59]", bg: "bg-[#E7F7EF]" };
-  if (s >= 60) return { text: "text-[#0B46E8]", bg: "bg-[#EDF1FD]" };
-  if (s >= 40) return { text: "text-[#C77700]", bg: "bg-[#FFF6E5]" };
-  return { text: "text-[#F04452]", bg: "bg-[#FEECEC]" };
+  if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-[color:var(--v2-band)]" };
+  if (s >= 60) return { text: "text-[color:var(--v2-accent)]", bg: "bg-[color:var(--v2-accent-weak)]" };
+  if (s >= 40) return { text: "text-[color:var(--v2-ink-3)]", bg: "bg-[color:var(--v2-band)]" };
+  return { text: "text-[color:var(--v2-attention)]", bg: "bg-[color:var(--v2-band)]" };
 }
 
 type LaunchT = ReturnType<typeof useLaunchT>;
@@ -46,11 +48,11 @@ function Card({ c, qa, isOpen, onToggle }: { c: CorrectionCard; qa?: { it: Posti
   const it = qa?.it;
   const tone = typeof it?.score === "number" ? scoreTone(it.score) : null;
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
-      <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-start gap-2.5 p-4 text-left transition hover:bg-[#FAFBFC]">
+    <div className="overflow-hidden rounded-2xl bg-[color:var(--v2-band)]">
+      <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-start gap-2.5 p-4 text-left transition md:hover:bg-[color:var(--v2-line)]">
         <span className="min-w-0 flex-1">
-          <span className={`block break-keep text-[14px] font-bold leading-snug text-[#191F28] ${isOpen ? "" : "line-clamp-2"}`}>{c.question || t("면접 질문", "Interview question", "面试问题", "Câu hỏi phỏng vấn", "面接の質問", "Pertanyaan wawancara")}</span>
-          <span className="mt-1.5 block truncate text-[12px] text-[#8B95A1]">
+          <span className={`block break-keep text-[16px] font-bold leading-[1.45] text-[color:var(--v2-ink)] ${isOpen ? "" : "line-clamp-2"}`}>{c.question || t("면접 질문", "Interview question", "面试问题", "Câu hỏi phỏng vấn", "面接の質問", "Pertanyaan wawancara")}</span>
+          <span className="mt-1 block truncate text-[13px] text-[color:var(--v2-muted)]">
             {c.weakness ? `${c.weakness} · ` : ""}
             {c.attemptCount > 0
               ? t(`재도전 ${c.attemptCount}회`, `${c.attemptCount} retries`, `重试 ${c.attemptCount} 次`, `${c.attemptCount} lần thử lại`, `再挑戦 ${c.attemptCount}回`, `${c.attemptCount} kali coba lagi`)
@@ -58,42 +60,42 @@ function Card({ c, qa, isOpen, onToggle }: { c: CorrectionCard; qa?: { it: Posti
             {c.transferPassed ? ` · ${t("유사 질문 통과", "Passed similar question", "通过相似问题", "Đạt câu hỏi tương tự", "類似質問クリア", "Lolos pertanyaan serupa")}` : ""}
           </span>
         </span>
-        <CaretDown size={15} weight="bold" className={`mt-1 shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <CaretDown size={15} weight="bold" className={`mt-1 shrink-0 text-[color:var(--v2-faint)] transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen ? (
-        <div className="space-y-2.5 bg-[#FAFBFC] px-4 pb-4 pt-1">
+        <div className="space-y-2.5 px-4 pb-4 pt-1">
           {c.coachOneLine ? (
-            <div className="rounded-2xl bg-[#F4F8FF] px-4 py-3">
-              <p className="text-[11.5px] font-bold text-[#1B64DA]">{t("먼저 개선할 부분", "Fix this first", "先改进这一点", "Cần cải thiện trước", "まず改善する点", "Perbaiki dulu ini")}</p>
-              <p className="mt-1 break-keep text-[13px] leading-relaxed text-[#191F28]">{c.coachOneLine}</p>
+            <div className="rounded-2xl bg-white px-4 py-3">
+              <p className="text-[13px] font-bold text-[color:var(--v2-accent)]">{t("먼저 개선할 부분", "Fix this first", "先改进这一点", "Cần cải thiện trước", "まず改善する点", "Perbaiki dulu ini")}</p>
+              <p className="mt-1 break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink)]">{c.coachOneLine}</p>
             </div>
           ) : null}
           {it?.answer ? (
-            <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
+            <div className="rounded-2xl bg-white p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
-                {tone ? <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span> : null}
+                <p className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                {tone ? <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span> : null}
               </div>
-              <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+              <p className="mt-2 whitespace-pre-wrap break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.answer}</p>
             </div>
           ) : null}
           {it?.feedback ? (
-            <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
-              <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
-              <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
+            <div className="rounded-2xl bg-white px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[13px] font-bold text-[color:var(--v2-ink-3)]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+              <p className="mt-1.5 break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.feedback}</p>
             </div>
           ) : null}
           {it?.modelAnswer ? (
-            <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
-              <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
-              <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
+            <div className="rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3.5">
+              <p className="flex items-center gap-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
+              <p className="mt-1.5 whitespace-pre-wrap break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.modelAnswer}</p>
             </div>
           ) : null}
           <div className="pt-0.5">
             <Link
               href={qa ? `/career-launch/corrections/${qa.log.id}` : "/career-launch/week/4"}
               onClick={() => trackCareerFunnel("career_correction_opened", { missionKey: c.id, missionStatus: c.status })}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
             >
               {t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" />
             </Link>
@@ -106,6 +108,9 @@ function Card({ c, qa, isOpen, onToggle }: { c: CorrectionCard; qa?: { it: Posti
 
 export default function CorrectionNotebookPage() {
   const t = useLaunchT();
+  // 외국인 지원자 면접은 외국인에게만 — 한국 국적이면 숨긴다(국적을 모르면 보여 준다 — 프로그램 대상이 주로 외국인 구직자).
+  const { user } = useAuthSession();
+  const showGlobal = isForeignNationality(user?.nationality) !== false;
   const [vm, setVm] = useState<CorrectionsVM | null>(null);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [pLogs, setPLogs] = useState<PostingInterviewLog[]>([]); // 공고별
@@ -146,14 +151,13 @@ export default function CorrectionNotebookPage() {
   };
 
   return (
-    <div className="cl-surface isolate flex min-h-screen flex-col bg-[#F1F1F4]">
-      <LaunchAmbientBackground />
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1 pb-16">
         <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <p className="cl-eyebrow">Step 3 · 4</p>
-          <h1 className="cl-display mt-1.5">{t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}</h1>
-          <p className="cl-lead mt-2.5 max-w-[52ch]">
+          <p className="text-[15px] font-semibold text-[color:var(--v2-muted)]">Step 3 · 4</p>
+          <h1 className="mt-1.5 text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[30px]">{t("면접 오답노트", "Interview review notes", "面试错题本", "Sổ lỗi phỏng vấn", "面接の復習ノート", "Catatan koreksi wawancara")}</h1>
+          <p className="mt-2.5 max-w-[52ch] text-[17px] leading-[1.6] text-[color:var(--v2-ink-3)]">
             {t(
               "면접에서 약했던 답변을 다시 연습하고, 표현이 다른 질문에도 대응할 수 있는지 확인해요.",
               "Practice the answers you were weak on, and check you can handle the same question worded differently.",
@@ -164,38 +168,49 @@ export default function CorrectionNotebookPage() {
             )}
           </p>
           {/* 언제든 새 면접 — 유형을 골라 바로 시작 */}
-          <div className="mt-6 rounded-2xl border border-[#EEF1F5] bg-white p-5">
-            <p className="text-[15px] font-black tracking-[-0.01em] text-[#191F28]">{t("새로운 면접 질문 받기", "Get new interview questions", "获取新的面试问题", "Nhận câu hỏi phỏng vấn mới", "新しい面接質問を受ける", "Dapatkan soal wawancara baru")}</p>
-            <p className="mt-1 text-[12.5px] leading-relaxed text-[#8B95A1]">{t("원하는 유형을 골라 언제든 새 질문으로 연습해요.", "Pick a type and practice with fresh questions anytime.", "选择类型，随时用新问题练习。", "Chọn loại và luyện với câu hỏi mới bất cứ lúc nào.", "タイプを選んでいつでも新しい質問で練習。", "Pilih tipe dan berlatih dengan soal baru kapan saja.")}</p>
+          <div className="mt-6 rounded-3xl bg-[color:var(--v2-band)] p-5">
+            <p className="text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("새로운 면접 질문 받기", "Get new interview questions", "获取新的面试问题", "Nhận câu hỏi phỏng vấn mới", "新しい面接質問を受ける", "Dapatkan soal wawancara baru")}</p>
+            <p className="mt-1 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">{t("원하는 유형을 골라 언제든 새 질문으로 연습해요.", "Pick a type and practice with fresh questions anytime.", "选择类型，随时用新问题练习。", "Chọn loại và luyện với câu hỏi mới bất cứ lúc nào.", "タイプを選んでいつでも新しい質問で練習。", "Pilih tipe dan berlatih dengan soal baru kapan saja.")}</p>
             <div className="mt-3.5 grid gap-2.5 sm:grid-cols-2">
               {([
                 { focus: "self", Icon: IdentificationCard, title: t("자기소개 면접", "Intro interview", "自我介绍面试", "PV giới thiệu", "自己紹介面接", "Wawancara perkenalan"), desc: t("지원 동기·성격·강점", "Motivation, personality, strengths", "动机·性格·优势", "Động lực, tính cách, điểm mạnh", "志望動機・性格・強み", "Motivasi, kepribadian, kelebihan") },
                 { focus: "job", Icon: Target, title: t("직무 면접", "Job interview", "职务面试", "PV chuyên môn", "職務面接", "Wawancara peran"), desc: t("경력·프로젝트·성과", "Experience, projects, results", "经历·项目·成果", "Kinh nghiệm, dự án, kết quả", "経歴・プロジェクト・成果", "Pengalaman, proyek, hasil") },
                 { focus: "fit", Icon: GlobeHemisphereEast, title: t("인성·컬처핏 면접", "Fit interview", "人性面试", "PV văn hóa", "人柄面接", "Wawancara kecocokan"), desc: t("협업·가치관·조직 적응", "Teamwork, values, fit", "协作·价值观·适应", "Hợp tác, giá trị, thích nghi", "協働・価値観・適応", "Kerja sama, nilai, adaptasi") },
-                { focus: "pressure", Icon: Fire, title: t("압박 면접", "Pressure interview", "压力面试", "PV áp lực", "圧迫面接", "Wawancara tekanan"), desc: t("근거 검증·꼬리질문", "Verification & follow-ups", "验证·追问", "Kiểm chứng & câu đuổi", "根拠検証・追加質問", "Verifikasi & lanjutan") }
-              ] as const).map(({ focus, Icon, title, desc }) => (
-                <Link key={focus} href={`/career-launch/basic-interview?focus=${focus}`} className="flex items-center gap-3 rounded-2xl border border-[#EEF1F5] bg-[#FAFBFC] p-3.5 transition hover:border-[#3182F6]/30 hover:bg-white">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF1FD] text-[#0B46E8]"><Icon className="h-5 w-5" weight="duotone" aria-hidden /></span>
+                { focus: "pressure", Icon: Fire, title: t("압박 면접", "Pressure interview", "压力面试", "PV áp lực", "圧迫面接", "Wawancara tekanan"), desc: t("근거 검증·꼬리질문", "Verification & follow-ups", "验证·追问", "Kiểm chứng & câu đuổi", "根拠検証・追加質問", "Verifikasi & lanjutan") },
+                // 외국인 지원자에게만 나오는 질문 — 왜 한국에서·비자·근무 기간·한국어·조직 문화
+                { focus: "global", Icon: Airplane, title: t("외국인 지원자 면접", "International applicant", "外国申请者面试", "PV ứng viên nước ngoài", "外国人応募者面接", "Pelamar asing"), desc: t("왜 한국에서·비자·한국어·문화", "Why Korea, visa, Korean, culture", "为何韩国·签证·韩语·文化", "Vì sao Hàn·visa·tiếng Hàn·văn hóa", "なぜ韓国・ビザ・韓国語・文化", "Kenapa Korea, visa, bahasa, budaya") }
+              ] as const).filter((c) => c.focus !== "global" || showGlobal).map(({ focus, Icon, title, desc }) => (
+                <Link key={focus} href={`/career-launch/basic-interview?focus=${focus}`} className="flex items-center gap-3 rounded-2xl bg-white p-3.5 transition active:scale-[0.99] md:hover:opacity-80">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"><Icon className="h-5 w-5" weight="duotone" aria-hidden /></span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13.5px] font-black text-[#191F28]">{title}</span>
-                    <span className="block truncate text-[12px] text-[#8B95A1]">{desc}</span>
+                    <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{title}</span>
+                    <span className="block truncate text-[13px] text-[color:var(--v2-muted)]">{desc}</span>
                   </span>
-                  <ArrowRight size={15} weight="bold" className="shrink-0 text-[#C4CAD2]" />
+                  <ArrowRight size={15} weight="bold" className="shrink-0 text-[color:var(--v2-faint)]" />
                 </Link>
               ))}
             </div>
-            {/* 공고별 — 가고 싶은 공고 기준 맞춤 면접(공고 선택 흐름) */}
-            <Link href="/career-launch/program?week=4" className="mt-2.5 flex items-center gap-3 rounded-2xl border border-[#E4EDFB] bg-gradient-to-br from-[#F5F8FF] to-[#EDF2FF] p-3.5 transition hover:border-[#3182F6]/40">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0B46E8] shadow-[0_1px_3px_rgba(17,24,39,0.06)]"><Buildings className="h-5 w-5" weight="duotone" aria-hidden /></span>
+            {/* 1분 자기소개 — 모든 면접의 첫 질문, 60초 타이머로 말하고 다듬기 */}
+            <Link href="/career-launch/intro-practice" className="mt-2.5 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-ink)] p-3.5 transition active:scale-[0.99] md:hover:opacity-90">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-[17px]" aria-hidden>⏱</span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-black text-[#191F28]">{t("공고별 모의 면접", "Posting-based interview", "按公告模拟面试", "PV theo tin tuyển", "求人別模擬面接", "Wawancara per lowongan")}</span>
-                <span className="block truncate text-[12px] text-[#4E5968]">{t("가고 싶은 공고를 골라 그 공고 기준으로 연습", "Pick a posting and practice tailored to it", "选择目标公告，按其要求练习", "Chọn tin tuyển và luyện theo tin đó", "行きたい求人を選んでその基準で練習", "Pilih lowongan dan berlatih sesuai lowongan itu")}</span>
+                <span className="block text-[15px] font-bold text-white">{t("1분 자기소개 훈련", "1-minute self-intro", "1分钟自我介绍训练", "Giới thiệu 1 phút", "1分自己紹介トレーニング", "Perkenalan 1 menit")}</span>
+                <span className="block truncate text-[13px] text-white/70">{t("모든 면접의 첫 질문 — 60초 타이머로 말하고 다듬어요", "Every interview's first question — speak to a 60s timer", "所有面试的第一题——60 秒计时练习", "Câu đầu mọi buổi PV — nói trong 60 giây", "全面接の最初の質問 — 60秒で話して磨く", "Pertanyaan pertama — bicara 60 detik")}</span>
               </span>
-              <ArrowRight size={15} weight="bold" className="shrink-0 text-[#0B46E8]" />
+              <ArrowRight size={15} weight="bold" className="shrink-0 text-white/70" />
+            </Link>
+            {/* 공고별 — 가고 싶은 공고 기준 맞춤 면접(공고 선택 흐름) */}
+            <Link href="/career-launch/program?week=4" className="mt-2.5 flex items-center gap-3 rounded-2xl bg-[color:var(--v2-accent-weak)] p-3.5 transition active:scale-[0.99] md:hover:opacity-80">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[color:var(--v2-accent)]"><Buildings className="h-5 w-5" weight="duotone" aria-hidden /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold text-[color:var(--v2-ink)]">{t("공고별 모의 면접", "Posting-based interview", "按公告模拟面试", "PV theo tin tuyển", "求人別模擬面接", "Wawancara per lowongan")}</span>
+                <span className="block truncate text-[13px] text-[color:var(--v2-ink-3)]">{t("가고 싶은 공고를 골라 그 공고 기준으로 연습", "Pick a posting and practice tailored to it", "选择目标公告，按其要求练习", "Chọn tin tuyển và luyện theo tin đó", "行きたい求人を選んでその基準で練習", "Pilih lowongan dan berlatih sesuai lowongan itu")}</span>
+              </span>
+              <ArrowRight size={15} weight="bold" className="shrink-0 text-[color:var(--v2-accent)]" />
             </Link>
           </div>
 
-          <hr className="cl-rule mt-6" />
+          <hr className="-mx-5 mt-8 h-3 border-0 bg-[color:var(--v2-band)] md:mx-0 md:h-px md:bg-[color:var(--v2-line)]" />
 
           {phase === "loading" ? (
             <div className="mt-5 flex flex-col gap-3">
@@ -221,8 +236,8 @@ export default function CorrectionNotebookPage() {
               {vm.summary.total > 0 ? (
               <>
               {/* 상단 요약 + 다음 훈련(상단 고정 성격) */}
-              <div className="rounded-2xl bg-[#191F28] p-5 text-white">
-                <p className="text-[14.5px] font-semibold">
+              <div className="rounded-3xl bg-[color:var(--v2-accent-weak)] p-5 text-[color:var(--v2-ink)]">
+                <p className="text-[17px] font-bold leading-[1.45]">
                   {t(
                     `핵심 오답 ${vm.summary.total}개 중 ${vm.summary.passed}개를 해결했어요.`,
                     `You've fixed ${vm.summary.passed} of ${vm.summary.total} key corrections.`,
@@ -234,20 +249,20 @@ export default function CorrectionNotebookPage() {
                 </p>
                 {vm.summary.nextRecommended ? (
                   <>
-                    <p className="mt-1.5 text-[13px] text-white/85">
+                    <p className="mt-1.5 text-[14px] leading-[1.55] text-[color:var(--v2-ink-3)]">
                       {t("다음은 이 답변을 연습할 차례예요", "Next up: practice this answer", "接下来练习这个回答", "Tiếp theo: luyện câu trả lời này", "次はこの答えを練習しましょう", "Berikutnya: latih jawaban ini")} · {vm.summary.nextRecommended.question?.slice(0, 40)}
                     </p>
                     <Link
                       href="/career-launch/week/4"
                       onClick={() => trackCareerFunnel("career_correction_next_action_clicked", { missionKey: vm.summary.nextRecommended?.id })}
-                      className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-bold text-[#191F28]"
+                      className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
                     >
                       <Target size={14} weight="bold" /> {t("다음 오답 연습하기", "Practice the next correction", "练习下一个错题", "Luyện lỗi tiếp theo", "次の復習を練習する", "Latih koreksi berikutnya")}
                     </Link>
                   </>
                 ) : null}
                 {vm.summary.transferPassRatePct != null ? (
-                  <p className="mt-2 text-[12px] text-white/70">
+                  <p className="mt-2 text-[13px] text-[color:var(--v2-muted)]">
                     {t(`유사 질문 통과율 ${vm.summary.transferPassRatePct}%`, `Similar-question pass rate ${vm.summary.transferPassRatePct}%`, `相似问题通过率 ${vm.summary.transferPassRatePct}%`, `Tỷ lệ đạt câu tương tự ${vm.summary.transferPassRatePct}%`, `類似質問の通過率 ${vm.summary.transferPassRatePct}%`, `Tingkat lolos pertanyaan serupa ${vm.summary.transferPassRatePct}%`)}
                   </p>
                 ) : null}
@@ -269,9 +284,12 @@ export default function CorrectionNotebookPage() {
               </>
               ) : null}
 
+              {/* 말하기 성장 — 말로 답한 문항의 처음 vs 최근 */}
+              <SpeakingGrowthCard logs={[...pLogs, ...bLogs]} />
+
               {postingLowCount > 0 ? (
                 <DashboardSection title={t(`면접 히스토리 ${postingLowCount}문항`, `Interview history · ${postingLowCount}`, `面试记录 ${postingLowCount}`, `Lịch sử phỏng vấn · ${postingLowCount}`, `面接履歴 ${postingLowCount}`, `Riwayat wawancara · ${postingLowCount}`)}>
-                  <div className="divide-y divide-[#EEF1F5] overflow-hidden rounded-2xl border border-[#EEF1F5] bg-white">
+                  <div className="divide-y divide-[color:var(--v2-line)] overflow-hidden rounded-2xl bg-[color:var(--v2-band)]">
                     {historyRows.map(({ it, log, key }, idx) => {
                       const isOpen = open.has(key);
                       const tone = scoreTone(it.score);
@@ -279,41 +297,41 @@ export default function CorrectionNotebookPage() {
                       const meta = [co, fmtDate(log.at)].filter(Boolean).join(" · ");
                       return (
                         <div key={key}>
-                          <button type="button" onClick={() => toggle(key)} aria-expanded={isOpen} className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-[#FAFBFC]">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EDF1FD] text-[10px] font-black tabular-nums text-[#0B46E8]">{idx + 1}</span>
+                          <button type="button" onClick={() => toggle(key)} aria-expanded={isOpen} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition md:hover:bg-[color:var(--v2-line)]">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold tabular-nums text-[color:var(--v2-ink-3)]">{idx + 1}</span>
                             <span className="min-w-0 flex-1">
-                              <span className={`block break-keep text-[13.5px] font-semibold text-[#191F28] ${isOpen ? "" : "line-clamp-1"}`}>{it.question}</span>
-                              <span className="mt-0.5 block truncate text-[11.5px] text-[#8B95A1]">{meta}</span>
+                              <span className={`block break-keep text-[15px] font-semibold text-[color:var(--v2-ink)] ${isOpen ? "" : "line-clamp-1"}`}>{it.question}</span>
+                              <span className="mt-0.5 block truncate text-[13px] text-[color:var(--v2-muted)]">{meta}</span>
                             </span>
-                            <CaretDown size={15} weight="bold" className={`shrink-0 text-[#C4CAD2] transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                            <CaretDown size={15} weight="bold" className={`shrink-0 text-[color:var(--v2-faint)] transition-transform ${isOpen ? "rotate-180" : ""}`} />
                           </button>
                           {isOpen ? (
-                            <div className="space-y-2.5 bg-[#FAFBFC] px-4 pb-4 pt-1">
+                            <div className="space-y-2.5 px-4 pb-4 pt-1">
                               {it.answer ? (
-                                <div className="rounded-2xl bg-white p-4 shadow-[0_1px_3px_rgba(17,24,39,0.05)]">
+                                <div className="rounded-2xl bg-white p-4">
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#8B95A1]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
-                                    <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span>
+                                    <p className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p>
+                                    <span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span>
                                   </div>
-                                  <p className="mt-2.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#333D4B]">{it.answer}</p>
+                                  <p className="mt-2 whitespace-pre-wrap break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.answer}</p>
                                 </div>
                               ) : (
-                                <div className="flex justify-end"><span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-black tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span></div>
+                                <div className="flex justify-end"><span className={`inline-flex items-baseline gap-0.5 rounded-full px-2.5 py-1 text-[13px] font-bold tabular-nums ${tone.bg} ${tone.text}`}>{it.score}<span className="text-[9px] font-bold opacity-70">/100</span></span></div>
                               )}
                               {it.feedback ? (
-                                <div className="rounded-2xl border-l-[3px] border-[#F5A524] bg-[#FFF9EC] px-4 py-3.5">
-                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#B7791F]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
-                                  <p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{it.feedback}</p>
+                                <div className="rounded-2xl bg-white px-4 py-3.5">
+                                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-[color:var(--v2-ink-3)]"><span aria-hidden>💬</span>{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p>
+                                  <p className="mt-1.5 break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.feedback}</p>
                                 </div>
                               ) : null}
                               {it.modelAnswer ? (
-                                <div className="rounded-2xl border-l-[3px] border-[#0B46E8] bg-[#EDF1FD] px-4 py-3.5">
-                                  <p className="flex items-center gap-1.5 text-[12px] font-black text-[#0B46E8]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
-                                  <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{it.modelAnswer}</p>
+                                <div className="rounded-2xl bg-[color:var(--v2-accent-weak)] px-4 py-3.5">
+                                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-[color:var(--v2-accent)]"><span aria-hidden>🧭</span>{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
+                                  <p className="mt-1.5 whitespace-pre-wrap break-keep text-[15px] leading-[1.65] text-[color:var(--v2-ink-2)]">{it.modelAnswer}</p>
                                 </div>
                               ) : null}
                               <div className="pt-0.5">
-                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
+                                <Link href={`/career-launch/corrections/${log.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]">{t("이 문항 다시 답하기", "Try this question again", "重新作答此题", "Trả lời lại câu này", "この設問にもう一度答える", "Jawab ulang soal ini")} <ArrowRight size={13} weight="bold" /></Link>
                               </div>
                             </div>
                           ) : null}
@@ -324,7 +342,7 @@ export default function CorrectionNotebookPage() {
                 </DashboardSection>
               ) : null}
 
-              <p className="text-[12px] text-[#B0B8C1]">
+              <p className="text-[13px] leading-[1.55] text-[color:var(--v2-faint)]">
                 {t(
                   "같은 질문을 반복하기보다, 다른 표현의 질문으로 바꿔가며 연습해요. 오늘은 여기까지 해도 괜찮아요.",
                   "Rather than repeating the same question, practice with reworded ones. It's fine to stop here for today.",

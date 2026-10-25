@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AplyFooter } from "../AplyFooter";
-import { Button, Chip, Page, Spinner } from "./experience/ui";
+import { Button, Chip, Page, Spinner } from "../v2/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { usePlatformT, type PlatformT } from "../../lib/i18n";
 import { readAccessToken } from "../../lib/auth-client";
@@ -885,12 +885,12 @@ function Completion({ t }: { t: PlatformT }) {
         ))}
       </ol>
       <div className="mt-10 rounded-[28px] bg-[#eef3ff] px-6 py-8">
-        <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("기다리는 동안 어플라이를 둘러보세요", "Explore Aply while you wait", "等待期间，逛逛Aply吧", "Trong lúc chờ, hãy khám phá Aply", "待っている間にAplyを見てみましょう", "Sambil menunggu, jelajahi Aply")}</p>
+        <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("기다리는 동안 Aply를 둘러보세요", "Explore Aply while you wait", "等待期间，逛逛Aply吧", "Trong lúc chờ, hãy khám phá Aply", "待っている間にAplyを見てみましょう", "Sambil menunggu, jelajahi Aply")}</p>
         <p className="mx-auto mt-2 max-w-[380px] text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">
           {t("가입하면 이력서·자기소개서를 만들고 외국인 채용 공고에 바로 지원할 수 있어요.", "Sign up to build your resume and cover letter and apply to jobs open to international talent.", "注册后即可制作简历和自我介绍书，并直接申请面向外国人的招聘职位。", "Đăng ký để tạo CV, thư giới thiệu bản thân và ứng tuyển ngay các tin tuyển dụng dành cho người nước ngoài.", "登録すると履歴書・自己紹介書を作成し、外国人向けの求人にすぐ応募できます。", "Daftar untuk membuat CV dan esai perkenalan diri, lalu langsung melamar lowongan untuk talenta asing.")}
         </p>
         <div className="mt-6 flex flex-col gap-2 min-[400px]:flex-row min-[400px]:justify-center">
-          <Button href="/talent/signup">{t("어플라이 가입하기", "Sign up for Aply", "注册Aply", "Đăng ký Aply", "Aplyに登録", "Daftar Aply")}</Button>
+          <Button href="/talent/signup">{t("Aply 가입하기", "Sign up for Aply", "注册Aply", "Đăng ký Aply", "Aplyに登録", "Daftar Aply")}</Button>
           <Button href="/talent/jobs" variant="white">{t("채용 공고 보기", "Browse jobs", "查看招聘", "Xem việc làm", "求人を見る", "Lihat lowongan")}</Button>
         </div>
       </div>

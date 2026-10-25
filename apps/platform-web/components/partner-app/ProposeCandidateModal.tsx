@@ -67,19 +67,19 @@ export function ProposeCandidateModal({
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
-          <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${name} 님에게 제안`, `Propose to ${name}`, `向 ${name} 发送提议`, `Đề nghị với ${name}`, `${name} さんへ提案`, `Ajukan ke ${name}`)}</p>
-          <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("수락하면 연락처가 공유돼요. 면접 시간을 함께 제안할 수 있어요.", "If accepted, contact details are shared. You can also propose an interview time.", "对方接受后将共享联系方式，您还可一并提议面试时间。", "Nếu chấp nhận, thông tin liên hệ sẽ được chia sẻ. Bạn cũng có thể đề nghị giờ phỏng vấn.", "承諾されると連絡先が共有されます。面接時間も一緒に提案できます。", "Jika diterima, kontak akan dibagikan. Anda juga bisa mengusulkan waktu wawancara.")}</p>
+          <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`${name} 님에게 제안`, `Propose to ${name}`, `向 ${name} 发送提议`, `Đề nghị với ${name}`, `${name} さんへ提案`, `Ajukan ke ${name}`)}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-faint)]">{t("수락하면 연락처가 공유돼요. 면접 시간을 함께 제안할 수 있어요.", "If accepted, contact details are shared. You can also propose an interview time.", "对方接受后将共享联系方式，您还可一并提议面试时间。", "Nếu chấp nhận, thông tin liên hệ sẽ được chia sẻ. Bạn cũng có thể đề nghị giờ phỏng vấn.", "承諾されると連絡先が共有されます。面接時間も一緒に提案できます。", "Jika diterima, kontak akan dibagikan. Anda juga bisa mengusulkan waktu wawancara.")}</p>
         </div>
         <div className="flex flex-col gap-3.5 px-6 py-4">
           <label className="block">
-            <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{t("메시지", "Message", "留言", "Tin nhắn", "メッセージ", "Pesan")}</span>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+            <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("메시지", "Message", "留言", "Tin nhắn", "メッセージ", "Pesan")}</span>
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} className="w-full resize-none rounded-xl border border-[color:var(--v2-line)] bg-white px-3.5 py-2.5 text-[14.5px] leading-relaxed text-[color:var(--v2-ink)] outline-none focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]" />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{t("면접 시간 제안", "Propose interview time", "提议面试时间", "Đề nghị giờ phỏng vấn", "面接時間の提案", "Usulkan waktu wawancara")} <span className="font-normal text-[#B0B8C1]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "(任意)", "(opsional)")}</span></span>
+            <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("면접 시간 제안", "Propose interview time", "提议面试时间", "Đề nghị giờ phỏng vấn", "面接時間の提案", "Usulkan waktu wawancara")} <span className="font-normal text-[color:var(--v2-disabled)]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "(任意)", "(opsional)")}</span></span>
             <div className="flex gap-1.5">
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2.5 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
-              <select value={time} onChange={(e) => setTime(e.target.value)} className="w-[110px] shrink-0 rounded-lg bg-[#F5F6F8] px-2.5 py-2.5 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="min-w-0 flex-1 rounded-lg bg-[color:var(--v2-band)] px-3 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light]" />
+              <select value={time} onChange={(e) => setTime(e.target.value)} className="w-[110px] shrink-0 rounded-lg bg-[color:var(--v2-band)] px-2.5 py-2.5 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light]">
                 <option value="">{t("시간", "Time", "时间", "Giờ", "時間", "Waktu")}</option>
                 {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -87,8 +87,8 @@ export function ProposeCandidateModal({
           </label>
         </div>
         <div className="flex gap-2 px-6 pb-6">
-          <button type="button" onClick={onClose} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
-          <button type="button" onClick={submit} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{saving ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…") : t("제안 보내기", "Send proposal", "发送提议", "Gửi đề nghị", "提案を送る", "Kirim ajakan")}</button>
+          <button type="button" onClick={onClose} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[color:var(--v2-band)] text-[14.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+          <button type="button" onClick={submit} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[color:var(--v2-accent)] text-[14.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">{saving ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…") : t("제안 보내기", "Send proposal", "发送提议", "Gửi đề nghị", "提案を送る", "Kirim ajakan")}</button>
         </div>
       </div>
     </div>

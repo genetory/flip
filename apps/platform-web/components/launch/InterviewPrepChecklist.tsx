@@ -58,18 +58,18 @@ export function InterviewPrepChecklist() {
   return (
     <Card>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13.5px] font-semibold text-[#4E5968]">{t("면접 준비 체크리스트", "Interview prep checklist", "面试准备清单", "Danh sách chuẩn bị phỏng vấn", "面接準備チェックリスト", "Daftar persiapan wawancara")}</span>
-        <span className="text-[12px] font-bold text-[#0B46E8]">{loaded ? `${done}/${items.length}` : ""}</span>
+        <span className="text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("면접 준비 체크리스트", "Interview prep checklist", "面试准备清单", "Danh sách chuẩn bị phỏng vấn", "面接準備チェックリスト", "Daftar persiapan wawancara")}</span>
+        <span className="text-[12px] font-bold text-[color:var(--v2-accent)]">{loaded ? `${done}/${items.length}` : ""}</span>
       </div>
-      <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("점수가 아니라, 무엇을 준비했는지로 자신감을 쌓아요.", "Build confidence by what you've prepared — not a score.", "用准备程度而非分数建立自信。", "Xây tự tin bằng sự chuẩn bị, không phải điểm số.", "点数ではなく、準備した内容で自信を積みましょう。", "Bangun percaya diri dari persiapan, bukan skor.")}</p>
+      <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("점수가 아니라, 무엇을 준비했는지로 자신감을 쌓아요.", "Build confidence by what you've prepared — not a score.", "用准备程度而非分数建立自信。", "Xây tự tin bằng sự chuẩn bị, không phải điểm số.", "点数ではなく、準備した内容で自信を積みましょう。", "Bangun percaya diri dari persiapan, bukan skor.")}</p>
       <ul className="mt-3 flex flex-col gap-1.5">
         {items.map((it) => {
           const on = checked.has(it.id);
           return (
             <li key={it.id}>
-              <button type="button" onClick={() => toggle(it.id)} className="flex w-full items-start gap-2.5 rounded-xl px-1 py-1.5 text-left transition hover:bg-[#F6F8FB]">
-                {on ? <CheckCircle className="mt-[1px] h-5 w-5 shrink-0 text-[#0A9B59]" weight="fill" /> : <Circle className="mt-[1px] h-5 w-5 shrink-0 text-[#C4CAD2]" />}
-                <span className={`break-keep text-[13.5px] leading-relaxed ${on ? "text-[#8B95A1] line-through" : "text-[#333D4B]"}`}>{it.label}</span>
+              <button type="button" onClick={() => toggle(it.id)} className="flex w-full items-start gap-2.5 rounded-xl px-1 py-1.5 text-left transition hover:bg-[color:var(--v2-fill)]">
+                {on ? <CheckCircle className="mt-[1px] h-5 w-5 shrink-0 text-[color:var(--v2-good)]" weight="fill" /> : <Circle className="mt-[1px] h-5 w-5 shrink-0 text-[color:var(--v2-faint)]" />}
+                <span className={`break-keep text-[13.5px] leading-relaxed ${on ? "text-[color:var(--v2-faint)] line-through" : "text-[color:var(--v2-ink-2)]"}`}>{it.label}</span>
               </button>
             </li>
           );

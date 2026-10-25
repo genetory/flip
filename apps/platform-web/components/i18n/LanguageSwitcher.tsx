@@ -23,7 +23,8 @@ const NAME: Record<PlatformLocale, string> = {
   id: "Bahasa Indonesia"
 };
 
-export function LanguageSwitcher() {
+/** size="lg" — 리뉴얼 v2 GNB 용(알림·프로필 버튼과 같은 40px). 기본은 기존 화면 그대로. */
+export function LanguageSwitcher({ size = "md" }: { size?: "md" | "lg" } = {}) {
   const { locale, setLocale } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -44,7 +45,11 @@ export function LanguageSwitcher() {
         onClick={() => setOpen((v) => !v)}
         aria-label={`${NAME[locale]} · Language`}
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-2xl text-[19px] leading-none transition hover:bg-[#F6F8FB]"
+        className={
+          size === "lg"
+            ? "flex h-10 w-10 items-center justify-center rounded-xl text-[22px] leading-none transition hover:bg-[#F2F4F6]"
+            : "flex h-9 w-9 items-center justify-center rounded-2xl text-[19px] leading-none transition hover:bg-[#F6F8FB]"
+        }
       >
         <span aria-hidden>{FLAG[locale] ?? "🌐"}</span>
       </button>

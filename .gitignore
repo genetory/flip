@@ -15,3 +15,6 @@ playwright/.cache
 
 # 로컬 전용 시드 스크립트 — 실데이터/PII 포함 가능, PUBLIC 레포에 커밋 금지
 apps/api/seed-*.mts
+
+# 로컬 개발용 첨부 파일 저장소(Blob 미설정 시) — 커밋 금지
+apps/api/.local-uploads

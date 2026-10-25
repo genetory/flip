@@ -8,7 +8,6 @@ import cors from "cors";
 import express from "express";
 import multer from "multer";
 import nodemailer from "nodemailer";
-import OpenAI from "openai";
 import swaggerUi from "swagger-ui-express";
 import {
   Prisma,
@@ -58,6 +57,7 @@ import { checkEmailDeliverable } from "./email/deliverability";
 import {
   embedAndSavePosition,
   embedQueryCached,
+  EMBEDDINGS_ENABLED,
   expandQueryCandidates,
   keywordScore,
   toPgVector
@@ -87,10 +87,19 @@ import {
   COVER_TEXT_SCHEMA,
   POLISH_TEXT_SCHEMA,
   DRAFT_TEXT_SCHEMA,
+  CAREER_STRENGTHS_SCHEMA,
+  buildCareerStrengthsMessages,
+  ROLE_REQUIREMENTS_SCHEMA,
+  buildRoleRequirementsMessages,
+  ROLE_HAVE_SCHEMA,
+  buildRoleHaveMessages,
+  ROLE_COMMON_SCHEMA,
+  buildRoleCommonMessages,
   RESUME_ITEMS_SCHEMA
 } from "./llm/prompts";
-import { generateJson, isClaudeModel } from "./llm/generate";
-import { generateJsonAnthropic } from "./llm/anthropic";
+import { generateJson } from "./llm/generate";
+import { claudeJson, claudeJsonRaw, claudeText, hasLlm, LIGHT_MODEL, QUALITY_MODEL } from "./llm/claude";
+import { fetchPublicPageText, buildJobImportMessages, JOB_IMPORT_SCHEMA } from "./llm/job-import";
 import {
   REVIEW_FINDINGS_SCHEMA,
   buildCoverReviewPrompt,
@@ -259,7 +268,9 @@ import {
   renewalToCareerCover,
   hasDerivedResumeContent,
   isHumanCollected,
-  canonicalJson
+  canonicalJson,
+  careerResumeToRenewal,
+  careerCoverToRenewal
 } from "./career-derive";
 import { createHash } from "crypto";
 
@@ -389,45 +400,56 @@ async function writeAuditLog(
   }
 }
 const port = Number(process.env.API_PORT ?? 4000);
-// Phase 15 — SDK 기본 timeout(10분)·retry를 명시적으로 제한: 멈춘 요청이 커넥션/비용을 오래 잡지 않게.
-// 값은 env로 조정 가능(기본 120s, 재시도 2). 정상 생성이 잘리지 않도록 넉넉히 두되 10분 hang은 차단.
-const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_TIMEOUT_MS ?? 120_000);
-const OPENAI_MAX_RETRIES = Number(process.env.OPENAI_MAX_RETRIES ?? 2);
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: OPENAI_TIMEOUT_MS, maxRetries: OPENAI_MAX_RETRIES })
-  : null;
-const openaiMatchingModel = process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
-const openaiTranslationModel = process.env.OPENAI_TRANSLATION_MODEL ?? "gpt-4o-mini";
-// 자소서(플래그십)는 한국어 산문 자연스러움이 가장 좋은 Claude Sonnet 을 쓴다.
-// eval(strict judge, 3x): 자소서 평균 3.17→3.75, 근거성 유지. 짧은 이력서 필드는 이득이 없어 mini 유지.
-// ANTHROPIC_API_KEY 가 없는 환경에서는 안전하게 gpt-4o-mini 로 폴백. env 로 모델 교체 가능.
-const coverLetterModel =
-  process.env.COVER_LETTER_MODEL ?? (process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiTranslationModel);
-// 커리어런치 '대화형 코칭'(학생 대면) 모델. eval 상 Claude 가 코칭 스타일(공감·주제유지·쉬운 선택형)을
-// 더 일관되게 지킴(수치는 gpt-4o 와 근소). 라이브 학생 대상이라 명시 플래그로만 전환 —
-// 프로덕션에 ANTHROPIC 키가 이미 있어도 CAREER_COACH_USE_CLAUDE=1 이 없으면 gpt-4o 유지.
-// w2 채점·문서생성 등 비대화형은 이 모델을 쓰지 않는다(gpt-4o 그대로).
-const careerCoachModel =
-  process.env.CAREER_COACH_MODEL ??
-  (process.env.CAREER_COACH_USE_CLAUDE === "1" && process.env.ANTHROPIC_API_KEY ? "claude-sonnet-5" : openaiMatchingModel);
+// LLM 은 전부 Claude(src/llm/claude.ts). 2026-10 OpenAI 사용 중단.
+// 키(ANTHROPIC_API_KEY)가 없으면 AI 기능은 503 으로 꺼진다 — 아래 `!llmReady` 가드들이 그 역할을 한다.
+const llmReady = hasLlm();
+// 가벼운 작업(번역·요약·다듬기·추출·짧은 필드) — Haiku 5.5. 이전 gpt-4o-mini 자리.
+const lightModel = LIGHT_MODEL;
+// 판단 품질이 곧 가치인 작업(매칭 재정렬·준비도 피드백·인재 인사이트·커리어런치 채점/생성) — Sonnet 5.5.
+const qualityModel = QUALITY_MODEL;
+// 자소서(플래그십)는 한국어 산문 품질 때문에 원래 Claude Sonnet 이었다. env 로 교체 가능.
+const coverLetterModel = process.env.COVER_LETTER_MODEL ?? QUALITY_MODEL;
+// 커리어런치 '대화형 코칭'(학생 대면). eval 상 Claude 가 코칭 스타일(공감·주제유지·쉬운 선택형)을 더 일관되게 지켰다.
+const careerCoachModel = process.env.CAREER_COACH_MODEL ?? QUALITY_MODEL;
 // 문서 '전체 점검'(이력서·자소서) 모델. 이 기능의 핵심은 **잘 쓴 글을 건드리지 않는** 판단이다.
 // 오탐은 놓치는 것보다 나쁘다 — 멀쩡한 항목을 지적받으면 사용자가 점검 자체를 믿지 않는다.
-//
-// 같은 입력을 4회씩 돌려 재어 본 결과(src/llm/review.ts 프롬프트 기준):
-//   gpt-4o-mini — 문제 섞인 문서에선 정상 항목을 안 건드리는데, **전부 잘 쓴 문서**에선
-//                 억지로 찾아낸다(이력서 정상 2항목에 4회 중 8건, 자소서 정상 답변 3/3).
-//   gpt-4o      — 네 경우(이력서·자소서 × 문제있음·전부정상) 모두 오탐 0, 잡아야 할 것은 4/4.
-// 그래서 다른 AI 기능과 달리 점검은 mini 를 쓰지 않는다. 생성기의 '짧은 이력서 필드는 mini'
-// 방침과 어긋나 보이지만 그건 '필드 생성' 얘기고, 이쪽은 문서 전체를 읽는 판단 작업이다.
-//
-// 환경마다 모델이 갈리면 로컬에서 재어 본 것이 프로덕션과 달라진다 → 모델명을 그대로 못 박는다.
-// 다른 모델 변수(openaiMatchingModel 등)를 재사용하지 않는 이유: 그 변수는 env 로 바뀌기 때문에
-// 측정한 모델과 실제로 도는 모델이 조용히 달라진다(실제로 로컬 OPENAI_MATCHING_MODEL 이
-// 접근 권한 없는 모델로 잡혀 있어 점검이 전 케이스 0건으로 나왔다).
+// OpenAI 시절 측정: 작은 모델(gpt-4o-mini)은 전부 잘 쓴 문서에서 억지로 지적을 만들었고 gpt-4o 는 오탐 0.
+// 그래서 점검은 작은 모델(Haiku)을 쓰지 않는다.
+// 환경마다 모델이 갈리면 로컬에서 재어 본 것이 프로덕션과 달라진다 → 다른 모델 변수를 재사용하지 않고 못 박는다.
 // 모델을 바꾸려면 DOC_REVIEW_MODEL 을 올리고 `npm run eval:review` 를 다시 돌려 확인한다.
-const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "gpt-4o";
-// 모의면접 질문·피드백 전용 모델 — 번역 등 공용 모델과 분리해 품질↑(비용은 면접에만).
-const openaiInterviewModel = process.env.OPENAI_INTERVIEW_MODEL ?? "gpt-4o";
+const docReviewModel = process.env.DOC_REVIEW_MODEL ?? "claude-sonnet-5-5";
+// 모의 면접(질문 생성·답변 피드백) — 사용자 결정(2026-10-12)으로 Sonnet. env INTERVIEW_MODEL 로 교체 가능.
+const interviewModel = process.env.INTERVIEW_MODEL ?? QUALITY_MODEL;
+
+/** 모의 면접용 JSON 생성. 실패하면 빈 객체(호출부가 502 처리). */
+async function interviewJson(args: { system: string; user: string; temperature: number; schema: Record<string, unknown>; schemaName: string }): Promise<Record<string, unknown>> {
+  const r = await generateJson<Record<string, unknown>>({ model: interviewModel, system: args.system, user: args.user, schema: args.schema, schemaName: args.schemaName });
+  if (!r.data) console.warn(`[interview] ${interviewModel} returned no data`, r.error);
+  return r.data ?? {};
+}
+const MOCK_QUESTIONS_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { question: { type: "string" }, intent: { type: "string" }, category: { type: "string" } }, required: ["question", "intent", "category"] }
+    }
+  },
+  required: ["questions"]
+} as const;
+const INTERVIEW_FEEDBACK_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    score: { type: "number" },
+    strengths: { type: "array", items: { type: "string" } },
+    improvements: { type: "array", items: { type: "string" } },
+    sampleAnswer: { type: "string" },
+    followUp: { type: "string" }
+  },
+  required: ["score", "strengths", "improvements", "sampleAnswer", "followUp"]
+} as const;
 const openaiMatchingMaxPool = Number(process.env.OPENAI_MATCHING_MAX_POOL ?? 120);
 const openaiMatchingPrefilterMultiplier = Math.max(1, Number(process.env.OPENAI_MATCHING_PREFILTER_MULTIPLIER ?? 4));
 const openaiMatchingMinCompletionPercent = Math.max(0, Math.min(100, Number(process.env.OPENAI_MATCHING_MIN_COMPLETION_PERCENT ?? 45)));
@@ -660,6 +682,8 @@ async function postFeedbackToDiscord(input: {
 // 웹훅 URL은 시크릿이라 소스에 하드코딩하지 않는다(PUBLIC 레포). env 로만 주입.
 const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOOK_URL?.trim() ?? "";
 const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
+// 인재 검색에서 기업이 '연결 요청'을 보낼 때 운영팀 알림. 전용 채널이 없으면 포지션 지원 채널로 보낸다.
+const discordCandidateConnectWebhookUrl = process.env.DISCORD_CANDIDATE_CONNECT_WEBHOOK_URL?.trim() || discordPositionApplyWebhookUrl;
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
 const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 // 자소서 경험 발굴 캠페인(/experience) 신규 신청 알림 — 주소는 앱 설정에만(공개 레포라 코드에 넣지 않는다).
@@ -1211,6 +1235,55 @@ async function sendCommunityPostDiscordNotification(input: {
     console.error("community_post_discord_webhook_error", {
       error: getErrorMessage(error)
     });
+  }
+}
+
+// 기업 → 인재 연결 요청 알림. 실패해도 요청 저장은 끝난 상태라 로그만 남긴다.
+async function sendCandidateConnectDiscordNotification(input: {
+  requestId: string;
+  organizationName: string | null;
+  requesterName: string | null;
+  requesterEmail: string | null;
+  candidateUserId: string;
+  candidateName: string | null;
+  candidateAffiliation: string | null;
+  message: string | null;
+  createdAt: Date;
+}) {
+  if (!discordCandidateConnectWebhookUrl) return;
+  const cut = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 14))}\n...[truncated]` : text;
+  const requester = [input.requesterName, input.requesterEmail].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  const candidate = [input.candidateName, input.candidateAffiliation].map((v) => (v ?? "").trim()).filter(Boolean).join(" · ");
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0x0b46e8,
+        title: "🤝 인재 연결 요청",
+        description: input.message?.trim() ? cut(input.message.trim(), 1500) : "(메시지 없음)",
+        fields: [
+          { name: "기업", value: cut(input.organizationName?.trim() || "-", 256), inline: true },
+          { name: "요청자", value: cut(requester || "-", 256), inline: true },
+          { name: "인재", value: cut(candidate || "-", 256), inline: true },
+          { name: "인재 ID", value: input.candidateUserId, inline: true },
+          { name: "Env", value: resolveRuntimeEnvironment(), inline: true },
+          { name: "인재 보기", value: `[파트너 인재 상세](${platformWebUrl}/partner/talent/${encodeURIComponent(input.candidateUserId)})`, inline: false }
+        ],
+        footer: { text: `Aply • Candidate Connect · ${input.requestId.slice(0, 8)}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordCandidateConnectWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) console.error("candidate_connect_discord_webhook_failed", { status: response.status });
+  } catch (error) {
+    console.error("candidate_connect_discord_webhook_error", { error: getErrorMessage(error) });
   }
 }
 
@@ -3685,6 +3758,8 @@ const updateMyBasicInfoSchema = z.object({
   phoneNumber: z.string().trim().max(30).nullable().optional(),
   birthDate: flexibleDateString.nullable().optional(),
   gender: z.string().trim().max(40).nullable().optional(),
+  // 국적 — ISO-3166 2글자 코드(KR, VN …). 외국인 여부(비자 안내·외국인 채용 필터)를 판단한다.
+  nationality: z.string().trim().max(120).nullable().optional(),
   profileImageData: z.string().max(IMAGE_DATA_URL_MAX).nullable().optional()
 });
 
@@ -5116,6 +5191,8 @@ function startCrawlerScheduler() {
 // - 하루 1회 실행, 최근 26h 신규 공고만, (userId, 공고) 중복 알림 방지.
 // - 실패는 로그만 남기고 조용히 넘어간다(치명 아님).
 async function runJobMatchAlertsOnce(): Promise<void> {
+  // 저장된 벡터만으로 돌면 임베딩 없는 신규 공고가 빠져 알림이 치우친다 → 꺼져 있으면 쉰다.
+  if (!EMBEDDINGS_ENABLED) return;
   const startedAt = Date.now();
   try {
     // 임베딩은 Unsupported 타입이라 전 구간 raw SQL 로 다룬다.
@@ -6064,7 +6141,7 @@ async function rerankCandidateMatchesWithOpenAI(params: {
 }) {
   const { position, baseMatches, limit } = params;
   const shortlist = baseMatches.slice(0, Math.max(limit * 3, 18));
-  if (!openai || shortlist.length === 0) {
+  if (!llmReady || shortlist.length === 0) {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
 
@@ -6080,17 +6157,10 @@ async function rerankCandidateMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "너는 채용 매칭 랭커다. 제공된 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: qualityModel,
+      system: "너는 채용 매칭 랭커다. 제공된 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             task: "position_to_candidates_rerank",
             position,
             shortlist: shortlist.map((item) => ({
@@ -6103,14 +6173,8 @@ async function rerankCandidateMatchesWithOpenAI(params: {
               baseScore: item.score,
               baseReasons: item.reasons
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "candidate_matching_rerank",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6129,13 +6193,10 @@ async function rerankCandidateMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("empty output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
     const baseById = new Map(shortlist.map((entry) => [entry.item.id, entry]));
@@ -6170,7 +6231,7 @@ async function rerankPositionMatchesWithOpenAI(params: {
 }) {
   const { candidate, baseMatches, limit } = params;
   const shortlist = baseMatches.slice(0, Math.max(limit * 3, 18));
-  if (!openai || shortlist.length === 0) {
+  if (!llmReady || shortlist.length === 0) {
     return { source: "rule" as const, matches: baseMatches.slice(0, limit) };
   }
 
@@ -6186,17 +6247,10 @@ async function rerankPositionMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "너는 채용 매칭 랭커다. 제공된 공고 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: qualityModel,
+      system: "너는 채용 매칭 랭커다. 제공된 공고 후보군만 재정렬하고, 반드시 사실 기반으로 판단해라. 결과는 JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             task: "candidate_to_positions_rerank",
             candidate,
             shortlist: shortlist.map((item) => ({
@@ -6210,14 +6264,8 @@ async function rerankPositionMatchesWithOpenAI(params: {
               baseScore: item.score,
               baseReasons: item.reasons
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "position_matching_rerank",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6236,13 +6284,10 @@ async function rerankPositionMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("empty output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
     const baseById = new Map(shortlist.map((entry) => [entry.item.id, entry]));
@@ -6368,7 +6413,7 @@ const careerReadinessNarrativeSchema = z.object({
 });
 
 async function generateCareerReadinessNarrative(input: CareerReadinessProfile, score: number, _locale?: "ko" | "en" | "zh-CN" | "vi" | "ja" | "id") {
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
 
   const summary = {
     score,
@@ -6395,12 +6440,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
       : null
   };
 
-  const response = await openai.responses.create({
-    model: openaiMatchingModel,
-    input: [
-      {
-        role: "system",
-        content: [
+  const response = await claudeJson({
+    model: qualityModel,
+    system: [
           "You are a Korea-employment career coach helping international students plan their job search in Korea.",
           "Given a candidate snapshot and an overall readiness score (0-100), produce constructive feedback.",
           "Strengths: 3-5 short bullets highlighting what the candidate already has going for them in the Korean job market.",
@@ -6408,18 +6450,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
           "RecommendedRoles: 3-5 specific role titles realistic for this candidate (e.g., 'Global Marketing Assistant', 'Market Research Intern', 'Translation Support').",
           "반드시 모든 항목(strengths·improvements·recommendedRoles의 각 bullet)을 한국어로, 다정하고 예의 바른 존댓말로 작성해줘. 딱딱한 평가체가 아니라 응원하는 톤으로.",
           "Keep each bullet under 120 characters and avoid generic platitudes."
-        ].join(" ")
-      },
-      {
-        role: "user",
-        content: JSON.stringify({ task: "career_readiness_report", ...summary })
-      }
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "career_readiness_report",
-        schema: {
+        ].join(" "),
+    user: JSON.stringify({ task: "career_readiness_report", ...summary }),
+    schema: {
           type: "object",
           additionalProperties: false,
           required: ["strengths", "improvements", "recommendedRoles"],
@@ -6429,11 +6462,9 @@ async function generateCareerReadinessNarrative(input: CareerReadinessProfile, s
             recommendedRoles: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 5 }
           }
         }
-      }
-    }
   });
 
-  const raw = response.output_text;
+  const raw = response.raw;
   const parsed = careerReadinessNarrativeSchema.parse(JSON.parse(raw));
   return parsed;
 }
@@ -6444,7 +6475,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
   limit: number;
 }) {
   const { position, candidates, limit } = params;
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
   if (candidates.length === 0) return { source: "openai" as const, matches: [] as Array<RuleMatch<MatchingCandidate>> };
   const startedAt = Date.now();
   const prefilterCount = Math.min(openaiMatchingMaxPool, Math.max(limit, limit * openaiMatchingPrefilterMultiplier));
@@ -6475,7 +6506,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
 
   logMatchingEvent("openai.request.start", {
     mode: "position_to_candidates",
-    model: openaiMatchingModel,
+    model: qualityModel,
     positionId: position.id,
     candidateCount: candidates.length,
     candidatePoolCount: candidatePool.length,
@@ -6484,12 +6515,9 @@ async function generateCandidateMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content: [
+    const response = await claudeJson({
+      model: qualityModel,
+      system: [
             "너는 채용 매칭 전문가다. 제공된 후보자 목록 내부에서만 상위 후보를 선별한다.",
             "반드시 2단계로 판단한다.",
             "1) 하드 필터(탈락 조건): 명시된 필수조건 충돌 시 제외하거나 강한 패널티를 준다.",
@@ -6509,11 +6537,8 @@ async function generateCandidateMatchesWithOpenAI(params: {
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
             "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
-          ].join("\n")
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+          ].join("\n"),
+      user: JSON.stringify({
             task: "position_to_candidates_direct_match",
             limit,
             position,
@@ -6570,14 +6595,8 @@ async function generateCandidateMatchesWithOpenAI(params: {
                 }))
               }
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "candidate_matching_direct",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6630,13 +6649,10 @@ async function generateCandidateMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("openai_empty_output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
 
@@ -6669,7 +6685,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
 
     logMatchingEvent("openai.request.success", {
       mode: "position_to_candidates",
-      model: openaiMatchingModel,
+      model: qualityModel,
       positionId: position.id,
       matchedCount: matches.length,
       elapsedMs: Date.now() - startedAt
@@ -6679,7 +6695,7 @@ async function generateCandidateMatchesWithOpenAI(params: {
   } catch (error) {
     logMatchingEvent("openai.request.error", {
       mode: "position_to_candidates",
-      model: openaiMatchingModel,
+      model: qualityModel,
       positionId: position.id,
       elapsedMs: Date.now() - startedAt,
       error: getErrorMessage(error)
@@ -6694,7 +6710,7 @@ async function generatePositionMatchesWithOpenAI(params: {
   limit: number;
 }) {
   const { candidate, positions, limit } = params;
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("openai_unavailable");
   if (positions.length === 0) return { source: "openai" as const, matches: [] as Array<RuleMatch<MatchingPosition>> };
   const startedAt = Date.now();
   const prefilterCount = Math.min(openaiMatchingMaxPool, Math.max(limit, limit * openaiMatchingPrefilterMultiplier));
@@ -6725,7 +6741,7 @@ async function generatePositionMatchesWithOpenAI(params: {
 
   logMatchingEvent("openai.request.start", {
     mode: "candidate_to_positions",
-    model: openaiMatchingModel,
+    model: qualityModel,
     candidateId: candidate.id,
     positionCount: positions.length,
     positionPoolCount: positionPool.length,
@@ -6734,12 +6750,9 @@ async function generatePositionMatchesWithOpenAI(params: {
   });
 
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        {
-          role: "system",
-          content: [
+    const response = await claudeJson({
+      model: qualityModel,
+      system: [
             "너는 채용 매칭 전문가다. 제공된 공고 목록 내부에서만 상위 공고를 선별한다.",
             "반드시 2단계로 판단한다.",
             "1) 하드 필터(탈락 조건): 후보자 필수 선호/조건과 충돌하는 공고는 제외하거나 강한 패널티를 준다.",
@@ -6759,11 +6772,8 @@ async function generatePositionMatchesWithOpenAI(params: {
             "breakdown에는 각 세부항목을 0~1 숫자로 반드시 채운다.",
             "feedback에는 매칭 가능성을 높이기 위한 실행 가능한 개선 제안 1~3개를 한국어로 작성한다.",
             "사실 기반으로만 판단하고, 결과는 JSON 스키마를 반드시 지켜라."
-          ].join("\n")
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+          ].join("\n"),
+      user: JSON.stringify({
             task: "candidate_to_positions_direct_match",
             limit,
             candidate,
@@ -6805,14 +6815,8 @@ async function generatePositionMatchesWithOpenAI(params: {
                 5
               ).map((item) => truncateText(item))
             }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "position_matching_direct",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -6865,13 +6869,10 @@ async function generatePositionMatchesWithOpenAI(params: {
               }
             },
             required: ["matches"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) throw new Error("openai_empty_output");
     const parsed = resultSchema.parse(JSON.parse(outputText));
 
@@ -6904,7 +6905,7 @@ async function generatePositionMatchesWithOpenAI(params: {
 
     logMatchingEvent("openai.request.success", {
       mode: "candidate_to_positions",
-      model: openaiMatchingModel,
+      model: qualityModel,
       candidateId: candidate.id,
       matchedCount: matches.length,
       elapsedMs: Date.now() - startedAt
@@ -6914,7 +6915,7 @@ async function generatePositionMatchesWithOpenAI(params: {
   } catch (error) {
     logMatchingEvent("openai.request.error", {
       mode: "candidate_to_positions",
-      model: openaiMatchingModel,
+      model: qualityModel,
       candidateId: candidate.id,
       elapsedMs: Date.now() - startedAt,
       error: getErrorMessage(error)
@@ -8980,33 +8981,20 @@ app.post("/community/translate", async (req, res) => {
   if (!parsedBody.success) {
     return res.status(400).json({ ok: false, message: "invalid body", errors: parsedBody.error.flatten() });
   }
-  if (!openai) {
+  if (!llmReady) {
     return res.status(503).json({ ok: false, message: "translation service unavailable" });
   }
 
   try {
-    const response = await openai.responses.create({
-      model: openaiTranslationModel,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON."
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: lightModel,
+      system: "You are a translation assistant. Translate user text into the requested target language naturally. Preserve meaning, tone, and line breaks. Return strict JSON.",
+      user: JSON.stringify({
             targetLanguage: parsedBody.data.targetLanguage,
             sourceLanguageHint: parsedBody.data.sourceLanguageHint ?? null,
             text: parsedBody.data.text
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "community_translate_result",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -9014,13 +9002,10 @@ app.post("/community/translate", async (req, res) => {
               detectedLanguage: { type: "string", minLength: 2, maxLength: 40 }
             },
             required: ["translatedText", "detectedLanguage"]
-          },
-          strict: true
-        }
-      }
+          }
     });
 
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) {
       return res.status(500).json({ ok: false, message: "empty translation output" });
     }
@@ -10649,7 +10634,8 @@ app.get("/positions/recommended", async (req, res) => {
   try {
     const userId = resolvePublicViewerUserId(req);
     const limit = Math.min(Math.max(Number(req.query.limit) || 6, 1), 12);
-    if (!userId) return res.json({ ok: true, personalized: false, items: [] });
+    // 임베딩이 꺼져 있으면 예전 벡터만 남은 공고로 치우치므로 빈 목록 → 프론트가 관심직무 추천으로 폴백.
+    if (!userId || !EMBEDDINGS_ENABLED) return res.json({ ok: true, personalized: false, items: [] });
 
     // 대표 이력서 임베딩(vector→text 캐스트)로 조회. 없으면 폴백.
     const embRows = await prisma.$queryRaw<Array<{ emb: string }>>`
@@ -10848,7 +10834,8 @@ app.get("/positions", async (req, res) => {
   const KEYWORD_WEIGHT = 0.35;
   const ANN_POOL_SIZE = 100;
   const trimmedSearch = (search ?? "").trim();
-  if (trimmedSearch && openai) {
+  if (trimmedSearch) {
+    // 임베딩 키가 없으면 null → 아래 키워드 경로로 떨어진다.
     const queryVector = await embedQueryCached(trimmedSearch);
     if (queryVector) {
       const vectorLiteral = toPgVector(queryVector);
@@ -11564,14 +11551,14 @@ app.post("/ops/matching/run", authenticate, requireRoles([MemberRole.OPERATOR]),
   } as const;
 
   try {
-    if (!openai) {
+    if (!llmReady) {
       logMatchingEvent("run.request.rejected", {
         mode: parsed.data.mode,
         reason: "openai_unavailable"
       });
       return res.status(503).json({
         ok: false,
-        message: "openai matching is not configured (set OPENAI_API_KEY in .env and restart api)"
+        message: "ai matching is not configured (set ANTHROPIC_API_KEY in .env and restart api)"
       });
     }
 
@@ -14025,6 +14012,7 @@ app.patch("/members/me", authenticate, requireRoles([MemberRole.STUDENT, MemberR
         ...(parsed.data.phoneNumber !== undefined ? { phoneNumber: parsed.data.phoneNumber?.trim() || null } : {}),
         ...(parsed.data.birthDate !== undefined ? { birthDate: parsed.data.birthDate ? new Date(parsed.data.birthDate) : null } : {}),
         ...(parsed.data.gender !== undefined ? { gender: parsed.data.gender?.trim() || null } : {}),
+        ...(parsed.data.nationality !== undefined ? { nationality: parsed.data.nationality?.trim() || null } : {}),
         ...(profileImageUrlUpdate ?? {})
       }
     });
@@ -14560,7 +14548,7 @@ const careerReadinessLocaleSchema = z.object({
 });
 
 app.post("/members/me/career-readiness", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
-  if (!openai) {
+  if (!llmReady) {
     return res.status(503).json({ ok: false, message: "AI service is not configured" });
   }
   const userId = req.auth!.userId;
@@ -16102,7 +16090,7 @@ app.get("/members/me/resumes/:resumeId/coach", authenticate, requireRoles([Membe
 // for a single resume section. Body specifies which section and which item
 // (e.g. careers[2] description). Returns a single suggested rewrite the
 // frontend can show inline with an [Apply] button. Cheap model so each
-// click costs sub-cent. Falls back gracefully when OPENAI_API_KEY missing.
+// click costs sub-cent. Falls back gracefully when ANTHROPIC_API_KEY missing.
 const coachSuggestSchema = z.object({
   targetSection: z.enum(["selfIntroduction", "summary", "careers", "activities"]),
   targetItemIndex: z.number().int().nonnegative().optional(),
@@ -16115,7 +16103,7 @@ app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRol
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   const parsed = coachSuggestSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   try {
     const resume = await prisma.resume.findFirst({
@@ -16167,16 +16155,7 @@ app.post("/members/me/resumes/:resumeId/coach/suggest", authenticate, requireRol
       "JSON 한 개의 객체만 응답하세요. 형식: { \"rewrite\": string, \"why\": string }. why 는 1-2 문장으로 어떤 점이 개선됐는지 한국어로 설명.";
     const userPrompt = `다음 ${label}을(를) ${toneNote}로 다듬어 주세요:\n\n${sourceText}`;
 
-    const completion = await openai.chat.completions.create({
-      model: openaiTranslationModel,
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ]
-    });
-    const raw = completion.choices?.[0]?.message?.content ?? "";
+    const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
     let parsedJson: { rewrite?: unknown; why?: unknown } = {};
     try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
     const rewrite = typeof parsedJson.rewrite === "string" ? parsedJson.rewrite.trim() : "";
@@ -16212,7 +16191,7 @@ app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles(
   if (!resumeId) return res.status(400).json({ ok: false, message: "invalid request" });
   const parsed = coachChatSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   try {
     const resume = await prisma.resume.findFirst({
@@ -16249,16 +16228,12 @@ app.post("/members/me/resumes/:resumeId/coach/chat", authenticate, requireRoles(
       "한국어로 답변하며, 답변은 4-6 문장 이내로 간결하게 작성하세요.\n" +
       `사용자의 이력서 요약: ${resumeSummary}`;
 
-    const completion = await openai.chat.completions.create({
-      model: openaiTranslationModel,
-      temperature: 0.6,
-      max_tokens: 500,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...parsed.data.messages.map((m) => ({ role: m.role, content: m.content }))
-      ]
+    const { text: reply } = await claudeText({
+      model: lightModel,
+      system: systemPrompt,
+      messages: parsed.data.messages.map((m) => ({ role: m.role, content: m.content })),
+      maxTokens: 1500
     });
-    const reply = completion.choices?.[0]?.message?.content?.trim() ?? "";
     if (!reply) return res.status(502).json({ ok: false, message: "ai response empty" });
     return res.json({ ok: true, reply });
   } catch (err) {
@@ -16297,7 +16272,7 @@ const draftResumeTextSchema = z.object({
 app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("draft_resume_text"), async (req, res) => {
   const parsed = draftResumeTextSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
   const { currentText, fieldType, mode, hints } = parsed.data;
   // generate 모드는 빈 입력 OK, 그 외에는 currentText 또는 hints 중 하나는 있어야 함.
@@ -16312,8 +16287,7 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
     // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
     const { system: systemPrompt, user: userPrompt } = buildDraftResumeTextMessages(parsed.data);
     const { data } = await generateJson<{ text?: unknown; why?: unknown }>({
-      openai,
-      model: openaiTranslationModel,
+      model: lightModel,
       temperature: 0.5,
       system: systemPrompt,
       user: userPrompt,
@@ -16331,10 +16305,239 @@ app.post("/members/me/ai/draft-resume-text", authenticate, requireRoles([MemberR
   }
 });
 
+// POST /members/me/ai/career-strengths — 내 커리어 '기업이 보는 내 강점 3가지'.
+// 화면이 이력서·자소서 내용을 글로 묶어 보낸다(본인 서류, 8000자 상한). 결과는 화면이 서류가 바뀔 때까지 기억한다.
+const careerStrengthsSchema = z.object({
+  profile: z.string().min(30).max(8000),
+  targetRoles: z.array(z.string().max(60)).max(10).optional()
+});
+
+app.post("/members/me/ai/career-strengths", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("career_strengths"), async (req, res) => {
+  const parsed = careerStrengthsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  try {
+    const { system, user } = buildCareerStrengthsMessages(parsed.data);
+    const { data } = await generateJson<{ strengths?: unknown }>({
+      model: lightModel,
+      temperature: 0.3,
+      system,
+      user,
+      schema: CAREER_STRENGTHS_SCHEMA,
+      schemaName: "career_strengths"
+    });
+    const strengths = (Array.isArray(data?.strengths) ? data.strengths : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { keyword: typeof o.keyword === "string" ? o.keyword.trim() : "", evidence: typeof o.evidence === "string" ? stripCliches(o.evidence.trim()) : "" };
+      })
+      .filter((x) => x.keyword)
+      .slice(0, 3);
+    if (!strengths.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    return res.json({ ok: true, strengths });
+  } catch (err) {
+    console.error("[ai/career-strengths] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
+// POST /members/me/ai/import-job — 모의 면접용 '공고 가져오기'. url(다른 서비스·회사 채용 페이지) 또는 text(붙여 넣은 공고).
+//  - Aply 공고 주소, 원티드 주소(이미 수집한 공고)는 DB 에서 바로 찾아 positionId 로 돌려준다(AI 호출 없음).
+//  - 그 밖의 주소는 서버가 안전하게 읽어(SSRF 차단: llm/job-import.ts) mini 로 회사·직무·업무·자격을 정리한다.
+//  - 페이지를 못 읽거나(로그인 필요·JS 렌더링) 공고가 아니면 code 로 알려 화면이 '내용 붙여넣기'를 권한다.
+const importJobSchema = z.object({ url: z.string().trim().max(2000).optional(), text: z.string().trim().max(20000).optional() }).refine((v) => !!(v.url || v.text), "url or text");
+
+app.post("/members/me/ai/import-job", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("import_job"), async (req, res) => {
+  const parsed = importJobSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const { url, text } = parsed.data;
+  try {
+    if (url) {
+      const aply = url.match(/\/(?:talent|v2)\/jobs\/([0-9a-f-]{36})/i);
+      const wanted = url.match(/wanted\.co\.kr\/wd\/(\d+)/i);
+      const found = aply
+        ? await prisma.position.findUnique({ where: { id: aply[1] }, select: { id: true } })
+        : wanted
+          ? await prisma.position.findFirst({ where: { sourceProvider: "WANTED", sourceExternalId: wanted[1] }, select: { id: true } })
+          : null;
+      if (found) return res.json({ ok: true, positionId: found.id });
+    }
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    let pageTitle = "";
+    let body = text ?? "";
+    let sourceUrl: string | undefined;
+    if (!body && url) {
+      try {
+        const page = await fetchPublicPageText(url);
+        pageTitle = page.title;
+        body = page.text;
+        sourceUrl = page.url;
+      } catch (err) {
+        const code = err instanceof Error ? err.message : "fetch_failed";
+        return res.status(422).json({ ok: false, code: code === "private_address" || code.startsWith("bad_") ? "URL_NOT_ALLOWED" : "PAGE_UNREADABLE", message: "page could not be read" });
+      }
+    }
+    if (body.replace(/\s+/g, "").length < 80) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "too little content" });
+    const m = buildJobImportMessages({ pageTitle, text: body });
+    const { data } = await generateJson<{ isJob?: boolean; company?: string; title?: string; responsibilities?: string; requirements?: string; preferred?: string }>({ model: lightModel, temperature: 0, system: m.system, user: m.user, schema: JOB_IMPORT_SCHEMA, schemaName: "job_import" });
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    if (!data?.isJob || !str(data.title, 200) || !(str(data.responsibilities, 4000) || str(data.requirements, 4000))) return res.status(422).json({ ok: false, code: "NOT_A_JOB", message: "not a job posting" });
+    return res.json({
+      ok: true,
+      job: {
+        title: str(data.title, 200),
+        company: str(data.company, 120),
+        mainResponsibilities: str(data.responsibilities, 4000),
+        requiredQualifications: str(data.requirements, 4000),
+        preferredQualifications: str(data.preferred, 3000),
+        sourceUrl: sourceUrl ?? (url || undefined)
+      }
+    });
+  } catch (err) {
+    console.error("[ai/import-job] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to import" });
+  }
+});
+
+// POST /members/me/ai/role-checklist — 내 커리어 '이 직무에 필요한 것'.
+// 화면이 관심 직무 '신입' 공고(최대 60곳, 없을 수도 있음)의 자격 요건과 내 서류 글을 보낸다.
+//  ⓪ 모델 지식(docReviewModel): 한국에서 이 직무 신입이 흔히 준비하는 것 — 공고 표본이 작거나 공고에 잘 안 적히는 것을 채운다.
+//  ① 추출(mini, 공고 12곳씩 나눠 병렬): 공고에 적힌 기술·경험·자격증·어학 + 공고 표기(aliases)
+//  ② 서버가 aliases 를 공고 글에 직접 대조해 '공고 N곳 중 M곳'을 센다(모델이 센 숫자는 쓰지 않음) → 자주 나온 것만
+//  ③ 기술·자격증·어학은 서버가 서류 글에서 aliases 를 찾아 판정, '경험'만 docReviewModel 이 판단(+ 없을 때 팁).
+//     고비용 모델이라 프리미엄 캡에 포함.
+const roleChecklistSchema = z.object({
+  role: z.string().min(1).max(60),
+  // 화면(RoleChecklist)도 같은 기준(30자)으로 먼저 막고 팝업으로 안내한다 — 둘을 같이 바꿀 것.
+  profile: z.string().min(30).max(8000),
+  jobs: z
+    .array(z.object({ title: z.string().max(200), required: z.string().max(800).optional(), preferred: z.string().max(600).optional() }))
+    .max(60)
+});
+
+/** 글에 표기가 있는가 — 영문·숫자 표기는 단어 경계로(Go 가 Google 에 걸리지 않게), 한글은 띄어쓰기 무시. */
+function hasTerm(text: string, alias: string): boolean {
+  const a = alias.trim();
+  if (a.length < 1) return false;
+  if (/^[\x00-\x7F]+$/.test(a)) {
+    const esc = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s*");
+    return new RegExp(`(^|[^A-Za-z0-9+#])${esc}(?![A-Za-z0-9+#])`, "i").test(text);
+  }
+  return text.replace(/\s+/g, "").toLowerCase().includes(a.replace(/\s+/g, "").toLowerCase());
+}
+
+app.post("/members/me/ai/role-checklist", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("role_checklist"), async (req, res) => {
+  const parsed = roleChecklistSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const { role, profile, jobs } = parsed.data;
+  const total = jobs.length;
+  try {
+    const chunks: (typeof jobs)[] = [];
+    for (let k = 0; k < jobs.length; k += 12) chunks.push(jobs.slice(k, k + 12));
+    // 공고 추출(묶음별) + 모델 지식('이 직무 신입이 흔히 준비하는 것')을 함께 부른다.
+    const common = buildRoleCommonMessages({ role });
+    const [commonRes, ...results] = await Promise.all([
+      generateJson<{ items?: unknown }>({ model: docReviewModel, temperature: 0, system: common.system, user: common.user, schema: ROLE_COMMON_SCHEMA, schemaName: "role_common" }).catch(() => ({ data: null })),
+      ...chunks.map((chunk) => {
+        const m = buildRoleRequirementsMessages({ role, jobs: chunk });
+        return generateJson<{ items?: unknown }>({ model: lightModel, temperature: 0, system: m.system, user: m.user, schema: ROLE_REQUIREMENTS_SCHEMA, schemaName: "role_requirements" }).catch(() => ({ data: null }));
+      })
+    ]);
+    const cats = new Set(["skill", "experience", "certificate", "language"]);
+    const merged = new Map<string, { category: string; name: string; aliases: Set<string>; common: boolean }>();
+    const absorb = (data: { items?: unknown } | null, common: boolean) => {
+      for (const x of Array.isArray(data?.items) ? data.items : []) {
+        const o = (x ?? {}) as Record<string, unknown>;
+        const name = typeof o.name === "string" ? o.name.trim() : "";
+        if (!name || name.length > 30) continue;
+        const key = name.toLowerCase().replace(/\s+/g, "");
+        const cur = merged.get(key) ?? { category: typeof o.category === "string" && cats.has(o.category) ? o.category : "skill", name, aliases: new Set<string>([name]), common };
+        if (common) cur.common = true;
+        for (const a of Array.isArray(o.aliases) ? o.aliases : []) if (typeof a === "string" && a.trim() && a.trim().length <= 30) cur.aliases.add(a.trim());
+        merged.set(key, cur);
+      }
+    };
+    for (const r of results) absorb(r.data, false);
+    absorb(commonRes.data, true);
+    // 표기 정리 — 흔한 단어 하나뿐인 표기·너무 짧은 한글 표기는 세는 데 쓰지 않는다(아무 공고에나 걸려 숫자가 부푼다).
+    const GENERIC = new Set(["개발", "서비스", "운영", "경험", "프로젝트", "협업", "업무", "관리", "기획", "개발경험", "서비스개발", "서비스운영", "이해", "능력", "역량", "활용", "사용"]);
+    const usable = (a: string, category: string) => {
+      const n = a.replace(/\s+/g, "").toLowerCase();
+      if (GENERIC.has(n)) return false;
+      if (/^[\x00-\x7F]+$/.test(a)) return n.length >= 1;
+      return n.length >= (category === "experience" ? 4 : 2);
+    };
+    // 직무 이름 자체('백엔드 개발', '백엔드 경험', 표기 '백엔드')는 요건이 아니다 — 모든 공고에 걸려 1등이 된다.
+    const strip = (x: string) => x.toLowerCase().replace(/\s+/g, "").replace(/(개발자|개발|경험|엔지니어|역량|직무|업무)$/g, "");
+    const roleKeys = new Set(role.split(/[\/·&,()\s]+/).map(strip).filter((k) => k.length >= 2));
+    roleKeys.add(strip(role));
+    const groups = [...merged.values()]
+      .filter((x) => !/\d+\s*년|경력/.test(x.name)) // '경력 N년'은 요건이 아니라 연차
+      .filter((x) => !roleKeys.has(strip(x.name)))
+      .map((x) => ({ ...x, aliases: new Set([...x.aliases].filter((a) => usable(a, x.category) && !roleKeys.has(strip(a)))) }))
+      .filter((x) => x.aliases.size);
+    // 다른 항목의 '이름'을 표기로 가진 항목은 하나로(예: 'RESTful API' 의 표기 'REST API' → 'REST API' 항목) — 이름은 짧은 쪽.
+    // 표기끼리만 겹친다고 합치면 사슬처럼 번져(MySQL ↔ RDBMS ↔ PostgreSQL) 없는 기술이 '갖춤'이 된다.
+    const dedup: typeof groups = [];
+    for (const g of groups) {
+      const keys = new Set([...g.aliases].map((a) => a.replace(/\s+/g, "").toLowerCase()));
+      const gName = g.name.replace(/\s+/g, "").toLowerCase();
+      const hit = dedup.find((d) => keys.has(d.name.replace(/\s+/g, "").toLowerCase()) || [...d.aliases].some((a) => a.replace(/\s+/g, "").toLowerCase() === gName));
+      if (hit) {
+        for (const a of g.aliases) hit.aliases.add(a);
+        if (g.name.length < hit.name.length) hit.name = g.name;
+        if (g.common) hit.common = true;
+      } else dedup.push(g);
+    }
+    const texts = jobs.map((j) => `${j.title}\n${j.required ?? ""}\n${j.preferred ?? ""}`);
+    const counted = dedup.map((x) => ({ ...x, count: texts.filter((txt) => [...x.aliases].some((a) => hasTerm(txt, a))).length }));
+    // 공고에 자주 나온 것(최소 2곳이자 표본의 10% 이상) 8개 + 신입이 흔히 준비하는 것(모델 지식) — 합쳐 최대 12개.
+    // 모델 지식 항목도 공고에 나오면 그 수를 붙인다. 공고가 없거나 적으면 모델 지식만으로도 결과가 나온다.
+    const min = Math.max(2, Math.ceil(total * 0.1));
+    const frequent = counted.filter((x) => x.count >= min).sort((a, b) => b.count - a.count).slice(0, 8);
+    const commons = counted.filter((x) => x.common && !frequent.includes(x)).sort((a, b) => b.count - a.count);
+    const top = [...frequent, ...commons].slice(0, 12);
+    if (!top.length) {
+      console.warn("[ai/role-checklist] empty", { role, jobs: total, commonOk: Boolean(commonRes.data), chunkOk: results.filter((r) => r.data).length, chunks: results.length, merged: merged.size, groups: dedup.length });
+      return res.json({ ok: true, total, items: [] });
+    }
+
+    const literal = top.map((x) => [...x.aliases].some((a) => hasTerm(profile, a)));
+    const needJudge = top.map((x, i) => ({ x, i })).filter(({ x, i }) => x.category === "experience" && !/^[\x00-\x7F]+$/.test(x.name) && !literal[i]);
+    const verdicts = new Map<number, { have: boolean; tip: string }>();
+    const missingTips = top.map((x, i) => ({ x, i })).filter(({ x, i }) => (x.category !== "experience" || /^[\x00-\x7F]+$/.test(x.name)) && !literal[i]);
+    const judgeList = [...needJudge, ...missingTips];
+    if (judgeList.length) {
+      const judge = buildRoleHaveMessages({ role, profile, items: judgeList.map(({ x }) => ({ category: x.category, name: x.name })) });
+      const { data: verdict } = await generateJson<{ items?: unknown }>({ model: docReviewModel, temperature: 0, system: judge.system, user: judge.user, schema: ROLE_HAVE_SCHEMA, schemaName: "role_have" });
+      for (const v of Array.isArray(verdict?.items) ? verdict.items : []) {
+        const o = (v ?? {}) as Record<string, unknown>;
+        const at = Number.isInteger(o.index) ? judgeList[(o.index as number) - 1] : undefined;
+        if (at) verdicts.set(at.i, { have: o.have === true, tip: typeof o.tip === "string" ? stripCliches(o.tip.trim()) : "" });
+      }
+    }
+    const items = top.map((x, i) => {
+      // 기술·자격증·어학: 서류에 표기가 있어야 갖춤(모델 판단은 팁만 씀). 경험: 표기가 있거나 모델이 갖췄다고 판단.
+      const v = verdicts.get(i);
+      // 영문 이름(기술명)은 '경험'으로 분류돼 와도 표기가 있어야만 갖춤 — 모델은 비슷한 기술(PostgreSQL→MySQL)도 갖췄다고 본다.
+      const judgeable = x.category === "experience" && !/^[\x00-\x7F]+$/.test(x.name);
+      const have = literal[i] || (judgeable && v?.have === true);
+      // 기술·자격증·어학인데 표기는 없고 모델은 해 본 것 같다고 본 경우 — 서류 검색·필터에 걸리도록 이름을 직접 적으라고 안내.
+      const tip = have ? "" : v?.have ? `경험이 있다면 서류에 '${x.name}'을 직접 적어 두세요. 기업이 그 말로 찾아요.` : (v?.tip ?? "");
+      return { category: x.category, name: x.name, count: x.count, common: x.common, have, tip };
+    });
+    return res.json({ ok: true, total, items });
+  } catch (err) {
+    console.error("[ai/role-checklist] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to analyze" });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // resume-maker (AI 이력서 만들기) — 경험 인터뷰 질문 생성 + 구조화 문장 생성.
-// 기존 draft-resume-text 패턴 재사용(openai chat.completions, json_object,
-// gpt-4o-mini). AI 생성 규칙(없는 사실/숫자 금지, 과장 금지, 행동-역할-문제-결과)
+// 기존 draft-resume-text 패턴 재사용(json 객체 응답,
+// 가벼운 모델). AI 생성 규칙(없는 사실/숫자 금지, 과장 금지, 행동-역할-문제-결과)
 // 을 system prompt 에 강제. 톤 변경(더 담백/전문 등)은 별도 엔드포인트 없이
 // /ai/draft-resume-text(mode=improve, hints=톤)를 재사용한다.
 // ---------------------------------------------------------------------------
@@ -16448,7 +16651,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceInterviewSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "당신은 외국인 지원자의 이력서를 돕는 친절한 커리어 코치입니다. 사용자의 경험을 이력서 문장으로 정리하기 위해, 빠진 정보를 찾는 추가 질문을 만듭니다.\n\n" +
@@ -16465,16 +16668,7 @@ app.post(
         (parsed.data.priorQa && parsed.data.priorQa.length
           ? `\n\n이미 받은 답변:\n${parsed.data.priorQa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`
           : "");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { coachNote?: unknown; questions?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const allQuestions = parseAiQuestions(parsedJson.questions);
@@ -16502,7 +16696,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceBulletsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "당신은 한국 기업 채용을 돕는 이력서 코치입니다. 사용자의 경험과 인터뷰 답변을 이력서에 바로 쓸 수 있는 문장으로 정리합니다.\n\n" +
@@ -16519,16 +16713,7 @@ app.post(
       const userPrompt =
         buildExperienceContextText(parsed.data) +
         `\n\n인터뷰 답변:\n${parsed.data.qa.map((qa) => `- Q: ${qa.question}\n  A: ${qa.answer}`).join("\n")}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: {
         summary?: unknown;
         resumeBullets?: unknown;
@@ -16578,22 +16763,48 @@ app.post(
 // 무거운(전체 생성/파싱) 3 티켓. 보조성(웹 fetch)은 0(과금 안 함). KST 월 단위 리셋.
 // 초기 정책: 넉넉히 10000 지급(런칭/테스트 단계에서 사실상 막히지 않게).
 // 공용 AI 티켓 지갑 — 가입 시 1회 보너스 + 매일 적립(상한). 사용 시 차감.
-const AI_WELCOME_GRANT = 1000; // 가입(첫 사용) 시 1회 지급 (10배 스케일)
-const AI_DAILY_GRANT = 200; // 매일 적립 (10배 스케일)
-const AI_DAILY_CAP = 2000; // 적립 누적 상한 (10배 스케일)
+// AI 포인트(유료화) 스위치 — API 앱 설정 AI_POINTS_ENABLED=true 일 때만 차감·402·결제가 포인트로 돈다.
+// 꺼져 있으면(기본) 지금처럼 무료(가드레일 429 캡만) + 모의 면접은 기존 이용권(INTERVIEW_PAYWALL_ENABLED) 흐름 그대로.
+const aiPointsOn = () => process.env.AI_POINTS_ENABLED === "true";
+// 1P = 10원. 충전 상품은 이 표 하나로 — 가격·보너스를 바꿀 땐 여기만 고친다(클라이언트가 보낸 금액은 믿지 않는다).
+const AI_POINT_WON = 10;
+const AI_POINT_PRODUCTS = [
+  { key: "points_500", points: 500, bonus: 0, amount: 4900, badge: null },
+  { key: "points_1500", points: 1500, bonus: 150, amount: 12900, badge: "popular" },
+  { key: "points_5000", points: 5000, bonus: 800, amount: 39000, badge: "best" }
+] as const;
+function aiPointProduct(key: string) {
+  return AI_POINT_PRODUCTS.find((p) => p.key === key) ?? null;
+}
 
-// 기능별 티켓 비용. 없는 키는 0(과금 안 함).
+// 무료 적립 — 포인트 유료화가 켜지면 가입 200P · 매일 +20P(매일 적립은 잔액 100P 까지만 채운다).
+// 꺼져 있을 때(무료 시대)는 예전 값 그대로(10배 스케일) — 기존 화면(포인트 카드) 표시가 바뀌지 않게.
+const AI_WELCOME_GRANT_LEGACY = 1000;
+const AI_DAILY_GRANT_LEGACY = 200;
+const AI_DAILY_CAP_LEGACY = 2000;
+const aiWelcomeGrant = () => (aiPointsOn() ? 200 : AI_WELCOME_GRANT_LEGACY);
+const aiDailyGrant = () => (aiPointsOn() ? 20 : AI_DAILY_GRANT_LEGACY);
+const aiDailyCap = () => (aiPointsOn() ? 100 : AI_DAILY_CAP_LEGACY);
+
+// 기능별 포인트 비용(1P = 10원). 없는 키는 0(차감 안 함).
+// 가벼움 10P(다듬기·제안·번역·단일 필드) · 보통 20P(분석·초안·점검·면접 답변 피드백) · 무거움 30P(전체 파싱·질문 세트·면접 준비).
 const AI_FEATURE_COST: Record<string, number> = {
-  // 무거움(30) — 이력서/자소서 전체 파싱·면접 질문 세트 생성 (10배 스케일)
+  // 무거움(30)
   import_resume: 30,
   import_cover_letter: 30,
-  interview_questions: 30,
-  // 보통(20) — 분석·초안 생성
+  interview_questions: 10, // 공고 세션은 질문을 하나씩 만든다 — 질문 1개 10P + 피드백 20P
+  interview_prep: 30,
+  // 보통(20)
   tailor_analyze: 20,
   draft_intro: 20,
   generate_english_intro: 20,
   cover_letter: 20,
-  // 가벼움(10) — 다듬기·제안·번역·단건 평가·단일 필드 개선
+  review_resume: 20,
+  review_cover: 20,
+  polish_resume_items: 20,
+  // 모의 면접 답변 피드백 1개(상위 모델) — 5문항 세트 = 100P. 오늘의 질문은 하루 1번 차감 없이.
+  interview_feedback: 20,
+  // 가벼움(10)
   draft_resume_text: 10,
   experience_interview: 10,
   experience_bullets: 10,
@@ -16604,31 +16815,49 @@ const AI_FEATURE_COST: Record<string, number> = {
   summarize_intro: 10,
   suggest_skills: 10,
   translate_texts: 10,
-  // gpt-4o 사용(원가 높음) — 티켓당 원가가 다른 기능과 맞도록 20으로 책정.
-  interview_feedback: 20,
-  // Career Launch — 프로그램 참가자에겐 모든 AI 기능 무료(포인트 차감·게이트 없음).
-  // 유료 전환하려면 값을 되돌린다.
-  career_resume_chat: 0,
-  career_cover_chat: 0,
-  career_job_chat: 0,
-  career_material_chat: 0,
-  career_diagnosis_chat: 0,
-  career_interview_chat: 0,
-  career_week_feedback: 0,
-  career_final_feedback: 0,
-  career_docs_summary: 0,
-  // 에디터 '전체 점검'(AI) — 지금은 AI 기능 전면 무료라 0. 제약은 분당·일일 캡뿐.
-  review_resume: 0,
-  review_cover: 0
+  role_checklist: 10,
+  import_job: 10,
+  // 내 커리어 화면 '기업이 보는 강점 3가지' — 프로그램 밖(/members/me/ai) 기능이라 과금.
+  career_strengths: 10
+  // Career Launch 프로그램 안 AI(CAREER_PROGRAM_FEATURES)는 0 — 수강생에게 서비스로 제공.
 };
+// Career Launch 프로그램 안(/career-launch/*) AI — 비용 0. 나중에 값을 매겨도 활성 수강생은 면제(isActiveCareerLaunchStudent).
+// 프로그램 밖(에디터·v2 모의 면접 등)은 수강생도 똑같이 포인트를 쓴다.
+const CAREER_PROGRAM_FEATURES = new Set([
+  "career_resume_chat",
+  "career_cover_chat",
+  "career_job_chat",
+  "career_material_chat",
+  "career_diagnosis_chat",
+  "career_interview_chat",
+  "career_week_feedback",
+  "career_final_feedback",
+  "career_docs_summary",
+  "career_experience_mining",
+  "career_strength_story",
+  "career_w2_resume_version",
+  "career_w2_cover_version",
+  "career_w2_scores",
+  "career_interview_complete",
+  "career_w4_growth",
+  "career_report",
+  "career_interview_retry",
+  "career_resume_bullet",
+  "career_cover_question",
+  "career_speaking_analysis",
+  "career_follow_up",
+  "career_intro_1min"
+]);
 function aiFeatureCost(feature: string): number {
   return AI_FEATURE_COST[feature] ?? 0;
 }
 
-// gpt-4o(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
+// 상위 모델(고원가) 기능 — 무료 티켓 폭주로 인한 손실 방지용, 사용자당 하루 호출 상한.
 // 정상 사용자는 도달하지 않는 수준(anti-abuse ceiling). aiUsage 테이블 재사용(읽기 전용 통계와 분리된 네임스페이스).
-// 전체 점검은 둘 다 gpt-4o(고원가)를 쓰므로 함께 캡에 넣는다.
-const AI_PREMIUM_FEATURES = new Set(["interview_questions", "interview_feedback", "review_resume", "review_cover"]);
+// 전체 점검은 둘 다 상위 모델(고원가)을 쓰므로 함께 캡에 넣는다.
+// 모의 면접(interview_questions·interview_feedback)은 나중에 유료로 받을 예정 — 지금은 테스트를 위해 이 하루 상한에서 뺀다.
+// (분당 상한·하루 총 상한은 그대로 적용된다.) 유료화할 때 다시 넣거나 결제 확인으로 바꾼다.
+const AI_PREMIUM_FEATURES = new Set(["review_resume", "review_cover", "role_checklist"]);
 const AI_PREMIUM_DAILY_CAP = 40;
 const AI_PREMIUM_USAGE_FEATURE = "__premium_daily__";
 async function aiPremiumUsedToday(userId: string): Promise<number> {
@@ -16704,7 +16933,7 @@ async function aiGate(userId: string | undefined, feature: string): Promise<AiGa
   if (!(await aiBumpAndWithin(userId, AI_DAILY_TOTAL_FEATURE, dayKey, AI_DAILY_TOTAL_CAP))) {
     return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
   }
-  // 4) 고비용(gpt-4o) 모델 일일 캡
+  // 4) 고비용(상위) 모델 일일 캡
   if (AI_PREMIUM_FEATURES.has(feature) && !(await aiBumpAndWithin(userId, AI_PREMIUM_USAGE_FEATURE, dayKey, AI_PREMIUM_DAILY_CAP))) {
     return { status: 429, body: { ok: false, code: "AI_DAILY_LIMIT", message: "오늘 이용 한도에 도달했어요. 내일 다시 이용할 수 있어요." } };
   }
@@ -16729,9 +16958,9 @@ function aiQuotaResetAt(): string {
 
 type AiCreditStatus = { limit: number; used: number; remaining: number; resetAt: string; dailyGrant: number };
 
-// 포인트 '획득' 내역 기록(원장). 표시용이라 실패해도 흐름을 막지 않는다.
+// 포인트 내역 기록(원장) — 획득은 +, 사용·환불 회수는 -(reason 에 기능 키). 표시용이라 실패해도 흐름을 막지 않는다.
 async function logAiPoints(userId: string, amount: number, reason: string): Promise<void> {
-  if (amount <= 0) return;
+  if (!amount) return;
   try {
     await prisma.aiPointLog.create({ data: { userId, amount, reason } });
   } catch (err) {
@@ -16903,51 +17132,79 @@ function computeTalentPassport(input: { state: unknown; resumeContent: unknown; 
 }
 
 // 지갑을 불러오며 가입 보너스 + 경과 일수만큼 일일 적립(상한)을 반영한다.
+// 포인트 유료화가 켜져 있으면 남아 있는 모의 면접 이용권도 한 번 포인트로 바꾼다(답변 1개 = interview_feedback 비용).
 // 변경이 있으면 저장하고, 항상 최신 잔액을 반환한다.
 async function aiWalletReconcile(userId: string): Promise<number> {
   const today = aiKstDayIndex();
-  const wallet = await prisma.aiWallet.findUnique({ where: { userId } });
+  let wallet = await prisma.aiWallet.findUnique({ where: { userId } });
   // 첫 사용 — 가입 보너스 지급.
   if (!wallet) {
-    const created = await prisma.aiWallet.create({
-      data: { userId, balance: AI_WELCOME_GRANT, lastGrantDay: today, welcomed: true }
-    });
-    await logAiPoints(userId, AI_WELCOME_GRANT, "welcome");
-    return created.balance;
-  }
-  // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
-  if (wallet.lastGrantDay < today) {
+    const welcome = aiWelcomeGrant();
+    try {
+      wallet = await prisma.aiWallet.create({ data: { userId, balance: welcome, lastGrantDay: today, welcomed: true } });
+      await logAiPoints(userId, welcome, "welcome");
+    } catch {
+      // 동시에 두 요청이 만들려 한 경우 — 이미 만들어진 지갑을 읽는다(보너스 중복 없음).
+      wallet = await prisma.aiWallet.findUnique({ where: { userId } });
+      if (!wallet) throw new Error("ai wallet create failed");
+    }
+  } else if (wallet.lastGrantDay < today) {
+    // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
     const days = today - wallet.lastGrantDay;
-    const next = Math.min(AI_DAILY_CAP, wallet.balance + AI_DAILY_GRANT * days);
-    const balance = Math.max(wallet.balance, next); // 적립은 줄이지 않는다
-    const updated = await prisma.aiWallet.update({
-      where: { userId },
-      data: { balance, lastGrantDay: today }
-    });
-    await logAiPoints(userId, balance - wallet.balance, "daily");
-    return updated.balance;
+    const next = Math.min(aiDailyCap(), wallet.balance + aiDailyGrant() * days);
+    const add = Math.max(0, next - wallet.balance); // 적립은 줄이지 않는다
+    // lastGrantDay 조건부 갱신 — 동시 요청에도 하루치가 두 번 들어가지 않게.
+    const moved = await prisma.aiWallet.updateMany({ where: { userId, lastGrantDay: wallet.lastGrantDay }, data: { lastGrantDay: today, ...(add > 0 ? { balance: { increment: add } } : {}) } });
+    if (moved.count === 1 && add > 0) await logAiPoints(userId, add, "daily");
+    wallet = (await prisma.aiWallet.findUnique({ where: { userId } })) ?? wallet;
+  }
+  if (aiPointsOn()) {
+    const converted = await aiConvertInterviewCredits(userId);
+    if (converted > 0) return (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? wallet.balance + converted;
   }
   return wallet.balance;
+}
+
+// 모의 면접 이용권 → AI 포인트 1회 전환(지연 마이그레이션). 이용권 지갑은 0 으로 두고(테이블은 그대로) 양쪽 원장에 남긴다.
+// credits 값이 그대로일 때만 0 으로 바꿔(조건부) 동시 요청에도 한 번만 전환된다. 반환: 더한 포인트.
+async function aiConvertInterviewCredits(userId: string): Promise<number> {
+  const iw = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  if (!iw || iw.credits <= 0) return 0;
+  const points = iw.credits * aiFeatureCost("interview_feedback");
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const moved = await tx.interviewWallet.updateMany({ where: { userId, credits: iw.credits }, data: { credits: 0 } });
+      if (moved.count !== 1) return 0;
+      await tx.interviewCreditLog.create({ data: { userId, amount: -iw.credits, reason: "convert_to_points" } });
+      await tx.aiWallet.update({ where: { userId }, data: { balance: { increment: points } } });
+      await tx.aiPointLog.create({ data: { userId, amount: points, reason: "interview_credit_convert" } });
+      return points;
+    });
+  } catch (err) {
+    console.error("[ai/convert-interview-credits] failed", err);
+    return 0;
+  }
 }
 
 // 공용 티켓 잔량 — 지갑 기준(적립 반영).
 async function aiCreditStatus(userId: string): Promise<AiCreditStatus> {
   const remaining = await aiWalletReconcile(userId);
-  return { limit: AI_DAILY_CAP, used: Math.max(0, AI_DAILY_CAP - remaining), remaining, resetAt: aiQuotaResetAt(), dailyGrant: AI_DAILY_GRANT };
+  const cap = aiDailyCap();
+  return { limit: cap, used: Math.max(0, cap - remaining), remaining, resetAt: aiQuotaResetAt(), dailyGrant: aiDailyGrant() };
 }
 
-// 성공한 호출의 비용을 지갑에서 차감(원자적 조건부 감소) + 분석용 사용량 로그 증가.
-async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
-  const cost = aiFeatureCost(feature);
-  if (cost <= 0) return;
-  // 잔액이 충분할 때만 차감(동시성 안전). 부족하면 무시(게이트에서 이미 막힘).
-  const dec = await prisma.aiWallet.updateMany({
-    where: { userId, balance: { gte: cost } },
-    data: { balance: { decrement: cost } }
-  });
-  // 실제 차감됐으면 포인트 내역에 소모(음수) 기록 — 사용자 내역에 '어디에 썼는지' 노출.
-  if (dec.count > 0) await logAiPoints(userId, -cost, feature).catch(() => {});
-  // 분석 로그(월 단위 기능별 사용량) — 잔액과 별개로 통계 유지.
+// 포인트 선점 — 잔액이 cost 이상일 때만 원자적으로 깎는다(동시 요청에도 0 아래로 내려가지 않음).
+async function aiPointsReserve(userId: string, cost: number): Promise<boolean> {
+  const dec = await prisma.aiWallet.updateMany({ where: { userId, balance: { gte: cost } }, data: { balance: { decrement: cost } } });
+  return dec.count === 1;
+}
+// 선점 취소 — 실패한 응답이면 되돌린다(내역에는 남기지 않음).
+async function aiPointsRelease(userId: string, cost: number): Promise<void> {
+  await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: cost } } }).catch((err) => console.error("[ai/points-release] failed", err));
+}
+// 선점 확정 — 성공 응답이면 내역(-cost, reason=기능 키)과 분석용 사용량을 남기고 남은 잔액을 돌려준다.
+async function aiPointsCommit(userId: string, feature: string, cost: number): Promise<number | null> {
+  await logAiPoints(userId, -cost, feature);
   const periodKey = aiQuotaPeriodKey();
   await prisma.aiUsage
     .upsert({
@@ -16956,6 +17213,8 @@ async function aiQuotaConsume(userId: string, feature: string): Promise<void> {
       update: { count: { increment: cost } }
     })
     .catch(() => {});
+  const w = await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }).catch(() => null);
+  return w?.balance ?? null;
 }
 
 // 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
@@ -16998,28 +17257,101 @@ function sendAiUnavailable(res: import("express").Response): void {
   res.status(503).json({ ok: false, code: "AI_UNAVAILABLE", message: "AI가 일시적으로 사용이 어려워요. 잠시 후 다시 시도해 주세요." });
 }
 
-// 탤런트 AI는 포인트 없이 무료 — 다만 무분별 사용을 막는 서버 가드레일(인증·레이트리밋·
-// 일일 상한)만 적용한다. 포인트 차감/노출은 없다.
+// AI 라우트 미들웨어 — 가드레일(인증·분당·일일 캡) + 포인트(AI_POINTS_ENABLED 일 때만).
+// 포인트: 호출 전에 비용만큼 원자적으로 선점(부족하면 402 AI_POINTS_REQUIRED) → 성공 응답(ok !== false, 4xx/5xx 아님)이면 확정,
+// 실패 응답·연결 끊김이면 되돌린다. 성공 응답에는 aiPoints: { balance, spent } 를 붙여 화면이 잔액을 바로 갱신한다.
+// 면제: 비용 0 · Career Launch 프로그램 안 기능(활성 수강생) · 오늘의 질문 피드백(하루 1번, daily:true).
+// 커리어런치 결과물에서 연 이력서·자소서 에디터 — 수강 중인 학생이면 이 기능들은 포인트 없이(사용자 결정: '커리어런치에서 열었을 때만').
+// 클라이언트가 에디터를 커리어런치에서 열었을 때만 X-Aply-Context: career-launch 를 붙인다(탤런트 메뉴로 연 에디터는 평소대로 차감).
+const CAREER_EDITOR_FEATURES = new Set([
+  "import_resume",
+  "import_cover_letter",
+  "polish_resume_items",
+  "polish_experience",
+  "polish_intro",
+  "draft_resume_text",
+  "draft_intro",
+  "summarize_intro",
+  "suggest_skills",
+  "translate_texts",
+  "generate_english_intro",
+  "experience_interview",
+  "experience_bullets",
+  "experience_title",
+  "experience_tasks",
+  "cover_letter",
+  "review_resume",
+  "review_cover"
+]);
+const fromCareerLaunch = (req: import("express").Request) => String(req.get("x-aply-context") ?? "").toLowerCase() === "career-launch";
+/** 이 요청의 기능을 커리어런치 혜택으로 포인트 없이 처리하나 — 프로그램 기능이거나, 커리어런치에서 연 에디터 기능이면서 수강 중. */
+async function careerLaunchFree(req: import("express").Request, userId: string, feature: string): Promise<boolean> {
+  const eligible = CAREER_PROGRAM_FEATURES.has(feature) || (CAREER_EDITOR_FEATURES.has(feature) && fromCareerLaunch(req));
+  return eligible && (await isActiveCareerLaunchStudent(userId));
+}
+
 function aiCharge(feature: string, when?: (req: import("express").Request) => boolean): import("express").RequestHandler {
   return async (req, res, next) => {
     if (when && !when(req)) return next();
-    const deny = await aiGate(req.auth?.userId, feature);
+    const userId = req.auth?.userId;
+    const deny = await aiGate(userId, feature);
     if (deny) {
       res.status(deny.status).json(deny.body);
       return;
     }
+    if (!aiPointsOn() || !userId) return next();
+    const cost = aiFeatureCost(feature);
+    if (cost <= 0) return next();
+    try {
+      if (await careerLaunchFree(req, userId, feature)) return next();
+      // 오늘의 질문 — 하루 1번 차감 없이. 사용 표시는 성공 후 interviewCreditSpend 가 남긴다.
+      if (feature === "interview_feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
+        res.locals.interviewFree = true;
+        return next();
+      }
+      await aiWalletReconcile(userId);
+      if (!(await aiPointsReserve(userId, cost))) {
+        const balance = (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? 0;
+        res.status(402).json({ ok: false, code: "AI_POINTS_REQUIRED", message: "AI 포인트가 부족해요.", balance, cost });
+        return;
+      }
+    } catch (err) {
+      console.error("[ai/points] reserve failed", { feature, error: getErrorMessage(err) });
+      res.status(500).json({ ok: false, message: "failed to check ai points" });
+      return;
+    }
+    res.locals.aiPointsCharged = cost;
+    let settled = false;
+    const origJson = res.json.bind(res);
+    res.json = ((body: unknown) => {
+      if (settled) return origJson(body);
+      settled = true;
+      const ok = res.statusCode < 400 && !(body && typeof body === "object" && (body as { ok?: unknown }).ok === false);
+      if (!ok) {
+        void aiPointsRelease(userId, cost);
+        return origJson(body);
+      }
+      void aiPointsCommit(userId, feature, cost)
+        .catch(() => null)
+        .then((balance) => {
+          origJson(body && typeof body === "object" && !Array.isArray(body) ? { ...(body as Record<string, unknown>), aiPoints: { balance, spent: cost } } : body);
+        });
+      return res;
+    }) as typeof res.json;
+    // json 없이 끝나거나(끊김·send) 응답을 못 보낸 경우 — 차감하지 않는다.
+    res.on("close", () => {
+      if (settled) return;
+      settled = true;
+      void aiPointsRelease(userId, cost);
+    });
     next();
   };
 }
 
-// POST /members/me/ai/redeem-code — 쿠폰 코드로 AI 티켓 충전. 사용자당 같은 코드 1회,
-// 코드별 전체 사용 횟수(maxUses) 상한. 성공 시 지갑 잔액에 tickets 만큼 더한다.
-app.post(
-  "/members/me/ai/redeem-code",
-  authenticate,
-  requireRoles([MemberRole.STUDENT]),
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-redeem", message: "잠시 후 다시 시도해 주세요." }),
-  async (req, res) => {
+// POST /members/me/ai-points/redeem (예전 경로 /members/me/ai/redeem-code 도 유지) — 포인트 코드(쿠폰·리딤·이벤트 코드)로 AI 포인트 충전.
+// 사용자당 같은 코드 1회, 코드별 전체 사용 횟수(maxUses) 상한. 성공 시 지갑 잔액에 tickets(=포인트) 만큼 더한다.
+// v2 화면은 새 경로를 쓴다 — '/ai/' 가 들어간 경로는 클라이언트가 실패를 'AI 사용 불가' 안내로 띄우기 때문.
+const redeemPointCodeHandler = async (req: express.Request, res: express.Response) => {
     const userId = req.auth!.userId;
     const code = String(req.body?.code ?? "").trim().toUpperCase().replace(/\s+/g, "");
     if (!code || code.length > 40) return res.status(400).json({ ok: false, code: "COUPON_INVALID", message: "유효하지 않은 코드예요." });
@@ -17052,13 +17384,94 @@ app.post(
       }
       const wallet = await prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: coupon.tickets } } });
       await logAiPoints(userId, coupon.tickets, "coupon");
-      return res.json({ ok: true, tickets: coupon.tickets, balance: wallet.balance });
+      return res.json({ ok: true, tickets: coupon.tickets, points: coupon.tickets, balance: wallet.balance });
     } catch (err) {
       console.error("[ai/redeem-code] failed", err);
       return res.status(500).json({ ok: false, message: "failed to redeem code" });
     }
+};
+const redeemPointCodeLimit = rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-redeem", message: "잠시 후 다시 시도해 주세요." });
+app.post("/members/me/ai-points/redeem", authenticate, requireRoles([MemberRole.STUDENT]), redeemPointCodeLimit, redeemPointCodeHandler);
+app.post("/members/me/ai/redeem-code", authenticate, requireRoles([MemberRole.STUDENT]), redeemPointCodeLimit, redeemPointCodeHandler);
+
+// ── 운영 콘솔: 포인트 코드 관리 ──
+// GET /ops/point-codes?q= — 최근 200개(코드·메모·그룹 검색).
+app.get("/ops/point-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const raw = String(req.query.q ?? "").trim().slice(0, 60);
+    const where = raw
+      ? { OR: [{ code: { contains: raw.toUpperCase().replace(/\s+/g, "") } }, { memo: { contains: raw, mode: "insensitive" as const } }, { groupKey: { contains: raw, mode: "insensitive" as const } }] }
+      : {};
+    const rows = await prisma.coupon.findMany({ where, orderBy: { createdAt: "desc" }, take: 200 });
+    return res.json({
+      ok: true,
+      items: rows.map((c) => ({ id: c.id, code: c.code, points: c.tickets, maxUses: c.maxUses, usedCount: c.usedCount, groupKey: c.groupKey, memo: c.memo, active: c.active, expiresAt: c.expiresAt, createdAt: c.createdAt }))
+    });
+  } catch (err) {
+    console.error("[ops/point-codes] list failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
   }
-);
+});
+
+// POST /ops/point-codes — 코드 만들기. code(직접 지정, 예: FALL2026) 또는 count 개 랜덤(prefix+6자).
+const opsCreatePointCodeSchema = z.object({
+  points: z.number().int().min(1).max(100000),
+  code: z.string().trim().max(40).regex(/^[A-Za-z0-9_-]*$/).optional(),
+  count: z.number().int().min(1).max(500).optional(),
+  prefix: z.string().trim().max(12).regex(/^[A-Za-z0-9]*$/).optional(),
+  maxUses: z.number().int().min(1).max(10_000_000).optional(),
+  groupKey: z.string().trim().max(60).optional(),
+  memo: z.string().trim().max(200).optional(),
+  expiresAt: z.string().datetime({ offset: true }).optional()
+});
+app.post("/ops/point-codes", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsCreatePointCodeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+  try {
+    const d = parsed.data;
+    const codes: string[] = [];
+    if (d.code) {
+      const c = d.code.toUpperCase();
+      if (await prisma.coupon.findUnique({ where: { code: c } })) return res.status(409).json({ ok: false, message: "이미 있는 코드예요." });
+      codes.push(c);
+    } else {
+      const prefix = (d.prefix || "APLY").toUpperCase();
+      const set = new Set<string>();
+      while (set.size < (d.count ?? 1)) set.add(randomCouponCode(prefix));
+      codes.push(...set);
+    }
+    const data = codes.map((code) => ({
+      code,
+      tickets: d.points,
+      maxUses: d.maxUses ?? 1,
+      groupKey: d.groupKey || null,
+      memo: d.memo || null,
+      expiresAt: d.expiresAt ? new Date(d.expiresAt) : null
+    }));
+    const r = await prisma.coupon.createMany({ data, skipDuplicates: true });
+    console.info(`[ops/point-codes] created=${r.count} points=${d.points} maxUses=${d.maxUses ?? 1} by=${req.auth!.userId}`);
+    return res.json({ ok: true, codes, created: r.count });
+  } catch (err) {
+    console.error("[ops/point-codes] create failed", err);
+    return res.status(500).json({ ok: false, message: "만들지 못했어요." });
+  }
+});
+
+// PATCH /ops/point-codes/:id — 사용 중지/재개(active), 메모 수정.
+app.patch("/ops/point-codes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const body = z.object({ active: z.boolean().optional(), memo: z.string().trim().max(200).nullable().optional() }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const c = await prisma.coupon.update({
+      where: { id: String(req.params.id) },
+      data: { ...(body.data.active !== undefined ? { active: body.data.active } : {}), ...(body.data.memo !== undefined ? { memo: body.data.memo || null } : {}) }
+    });
+    return res.json({ ok: true, item: { id: c.id, active: c.active, memo: c.memo } });
+  } catch (err) {
+    console.error("[ops/point-codes] update failed", err);
+    return res.status(404).json({ ok: false, message: "코드를 찾지 못했어요." });
+  }
+});
 
 // POST /members/me/ai/coupons — 운영자 전용 쿠폰 생성. 단일 코드(code) 또는 랜덤 N개(count).
 // 환경(스테이징/프로덕션)별 DB에 직접 SQL 없이 쿠폰을 만들 수 있다.
@@ -17114,6 +17527,264 @@ app.post(
   }
 );
 
+// ── 운영자 학생 일괄 등록(학교 제휴 등) — 인재 검색 노출용 ─────────────────────
+// 운영자가 학생별 계정을 만들고 이력서 파일을 AI 로 읽어 대표 이력서(에디터 문서)로 넣는다 → 기업 인재 검색에 나온다(학생 로그인은 하지 않음).
+// 등록 묶음은 User.signupReferer = 'ops-bulk:<묶음 이름>' 으로 표시(DB 변경 없이 묶음별로 보기·되돌리기).
+// 개인정보는 DB 에만 — 코드·로그에 이름·이메일을 남기지 않는다(로그는 개수·id 만).
+const BULK_REF = (batch: string) => `ops-bulk:${batch}`.slice(0, 512);
+const isPendingEmail = (email: string) => email.endsWith("@bulk.aply.global");
+
+/** 가져오기 모양(imported) → 에디터 문서(renewalResume + renewalBasicInfo). 웹 lib/talent/import-to-renewal 와 같은 규칙. */
+function importedToRenewalContent(imported: Record<string, unknown>, fallback: { name?: string; email?: string }): Record<string, unknown> {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const arr = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
+  const month = (v: unknown) => {
+    const t = str(v);
+    if (!t) return "";
+    if (/현재|재직|진행|present|current/i.test(t)) return "현재";
+    const m = t.replace(/[./]/g, "-").match(/(\d{4})-(\d{1,2})/);
+    if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+    const y = t.match(/^(\d{4})$/);
+    return y ? `${y[1]}-01` : "";
+  };
+  const SECTION: Record<string, string> = { career: "experience", intern: "experience", part_time: "experience", school_project: "project", personal_project: "project", side_project: "project", competition: "award", club: "activity", external_activity: "activity", volunteer: "activity", education: "education", etc: "activity" };
+  const STATUS: Record<string, string> = { ENROLLED: "재학", GRADUATED: "졸업", LEAVE_OF_ABSENCE: "휴학", DROPPED_OUT: "중퇴", OTHER: "" };
+  const TYPE: Record<string, string> = { HIGH_SCHOOL: "고등학교", ASSOCIATE: "전문학사", BACHELOR: "학사", MASTER: "석사", DOCTOR: "박사", BOOTCAMP: "부트캠프", CERTIFICATE: "수료", OTHER: "" };
+  let n = 0;
+  const id = (p: string) => `bulk-${p}-${Date.now().toString(36)}-${(n++).toString(36)}`;
+  const items: Record<string, unknown>[] = [];
+  const push = (section: string, text: string, company?: string, start = "", end = "") => {
+    if (!text.trim() && !(company ?? "").trim()) return;
+    items.push({ id: id(section), section, text: text.trim(), ...(company?.trim() ? { company: company.trim() } : {}), startDate: start, endDate: end });
+  };
+  for (const e of arr(imported.educations)) {
+    const detail = [str(e.major), TYPE[str(e.educationType)] ?? "", STATUS[str(e.status)] ?? ""].filter(Boolean).join(" · ");
+    push("education", detail, str(e.schoolName), month(e.startDate), month(e.endDate));
+  }
+  for (const x of arr(imported.experiences)) {
+    const title = str(x.title);
+    const org = str(x.org);
+    const text = [title && org ? title : "", str(x.description)].filter(Boolean).join("\n");
+    push(SECTION[str(x.type)] ?? "activity", text || title, org || title, month(x.startDate), month(x.endDate));
+  }
+  for (const c of arr(imported.certifications)) {
+    const d = month(c.date);
+    if (str(c.name)) push("certificate", str(c.name), str(c.issuer), d, d);
+  }
+  const langs = arr(imported.languages).map((l) => [str(l.language), str(l.level)].filter(Boolean).join(" ")).filter(Boolean);
+  if (langs.length) push("language", langs.join(" / "));
+  const skills = (Array.isArray(imported.skills) ? imported.skills : []).map(str).filter(Boolean);
+  if (skills.length) push("skill", skills.join(", "));
+  const now = Date.now();
+  return {
+    renewalResume: {
+      targetRole: str(imported.desiredJobRole),
+      items,
+      summary: str(imported.summary) || str(imported.selfIntroduction),
+      links: arr(imported.links).map((l) => ({ label: str(l.label), url: str(l.url) })).filter((l) => l.url),
+      createdAt: now,
+      updatedAt: now
+    },
+    renewalBasicInfo: { realName: str(imported.basicName) || fallback.name || "", email: fallback.email || str(imported.basicEmail), phone: str(imported.basicPhone), address: str(imported.basicResidence), photoUrl: "" }
+  };
+}
+
+// POST /ops/bulk-students — 학생 한 명 등록(운영 콘솔이 한 명씩 돌린다 — AI 파싱이 있어 요청을 짧게).
+// body: { batch, affiliation?, name?, email?, major?, fileName?, pdfBase64?, text? }. 같은 이메일이 이미 있으면 만들지 않고 알려 준다.
+const bulkStudentSchema = z.object({
+  batch: z.string().trim().min(1).max(120),
+  affiliation: z.string().trim().max(120).optional(),
+  name: z.string().trim().max(80).optional(),
+  email: z.string().trim().toLowerCase().email().max(200).optional().or(z.literal("")),
+  major: z.string().trim().max(120).optional(),
+  fileName: z.string().trim().max(300).optional(),
+  pdfBase64: z.string().max(16_000_000).optional(),
+  text: z.string().trim().max(40000).optional(),
+  // 표에 있으면 — 국적(ISO 2글자), 한국어 수준(예: 'TOPIK 5급'), 희망 분야(줄바꿈·쉼표로 여러 개), 자기소개서 본문
+  nationality: z.string().trim().max(40).optional(),
+  koreanLevel: z.string().trim().max(40).optional(),
+  desiredFields: z.string().trim().max(400).optional(),
+  coverText: z.string().trim().max(20000).optional()
+});
+app.post("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = bulkStudentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  const d = parsed.data;
+  try {
+    const email = d.email || "";
+    if (email) {
+      const exists = await prisma.user.findFirst({ where: { email }, select: { id: true, role: true } });
+      if (exists) return res.json({ ok: true, status: "exists", userId: exists.id, message: "이미 가입된 이메일이에요." });
+    }
+    // 이력서 읽기(파일이 있으면) — 실패해도 계정은 만든다(이력서는 비워 두고 알려 줌)
+    let imported: Record<string, unknown> | null = null;
+    let parseError: string | null = null;
+    if (d.pdfBase64 || d.text) {
+      if (!llmReady) parseError = "AI 를 쓸 수 없어 이력서를 읽지 못했어요.";
+      else {
+        const r = await parseResumeSource({ pdfBase64: d.pdfBase64, text: d.text });
+        if (r.ok) imported = r.imported;
+        else parseError = r.message;
+      }
+    }
+    const name = d.name || (typeof imported?.basicName === "string" ? (imported.basicName as string).trim() : "") || "";
+    if (!name) return res.status(400).json({ ok: false, message: "이름을 알 수 없어요(표의 이름 칸이나 이력서에 이름이 필요해요)." });
+    // 이메일이 없으면 이력서의 이메일, 그것도 없으면 '받기 전' 임시 주소(학생이 계정 받을 때 진짜 이메일을 넣는다)
+    const fromResume = typeof imported?.basicEmail === "string" ? (imported.basicEmail as string).trim().toLowerCase() : "";
+    let finalEmail = email || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fromResume) ? fromResume : "");
+    if (finalEmail && !email) {
+      const dup = await prisma.user.findFirst({ where: { email: finalEmail }, select: { id: true } });
+      if (dup) return res.json({ ok: true, status: "exists", userId: dup.id, message: "이력서의 이메일로 이미 가입된 계정이 있어요." });
+    }
+    // 이메일이 없으면 내부용 주소(로그인하지 않는 계정 — 유일 제약만 맞춘다)
+    if (!finalEmail) finalEmail = `student-${randomBytes(6).toString("hex")}@bulk.aply.global`;
+    const user = await prisma.user.create({
+      data: { email: finalEmail, emailVerified: false, realName: name, name, role: MemberRole.STUDENT, authProvider: AuthProvider.EMAIL, affiliation: d.affiliation || null, passwordHash: null, signupReferer: BULK_REF(d.batch), nationality: d.nationality || null }
+    });
+    const content: Record<string, unknown> = imported
+      ? importedToRenewalContent(imported, { name, email: isPendingEmail(finalEmail) ? "" : finalEmail })
+      : { renewalResume: { targetRole: "", items: [], createdAt: Date.now(), updatedAt: Date.now() }, renewalBasicInfo: { realName: name, email: isPendingEmail(finalEmail) ? "" : finalEmail, phone: "", address: "", photoUrl: "" } };
+    // 표에서 온 정보 보강 — 희망 분야(목표 직무가 비었을 때), 한국어 수준(어학에 없을 때), 자기소개서
+    const doc = content.renewalResume as { targetRole?: string; items: Record<string, unknown>[] };
+    const fields = (d.desiredFields ?? "").split(/\n|,|\d+\.\s*/).map((x) => x.replace(/[⁠\s]+/g, " ").trim()).filter(Boolean);
+    if (!doc.targetRole && fields.length) doc.targetRole = fields.slice(0, 3).join(" · ");
+    if (d.koreanLevel && !doc.items.some((i) => i.section === "language" && /한국어|korean|topik/i.test(String(i.text ?? "")))) {
+      doc.items.push({ id: `bulk-lang-${Date.now().toString(36)}`, section: "language", text: `한국어 ${d.koreanLevel}`, startDate: "", endDate: "" });
+    }
+    if (d.coverText) {
+      const now = Date.now();
+      content.renewalCover = { items: [{ id: `bulk-cov-${now.toString(36)}`, question: "자기소개", text: d.coverText.slice(0, 8000) }], questions: ["자기소개"], createdAt: now, updatedAt: now };
+    }
+    const resume = await prisma.resume.create({ data: { userId: user.id, title: "내 이력서", content: content as object, isPrimary: true } });
+    void embedAndSaveResume(prisma, resume.id).catch(() => {});
+    console.info(`[ops/bulk-students] created user=${user.id} parsed=${Boolean(imported)}`);
+    return res.json({ ok: true, status: "created", userId: user.id, noEmail: isPendingEmail(finalEmail), resumeParsed: Boolean(imported), itemCount: Array.isArray((content as { renewalResume?: { items?: unknown[] } }).renewalResume?.items) ? (content as { renewalResume: { items: unknown[] } }).renewalResume.items.length : 0, parseError });
+  } catch (err) {
+    console.error("[ops/bulk-students] failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "등록하지 못했어요." });
+  }
+});
+
+// ── 원본 이력서 파일 — 운영팀만(기업 화면에는 내보내지 않음: 원본엔 연락처가 있다) ──
+// 스토리지 주소는 화면에 내려주지 않고, 운영자 인증을 거친 다운로드 엔드포인트로만 준다.
+const SOURCE_FILE_TYPES: Record<string, string> = { pdf: "application/pdf", doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+async function storeStudentSourceFile(userId: string, fileName: string, buffer: Buffer): Promise<{ blobName: string; contentType: string }> {
+  const ext = (fileName.split(".").pop() ?? "").toLowerCase();
+  const contentType = SOURCE_FILE_TYPES[ext] ?? "application/octet-stream";
+  const blobName = `bulk-students/${userId}/${randomBytes(16).toString("hex")}.${SOURCE_FILE_TYPES[ext] ? ext : "bin"}`;
+  const container = getAzureContainerClient();
+  if (container) {
+    await container.createIfNotExists({ access: "blob" });
+    await container.getBlockBlobClient(blobName).uploadData(buffer, { blobHTTPHeaders: { blobContentType: contentType } });
+    return { blobName, contentType };
+  }
+  if (process.env.NODE_ENV === "production") throw new Error("Azure Blob storage is not configured");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  const target = path.join(LOCAL_UPLOADS_DIR, blobName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, buffer);
+  return { blobName, contentType };
+}
+async function readStudentSourceFile(blobName: string): Promise<Buffer | null> {
+  const container = getAzureContainerClient();
+  if (container) {
+    try {
+      return (await container.getBlockBlobClient(blobName).downloadToBuffer()) as Buffer;
+    } catch {
+      return null;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  return fs.readFile(path.join(LOCAL_UPLOADS_DIR, blobName)).catch(() => null);
+}
+async function deleteStudentSourceFiles(userId: string): Promise<void> {
+  const rows = await prisma.studentSourceFile.findMany({ where: { userId }, select: { blobName: true } });
+  const container = getAzureContainerClient();
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require("fs/promises") as typeof import("fs/promises");
+  for (const r of rows) {
+    if (container) await container.getBlockBlobClient(r.blobName).deleteIfExists().catch(() => {});
+    else await fs.unlink(path.join(LOCAL_UPLOADS_DIR, r.blobName)).catch(() => {});
+  }
+}
+
+// POST /ops/bulk-students/:userId/files { fileName, base64 } — 원본 파일 올리기(일괄 등록한 학생만, 12MB 까지).
+app.post("/ops/bulk-students/:userId/files", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const body = z.object({ fileName: z.string().trim().min(1).max(300), base64: z.string().min(10).max(17_000_000) }).safeParse(req.body);
+  if (!body.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const u = await prisma.user.findUnique({ where: { id: String(req.params.userId) }, select: { id: true, signupReferer: true } });
+    if (!u || !(u.signupReferer ?? "").startsWith("ops-bulk:")) return res.status(404).json({ ok: false, message: "일괄 등록한 학생이 아니에요." });
+    const buffer = Buffer.from(body.data.base64.replace(/^data:[^,]*,/, ""), "base64");
+    if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "파일이 12MB 를 넘어요." });
+    const exists = await prisma.studentSourceFile.findFirst({ where: { userId: u.id, fileName: body.data.fileName, size: buffer.byteLength }, select: { id: true } });
+    if (exists) return res.json({ ok: true, id: exists.id, existed: true });
+    const { blobName, contentType } = await storeStudentSourceFile(u.id, body.data.fileName, buffer);
+    const row = await prisma.studentSourceFile.create({ data: { userId: u.id, fileName: body.data.fileName, blobName, contentType, size: buffer.byteLength, createdByUserId: req.auth!.userId } });
+    return res.json({ ok: true, id: row.id });
+  } catch (err) {
+    console.error("[ops/bulk-students] file upload failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "파일을 올리지 못했어요." });
+  }
+});
+
+// GET /ops/bulk-students/files/:fileId — 원본 파일 내려받기(운영자만).
+app.get("/ops/bulk-students/files/:fileId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const row = await prisma.studentSourceFile.findUnique({ where: { id: String(req.params.fileId) } });
+    if (!row) return res.status(404).json({ ok: false, message: "파일이 없어요." });
+    const buf = await readStudentSourceFile(row.blobName);
+    if (!buf) return res.status(404).json({ ok: false, message: "파일을 찾지 못했어요." });
+    res.setHeader("Content-Type", row.contentType);
+    res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(row.fileName)}`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(buf);
+  } catch (err) {
+    console.error("[ops/bulk-students] file download failed", err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
+// GET /ops/bulk-students?batch= — 묶음별 등록 현황(이력서가 채워졌는지).
+app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const batch = String(req.query.batch ?? "").trim();
+    const users = await prisma.user.findMany({
+      where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
+    });
+    const items = users.map((u) => {
+      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[] } };
+      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, files: u.studentSourceFiles, createdAt: u.createdAt };
+    });
+    const counts = new Map<string, number>();
+    for (const it of items) counts.set(it.batch, (counts.get(it.batch) ?? 0) + 1);
+    return res.json({ ok: true, items, batches: [...counts].map(([b2, count]) => ({ batch: b2, count })) });
+  } catch (err) {
+    console.error("[ops/bulk-students] list failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// DELETE /ops/bulk-students/:userId — 잘못 등록한 학생 지우기(일괄 등록한 계정만).
+app.delete("/ops/bulk-students/:userId", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: String(req.params.userId) }, select: { id: true, signupReferer: true, passwordHash: true } });
+    if (!u || !(u.signupReferer ?? "").startsWith("ops-bulk:") || u.passwordHash) return res.status(404).json({ ok: false, message: "일괄 등록한 계정만 지울 수 있어요." });
+    await deleteStudentSourceFiles(u.id);
+    await prisma.user.delete({ where: { id: u.id } });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[ops/bulk-students] delete failed", err);
+    return res.status(500).json({ ok: false, message: "지우지 못했어요." });
+  }
+});
+
+
 // POST /members/me/ai/polish-intro — 사용자가 쓴 자기소개를 더 자연스럽고 설득력
 // 있게 다듬어 준다(없는 사실 금지, 분량 유지). style 별로 여러 형식을 시도 가능.
 // POLISH_STYLE_GUIDE 는 ./llm/prompts 로 이관(단일 소스). 위 import 참고.
@@ -17134,13 +17805,12 @@ app.post(
   async (req, res) => {
     const parsed = polishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트 단일 소스(eval 공유) + 구조화 출력 + 상투어 정리.
       const { system: systemPrompt, user: userPrompt } = buildPolishIntroMessages(parsed.data);
       const { data } = await generateJson<{ polished?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.5,
         system: systemPrompt,
         user: userPrompt,
@@ -17173,7 +17843,7 @@ app.post(
   async (req, res) => {
     const parsed = summarizeIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -17184,16 +17854,7 @@ app.post(
         "3. 한국어. 간결한 명사형 또는 진술형. 따옴표 없이.\n\n" +
         'JSON 한 개 객체로만 응답: { "summary": string }' + aiLangDirective(locale);
       const userPrompt = `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n\n` : ""}자기소개:\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { summary?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const summary = typeof parsedJson.summary === "string" ? parsedJson.summary.trim().replace(/^["']|["']$/g, "").slice(0, 80) : "";
@@ -17645,9 +18306,8 @@ async function buildCandidateProfileSummary(userId: string): Promise<string> {
   }
 }
 
-// Career Launch AI 대화 공용 호출 — 고품질 모델(gpt-5.x, Responses API + json_schema)로
-// 먼저 시도하고, 실패 시 gpt-4o-mini(chat.completions, json_object)로 폴백해 항상 파싱된
-// 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
+// Career Launch AI 대화 공용 호출 — 상위 모델(Sonnet, 구조화 출력)로 먼저 시도하고,
+// 실패 시 가벼운 모델로 한 번 더 시도해 항상 파싱된 객체를 반환한다. (유료 프로그램 품질 우선 + 안정성)
 // 전담 코치 진행 원칙(Phase 3) — 대화형 챗(스키마에 reply 필드)에만 주입한다.
 const CAREER_COACH_DIRECTIVES = [
   "[코치 진행 원칙 — 반드시 지켜]",
@@ -17773,7 +18433,7 @@ async function careerChatComplete(
   // promptVersion 은 비용/오류 집계에 프롬프트 버전 차원을 남긴다(선택).
   ctx?: { userId: string; feature: string; promptVersion?: string }
 ): Promise<Record<string, unknown>> {
-  if (!openai) throw new Error("openai_unavailable");
+  if (!llmReady) throw new Error("llm_unavailable");
   // 대화형(스키마에 reply 필드)인 경우에만 코치 원칙을 붙인다(채점·생성 프롬프트는 제외).
   const isConversational = Boolean((schema as { properties?: Record<string, unknown> })?.properties?.reply);
   let sys = system;
@@ -17794,47 +18454,22 @@ async function careerChatComplete(
   const run = async (): Promise<Record<string, unknown>> => {
     let retried = 0;
     try {
-      // 대화형 코칭이고 코치 모델이 Claude면 Anthropic 경로. 실패하면 아래 gpt-4o 경로로 그레이스풀 폴백.
-      if (isConversational && isClaudeModel(careerCoachModel)) {
-        const a = await generateJsonAnthropic<Record<string, unknown>>({ model: careerCoachModel, system: sys, user, schema, schemaName, temperature: 0.6 });
-        if (a.data) {
-          void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: careerCoachModel, promptVersion: ctx?.promptVersion, inputTokens: a.usage?.inputTokens ?? 0, outputTokens: a.usage?.outputTokens ?? 0, retried: 0, failed: false });
-          return await afterComplete(a.data);
-        }
-        console.warn("[career-chat] claude 경로 실패, gpt-4o 로 폴백:", a.error);
-        retried = 1;
+      // 대화형 코칭은 코치 모델, 채점·문서생성 등 비대화형은 상위 모델. 실패하면 가벼운 모델로 한 번 더.
+      const primary = isConversational ? careerCoachModel : qualityModel;
+      const a = await generateJson<Record<string, unknown>>({ model: primary, system: sys, user, schema, schemaName, strict });
+      if (a.data) {
+        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: primary, promptVersion: ctx?.promptVersion, inputTokens: a.usage?.inputTokens ?? 0, outputTokens: a.usage?.outputTokens ?? 0, retried: 0, failed: false });
+        return await afterComplete(a.data);
       }
-      try {
-        const response = await openai!.responses.create({
-          model: openaiMatchingModel,
-          input: [
-            { role: "system", content: sys },
-            { role: "user", content: user }
-          ],
-          text: { format: { type: "json_schema", name: schemaName, schema, ...(strict ? { strict: true } : {}) } }
-        });
-        const u = (response as { usage?: { input_tokens?: number; output_tokens?: number } }).usage;
-        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: u?.input_tokens ?? 0, outputTokens: u?.output_tokens ?? 0, retried: 0, failed: false });
-        return await afterComplete(JSON.parse(response.output_text ?? "{}") as Record<string, unknown>);
-      } catch (err) {
-        console.warn("[career-chat] responses api failed, fallback to mini:", err instanceof Error ? err.message : err);
-        retried = 1;
-        const completion = await openai!.chat.completions.create({
-          model: openaiTranslationModel,
-          temperature: 0.6,
-          response_format: { type: "json_object" },
-          messages: [
-            { role: "system", content: sys },
-            { role: "user", content: user }
-          ]
-        });
-        const u = (completion as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage;
-        void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiTranslationModel, promptVersion: ctx?.promptVersion, inputTokens: u?.prompt_tokens ?? 0, outputTokens: u?.completion_tokens ?? 0, retried: 1, failed: false });
-        return await afterComplete(JSON.parse(completion.choices?.[0]?.message?.content ?? "{}") as Record<string, unknown>);
-      }
+      console.warn(`[career-chat] ${primary} 실패, ${lightModel} 로 폴백:`, a.error);
+      retried = 1;
+      const b = await generateJson<Record<string, unknown>>({ model: lightModel, system: sys, user, schema, schemaName, strict });
+      if (!b.data) throw new Error(b.error ?? "llm_failed");
+      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: lightModel, promptVersion: ctx?.promptVersion, inputTokens: b.usage?.inputTokens ?? 0, outputTokens: b.usage?.outputTokens ?? 0, retried: 1, failed: false });
+      return await afterComplete(b.data);
     } catch (fatal) {
       // 두 경로 모두 실패 — 실패 카운트만 기록하고 상위로 던진다.
-      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: openaiMatchingModel, promptVersion: ctx?.promptVersion, inputTokens: 0, outputTokens: 0, retried, failed: true });
+      void recordCareerAiCost({ userId: ctx?.userId, feature: costFeature, model: isConversational ? careerCoachModel : qualityModel, promptVersion: ctx?.promptVersion, inputTokens: 0, outputTokens: 0, retried, failed: true });
       throw fatal;
     }
   };
@@ -18144,7 +18779,7 @@ app.post(
   async (req, res) => {
     const parsed = jobChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, selected, exclude, pool, locale } = parsed.data;
     const poolRoles = new Set(pool.map((p) => p.role));
     const excludeSet = new Set(exclude);
@@ -18260,7 +18895,7 @@ app.post(
   async (req, res) => {
     const parsed = materialChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, selected, materials: gathered, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -18315,7 +18950,7 @@ app.post(
   async (req, res) => {
     const parsed = diagnosisChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -18399,7 +19034,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceMiningSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -18513,7 +19148,7 @@ app.post(
   async (req, res) => {
     const parsed = strengthStorySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -18972,7 +19607,7 @@ app.post(
   async (req, res) => {
     const parsed = resumeChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -19035,6 +19670,7 @@ app.post(
       });
       // 저장 즉시 실제 aply.global Resume 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
       // 경력·활동·학력·스킬·어학은 '없음'도 정상 — 대화가 done 이면 데이터가 비어도 해당 스텝을
       // 완료 처리(doneSteps)해, 해당 항목이 없는 학생도 W2 를 막힘없이 진행한다(기본정보만 실제 내용 필요).
       const OPTIONAL_STEP: Record<string, string> = { edu: "w2-edu", exp: "w2-exp", expOther: "w2-exp-other", skill: "w2-skill", lang: "w2-lang" };
@@ -19098,6 +19734,7 @@ app.put("/career-launch/resume-data", authenticate, requireCareerEnrollment, asy
       update: { content: normalized as object }
     });
     await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
     // 섹션별 스텝 완료 반영 — 내용이 있으면 완료, 비면 미완료(단, emptyDone 명시 섹션은 완료).
     const emptyDone = Array.isArray(body.emptyDone) ? (body.emptyDone as unknown[]).filter((x): x is string => typeof x === "string") : [];
     const b = normalized.basic as Record<string, unknown>;
@@ -19176,6 +19813,7 @@ app.delete("/career-launch/resume-data", authenticate, requireCareerEnrollment, 
     }
     // 리셋 결과를 실제 aply.global Resume 미러에도 반영.
     await syncCareerResumeToResume(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "resume");
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -19256,7 +19894,9 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
       prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
     ]);
 
-    if (!isHumanCollected(savedResume?.content)) {
+    // 커리어런치 결과물을 이 에디터 문서와 '하나의 문서'로 연결했으면(editorLink) 에디터가 기준 — 사람이 모은 데이터여도 따라간다.
+    const link = await getCareerEditorLink(userId);
+    if (link.resume === resumeId || !isHumanCollected(savedResume?.content)) {
       const loose = renewalToCareerResume(content);
       if (hasDerivedResumeContent(loose)) {
         const normalized: Record<string, unknown> = { ...normalizeResumeData(loose), [DERIVED_MARK]: resumeId };
@@ -19284,7 +19924,7 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
       }
     }
 
-    if (!isHumanCollected(savedCover?.content)) {
+    if (link.cover === resumeId || !isHumanCollected(savedCover?.content)) {
       const loose = renewalToCareerCover(content);
       const items = (loose.items as { answer?: string }[]) ?? [];
       if (items.some((x) => (x.answer ?? "").trim())) {
@@ -19302,6 +19942,109 @@ async function deriveCareerDataFromRenewal(userId: string, resumeId: string, con
     console.error("[career-derive] failed", { userId, resumeId, error: err instanceof Error ? err.message : String(err) });
   }
 }
+
+// ── 커리어런치 결과물 ↔ 탤런트 에디터 '하나의 문서' 연결(editorLink) ──
+// 결과물에서 [에디터로 편집]을 누르면 학생의 탤런트 에디터 문서(Resume.content.renewalResume/renewalCover)와 연결한다.
+//  - 에디터에서 고치면 → deriveCareerDataFromRenewal 이 커리어런치 데이터·주차 진행에 반영(연결된 문서는 사람이 모은 데이터여도 따라감)
+//  - 프로그램 안(대화형 작성·빌더)에서 고치면 → pushCareerToLinkedRenewal 이 에디터 문서에 반영(프로그램이 모르는 섹션·에디터 설정은 보존)
+// 연결 정보는 진행 상태(state.editorLink = { resume?: rowId, cover?: rowId })에 둔다 — 데이터 본문에 표시를 넣으면 프로그램 저장 때 지워진다.
+type CareerEditorKind = "resume" | "cover";
+async function getCareerEditorLink(userId: string): Promise<{ resume?: string; cover?: string }> {
+  const p = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: userId }, select: { state: true } });
+  const l = (p?.state && typeof p.state === "object" ? (p.state as Record<string, unknown>).editorLink : null) as Record<string, unknown> | null;
+  return { resume: typeof l?.resume === "string" ? l.resume : undefined, cover: typeof l?.cover === "string" ? l.cover : undefined };
+}
+
+/** 프로그램 데이터를 연결된 에디터 문서에 반영. force=true 면 연결 직후 첫 채움(연결 정보 대신 rowId 를 직접 받는다). */
+async function pushCareerToLinkedRenewal(userId: string, kind: CareerEditorKind, rowId?: string): Promise<void> {
+  try {
+    const target = rowId ?? (await getCareerEditorLink(userId))[kind];
+    if (!target) return;
+    const row = await prisma.resume.findUnique({ where: { id: target }, select: { userId: true, content: true } });
+    if (!row || row.userId !== userId) return;
+    const content = { ...((row.content && typeof row.content === "object" ? row.content : {}) as Record<string, unknown>) };
+    if (kind === "resume") {
+      const data = await prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      const { doc, info } = careerResumeToRenewal(data?.content ?? {}, content.renewalResume, content.renewalBasicInfo);
+      content.renewalResume = doc;
+      content.renewalBasicInfo = info;
+    } else {
+      const data = await prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } });
+      content.renewalCover = careerCoverToRenewal(data?.content ?? {}, content.renewalCover);
+    }
+    await prisma.resume.update({ where: { id: target }, data: { content: content as object } });
+  } catch (err) {
+    console.error("[career-editor-link] push failed", { userId, kind, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+const careerHasResume = (c: unknown) => hasDerivedResumeContent((c && typeof c === "object" ? c : {}) as Record<string, unknown>);
+const careerHasCover = (c: unknown) => {
+  const items = ((c && typeof c === "object" ? (c as Record<string, unknown>).items : null) ?? []) as { answer?: string }[];
+  return Array.isArray(items) && items.some((x) => (x?.answer ?? "").trim());
+};
+function renewalHas(content: unknown, kind: CareerEditorKind): boolean {
+  const c = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+  const doc = (kind === "resume" ? c.renewalResume : c.renewalCover) as { items?: { text?: string }[] } | undefined;
+  return Array.isArray(doc?.items) && doc!.items!.some((i) => (i?.text ?? "").trim());
+}
+
+// GET /career-launch/editor-link — 결과물의 [에디터로 편집] 전에: 이미 연결됐는지, 양쪽에 내용이 있는지(둘 다 있으면 어느 쪽으로 시작할지 묻는다).
+app.get("/career-launch/editor-link", authenticate, requireCareerEnrollment, async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [link, row, rd, cd] = await Promise.all([
+      getCareerEditorLink(userId),
+      findTalentResumeRow(userId),
+      prisma.careerResumeData.findUnique({ where: { studentUserId: userId }, select: { content: true } }),
+      prisma.careerCoverLetterData.findUnique({ where: { studentUserId: userId }, select: { content: true } })
+    ]);
+    const view = (kind: CareerEditorKind) => ({
+      linked: Boolean(link[kind] && row && link[kind] === row.id),
+      launchHasContent: kind === "resume" ? careerHasResume(rd?.content) : careerHasCover(cd?.content),
+      talentHasContent: row ? renewalHas(row.content, kind) : false
+    });
+    return res.json({ ok: true, resume: view("resume"), cover: view("cover") });
+  } catch (err) {
+    console.error("[career-editor-link] get failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+// POST /career-launch/editor-link { kind, use } — 연결. use='launch' 면 프로그램 내용으로 에디터 문서를 채우고, 'talent' 면 에디터 문서 내용으로 프로그램 데이터를 맞춘다.
+const careerEditorLinkSchema = z.object({ kind: z.enum(["resume", "cover"]), use: z.enum(["launch", "talent"]) });
+app.post("/career-launch/editor-link", authenticate, requireCareerEnrollment, async (req, res) => {
+  const parsed = careerEditorLinkSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  const { kind, use } = parsed.data;
+  try {
+    // 에디터 문서 행 — 없으면 만든다(에디터가 처음 저장할 때 만드는 '내 이력서'와 같은 모양). 커리어런치 복사본 행은 쓰지 않는다(그 행은 프로그램이 덮어쓴다).
+    let row = await findTalentResumeRow(userId);
+    if (!row) {
+      const now = Date.now();
+      const created = await prisma.resume.create({
+        data: { userId, title: "내 이력서", content: { renewalResume: { targetRole: "", items: [], createdAt: now, updatedAt: now } } as object },
+        select: { id: true, content: true }
+      });
+      row = created;
+    }
+    await updateCareerProgressState(userId, (prev) => {
+      const cur = (prev.editorLink && typeof prev.editorLink === "object" ? prev.editorLink : {}) as Record<string, unknown>;
+      prev.editorLink = { ...cur, [kind]: row!.id };
+      return prev;
+    });
+    if (use === "launch") await pushCareerToLinkedRenewal(userId, kind, row.id);
+    else {
+      const fresh = await prisma.resume.findUnique({ where: { id: row.id }, select: { content: true } });
+      await deriveCareerDataFromRenewal(userId, row.id, fresh?.content ?? row.content);
+    }
+    return res.json({ ok: true, resumeId: row.id });
+  } catch (err) {
+    console.error("[career-editor-link] link failed", err);
+    return res.status(500).json({ ok: false, message: "failed to link" });
+  }
+});
 
 // 자소서 병합 — 문항(question) 기준 union, 새 answer 우선(비어있으면 기존 유지).
 function mergeCoverData(saved: Record<string, unknown>, incoming: Record<string, unknown>): Record<string, unknown> {
@@ -19374,7 +20117,7 @@ app.post(
   async (req, res) => {
     const parsed = coverChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, data, focus, locale } = parsed.data;
     try {
       const profileSummary = await buildCandidateProfileSummary(req.auth!.userId);
@@ -19426,6 +20169,7 @@ app.post(
       });
       // 저장 즉시 실제 aply.global CoverLetter 로 자동 미러링 → 프로필 노출·지원에 바로 사용 가능.
       await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
       return res.json({ ok: true, reply, data: coverData, done });
     } catch (err) {
       console.error("[career-launch/cover-chat] failed", err);
@@ -19457,6 +20201,7 @@ app.put("/career-launch/cover-data", authenticate, requireCareerEnrollment, asyn
       update: { content: normalized as object }
     });
     await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
     // 문항별 스텝 완료 반영 — 해당 섹션 질문의 답변이 있으면 완료, 없으면 미완료.
     const items = (normalized.items as { question?: string; answer?: string }[]) ?? [];
     const answered = (label: string) => items.some((it) => (it.question ?? "").trim() === label && (it.answer ?? "").trim().length > 0);
@@ -19497,6 +20242,7 @@ app.delete("/career-launch/cover-data", authenticate, requireCareerEnrollment, a
     });
     // 리셋 결과를 실제 aply.global CoverLetter 미러에도 반영.
     await syncCareerCoverToCoverLetter(req.auth!.userId);
+    await pushCareerToLinkedRenewal(req.auth!.userId, "cover");
     return res.json({ ok: true });
   } catch (error) {
     return res.status(500).json({ ok: false, message: getErrorMessage(error) });
@@ -20173,7 +20919,7 @@ app.post("/career-launch/week2/application-target/:id/structure", authenticate, 
     const target = await ownTarget(userId, String(req.params.id));
     if (!target) return res.status(404).json({ ok: false, message: "not found" });
     if (!target.rawContent) return res.status(400).json({ ok: false, message: "no raw content" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const systemPrompt = "너는 채용공고 파서야. 아래 공고 원문을 구조화된 JSON으로 정리해줘. 원문에 없는 내용은 만들지 마. 자소서 문항이 명시돼 있으면 coverLetterPrompts 에 담아.";
     let raw: unknown;
     try {
@@ -20200,7 +20946,7 @@ app.post("/career-launch/week2/application-target/:id/analyze", authenticate, re
     const target = await ownTarget(userId, String(req.params.id));
     if (!target) return res.status(404).json({ ok: false, message: "not found" });
     if (!force && target.analysisData) return res.json({ ok: true, analysis: target.analysisData, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd: target.structuredData });
     const systemPrompt = "너는 커리어 코치야. 아래 기준 공고와 사용자 경험을 비교해 요구역량을 구조화 분석해줘. 이미 갖춘 것(matched, 근거 경험 id 연결)·부족한 것(missing)·확인 필요(needsCheck)·이력서/자소서에서 강조할 것·넣지 말아야 할 과장(avoidOverclaiming)·면접에서 검증될 것을 정리해. " + NO_FABRICATION;
     let raw: unknown;
@@ -20236,7 +20982,7 @@ app.post("/career-launch/week2/resume-version", authenticate, requireCareerEnrol
       if (!target) return res.status(404).json({ ok: false, message: "target not found" });
       jd = target.analysisData ?? target.structuredData;
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
     const systemPrompt =
       `너는 커리어 코치야. 사용자의 확인된 정보로 ${variant === "targeted" ? "이 공고에 맞춘" : "대표"} 이력서 초안을 만들어줘. ` +
@@ -20286,7 +21032,7 @@ app.post("/career-launch/week2/cover-prompts", authenticate, requireCareerEnroll
         jd = target.analysisData ?? target.structuredData;
       }
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd });
     const systemPrompt = "공고에 자소서 문항이 없어. 이 공고와 직무에 맞는 권장 자소서 문항 4~6개를 만들어줘(지원동기·직무경험·문제해결·협업·입사후기여 등에서 적절히). 공고가 요구하지 않는 문항을 필수처럼 표시하지 마. 각 문항에 intent 와 추천 근거 경험을 연결해.";
     let raw: unknown;
@@ -20319,7 +21065,7 @@ app.post("/career-launch/week2/cover-version", authenticate, requireCareerEnroll
       const target = await ownTarget(userId, applicationTargetId);
       jd = target?.analysisData ?? target?.structuredData;
     }
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { includeResume: true, jd });
     const systemPrompt =
       "너는 커리어 코치야. 아래 문항들에 대해 사용자의 확인된 경험을 근거로 자기소개서 초안을 써줘. " +
@@ -20384,7 +21130,7 @@ app.post("/career-launch/week2/consistency", authenticate, requireCareerEnrollme
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } })
     ]);
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ctx = await buildWeek2LlmContext(userId, { jd: target.analysisData ?? target.structuredData });
     const docCtx = `[이력서 버전]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1600)}\n\n[자소서 버전]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1400)}`;
     const systemPrompt =
@@ -20441,7 +21187,7 @@ app.post("/career-launch/week2/scores", authenticate, requireCareerEnrollment, r
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "cover", applicationTargetId }, orderBy: { updatedAt: "desc" } }),
       prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } })
     ]);
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const jd = target.analysisData ?? target.structuredData;
     const rCtx = `[이력서]\n${JSON.stringify(resumeV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1200)}`;
     const cCtx = `[자소서]\n${JSON.stringify(coverV?.content ?? {}).slice(0, 1800)}\n[공고]\n${JSON.stringify(jd).slice(0, 1000)}`;
@@ -20505,7 +21251,7 @@ app.post("/career-launch/week2/interview-questions", authenticate, requireCareer
     const pkg = applicationTargetId ? await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId, applicationTargetId } }) : await prisma.careerApplicationPackage.findFirst({ where: { studentUserId: userId }, orderBy: { updatedAt: "desc" } });
     const existing = await prisma.careerInterviewQuestionSet.findFirst({ where: { studentUserId: userId, applicationPackageId: pkg?.id ?? null }, orderBy: { createdAt: "desc" } });
     if (!force && existing) return res.json({ ok: true, questionSet: existing, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const target = applicationTargetId ? await ownTarget(userId, applicationTargetId) : null;
     const [resumeV, coverV] = await Promise.all([
       prisma.careerDocumentVersion.findFirst({ where: { studentUserId: userId, documentType: "resume" }, orderBy: { updatedAt: "desc" } }),
@@ -20609,7 +21355,7 @@ const IV_GROWTH_SCHEMA = { type: "object", additionalProperties: false, required
 
 // 답변 평가(LLM). 실패 시 null.
 async function evaluateInterviewAnswer(question: string, answerText: string, ctx: string): Promise<import("./career-week34").AnswerEvaluation | null> {
-  if (!openai) return null;
+  if (!llmReady) return null;
   const sys =
     "너는 면접 평가관이야. 아래 질문과 사용자 답변을 8축(questionUnderstanding·relevance·specificity·evidence·structure·jobConnection·consistency·delivery)으로 0~100 채점하고 total 을 계산해. " +
     "텍스트 기반이므로 말투·표정·시선은 평가하지 마. 잘한 점, 핵심 문제, 문제 구간, 개선 이유, 추천 답변 구조, 활용할 경험, 추천 꼬리질문을 줘. " +
@@ -20645,7 +21391,7 @@ app.post("/career-launch/interview/session/start", authenticate, requireCareerEn
     let baseQuestions = Array.isArray(qset?.questions) ? (qset!.questions as Array<{ question?: string; type?: string; sourceReference?: string; difficulty?: string; evaluationCriteria?: string[] }>) : [];
     if (baseQuestions.length === 0) {
       // 예상질문이 없으면 생성(간단). 없으면 실패.
-      if (!openai) return sendAiUnavailable(res);
+      if (!llmReady) return sendAiUnavailable(res);
       const ctx = await buildInterviewCtx(userId, pkg);
       try {
         const raw = (await careerChatComplete("이 지원자의 공고·이력서·자소서를 근거로 실전 모의면접 핵심 질문 8개를 만들어줘. 각 질문에 type·difficulty 를 붙여. " + IV_SAFETY, ctx, "iv_qgen", { type: "object", additionalProperties: false, required: ["questions"], properties: { questions: { type: "array", items: { type: "object", additionalProperties: false, required: ["question", "type", "difficulty"], properties: { question: { type: "string" }, type: { type: "string" }, difficulty: { type: "string" } } } } } })) as { questions?: Array<{ question: string; type: string; difficulty: string }> };
@@ -20751,7 +21497,7 @@ app.post("/career-launch/interview/session/:id/complete", authenticate, requireC
 
     // 최초면접만 심층 분석(비용 절약). 최종면접은 성장 리포트에서 처리.
     if (session.sessionType !== "initial_mock") return res.json({ ok: true, session: { ...session, status: "completed" }, total });
-    if (!openai) return res.json({ ok: true, total, analyzed: false });
+    if (!llmReady) return res.json({ ok: true, total, analyzed: false });
     const qa = questions.map((q) => { const a = answers.find((x) => x.questionId === q.id); return `Q(${q.type}): ${q.question}\nA: ${(a?.answerText ?? "").slice(0, 600)}\n[문제] ${((a?.evaluationData as { keyProblem?: string } | null)?.keyProblem ?? "")}`; }).join("\n\n");
     const pkg = await prisma.careerApplicationPackage.findUnique({ where: { id: session.applicationPackageId ?? "" } }).catch(() => null);
     const ctx = await buildInterviewCtx(userId, pkg);
@@ -20856,7 +21602,7 @@ app.post("/career-launch/week4/correction/:id/coach", authenticate, requireCaree
     const c = await ownCorrection(userId, String(req.params.id));
     if (!c) return res.status(404).json({ ok: false, message: "not found" });
     if (c.coachingData && !((req.body as { force?: boolean })?.force)) return res.json({ ok: true, coaching: c.coachingData, cached: true });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const origAnswer = c.originalAnswerId ? await prisma.careerInterviewAnswer.findUnique({ where: { id: c.originalAnswerId } }) : null;
     const pkg = await activePackage(userId);
     const ctx = await buildInterviewCtx(userId, pkg);
@@ -20945,7 +21691,7 @@ app.post("/career-launch/week4/correction/:id/similar", authenticate, requireCar
     const userId = req.auth!.userId;
     const c = await ownCorrection(userId, String(req.params.id));
     if (!c) return res.status(404).json({ ok: false, message: "not found" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     let similar: unknown = null;
     try {
       const raw = await careerChatComplete("아래 원본 질문과 같은 역량을 '다른 맥락·다른 표현'으로 검증하는 유사 질문 1개를 만들어줘. 단어만 바꾸지 말고 같은 역량을 다르게 물어. " + IV_SAFETY, `[원본 질문]\n${c.question}`, "iv_similar", IV_SIMILAR_SCHEMA);
@@ -21020,7 +21766,7 @@ app.post("/career-launch/week4/growth", authenticate, requireCareerEnrollment, r
     });
     // 정성 리포트(LLM).
     let qualitative: unknown = null;
-    if (openai) {
+    if (llmReady) {
       try {
         const raw = await careerChatComplete("최초 면접과 최종 면접 결과를 비교해 성장 리포트를 써줘. 가장 개선된 항목, 남은 약점, 강하게 확인된 역량, 면접관이 추가 확인할 부분, 면접 당일 주의사항, 다음 7일·30일 행동계획, 코치 최종 메시지. 점수만 강조하지 말고 격려하는 톤으로. " + IV_SAFETY, `[성장지표]\n${JSON.stringify(growth)}\n[남은 취약]\n${weaknesses.filter((w) => w.status === "open").map((w) => w.title).join(", ")}`, "iv_growth", IV_GROWTH_SCHEMA);
         const p = GrowthReportSchema.safeParse(raw);
@@ -21791,7 +22537,7 @@ async function buildReadinessInput(cohortId: string) {
       enrolledCount,
       participantLimit: cohort.participantLimit,
       featureFlagsSet: Object.values(flags).some(Boolean),
-      llmEnvReady: Boolean(openai),
+      llmEnvReady: Boolean(llmReady),
       surveyConfigured: survey !== null,
       supportContactSet: Boolean(mon.supportContact),
       manualChecks: (mon.manualChecks ?? {}) as Record<string, boolean>
@@ -23131,7 +23877,7 @@ app.post("/career-launch/ops/interventions/:id/ai-summary", authenticate, requir
   try {
     const iv = await prisma.careerIntervention.findUnique({ where: { id: String(req.params.id) } });
     if (!iv) return res.status(404).json({ ok: false, message: "not found" });
-    if (!openai) return sendAiUnavailable(res);
+    if (!llmReady) return sendAiUnavailable(res);
     const ev = (iv.evidence && typeof iv.evidence === "object" ? iv.evidence : {}) as { facts?: string[]; signals?: Record<string, unknown> };
     const sys = "너는 커리어 프로그램 운영 보조야. 아래 '사실 데이터'만 근거로 운영자용 요약을 만들어줘. 사실과 AI 해석을 명확히 구분하고(facts / interpretation / recommendedAction / dataToCheck / nextCheck), 학생의 의도나 심리를 단정하지 마. 진단하지 마.";
     const schema = { type: "object", additionalProperties: false, required: ["interpretation", "recommendedAction", "dataToCheck", "nextCheck"], properties: { interpretation: { type: "string" }, recommendedAction: { type: "string" }, dataToCheck: { type: "array", items: { type: "string" } }, nextCheck: { type: "string" } } } as const;
@@ -23240,7 +23986,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewChatSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { messages, focus, jobPosting, locale } = parsed.data;
     const uid = req.auth!.userId;
     try {
@@ -23356,7 +24102,7 @@ const POSTING_QUESTIONS_SCHEMA = { type: "object", additionalProperties: false, 
 app.post("/career-launch/posting-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "posting-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = postingQuestionsSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const { jobPosting, count, locale } = parsed.data;
     const n = count ?? 6;
@@ -23380,7 +24126,7 @@ const POSTING_SCORE_SCHEMA = { type: "object", additionalProperties: false, requ
 app.post("/career-launch/posting-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "posting-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = postingScoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const { jobPosting, question, answer, locale } = parsed.data;
     const systemPrompt =
@@ -23401,13 +24147,209 @@ app.post("/career-launch/posting-interview/score", authenticate, requireCareerEn
   }
 });
 
+/** 한국 국적 학생인가 — 말하기·자기소개 코칭 문구를 맞춘다(국적을 모르면 외국인 구직자로 본다 — 프로그램 대상). */
+const KOREAN_NATIONALITY = new Set(["kr", "kor", "korea", "southkorea", "republicofkorea", "한국", "대한민국", "남한"]);
+async function careerStudentIsKorean(userId: string): Promise<boolean> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { nationality: true } }).catch(() => null);
+  const v = (u?.nationality ?? "").trim().toLowerCase().replace(/[\s.]/g, "");
+  return Boolean(v) && KOREAN_NATIONALITY.has(v);
+}
+
+// ── 꼬리 질문 면접관 ────────────────────────────────────────────
+// 학생 답의 가장 약한 고리(막연한 말·숫자 없는 성과·내 역할 불분명·결과 없음·앞뒤 안 맞음)를 하나 골라 실제 면접관처럼 한 번 더 파고든다.
+const FOLLOW_UP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["followUp", "intent"],
+  properties: {
+    followUp: { type: "string", description: "면접관이 이어서 묻는 꼬리 질문 한 개(존댓말, 한두 문장, 학생 답의 구체적인 부분을 인용해서)" },
+    intent: { type: "string", description: "이 질문으로 확인하려는 것(학생에게 보여 줄 짧은 힌트, 예: '성과를 숫자로 말할 수 있는지')" }
+  }
+} as const;
+const followUpBody = z.object({
+  question: z.string().trim().min(2).max(600),
+  answer: z.string().trim().min(2).max(4000),
+  context: z.string().trim().max(3000).optional(), // 공고 요약이나 면접 유형
+  depth: z.number().int().min(1).max(3).optional()
+});
+// POST /career-launch/follow-up — 꼬리 질문 한 개. 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/follow-up", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "cl-follow" }), aiCharge("career_follow_up"), async (req, res) => {
+  const parsed = followUpBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!llmReady) return sendAiUnavailable(res);
+  const userId = req.auth!.userId;
+  const { question, answer, context, depth } = parsed.data;
+  try {
+    const system =
+      "너는 한국 기업의 실무 면접관이야. 지원자(외국인 유학생일 수 있음)의 답을 듣고 가장 약한 고리 하나를 골라 꼬리 질문을 한 개 해. 우선순위: 막연한 표현의 구체화 → 성과를 숫자·결과로 → 그 일에서 '본인'이 한 역할 → 어려웠던 점과 해결 → 앞뒤가 안 맞는 부분. " +
+      `${(depth ?? 1) >= 2 ? "이미 한 번 꼬리 질문을 했으니 이번엔 조금 더 압박감 있게(하지만 예의 있게) 물어. " : ""}` +
+      "지원자의 국적·나이·성별·한국어 실력을 문제 삼는 질문은 하지 마. 학생 답에 있는 내용을 인용해서 물어. 한국어 존댓말로.";
+    const user = `${context ? `[면접 맥락]\n${context}\n\n` : ""}[원래 질문]\n${question}\n\n[지원자 답]\n${answer}`;
+    const out = await careerChatComplete(system, user, "cl_follow_up", FOLLOW_UP_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_follow_up" });
+    return res.json({ ok: true, followUp: String(out.followUp ?? "").trim(), intent: String(out.intent ?? "").trim() });
+  } catch (err) {
+    console.error("[career/follow-up] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(502).json({ ok: false, message: "ai response empty" });
+  }
+});
+
+// ── 1분 자기소개 집중 훈련 ──────────────────────────────────────
+// 모든 면접의 첫 질문. 60초 안에 '한 줄 소개 → 강점 → 근거 경험 → 입사 후 한마디'가 들어가는지 보고, 60초 분량으로 다듬은 버전을 준다.
+const INTRO_1MIN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["score", "opening", "structure", "timeNote", "improved", "tips"],
+  properties: {
+    score: { type: "integer", minimum: 0, maximum: 100, description: "1분 자기소개로서의 완성도" },
+    opening: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ok", "note"],
+      properties: { ok: { type: "boolean", description: "첫 문장에 '나는 어떤 사람/지원자인지' 한 줄 소개가 있는가" }, note: { type: "string" } }
+    },
+    structure: {
+      type: "array",
+      minItems: 4,
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["key", "ok", "note"],
+        properties: { key: { type: "string", enum: ["intro", "strength", "evidence", "closing"] }, ok: { type: "boolean" }, note: { type: "string", description: "짧게(한 문장)" } }
+      }
+    },
+    timeNote: { type: "string", description: "길이에 대한 조언(60초 기준, 말한 시간·글자 수 근거)" },
+    improved: { type: "string", description: "학생이 말한 사실만으로 다듬은 1분 자기소개(합니다체, 280~330자, 한 줄 소개로 시작해 입사 후 한마디로 끝)" },
+    tips: { type: "array", maxItems: 3, items: { type: "string" } }
+  }
+} as const;
+const intro1minBody = z.object({ text: z.string().trim().min(10).max(3000), durationSec: z.number().min(1).max(600).optional(), voice: z.boolean().optional() });
+// POST /career-launch/intro-1min — 1분 자기소개 평가 + 60초 분량으로 다듬은 버전. 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/intro-1min", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "cl-intro1" }), aiCharge("career_intro_1min"), async (req, res) => {
+  const parsed = intro1minBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!llmReady) return sendAiUnavailable(res);
+  const userId = req.auth!.userId;
+  const { text, durationSec, voice } = parsed.data;
+  const chars = text.replace(/\s+/g, "").length;
+  // 글로 쓴 경우 말하면 걸릴 시간 추정(분당 약 270자)
+  const estSec = Math.round((chars / 270) * 60);
+  const sec = voice && durationSec ? Math.round(durationSec) : estSec;
+  try {
+    const profile = await buildCandidateProfileSummary(userId).catch(() => "");
+    const korean = await careerStudentIsKorean(userId);
+    const system =
+      `너는 한국 기업 면접 코치야. ${korean ? "학생" : "외국인 학생"}의 '1분 자기소개'를 평가해. ` + "좋은 1분 자기소개는 ①한 줄 소개(어떤 지원자인지) ②핵심 강점 하나 ③그 강점의 근거 경험(가능하면 숫자) ④입사 후 한마디 순서이고 280~330자(말로 약 60초)야. " +
+      "채점 기준(합 100): 한 줄 소개 20 · 핵심 강점 25 · 근거 경험 30(구체적일수록, 숫자 있으면 만점) · 입사 후 한마디 15 · 길이와 흐름 10. 각 요소는 '있지만 약하면' 부분 점수를 줘. structure 의 ok 는 그 요소가 들어 있으면 true(약해도 true, note 에 보완점), 아예 없을 때만 false. " +
+      "improved 는 학생이 말한 내용을 뼈대로 써 — 학생이 말한 이름·국적·전공 같은 정체성은 그대로 두고, 아래 프로필은 학생 말에 없는 근거 경험을 보충할 때만 써(프로필과 학생 말이 다르면 학생 말을 따른다). 새 경험·숫자는 지어내지 마. 국적·한국어 실력을 평가하지 마. 한국어로.";
+    // 학생 말을 먼저, 프로필은 '참고용'으로 — 다르면 학생 말을 따르게(이름·국적을 프로필로 바꾸지 않게)
+    const user = `[학생의 1분 자기소개 — ${voice ? "말로 한 것(받아쓰기)" : "글로 쓴 것"}]\n${text}\n\n[길이] ${chars}자 · ${voice ? `실제 말한 시간 ${sec}초` : `말하면 약 ${sec}초 예상`}\n\n[참고용 프로필 — 학생 말과 다르면 무시하고, 이름은 반드시 학생이 말한 이름 그대로]\n${profile || "(없음)"}`;
+    const out = await careerChatComplete(system, user, "cl_intro_1min", INTRO_1MIN_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_intro_1min" });
+    return res.json({ ok: true, result: { ...out, chars, seconds: sec, estimated: !voice } });
+  } catch (err) {
+    console.error("[career/intro-1min] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(502).json({ ok: false, message: "ai response empty" });
+  }
+});
+
+// ── 말로 하는 면접 — 한국어 말하기 분석 ─────────────────────────────
+// 학생이 마이크로 답한 받아쓰기 원문 + 말한 시간·멈춤 횟수로, 내용 점수와 별개인 '말하기 리포트'를 만든다.
+// 숫자(말 빠르기·군말·문장 길이·말투 끝맺음)는 규칙으로 세고, 어색한 표현 고치기·말로 하기 좋은 답은 AI 가 만든다.
+// 안전: 발음·억양·국적을 평가하지 않는다(소리는 받지 않는다 — 받아쓴 글만). 역량 판단이 아니라 말하기 연습 도움.
+const SPEAK_FILLERS = /(^|\s)(음+|어+|그+|저기|뭐랄까|약간|좀|이제|막|그니까|그러니까)(?=\s|$|[,.])/g;
+/** 받아쓴 글을 말 끝맺음 기준으로 문장으로 나눈다(음성 인식은 마침표를 잘 안 찍는다). */
+function splitSpokenSentences(text: string): string[] {
+  const marked = text.replace(/(습니다|입니다|됩니다|합니다|니다|어요|아요|에요|예요|해요|이죠|죠|네요|거든요|는데요|다)(?=\s|$|[.?!,])/g, "$1\u0001");
+  return marked
+    .split(/\u0001|[.?!]\s*/)
+    .map((x) => x.replace(/^[\s,]+/, "").trim())
+    .filter((x) => x.replace(/\s+/g, "").length >= 4);
+}
+function speakingMetrics(transcript: string, durationSec: number, pauses: number) {
+  const plain = transcript.replace(/\s+/g, "");
+  const chars = plain.length;
+  const minutes = Math.max(durationSec, 1) / 60;
+  const cpm = Math.round(chars / minutes);
+  const fillers = (transcript.match(SPEAK_FILLERS) ?? []).length;
+  const sentences = splitSpokenSentences(transcript);
+  const lens = sentences.map((x) => x.replace(/\s+/g, "").length);
+  const avgSentence = lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : chars;
+  const longSentences = sentences.filter((x) => x.replace(/\s+/g, "").length > 70).length;
+  const formal = (transcript.match(/니다(?=\s|$|[.?!,])/g) ?? []).length; // 합니다체
+  const polite = (transcript.match(/(어요|아요|에요|예요|해요|죠|네요|거든요|는데요)(?=\s|$|[.?!,])/g) ?? []).length; // 해요체
+  const casual = (transcript.match(/(?<!니)(다|어|야|지)(?=\s|$|[.?!,])/g) ?? []).length; // 반말 끝맺음(대략 — '~는데' 같은 연결어는 빼고)
+  const pace = cpm < 150 ? "slow" : cpm > 320 ? "fast" : "good";
+  return { chars, durationSec: Math.round(durationSec), cpm, pace, fillers, pauses: Math.max(0, Math.round(pauses)), sentences: sentences.length, avgSentence, longSentences, endings: { formal, polite, casual } };
+}
+const SPEAKING_REPORT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["oneLine", "honorific", "honorificNote", "fixes", "spokenVersion", "tips"],
+  properties: {
+    oneLine: { type: "string", description: "말하기에서 가장 먼저 고칠 한 가지를 '~해 보세요'로 끝나는 행동 조언 한 문장으로(내용 요약 금지). 예: '첫 문장에서 \'음, 어\' 없이 \'제 강점은 ~입니다\'로 바로 시작해 보세요.'" },
+    honorific: { type: "string", enum: ["consistent", "mixed", "casual"], description: "면접 말투 — 합니다체/해요체로 일관되면 consistent, 섞이면 mixed, 반말이 있으면 casual" },
+    honorificNote: { type: "string", description: "말투에 대한 짧은 조언(예: '~했어요'와 '~했습니다'가 섞여요. 면접에선 '~했습니다'로 맞춰 보세요)" },
+    fixes: {
+      type: "array",
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["original", "better", "why"],
+        properties: {
+          original: { type: "string", description: "학생이 실제로 말한 어색하거나 틀린 표현(받아쓰기에서 그대로 인용)" },
+          better: { type: "string", description: "면접에서 자연스러운 한국어 표현" },
+          why: { type: "string", description: "짧은 이유(조사·어휘·높임말·너무 긴 문장 등)" }
+        }
+      }
+    },
+    spokenVersion: { type: "string", description: "학생의 답을 사실은 그대로 두고, 면접에서 말로 하기 좋게 다듬은 버전. 첫 문장은 질문에 대한 결론(예: '제 강점은 ~입니다'), 그다음 근거 경험, 마지막에 한 문장 정리. 한 문장 40자 안팎, 합니다체. 400자 이내." },
+    tips: { type: "array", maxItems: 3, items: { type: "string", description: "다음 답변 때 말하기 연습 팁" } }
+  }
+} as const;
+const speakingBody = z.object({
+  question: z.string().trim().min(2).max(600),
+  transcript: z.string().trim().min(2).max(6000),
+  durationSec: z.number().min(1).max(1800),
+  pauses: z.number().int().min(0).max(200).optional()
+});
+// POST /career-launch/speaking-analysis — 말로 한 답변의 말하기 리포트(내용 점수와 별개). 프로그램 기능(수강 중이면 포인트 없이).
+app.post("/career-launch/speaking-analysis", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "cl-speaking" }), aiCharge("career_speaking_analysis"), async (req, res) => {
+  const parsed = speakingBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  const { question, transcript, durationSec, pauses } = parsed.data;
+  const metrics = speakingMetrics(transcript, durationSec, pauses ?? 0);
+  if (!llmReady) return res.json({ ok: true, metrics, report: null });
+  try {
+    const korean = await careerStudentIsKorean(userId);
+    const system =
+      (korean
+        ? "너는 한국 기업 면접을 준비하는 학생의 면접 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 또렷하고 간결하게(군말 없이, 결론부터, 면접에 맞는 말투로) 말하도록 도와줘. "
+        : "너는 한국 기업 면접을 준비하는 외국인 학생의 한국어 말하기 코치야. 학생이 면접 질문에 '말로' 답한 내용을 음성 인식으로 받아 적은 글을 보고, 면접에서 더 자연스럽고 또렷하게 말하도록 도와줘. ") +
+      "받아쓰기라 띄어쓰기·마침표가 없거나 인식 오류가 있을 수 있어 — 인식 오류로 보이는 건 지적하지 마. 발음·억양·국적은 평가하지 마(소리는 없다). 내용 평가(직무 역량)는 하지 말고 말하기만. " +
+      "fixes 는 학생이 실제로 말한 표현만 인용해(지어내지 마). spokenVersion 은 학생이 말한 사실만 써. 한국어로.";
+    const user = `[면접 질문]\n${question}\n\n[학생이 말한 답(받아쓰기)]\n${transcript}\n\n[측정]\n말한 시간 ${metrics.durationSec}초 · 분당 ${metrics.cpm}자 · 군말 ${metrics.fillers}번 · 3초 넘게 멈춤 ${metrics.pauses}번 · 문장 ${metrics.sentences}개(평균 ${metrics.avgSentence}자, 70자 넘는 문장 ${metrics.longSentences}개) · 끝맺음 합니다체 ${metrics.endings.formal} / 해요체 ${metrics.endings.polite} / 반말 추정 ${metrics.endings.casual}`;
+    const report = await careerChatComplete(system, user, "cl_speaking_report", SPEAKING_REPORT_SCHEMA as unknown as Record<string, unknown>, true, { userId, feature: "career_speaking_analysis" });
+    return res.json({ ok: true, metrics, report });
+  } catch (err) {
+    console.error("[career/speaking] failed", err);
+    // 숫자 리포트는 그대로 준다 — AI 부분만 빠진다.
+    return res.json({ ok: true, metrics, report: null });
+  }
+});
+
 // ── 기본 모의면접(카드형) — 내 이력서·자소서 기반, 유형별(self/job/fit/pressure) 질문 생성·채점 ──
-const BASIC_FOCUS = z.enum(["self", "job", "fit", "pressure"]);
+const BASIC_FOCUS = z.enum(["self", "job", "fit", "pressure", "global"]);
 const BASIC_FOCUS_RULE: Record<string, string> = {
   self: "자기소개 면접: 지원 동기, 성격의 장단점·강점, 성장 배경·가치관, 입사 후 포부 등 '이 사람이 누구인지'를 묻는 질문. 이력서 경력을 하나씩 캐묻지 말 것.",
   job: "직무 면접: 학생의 경력·프로젝트·스킬을 근거로 실제로 한 일, 성과, 문제 해결 방식, 직무 이해도를 파고드는 실무 질문.",
   fit: "인성·컬처핏 면접: 협업·갈등 해결, 가치관, 일하는 태도, (유학생인 경우) 한국 조직 적응 등 태도를 보는 질문.",
-  pressure: "압박 면접: 답변의 근거·수치·본인 역할을 검증하고 약점을 파고드는 까다로운 질문(인신공격이 아니라 근거 확인)."
+  pressure: "압박 면접: 답변의 근거·수치·본인 역할을 검증하고 약점을 파고드는 까다로운 질문(인신공격이 아니라 근거 확인).",
+  global:
+    "외국인 지원자 면접: 한국 기업이 외국인(유학생) 지원자에게 실제로 자주 묻는 질문 — 왜 본국이 아니라 한국에서 일하려는지, 왜 이 회사·직무인지, 비자 상태와 근무 가능 기간·장기 근속 계획, 한국어 수준과 업무 소통 방식, 한국 조직 문화(위계·보고·회식·빠른 업무 속도) 적응, 외국인으로서의 강점(언어·해외 시장·다문화 경험). 학생 서류의 국적·전공·경험에 맞춰 구체적으로. 종교·결혼·출산·가족 계획처럼 차별적이거나 사생활을 묻는 질문은 절대 하지 말 것."
 };
 async function basicDocContext(uid: string): Promise<string> {
   const [summary, resumeRow, coverRow] = await Promise.all([
@@ -23422,7 +24364,7 @@ const basicQSchema = z.object({ focus: BASIC_FOCUS, count: z.number().int().min(
 app.post("/career-launch/basic-interview/questions", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "basic-iv-q", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = basicQSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const uid = req.auth!.userId;
     const { focus, count, locale, asked } = parsed.data;
@@ -23449,7 +24391,7 @@ const basicScoreSchema = z.object({ focus: BASIC_FOCUS, question: z.string().tri
 app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnrollment, rateLimit({ windowMs: 60_000, max: 40, keyPrefix: "basic-iv-s", message: "잠시 후 다시 시도해 주세요." }), async (req, res) => {
   const parsed = basicScoreSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
-  if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
   try {
     const uid = req.auth!.userId;
     const { focus, question, answer, locale } = parsed.data;
@@ -23457,6 +24399,9 @@ app.post("/career-launch/basic-interview/score", authenticate, requireCareerEnro
     const systemPrompt =
       `너는 '${focus}' 유형의 한국 기업 면접관이야. 학생의 이력서·자기소개서를 참고해 답변을 평가해. ` +
       "score 는 0~100 정수. modelAnswer 는 이 학생에게 어울리는 모범답안을 1인칭 2~4문장으로(학생 서류의 실제 경험 활용, 없는 사실 금지). feedback 은 코칭 2~3문장. strengths·improvements 각 1~3개. 격려하는 톤. " +
+      (focus === "global"
+        ? "외국인 지원자 질문 평가 기준: 한국·이 회사를 고른 이유가 구체적인지(막연한 '한국이 좋아서'는 약함), 장기 근속 의지가 보이는지, 비자·근무 기간은 아는 사실을 정확하고 자신 있게 말하는지(모르는 건 단정하지 말고 확인하겠다고), 한국어 수준은 솔직하되 업무 소통 방법과 노력을 보여 주는지, 문화 질문은 존중과 실제 적응 경험으로 답하는지. 국적 자체를 평가하지 마. modelAnswer 에 비자 종류·기간 같은 사실은 학생 서류에 있을 때만 쓰고, 없으면 '[내 비자 종류]'처럼 채울 자리로 남겨. "
+        : "") +
       'JSON 한 개 객체로만 응답: { "score": number, "modelAnswer": string, "feedback": string, "strengths": string[], "improvements": string[] }' + aiLangDirective(locale);
     const userPrompt = `${ctx}\n\n[질문]\n${question}\n\n[학생 답변]\n${answer}`;
     const pj = (await careerChatComplete(systemPrompt, userPrompt, "basic_interview_score", POSTING_SCORE_SCHEMA)) as { score?: unknown; modelAnswer?: unknown; feedback?: unknown; strengths?: unknown; improvements?: unknown };
@@ -23735,7 +24680,7 @@ app.post("/career-launch/profile-headline", authenticate, requireCareerEnrollmen
     const cached = (state.profileHeadline && typeof state.profileHeadline === "object" ? state.profileHeadline : {}) as { sig?: string; headline?: string; subline?: string };
     if (cached.headline && cached.sig === sig) return res.json({ ok: true, headline: cached.headline, subline: cached.subline ?? "", cached: true });
     if (parsed.data.generate === false) return res.json({ ok: true, headline: cached.headline ?? null, subline: cached.subline ?? null, stale: Boolean(cached.headline), needsGenerate: true });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     {
       const deny = await aiGate(uid, "career_week_feedback");
       if (deny) return res.status(deny.status).json(deny.body);
@@ -23837,7 +24782,7 @@ app.post(
       // 캐시 미스 — 생성은 사용자 명시 요청(generate 기본 true; false면 생성·과금 없이 안내).
       // 내용이 바뀐 경우엔 옛 피드백을 함께 돌려주고 stale=true 로 표시(사라지지 않게 — 최신화는 '다시 받기'로).
       if (parsed.data.generate === false) return res.json({ ok: true, feedback: cachedText, stale: Boolean(cachedText), needsGenerate: true });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
       {
         const deny = await aiGate(uid, "career_week_feedback");
@@ -23871,7 +24816,7 @@ app.post(
 );
 
 // ── 완주 최종 피드백 — 이력서+자소서+면접 결과를 종합. 입력이 바뀌면 갱신(캐시) ──
-const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접" };
+const INTERVIEW_TYPE_LABEL: Record<string, string> = { self: "자기소개 면접", job: "직무 면접", fit: "인성·컬처핏 면접", pressure: "압박 면접", global: "외국인 지원자 면접" };
 // 프롬프트/형식이 바뀌면 올려서 기존 캐시를 한 번 무효화. 이후로는 생성 1회 후 재사용(토큰 절약).
 const FINAL_FEEDBACK_VERSION = 2;
 app.post(
@@ -23912,7 +24857,7 @@ app.post(
       }
       // 캐시 미스/재생성 — 사용자 명시 요청일 때만 생성(generate 기본 true; false면 안내만).
       if (!generate) return res.json({ ok: true, feedback: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       // 무료지만 어뷰즈 방지 가드레일은 적용(인증·레이트리밋·일일 상한).
       {
         const deny = await aiGate(uid, "career_final_feedback");
@@ -24040,7 +24985,7 @@ app.post(
         return res.json({ ok: true, report: cached.data, stale, cached: true, jobKey: activeJob });
       }
       if (!generate) return res.json({ ok: true, report: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const profileSummary = await buildCandidateProfileSummary(uid);
       const systemPrompt =
@@ -24182,7 +25127,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 채용 담당자 관점의 이력서 코치야. 학생의 이력서를 심층 평가한다. 4항목을 0~100으로: " +
@@ -24275,7 +25220,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 채용 담당자 관점의 자기소개서 코치야. 학생의 자기소개서를 심층 평가한다. 5항목을 0~100으로: " +
@@ -24374,7 +25319,7 @@ app.post(
         return res.json({ ok: true, score: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, score: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const resumeContent = (resumeRow?.content ?? {}) as Record<string, unknown>;
       const coverContent = (coverRow?.content ?? {}) as Record<string, unknown>;
@@ -24541,7 +25486,7 @@ app.post(
         return res.json({ ok: true, recommendation: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, recommendation: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const expText = expBank.length
         ? expBank
@@ -24639,7 +25584,7 @@ app.post(
         return res.json({ ok: true, result: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 지원자의 이력서를 처음 보는 채용담당자다. 이 이력서를 딱 10초 동안 훑어봤다고 가정하고 아래에만 답한다.\n" +
@@ -24721,7 +25666,7 @@ app.post(
       if (!hasResumeDataContent(normalizeResumeData(resumeContent))) {
         return res.json({ ok: true, result: null, needsResume: true });
       }
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
       const expBank = Array.isArray(progState.experienceBank) ? (progState.experienceBank as Array<Record<string, unknown>>) : [];
       const expText = expBank.length
         ? expBank.map((e) => (typeof e.experience === "string" ? `- ${e.experience}` : "")).filter(Boolean).join("\n")
@@ -24826,7 +25771,7 @@ app.post(
         return res.json({ ok: true, stories: (cached.data as { stories?: unknown }).stories ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, stories: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const expText = expBank
         .map((e) => {
@@ -24932,7 +25877,7 @@ app.post(
         return res.json({ ok: true, result: cached.data, stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, result: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 자기소개서 심사관이다. 아래 자기소개서를 두 관점으로 검토한다.\n" +
@@ -25017,7 +25962,7 @@ app.post(
         return res.json({ ok: true, answers: (cached.data as { answers?: unknown }).answers ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, answers: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const storyText = stories.length
         ? stories.map((s) => `- [${typeof s.category === "string" ? s.category : ""}] ${typeof s.title === "string" ? s.title : ""}`).join("\n")
@@ -25079,7 +26024,7 @@ app.post(
   async (req, res) => {
     const parsed = interviewRetrySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const uid = req.auth!.userId;
     const { question, answer, locale } = parsed.data;
     try {
@@ -25140,7 +26085,7 @@ app.post(
   async (req, res) => {
     const parsed = resumeBulletSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "너는 신입 채용 전문 Resume Coach다. 학생이 쓴 거친 이력서 문장 하나를 채용담당자가 읽기 좋은 개조식 불렛으로 다듬는다.\n" +
@@ -25188,7 +26133,7 @@ app.post(
   async (req, res) => {
     const parsed = coverQuestionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const uid = req.auth!.userId;
     try {
       const progRow = await prisma.careerLaunchProgress.findUnique({ where: { studentUserId: uid } });
@@ -25275,7 +26220,7 @@ app.post(
         return res.json({ ok: true, questions: (cached.data as { questions?: unknown }).questions ?? [], stale, cached: true });
       }
       if (!generate) return res.json({ ok: true, questions: null, needsGenerate: true, stale: false });
-      if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+      if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
       const systemPrompt =
         "너는 이 채용의 면접관이다. 지원자의 이력서·자기소개서·선정 직무를 분석해 실제 면접에서 나올 가능성이 높은 예상 질문을 생성한다.\n" +
@@ -26579,7 +27524,7 @@ app.post(
   async (req, res) => {
     const parsed = tailorResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { resumeText, jobText, coverLetterText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -26622,8 +27567,7 @@ app.post(
         required: ["score", "matched", "missing", "summary", "suggestions"]
       };
       const { data } = await generateJson<{ score?: unknown; matched?: unknown; missing?: unknown; summary?: unknown; suggestions?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.4,
         system: systemPrompt,
         user: userPrompt,
@@ -26698,12 +27642,11 @@ app.post(
   async (req, res) => {
     const parsed = reviewResumeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { items } = parsed.data;
       const { system, user } = buildResumeReviewPrompt(parsed.data);
       const { data, error } = await generateJson<{ findings?: unknown }>({
-        openai,
         model: docReviewModel,
         temperature: 0.2,
         system,
@@ -26752,12 +27695,11 @@ app.post(
   async (req, res) => {
     const parsed = reviewCoverSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { questions } = parsed.data;
       const { system, user } = buildCoverReviewPrompt(parsed.data);
       const { data, error } = await generateJson<{ findings?: unknown }>({
-        openai,
         model: docReviewModel,
         temperature: 0.2,
         system,
@@ -26866,10 +27808,11 @@ app.post(
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 15, keyPrefix: "ai-interview-q", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_questions"),
+  interviewCreditGuard("check"),
   async (req, res) => {
     const parsed = interviewQuestionsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { jobText, coverLetterText, desiredJobRole, askedQuestions, count, category, locale } = parsed.data;
       const resumeText = (parsed.data.resumeText ?? "").trim();
@@ -26914,18 +27857,7 @@ app.post(
         `${resumeText ? `\n[이력서]\n${resumeText}` : "\n(이력서 미제공 — 개인 이력과 무관한 표준/공고 기반 질문만 생성)"}` +
         `${coverLetterText ? `\n\n[자기소개서]\n${coverLetterText}` : ""}` +
         `${asked.length ? `\n\n[이미 물어본 질문 — 겹치지 않게]\n${asked.map((q) => `- ${q}`).join("\n")}` : ""}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { questions?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.6, schema: MOCK_QUESTIONS_SCHEMA, schemaName: "interview_questions" })) as { questions?: unknown };
       const allowedCats = new Set(["intro", "experience", "competency", "weakness"]);
       const questions = Array.isArray(j.questions)
         ? j.questions
@@ -26977,7 +27909,7 @@ app.post(
   async (req, res) => {
     const parsed = positionDraftSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { title, jobRole, employmentType, companyName, locale } = parsed.data;
       const systemPrompt =
@@ -26993,16 +27925,7 @@ app.post(
         `${jobRole ? `[직무] ${jobRole}\n` : ""}` +
         `${employmentType ? `[고용 형태] ${employmentType}\n` : ""}` +
         `${companyName ? `[회사] ${companyName}\n` : ""}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let j: { mainResponsibilities?: unknown; requiredQualifications?: unknown; preferredQualifications?: unknown } = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const clean = (v: unknown) => (typeof v === "string" ? v.trim().slice(0, 2000) : "");
@@ -27035,7 +27958,7 @@ app.post(
   async (req, res) => {
     const parsed = companyPolishSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, name, industry, locale } = parsed.data;
       const systemPrompt =
@@ -27049,16 +27972,7 @@ app.post(
         `${name ? `[회사명] ${name}\n` : ""}` +
         `${industry ? `[업종] ${industry}\n` : ""}` +
         `[소개 초안]\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let j: { description?: unknown } = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const description = typeof j.description === "string" ? j.description.trim().slice(0, 2000) : "";
@@ -27071,16 +27985,837 @@ app.post(
   }
 );
 
+// POST /members/me/ai/interview-prep — '면접 전날 볼 한 장'의 예상 질문 5개 + 모범 답안.
+// 공고(업무·자격) · 이 회사 면접 후기 질문 · 내 이력서·자소서 · 내가 연습한 답을 보고, 질문마다 왜 묻는지·모범 답안·말할 때 팁.
+// 모범 답안은 이력서 사실만으로(없는 경험·수치 금지). 모의 면접과 같은 모델(interviewModel, Claude 우선). 화면이 공고별로 기억한다.
+// ── 모의 면접 이용권 ─────────────────────────────
+// 모의 면접은 유료(2026-10 결정). 단위는 '답변 피드백 1개' — 이용권 1회 = 답변 5개.
+//  - 가입 후 처음 쓸 때 무료 1회(답변 5개)를 넣어 준다.
+//  - 차감: 답변 피드백(interview-feedback) 1개, 면접 전날 예상 질문 만들기(interview-prep) 1개. 질문 만들기는 무료.
+//  - '오늘의 질문'은 하루 1번 무료(daily: true) — 매일 들어오게 하는 장치.
+//  - 충전: 토스페이먼츠 결제(아래 /members/me/payments/*) · 운영자 지급.
+// 일반 AI 포인트(AiWallet — 매일 무료 적립)와는 따로 둔다. 같은 포인트로 차감하면 사실상 무료가 된다.
+const INTERVIEW_CREDITS_PER_SESSION = 5;
+const INTERVIEW_FREE_TRIAL_CREDITS = INTERVIEW_CREDITS_PER_SESSION;
+const INTERVIEW_DAILY_FREE_FEATURE = "__interview_daily_free__";
+// 판매 상품 — 금액은 서버가 정한다(클라이언트가 보낸 금액은 믿지 않는다). 가격은 임시값.
+const INTERVIEW_PRODUCTS = [
+  { key: "interview_1", sessions: 1, amount: 4900 },
+  { key: "interview_3", sessions: 3, amount: 12900 },
+  { key: "interview_10", sessions: 10, amount: 39000 }
+] as const;
+function interviewProduct(key: string) {
+  return INTERVIEW_PRODUCTS.find((p) => p.key === key) ?? null;
+}
+
+/** 지갑을 만들고(처음이면 무료 1회 + 원장) 잔액을 돌려준다. */
+async function interviewWalletEnsure(userId: string): Promise<number> {
+  const found = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  if (found) return found.credits;
+  // 포인트 모드에선 이용권 첫 1회를 주지 않는다(가입 보너스는 AI 포인트로 받는다).
+  if (aiPointsOn()) {
+    await prisma.interviewWallet.create({ data: { userId, credits: 0, trialGranted: true } }).catch(() => null);
+    return (await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0;
+  }
+  try {
+    await prisma.$transaction([
+      prisma.interviewWallet.create({ data: { userId, credits: INTERVIEW_FREE_TRIAL_CREDITS, trialGranted: true } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: INTERVIEW_FREE_TRIAL_CREDITS, reason: "free_trial" } })
+    ]);
+    return INTERVIEW_FREE_TRIAL_CREDITS;
+  } catch {
+    // 동시에 두 요청이 만들려 한 경우 — 이미 만들어진 지갑을 읽는다.
+    const again = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return again?.credits ?? 0;
+  }
+}
+
+/** 오늘의 질문 무료 1번을 오늘 이미 썼나. */
+async function interviewDailyFreeUsed(userId: string): Promise<boolean> {
+  const row = await prisma.aiUsage.findUnique({ where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey: String(aiKstDayIndex()) } }, select: { count: true } });
+  return (row?.count ?? 0) > 0;
+}
+
+/** 차감 전 확인 — 잔액이 없으면 402. 오늘의 질문 무료면 표시만 해 둔다(차감은 응답 성공 후 interviewCreditSpend). */
+// 유료화 스위치 — 켜기 전까지는 차감하지 않는다(지금 프로덕션 /talent 화면엔 결제 창이 없어서, 서버만 먼저 나가도 막히지 않게).
+// v2 가 열릴 때(또는 결제 창을 붙인 뒤) API 앱 설정에 INTERVIEW_PAYWALL_ENABLED=true.
+const interviewPaywallOn = () => process.env.INTERVIEW_PAYWALL_ENABLED === "true";
+
+/** check: 질문 만들기처럼 잔액만 확인하고 차감하지 않는 자리(이용권 0이면 402). */
+function interviewCreditGuard(kind: "feedback" | "prep" | "check"): express.RequestHandler {
+  return async (req, res, next) => {
+    // 포인트 유료화가 켜져 있으면 모의 면접도 AI 포인트(aiCharge)로 받는다 — 이용권 가드는 쉰다.
+    if (aiPointsOn() || !interviewPaywallOn()) return next();
+    try {
+      const userId = req.auth!.userId;
+      const credits = await interviewWalletEnsure(userId);
+      if (kind === "feedback" && req.body?.daily === true && !(await interviewDailyFreeUsed(userId))) {
+        res.locals.interviewFree = true;
+        return next();
+      }
+      if (credits < 1) {
+        return res.status(402).json({ ok: false, code: "INTERVIEW_CREDITS_REQUIRED", message: "모의 면접 이용권이 필요해요.", credits });
+      }
+      if (kind !== "check") res.locals.interviewCharge = kind;
+      return next();
+    } catch (err) {
+      console.error("[interview-credit] guard failed", err);
+      return res.status(500).json({ ok: false, message: "failed to check interview credits" });
+    }
+  };
+}
+
+/** 응답이 성공했을 때 1개 차감(오늘의 질문 무료면 그날 무료를 쓴 것으로). 남은 잔액을 돌려준다. */
+async function interviewCreditSpend(userId: string, res: express.Response): Promise<number> {
+  if (res.locals.interviewFree) {
+    const periodKey = String(aiKstDayIndex());
+    await prisma.aiUsage.upsert({
+      where: { userId_feature_periodKey: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey } },
+      create: { userId, feature: INTERVIEW_DAILY_FREE_FEATURE, periodKey, count: 1 },
+      update: { count: { increment: 1 } }
+    });
+  } else if (res.locals.interviewCharge) {
+    // 잔액이 1 이상일 때만 깎는다(동시 요청에도 음수가 되지 않게).
+    const r = await prisma.interviewWallet.updateMany({ where: { userId, credits: { gte: 1 } }, data: { credits: { decrement: 1 } } });
+    if (r.count === 1) await prisma.interviewCreditLog.create({ data: { userId, amount: -1, reason: String(res.locals.interviewCharge) } });
+  }
+  // 포인트 모드 — '남은 답변 수'(포인트 ÷ 답변 1개 비용)로 돌려준다(예전 화면 호환). 실제 잔액은 aiPoints 로 함께 간다.
+  if (aiPointsOn()) return interviewAnswersFromPoints(await aiWalletBalance(userId));
+  const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+  return w?.credits ?? 0;
+}
+
+async function aiWalletBalance(userId: string): Promise<number> {
+  return (await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }))?.balance ?? 0;
+}
+function interviewAnswersFromPoints(balance: number): number {
+  const per = aiFeatureCost("interview_feedback");
+  return per > 0 ? Math.floor(balance / per) : 0;
+}
+/** 화면용 포인트 상품표. */
+function aiPointProductsView() {
+  return AI_POINT_PRODUCTS.map((p) => ({ key: p.key, points: p.points, bonus: p.bonus, total: p.points + p.bonus, amount: p.amount, badge: p.badge }));
+}
+/** 화면용 기능별 비용표(0 은 뺀다). */
+function aiPointCostsView(): Record<string, number> {
+  return Object.fromEntries(Object.entries(AI_FEATURE_COST).filter(([, v]) => v > 0));
+}
+/** 포인트 결제 주문인가(상품 키로 구분 — 플래그를 끈 뒤에도 이미 낸 주문은 포인트로 처리). */
+const isPointsOrder = (o: { productKey: string }) => o.productKey.startsWith("points_");
+
+// 학생: AI 포인트 — 잔액(적립·이용권 전환 반영) · 적립 규칙 · 기능별 비용 · 충전 상품 · 최근 내역(30).
+app.get("/members/me/ai-points", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const balance = await aiWalletReconcile(userId);
+    const launchEditorFree = fromCareerLaunch(req) && (await isActiveCareerLaunchStudent(userId));
+    const [logs, dailyFreeUsed] = await Promise.all([
+      prisma.aiPointLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30, select: { id: true, amount: true, reason: true, createdAt: true } }),
+      interviewDailyFreeUsed(userId)
+    ]);
+    return res.json({
+      ok: true,
+      enabled: aiPointsOn(),
+      balance,
+      won: AI_POINT_WON,
+      daily: { welcome: aiWelcomeGrant(), grant: aiDailyGrant(), cap: aiDailyCap(), nextAt: aiQuotaResetAt() },
+      // 커리어런치에서 연 에디터면(수강 중) 에디터 기능 비용을 빼서 보낸다 — 화면에 가격·확인 창이 안 뜬다(실제 차감도 aiCharge 가 면제).
+      costs: launchEditorFree ? Object.fromEntries(Object.entries(aiPointCostsView()).filter(([k]) => !CAREER_EDITOR_FEATURES.has(k))) : aiPointCostsView(),
+      launchEditorFree,
+      perSet: INTERVIEW_CREDITS_PER_SESSION,
+      dailyFreeUsed,
+      paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
+      refundDays: SELF_REFUND_DAYS,
+      products: aiPointProductsView(),
+      logs
+    });
+  } catch (err) {
+    console.error("[ai-points] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load ai points" });
+  }
+});
+
+// 학생: 이용권 잔액 · 상품 · 최근 내역.
+app.get("/members/me/interview-credits", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    // 포인트 모드 — 이용권 대신 포인트를 '남은 답변 수'로 환산해 돌려준다(예전 화면이 깨지지 않게).
+    if (aiPointsOn()) {
+      const balance = await aiWalletReconcile(userId);
+      return res.json({
+        ok: true,
+        points: true,
+        balance,
+        credits: interviewAnswersFromPoints(balance),
+        perSession: INTERVIEW_CREDITS_PER_SESSION,
+        dailyFreeUsed: await interviewDailyFreeUsed(userId),
+        paywall: true,
+        paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
+        products: [],
+        logs: []
+      });
+    }
+    const credits = await interviewWalletEnsure(userId);
+    const [logs, dailyFreeUsed] = await Promise.all([
+      prisma.interviewCreditLog.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 20, select: { amount: true, reason: true, createdAt: true } }),
+      interviewDailyFreeUsed(userId)
+    ]);
+    return res.json({
+      ok: true,
+      credits,
+      perSession: INTERVIEW_CREDITS_PER_SESSION,
+      dailyFreeUsed,
+      paywall: interviewPaywallOn(),
+      paymentsEnabled: paymentProvider() !== null,
+      paymentProvider: paymentProvider(),
+      products: INTERVIEW_PRODUCTS.map((p) => ({ key: p.key, sessions: p.sessions, credits: p.sessions * INTERVIEW_CREDITS_PER_SESSION, amount: p.amount })),
+      logs
+    });
+  } catch (err) {
+    console.error("[interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load interview credits" });
+  }
+});
+
+// ── 결제 PG ──
+// PAYMENT_PROVIDER=payapp|toss 로 고른다(없으면 키가 있는 쪽 — 페이앱 우선). 키가 없으면 결제 꺼짐(화면은 '결제 준비 중').
+// 페이앱: PAYAPP_USERID(판매자 아이디)·PAYAPP_LINKKEY·PAYAPP_LINKVAL(연동 KEY·VALUE, 비밀 — 브라우저로 내려보내지 않는다).
+// 흐름: 서버가 payrequest → 받은 payurl 로 사용자 이동 → 결제가 끝나면 페이앱이 /payments/payapp/feedback 으로 결과 통보(여기서만 확정) → returnurl(결과 화면)은 주문 상태를 확인만.
+const PAYAPP_API = "https://api.payapp.kr/oapi/apiLoad.html";
+const payappCfg = () => ({ userid: process.env.PAYAPP_USERID ?? "", linkkey: process.env.PAYAPP_LINKKEY ?? "", linkval: process.env.PAYAPP_LINKVAL ?? "" });
+function paymentProvider(): "payapp" | "toss" | null {
+  const c = payappCfg();
+  const payapp = Boolean(c.userid && c.linkkey && c.linkval);
+  const toss = Boolean(process.env.TOSS_SECRET_KEY);
+  const want = String(process.env.PAYMENT_PROVIDER ?? "").toLowerCase();
+  if (want === "payapp") return payapp ? "payapp" : null;
+  if (want === "toss") return toss ? "toss" : null;
+  return payapp ? "payapp" : toss ? "toss" : null;
+}
+async function payappCall(params: Record<string, string>): Promise<Record<string, string>> {
+  const resp = await fetch(PAYAPP_API, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }, body: new URLSearchParams(params).toString() });
+  // 응답도 폼 인코딩(state=1&mul_no=…&payurl=…)
+  return Object.fromEntries(new URLSearchParams(await resp.text())) as Record<string, string>;
+}
+/** 페이앱 결제수단 코드 → 화면용 이름(모르는 코드는 그대로). */
+function payappMethodLabel(code: string | null): string {
+  // https://docs.payapp.kr/dev_center01.html — pay_type
+  const m: Record<string, string> = { "1": "카드", "2": "휴대전화", "6": "계좌이체", "7": "가상계좌", "15": "카카오페이", "16": "네이버페이", "21": "스마일페이", "23": "애플페이", "24": "내통장결제", "25": "토스페이" };
+  return code ? (m[code] ?? `페이앱 ${code}`) : "페이앱";
+}
+/** 이 API 의 바깥 주소 — 페이앱 결제 통보를 받을 곳. API_PUBLIC_URL 이 없으면 요청 호스트(https). */
+function apiPublicBase(req: express.Request): string {
+  const env = String(process.env.API_PUBLIC_URL ?? "").replace(/\/+$/, "");
+  return env || `https://${req.get("host")}`;
+}
+
+/** 결제 주문 만들기 — 금액·이름·충전량은 서버 상품표로. 포인트 모드면 포인트 상품만, 아니면 예전 모의 면접 이용권 상품만. */
+async function createPaymentOrderRow(userId: string, productKey: string, provider: "toss" | "payapp") {
+  const pointsProduct = aiPointsOn() ? aiPointProduct(productKey) : null;
+  const product = !aiPointsOn() ? interviewProduct(productKey) : null;
+  if (pointsProduct) {
+    const total = pointsProduct.points + pointsProduct.bonus;
+    return prisma.paymentOrder.create({
+      data: { id: `pts-${randomBytes(12).toString("hex")}`, userId, provider, productKey: pointsProduct.key, orderName: `AI 포인트 ${total.toLocaleString("en-US")}P`, amount: pointsProduct.amount, credits: total },
+      select: { id: true, orderName: true, amount: true }
+    });
+  }
+  if (!product) return null;
+  return prisma.paymentOrder.create({
+    data: { id: `ivc-${randomBytes(12).toString("hex")}`, userId, provider, productKey: product.key, orderName: `모의 면접 이용권 ${product.sessions}회`, amount: product.amount, credits: product.sessions * INTERVIEW_CREDITS_PER_SESSION },
+    select: { id: true, orderName: true, amount: true }
+  });
+}
+
+/** 결제 확정 — READY → DONE 으로 바뀐 경우에만 충전(동시 호출·통보 재전송·새로고침에도 한 번). 충전했으면 true. */
+async function fulfillPaidOrder(order: { id: string; userId: string; productKey: string; credits: number }, paid: { paymentKey: string; method: string | null; approvedAt: Date }): Promise<boolean> {
+  const points = isPointsOrder(order);
+  if (points) await aiWalletReconcile(order.userId);
+  else await interviewWalletEnsure(order.userId);
+  return prisma.$transaction(async (tx) => {
+    const moved = await tx.paymentOrder.updateMany({ where: { id: order.id, status: "READY" }, data: { status: "DONE", paymentKey: paid.paymentKey, method: paid.method, approvedAt: paid.approvedAt } });
+    if (moved.count !== 1) return false;
+    if (points) {
+      await tx.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: order.credits } } });
+      await tx.aiPointLog.create({ data: { userId: order.userId, amount: order.credits, reason: "purchase" } });
+    } else {
+      await tx.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: order.credits } } });
+      await tx.interviewCreditLog.create({ data: { userId: order.userId, amount: order.credits, reason: "purchase", orderId: order.id } });
+    }
+    return true;
+  });
+}
+
+// 학생: 결제 주문 만들기(토스) — 토스 결제창에 넘길 orderId 를 돌려준다.
+const paymentOrderSchema = z.object({ productKey: z.string().max(40) });
+app.post("/members/me/payments/orders", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
+  const parsed = paymentOrderSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid product" });
+  if (paymentProvider() !== "toss") return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  try {
+    const order = await createPaymentOrderRow(req.auth!.userId, parsed.data.productKey, "toss");
+    if (!order) return res.status(400).json({ ok: false, message: "invalid product" });
+    return res.json({ ok: true, orderId: order.id, orderName: order.orderName, amount: order.amount, customerKey: `u-${req.auth!.userId}` });
+  } catch (err) {
+    console.error("[payments/orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 학생: 페이앱 결제 요청 — 주문을 만들고 페이앱 결제창 주소(payurl)를 돌려준다. 휴대폰 번호는 페이앱이 꼭 받는 값(문자는 보내지 않음).
+const payappRequestSchema = z.object({ productKey: z.string().max(40), phone: z.string().regex(/^01[016789]\d{7,8}$/), back: z.string().max(300).optional() });
+app.post("/members/me/payments/payapp/request", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "pay-order" }), async (req, res) => {
+  const parsed = payappRequestSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, code: "INVALID_PHONE", message: "휴대폰 번호를 다시 확인해 주세요." });
+  if (paymentProvider() !== "payapp") return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  try {
+    const order = await createPaymentOrderRow(req.auth!.userId, parsed.data.productKey, "payapp");
+    if (!order) return res.status(400).json({ ok: false, message: "invalid product" });
+    // 돌아올 곳 — 우리 사이트 talent 주소만
+    const back = parsed.data.back && parsed.data.back.startsWith("/talent/") && !parsed.data.back.startsWith("//") ? parsed.data.back : "/talent/payments";
+    const out = await payappCall({
+      cmd: "payrequest",
+      userid: payappCfg().userid,
+      shopname: "Aply",
+      goodname: order.orderName,
+      price: String(order.amount),
+      recvphone: parsed.data.phone,
+      smsuse: "n", // 결제 링크 문자를 보내지 않는다 — 바로 결제창으로
+      feedbackurl: `${apiPublicBase(req)}/payments/payapp/feedback`,
+      // 페이앱은 결제 뒤 returnurl 로 POST 로 보낸다 — API 가 받아 303 으로 웹 결과 화면(GET)에 넘긴다
+      returnurl: `${apiPublicBase(req)}/payments/payapp/return?orderId=${encodeURIComponent(order.id)}&back=${encodeURIComponent(back)}`,
+      var1: order.id,
+      checkretry: "y", // 통보에 SUCCESS 를 못 받으면 페이앱이 다시 보낸다
+      openpaytype: "card,kakaopay,naverpay,tosspay,phone"
+    });
+    if (out.state !== "1" || !out.payurl || !out.mul_no) {
+      await prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "FAILED", failReason: `PAYAPP_${out.errno ?? "REQUEST"}`.slice(0, 120) } });
+      console.error("[payapp/request] 결제 요청 실패", out.errno, out.errorMessage);
+      return res.status(502).json({ ok: false, code: "PAYAPP_REQUEST_FAILED", message: "결제를 시작하지 못했어요. 잠시 후 다시 해 보세요." });
+    }
+    // 결제요청번호(mul_no)는 통보를 맞춰 볼 때 쓴다
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { paymentKey: out.mul_no } });
+    return res.json({ ok: true, orderId: order.id, payurl: out.payurl });
+  } catch (err) {
+    console.error("[payapp/request] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to create order" });
+  }
+});
+
+// 페이앱 결제 뒤 돌아오는 곳(returnurl) — 페이앱이 POST 로 보내므로 받아서 웹 결과 화면으로 303(GET). 결제 확정은 여기서 하지 않는다(통보에서만).
+app.all("/payments/payapp/return", (req, res) => {
+  const orderId = String(req.query.orderId ?? "").replace(/[^A-Za-z0-9-]/g, "").slice(0, 64);
+  const raw = String(req.query.back ?? "");
+  const back = raw.startsWith("/talent/") && !raw.startsWith("//") ? raw : "/talent/payments";
+  const web = String(process.env.PLATFORM_WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+  return res.redirect(303, `${web}/v2/payments/success?provider=payapp&orderId=${encodeURIComponent(orderId)}&back=${encodeURIComponent(back)}`);
+});
+
+// 페이앱 결제 통보(feedbackurl) — 서버 대 서버 POST(폼 인코딩). 여기서만 결제를 확정한다.
+//  - 판매자 아이디·연동 KEY·VALUE 가 맞는지, 결제요청번호·금액이 주문과 같은지 확인
+//  - 같은 통보가 여러 번 올 수 있다 → 이미 처리한 주문은 그대로 SUCCESS
+//  - 응답은 HTTP 200 + 본문 'SUCCESS' 만 성공(그 밖엔 페이앱이 다시 보낸다)
+app.post("/payments/payapp/feedback", express.urlencoded({ extended: false, limit: "100kb" }), async (req, res) => {
+  const text = (body: string) => res.status(200).type("text/plain").send(body);
+  const f = (k: string) => (typeof req.body?.[k] === "string" ? (req.body[k] as string) : "");
+  const c = payappCfg();
+  if (!(c.userid && c.linkkey && c.linkval) || f("userid") !== c.userid || f("linkkey") !== c.linkkey || f("linkval") !== c.linkval) {
+    console.warn("[payapp/feedback] 검증 실패 — 연동 정보가 맞지 않아요");
+    return text("FAIL");
+  }
+  const orderId = f("var1");
+  const mulNo = f("mul_no");
+  const state = f("pay_state");
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
+    if (!order || order.provider !== "payapp") {
+      console.warn(`[payapp/feedback] 주문 없음 ${orderId}`);
+      return text("FAIL");
+    }
+    if (order.paymentKey && order.paymentKey !== mulNo) {
+      console.warn(`[payapp/feedback] 결제요청번호 불일치 ${orderId} ${mulNo}`);
+      return text("FAIL");
+    }
+    if (state === "4") {
+      // 결제 완료 — 금액이 주문과 다르면 확정하지 않는다(운영자 확인 필요)
+      if (Number(f("price")) !== order.amount) {
+        console.error(`[payapp/feedback] 금액 불일치 ${orderId} 통보=${f("price")} 주문=${order.amount}`);
+        await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
+        return text("SUCCESS");
+      }
+      const payDate = f("pay_date");
+      const approvedAt = payDate ? new Date(`${payDate.replace(" ", "T")}+09:00`) : new Date();
+      const credited = await fulfillPaidOrder(order, { paymentKey: mulNo, method: payappMethodLabel(f("pay_type") || null), approvedAt: Number.isNaN(approvedAt.getTime()) ? new Date() : approvedAt });
+      console.info(`[payapp/feedback] ${credited ? "결제 완료" : "이미 처리한 결제"} ${orderId} ${order.amount}원`);
+    } else if (state === "8" || state === "32" || state === "9" || state === "64") {
+      // 요청 취소 · 승인 취소 — 우리 환불 흐름은 먼저 CANCELED 로 바꾸고 취소하므로, 여기 오는 DONE 주문은 페이앱 쪽에서 직접 취소한 것.
+      const moved = await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "DONE" }, data: { status: "CANCELED", canceledAt: new Date(), canceledAmount: order.amount, cancelReason: "payapp: 페이앱에서 취소" } });
+      if (moved.count === 1) {
+        // 받은 만큼 회수(이미 쓴 만큼은 회수하지 못한다 — 운영자가 확인)
+        const points = isPointsOrder(order);
+        const balance = points ? await aiWalletBalance(order.userId) : ((await prisma.interviewWallet.findUnique({ where: { userId: order.userId }, select: { credits: true } }))?.credits ?? 0);
+        const take = Math.min(balance, order.credits);
+        if (take > 0) {
+          if (points) {
+            await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { decrement: take } } });
+            await prisma.aiPointLog.create({ data: { userId: order.userId, amount: -take, reason: "refund" } });
+          } else {
+            await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { decrement: take } } });
+            await prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -take, reason: "refund", orderId } });
+          }
+        }
+        console.info(`[payapp/feedback] 페이앱 쪽 취소 ${orderId} 회수=${take}/${order.credits}`);
+      } else if (order.status === "READY") {
+        await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "READY" }, data: { status: "FAILED", failReason: `PAYAPP_STATE_${state}` } });
+      }
+    } else if (state === "70" || state === "71") {
+      // 부분 취소 — 금액·회수량은 운영자가 확인(자동 회수하지 않음)
+      await prisma.paymentOrder.updateMany({ where: { id: orderId, status: "DONE" }, data: { status: "PARTIAL_CANCELED", canceledAt: new Date(), cancelReason: "payapp: 페이앱에서 부분 취소" } });
+      console.warn(`[payapp/feedback] 페이앱 쪽 부분 취소 ${orderId} — 운영자 확인 필요`);
+    }
+    // 1(요청) · 10(입금 대기) 등은 기다린다
+    return text("SUCCESS");
+  } catch (err) {
+    console.error(`[payapp/feedback] 처리 실패 ${orderId}`, err);
+    return text("FAIL"); // 일시 오류 — 페이앱이 다시 보낸다
+  }
+});
+
+// 학생: 주문 상태 — 페이앱 결제 뒤 결과 화면이 확정(통보)을 기다리며 물어본다.
+app.get("/members/me/payments/:orderId/status", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) }, select: { userId: true, status: true, productKey: true, credits: true } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    const points = isPointsOrder(order);
+    const balance = points ? await aiWalletBalance(userId) : ((await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0);
+    return res.json({ ok: true, status: order.status, kind: points ? "points" : "interview", added: order.credits, balance, credits: balance });
+  } catch (err) {
+    console.error("[payments/status] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load order" });
+  }
+});
+
+// 학생: 결제 승인 — 토스 결제창이 성공 주소로 돌려보낸 paymentKey·orderId·amount 를 서버가 확인하고 토스에 승인 요청.
+// 금액이 주문과 다르면 거절. 이미 처리된 주문이면 같은 결과를 돌려준다(새로고침·중복 호출에도 한 번만 충전).
+const paymentConfirmSchema = z.object({ paymentKey: z.string().min(1).max(200), orderId: z.string().min(6).max(64), amount: z.coerce.number().int().positive() });
+app.post("/members/me/payments/confirm", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 20, keyPrefix: "pay-confirm" }), async (req, res) => {
+  const parsed = paymentConfirmSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret) return res.status(503).json({ ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 준비하고 있어요." });
+  const { paymentKey, orderId, amount } = parsed.data;
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status === "DONE") {
+      if (isPointsOrder(order)) {
+        const balance = await aiWalletBalance(userId);
+        return res.json({ ok: true, kind: "points", alreadyDone: true, balance, credits: balance, added: order.credits });
+      }
+      const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+      return res.json({ ok: true, alreadyDone: true, credits: w?.credits ?? 0, added: order.credits });
+    }
+    if (order.status !== "READY" || order.provider !== "toss") return res.status(409).json({ ok: false, message: "order is not payable" });
+    if (order.amount !== amount) {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: "AMOUNT_MISMATCH" } });
+      return res.status(400).json({ ok: false, code: "AMOUNT_MISMATCH", message: "결제 금액이 맞지 않아요." });
+    }
+    const resp = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+      method: "POST",
+      headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": orderId },
+      body: JSON.stringify({ paymentKey, orderId, amount })
+    });
+    const body = (await resp.json().catch(() => ({}))) as { status?: string; method?: string; approvedAt?: string; code?: string; message?: string };
+    if (!resp.ok || body.status !== "DONE") {
+      await prisma.paymentOrder.update({ where: { id: orderId }, data: { status: "FAILED", failReason: (body.code ?? `HTTP_${resp.status}`).slice(0, 120) } });
+      return res.status(400).json({ ok: false, code: body.code ?? "CONFIRM_FAILED", message: body.message ?? "결제를 승인하지 못했어요." });
+    }
+    const credited = await fulfillPaidOrder(order, { paymentKey, method: body.method ?? null, approvedAt: body.approvedAt ? new Date(body.approvedAt) : new Date() });
+    if (isPointsOrder(order)) {
+      const balance = await aiWalletBalance(userId);
+      return res.json({ ok: true, kind: "points", alreadyDone: !credited, balance, credits: balance, added: order.credits });
+    }
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, alreadyDone: !credited, credits: w?.credits ?? 0, added: order.credits });
+  } catch (err) {
+    console.error("[payments/confirm] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to confirm payment" });
+  }
+});
+
+// 운영자: 이용권 지급(보상·테스트) · 최근 결제 주문.
+const opsInterviewGrantSchema = z.object({ credits: z.number().int().min(-500).max(500).refine((n) => n !== 0) });
+app.post("/ops/interview-credits/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsInterviewGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = String(req.params.userId);
+  try {
+    await interviewWalletEnsure(userId);
+    await prisma.$transaction([
+      prisma.interviewWallet.update({ where: { userId }, data: { credits: { increment: parsed.data.credits } } }),
+      prisma.interviewCreditLog.create({ data: { userId, amount: parsed.data.credits, reason: "ops_grant" } })
+    ]);
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[ops/interview-credits] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to grant" });
+  }
+});
+app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    // 결제 대기(READY)는 결제창만 열고 안 낸 것 — 기본은 빼고, ?all=1 이면 모두.
+    const all = req.query.all === "1";
+    const orders = await prisma.paymentOrder.findMany({
+      where: all ? {} : { status: { not: "READY" } },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, paymentKey: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+    });
+    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const items = orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
+    return res.json({ ok: true, pointsEnabled: aiPointsOn(), items });
+  } catch (err) {
+    console.error("[ops/payment-orders] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load orders" });
+  }
+});
+
+// ── 환불(결제 취소) ─────────────────────────────
+// 학생 셀프 환불: 결제 후 7일 안 + 그 결제로 받은 이용권을 쓰지 않았을 때(남은 이용권 ≥ 그 결제분)만. 전액 환불.
+// 운영자 환불: 기간·사용 여부와 관계없이, 일부 금액·회수할 이용권 수를 정해서.
+// 순서: 이용권을 먼저 회수(잔액이 모자라면 중단) → 토스 취소 → 실패하면 회수한 이용권을 되돌린다(돈은 나갔는데 이용권이 남는 일이 없게).
+const SELF_REFUND_DAYS = 7;
+
+async function tossCancel(order: { id: string; paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true } | { ok: false; code: string; message: string }> {
+  const secret = process.env.TOSS_SECRET_KEY;
+  if (!secret || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
+  const resp = await fetch(`https://api.tosspayments.com/v1/payments/${encodeURIComponent(order.paymentKey)}/cancel`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${Buffer.from(`${secret}:`).toString("base64")}`, "Content-Type": "application/json", "Idempotency-Key": `${order.id}-cancel-${cancelAmount ?? "all"}` },
+    body: JSON.stringify(cancelAmount ? { cancelReason: reason, cancelAmount } : { cancelReason: reason })
+  });
+  const body = (await resp.json().catch(() => ({}))) as { status?: string; code?: string; message?: string };
+  if (!resp.ok || (body.status !== "CANCELED" && body.status !== "PARTIAL_CANCELED")) return { ok: false, code: body.code ?? `HTTP_${resp.status}`, message: body.message ?? "결제를 취소하지 못했어요." };
+  return { ok: true };
+}
+
+/**
+ * 페이앱 결제 취소 — 전액 또는 일부(cancelAmount).
+ * 판매자 정산 전이면 paycancel(바로 취소), 정산이 끝난 결제는 paycancel 이 거절되므로 paycancelreq(취소 요청 — 정산금을 페이앱에 반환하면 고객 환불이 진행되고, 끝나면 취소 통보가 온다)로 한 번 더.
+ */
+async function payappCancel(order: { paymentKey: string | null }, reason: string, cancelAmount?: number): Promise<{ ok: true; settled?: { paybackprice: string; paybackbank: string } } | { ok: false; code: string; message: string }> {
+  const c = payappCfg();
+  if (!c.userid || !c.linkkey || !order.paymentKey) return { ok: false, code: "PAYMENTS_UNAVAILABLE", message: "결제를 취소할 수 없어요." };
+  const base = { userid: c.userid, linkkey: c.linkkey, mul_no: order.paymentKey, cancelmemo: reason.slice(0, 100), ...(cancelAmount ? { partcancel: "1", cancelprice: String(cancelAmount) } : { partcancel: "0" }) };
+  const out = await payappCall({ cmd: "paycancel", ...base });
+  if (out.state === "1") return { ok: true };
+  // 정산이 끝난 결제 — 취소 요청으로
+  const req = await payappCall({ cmd: "paycancelreq", ...base });
+  if (req.state === "1") {
+    console.warn(`[payapp/cancel] 정산 후 취소 요청 mul_no=${order.paymentKey} 반환액=${req.paybackprice ?? "?"} 입금계좌=${req.paybackbank ?? "?"} — 페이앱에 정산금 반환 필요`);
+    return { ok: true, settled: { paybackprice: req.paybackprice ?? "", paybackbank: req.paybackbank ?? "" } };
+  }
+  console.error(`[payapp/cancel] 취소 실패 mul_no=${order.paymentKey} paycancel=${out.errorMessage ?? out.errno} paycancelreq=${req.errorMessage ?? req.errno}`);
+  return { ok: false, code: `PAYAPP_${out.errno ?? "CANCEL"}`, message: req.errorMessage || out.errorMessage || "결제를 취소하지 못했어요." };
+}
+
+/**
+ * 환불 — 이용권·포인트 회수 → 주문을 먼저 취소 상태로 → PG 취소 → 실패하면 둘 다 되돌린다.
+ * (주문을 먼저 바꿔 두는 건 페이앱이 취소 통보를 보낼 때 같은 주문을 또 회수하지 않게 하려는 것.) deduct 만큼 잔액이 없으면 회수하지 않고 실패.
+ */
+// 포인트 주문이면 AI 포인트에서, 예전 이용권 주문이면 이용권에서 회수한다.
+async function refundOrder(order: { id: string; userId: string; paymentKey: string | null; amount: number; productKey: string; provider: string }, opts: { reason: string; deduct: number; cancelAmount?: number; by: "self" | "ops" }) {
+  const deduct = Math.max(0, opts.deduct);
+  const points = isPointsOrder(order);
+  const giveBack = async () => {
+    if (deduct <= 0) return;
+    if (points) await prisma.aiWallet.update({ where: { userId: order.userId }, data: { balance: { increment: deduct } } });
+    else await prisma.interviewWallet.update({ where: { userId: order.userId }, data: { credits: { increment: deduct } } });
+  };
+  if (deduct > 0) {
+    const r = points
+      ? await prisma.aiWallet.updateMany({ where: { userId: order.userId, balance: { gte: deduct } }, data: { balance: { decrement: deduct } } })
+      : await prisma.interviewWallet.updateMany({ where: { userId: order.userId, credits: { gte: deduct } }, data: { credits: { decrement: deduct } } });
+    if (r.count !== 1) return points ? { ok: false as const, code: "POINTS_USED", message: "충전한 포인트를 이미 써서 환불할 수 없어요." } : { ok: false as const, code: "CREDITS_USED", message: "이미 사용한 이용권이 있어 환불할 수 없어요." };
+  }
+  const partial = opts.cancelAmount && opts.cancelAmount < order.amount ? opts.cancelAmount : undefined;
+  const refunded = partial ?? order.amount;
+  const marked = await prisma.paymentOrder.updateMany({
+    where: { id: order.id, status: "DONE" },
+    data: { status: partial ? "PARTIAL_CANCELED" : "CANCELED", canceledAt: new Date(), cancelReason: `${opts.by}: ${opts.reason}`.slice(0, 200), canceledAmount: refunded }
+  });
+  if (marked.count !== 1) {
+    await giveBack();
+    return { ok: false as const, code: "NOT_REFUNDABLE", message: "이미 환불했거나 환불할 수 없는 결제예요." };
+  }
+  const cancel = order.provider === "payapp" ? await payappCancel(order, opts.reason, partial) : await tossCancel(order, opts.reason, partial);
+  if (!cancel.ok) {
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { status: "DONE", canceledAt: null, cancelReason: null, canceledAmount: null } });
+    await giveBack();
+    return cancel;
+  }
+  const settled = (cancel as { settled?: { paybackprice: string } }).settled;
+  if (settled) {
+    await prisma.paymentOrder.update({ where: { id: order.id }, data: { cancelReason: `${opts.by}: ${opts.reason} (정산 후 취소 요청 — 페이앱에 ${settled.paybackprice || refunded}원 반환 필요)`.slice(0, 200) } });
+  }
+  if (deduct > 0) {
+    if (points) await prisma.aiPointLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund" } });
+    else await prisma.interviewCreditLog.create({ data: { userId: order.userId, amount: -deduct, reason: "refund", orderId: order.id } });
+  }
+  return { ok: true as const, refunded, deducted: deduct };
+}
+
+function selfRefundable(order: { status: string; approvedAt: Date | null; credits: number }, balance: number): boolean {
+  if (order.status !== "DONE" || !order.approvedAt) return false;
+  return Date.now() - order.approvedAt.getTime() <= SELF_REFUND_DAYS * 86_400_000 && balance >= order.credits;
+}
+
+// 학생: 내 결제 내역(최근 30건) — 셀프 환불 가능 여부 포함.
+app.get("/members/me/payments", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    // 포인트 모드면 새 이용권 지갑을 만들지 않는다(가입 1회 이용권이 생겨 포인트로 바뀌는 일이 없게).
+    const pointsBalance = await aiWalletReconcile(userId);
+    const balance = aiPointsOn() ? ((await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } }))?.credits ?? 0) : await interviewWalletEnsure(userId);
+    const orders = await prisma.paymentOrder.findMany({
+      where: { userId, status: { in: ["DONE", "CANCELED", "PARTIAL_CANCELED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { id: true, productKey: true, orderName: true, amount: true, credits: true, status: true, method: true, approvedAt: true, canceledAt: true, canceledAmount: true }
+    });
+    return res.json({
+      ok: true,
+      credits: balance,
+      points: pointsBalance,
+      refundDays: SELF_REFUND_DAYS,
+      items: orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", refundable: selfRefundable(o, isPointsOrder({ productKey }) ? pointsBalance : balance) }))
+    });
+  } catch (err) {
+    console.error("[payments list] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load payments" });
+  }
+});
+
+// 학생: 셀프 환불(전액) — 7일 안 + 받은 이용권을 쓰지 않았을 때.
+const selfRefundSchema = z.object({ reason: z.string().trim().max(200).optional() });
+app.post("/members/me/payments/:orderId/cancel", authenticate, requireRoles([MemberRole.STUDENT]), rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "pay-cancel" }), async (req, res) => {
+  const parsed = selfRefundSchema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order || order.userId !== userId) return res.status(404).json({ ok: false, message: "order not found" });
+    const points = isPointsOrder(order);
+    const balance = points ? await aiWalletReconcile(userId) : await interviewWalletEnsure(userId);
+    if (!selfRefundable(order, balance))
+      return res.status(409).json({ ok: false, code: "NOT_REFUNDABLE", message: points ? `결제 후 ${SELF_REFUND_DAYS}일 안에, 충전한 포인트가 남아 있을 때만 환불할 수 있어요.` : `결제 후 ${SELF_REFUND_DAYS}일 안에, 이용권을 쓰지 않았을 때만 환불할 수 있어요.` });
+    const r = await refundOrder(order, { reason: parsed.data.reason || "고객 요청", deduct: order.credits, by: "self" });
+    if (!r.ok) return res.status(400).json(r);
+    if (points) {
+      const left = await aiWalletBalance(userId);
+      return res.json({ ok: true, kind: "points", refunded: r.refunded, balance: left, credits: left });
+    }
+    const w = await prisma.interviewWallet.findUnique({ where: { userId }, select: { credits: true } });
+    return res.json({ ok: true, refunded: r.refunded, credits: w?.credits ?? 0 });
+  } catch (err) {
+    console.error("[payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 환불(일부 금액 가능) — 회수할 이용권 수는 운영자가 정한다(기본: 그 결제분, 잔액이 모자라면 남은 만큼만).
+const opsRefundSchema = z.object({ reason: z.string().trim().min(1).max(200), cancelAmount: z.number().int().positive().optional(), deductCredits: z.number().int().min(0).max(100000).optional() });
+app.post("/ops/payment-orders/:orderId/cancel", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsRefundSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  try {
+    const order = await prisma.paymentOrder.findUnique({ where: { id: String(req.params.orderId) } });
+    if (!order) return res.status(404).json({ ok: false, message: "order not found" });
+    if (order.status !== "DONE") return res.status(409).json({ ok: false, message: "환불할 수 있는 상태가 아니에요." });
+    if (parsed.data.cancelAmount && parsed.data.cancelAmount > order.amount) return res.status(400).json({ ok: false, message: "결제 금액보다 많이 환불할 수 없어요." });
+    // 회수 단위 — 포인트 주문이면 포인트, 예전 주문이면 이용권(답변 수).
+    const balance = isPointsOrder(order) ? await aiWalletReconcile(order.userId) : await interviewWalletEnsure(order.userId);
+    const deduct = Math.min(parsed.data.deductCredits ?? order.credits, balance);
+    const r = await refundOrder(order, { reason: parsed.data.reason, deduct, cancelAmount: parsed.data.cancelAmount, by: "ops" });
+    if (!r.ok) return res.status(400).json(r);
+    return res.json({ ok: true, refunded: r.refunded, deducted: r.deducted });
+  } catch (err) {
+    console.error("[ops payments cancel] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to cancel payment" });
+  }
+});
+
+// 운영자: 이용권 지갑 목록(검색) · 내역.
+app.get("/ops/interview-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
+      select: { id: true, email: true, name: true, interviewWallet: { select: { credits: true, updatedAt: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({ ok: true, perSession: INTERVIEW_CREDITS_PER_SESSION, items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, credits: u.interviewWallet?.credits ?? null, updatedAt: u.interviewWallet?.updatedAt ?? null })) });
+  } catch (err) {
+    console.error("[ops interview-wallets] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+app.get("/ops/interview-credits/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.interviewCreditLog.findMany({ where: { userId: String(req.params.userId) }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, amount: true, reason: true, orderId: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops interview-credit logs] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load logs" });
+  }
+});
+
+// 운영자: AI 포인트 지갑 목록(검색) · 내역 · 지급/회수(보상·테스트). 지급도 원장(AiPointLog, reason=ops_grant)에 남긴다.
+app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const users = await prisma.user.findMany({
+      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
+      select: { id: true, email: true, name: true, aiWallet: { select: { balance: true, updatedAt: true } }, interviewWallet: { select: { credits: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    return res.json({
+      ok: true,
+      enabled: aiPointsOn(),
+      items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, balance: u.aiWallet?.balance ?? null, interviewCredits: u.interviewWallet?.credits ?? null, updatedAt: u.aiWallet?.updatedAt ?? null }))
+    });
+  } catch (err) {
+    console.error("[ops ai-wallets] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+app.get("/ops/ai-points/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const items = await prisma.aiPointLog.findMany({ where: { userId: String(req.params.userId) }, orderBy: { createdAt: "desc" }, take: 100, select: { id: true, amount: true, reason: true, createdAt: true } });
+    return res.json({ ok: true, items });
+  } catch (err) {
+    console.error("[ops ai-point logs] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load logs" });
+  }
+});
+const opsPointGrantSchema = z.object({ points: z.number().int().min(-100000).max(100000).refine((n) => n !== 0) });
+app.post("/ops/ai-points/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPointGrantSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = String(req.params.userId);
+  try {
+    const exists = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!exists) return res.status(404).json({ ok: false, message: "user not found" });
+    await aiWalletReconcile(userId);
+    const n = parsed.data.points;
+    // 회수(음수)는 잔액 아래로 내려가지 않게 — 잔액이 모자라면 남은 만큼만.
+    const balance = await aiWalletBalance(userId);
+    const delta = n < 0 ? -Math.min(-n, balance) : n;
+    if (delta !== 0) {
+      await prisma.$transaction([
+        prisma.aiWallet.update({ where: { userId }, data: { balance: { increment: delta } } }),
+        prisma.aiPointLog.create({ data: { userId, amount: delta, reason: "ops_grant" } })
+      ]);
+    }
+    return res.json({ ok: true, balance: await aiWalletBalance(userId), applied: delta });
+  } catch (err) {
+    console.error("[ops ai-points grant] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to grant" });
+  }
+});
+
+const interviewPrepSchema = z.object({
+  jobText: z.string().max(6000).optional(),
+  company: z.string().max(120).optional(),
+  resumeText: z.string().max(8000).optional(),
+  coverLetterText: z.string().max(6000).optional(),
+  reportedQuestions: z.array(z.string().max(300)).max(10).optional(),
+  myAnswers: z.array(z.object({ question: z.string().max(400), answer: z.string().max(2000) })).max(8).optional()
+});
+const INTERVIEW_PREP_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: { question: { type: "string" }, why: { type: "string" }, answer: { type: "string" }, tip: { type: "string" } },
+        required: ["question", "why", "answer", "tip"]
+      }
+    }
+  },
+  required: ["questions"]
+} as const;
+
+app.post("/members/me/ai/interview-prep", authenticate, requireRoles([MemberRole.STUDENT]), aiCharge("interview_prep"), interviewCreditGuard("prep"), async (req, res) => {
+  const parsed = interviewPrepSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
+  const d = parsed.data;
+  if (!d.jobText && !d.resumeText) return res.status(400).json({ ok: false, message: "job or resume required" });
+  try {
+    const system =
+      "당신은 한국 기업 면접을 잘 아는 면접 코치입니다. 지원자가 내일 면접을 봅니다. 이 면접에서 나올 가능성이 높은 질문 5개와, 질문마다 지원자가 그대로 말할 수 있는 모범 답안을 만들어 주세요.\n" +
+      "[질문 고르기]\n" +
+      "- [이 회사 면접에서 실제로 나온 질문]이 있으면 그중 1~2개를 반드시 포함하세요.\n" +
+      "- 1분 자기소개(또는 지원 동기) 1개, 공고의 주요 업무·자격 요건에 근거한 직무 질문 2개, 이력서 경험을 파고드는 질문 1개를 기본으로.\n" +
+      "- 질문은 실제 면접관 말투의 한 문장.\n" +
+      "[모범 답안]\n" +
+      "- 지원자의 이력서·자기소개서·연습한 답에 있는 사실만 쓰세요. 없는 회사·경험·수치를 지어내지 마세요. 근거가 부족하면 '○○' 같은 빈칸으로 남기고 tip 에 무엇을 채울지 적으세요.\n" +
+      "- 결론 먼저 → 구체적 경험(상황·행동·결과) → 이 회사·직무와 연결, 합니다체, 말로 40~60초(250~400자).\n" +
+      "- 지원자가 같은 질문에 연습한 답이 있으면 그 답을 바탕으로 더 낫게 다듬으세요.\n" +
+      "- why: 면접관이 이 질문으로 보려는 것 한 문장. tip: 말할 때 주의할 점 한 문장." +
+      aiLangDirective();
+    const user = [
+      d.company ? `회사: ${d.company}` : "",
+      d.jobText ? `[채용 공고]\n${d.jobText}` : "",
+      d.reportedQuestions?.length ? `[이 회사 면접에서 실제로 나온 질문]\n${d.reportedQuestions.map((q) => `- ${q}`).join("\n")}` : "",
+      d.resumeText ? `[이력서]\n${d.resumeText}` : "(이력서 없음)",
+      d.coverLetterText ? `[자기소개서]\n${d.coverLetterText}` : "",
+      d.myAnswers?.length ? `[지원자가 연습한 답]\n${d.myAnswers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const j = (await interviewJson({ system, user, temperature: 0.4, schema: INTERVIEW_PREP_SCHEMA, schemaName: "interview_prep" })) as { questions?: unknown };
+    const str = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
+    const questions = (Array.isArray(j.questions) ? j.questions : [])
+      .map((x) => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return { question: str(o.question, 300), why: str(o.why, 200), answer: stripCliches(str(o.answer, 1200)), tip: str(o.tip, 200) };
+      })
+      .filter((q) => q.question && q.answer)
+      .slice(0, 5);
+    if (!questions.length) return res.status(502).json({ ok: false, message: "ai response empty" });
+    const credits = await interviewCreditSpend(req.auth!.userId, res);
+    return res.json({ ok: true, questions, credits });
+  } catch (err) {
+    console.error("[ai/interview-prep] failed", err);
+    if (isAiUpstreamError(err)) return sendAiUnavailable(res);
+    return res.status(500).json({ ok: false, message: "failed to prepare" });
+  }
+});
+
 app.post(
   "/members/me/ai/interview-feedback",
   authenticate,
   requireRoles([MemberRole.STUDENT]),
   rateLimit({ windowMs: 60_000, max: 30, keyPrefix: "ai-interview-fb", message: "잠시 후 다시 시도해 주세요." }),
   aiCharge("interview_feedback"),
+  interviewCreditGuard("feedback"),
   async (req, res) => {
     const parsed = interviewFeedbackSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { question, answer, resumeText, desiredJobRole, locale } = parsed.data;
       const systemPrompt =
@@ -27090,35 +28825,29 @@ app.post(
         "2. strengths: 답변에서 좋았던 점 1~3개(짧게).\n" +
         "3. improvements: 더 좋게 만들 구체적 조언 1~3개(짧게, 실행 가능하게).\n" +
         "4. sampleAnswer: 지원자의 이력서 사실에 근거한 더 나은 모범답안(STAR 구조 권장, 2~5문장). 없는 경험·수치를 지어내지 마세요.\n" +
-        "5. 격려하는 코치 말투. 정중하게.\n\n" +
-        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string }' +
+        "5. 격려하는 코치 말투. 정중하게.\n" +
+        "6. followUp: 실제 면접관이 이 답변을 듣고 바로 이어서 물을 꼬리 질문 1개(한 문장). 답변에서 추상적인 부분, 본인 역할이 불분명한 부분, 숫자·근거가 없는 부분, 이력서와 맞지 않는 부분을 파고드세요. 인신공격이 아니라 근거를 확인하는 톤. 답변에 없는 사실을 전제하지 마세요. 답변이 이미 충분히 구체적이면 빈 문자열.\n\n" +
+        'JSON 한 개 객체로만 응답: { "score": number, "strengths": string[], "improvements": string[], "sampleAnswer": string, "followUp": string }' +
         aiLangDirective(locale);
       const userPrompt =
         `${desiredJobRole ? `희망 직무: ${desiredJobRole}\n` : ""}` +
         `${resumeText ? `\n[이력서 요약]\n${resumeText}\n` : ""}` +
         `\n[면접 질문]\n${question}\n\n[지원자 답변]\n${answer}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiInterviewModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
-      let j: { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown } = {};
-      try { j = JSON.parse(raw); } catch { /* fall through */ }
+      const j = (await interviewJson({ system: systemPrompt, user: userPrompt, temperature: 0.5, schema: INTERVIEW_FEEDBACK_SCHEMA, schemaName: "interview_feedback" })) as { score?: unknown; strengths?: unknown; improvements?: unknown; sampleAnswer?: unknown; followUp?: unknown };
       const strArr = (v: unknown, n: number): string[] =>
         Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 200)).slice(0, n) : [];
       const score = typeof j.score === "number" && isFinite(j.score) ? Math.max(0, Math.min(100, Math.round(j.score))) : 0;
+      const credits = await interviewCreditSpend(req.auth!.userId, res);
       return res.json({
         ok: true,
+        credits,
         feedback: {
           score,
           strengths: strArr(j.strengths, 3),
           improvements: strArr(j.improvements, 3),
-          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : ""
+          sampleAnswer: typeof j.sampleAnswer === "string" ? j.sampleAnswer.trim().slice(0, 800) : "",
+          // 꼬리 질문 — 같은 호출에서 받는다(추가 호출·티켓 없음). 없으면 빈 문자열.
+          followUp: typeof j.followUp === "string" ? j.followUp.trim().slice(0, 300) : ""
         }
       });
     } catch (err) {
@@ -27215,6 +28944,131 @@ app.post("/members/me/mock-interviews/:positionId/practice", authenticate, requi
   }
 });
 
+// 내 공고 모의 면접 답변(본인만) — '면접 전날 볼 한 장'이 최고 답변을 모아 보여 줄 때 쓴다.
+// ─────────────────────────────────────────────────────────────────────────
+// 모의 면접 콘텐츠 — 면접 후기(실제 나온 질문) · 잘 쓴 답 예시.
+// 공개 응답에는 누가 남겼는지(userId 등)를 넣지 않는다. 운영자가 hidden 으로 내릴 수 있다.
+// ─────────────────────────────────────────────────────────────────────────
+const interviewReportSchema = z.object({
+  applicationId: z.string().min(1).max(64),
+  questions: z.array(z.string().trim().min(4).max(300)).min(1).max(5)
+});
+
+// 학생: 면접 후기 남기기 — 내 지원 건만. 같은 지원 건으로 다시 남기면 바꾼다.
+app.post("/members/me/interview-questions", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = interviewReportSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    const app0 = await prisma.application.findFirst({
+      where: { id: parsed.data.applicationId, candidateUserId: userId },
+      select: { id: true, positionId: true, position: { select: { title: true, additionalNotes: true, partnerOrganization: { select: { name: true } } } } }
+    });
+    if (!app0) return res.status(404).json({ ok: false, message: "application not found" });
+    const organizationName = app0.position.partnerOrganization?.name ?? extractSourceCompanyName(app0.position.additionalNotes) ?? "";
+    if (!organizationName) return res.status(400).json({ ok: false, message: "company unknown" });
+    const questions = [...new Set(parsed.data.questions.map((q) => q.trim()).filter(Boolean))];
+    await prisma.$transaction([
+      prisma.interviewQuestionReport.deleteMany({ where: { userId, applicationId: app0.id } }),
+      prisma.interviewQuestionReport.createMany({
+        data: questions.map((question) => ({ userId, applicationId: app0.id, positionId: app0.positionId, organizationName, positionTitle: app0.position.title, question }))
+      })
+    ]);
+    return res.json({ ok: true, count: questions.length });
+  } catch (err) {
+    console.error("[interview-questions] create failed", err);
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 학생: 후기를 이미 남긴 지원 건 — '어떤 질문이 나왔나요?'를 다시 묻지 않게.
+app.get("/members/me/interview-questions/reported", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const rows = await prisma.interviewQuestionReport.findMany({ where: { userId: req.auth!.userId, applicationId: { not: null } }, select: { applicationId: true }, distinct: ["applicationId"] });
+    return res.json({ ok: true, items: rows.map((r) => r.applicationId).filter(Boolean) });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+// 면접 후기 질문 — organization 이 있으면 그 회사 것(최근순), 없으면 최근 것 + 많이 나온 질문(최근 60일).
+app.get("/interview-questions", async (req, res) => {
+  const organization = typeof req.query.organization === "string" ? req.query.organization.trim().slice(0, 200) : "";
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 10));
+  try {
+    const recent = await prisma.interviewQuestionReport.findMany({
+      where: { hidden: false, ...(organization ? { organizationName: organization } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: { id: true, question: true, organizationName: true, positionTitle: true, createdAt: true }
+    });
+    let popular: { question: string; count: number }[] = [];
+    if (!organization) {
+      const since = new Date(Date.now() - 60 * 86_400_000);
+      const rows = await prisma.interviewQuestionReport.findMany({ where: { hidden: false, createdAt: { gte: since } }, select: { question: true }, take: 2000 });
+      const counts = new Map<string, { question: string; count: number }>();
+      for (const r of rows) {
+        const key = r.question.replace(/\s+/g, "").replace(/[?.!。？]/g, "");
+        const cur = counts.get(key) ?? { question: r.question, count: 0 };
+        cur.count += 1;
+        counts.set(key, cur);
+      }
+      popular = [...counts.values()].filter((x) => x.count >= 2).sort((a, b) => b.count - a.count).slice(0, 5);
+    }
+    return res.json({ ok: true, items: recent, popular });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+const answerExampleSchema = z.object({
+  question: z.string().trim().min(4).max(600),
+  category: z.string().trim().max(40),
+  answer: z.string().trim().min(20).max(4000),
+  score: z.number().int().min(80).max(100)
+});
+
+// 학생: 잘 쓴 답을 익명 예시로 공개(동의한 것만, '잘해요' 80점 이상). 같은 질문은 최신 답으로 바꾼다.
+app.post("/members/me/answer-examples", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const parsed = answerExampleSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const userId = req.auth!.userId;
+  try {
+    await prisma.interviewAnswerExample.upsert({
+      where: { userId_question: { userId, question: parsed.data.question } },
+      create: { userId, ...parsed.data },
+      update: { answer: parsed.data.answer, score: parsed.data.score, category: parsed.data.category, hidden: false }
+    });
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to save" });
+  }
+});
+
+// 같은 질문의 잘 쓴 답 예시(점수 높은 순 3개, 익명).
+app.get("/answer-examples", async (req, res) => {
+  const question = typeof req.query.question === "string" ? req.query.question.trim().slice(0, 600) : "";
+  if (!question) return res.json({ ok: true, items: [] });
+  try {
+    const rows = await prisma.interviewAnswerExample.findMany({ where: { question, hidden: false }, orderBy: [{ score: "desc" }, { createdAt: "desc" }], take: 3, select: { id: true, answer: true, score: true } });
+    return res.json({ ok: true, items: rows });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load" });
+  }
+});
+
+app.get("/members/me/mock-interviews/:positionId", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const positionId = Array.isArray(req.params.positionId) ? req.params.positionId[0] : req.params.positionId;
+  if (!positionId) return res.status(400).json({ ok: false, message: "invalid position id" });
+  try {
+    const row = await prisma.mockInterviewSession.findUnique({ where: { userId_positionId: { userId: req.auth!.userId, positionId } } });
+    const answers: MockAnswer[] = Array.isArray(row?.answers) ? (row!.answers as unknown as MockAnswer[]) : [];
+    return res.json({ ok: true, item: { positionId, bestScore: row?.bestScore ?? null, answers } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load mock interview" });
+  }
+});
+
 // 내 모의 면접 연습 기록(대시보드).
 app.get("/members/me/mock-interviews", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
@@ -27271,7 +29125,7 @@ app.post(
   async (req, res) => {
     const parsed = suggestSkillsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { desiredJobRole, jobCategories, major, experiences, have, locale } = parsed.data;
       const systemPrompt =
@@ -27292,16 +29146,7 @@ app.post(
       ]
         .filter(Boolean)
         .join("\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: ctx || "정보가 거의 없습니다. 신입 지원자에게 무난한 범용 스킬을 추천하세요." }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: ctx || "정보가 거의 없습니다. 신입 지원자에게 무난한 범용 스킬을 추천하세요." });
       let parsedJson: { skills?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const haveLower = new Set((have ?? []).map((s) => s.toLowerCase()));
@@ -27336,7 +29181,7 @@ app.post(
   async (req, res) => {
     const parsed = englishIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { text, desiredJobRole, jobCategories } = parsed.data;
       const systemPrompt =
@@ -27351,16 +29196,7 @@ app.post(
         .filter(Boolean)
         .join("\n");
       const userPrompt = `${ctx ? `${ctx}\n\n` : ""}Korean self-introduction:\n${text}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { english?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const english = typeof parsedJson.english === "string" ? parsedJson.english.trim().slice(0, 4000) : "";
@@ -27390,7 +29226,7 @@ app.post(
   async (req, res) => {
     const parsed = translateTextsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { texts } = parsed.data;
       const target = parsed.data.target ?? "en";
@@ -27406,16 +29242,7 @@ app.post(
         "4. Preserve the EXACT same count and order. Empty input stays empty.\n\n" +
         'Each input line is "<index>␟<text>". Respond with a single JSON object only: ' +
         `{ "texts": string[] } where texts[index] is the ${targetName} translation, same length and order.`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: numbered }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: numbered });
       let parsedJson: { texts?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const out = Array.isArray(parsedJson.texts) ? parsedJson.texts : [];
@@ -27467,7 +29294,7 @@ app.post(
   async (req, res) => {
     const parsed = draftIntroSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { desiredJobRole, jobCategories, experiences, education, skills, languages, locale } = parsed.data;
       const expText = (experiences ?? [])
@@ -27504,16 +29331,7 @@ app.post(
       ]
         .filter(Boolean)
         .join("\n\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: ctx }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: ctx });
       let parsedJson: { draft?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const draft = typeof parsedJson.draft === "string" ? parsedJson.draft.trim().slice(0, 4000) : "";
@@ -27575,14 +29393,13 @@ app.post(
   async (req, res) => {
     const parsed = coverLetterSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       // 구조화 출력(json_schema) 우선 + json_object 폴백 → 파싱 실패 무음 502 제거.
       // systemCacheable/systemVariable 을 그대로 넘겨 Claude 경로에서 고정부만 프롬프트 캐시에 태운다.
       const { system: systemPrompt, user: ctx, systemCacheable, systemVariable } = buildCoverLetterMessages(parsed.data);
       const { data, usage } = await generateJson<{ text?: unknown }>({
-        openai,
         model: coverLetterModel,
         temperature: 0.6,
         system: systemPrompt,
@@ -27631,13 +29448,12 @@ app.post(
   async (req, res) => {
     const parsed = polishExperienceSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       const { system: systemPrompt, user: userPrompt } = buildPolishExperienceMessages(parsed.data);
       const { data } = await generateJson<{ polished?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.5,
         system: systemPrompt,
         user: userPrompt,
@@ -27682,14 +29498,13 @@ app.post(
   async (req, res) => {
     const parsed = polishResumeItemsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const { items, locale } = parsed.data;
       // 프롬프트는 ./llm/prompts 단일 소스에서 생성(eval 하니스와 공유).
       const { system: systemPrompt, user: userPrompt } = buildResumeItemsMessages(items, locale);
       const { data } = await generateJson<{ texts?: unknown }>({
-        openai,
-        model: openaiTranslationModel,
+        model: lightModel,
         temperature: 0.4,
         system: systemPrompt,
         user: userPrompt,
@@ -27727,7 +29542,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceTitleSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     try {
       const systemPrompt =
         "사용자가 적은 경험 설명을 보고, 이력서 경험 카드에 쓸 짧은 '경험명'을 지어주세요.\n" +
@@ -27735,16 +29550,7 @@ app.post(
         "2. 사용자가 적지 않은 회사명·직무·수치를 지어내지 마세요.\n3. 한국어.\n\n" +
         'JSON 한 개 객체로만 응답: { "title": string }' + aiLangDirective(parsed.data.locale);
       const userPrompt = `${parsed.data.type ? `유형: ${parsed.data.type}\n` : ""}경험 설명:\n${parsed.data.rawInput}`;
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.4,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: userPrompt });
       let parsedJson: { title?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const title = typeof parsedJson.title === "string" ? parsedJson.title.trim().slice(0, 40) : "";
@@ -27777,7 +29583,7 @@ app.post(
   async (req, res) => {
     const parsed = experienceTasksSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
     const { type, title, org, rawInput, locale } = parsed.data;
     if (!title && !org && !rawInput) return res.status(400).json({ ok: false, message: "need at least one hint" });
     try {
@@ -27796,16 +29602,7 @@ app.post(
         org ? `조직/장소: ${org}` : "",
         rawInput ? `사용자 메모: ${rawInput}` : ""
       ].filter(Boolean).join("\n");
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.6,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: hint }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: hint });
       let parsedJson: { tasks?: unknown; note?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* fall through */ }
       const tasks = Array.isArray(parsedJson.tasks)
@@ -27847,36 +29644,30 @@ function pickEnum<T extends readonly string[]>(v: unknown, allowed: T, fallback:
   return typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T[number]) : fallback;
 }
 
-app.post(
-  "/members/me/ai/import-resume",
-  authenticate,
-  requireRoles([MemberRole.STUDENT]),
-  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
-  aiCharge("import_resume"),
-  async (req, res) => {
-    const parsed = importResumeSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
-
+/**
+ * 기존 이력서(PDF base64 또는 텍스트) → 이력서 빌더 가져오기 모양(imported). 이력서 가져오기와 운영자 일괄 등록이 같이 쓴다.
+ * 원문에 없는 사실은 비운다. 실패는 { ok:false, status, message }.
+ */
+async function parseResumeSource(input: { text?: string; pdfBase64?: string }): Promise<{ ok: true; imported: Record<string, unknown> } | { ok: false; status: number; message: string }> {
     // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출.
-    let sourceText = parsed.data.text?.trim() ?? "";
-    if (!sourceText && parsed.data.pdfBase64) {
+    let sourceText = input.text?.trim() ?? "";
+    if (!sourceText && input.pdfBase64) {
       try {
-        const base64 = parsed.data.pdfBase64.replace(/^data:[^,]*,/, "");
+        const base64 = input.pdfBase64.replace(/^data:[^,]*,/, "");
         const buffer = Buffer.from(base64, "base64");
-        if (buffer.byteLength > 12 * 1024 * 1024) return res.status(413).json({ ok: false, message: "file too large" });
+        if (buffer.byteLength > 12 * 1024 * 1024) return { ok: false as const, status: 413, message: "file too large" };
         const { extractText, getDocumentProxy } = await import("unpdf");
         const pdf = await getDocumentProxy(new Uint8Array(buffer));
         const extracted = await extractText(pdf, { mergePages: true });
         sourceText = (Array.isArray(extracted.text) ? extracted.text.join("\n") : extracted.text).trim();
       } catch (err) {
         console.error("[ai/import-resume] pdf parse failed", err);
-        return res.status(422).json({ ok: false, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." });
+        return { ok: false as const, status: 422, message: "이 PDF에서 텍스트를 읽지 못했어요. 스캔본이면 내용을 직접 붙여넣어 주세요." };
       }
     }
     sourceText = sourceText.slice(0, 40000);
     if (sourceText.replace(/\s+/g, "").length < 20) {
-      return res.status(422).json({ ok: false, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." });
+      return { ok: false as const, status: 422, message: "읽을 내용이 충분하지 않아요. 내용을 직접 붙여넣어 주세요." };
     }
 
     // 2) LLM 으로 구조화.
@@ -27899,16 +29690,7 @@ app.post(
         '  "skills": [string],\n' +
         '  "links": [{ "label": string, "url": string }]\n' +
         "}";
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `다음은 기존 이력서 원문입니다:\n\n${sourceText}` }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: `다음은 기존 이력서 원문입니다:\n\n${sourceText}` });
       let j: Record<string, unknown> = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
 
@@ -27957,11 +29739,26 @@ app.post(
           return { label: pickStr(o.label, 60), url: pickStr(o.url, 300) };
         }).filter((l) => l.url)
       };
-      return res.json({ ok: true, imported });
-    } catch (err) {
-      console.error("[ai/import-resume] failed", err);
-      return res.status(500).json({ ok: false, message: "failed to import resume" });
-    }
+      return { ok: true as const, imported };
+  } catch (err) {
+    console.error("[parseResumeSource] failed", err);
+    return { ok: false as const, status: 500, message: "failed to import resume" };
+  }
+}
+
+app.post(
+  "/members/me/ai/import-resume",
+  authenticate,
+  requireRoles([MemberRole.STUDENT]),
+  rateLimit({ windowMs: 60_000, max: 10, keyPrefix: "ai-import-resume", message: "잠시 후 다시 시도해 주세요." }),
+  aiCharge("import_resume"),
+  async (req, res) => {
+    const parsed = importResumeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    const r = await parseResumeSource({ text: parsed.data.text, pdfBase64: parsed.data.pdfBase64 });
+    if (!r.ok) return res.status(r.status).json({ ok: false, message: r.message });
+    return res.json({ ok: true, imported: r.imported });
   }
 );
 
@@ -27982,7 +29779,7 @@ app.post(
   async (req, res) => {
     const parsed = importCoverLetterSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-    if (!openai) return res.status(503).json({ ok: false, message: "ai unavailable" });
+    if (!llmReady) return res.status(503).json({ ok: false, message: "ai unavailable" });
 
     // 1) 원문 텍스트 확보 — PDF 면 서버에서 텍스트만 추출(import-resume 와 동일).
     let sourceText = parsed.data.text?.trim() ?? "";
@@ -28015,16 +29812,7 @@ app.post(
         "3. 답변(answer)은 원문 표현을 최대한 보존하되, 머리말·번호 없이 줄글로 정리합니다.\n" +
         "4. 회사명이 보이면 company 로.\n\n" +
         'JSON: { "company": string, "items": [{ "prompt": string, "answer": string }] }';
-      const completion = await openai.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `다음은 기존 자기소개서 원문입니다:\n\n${sourceText}` }
-        ]
-      });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
+      const raw = await claudeJsonRaw({ model: lightModel, system: systemPrompt, user: `다음은 기존 자기소개서 원문입니다:\n\n${sourceText}` });
       let j: Record<string, unknown> = {};
       try { j = JSON.parse(raw); } catch { /* fall through */ }
       const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
@@ -30410,6 +32198,35 @@ const applicationStatusUpdateSchema = z.object({
   memo: z.string().max(2000).optional()
 });
 
+// 내 지원에 낸 서류(제출 시점 스냅샷) — 면접 전에 '내가 뭐라고 썼더라'를 다시 보게. 본인 지원만.
+// 사진(data URL)·편집기 설정처럼 크고 읽을 필요 없는 값은 빼고 보낸다.
+app.get("/members/me/applications/:id/documents", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  try {
+    const app = await prisma.application.findFirst({
+      where: { id, candidateUserId: req.auth!.userId },
+      select: { id: true, submittedAt: true, resumeSnapshot: true, coverLetterSnapshot: true }
+    });
+    if (!app) return res.status(404).json({ ok: false, message: "application not found" });
+    const strip = (v: unknown): unknown => {
+      if (!v || typeof v !== "object" || Array.isArray(v)) return v ?? null;
+      const o = { ...(v as Record<string, unknown>) };
+      delete o.basicPhotoUrl;
+      delete o.builder;
+      delete o.poolOptIn;
+      if (o.renewalBasicInfo && typeof o.renewalBasicInfo === "object") {
+        const b = { ...(o.renewalBasicInfo as Record<string, unknown>) };
+        delete b.photoUrl;
+        o.renewalBasicInfo = b;
+      }
+      return o;
+    };
+    return res.json({ ok: true, item: { id: app.id, submittedAt: app.submittedAt, resume: strip(app.resumeSnapshot), coverLetter: app.coverLetterSnapshot ?? null } });
+  } catch {
+    return res.status(500).json({ ok: false, message: "failed to load application documents" });
+  }
+});
+
 app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   try {
     const items = await prisma.application.findMany({
@@ -30479,7 +32296,8 @@ app.get("/members/me/applications", authenticate, requireRoles([MemberRole.STUDE
 // 파트너 인재검색에 (연락처 마스킹 상태로) 노출한다. 별도 인재풀 동의 플래그는 요구하지
 // 않는다(프로덕션에서 아무도 동의 상태가 아니라 전원 안 뜨던 문제 → 가입=발견 가능 모델).
 // 완성도 필터(isResumeReasonablyComplete)와 연락처 마스킹은 엔드포인트에서 그대로 적용.
-const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true };
+// 학생이 노출을 끄면(talentPoolOptedOutAt) 인재 검색·추천·새 연결 요청에서 뺀다(이미 연결된 기업은 그대로 볼 수 있다).
+const POOL_RESUME_WHERE: Prisma.ResumeWhereInput = { isPrimary: true, user: { talentPoolOptedOutAt: null } };
 
 // 연결 전 노출 금지 PII 제거 + 내부 메타 제거.
 // 리뉴얼 기본정보(renewalBasicInfo = {realName,email,phone,address,photoUrl})에서 연락 PII 제거.
@@ -30594,16 +32412,43 @@ function maskResumeContentForPartner(raw: unknown, unlocked: boolean, blind = fa
 
 // 인재풀 이력서 행 → 검색 카드(점수 없음). GET/AI 검색 공용.
 type PoolResumeRow = { userId: string; updatedAt: Date; content: unknown; user: { name: string | null; realName: string | null; nationality: string | null } | null };
+/** 리뉴얼 에디터 이력서(renewalResume.items: {section, text, company})를 인재 카드 필드로 — 구형 필드(educations·skills…)가 없을 때. */
+function renewalCardFields(content: Record<string, unknown>) {
+  const doc = (content.renewalResume && typeof content.renewalResume === "object" ? content.renewalResume : null) as { targetRole?: unknown; summary?: unknown; items?: unknown } | null;
+  const items = Array.isArray(doc?.items) ? (doc!.items as Array<Record<string, unknown>>) : [];
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const of = (sec: string) => items.filter((i) => i && i.section === sec && (str(i.text) || str(i.company)));
+  const split = (t: string) => t.split(/[,，、\n·]|\s\/\s/).map((x) => x.trim()).filter(Boolean);
+  const edu = of("education")[0];
+  const eduText = edu ? str(edu.company) || str(edu.text).split("\n")[0] : "";
+  return {
+    school: eduText ? eduText.slice(0, 80) : null,
+    // 전공 — 본문 첫 마디만(괄호·마침표 앞까지). 예: "컴퓨터공학 학사 졸업 (GPA …). …" → "컴퓨터공학 학사 졸업"
+    major: edu && str(edu.company) && str(edu.text) ? str(edu.text).split(/[\n(.]/)[0].trim().slice(0, 60) || null : null,
+    skills: [...new Set(of("skill").flatMap((i) => split(str(i.text))))],
+    languages: of("language").flatMap((i) => split(str(i.text))),
+    careerCount: of("experience").length,
+    activityCount: of("project").length + of("activity").length + of("award").length,
+    summary: str(doc?.summary),
+    targetRole: str(doc?.targetRole)
+  };
+}
+
 function buildCandidateCard(r: PoolResumeRow, status: string | null) {
   const content = (r.content ?? {}) as Record<string, unknown>;
-  const edu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
-  const skills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
-  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : [];
-  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : [];
-  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : "";
-  const languages = Array.isArray(content.languages)
+  // 리뉴얼(v2) 이력서는 renewalResume 에만 내용이 있다 — 구형 필드가 비면 거기서 채운다(안 그러면 카드가 거의 비어 보인다).
+  const rn = renewalCardFields(content);
+  const legacyEdu = Array.isArray(content.educations) ? (content.educations[0] as Record<string, unknown> | undefined) : undefined;
+  const edu = legacyEdu ?? (rn.school ? { schoolName: rn.school, major: rn.major } : undefined);
+  const legacySkills = Array.isArray(content.skills) ? (content.skills as unknown[]).filter((s): s is string => typeof s === "string") : [];
+  const skills = legacySkills.length ? legacySkills : rn.skills;
+  const careers = Array.isArray(content.careers) ? (content.careers as unknown[]) : Array.from({ length: rn.careerCount });
+  const activities = Array.isArray(content.activities) ? (content.activities as unknown[]) : Array.from({ length: rn.activityCount });
+  const summary = typeof content.summary === "string" ? content.summary : typeof content.selfIntroduction === "string" ? content.selfIntroduction : rn.summary;
+  const legacyLanguages = Array.isArray(content.languages)
     ? (content.languages as Record<string, unknown>[]).map((l) => [l?.language, l?.level].filter((x) => typeof x === "string" && x).join(" ")).filter(Boolean)
     : [];
+  const languages = legacyLanguages.length ? legacyLanguages : rn.languages;
   // 블라인드 — 능력만으로 판단하도록, 연결 수락(ACCEPTED) 전에는 이름·국적을 가린다.
   const unlocked = status === "ACCEPTED";
   // 요약(자기소개)에 섞인 이름·국적 제거 + TOPIK 중립화.
@@ -30615,7 +32460,7 @@ function buildCandidateCard(r: PoolResumeRow, status: string | null) {
     nationality: unlocked ? (r.user?.nationality ?? (content.nationality as string) ?? null) : null,
     school: (edu?.schoolName as string) ?? null,
     major: (edu?.major as string) ?? null,
-    desiredJobRole: (content.desiredJobRole as string) ?? null,
+    desiredJobRole: (content.desiredJobRole as string) || rn.targetRole || null,
     workType: (content.workType as string) ?? null,
     // 국적을 가리는 것과 동일하게, 국적 프록시가 되는 비자/체류자격도 연결 수락 전에는 가린다.
     visa: unlocked ? ((content.basicVisa as string) ?? null) : null,
@@ -30660,11 +32505,15 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
     const users = await prisma.user.findMany({ where: { id: { in: blindIds } }, select: { id: true, realName: true, name: true, nationality: true } });
     for (const u of users) termsByUser.set(u.id, identityTerms(u.realName, u.name, u.nationality));
   }
+  const missing: string[] = [];
   for (const c of cards) {
     const row = byUser.get(c.candidateUserId);
-    // version = `${updatedAtMs}:${contentSig}` (구버전은 접두 ms 만) — 대표 이력서 updatedAt 이 일치하면 사용.
+    // 요약 캐시 버전은 'v<프롬프트>:<내용 서명>'(예전엔 이력서 updatedAt). 목록은 내용 서명을 다시 계산하지 않으므로
+    // 현재 프롬프트 버전의 요약이면 쓴다(서류가 바뀌면 상세를 열 때 다시 만들어 갱신된다). 예전 updatedAt 형식도 그대로 인정.
     const ms = String(new Date(c.updatedAt).getTime());
-    if (row && (row.version === ms || row.version.startsWith(`${ms}:`))) {
+    const usable = row && row.version && (row.version.startsWith(`v${DOC_SUMMARY_PROMPT_V}:`) || row.version === ms || row.version.startsWith(`${ms}:`)) && (row.resumeBullets.length || row.coverBullets.length);
+    if (!usable) missing.push(c.candidateUserId);
+    if (row && usable) {
       // 블라인드 — 요약 bullets에서 이름·국적 제거 + TOPIK '한국어 등급' 중립화.
       const blind = c.contactUnlocked === false;
       const terms = termsByUser.get(c.candidateUserId) ?? [];
@@ -30673,7 +32522,16 @@ async function attachCachedDocSummaries<T extends { candidateUserId: string; upd
       c.coverBullets = blind ? row.coverBullets.map(scrub) : row.coverBullets;
     }
   }
+  // 아직 요약이 없는 후보는 뒤에서 몇 명씩 만들어 둔다(다음에 목록을 열면 보인다). 같은 후보를 동시에 두 번 만들지 않게 표시.
+  for (const id of missing.slice(0, 6)) {
+    if (docSummaryWarming.has(id)) continue;
+    docSummaryWarming.add(id);
+    void getOrCreateDocSummary(id)
+      .catch(() => null)
+      .finally(() => docSummaryWarming.delete(id));
+  }
 }
+const docSummaryWarming = new Set<string>();
 
 // 자기소개서에 실제 답변이 있는 유저 집합.
 // 이력서가 "어느정도 완성" 됐는지 — 핵심 신호 2개 이상.
@@ -30929,8 +32787,8 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
     }
     const query = parsed.data.query;
     // 하이브리드 인재검색 — 시맨틱(이력서 임베딩 ANN)으로 후보를 선별하고 키워드와 블렌드.
-    // 임베딩/openai 없으면 최근순 풀 + 키워드로 폴백.
-    const qVec = openai ? await embedQueryCached(query) : null;
+    // 임베딩 없으면 최근순 풀 + 키워드로 폴백.
+    const qVec = await embedQueryCached(query);
     const distByUser = new Map<string, number>();
     let poolUserIds: string[] | null = null;
     if (qVec) {
@@ -30939,6 +32797,7 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
         SELECT "userId", "embedding" <=> ${vec}::vector AS distance
         FROM "Resume"
         WHERE "isPrimary" = true AND "embedding" IS NOT NULL
+          AND "userId" IN (SELECT "id" FROM "User" WHERE "talentPoolOptedOutAt" IS NULL)
         ORDER BY "embedding" <=> ${vec}::vector
         LIMIT 80
       `;
@@ -30977,8 +32836,8 @@ app.post("/partner/candidates/search", authenticateOptional, async (req, res) =>
       })
       .sort((a, b) => b.hybrid - a.hybrid);
 
-    // openai 없으면 하이브리드(=키워드) 상위 반환.
-    if (!openai) {
+    // llmReady 없으면 하이브리드(=키워드) 상위 반환.
+    if (!llmReady) {
       const items = scored.filter((x) => x.hybrid > 0).slice(0, 24).map((x) => x.c);
       await attachCachedDocSummaries(items);
       await attachInterestCounts(items);
@@ -31126,25 +32985,16 @@ async function explainMatchesWithOpenAI(
   items: { candidateUserId: string; desiredJobRole?: string | null; skills?: string[]; languages?: string[]; matchPercent: number; verified: boolean; readiness: number }[]
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
-  if (!openai || items.length === 0) return out;
+  if (!llmReady || items.length === 0) return out;
   try {
-    const response = await openai.responses.create({
-      model: openaiMatchingModel,
-      input: [
-        { role: "system", content: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라." },
-        {
-          role: "user",
-          content: JSON.stringify({
+    const response = await claudeJson({
+      model: lightModel,
+      system: "너는 채용 매칭 설명가다. 각 후보가 이 공고에 왜 적합한지 사실(제공 데이터)만 근거로 한국어 한 문장(최대 60자)으로 설명해라. 과장·추측 금지. JSON 스키마를 지켜라.",
+      user: JSON.stringify({
             position: { title: pos.title, role: pos.preferredJobRole, languages: pos.communicationLanguages },
             candidates: items.map((it) => ({ id: it.candidateUserId, desiredRole: it.desiredJobRole ?? null, skills: (it.skills ?? []).slice(0, 8), languages: it.languages ?? [], matchPercent: it.matchPercent, verified: it.verified, readiness: it.readiness }))
-          })
-        }
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "match_explanations",
-          schema: {
+          }),
+      schema: {
             type: "object",
             additionalProperties: false,
             properties: {
@@ -31159,12 +33009,9 @@ async function explainMatchesWithOpenAI(
               }
             },
             required: ["explanations"]
-          },
-          strict: true
-        }
-      }
+          }
     });
-    const outputText = (response as { output_text?: string }).output_text;
+    const outputText = response.raw;
     if (!outputText) return out;
     const parsed = JSON.parse(outputText) as { explanations?: { id: string; reason: string }[] };
     for (const e of parsed.explanations ?? []) if (e?.id && e?.reason) out.set(e.id, e.reason.trim());
@@ -31328,6 +33175,23 @@ app.post("/partner/candidates/:candidateUserId/connect", authenticate, requireRo
     });
     emitTalentEvent(candidateUserId, TalentEventType.INTERVIEW_INVITED, { actorType: "company", entityType: "connection", entityId: created.id, metadata: { partnerOrganizationId: affiliation?.organization?.id ?? null } });
     const orgName = affiliation?.organization?.name ?? "운영팀";
+    void (async () => {
+      const [requester, candidate] = await Promise.all([
+        prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { name: true, realName: true, email: true } }),
+        prisma.user.findUnique({ where: { id: candidateUserId }, select: { name: true, realName: true, affiliation: true } })
+      ]);
+      await sendCandidateConnectDiscordNotification({
+        requestId: created.id,
+        organizationName: affiliation?.organization?.name ?? null,
+        requesterName: requester?.realName || requester?.name || null,
+        requesterEmail: requester?.email ?? null,
+        candidateUserId,
+        candidateName: candidate?.realName || candidate?.name || null,
+        candidateAffiliation: candidate?.affiliation ?? null,
+        message: parsed.data.message ?? null,
+        createdAt: created.createdAt
+      });
+    })().catch((e) => console.error("[partner/connect] discord notify failed", e));
     await createNotification({
       userId: candidateUserId,
       type: "CANDIDATE_CONNECTION_REQUEST",
@@ -31651,16 +33515,39 @@ app.patch("/partner/connections/:id/status", authenticate, requireRoles([MemberR
   }
 });
 
-// 학생: 인재풀 등록(대표 이력서 poolOptIn) 토글
+// 학생: 기업 인재 검색 노출 상태 + 기업에게 보이는 내 카드(블라인드, 파트너가 보는 것과 같은 모양).
+// 노출 기준은 POOL_RESUME_WHERE(대표 이력서 + 끄지 않음) + 카드 완성도(isResumeReasonablyComplete).
+app.get("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
+  try {
+    const userId = req.auth!.userId;
+    const [user, primary, interested] = await Promise.all([
+      prisma.user.findUnique({ where: { id: userId }, select: { talentPoolOptedOutAt: true } }),
+      prisma.resume.findFirst({ where: { userId, isPrimary: true }, select: { userId: true, updatedAt: true, content: true, user: { select: { name: true, realName: true, nationality: true } } } }),
+      prisma.partnerSavedCandidate.findMany({ where: { candidateUserId: userId }, select: { organizationId: true }, distinct: ["organizationId"] })
+    ]);
+    const optedOut = !!user?.talentPoolOptedOutAt;
+    const card = primary ? buildCandidateCard(primary, null) : null;
+    const complete = !!card && isResumeReasonablyComplete(card);
+    return res.json({ ok: true, optedOut, hasResume: !!primary, complete, visible: !optedOut && complete, interestedCount: interested.length, card });
+  } catch (err) {
+    console.error("[members/me/talent-pool GET] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load talent pool status" });
+  }
+});
+
+// 학생: 기업 인재 검색 노출 켜기/끄기. 가입하면 기본 노출 — 끄면 talentPoolOptedOutAt 을 남기고 인재 검색·추천·새 연결 요청에서 빠진다.
+// (예전 '동의해야 노출' 모델의 talentPoolConsentedAt·content.poolOptIn 은 표시·레거시 호환용으로 함께 맞춘다.)
 const talentPoolSchema = z.object({ optIn: z.boolean() });
 app.post("/members/me/talent-pool", authenticate, requireRoles([MemberRole.STUDENT]), async (req, res) => {
   const parsed = talentPoolSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
   try {
+    await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: parsed.data.optIn ? { talentPoolOptedOutAt: null, talentPoolConsentedAt: new Date() } : { talentPoolOptedOutAt: new Date(), talentPoolConsentedAt: null }
+    });
     const primary = await prisma.resume.findFirst({ where: { userId: req.auth!.userId, isPrimary: true }, select: { id: true, content: true } });
-    if (!primary) return res.status(400).json({ ok: false, code: "NO_PRIMARY_RESUME", message: "대표 이력서가 필요해요." });
-    // 동의는 유저 레벨(talentPoolConsentedAt)이 원천. content.poolOptIn 은 프론트 표시·레거시 호환용 미러.
-    await prisma.user.update({ where: { id: req.auth!.userId }, data: { talentPoolConsentedAt: parsed.data.optIn ? new Date() : null } });
+    if (!primary) return res.json({ ok: true, optIn: parsed.data.optIn });
     const content = { ...((primary.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>) };
     if (parsed.data.optIn) content.poolOptIn = { consentedAt: new Date().toISOString() };
     else delete content.poolOptIn;
@@ -36042,24 +37929,13 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
     return out;
   }
 
-  if (!openai) return { resumeBullets: [], coverBullets: [], disabled: true };
+  if (!llmReady) return { resumeBullets: [], coverBullets: [], disabled: true };
 
-  const response = await openai.responses.create({
-    model: openaiTranslationModel,
-    input: [
-      {
-        role: "system",
-        content:
-          "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다."
-      },
-      { role: "user", content: JSON.stringify({ resume: resumeText, coverLetter: coverText }) }
-    ],
-    text: {
-      format: {
-        type: "json_schema",
-        name: "applicant_doc_summary",
-        strict: true,
-        schema: {
+  const response = await claudeJson({
+    model: lightModel,
+    system: "너는 채용 담당자를 돕는 어시스턴트다. 지원자의 이력서와 자기소개서를 각각 3~5개의 간결한 한국어 불렛으로 요약한다. 사실에 근거해서만 작성하고(추측 금지), 핵심 역량·경험·강점 위주로 한 불렛은 한 문장(40자 내외)으로 만든다. 내용이 없으면 빈 배열을 반환한다.",
+    user: JSON.stringify({ resume: resumeText, coverLetter: coverText }),
+    schema: {
           type: "object",
           additionalProperties: false,
           properties: {
@@ -36068,11 +37944,9 @@ async function getOrCreateDocSummary(candidateUserId: string, fallbackResume = "
           },
           required: ["resumeBullets", "coverBullets"]
         }
-      }
-    }
   });
 
-  const outputText = (response as { output_text?: string }).output_text;
+  const outputText = response.raw;
   const parsed = outputText ? (JSON.parse(outputText) as { resumeBullets?: unknown; coverBullets?: unknown }) : {};
   const clean = (arr: unknown): string[] =>
     Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).slice(0, 5) : [];
@@ -36166,6 +38040,130 @@ app.get("/partner/candidates/:candidateUserId/document-summary", authenticate, r
   }
 });
 
+// ── AI 인재 인사이트 — 인재 검색 상세에서 '이 사람이 어떤 직무에 어울리는지' 등 연락 여부를 판단할 정보 ──
+// 이력서·자기소개서(+소속)에서만 근거를 뽑는다(추측 금지, 국적·성별·나이로 판단 금지). 서류가 바뀔 때만 다시 만든다(ApplicantDocSummary.insight*).
+// 블라인드 — 연결 수락 전에는 서류 요약과 같은 규칙(이름·국적 가림, 연락처 가림, TOPIK → 한국어 초·중·고급).
+const CANDIDATE_INSIGHT_V = 2;
+const CANDIDATE_INSIGHT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["headline", "fitRoles", "strengths", "keyExperiences", "skills", "languages", "readiness", "checkPoints"],
+  properties: {
+    headline: { type: "string", description: "이 인재를 한 줄로(45자 내외, 사실 기반 — 예: '사이버보안·클라우드 지향 IT 전공 3학년, 네트워크 프로젝트 경험')" },
+    fitRoles: {
+      type: "array",
+      maxItems: 4,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["role", "level", "why"],
+        properties: {
+          role: { type: "string", description: "어울리는 직무(구체적으로, 예: '보안 관제 인턴', '데이터 분석 어시스턴트')" },
+          level: { type: "string", enum: ["strong", "good", "possible"], description: "strong=서류 근거가 뚜렷, good=관련 경험 있음, possible=관심·기초 역량" },
+          why: { type: "string", description: "서류에 있는 근거 한 문장" }
+        }
+      }
+    },
+    strengths: {
+      type: "array",
+      maxItems: 4,
+      items: { type: "object", additionalProperties: false, required: ["title", "evidence"], properties: { title: { type: "string" }, evidence: { type: "string", description: "서류 속 근거(경험·수치)" } } }
+    },
+    keyExperiences: {
+      type: "array",
+      maxItems: 4,
+      items: { type: "object", additionalProperties: false, required: ["title", "detail"], properties: { title: { type: "string" }, detail: { type: "string", description: "무엇을 했고 결과가 어땠는지 한 문장" } } }
+    },
+    skills: { type: "array", maxItems: 10, items: { type: "string" } },
+    languages: { type: "array", maxItems: 4, items: { type: "string", description: "언어와 수준(서류에 있는 그대로)" } },
+    readiness: { type: "array", maxItems: 4, items: { type: "string", description: "학년·졸업 예정·교환학생 여부·희망 근무 형태·근무 가능 시기 등(서류에 있을 때만)" } },
+    checkPoints: { type: "array", maxItems: 3, items: { type: "string", description: "연락·면접 전에 확인하면 좋을 점(서류에서 불분명한 것)" } }
+  }
+} as const;
+type CandidateInsight = {
+  headline: string;
+  fitRoles: { role: string; level: "strong" | "good" | "possible"; why: string }[];
+  strengths: { title: string; evidence: string }[];
+  keyExperiences: { title: string; detail: string }[];
+  skills: string[];
+  languages: string[];
+  readiness: string[];
+  checkPoints: string[];
+};
+async function getOrCreateCandidateInsight(candidateUserId: string): Promise<CandidateInsight | null> {
+  const [primary, user] = await Promise.all([
+    prisma.resume.findFirst({ where: { userId: candidateUserId }, orderBy: [{ isPrimary: "desc" }, { updatedAt: "desc" }], select: { content: true } }),
+    prisma.user.findUnique({ where: { id: candidateUserId }, select: { affiliation: true } })
+  ]);
+  const c = (primary?.content && typeof primary.content === "object" ? primary.content : {}) as Record<string, unknown>;
+  const resumeText = resumeDocToText(c.renewalResume) || resumeContentToText(c);
+  let coverText = coverDocToText(c.renewalCover);
+  if (!coverText.trim()) {
+    const cl = await prisma.coverLetter.findFirst({ where: { userId: candidateUserId }, orderBy: { updatedAt: "desc" }, select: { items: true } });
+    coverText = coverLetterItemsToText(cl?.items);
+  }
+  const targetRole = typeof (c.renewalResume as { targetRole?: unknown } | undefined)?.targetRole === "string" ? String((c.renewalResume as { targetRole: string }).targetRole) : "";
+  if (!resumeText.trim() && !coverText.trim()) return null;
+  const input = `${user?.affiliation ?? ""}\n${targetRole}\n${resumeText}\n${coverText}`;
+  let sig = 5381;
+  for (let i = 0; i < input.length; i += 1) sig = ((sig << 5) + sig + input.charCodeAt(i)) | 0;
+  const version = `i${CANDIDATE_INSIGHT_V}:${(sig >>> 0).toString(36)}`;
+  const row = await prisma.applicantDocSummary.findUnique({ where: { candidateUserId }, select: { insightData: true, insightVersion: true } });
+  if (row?.insightVersion === version && row.insightData) return row.insightData as unknown as CandidateInsight;
+  if (!llmReady) return null;
+  // 기업에 보이는 판단 정보라 정확도가 중요 — 문서 점검과 같은 상위 모델(작은 모델은 오탐·뭉뚱그림이 많다)
+  const response = await claudeJson({
+    model: qualityModel, effort: "medium",
+    system: "너는 기업 채용 담당자를 돕는 어시스턴트다. 인재의 이력서·자기소개서를 읽고, 담당자가 '연락해 볼지'를 30초 안에 판단할 수 있게 정리한다. 모든 내용은 서류에 있는 사실에서만 근거를 찾는다(추측·과장 금지, 서류에 없으면 빈 배열). 국적·성별·나이·종교로 판단하지 않는다. 연락처·이름은 쓰지 않는다. 한국어로.\n" +
+          "규칙:\n" +
+          "- headline: '전공·학년(또는 경력 단계) + 핵심 역량 + 대표 경험' 형식의 자연스러운 한 문장. 희망 직무 문구를 따옴표로 그대로 옮기지 마. 예) '컴퓨터공학 3학년, 웹·백엔드 개발 역량과 팀 프로젝트 3건 경험'\n" +
+          "- fitRoles: 회사가 실제로 뽑는 구체적인 직무명(예: '프론트엔드 개발 인턴', '호텔 프론트 데스크 인턴', '글로벌 마케팅 어시스턴트'). '인턴'·'사무직'처럼 뭉뚱그린 이름 금지. 근거가 뚜렷한 순서로.\n" +
+          "- strengths: 한 줄 강점 + 그 근거가 된 서류 속 경험·수치.\n" +
+          "- keyExperiences: 가장 직무 관련성이 큰 경험만, '무엇을 했고 결과가 어땠는지'.\n" +
+          "- readiness: 학년·졸업 예정 시기·교환학생 여부·희망 근무 형태·근무 가능 시기처럼 '언제·어떤 형태로 일할 수 있는지'만. 역량 평가는 넣지 마.\n" +
+          "- checkPoints: 서류만으로는 불분명해서 연락·면접 때 확인하면 좋은 점을 '~ 확인 필요' 형태로(예: '한국어로 업무 소통이 가능한 수준인지 확인 필요', '인턴 가능 기간·주당 근무 시간 확인 필요'). 강점을 쓰지 마.",
+    user: JSON.stringify({ affiliation: user?.affiliation ?? "", desiredRole: targetRole, resume: resumeText.slice(0, 12000), coverLetter: coverText.slice(0, 6000) }),
+    schema: CANDIDATE_INSIGHT_SCHEMA
+  });
+  let parsed: CandidateInsight | null = null;
+  try {
+    parsed = JSON.parse(response.raw ?? "") as CandidateInsight;
+  } catch {
+    parsed = null;
+  }
+  if (!parsed?.headline) return null;
+  await prisma.applicantDocSummary
+    .upsert({ where: { candidateUserId }, create: { candidateUserId, version: "", insightData: parsed as object, insightVersion: version }, update: { insightData: parsed as object, insightVersion: version } })
+    .catch(() => {});
+  return parsed;
+}
+
+// GET /partner/candidates/:candidateUserId/insight — AI 인재 인사이트(인재풀 후보만). 연결 수락 전엔 블라인드.
+app.get("/partner/candidates/:candidateUserId/insight", authenticate, requireRoles([MemberRole.PARTNER, MemberRole.OPERATOR]), async (req, res) => {
+  const candidateUserId = String(req.params.candidateUserId ?? "");
+  try {
+    if (req.auth!.role !== MemberRole.OPERATOR) {
+      const affiliation = await resolvePartnerAffiliation(req.auth!.userId);
+      if (!affiliation?.organization) return sendAuthError(res, 403, "PARTNER_AFFILIATION_REQUIRED", "partner affiliation is required.");
+    }
+    const inPool = await prisma.resume.findFirst({ where: { userId: candidateUserId, ...POOL_RESUME_WHERE }, select: { id: true } });
+    if (!inPool) return res.status(404).json({ ok: false, message: "candidate not in pool" });
+    let insight = await getOrCreateCandidateInsight(candidateUserId);
+    if (!insight) return res.json({ ok: true, insight: null });
+    const conn = req.auth!.role === MemberRole.OPERATOR ? { status: "ACCEPTED" } : await prisma.candidateConnectionRequest.findUnique({ where: { partnerUserId_candidateUserId: { partnerUserId: req.auth!.userId, candidateUserId } }, select: { status: true } });
+    if (conn?.status !== "ACCEPTED") {
+      const u = await prisma.user.findUnique({ where: { id: candidateUserId }, select: { realName: true, name: true, nationality: true } });
+      const terms = identityTerms(u?.realName, u?.name, u?.nationality);
+      const scrub = (v: unknown): unknown => (typeof v === "string" ? redactContactText(redactIdentityText(neutralizeTopik(v), terms)) : Array.isArray(v) ? v.map(scrub) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, scrub(x)])) : v);
+      insight = scrub(insight) as CandidateInsight;
+    }
+    return res.json({ ok: true, insight });
+  } catch (err) {
+    console.error("[partner/insight] failed", err instanceof Error ? err.message : err);
+    return res.status(500).json({ ok: false, message: "failed" });
+  }
+});
+
 // 회사 소개(description+strengths) → 한 줄 LLM 요약. version(입력 해시)로 org 에 캐싱.
 async function getOrCreateCompanySummary(org: { id: string; description: string | null; strengths: string | null; descriptionSummary: string | null; descriptionSummaryVersion: string | null }): Promise<string | null> {
   const text = [(org.description ?? "").trim(), (org.strengths ?? "").trim()].filter(Boolean).join("\n");
@@ -36174,18 +38172,16 @@ async function getOrCreateCompanySummary(org: { id: string; description: string 
   for (let i = 0; i < text.length; i += 1) sig = ((sig << 5) + sig + text.charCodeAt(i)) | 0;
   const version = (sig >>> 0).toString(36);
   if (org.descriptionSummary && org.descriptionSummaryVersion === version) return org.descriptionSummary;
-  if (!openai) return null;
-  const response = await openai.responses.create({
-    model: openaiTranslationModel,
-    input: [
-      { role: "system", content: "회사 소개를 구직자가 한눈에 파악할 수 있게 한국어 한 문장(45자 내외)으로 요약해라. 과장·홍보 문구 없이 사실 기반으로, 무슨 회사인지·강점 위주로." },
-      { role: "user", content: text }
-    ],
-    text: { format: { type: "json_schema", name: "company_summary", strict: true, schema: { type: "object", additionalProperties: false, properties: { summary: { type: "string" } }, required: ["summary"] } } }
+  if (!llmReady) return null;
+  const response = await claudeJson({
+    model: lightModel,
+    system: "회사 소개를 구직자가 한눈에 파악할 수 있게 한국어 한 문장(45자 내외)으로 요약해라. 과장·홍보 문구 없이 사실 기반으로, 무슨 회사인지·강점 위주로.",
+    user: text,
+    schema: { type: "object", additionalProperties: false, properties: { summary: { type: "string" } }, required: ["summary"] }
   });
   const parsed = (() => {
     try {
-      return JSON.parse((response as { output_text?: string }).output_text ?? "{}") as { summary?: unknown };
+      return JSON.parse(response.raw ?? "{}") as { summary?: unknown };
     } catch {
       return {};
     }
@@ -36882,7 +38878,7 @@ async function buildKoreanTranslations(
 ): Promise<ResumeTranslations | null> {
   const units = collectTranslationUnits(content);
   if (units.length === 0) return previous?.ko ? { ko: previous.ko } : null;
-  if (!openai) return previous?.ko ? { ko: previous.ko } : null;
+  if (!llmReady) return previous?.ko ? { ko: previous.ko } : null;
 
   const prevKo = previous?.ko ?? {};
   const prevContent = content as Record<string, unknown>;
@@ -36908,23 +38904,15 @@ async function buildKoreanTranslations(
   // 비용 통제는 needsKoreanTranslation 의 길이/비율 컷오프로 제한.
   const promises = units.map(async (unit) => {
     try {
-      const completion = await openai!.chat.completions.create({
-        model: openaiTranslationModel,
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
+      const raw = await claudeJsonRaw({
+        model: lightModel,
+        system:
               "당신은 이력서 번역가입니다. 외국인 지원자의 이력서 텍스트를 한국 기업이 읽기 좋은 자연스러운 한국어로 번역하세요. " +
               "원문에 있는 사실만 사용하고, 새 사실/수치/회사명/날짜를 추가하지 마세요. 의미를 부풀리지 마세요. " +
               "회사명·학교명·자격증명 같은 고유명사는 영문 그대로 두거나 (한국어 표기) 형태로 자연스럽게 표기. " +
-              "JSON 한 개의 객체만 응답: { \"ko\": string }"
-          },
-          { role: "user", content: unit.text }
-        ]
+              "JSON 한 개의 객체만 응답: { \"ko\": string }",
+        user: unit.text
       });
-      const raw = completion.choices?.[0]?.message?.content ?? "";
       let parsedJson: { ko?: unknown } = {};
       try { parsedJson = JSON.parse(raw); } catch { /* skip */ }
       const ko = typeof parsedJson.ko === "string" ? parsedJson.ko.trim() : "";

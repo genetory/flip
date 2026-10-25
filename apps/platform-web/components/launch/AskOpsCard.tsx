@@ -5,7 +5,6 @@
 // 질문을 보내면 서버가 Discord 로 알려 운영진이 바로 답한다.
 import { useEffect, useState } from "react";
 import { CaretDown, ChatCircleDots, CheckCircle, CircleNotch, PaperPlaneRight } from "@phosphor-icons/react";
-import { Card } from "./ui";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { fetchMyQuestions, askQuestion, markQuestionRead, QUESTION_MAX_CHARS, type LaunchQuestion } from "../../lib/launch/question-client";
 
@@ -71,80 +70,80 @@ export function AskOpsCard({ currentWeek }: { currentWeek?: number }) {
   };
 
   return (
-    <Card className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 rounded-3xl bg-[color:var(--v2-band)] p-5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[15px] font-black tracking-[-0.01em] text-[#191F28]">
-            <ChatCircleDots size={18} weight="fill" className="shrink-0 text-[#0B46E8]" />
+          <p className="flex items-center gap-1.5 text-[17px] font-bold tracking-[-0.01em] text-[color:var(--v2-ink)]">
+            <ChatCircleDots size={18} weight="fill" className="shrink-0 text-[color:var(--v2-accent)]" />
             {t("운영진에게 질문하기", "Ask the team", "向运营团队提问", "Hỏi ban vận hành", "運営に質問する", "Tanya tim")}
-            {unread > 0 ? <span className="rounded-full bg-[#F04452] px-1.5 py-0.5 text-[10.5px] font-bold leading-none text-white">{t(`답변 ${unread}`, `${unread} new`, `回复 ${unread}`, `${unread} trả lời`, `回答 ${unread}`, `${unread} baru`)}</span> : null}
+            {unread > 0 ? <span className="rounded-full bg-[color:var(--v2-attention)] px-1.5 py-0.5 text-[10.5px] font-bold leading-none text-white">{t(`답변 ${unread}`, `${unread} new`, `回复 ${unread}`, `${unread} trả lời`, `回答 ${unread}`, `${unread} baru`)}</span> : null}
           </p>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[#8B95A1]">
+          <p className="mt-1 text-[14px] leading-relaxed text-[color:var(--v2-muted)]">
             {t("일정·제출 기한·계정처럼 AI가 답할 수 없는 건 운영진이 직접 답해드려요.", "For schedules, deadlines or account issues, the team replies in person.", "日程、截止时间、账号问题由运营团队亲自答复。", "Lịch, hạn chót, tài khoản — ban vận hành trả lời trực tiếp.", "日程・締切・アカウントなどは運営が直接お答えします。", "Jadwal, tenggat, akun — tim menjawab langsung.")}
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-2xl bg-[#F5F8FF] p-3">
+      <div className="flex flex-col gap-2 rounded-2xl bg-white p-3">
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value.slice(0, QUESTION_MAX_CHARS))}
           rows={3}
           placeholder={t("예: 3주차 모의면접은 언제까지 마쳐야 하나요?", "e.g. When is the Week 3 mock interview due?", "例：第3周模拟面试的截止时间是？", "VD: Phỏng vấn thử tuần 3 hạn khi nào?", "例：3週目の模擬面接はいつまでですか？", "Mis: Kapan tenggat wawancara pekan 3?")}
-          className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3 py-2.5 text-[13px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8]"
+          className="w-full resize-none rounded-2xl bg-[color:var(--v2-fill)] px-4 py-3 text-[16px] leading-relaxed text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] placeholder:text-[color:var(--v2-faint)] focus:ring-2"
         />
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] tabular-nums text-[#8B95A1]">
+          <span className="text-[11px] tabular-nums text-[color:var(--v2-faint)]">
             {draft.trim().length.toLocaleString()} / {QUESTION_MAX_CHARS.toLocaleString()}
           </span>
           <button
             type="button"
             onClick={() => void send()}
             disabled={sending || !draft.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold leading-none text-white transition hover:bg-[#0A3ECB] disabled:cursor-default disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[color:var(--v2-accent)] px-3.5 text-[14px] font-semibold leading-none text-white transition hover:opacity-90 disabled:cursor-default disabled:opacity-50"
           >
             {sending ? <CircleNotch size={14} weight="bold" className="animate-spin" /> : <PaperPlaneRight size={14} weight="fill" />}
             {t("질문 보내기", "Send", "发送提问", "Gửi câu hỏi", "質問を送る", "Kirim")}
           </button>
         </div>
       </div>
-      {msg ? <p className="text-[12px] leading-relaxed text-[#4E5968]">{msg}</p> : null}
+      {msg ? <p className="text-[12px] leading-relaxed text-[color:var(--v2-ink-3)]">{msg}</p> : null}
 
       {loading ? (
-        <p className="flex items-center gap-1.5 text-[12.5px] text-[#8B95A1]">
+        <p className="flex items-center gap-1.5 text-[12.5px] text-[color:var(--v2-faint)]">
           <CircleNotch size={14} weight="bold" className="animate-spin" /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}
         </p>
       ) : items.length === 0 ? null : (
         <ul className="flex flex-col gap-1.5">
           {items.map((q) => (
-            <li key={q.id} className="overflow-hidden rounded-xl border border-[#EEF1F5]">
-              <button type="button" onClick={() => toggle(q)} className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition hover:bg-[#FAFBFC]">
+            <li key={q.id} className="overflow-hidden rounded-2xl bg-white">
+              <button type="button" onClick={() => toggle(q)} className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition hover:bg-[color:var(--v2-fill)]">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-semibold text-[#191F28]">{q.body}</span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#8B95A1]">
+                  <span className="block truncate text-[14px] font-semibold text-[color:var(--v2-ink)]">{q.body}</span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[color:var(--v2-faint)]">
                     {when(q.createdAt)}
                     {q.answered ? (
-                      <span className="inline-flex items-center gap-0.5 font-bold text-[#0A9B59]">
+                      <span className="inline-flex items-center gap-0.5 font-bold text-[color:var(--v2-good)]">
                         <CheckCircle size={12} weight="fill" /> {t("답변 완료", "Answered", "已回复", "Đã trả lời", "回答済み", "Dijawab")}
                       </span>
                     ) : (
-                      <span className="font-bold text-[#C77700]">{t("답변 대기중", "Waiting", "等待回复", "Đang chờ", "回答待ち", "Menunggu")}</span>
+                      <span className="font-bold text-[color:var(--v2-attention)]">{t("답변 대기중", "Waiting", "等待回复", "Đang chờ", "回答待ち", "Menunggu")}</span>
                     )}
-                    {q.answered && !q.readAt ? <span className="h-1.5 w-1.5 rounded-full bg-[#F04452]" /> : null}
+                    {q.answered && !q.readAt ? <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--v2-attention)]" /> : null}
                   </span>
                 </span>
-                <CaretDown size={14} weight="bold" className={`mt-0.5 shrink-0 text-[#B0B8C1] transition ${openId === q.id ? "rotate-180" : ""}`} />
+                <CaretDown size={14} weight="bold" className={`mt-0.5 shrink-0 text-[color:var(--v2-faint)] transition ${openId === q.id ? "rotate-180" : ""}`} />
               </button>
               {openId === q.id ? (
-                <div className="border-t border-[#EEF1F5] bg-[#FAFBFC] px-3 py-2.5">
-                  <p className="whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#4E5968]">{q.body}</p>
+                <div className="border-t border-[color:var(--v2-band)] bg-[color:var(--v2-fill)] px-3 py-2.5">
+                  <p className="whitespace-pre-wrap text-[12.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{q.body}</p>
                   {q.answer ? (
-                    <div className="mt-2 rounded-xl bg-white p-2.5">
-                      <p className="text-[11px] font-bold text-[#0B46E8]">{t("운영진 답변", "Team reply", "运营答复", "Ban vận hành trả lời", "運営の回答", "Jawaban tim")}</p>
-                      <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[#191F28]">{q.answer}</p>
+                    <div className="mt-2 rounded-xl bg-[color:var(--v2-accent-weak)] p-2.5">
+                      <p className="text-[11px] font-bold text-[color:var(--v2-accent)]">{t("운영진 답변", "Team reply", "运营答复", "Ban vận hành trả lời", "運営の回答", "Jawaban tim")}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-[12.5px] leading-relaxed text-[color:var(--v2-ink)]">{q.answer}</p>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[11.5px] text-[#8B95A1]">{t("아직 답변이 달리지 않았어요.", "No reply yet.", "还没有回复。", "Chưa có câu trả lời.", "まだ回答はありません。", "Belum ada jawaban.")}</p>
+                    <p className="mt-2 text-[11.5px] text-[color:var(--v2-faint)]">{t("아직 답변이 달리지 않았어요.", "No reply yet.", "还没有回复。", "Chưa có câu trả lời.", "まだ回答はありません。", "Belum ada jawaban.")}</p>
                   )}
                 </div>
               ) : null}
@@ -152,6 +151,6 @@ export function AskOpsCard({ currentWeek }: { currentWeek?: number }) {
           ))}
         </ul>
       )}
-    </Card>
+    </div>
   );
 }

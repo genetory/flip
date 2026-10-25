@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useLanguage } from "../components/i18n/LanguageProvider";
 import type { PlatformLocale } from "./auth-messages";
 
@@ -22,7 +23,8 @@ export function pickLocale(locale: PlatformLocale, ko: string, en: string, zh?: 
   }
 }
 
+// 언어가 바뀔 때만 새 함수 — 매번 새로 만들면 t 를 의존성에 둔 effect 가 렌더마다 다시 돌아 무한 로딩이 된다.
 export function usePlatformT(): PlatformT {
   const { locale } = useLanguage();
-  return (ko, en, zh, vi, ja, id) => pickLocale(locale, ko, en, zh, vi, ja, id);
+  return useCallback<PlatformT>((ko, en, zh, vi, ja, id) => pickLocale(locale, ko, en, zh, vi, ja, id), [locale]);
 }

@@ -10,7 +10,8 @@ import { talentAppRoutes } from "../../../lib/talent/app-nav";
 
 export function CareerLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
-  const isHub = pathname === talentAppRoutes.career;
+  // GNB 탭으로 바로 오는 화면은 뒤로가기를 달지 않는다(내 커리어 허브, 모의 면접).
+  const isHub = pathname === talentAppRoutes.career || pathname === talentAppRoutes.interviews;
   return (
     <TalentAppShell>
       {!isHub ? <TalentBackButton className="mb-5" /> : null}

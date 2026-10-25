@@ -49,23 +49,23 @@ export default function ResumePreviewPage() {
 
   // 로딩·빈 상태 — 사이트 셸로 안내.
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-white">
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-5xl px-5 pt-6 md:pt-10">
-          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+        <div className="mx-auto w-full max-w-[880px] px-5 pt-6 md:pt-10">
+          <Link href="/career-launch/dashboard" className="inline-flex items-center gap-1 text-[15px] font-medium text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink-3)]">
             <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("대시보드", "Dashboard", "仪表盘", "Bảng điều khiển", "ダッシュボード", "Dasbor")}
           </Link>
           <div className="mt-6">
             {state === "loading" ? (
-              <div className="flex items-center justify-center gap-2 rounded-2xl border border-[#E5E8EB] bg-white p-8 text-[14px] text-[#8B95A1]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
+              <div className="flex items-center justify-center gap-2 rounded-3xl bg-[color:var(--v2-band)] p-8 text-[15px] text-[color:var(--v2-muted)]"><CircleNotch className="h-4 w-4 animate-spin" weight="bold" aria-hidden /> {t("불러오는 중…", "Loading…", "加载中…", "Đang tải…", "読み込み中…", "Memuat…")}</div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-[#D7DCE3] bg-white p-8 text-center">
-                <p className="text-[14px] font-semibold text-[#4E5968]">{t("아직 채운 이력서 정보가 없어요.", "You haven't filled in any resume details yet.", "你还没有填写任何简历信息。", "Bạn chưa điền thông tin sơ yếu lý lịch nào.", "まだ入力された履歴書の情報がありません。", "Kamu belum mengisi detail resume apa pun.")}</p>
-                <p className="mt-1 text-[13px] text-[#8B95A1]">{t("AI와 대화하면 이력서가 자동으로 만들어져요.", "Chat with the AI and your resume is created automatically.", "与AI对话，系统会自动生成你的简历。", "Trò chuyện với AI và sơ yếu lý lịch của bạn sẽ được tạo tự động.", "AIと会話すると、履歴書が自動で作成されます。", "Mengobrol dengan AI dan resume kamu dibuat secara otomatis.")}</p>
+              <div className="rounded-3xl bg-[color:var(--v2-band)] px-5 py-10 text-center">
+                <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{t("아직 채운 이력서 정보가 없어요.", "You haven't filled in any resume details yet.", "你还没有填写任何简历信息。", "Bạn chưa điền thông tin sơ yếu lý lịch nào.", "まだ入力された履歴書の情報がありません。", "Kamu belum mengisi detail resume apa pun.")}</p>
+                <p className="mt-1.5 text-[15px] leading-[1.55] text-[color:var(--v2-ink-3)]">{t("AI와 대화하면 이력서가 자동으로 만들어져요.", "Chat with the AI and your resume is created automatically.", "与AI对话，系统会自动生成你的简历。", "Trò chuyện với AI và sơ yếu lý lịch của bạn sẽ được tạo tự động.", "AIと会話すると、履歴書が自動で作成されます。", "Mengobrol dengan AI dan resume kamu dibuat secara otomatis.")}</p>
                 <Link
                   href="/career-launch/resume-collect"
-                  className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#0B46E8] px-5 py-2.5 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]"
+                  className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
                 >
                   {t("대화로 이력서 채우기 →", "Build your resume by chatting →", "通过对话填写简历 →", "Điền sơ yếu lý lịch qua trò chuyện →", "会話で履歴書を作成する →", "Isi resume lewat obrolan →")}
                 </Link>

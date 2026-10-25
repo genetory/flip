@@ -10,7 +10,7 @@ import { useAuthSession } from "../auth/AuthSessionProvider";
 import { AuthApiError, loginWithEmail, clearAccessToken } from "../../lib/auth-client";
 import { useLaunchT } from "../../lib/launch/i18n";
 import { TalentButton } from "../talent/TalentButton";
-import { TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentField, talentInputClass, authSubmitClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 import { CareerLaunchIntro } from "./CareerLaunchIntro";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
@@ -74,14 +74,14 @@ export function CareerLaunchLoginPage() {
       <LaunchAmbientBackground />
       <CareerLaunchHeader />
       <main className="flex-1">
-        <div className="mx-auto w-full max-w-5xl px-5 py-10 md:py-14">
+        <div className="mx-auto w-full max-w-5xl px-5 pb-16 pt-6 md:py-14">
           <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-10">
             {/* 왼쪽 — 서비스 소개(무슨 서비스인지 인지) */}
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0B46E8]/10 px-3 py-1 text-[12px] font-bold uppercase tracking-[0.1em] text-[#0B46E8]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--v2-accent-weak)] px-3 py-1 text-[13px] font-bold text-[color:var(--v2-accent)]">
                 ✨ APLY Career Launch
               </span>
-              <h1 className="mt-4 whitespace-pre-line break-keep bg-gradient-to-br from-[#0B1227] via-[#16276A] to-[#0B46E8] bg-clip-text text-[28px] font-black leading-[1.15] tracking-[-0.03em] text-transparent md:text-[36px]">
+              <h1 className="mt-4 whitespace-pre-line break-keep text-[26px] font-bold leading-[1.38] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[34px] md:leading-[1.3]">
                 {t(
                   "모든 취업 준비생을 위한\n취업 준비 Career Launch",
                   "Career Launch — job prep\nfor every job seeker",
@@ -95,9 +95,9 @@ export function CareerLaunchLoginPage() {
             </div>
 
             {/* 오른쪽 — 로그인 카드 */}
-            <div className="rounded-3xl border border-white/60 bg-white/80 p-6 shadow-[0_24px_64px_-24px_rgba(11,70,232,0.3)] ring-1 ring-[#0B46E8]/10 backdrop-blur-xl md:p-7">
-              <h2 className="text-[19px] font-black tracking-[-0.02em] text-[#0B1227]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</h2>
-              <p className="mt-1.5 text-[13px] text-[#8B95A1]">{t("학생 계정으로 로그인하고 이어서 진행해요.", "Sign in with your student account to continue.", "使用学生账号登录以继续。", "Đăng nhập bằng tài khoản sinh viên để tiếp tục.", "学生アカウントでログインして続けましょう。", "Masuk dengan akun mahasiswa untuk melanjutkan.")}</p>
+            <div className="rounded-3xl bg-white py-2 md:p-8 md:ring-1 md:ring-[color:var(--v2-line)]">
+              <h2 className="text-[22px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}</h2>
+              <p className="mt-1.5 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{t("학생 계정으로 로그인하고 이어서 진행해요.", "Sign in with your student account to continue.", "使用学生账号登录以继续。", "Đăng nhập bằng tài khoản sinh viên để tiếp tục.", "学生アカウントでログインして続けましょう。", "Masuk dengan akun mahasiswa untuk melanjutkan.")}</p>
 
               <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
                 <TalentField label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")}>
@@ -122,8 +122,8 @@ export function CareerLaunchLoginPage() {
                     autoComplete="current-password"
                   />
                 </TalentField>
-                {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-                <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
+                {errorMessage ? <p className="text-[14px] font-medium text-[color:var(--v2-attention)]">{errorMessage}</p> : null}
+                <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}>
                   {isSubmitting ? t("로그인 중…", "Logging in…", "登录中…", "Đang đăng nhập…", "ログイン中…", "Sedang masuk…") : t("로그인", "Sign in", "登录", "Đăng nhập", "ログイン", "Masuk")}
                 </TalentButton>
               </form>
@@ -131,9 +131,9 @@ export function CareerLaunchLoginPage() {
               <TalentOrDivider />
               <TalentSocialButtons />
 
-              <p className="mt-6 text-center text-[14px] text-[#8B95A1]">
+              <p className="mt-6 text-center text-[15px] text-[color:var(--v2-faint)]">
                 {t("아직 계정이 없나요?", "Don't have an account yet?", "还没有账号？", "Chưa có tài khoản?", "アカウントがありませんか？", "Belum punya akun?")}{" "}
-                <Link href="/talent/signup?next=/career-launch/dashboard" className="font-bold text-[#0B46E8]">
+                <Link href="/talent/signup?next=/career-launch/dashboard" className="font-semibold text-[color:var(--v2-accent)]">
                   {t("학생으로 가입하기", "Sign up as a student", "以学生身份注册", "Đăng ký với tư cách sinh viên", "学生として登録", "Daftar sebagai mahasiswa")}
                 </Link>
               </p>

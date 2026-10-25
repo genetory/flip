@@ -1,21 +1,8 @@
 import { createHash } from "crypto";
-import OpenAI from "openai";
+import { claudeJsonRaw, hasLlm, LIGHT_MODEL } from "../llm/claude";
 import { Prisma, type PrismaClient } from "@prisma/client";
 
-// Hardcoded to a model that actually exists. The earlier env-driven default
-// ("OPENAI_TRANSLATION_MODEL") had landed on an invalid model name in prod
-// and silently failed every request, so we pin gpt-4o-mini here to match the
-// rest of the LLM call sites (saju).
-const MODEL = "gpt-4o-mini";
-
-let cachedClient: OpenAI | null = null;
-function getClient(): OpenAI | null {
-  if (cachedClient) return cachedClient;
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return null;
-  cachedClient = new OpenAI({ apiKey: key });
-  return cachedClient;
-}
+// 번역은 가벼운 모델(Haiku). 모델 이름은 src/llm/claude.ts 한 곳에서만 정한다.
 
 // User-visible free-text fields that should be translated. Taxonomy fields
 // (preferredJobRole / eligibleVisas / etc.) stay in Korean as canonical keys.
@@ -71,8 +58,7 @@ function hashSource(content: PositionTranslatableFields): string {
 async function runLLMTranslation(
   content: PositionTranslatableFields
 ): Promise<PositionTranslatableFields | null> {
-  const client = getClient();
-  if (!client) return null;
+  if (!hasLlm()) return null;
 
   const prompt = [
     `Translate the following Korean job posting fields into natural, professional English.`,
@@ -105,19 +91,11 @@ async function runLLMTranslation(
   ].join("\n");
 
   try {
-    const response = await client.chat.completions.create({
-      model: MODEL,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: "You translate Korean job postings into English and return strict JSON only."
-        },
-        { role: "user", content: prompt }
-      ]
+    const raw = await claudeJsonRaw({
+      model: LIGHT_MODEL,
+      system: "You translate Korean job postings into English and return strict JSON only.",
+      user: prompt
     });
-    const raw = response.choices[0]?.message?.content?.trim();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PositionTranslatableFields>;
     const trimOrNull = (v: unknown): string | null => {

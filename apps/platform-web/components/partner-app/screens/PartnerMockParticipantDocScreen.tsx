@@ -46,8 +46,8 @@ export function PartnerMockParticipantDocScreen({ positionId, userId, kind }: { 
       {status === "ready" && m ? (
         <div className="flex flex-col gap-5">
           <div>
-            <h1 className="text-[20px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${m.name} 님의 ${label}`, `${m.name}'s ${label}`, `${m.name} 的${label}`, `${label} của ${m.name}`, `${m.name} さんの${label}`, `${label} ${m.name}`)}</h1>
-            <p className="mt-1 text-[13.5px] text-[#8B95A1]">{m.positionTitle} · {t("모의 면접 참여자", "Mock interview participant", "模拟面试参与者", "Người tham gia phỏng vấn thử", "模擬面接参加者", "Peserta wawancara simulasi")}</p>
+            <h1 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`${m.name} 님의 ${label}`, `${m.name}'s ${label}`, `${m.name} 的${label}`, `${label} của ${m.name}`, `${m.name} さんの${label}`, `${label} ${m.name}`)}</h1>
+            <p className="mt-1 text-[14.5px] text-[color:var(--v2-faint)]">{m.positionTitle} · {t("모의 면접 참여자", "Mock interview participant", "模拟面试参与者", "Người tham gia phỏng vấn thử", "模擬面接参加者", "Peserta wawancara simulasi")}</p>
           </div>
 
           {kind === "resume" ? (
@@ -74,10 +74,10 @@ export function PartnerMockParticipantDocScreen({ positionId, userId, kind }: { 
 function OldFormat({ slug, label }: { slug: string; label: string }) {
   const t = usePlatformT();
   return (
-    <div className="rounded-2xl border border-[#EEF1F5] bg-white p-6 text-center">
-      <p className="text-[15px] font-bold text-[#191F28]">{t(`예전 형식의 ${label}를 사용해요`, `Uses old-format ${label}`, `使用旧格式的${label}`, `Dùng ${label} định dạng cũ`, `旧形式の${label}を使用しています`, `Menggunakan ${label} format lama`)}</p>
-      <p className="mt-1 text-[13px] text-[#8B95A1]">{t("공유 페이지에서 확인할 수 있어요.", "You can view it on the share page.", "可在分享页面查看。", "Bạn có thể xem trên trang chia sẻ.", "共有ページで確認できます。", "Bisa dilihat di halaman berbagi.")}</p>
-      <a href={slug} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
+    <div className="rounded-2xl bg-[color:var(--v2-band)] p-6 text-center">
+      <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`예전 형식의 ${label}를 사용해요`, `Uses old-format ${label}`, `使用旧格式的${label}`, `Dùng ${label} định dạng cũ`, `旧形式の${label}を使用しています`, `Menggunakan ${label} format lama`)}</p>
+      <p className="mt-1 text-[14px] text-[color:var(--v2-faint)]">{t("공유 페이지에서 확인할 수 있어요.", "You can view it on the share page.", "可在分享页面查看。", "Bạn có thể xem trên trang chia sẻ.", "共有ページで確認できます。", "Bisa dilihat di halaman berbagi.")}</p>
+      <a href={slug} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-[44px] items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-5 text-[14px] font-bold text-white transition hover:opacity-90">
         {t(`${label} 열기 ↗`, `Open ${label} ↗`, `打开${label} ↗`, `Mở ${label} ↗`, `${label}を開く ↗`, `Buka ${label} ↗`)}
       </a>
     </div>
@@ -87,8 +87,8 @@ function OldFormat({ slug, label }: { slug: string; label: string }) {
 function Empty({ label }: { label: string }) {
   const t = usePlatformT();
   return (
-    <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-8 text-center">
-      <p className="text-[15px] font-bold text-[#191F28]">{t(`제출된 ${label}가 없어요`, `No ${label} submitted`, `未提交${label}`, `Chưa nộp ${label}`, `提出された${label}はありません`, `Belum ada ${label}`)}</p>
+    <div className="rounded-2xl border border-dashed border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] p-8 text-center">
+      <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t(`제출된 ${label}가 없어요`, `No ${label} submitted`, `未提交${label}`, `Chưa nộp ${label}`, `提出された${label}はありません`, `Belum ada ${label}`)}</p>
     </div>
   );
 }

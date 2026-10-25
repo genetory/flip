@@ -122,27 +122,27 @@ function InterviewSlotRows({ rows, setRows, max = 3 }: { rows: SlotRow[]; setRow
       {rows.map((r, i) => (
         <div key={i} className="flex flex-col gap-1.5 rounded-xl bg-white p-2.5">
           <div className="flex gap-1.5">
-            <input type="date" value={r.date} onChange={(e) => upd(i, { date: e.target.value })} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none [color-scheme:light]" />
+            <input type="date" value={r.date} onChange={(e) => upd(i, { date: e.target.value })} className="min-w-0 flex-1 rounded-lg bg-[color:var(--v2-band)] px-3 py-2 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light]" />
             <div className="relative w-[104px] shrink-0">
-              <select value={r.time} onChange={(e) => upd(i, { time: e.target.value })} className="w-full appearance-none rounded-lg bg-[#F5F6F8] py-2 pl-2.5 pr-7 text-[13px] text-[#191F28] outline-none [color-scheme:light]">
+              <select value={r.time} onChange={(e) => upd(i, { time: e.target.value })} className="w-full appearance-none rounded-lg bg-[color:var(--v2-band)] py-2 pl-2.5 pr-7 text-[14px] text-[color:var(--v2-ink)] outline-none [color-scheme:light]">
                 <option value="">{t("시간", "Time", "时间", "Giờ", "時間", "Waktu")}</option>
                 {TIME_OPTIONS.map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
-              <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8B95A1]" weight="bold" />
+              <CaretDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[color:var(--v2-faint)]" weight="bold" />
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder={t("장소 · 예) 본사 3층 / 온라인", "Location · e.g. HQ 3F / Online", "地点 · 例）总部3层 / 线上", "Địa điểm · vd) Trụ sở tầng 3 / Online", "場所 · 例）本社3階 / オンライン", "Lokasi · mis) Kantor pusat lt.3 / Online")} className="min-w-0 flex-1 rounded-lg bg-[#F5F6F8] px-3 py-2 text-[13px] text-[#191F28] outline-none placeholder:text-[#B0B8C1]" />
+            <input value={r.location} onChange={(e) => upd(i, { location: e.target.value })} placeholder={t("장소 · 예) 본사 3층 / 온라인", "Location · e.g. HQ 3F / Online", "地点 · 例）总部3层 / 线上", "Địa điểm · vd) Trụ sở tầng 3 / Online", "場所 · 例）本社3階 / オンライン", "Lokasi · mis) Kantor pusat lt.3 / Online")} className="min-w-0 flex-1 rounded-lg bg-[color:var(--v2-band)] px-3 py-2 text-[14px] text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)]" />
             {rows.length > 1 ? (
-              <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={t("시간 삭제", "Remove time", "删除时间", "Xóa giờ", "時間を削除", "Hapus waktu")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#B0B8C1] transition hover:bg-[#F2F4F6] hover:text-[#F04452]"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={t("시간 삭제", "Remove time", "删除时间", "Xóa giờ", "時間を削除", "Hapus waktu")} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--v2-disabled)] transition hover:bg-[color:var(--v2-band)] hover:text-[color:var(--v2-attention)]"><X className="h-4 w-4" /></button>
             ) : null}
           </div>
         </div>
       ))}
       {rows.length < max ? (
-        <button type="button" onClick={() => setRows((rs) => [...rs, { ...EMPTY_SLOT_ROW }])} className="inline-flex w-fit items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]"><Plus className="h-3.5 w-3.5" weight="bold" /> {t("시간 추가", "Add time", "添加时间", "Thêm giờ", "時間を追加", "Tambah waktu")}</button>
+        <button type="button" onClick={() => setRows((rs) => [...rs, { ...EMPTY_SLOT_ROW }])} className="inline-flex w-fit items-center gap-1 text-[13.5px] font-bold text-[color:var(--v2-accent)]"><Plus className="h-3.5 w-3.5" weight="bold" /> {t("시간 추가", "Add time", "添加时间", "Thêm giờ", "時間を追加", "Tambah waktu")}</button>
       ) : null}
     </div>
   );
@@ -288,29 +288,29 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
       {status === "ready" && app ? (
         <div className="flex flex-col gap-10">
           {/* 상단 전폭 — 프로필 + 단계 + 상태 변경 */}
-          <section className="rounded-3xl bg-[#F5F8FF] p-6">
+          <section className="rounded-3xl bg-[color:var(--v2-accent-weak)] p-6">
             <div className="flex items-center gap-4">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-black text-[#0B46E8] shadow-[0_4px_16px_rgba(11,70,232,0.12)]">{displayName.slice(0, 1)}</span>
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-[20px] font-bold text-[color:var(--v2-accent)]">{displayName.slice(0, 1)}</span>
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-[22px] font-black tracking-[-0.02em] text-[#0B1227]">{displayName}</h1>
-                {app.appliedAt ? <p className="mt-0.5 truncate text-[13.5px] text-[#8B95A1]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} {t("지원", "applied", "申请", "đã ứng tuyển", "応募", "melamar")}</p> : null}
+                <h1 className="truncate text-[22px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{displayName}</h1>
+                {app.appliedAt ? <p className="mt-0.5 truncate text-[14.5px] text-[color:var(--v2-faint)]">{new Date(app.appliedAt).toLocaleDateString("ko-KR")} {t("지원", "applied", "申请", "đã ứng tuyển", "応募", "melamar")}</p> : null}
               </div>
               {app.mockInterviewPracticed ? (
-                <span className="hidden shrink-0 rounded-md bg-[#EDF1FD] px-2 py-1 text-[11px] font-bold text-[#0B46E8] sm:inline">🎤 {t("모의 면접 완료", "Mock interview done", "模拟面试完成", "Đã phỏng vấn thử", "模擬面接済み", "Wawancara simulasi selesai")}</span>
+                <span className="hidden shrink-0 rounded-md bg-[color:var(--v2-accent-weak)] px-2 py-1 text-[11px] font-bold text-[color:var(--v2-accent)] sm:inline">🎤 {t("모의 면접 완료", "Mock interview done", "模拟面试完成", "Đã phỏng vấn thử", "模擬面接済み", "Wawancara simulasi selesai")}</span>
               ) : null}
             </div>
 
             {/* 지원 공고 */}
-            <Link href={`${partnerRoutes.positions}/${app.positionId}`} className="mt-4 block rounded-xl bg-white px-3.5 py-3 transition hover:bg-[#EDF1FD]">
+            <Link href={`${partnerRoutes.positions}/${app.positionId}`} className="mt-4 block rounded-xl bg-white px-3.5 py-3 transition hover:bg-[color:var(--v2-accent-weak)]">
               <div className="flex items-center gap-1.5">
-                <Briefcase className="h-3.5 w-3.5 shrink-0 text-[#0B46E8]" weight="fill" />
-                <span className="text-[11px] font-bold text-[#8B95A1]">{t("지원 공고", "Posting", "职位", "Tin tuyển dụng", "求人", "Lowongan")}</span>
+                <Briefcase className="h-3.5 w-3.5 shrink-0 text-[color:var(--v2-accent)]" weight="fill" />
+                <span className="text-[11px] font-bold text-[color:var(--v2-faint)]">{t("지원 공고", "Posting", "职位", "Tin tuyển dụng", "求人", "Lowongan")}</span>
                 {position ? <span className={`rounded-md px-2.5 py-0.5 text-[10.5px] font-bold ${PARTNER_POSITION_STATUS[position.status].cls}`}>{positionLabel(position.status)}</span> : null}
-                <CaretRight className="ml-auto h-4 w-4 shrink-0 text-[#C4CAD2]" />
+                <CaretRight className="ml-auto h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" />
               </div>
-              <p className="mt-1 truncate text-[14px] font-bold text-[#191F28]">{app.positionTitle}</p>
+              <p className="mt-1 truncate text-[14px] font-bold text-[color:var(--v2-ink)]">{app.positionTitle}</p>
               {position ? (
-                <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">
+                <p className="mt-0.5 truncate text-[12px] text-[color:var(--v2-faint)]">
                   {[employmentLabel(t, position.employmentType), position.workType, position.workLocation, position.hiringCount != null ? t(`채용 ${position.hiringCount}명`, `Hiring ${position.hiringCount}`, `招聘${position.hiringCount}人`, `Tuyển ${position.hiringCount}`, `採用${position.hiringCount}名`, `Rekrut ${position.hiringCount}`) : ""].filter(Boolean).join(" · ")}
                 </p>
               ) : null}
@@ -319,7 +319,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             {/* 채용 단계 스테퍼 */}
             <div className="mt-5">
               {rejected ? (
-                <div className={`rounded-xl px-3.5 py-2.5 text-[13px] font-bold ${PARTNER_APPLICANT_STATUS[app.status].cls}`}>
+                <div className={`rounded-xl px-3.5 py-2.5 text-[14px] font-bold ${PARTNER_APPLICANT_STATUS[app.status].cls}`}>
                   {applicantLabel(app.status)} {t("처리됨", "processed", "已处理", "đã xử lý", "処理済み", "diproses")}
                 </div>
               ) : (
@@ -329,12 +329,12 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                     return (
                       <div key={i} className="flex flex-1 items-center last:flex-none">
                         <div className="flex flex-col items-center gap-1">
-                          <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-black ${on ? "bg-[#0B46E8] text-white" : "bg-white text-[#B0B8C1] ring-1 ring-[#DCE3F0]"}`}>
+                          <span className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold ${on ? "bg-[color:var(--v2-accent)] text-white" : "bg-white text-[color:var(--v2-disabled)] ring-1 ring-[color:var(--v2-line)]"}`}>
                             {on ? <Check className="h-4 w-4" weight="bold" /> : i + 1}
                           </span>
-                          <span className={`text-[11px] font-bold ${on ? "text-[#0B46E8]" : "text-[#B0B8C1]"}`}>{stepLabel(t, i)}</span>
+                          <span className={`text-[11px] font-bold ${on ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-disabled)]"}`}>{stepLabel(t, i)}</span>
                         </div>
-                        {i < STEPS.length - 1 ? <span className={`mx-1 h-[2px] flex-1 rounded-full ${STEPS[i + 1].reach.includes(app.status) ? "bg-[#0B46E8]" : "bg-[#DCE3F0]"}`} /> : null}
+                        {i < STEPS.length - 1 ? <span className={`mx-1 h-[2px] flex-1 rounded-full ${STEPS[i + 1].reach.includes(app.status) ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-line)]"}`} /> : null}
                       </div>
                     );
                   })}
@@ -347,17 +347,17 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               const selected = slots.find((s) => s.status === "SELECTED");
               if (!selected) return null;
               return (
-                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-[#E7F8EF] px-4 py-3.5">
+                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-[color:var(--v2-good-weak)] px-4 py-3.5">
                   <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#0A9B59]"><CalendarCheck className="h-4 w-4" weight="fill" /> {t("면접 확정 — 지원자가 시간을 선택했어요", "Interview confirmed — the applicant picked a time", "面试已确定 — 申请者已选择时间", "Đã xác nhận phỏng vấn — ứng viên đã chọn giờ", "面接確定 — 応募者が時間を選びました", "Wawancara dikonfirmasi — pelamar memilih waktu")}</p>
-                    <p className="mt-1 text-[13px] font-semibold text-[#191F28]">{fmtWhen(selected.startsAt)}</p>
-                    {selected.location ? <p className="mt-0.5 text-[12px] text-[#8B95A1]">{selected.location}</p> : null}
+                    <p className="flex items-center gap-1.5 text-[12px] font-bold text-[color:var(--v2-good)]"><CalendarCheck className="h-4 w-4" weight="fill" /> {t("면접 확정 — 지원자가 시간을 선택했어요", "Interview confirmed — the applicant picked a time", "面试已确定 — 申请者已选择时间", "Đã xác nhận phỏng vấn — ứng viên đã chọn giờ", "面接確定 — 応募者が時間を選びました", "Wawancara dikonfirmasi — pelamar memilih waktu")}</p>
+                    <p className="mt-1 text-[14px] font-semibold text-[color:var(--v2-ink)]">{fmtWhen(selected.startsAt)}</p>
+                    {selected.location ? <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{selected.location}</p> : null}
                   </div>
                   <a
                     href={partnerGcalUrl(t, selected, displayName, app.positionTitle)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-[#0A9B59] shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition hover:bg-[#F0FBF5]"
+                    className="ml-auto inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-[13.5px] font-bold text-[color:var(--v2-good)] transition hover:bg-[color:var(--v2-good-weak)]"
                   >
                     <CalendarPlus className="h-4 w-4" weight="bold" /> {t("캘린더에 추가", "Add to calendar", "添加到日历", "Thêm vào lịch", "カレンダーに追加", "Tambah ke kalender")}
                   </a>
@@ -367,15 +367,15 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
 
             {/* 상태 변경 — 지원자가 철회한 건은 더 이상 진행할 수 없어 숨긴다. */}
             {app.status === "WITHDRAWN" ? (
-              <p className="mt-5 rounded-xl bg-[#F2F4F6] px-3.5 py-2.5 text-[12.5px] font-semibold text-[#8B95A1]">{t("지원자가 철회한 지원이에요. 상태를 변경할 수 없어요.", "The applicant withdrew this application. You can't change the status.", "申请者已撤回此申请，无法更改状态。", "Ứng viên đã rút đơn này. Không thể đổi trạng thái.", "応募者が取り下げた応募です。ステータスを変更できません。", "Pelamar menarik lamaran ini. Status tidak dapat diubah.")}</p>
+              <p className="mt-5 rounded-xl bg-[color:var(--v2-band)] px-3.5 py-2.5 text-[13.5px] font-semibold text-[color:var(--v2-faint)]">{t("지원자가 철회한 지원이에요. 상태를 변경할 수 없어요.", "The applicant withdrew this application. You can't change the status.", "申请者已撤回此申请，无法更改状态。", "Ứng viên đã rút đơn này. Không thể đổi trạng thái.", "応募者が取り下げた応募です。ステータスを変更できません。", "Pelamar menarik lamaran ini. Status tidak dapat diubah.")}</p>
             ) : (
               <div className="mt-5">
-                <p className="mb-2 text-[12px] font-bold text-[#8B95A1]">{t("상태 변경", "Change status", "更改状态", "Đổi trạng thái", "ステータス変更", "Ubah status")}</p>
+                <p className="mb-2 text-[12px] font-bold text-[color:var(--v2-faint)]">{t("상태 변경", "Change status", "更改状态", "Đổi trạng thái", "ステータス変更", "Ubah status")}</p>
                 <div className="flex flex-wrap gap-2">
                   {STATUS_ACTIONS.map((s) => {
                     const active = app.status === s;
                     return (
-                      <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[12.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[#0B46E8] text-white" : "bg-white text-[#4E5968] ring-1 ring-[#E4EAF2] hover:bg-[#EDF1FD]"}`}>
+                      <button key={s} type="button" onClick={() => requestStatus(s)} disabled={updating || active} className={`rounded-xl px-3.5 py-2 text-[13.5px] font-bold transition disabled:opacity-50 ${active ? "bg-[color:var(--v2-accent)] text-white" : "bg-white text-[color:var(--v2-ink-3)] ring-1 ring-[color:var(--v2-line)] hover:bg-[color:var(--v2-accent-weak)]"}`}>
                         {applicantLabel(s)}
                       </button>
                     );
@@ -391,7 +391,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             <div className="flex flex-col gap-10">
               <section>
                 <SectionHeader title={t("인적 사항", "Personal info", "个人信息", "Thông tin cá nhân", "個人情報", "Info pribadi")} />
-                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                   <dl className="flex flex-col gap-2.5">
                     <Row label={t("이메일", "Email", "邮箱", "Email", "メール", "Email")} value={app.email ?? (app.contactUnlocked ? null : t("면접 확정 후 공개", "Shown after interview is confirmed", "面试确定后公开", "Hiển thị sau khi xác nhận phỏng vấn", "面接確定後に公開", "Ditampilkan setelah wawancara dikonfirmasi"))} />
                     <Row label={t("학교 · 전공", "School · Major", "学校 · 专业", "Trường · Chuyên ngành", "学校 · 専攻", "Sekolah · Jurusan")} value={[app.school, app.major].filter(Boolean).join(" · ")} />
@@ -405,7 +405,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
 
               <section>
                 <SectionHeader title={t("지원 서류", "Documents", "申请材料", "Hồ sơ", "応募書類", "Dokumen")} />
-                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                   <div className="flex flex-col gap-4">
                     {app.resumeDoc || app.resumeShareSlug ? (
                       <DocItem
@@ -428,7 +428,7 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                       />
                     ) : null}
                     {!app.resumeDoc && !app.resumeShareSlug && !app.coverDoc && !app.coverLetterShareSlug ? (
-                      <p className="text-[13px] text-[#8B95A1]">{t("제출된 서류가 없어요.", "No documents submitted.", "没有提交的材料。", "Chưa có hồ sơ nào.", "提出された書類がありません。", "Belum ada dokumen.")}</p>
+                      <p className="text-[14px] text-[color:var(--v2-faint)]">{t("제출된 서류가 없어요.", "No documents submitted.", "没有提交的材料。", "Chưa có hồ sơ nào.", "提出された書類がありません。", "Belum ada dokumen.")}</p>
                     ) : null}
                   </div>
                 </div>
@@ -440,13 +440,13 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   <SectionHeader
                     title={t("모의 면접 결과", "Mock interview results", "模拟面试结果", "Kết quả phỏng vấn thử", "模擬面接の結果", "Hasil wawancara simulasi")}
                   />
-                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    <p className="mb-3 text-[12px] text-[#8B95A1]">{t(`지원자가 이 공고 모의 면접에 답한 내용이에요. (답변 ${app.mockInterview.answeredCount}개)`, `The applicant's answers to this posting's mock interview. (${app.mockInterview.answeredCount} answers)`, `申请者对该职位模拟面试的回答。（${app.mockInterview.answeredCount}个回答）`, `Câu trả lời của ứng viên cho phỏng vấn thử của tin này. (${app.mockInterview.answeredCount} câu trả lời)`, `この求人の模擬面接に応募者が答えた内容です。（回答${app.mockInterview.answeredCount}件）`, `Jawaban pelamar untuk wawancara simulasi lowongan ini. (${app.mockInterview.answeredCount} jawaban)`)}</p>
+                  <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    <p className="mb-3 text-[12px] text-[color:var(--v2-faint)]">{t(`지원자가 이 공고 모의 면접에 답한 내용이에요. (답변 ${app.mockInterview.answeredCount}개)`, `The applicant's answers to this posting's mock interview. (${app.mockInterview.answeredCount} answers)`, `申请者对该职位模拟面试的回答。（${app.mockInterview.answeredCount}个回答）`, `Câu trả lời của ứng viên cho phỏng vấn thử của tin này. (${app.mockInterview.answeredCount} câu trả lời)`, `この求人の模擬面接に応募者が答えた内容です。（回答${app.mockInterview.answeredCount}件）`, `Jawaban pelamar untuk wawancara simulasi lowongan ini. (${app.mockInterview.answeredCount} jawaban)`)}</p>
                     <div className="flex flex-col gap-3.5">
                       {app.mockInterview.answers.map((a, i) => (
-                        <div key={i} className="rounded-xl bg-[#F8FAFB] p-3.5">
-                          <p className="break-keep text-[13px] font-bold text-[#191F28]">Q{i + 1}. {a.question}</p>
-                          <p className="mt-1.5 whitespace-pre-wrap break-keep text-[12.5px] leading-relaxed text-[#4E5968]">{a.answer}</p>
+                        <div key={i} className="rounded-xl bg-[color:var(--v2-fill)] p-3.5">
+                          <p className="break-keep text-[14px] font-bold text-[color:var(--v2-ink)]">Q{i + 1}. {a.question}</p>
+                          <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{a.answer}</p>
                         </div>
                       ))}
                     </div>
@@ -459,16 +459,16 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
             <div className="flex flex-col gap-10">
               {/* 내부 메모 */}
               <section>
-                <SectionHeader title={t("내부 메모", "Internal memo", "内部备注", "Ghi chú nội bộ", "内部メモ", "Catatan internal")} right={<span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[10.5px] font-bold text-[#8B95A1]">{t("지원자에게 안 보임", "Hidden from applicant", "申请者不可见", "Ẩn với ứng viên", "応募者に非表示", "Tak terlihat pelamar")}</span>} />
-                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <SectionHeader title={t("내부 메모", "Internal memo", "内部备注", "Ghi chú nội bộ", "内部メモ", "Catatan internal")} right={<span className="rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-faint)]">{t("지원자에게 안 보임", "Hidden from applicant", "申请者不可见", "Ẩn với ứng viên", "応募者に非表示", "Tak terlihat pelamar")}</span>} />
+                <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                   <textarea
                     value={memo}
                     onChange={(e) => setMemo(e.target.value)}
                     rows={3}
                     placeholder={t("평가·다음 단계 등 팀 내부 메모를 남겨보세요.", "Leave a team memo — evaluation, next steps, etc.", "留下团队内部备注，如评价、下一步等。", "Để lại ghi chú nội bộ — đánh giá, bước tiếp theo, v.v.", "評価や次のステップなど、チーム内メモを残しましょう。", "Tulis catatan tim — penilaian, langkah berikutnya, dll.")}
-                    className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#B0B8C1] focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                    className="w-full resize-none rounded-xl border border-[color:var(--v2-line)] bg-white px-3.5 py-2.5 text-[14.5px] leading-relaxed text-[color:var(--v2-ink)] outline-none placeholder:text-[color:var(--v2-disabled)] focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]"
                   />
-                  <button type="button" onClick={saveMemo} disabled={savingMemo || memo === (app.memo ?? "")} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#F2F4F6] px-3 py-2 text-[12.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-40">
+                  <button type="button" onClick={saveMemo} disabled={savingMemo || memo === (app.memo ?? "")} className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[color:var(--v2-band)] px-3 py-2 text-[13.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-40">
                     {savingMemo ? t("저장 중…", "Saving…", "保存中…", "Đang lưu…", "保存中…", "Menyimpan…") : t("메모 저장", "Save memo", "保存备注", "Lưu ghi chú", "メモを保存", "Simpan catatan")}
                   </button>
                 </div>
@@ -480,28 +480,28 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                   title={t("면접", "Interview", "面试", "Phỏng vấn", "面接", "Wawancara")}
                   right={
                     app.applicationId ? (
-                      <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[#0B46E8] px-3 py-1.5 text-[12.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                      <button type="button" onClick={() => setProposeOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-[color:var(--v2-accent)] px-3 py-1.5 text-[13.5px] font-bold text-white transition hover:opacity-90">
                         <Plus className="h-3.5 w-3.5" weight="bold" /> {t("면접 시간 제안", "Propose times", "提议时间", "Đề xuất giờ", "面接時間を提案", "Usulkan waktu")}
                       </button>
                     ) : null
                   }
                 />
-                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                   {!app.applicationId ? (
-                    <p className="text-[13px] text-[#8B95A1]">{t("지원 건이 연결되지 않아 면접 제안을 사용할 수 없어요.", "No application is linked, so interview proposals aren't available.", "未关联申请，无法使用面试提议。", "Chưa liên kết đơn ứng tuyển nên không thể đề xuất phỏng vấn.", "応募が紐づいていないため、面接の提案は使えません。", "Belum ada lamaran terkait, jadi usulan wawancara tidak tersedia.")}</p>
+                    <p className="text-[14px] text-[color:var(--v2-faint)]">{t("지원 건이 연결되지 않아 면접 제안을 사용할 수 없어요.", "No application is linked, so interview proposals aren't available.", "未关联申请，无法使用面试提议。", "Chưa liên kết đơn ứng tuyển nên không thể đề xuất phỏng vấn.", "応募が紐づいていないため、面接の提案は使えません。", "Belum ada lamaran terkait, jadi usulan wawancara tidak tersedia.")}</p>
                   ) : slots.length ? (
                     <ul className="flex flex-col gap-2">
                       {slots.map((s) => (
-                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-[#F5F6F8] px-3.5 py-2.5">
-                          <span className="min-w-0 truncate text-[13px] text-[#191F28]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
-                          <span className={`shrink-0 text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[#12B76A]" : s.status === "CANCELLED" ? "text-[#B0B8C1]" : "text-[#E8890C]"}`}>
+                        <li key={s.id} className="flex items-center justify-between gap-2 rounded-xl bg-[color:var(--v2-band)] px-3.5 py-2.5">
+                          <span className="min-w-0 truncate text-[14px] text-[color:var(--v2-ink)]">{fmtWhen(s.startsAt)}{s.location ? ` · ${s.location}` : ""}</span>
+                          <span className={`shrink-0 text-[11.5px] font-bold ${s.status === "SELECTED" ? "text-[color:var(--v2-good)]" : s.status === "CANCELLED" ? "text-[color:var(--v2-disabled)]" : "text-[color:var(--v2-warn)]"}`}>
                             {s.status === "SELECTED" ? t("확정", "Confirmed", "已确定", "Đã xác nhận", "確定", "Dikonfirmasi") : s.status === "CANCELLED" ? t("취소", "Cancelled", "已取消", "Đã hủy", "取消", "Dibatalkan") : t("대기", "Pending", "待定", "Chờ", "保留", "Menunggu")}
                           </span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-[13px] text-[#8B95A1]">{t("제안한 면접 시간이 없어요. 시간을 제안하면 지원자가 선택해요.", "No interview times proposed yet. Propose times and the applicant will pick one.", "尚未提议面试时间。提议后申请者可选择。", "Chưa đề xuất giờ phỏng vấn nào. Hãy đề xuất để ứng viên chọn.", "提案した面接時間がありません。提案すると応募者が選びます。", "Belum ada waktu wawancara yang diusulkan. Usulkan lalu pelamar memilih.")}</p>
+                    <p className="text-[14px] text-[color:var(--v2-faint)]">{t("제안한 면접 시간이 없어요. 시간을 제안하면 지원자가 선택해요.", "No interview times proposed yet. Propose times and the applicant will pick one.", "尚未提议面试时间。提议后申请者可选择。", "Chưa đề xuất giờ phỏng vấn nào. Hãy đề xuất để ứng viên chọn.", "提案した面接時間がありません。提案すると応募者が選びます。", "Belum ada waktu wawancara yang diusulkan. Usulkan lalu pelamar memilih.")}</p>
                   )}
                 </div>
               </section>
@@ -509,18 +509,18 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
               {/* 메시지 */}
               <section>
                 <SectionHeader title={t("지원자와의 대화", "Chat with applicant", "与申请者的对话", "Trò chuyện với ứng viên", "応募者との会話", "Obrolan dengan pelamar")} />
-                <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+                <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
                   <div className="flex max-h-[380px] flex-col gap-2.5 overflow-y-auto">
                     {chat.length === 0 ? (
-                      <p className="py-4 text-center text-[13px] text-[#B0B8C1]">{t("아직 주고받은 메시지가 없어요.", "No messages yet.", "还没有消息。", "Chưa có tin nhắn nào.", "まだメッセージがありません。", "Belum ada pesan.")}</p>
+                      <p className="py-4 text-center text-[14px] text-[color:var(--v2-disabled)]">{t("아직 주고받은 메시지가 없어요.", "No messages yet.", "还没有消息。", "Chưa có tin nhắn nào.", "まだメッセージがありません。", "Belum ada pesan.")}</p>
                     ) : (
                       chat.map((m) => {
                         const mine = m.authorRole !== "STUDENT";
                         return (
                           <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[#0B46E8] text-white" : "border border-[#EEF1F5] bg-white text-[#191F28]"}`}>
-                              <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.content}</p>
-                              <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[#B0B8C1]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
+                            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${mine ? "bg-[color:var(--v2-accent)] text-white" : "border border-[color:var(--v2-line)] bg-white text-[color:var(--v2-ink)]"}`}>
+                              <p className="whitespace-pre-wrap break-words text-[14.5px] leading-relaxed">{m.content}</p>
+                              <p className={`mt-1 text-[10.5px] ${mine ? "text-white/60" : "text-[color:var(--v2-disabled)]"}`}>{formatRelativeTime(new Date(m.createdAt).getTime())}</p>
                             </div>
                           </div>
                         );
@@ -540,14 +540,14 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
                         }}
                         rows={1}
                         placeholder={t("지원자에게 메시지 보내기…", "Message the applicant…", "给申请者发消息…", "Nhắn cho ứng viên…", "応募者にメッセージ…", "Kirim pesan ke pelamar…")}
-                        className="max-h-28 flex-1 resize-none rounded-2xl bg-[#F2F4F6] px-4 py-2.5 text-[14px] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
+                        className="max-h-28 flex-1 resize-none rounded-2xl bg-[color:var(--v2-band)] px-4 py-2.5 text-[14px] text-[color:var(--v2-ink)] placeholder:text-[color:var(--v2-disabled)] focus:outline-none focus:ring-2 focus:ring-[#0B46E8]/30"
                       />
-                      <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[#0B46E8] text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+                      <button type="button" onClick={send} disabled={!text.trim() || sending} aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")} className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] text-white transition hover:opacity-90 disabled:opacity-40">
                         <PaperPlaneTilt className="h-5 w-5" weight="fill" />
                       </button>
                     </div>
                   ) : (
-                    <p className="mt-3 text-[13px] text-[#8B95A1]">{t("지원 건이 연결되지 않아 메시지를 보낼 수 없어요.", "No application is linked, so you can't send messages.", "未关联申请，无法发送消息。", "Chưa liên kết đơn ứng tuyển nên không thể gửi tin nhắn.", "応募が紐づいていないため、メッセージを送れません。", "Belum ada lamaran terkait, jadi pesan tidak bisa dikirim.")}</p>
+                    <p className="mt-3 text-[14px] text-[color:var(--v2-faint)]">{t("지원 건이 연결되지 않아 메시지를 보낼 수 없어요.", "No application is linked, so you can't send messages.", "未关联申请，无法发送消息。", "Chưa liên kết đơn ứng tuyển nên không thể gửi tin nhắn.", "応募が紐づいていないため、メッセージを送れません。", "Belum ada lamaran terkait, jadi pesan tidak bisa dikirim.")}</p>
                   )}
                 </div>
               </section>
@@ -581,11 +581,11 @@ export function PartnerApplicantDetailScreen({ applicantId }: { applicantId: str
   );
 }
 
-// 섹션 타이틀 — 카드 밖. 다른 섹션 페이지와 동일한 스타일(18px font-black).
+// 섹션 타이틀 — 카드 밖. 다른 섹션 페이지와 동일한 스타일(18px font-bold).
 function SectionHeader({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
     <div className="mb-3 flex min-h-[30px] items-center justify-between gap-3">
-      <h2 className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{title}</h2>
+      <h2 className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{title}</h2>
       {right}
     </div>
   );
@@ -594,8 +594,8 @@ function SectionHeader({ title, right }: { title: string; right?: React.ReactNod
 function Row({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex items-start gap-3">
-      <dt className="w-[80px] shrink-0 text-[12.5px] text-[#8B95A1]">{label}</dt>
-      <dd className="min-w-0 flex-1 break-keep text-[13.5px] text-[#191F28]">{value || "-"}</dd>
+      <dt className="w-[80px] shrink-0 text-[13.5px] text-[color:var(--v2-faint)]">{label}</dt>
+      <dd className="min-w-0 flex-1 break-keep text-[14.5px] text-[color:var(--v2-ink)]">{value || "-"}</dd>
     </div>
   );
 }
@@ -604,15 +604,15 @@ function Row({ label, value }: { label: string; value: string | null | undefined
 function DocLink({ href, emoji, title, sub, internal }: { href: string; emoji: string; title: string; sub: string; internal?: boolean }) {
   const inner = (
     <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EDF1FD] text-[16px]" aria-hidden>{emoji}</span>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[color:var(--v2-accent-weak)] text-[16px]" aria-hidden>{emoji}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-bold text-[#191F28]">{title}</span>
-        <span className="block text-[11.5px] text-[#8B95A1]">{sub}</span>
+        <span className="block truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{title}</span>
+        <span className="block text-[11.5px] text-[color:var(--v2-faint)]">{sub}</span>
       </span>
-      {internal ? <CaretRight className="h-4 w-4 shrink-0 text-[#0B46E8]" /> : <ArrowSquareOut className="h-4 w-4 shrink-0 text-[#0B46E8]" />}
+      {internal ? <CaretRight className="h-4 w-4 shrink-0 text-[color:var(--v2-accent)]" /> : <ArrowSquareOut className="h-4 w-4 shrink-0 text-[color:var(--v2-accent)]" />}
     </>
   );
-  const cls = "flex items-center gap-2 rounded-xl border border-[#E4EAF2] bg-[#F8FAFF] px-3.5 py-3 transition hover:border-[#0B46E8]/40";
+  const cls = "flex items-center gap-2 rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--v2-accent-weak)] px-3.5 py-3 transition hover:border-[#0B46E8]/40";
   return internal ? (
     <Link href={href} className={cls}>{inner}</Link>
   ) : (
@@ -626,21 +626,21 @@ function DocItem({ href, emoji, title, sub, bullets, loading }: { href: string; 
   return (
     <div>
       <DocLink href={href} emoji={emoji} title={title} sub={sub} internal />
-      <div className="mt-2 rounded-xl bg-[#F8FAFB] px-3.5 py-2.5">
-        <p className="flex items-center gap-1 text-[11px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("AI 요약", "AI summary", "AI 摘要", "Tóm tắt AI", "AI 要約", "Ringkasan AI")}</p>
+      <div className="mt-2 rounded-xl bg-[color:var(--v2-fill)] px-3.5 py-2.5">
+        <p className="flex items-center gap-1 text-[11px] font-bold text-[color:var(--v2-faint)]"><Sparkle className="h-3 w-3 text-[color:var(--v2-accent)]" weight="fill" /> {t("AI 요약", "AI summary", "AI 摘要", "Tóm tắt AI", "AI 要約", "Ringkasan AI")}</p>
         {loading ? (
-          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">{t("요약 생성 중…", "Generating summary…", "生成摘要中…", "Đang tạo tóm tắt…", "要約を生成中…", "Membuat ringkasan…")}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-disabled)]">{t("요약 생성 중…", "Generating summary…", "生成摘要中…", "Đang tạo tóm tắt…", "要約を生成中…", "Membuat ringkasan…")}</p>
         ) : bullets.length ? (
           <ul className="mt-1.5 flex flex-col gap-1">
             {bullets.map((b, i) => (
-              <li key={i} className="flex gap-1.5 text-[12.5px] leading-relaxed text-[#4E5968]">
-                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+              <li key={i} className="flex gap-1.5 text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">
+                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[color:var(--v2-accent)]" aria-hidden />
                 <span className="min-w-0 flex-1 break-keep">{b}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">{t("요약할 내용이 없어요.", "Nothing to summarize.", "没有可摘要的内容。", "Không có nội dung để tóm tắt.", "要約する内容がありません。", "Tidak ada yang bisa diringkas.")}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-disabled)]">{t("요약할 내용이 없어요.", "Nothing to summarize.", "没有可摘要的内容。", "Không có nội dung để tóm tắt.", "要約する内容がありません。", "Tidak ada yang bisa diringkas.")}</p>
         )}
       </div>
     </div>
@@ -682,16 +682,16 @@ function ConfirmStatusModal({
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="max-h-[88vh] w-full max-w-[440px] overflow-y-auto rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
-          <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`상태를 ‘${label}’로 변경할까요?`, `Change status to '${label}'?`, `将状态改为'${label}'吗？`, `Đổi trạng thái thành '${label}'?`, `ステータスを'${label}'に変更しますか？`, `Ubah status menjadi '${label}'?`)}</p>
-          <p className="mt-2 text-[13.5px] leading-relaxed text-[#4E5968]">
-            <span className="font-bold text-[#191F28]">{name}</span>{t(" 님에게 상태 변경 ", " will receive a status change ", " 将收到状态变更", " sẽ nhận được ", " 様に状態変更の", " akan menerima ")}<span className="font-bold text-[#0B46E8]">{t("알림이 발송", "notification", "通知", "thông báo thay đổi trạng thái", "通知", "notifikasi perubahan status")}</span>{t("됩니다.", ".", "。", ".", "が送信されます。", ".")}
+          <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`상태를 ‘${label}’로 변경할까요?`, `Change status to '${label}'?`, `将状态改为'${label}'吗？`, `Đổi trạng thái thành '${label}'?`, `ステータスを'${label}'に変更しますか？`, `Ubah status menjadi '${label}'?`)}</p>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-[color:var(--v2-ink-3)]">
+            <span className="font-bold text-[color:var(--v2-ink)]">{name}</span>{t(" 님에게 상태 변경 ", " will receive a status change ", " 将收到状态变更", " sẽ nhận được ", " 様に状態変更の", " akan menerima ")}<span className="font-bold text-[color:var(--v2-accent)]">{t("알림이 발송", "notification", "通知", "thông báo thay đổi trạng thái", "通知", "notifikasi perubahan status")}</span>{t("됩니다.", ".", "。", ".", "が送信されます。", ".")}
           </p>
 
           {/* 면접: 시간 제안(선택) */}
           {isInterview && hasApplication ? (
-            <div className="mt-4 rounded-2xl bg-[#F5F8FF] p-4">
-              <p className="text-[13px] font-bold text-[#191F28]">{t("면접 시간 제안", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案", "Usulkan waktu wawancara")} <span className="font-normal text-[#8B95A1]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "（任意）", "(opsional)")}</span></p>
-              <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("시간을 넣으면 지원자가 그중 편한 시간을 선택해요.", "Add times and the applicant will pick one that works.", "填入时间后，申请者可从中选择方便的时间。", "Thêm giờ để ứng viên chọn giờ thuận tiện.", "時間を入れると、応募者が都合の良い時間を選びます。", "Tambahkan waktu, pelamar akan memilih yang cocok.")}</p>
+            <div className="mt-4 rounded-2xl bg-[color:var(--v2-accent-weak)] p-4">
+              <p className="text-[14px] font-bold text-[color:var(--v2-ink)]">{t("면접 시간 제안", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案", "Usulkan waktu wawancara")} <span className="font-normal text-[color:var(--v2-faint)]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "（任意）", "(opsional)")}</span></p>
+              <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{t("시간을 넣으면 지원자가 그중 편한 시간을 선택해요.", "Add times and the applicant will pick one that works.", "填入时间后，申请者可从中选择方便的时间。", "Thêm giờ để ứng viên chọn giờ thuận tiện.", "時間を入れると、応募者が都合の良い時間を選びます。", "Tambahkan waktu, pelamar akan memilih yang cocok.")}</p>
               <div className="mt-3">
                 <InterviewSlotRows rows={rows} setRows={setRows} />
               </div>
@@ -700,17 +700,17 @@ function ConfirmStatusModal({
 
           {/* 불합격: 사유(선택, 지원자에게 메시지로 전달) */}
           {isReject && hasApplication ? (
-            <div className="mt-4 rounded-2xl bg-[#FDF2F3] p-4">
-              <p className="text-[13px] font-bold text-[#191F28]">{t("불합격 사유", "Rejection reason", "未录用理由", "Lý do không đạt", "不合格の理由", "Alasan penolakan")} <span className="font-normal text-[#8B95A1]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "（任意）", "(opsional)")}</span></p>
-              <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("입력하면 지원자에게 메시지로 전달돼요.", "If entered, it's sent to the applicant as a message.", "填写后将以消息发送给申请者。", "Nếu nhập, sẽ gửi cho ứng viên dưới dạng tin nhắn.", "入力すると応募者にメッセージで送られます。", "Jika diisi, dikirim ke pelamar sebagai pesan.")}</p>
-              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder={t("예) 이번 포지션의 요구 경력과 차이가 있어 아쉽게 전달드립니다.", "e.g. Unfortunately your experience differs from what this position requires.", "例）很遗憾，您的经历与该职位的要求存在差异。", "vd) Rất tiếc, kinh nghiệm của bạn chưa phù hợp với vị trí này.", "例）今回のポジションの求める経験と差があり、残念ながらお見送りとなりました。", "mis) Maaf, pengalaman Anda berbeda dari yang dibutuhkan posisi ini.")} className="mt-2 w-full resize-none rounded-xl border border-[#F3D0D4] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none placeholder:text-[#C9AEB1] focus:ring-2 focus:ring-[#F04452]/20" />
+            <div className="mt-4 rounded-2xl bg-[color:var(--v2-attention-weak)] p-4">
+              <p className="text-[14px] font-bold text-[color:var(--v2-ink)]">{t("불합격 사유", "Rejection reason", "未录用理由", "Lý do không đạt", "不合格の理由", "Alasan penolakan")} <span className="font-normal text-[color:var(--v2-faint)]">{t("(선택)", "(optional)", "（可选）", "(tùy chọn)", "（任意）", "(opsional)")}</span></p>
+              <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{t("입력하면 지원자에게 메시지로 전달돼요.", "If entered, it's sent to the applicant as a message.", "填写后将以消息发送给申请者。", "Nếu nhập, sẽ gửi cho ứng viên dưới dạng tin nhắn.", "入力すると応募者にメッセージで送られます。", "Jika diisi, dikirim ke pelamar sebagai pesan.")}</p>
+              <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder={t("예) 이번 포지션의 요구 경력과 차이가 있어 아쉽게 전달드립니다.", "e.g. Unfortunately your experience differs from what this position requires.", "例）很遗憾，您的经历与该职位的要求存在差异。", "vd) Rất tiếc, kinh nghiệm của bạn chưa phù hợp với vị trí này.", "例）今回のポジションの求める経験と差があり、残念ながらお見送りとなりました。", "mis) Maaf, pengalaman Anda berbeda dari yang dibutuhkan posisi ini.")} className="mt-2 w-full resize-none rounded-xl border border-[color:var(--v2-attention-weak)] bg-white px-3.5 py-2.5 text-[14.5px] leading-relaxed text-[color:var(--v2-ink)] outline-none placeholder:text-[#C9AEB1] focus:ring-2 focus:ring-[#F04452]/20" />
             </div>
           ) : null}
         </div>
 
         <div className="mt-6 flex gap-2 px-6 pb-6">
-          <button type="button" onClick={onClose} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
-          <button type="button" onClick={confirm} disabled={busy} className={`h-[50px] flex-1 rounded-2xl text-[14.5px] font-bold text-white transition disabled:opacity-50 ${isReject ? "bg-[#F04452] hover:bg-[#DA3B48]" : "bg-[#0B46E8] hover:bg-[#0A3ECB]"}`}>{busy ? t("변경 중…", "Changing…", "变更中…", "Đang đổi…", "変更中…", "Mengubah…") : t(`‘${label}’로 변경`, `Change to '${label}'`, `改为'${label}'`, `Đổi thành '${label}'`, `'${label}'に変更`, `Ubah ke '${label}'`)}</button>
+          <button type="button" onClick={onClose} disabled={busy} className="h-[50px] flex-1 rounded-2xl bg-[color:var(--v2-band)] text-[14.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+          <button type="button" onClick={confirm} disabled={busy} className={`h-[50px] flex-1 rounded-2xl text-[14.5px] font-bold text-white transition disabled:opacity-50 ${isReject ? "bg-[color:var(--v2-attention)] hover:bg-[#DA3B48]" : "bg-[color:var(--v2-accent)] hover:opacity-90"}`}>{busy ? t("변경 중…", "Changing…", "变更中…", "Đang đổi…", "変更中…", "Mengubah…") : t(`‘${label}’로 변경`, `Change to '${label}'`, `改为'${label}'`, `Đổi thành '${label}'`, `'${label}'に変更`, `Ubah ke '${label}'`)}</button>
         </div>
       </div>
     </div>
@@ -741,16 +741,16 @@ function ProposeModal({ applicationId, onClose, onDone }: { applicationId: strin
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-[#F2F4F6] px-5 py-4">
-          <p className="text-[15px] font-bold text-[#191F28]">{t("면접 시간 제안", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案", "Usulkan waktu wawancara")}</p>
-          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[#8B95A1] transition hover:bg-[#F2F4F6]"><X className="h-5 w-5" /></button>
+        <div className="flex items-center justify-between border-b border-[color:var(--v2-band)] px-5 py-4">
+          <p className="text-[15px] font-bold text-[color:var(--v2-ink)]">{t("면접 시간 제안", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案", "Usulkan waktu wawancara")}</p>
+          <button type="button" onClick={onClose} aria-label={t("닫기", "Close", "关闭", "Đóng", "閉じる", "Tutup")} className="flex h-9 w-9 items-center justify-center rounded-2xl text-[color:var(--v2-faint)] transition hover:bg-[color:var(--v2-band)]"><X className="h-5 w-5" /></button>
         </div>
-        <div className="flex flex-col gap-3 bg-[#F5F8FF] px-5 py-4">
-          <p className="text-[12.5px] text-[#8B95A1]">{t("지원자가 그중 편한 시간을 선택합니다. (최대 3개)", "The applicant picks a time that works. (up to 3)", "申请者从中选择方便的时间。（最多3个）", "Ứng viên chọn giờ thuận tiện. (tối đa 3)", "応募者が都合の良い時間を選びます。（最大3件）", "Pelamar memilih waktu yang cocok. (maks. 3)")}</p>
+        <div className="flex flex-col gap-3 bg-[color:var(--v2-accent-weak)] px-5 py-4">
+          <p className="text-[13.5px] text-[color:var(--v2-faint)]">{t("지원자가 그중 편한 시간을 선택합니다. (최대 3개)", "The applicant picks a time that works. (up to 3)", "申请者从中选择方便的时间。（最多3个）", "Ứng viên chọn giờ thuận tiện. (tối đa 3)", "応募者が都合の良い時間を選びます。（最大3件）", "Pelamar memilih waktu yang cocok. (maks. 3)")}</p>
           <InterviewSlotRows rows={rows} setRows={setRows} />
         </div>
         <div className="px-5 pb-5">
-          <button type="button" onClick={submit} disabled={saving || slotsFromRows(rows).length === 0} className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#0B46E8] text-[15px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-40">
+          <button type="button" onClick={submit} disabled={saving || slotsFromRows(rows).length === 0} className="inline-flex h-[52px] w-full items-center justify-center rounded-2xl bg-[color:var(--v2-accent)] text-[15px] font-bold text-white transition hover:opacity-90 disabled:opacity-40">
             {saving ? t("제안 중…", "Proposing…", "提议中…", "Đang đề xuất…", "提案中…", "Mengusulkan…") : t("면접 시간 제안하기", "Propose interview times", "提议面试时间", "Đề xuất giờ phỏng vấn", "面接時間を提案する", "Usulkan waktu wawancara")}
           </button>
         </div>

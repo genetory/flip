@@ -15,6 +15,9 @@ import { logActivity } from "../../lib/launch/pilot-client";
 // 주차별 일러스트(WeekTabs와 동일 매핑). 우측 하단 데코로 노출.
 const WEEK_IMAGE: Record<number, string> = { 1: "/img_ai_analyze.webp", 2: "/img_resume.webp", 3: "/img_fake_interview.webp", 4: "/img_fake_interview.webp" };
 
+// 포커스 카드 설명 문단(목적 문구·기본 문구 공통).
+const FOCUS_P = "relative mb-5 max-w-[44ch] break-keep text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]";
+
 function Ring({ value, color, label, href }: { value: number | null; color: string; label: string; href: string }) {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -39,10 +42,10 @@ function Ring({ value, color, label, href }: { value: number | null; color: stri
   const pct = value == null ? 0 : v;
   const off = C * (1 - Math.max(0, Math.min(100, pct)) / 100);
   return (
-    <Link href={href} className="cl-gauge">
-      <span className="cl-ring">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--cl-line-strong)" strokeWidth={sw} />
+    <Link href={href} className="block rounded-2xl py-1 text-center transition hover:bg-white/60">
+      <span className="relative mx-auto mb-2 grid h-[84px] w-[84px] place-items-center">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="absolute inset-0" aria-hidden>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#fff" strokeWidth={sw} />
           {pct > 0 ? (
             <circle
               cx={size / 2}
@@ -58,9 +61,9 @@ function Ring({ value, color, label, href }: { value: number | null; color: stri
             />
           ) : null}
         </svg>
-        <b className={value == null ? "empty" : undefined}>{value == null ? "–" : v}</b>
+        <b className={`relative text-[20px] font-bold tracking-[-0.02em] ${value == null ? "text-[color:var(--v2-faint)]" : "text-[color:var(--v2-ink)]"}`}>{value == null ? "–" : v}</b>
       </span>
-      <span className="lab">{label}</span>
+      <span className="text-[13px] font-semibold text-[color:var(--v2-muted)]">{label}</span>
     </Link>
   );
 }
@@ -89,45 +92,45 @@ export function CheckInPanel({ vm }: { vm: DashboardVM }) {
   const dotsOn = Math.min(streak, 7);
 
   return (
-    <div className="cl-checkin">
-      <div className="cl-focus">
-        <span className="tag"><Airplane size={13} weight="fill" aria-hidden /> {t("오늘의 탑승 수속", "Today's check-in", "今日登机手续", "Thủ tục hôm nay", "本日の搭乗手続き", "Check-in hari ini")}</span>
-        <h2>{c.todayFocus}</h2>
-        {c.purpose ? <p>{c.purpose}</p> : <p>{t("오늘 한 걸음이면 다음 관문이 열려요.", "One step today opens the next gate.", "今天迈出一步，就能开启下一关。", "Một bước hôm nay mở cửa tiếp theo.", "今日の一歩で次のゲートが開きます。", "Satu langkah hari ini membuka gerbang berikutnya.")}</p>}
+    <div className="grid gap-3 md:grid-cols-[1.5fr_1fr]">
+      <div className="relative overflow-hidden rounded-3xl bg-[color:var(--v2-band)] p-6 md:p-7">
+        <span className="relative inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[color:var(--v2-accent)]"><Airplane size={13} weight="fill" aria-hidden /> {t("오늘의 탑승 수속", "Today's check-in", "今日登机手续", "Thủ tục hôm nay", "本日の搭乗手続き", "Check-in hari ini")}</span>
+        <h2 className="relative mb-2 mt-3.5 break-keep text-[22px] font-bold leading-[1.35] tracking-[-0.02em] text-[color:var(--v2-ink)]">{c.todayFocus}</h2>
+        {c.purpose ? <p className={FOCUS_P}>{c.purpose}</p> : <p className={FOCUS_P}>{t("오늘 한 걸음이면 다음 관문이 열려요.", "One step today opens the next gate.", "今天迈出一步，就能开启下一关。", "Một bước hôm nay mở cửa tiếp theo.", "今日の一歩で次のゲートが開きます。", "Satu langkah hari ini membuka gerbang berikutnya.")}</p>}
         <Link
           href={vm.nextAction.destination}
           onClick={() => {
             void logActivity("next_action_click", { week: vm.currentWeek });
             trackCareerFunnel("career_primary_action_clicked", { actionType: vm.nextAction.actionType, destination: vm.nextAction.destination, currentWeek: vm.currentWeek });
           }}
-          className="cl-cta"
+          className="relative inline-flex h-12 items-center gap-2 rounded-xl bg-[color:var(--v2-accent)] px-5 text-[16px] font-semibold text-white transition hover:opacity-90 active:scale-[0.98]"
         >
           {c.cta} <ArrowRight size={16} weight="bold" aria-hidden />
         </Link>
         {/* 현재 주차 일러스트 — 우측 하단 데코 */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="cl-week-illust" src={WEEK_IMAGE[vm.currentWeek] ?? WEEK_IMAGE[1]} alt="" aria-hidden />
+        <img className="pointer-events-none absolute bottom-4 right-4 h-auto w-[82px] select-none object-contain opacity-55 min-[481px]:bottom-5 min-[481px]:right-5 min-[481px]:w-[112px] min-[481px]:opacity-100" src={WEEK_IMAGE[vm.currentWeek] ?? WEEK_IMAGE[1]} alt="" aria-hidden />
       </div>
 
-      <div className="cl-side">
-        <div className="cl-mini">
-          <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("연속 활동", "Activity streak", "连续活动", "Chuỗi hoạt động", "連続活動", "Rentetan aktivitas")}</p>
-          <div className="cl-streak">
-            <span className="flame" aria-hidden>🔥</span>
+      <div className="flex flex-col gap-3">
+        <div className="rounded-3xl bg-[color:var(--v2-band)] p-6">
+          <p className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("연속 활동", "Activity streak", "连续活动", "Chuỗi hoạt động", "連続活動", "Rentetan aktivitas")}</p>
+          <div className="mt-2.5 flex items-center gap-3.5">
+            <span className="text-[30px] leading-none" aria-hidden>🔥</span>
             <div>
-              <div><span className="n">{streak}</span><span className="d">{t("일 연속", "days", "天连续", "ngày", "日連続", "hari")}</span></div>
-              <div className="cl-dots" aria-hidden>
-                {Array.from({ length: 7 }).map((_, i) => <span key={i} className={i < dotsOn ? "on" : undefined} />)}
+              <div><span className="text-[30px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{streak}</span><span className="ml-1 text-[13px] font-medium text-[color:var(--v2-muted)]">{t("일 연속", "days", "天连续", "ngày", "日連続", "hari")}</span></div>
+              <div className="mt-2 flex gap-[5px]" aria-hidden>
+                {Array.from({ length: 7 }).map((_, i) => <span key={i} className={`h-1.5 w-5 rounded-full ${i < dotsOn ? "bg-[color:var(--v2-accent)]" : "bg-white"}`} />)}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="cl-mini">
-          <p className="cl-eyebrow" style={{ color: "var(--cl-faint)" }}>{t("서류 완성도", "Document score", "材料完成度", "Độ hoàn thiện hồ sơ", "書類の完成度", "Kelengkapan dokumen")}</p>
-          <div className="cl-gauges">
-            <Ring value={resume} color="var(--cl-accent)" label={t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} href="/career-launch/resume-collect" />
-            <Ring value={cover} color="var(--cl-accent-2)" label={t("자기소개서", "Cover", "自我介绍", "Thư GT", "自己紹介書", "Surat")} href="/career-launch/cover-collect" />
+        <div className="rounded-3xl bg-[color:var(--v2-band)] p-6">
+          <p className="text-[14px] font-semibold text-[color:var(--v2-muted)]">{t("서류 완성도", "Document score", "材料完成度", "Độ hoàn thiện hồ sơ", "書類の完成度", "Kelengkapan dokumen")}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            <Ring value={resume} color="var(--v2-accent)" label={t("이력서", "Resume", "简历", "CV", "履歴書", "Resume")} href="/career-launch/resume-collect" />
+            <Ring value={cover} color="var(--v2-accent)" label={t("자기소개서", "Cover", "自我介绍", "Thư GT", "自己紹介書", "Surat")} href="/career-launch/cover-collect" />
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 // LLM-as-judge — 강한 모델로 출력 품질을 루브릭 채점(각 0~5).
 // 규칙 검사(checks.ts)가 못 잡는 자연스러움·근거성·문항 적합성을 평가한다.
-import type OpenAI from "openai";
+import { claudeJson } from "../llm/claude";
 import type { GoldenCase, JudgeScore } from "./types";
 
 const JUDGE_SCHEMA = {
@@ -30,24 +30,14 @@ const RUBRIC = `당신은 대기업 채용 서류를 매일 검토하는 깐깐�
 rationale: 가장 큰 감점 요인과 '어떻게 고치면 더 좋아질지'를 한국어 1~2문장으로 구체적으로. 점수를 후하게 주지 마세요.`;
 
 export async function judgeCase(
-  openai: OpenAI,
   c: GoldenCase,
   output: string,
   model: string
 ): Promise<JudgeScore> {
   const inputStr = JSON.stringify(c.input, null, 1);
   const userMsg = `[입력 근거]\n${inputStr}\n\n[생성 결과]\n${output}`;
-  const resp = await openai.responses.create({
-    model,
-    // 판정은 결정적이어야 회귀를 신뢰성 있게 잡는다(기본 1.0이면 같은 입력도 런마다 점수가 통째로 흔들림).
-    temperature: 0,
-    input: [
-      { role: "system", content: RUBRIC },
-      { role: "user", content: userMsg }
-    ],
-    text: { format: { type: "json_schema", name: "judge_result", schema: JUDGE_SCHEMA, strict: true } }
-  });
-  const raw = (resp as { output_text?: string }).output_text ?? "{}";
-  const parsed = JSON.parse(raw) as JudgeScore;
-  return parsed;
+  // 판정은 생성 모델보다 강한 모델(기본 Opus)로 — 같은 모델이 자기 글을 채점하면 후해진다.
+  const r = await claudeJson<JudgeScore>({ model, system: RUBRIC, user: userMsg, schema: JUDGE_SCHEMA, effort: "medium" });
+  if (!r.data) throw new Error(r.error ?? "judge_failed");
+  return r.data;
 }

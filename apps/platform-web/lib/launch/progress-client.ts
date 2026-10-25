@@ -48,6 +48,10 @@ export type PostingInterviewItem = {
   feedback: string;
   strengths?: string[];
   improvements?: string[];
+  /** 말로 답했을 때만 — 말하기 리포트(lib/launch/speaking). */
+  speakingData?: import("./speaking").SpeakingData;
+  /** 꼬리 질문(앞 답을 파고든 면접관 질문)이었나. */
+  followUp?: boolean;
 };
 // 공고별 모의면접 기록 — 문항별 답변·점수·모범답안을 누적 저장해 나중에 다시 보고 오답노트처럼 재도전한다.
 export type PostingInterviewLog = {
@@ -56,7 +60,7 @@ export type PostingInterviewLog = {
   title?: string;
   at: string; // ISO
   source?: "posting" | "basic"; // 공고별 / 기본(내 서류) — 재도전 채점 방식 구분
-  focus?: "self" | "job" | "fit" | "pressure"; // 기본 면접 유형(source="basic")
+  focus?: "self" | "job" | "fit" | "pressure" | "global"; // 기본 면접 유형(source="basic")
   posting?: import("./interview").InterviewJobPosting; // 공고별 재도전 채점에 필요
   items?: PostingInterviewItem[]; // 카드형(신규)
   // 구버전(채팅형) 호환 — 읽기 전용으로만 표시.
@@ -76,6 +80,7 @@ export type CareerProgress = {
   targetCompanies?: TargetCompany[]; // 1주차 '목표 기업 탐색'에서 담은 관심 기업 후보.
   postingInterviews?: PostingInterviewLog[]; // 4주차 공고별 모의면접 기록(최근 것부터).
   basicInterviews?: PostingInterviewLog[]; // 3주차 기본(내 서류) 모의면접 기록(최근 것부터).
+  introPractice?: import("./speaking").IntroAttempt[]; // 1분 자기소개 연습 기록(최근 것부터, 최대 30).
   strengthStories?: StrengthStory[]; // 강점 스토리(면접·자소서 씨앗).
   materials?: string[];
   doneSteps?: string[];

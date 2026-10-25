@@ -35,16 +35,21 @@ export function FlightPath({ vm }: { vm: DashboardVM }) {
   }, [targetFill]);
 
   return (
-    <div className="cl-path">
-      <div className="cl-path-line"><div className="cl-path-fill" style={{ width: `${fill}%` }} /></div>
-      <div className="cl-path-track">
+    <div className="relative isolate rounded-3xl bg-[color:var(--v2-band)] px-5 py-7 md:px-8 md:py-8">
+      <div className="absolute left-[10%] right-[10%] top-12 z-0 hidden h-1 rounded-full bg-white md:block"><div className="absolute left-0 top-0 h-full rounded-full bg-[color:var(--v2-accent)] transition-[width] delay-200 duration-[1200ms] motion-reduce:transition-none" style={{ width: `${fill}%` }} /></div>
+      <div className="relative z-[1] grid grid-cols-2 items-start gap-y-6 md:grid-cols-5 md:gap-y-0">
         {[1, 2, 3, 4].map((week) => {
           const i = week - 1;
           const done = vm.weekComplete[i];
           const isCurrent = week === vm.currentWeek && !done;
           const prevDone = i === 0 || vm.weekComplete[i - 1];
           const locked = !done && !isCurrent && !prevDone;
-          const cls = done ? "cl-stop done" : isCurrent ? "cl-stop current" : "cl-stop";
+          const cls = "relative z-[1] px-1 text-center";
+          const nodeCls = done
+            ? "bg-[color:var(--v2-accent)] text-white"
+            : isCurrent
+              ? "bg-white text-[color:var(--v2-accent)] ring-2 ring-[color:var(--v2-accent)] ring-offset-4 ring-offset-[color:var(--v2-band)]"
+              : "bg-white text-[color:var(--v2-faint)]";
           return (
             <Link
               key={week}
@@ -57,16 +62,16 @@ export function FlightPath({ vm }: { vm: DashboardVM }) {
               className={cls}
               style={locked ? { opacity: 0.5, cursor: "default" } : undefined}
             >
-              <div className="node">{done ? <Check size={15} weight="bold" /> : week}</div>
-              <div className="wk">Week {week}</div>
-              <div className="nm">{legName(t, week)}</div>
+              <div className={`relative z-[3] mx-auto mb-3 grid h-8 w-8 place-items-center rounded-full text-[13px] font-bold ${nodeCls}`}>{done ? <Check size={15} weight="bold" /> : week}</div>
+              <div className="text-[12px] font-medium text-[color:var(--v2-faint)]">Week {week}</div>
+              <div className={`mt-0.5 break-keep text-[13px] font-semibold ${isCurrent ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink)]"}`}>{legName(t, week)}</div>
             </Link>
           );
         })}
-        <div className="cl-stop dest">
-          <div className="node">★</div>
-          <div className="wk">Arrival</div>
-          <div className="nm">{t("첫 취업", "First job", "首次就业", "Việc đầu tiên", "初就職", "Kerja pertama")}</div>
+        <div className="relative z-[1] col-span-2 px-1 text-center md:col-span-1">
+          <div className="relative z-[3] mx-auto mb-3 grid h-8 w-8 place-items-center rounded-full border-2 border-dashed border-[color:var(--v2-accent)] bg-white text-[13px] font-bold text-[color:var(--v2-accent)]">★</div>
+          <div className="text-[12px] font-medium text-[color:var(--v2-faint)]">Arrival</div>
+          <div className="mt-0.5 break-keep text-[13px] font-semibold text-[color:var(--v2-ink)]">{t("첫 취업", "First job", "首次就业", "Việc đầu tiên", "初就職", "Kerja pertama")}</div>
         </div>
       </div>
     </div>

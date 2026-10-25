@@ -2,17 +2,17 @@
 // 커리어런치 코칭 대화 품질 eval 러너.
 //
 // 사용:
-//   OPENAI_API_KEY=... npx tsx src/eval/career/run.ts                       # 생성 gpt-4o(현행) vs judge gpt-4o
-//   OPENAI_API_KEY=... ANTHROPIC_API_KEY=... CAREER_COACH_MODEL=claude-sonnet-5 npx tsx src/eval/career/run.ts --repeat 3
+//   ANTHROPIC_API_KEY=... npx tsx src/eval/career/run.ts                                  # 생성 Sonnet 5.5(현행) vs judge Opus
+//   ANTHROPIC_API_KEY=... CAREER_COACH_MODEL=claude-haiku-5-5 npx tsx src/eval/career/run.ts --repeat 3
 //   npx tsx src/eval/career/run.ts --dry                                    # 조립된 프롬프트만 출력
 //
 // 환경변수:
-//   CAREER_COACH_MODEL (기본 = OPENAI_MATCHING_MODEL = gpt-4o, 즉 프로덕션 현행). EVAL_GENERATOR_MODEL 은 전역 강제.
-//   EVAL_JUDGE_MODEL   (기본 gpt-4o)
+//   CAREER_COACH_MODEL (기본 = 프로덕션 현행 claude-sonnet-5-5). EVAL_GENERATOR_MODEL 은 전역 강제.
+//   EVAL_JUDGE_MODEL   (기본 claude-opus-5-5)
 import { promises as fs } from "fs";
 import path from "path";
-import OpenAI from "openai";
 import { generateJson } from "../../llm/generate";
+import { QUALITY_MODEL } from "../../llm/claude";
 import { CAREER_GOLDEN } from "./golden";
 import { judgeCoachTurn } from "./judge";
 import type { CoachCaseResult } from "./types";
@@ -24,8 +24,8 @@ const DRY = has("--dry");
 const NO_JUDGE = has("--no-judge");
 const FEATURE = opt("--feature");
 const REPEAT = Math.max(1, Number(opt("--repeat") ?? "1") || 1);
-const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "gpt-4o";
-const GEN_MODEL = process.env.EVAL_GENERATOR_MODEL ?? process.env.CAREER_COACH_MODEL ?? process.env.OPENAI_MATCHING_MODEL ?? "gpt-4o";
+const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? "claude-opus-5-5";
+const GEN_MODEL = process.env.EVAL_GENERATOR_MODEL ?? process.env.CAREER_COACH_MODEL ?? QUALITY_MODEL;
 
 const cases = FEATURE ? CAREER_GOLDEN.filter((c) => c.feature === FEATURE) : CAREER_GOLDEN;
 
@@ -40,9 +40,7 @@ async function dry(): Promise<void> {
 }
 
 async function live(): Promise<void> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) { console.error("OPENAI_API_KEY 필요(judge 용). --dry 로 프롬프트만 볼 수 있음."); process.exit(2); }
-  const openai = new OpenAI({ apiKey });
+  if (!process.env.ANTHROPIC_API_KEY) { console.error("ANTHROPIC_API_KEY 필요. --dry 로 프롬프트만 볼 수 있음."); process.exit(2); }
   console.log(`● 커리어런치 코칭 eval — 생성=${GEN_MODEL}, judge=${NO_JUDGE ? "off" : JUDGE_MODEL}, ${cases.length}건 × repeat ${REPEAT}\n`);
   const results: CoachCaseResult[] = [];
   const avg = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0);
@@ -55,7 +53,7 @@ async function live(): Promise<void> {
       let reply = ""; let error: string | undefined;
       try {
         const { data, error: genErr } = await generateJson<Record<string, unknown>>({
-          openai, model: GEN_MODEL, temperature: 0.6, system: c.system, user: c.user, schema: c.schema, schemaName: c.schemaName, strict: c.strict ?? false
+          model: GEN_MODEL, system: c.system, user: c.user, schema: c.schema, schemaName: c.schemaName, strict: c.strict ?? false
         });
         if (genErr) error = genErr;
         reply = c.extractReply(data ?? {}).trim();
@@ -64,7 +62,7 @@ async function live(): Promise<void> {
 
       let judge;
       if (reply && !NO_JUDGE) {
-        try { judge = await judgeCoachTurn(openai, c.judgeContext, reply, JUDGE_MODEL); }
+        try { judge = await judgeCoachTurn(c.judgeContext, reply, JUDGE_MODEL); }
         catch (e) { error = (error ? error + "; " : "") + "judge_failed:" + ((e as Error).message?.slice(0, 80) ?? ""); }
       }
       last = { id: c.id, feature: c.feature, reply, error, judgeOveralls: [], judge, ms: Date.now() - started };

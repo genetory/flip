@@ -12,7 +12,7 @@ import { usePlatformT } from "../../lib/i18n";
 import { AuthApiError, getPostLoginUrl, loginWithEmail } from "../../lib/auth-client";
 import { getAuthPageMessages } from "../../lib/auth-messages";
 import { TalentButton } from "../talent/TalentButton";
-import { TalentAuthLayout, TalentField, talentInputClass } from "../talent/auth/TalentAuthLayout";
+import { TalentAuthLayout, TalentField, authSubmitClass, talentInputClass } from "../talent/auth/TalentAuthLayout";
 import { TalentSocialButtons, TalentOrDivider } from "../talent/auth/TalentSocialButtons";
 
 function sanitizeNextParam(raw: string | null): string | null {
@@ -80,9 +80,9 @@ export function PartnerLoginPage() {
       title={t("좋은 인재를 여기서 만나요", "Meet great talent here", "在这里遇见优秀人才", "Gặp nhân tài ngay tại đây", "優秀な人材とここで出会う", "Temui talenta hebat di sini")}
       subtitle={t("로그인하고 공고 등록부터 채용까지 한 곳에서.", "Sign in and manage everything from posting to hiring.", "登录，从发布职位到录用一站式完成。", "Đăng nhập và quản lý từ đăng tin đến tuyển dụng.", "ログインして求人掲載から採用まで一箇所で。", "Masuk dan kelola dari pasang lowongan hingga rekrut.")}
       footer={
-        <p className="text-[14px] text-[#8B95A1]">
+        <p className="text-[14px] text-[color:var(--v2-faint)]">
           {copy.signupPrompt}{" "}
-          <Link href={signupHref} className="font-bold text-[#0B46E8]">
+          <Link href={signupHref} className="font-bold text-[color:var(--v2-accent)]">
             {t("기업 계정 만들기", "Create a company account", "创建企业账户", "Tạo tài khoản công ty", "企業アカウントを作成", "Buat akun perusahaan")}
           </Link>
         </p>
@@ -111,8 +111,8 @@ export function PartnerLoginPage() {
             autoComplete="current-password"
           />
         </TalentField>
-        {errorMessage ? <p className="text-[13.5px] font-medium text-[#F04452]">{errorMessage}</p> : null}
-        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth aria-label={copy.submitIdle}>
+        {errorMessage ? <p className="text-[14.5px] font-medium text-[color:var(--v2-attention)]">{errorMessage}</p> : null}
+        <TalentButton type="submit" disabled={isSubmitting} variant="primary" size="lg" fullWidth className={authSubmitClass} aria-label={copy.submitIdle}>
           {isSubmitting ? copy.submitPending : copy.submitIdle}
         </TalentButton>
       </form>

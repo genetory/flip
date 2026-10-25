@@ -417,7 +417,11 @@ export const qualitativeFeedbackSchema = z.object({
 
 // ── LLM 비용 추정 ───────────────────────────────────────────
 // 모델별 1M 토큰당 USD(근사, 운영 화면 참고용). 실제 청구와 다를 수 있음 → '추정' 표기.
+// gpt-* 는 Claude 전환(2026-10) 이전 집계 행을 위해 남겨 둔다.
 export const LLM_PRICING: Record<string, { inputPerM: number; outputPerM: number }> = {
+  "claude-haiku-5-5": { inputPerM: 0.1, outputPerM: 0.5 },
+  "claude-sonnet-5-5": { inputPerM: 2, outputPerM: 10 },
+  "claude-sonnet-5": { inputPerM: 2, outputPerM: 10 },
   "gpt-5": { inputPerM: 1.25, outputPerM: 10 },
   "gpt-5-mini": { inputPerM: 0.25, outputPerM: 2 },
   "gpt-4o": { inputPerM: 2.5, outputPerM: 10 },

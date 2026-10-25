@@ -6,7 +6,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkle } from "@phosphor-icons/react";
 import { useToast } from "../../toast/ToastProvider";
+import { trackEditor } from "../../../lib/analytics";
 import type { PlatformT } from "../../../lib/i18n";
+import { useAiPoints } from "../../../lib/ai-points";
 import type { PolishStyle } from "../../../lib/resume-maker-client";
 import { charCount } from "../../../lib/talent/cover-layout";
 
@@ -30,16 +32,22 @@ export function AiPolish({
   title,
   text,
   polish,
-  onApply
+  onApply,
+  costFeature
 }: {
   t: PlatformT;
   /** 기본 'AI로 다듬기'. */
   title?: string;
+  /** AI 포인트 비용을 보일 기능 키(v2 에서만 넘긴다) — 포인트가 켜져 있을 때만 "10P" 를 붙인다. */
+  costFeature?: string;
   text: string;
   polish: (text: string, style: PolishStyle) => Promise<string>;
   onApply: (text: string) => void;
 }) {
   const toast = useToast();
+  // 비용 표시 — costFeature 가 있을 때만 포인트 상태를 불러온다(옛 화면은 부르지 않음).
+  const pts = useAiPoints(Boolean(costFeature));
+  const cost = costFeature && pts?.enabled ? (pts.costs[costFeature] ?? null) : null;
   const [busy, setBusy] = useState<PolishStyle | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const compareRef = useRef<HTMLDivElement | null>(null);
@@ -57,6 +65,7 @@ export function AiPolish({
     try {
       const polished = await polish(source, style);
       setResult({ style, original: source, polished });
+      trackEditor("editor_polish_requested", { style });
     } catch (err) {
       // 이용 한도 안내처럼 사람이 읽을 문구면 그대로, 'ai unavailable' 같은 내부 메시지면 일반 안내로.
       const msg = err instanceof Error ? err.message : "";
@@ -77,6 +86,7 @@ export function AiPolish({
       <div className="flex items-center gap-1.5 text-[12.5px] font-bold leading-none text-[#0B46E8]">
         <Sparkle size={14} weight="fill" className="shrink-0" />
         {result ? t("다른 스타일로 다시 다듬기", "Try another style", "换一种风格", "Thử phong cách khác", "別のスタイルで整える", "Coba gaya lain") : title ?? t("AI로 다듬기", "Polish with AI", "用 AI 润色", "Chỉnh bằng AI", "AIで整える", "Poles dengan AI")}
+        {cost ? <span className="ml-auto shrink-0 tabular-nums opacity-75">{`${cost.toLocaleString("en-US")}P`}</span> : null}
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {choices.map((c) => (
@@ -109,6 +119,7 @@ export function AiPolish({
               type="button"
               onClick={() => {
                 onApply(result.polished);
+                trackEditor("editor_polish_applied", { style: result.style });
                 setResult(null);
                 toast.success(t("다듬은 글로 바꿨어요", "Replaced with polished text", "已替换为润色后的文字", "Đã thay bằng bản đã chỉnh", "整えた文に置き換えました", "Diganti dengan hasil poles"));
               }}

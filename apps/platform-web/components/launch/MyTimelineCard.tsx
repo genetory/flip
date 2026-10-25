@@ -61,21 +61,21 @@ export function MyTimelineCard({ limit }: { limit?: number } = {}) {
 
   return (
     <section>
-      <h2 className="mb-1 text-[19px] font-black tracking-[-0.02em] text-[#0B1227] md:text-[22px]">{t("내 여정", "My journey", "我的旅程", "Hành trình của tôi", "私の歩み", "Perjalananku")}</h2>
-      <p className="mb-4 text-[13px] text-[#8B95A1]">{t("진단부터 인터뷰·채용까지, 내가 만든 발자취예요.", "Every step you've taken — from diagnosis to interviews and hires.", "从诊断到面试、录用的每一步足迹。", "Từng bước bạn đã đi — từ chẩn đoán đến phỏng vấn, tuyển dụng.", "診断から面接・採用まで、あなたの足跡です。", "Setiap langkahmu — dari diagnosis hingga wawancara dan rekrutmen.")}</p>
-      <ol className="relative ml-1 border-l-2 border-[#EEF1F5]">
+      <h2 className="mb-1 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[22px]">{t("내 여정", "My journey", "我的旅程", "Hành trình của tôi", "私の歩み", "Perjalananku")}</h2>
+      <p className="mb-4 text-[14px] text-[color:var(--v2-muted)]">{t("진단부터 인터뷰·채용까지, 내가 만든 발자취예요.", "Every step you've taken — from diagnosis to interviews and hires.", "从诊断到面试、录用的每一步足迹。", "Từng bước bạn đã đi — từ chẩn đoán đến phỏng vấn, tuyển dụng.", "診断から面接・採用まで、あなたの足跡です。", "Setiap langkahmu — dari diagnosis hingga wawancara dan rekrutmen.")}</p>
+      <ol className="relative ml-1 border-l-2 border-[color:var(--v2-band)]">
         {(limit ? events.slice(0, limit) : events).map((e, i) => {
           const m = eventMeta(e.type, t);
           return (
             <li key={i} className="relative mb-4 pl-6 last:mb-0">
               <span
-                className={`absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full text-[12px] ring-2 ring-white ${m.accent ? "bg-[#E7F8EF]" : "bg-[#F2F4F6]"}`}
+                className={`absolute -left-[13px] flex h-6 w-6 items-center justify-center rounded-full text-[12px] ring-2 ring-white ${m.accent ? "bg-[color:var(--v2-accent-weak)]" : "bg-[color:var(--v2-band)]"}`}
                 aria-hidden
               >
                 {m.emoji}
               </span>
-              <p className={`text-[13.5px] font-bold ${m.accent ? "text-[#0A9B59]" : "text-[#191F28]"}`}>{m.label}</p>
-              <p className="mt-0.5 text-[11.5px] text-[#B0B8C1]">{e.at.slice(0, 10)}</p>
+              <p className={`text-[15px] font-semibold ${m.accent ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-ink)]"}`}>{m.label}</p>
+              <p className="mt-0.5 text-[13px] text-[color:var(--v2-faint)]">{e.at.slice(0, 10)}</p>
             </li>
           );
         })}

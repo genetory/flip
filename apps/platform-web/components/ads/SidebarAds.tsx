@@ -22,6 +22,11 @@ const EXCLUDED_PREFIXES: RegExp[] = [
   // 좌우 고정 광고가 편집 영역을 밀어내고, 작성에 집중해야 하는 자리다.
   /^\/talent\/career\/resume(\/|$)/,
   /^\/talent\/career\/cover(\/|$)/,
+  // v2 편집기·미리보기(/v2/resume, /v2/cover 와 그 아래) — 기존과 같은 전체 화면 3단. 목록(/v2/resumes, /v2/cover-letters)은 해당 없음.
+  // Career Launch(유료 프로그램 수강생 화면·공개 랜딩 모두) — 광고 없이.
+  /^\/career-launch(\/|$)/,
+  /^\/v2\/resume(\/|$)/,
+  /^\/v2\/cover(\/|$)/,
   // 공개 공유된 남의 문서 위에도 광고를 얹지 않는다.
   /^\/p\//,
   /^\/resume\/share(\/|$)/,

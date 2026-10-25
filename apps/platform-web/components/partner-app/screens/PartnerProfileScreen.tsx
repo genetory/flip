@@ -21,7 +21,7 @@ const MAX_RAW_BYTES = 20 * 1024 * 1024;
 const MAX_OUT_BYTES = 5 * 1024 * 1024;
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <p className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{children}</p>;
+  return <p className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{children}</p>;
 }
 
 export function PartnerProfileScreen() {
@@ -112,14 +112,14 @@ export function PartnerProfileScreen() {
         {/* 기본 정보 */}
         <section>
           <SectionTitle>{t("기본 정보", "Basic info", "基本信息", "Thông tin cơ bản", "基本情報", "Info dasar")}</SectionTitle>
-          <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+          <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
             <div className="mb-4 flex items-center justify-end">
               {complete ? (
-                <span className="inline-flex items-center gap-1 text-[12.5px] font-bold text-[#0B46E8]">
+                <span className="inline-flex items-center gap-1 text-[13.5px] font-bold text-[color:var(--v2-accent)]">
                   <CheckCircle className="h-4 w-4" weight="fill" /> {t("등록 완료", "Complete", "已完成", "Hoàn tất", "登録完了", "Selesai")}
                 </span>
               ) : (
-                <span className="text-[12.5px] font-semibold text-[#F04452]">{t("미완료", "Incomplete", "未完成", "Chưa xong", "未完了", "Belum lengkap")}</span>
+                <span className="text-[13.5px] font-semibold text-[color:var(--v2-attention)]">{t("미완료", "Incomplete", "未完成", "Chưa xong", "未完了", "Belum lengkap")}</span>
               )}
             </div>
 
@@ -131,26 +131,26 @@ export function PartnerProfileScreen() {
                 className="relative h-[92px] w-[72px] shrink-0"
                 aria-label={t("프로필 사진 업로드", "Upload profile photo", "上传头像", "Tải ảnh hồ sơ", "プロフィール写真をアップロード", "Unggah foto profil")}
               >
-                <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F2F4F6]">
+                <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                   {photo ? (
                     <Image src={photo} alt="" width={72} height={92} className="h-full w-full object-cover" unoptimized />
                   ) : (
-                    <UserCircle className="h-9 w-9 text-[#C4CAD2]" weight="fill" />
+                    <UserCircle className="h-9 w-9 text-[color:var(--v2-disabled)]" weight="fill" />
                   )}
                 </span>
-                <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-2xl border-2 border-white bg-[#0B46E8] text-white shadow-sm">
+                <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-2xl border-2 border-white bg-[color:var(--v2-accent)] text-white shadow-sm">
                   <Camera className="h-3.5 w-3.5" weight="fill" />
                 </span>
               </button>
               <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold text-[#191F28]">{t("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}</p>
-                <p className="mt-0.5 text-[12px] text-[#8B95A1]">{t("선택 · 프로필에 보이는 사진이에요", "Optional · Shown on your profile", "可选 · 显示在资料上的照片", "Tùy chọn · Ảnh hiển thị trên hồ sơ", "任意 · プロフィールに表示される写真です", "Opsional · Foto yang tampil di profil")}</p>
+                <p className="text-[14.5px] font-semibold text-[color:var(--v2-ink)]">{t("프로필 사진", "Profile photo", "头像", "Ảnh hồ sơ", "プロフィール写真", "Foto profil")}</p>
+                <p className="mt-0.5 text-[12px] text-[color:var(--v2-faint)]">{t("선택 · 프로필에 보이는 사진이에요", "Optional · Shown on your profile", "可选 · 显示在资料上的照片", "Tùy chọn · Ảnh hiển thị trên hồ sơ", "任意 · プロフィールに表示される写真です", "Opsional · Foto yang tampil di profil")}</p>
                 {photo ? (
                   <div className="mt-2 flex items-center gap-2">
-                    <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg bg-[#F2F4F6] px-2.5 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]">
+                    <button type="button" onClick={() => fileRef.current?.click()} className="rounded-lg bg-[color:var(--v2-band)] px-2.5 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
                       {uploading ? t("처리 중…", "Processing…", "处理中…", "Đang xử lý…", "処理中…", "Memproses…") : t("변경", "Change", "更换", "Đổi", "変更", "Ganti")}
                     </button>
-                    <button type="button" onClick={removePhoto} className="rounded-lg bg-[#FDECEE] px-2.5 py-1.5 text-[12px] font-semibold text-[#F04452] transition hover:bg-[#FBDDE1]">
+                    <button type="button" onClick={removePhoto} className="rounded-lg bg-[color:var(--v2-attention-weak)] px-2.5 py-1.5 text-[12px] font-semibold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)]">
                       {t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")}
                     </button>
                   </div>
@@ -162,34 +162,34 @@ export function PartnerProfileScreen() {
             {/* 입력 필드 */}
             <div className="flex flex-col gap-3.5">
               <label className="block">
-                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{t("이름", "Name", "姓名", "Tên", "名前", "Nama")}</span>
+                <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("이름", "Name", "姓名", "Tên", "名前", "Nama")}</span>
                 <input
                   value={realName}
                   onChange={(e) => setRealName(e.target.value)}
                   placeholder={t("예) 김지훈", "e.g. John Kim", "例）张三", "VD: Nguyễn Văn A", "例）山田太郎", "Mis: Budi")}
-                  className="w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-3 text-[14.5px] text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                  className="w-full rounded-xl border border-[color:var(--v2-line)] bg-white px-4 py-3 text-[14.5px] text-[color:var(--v2-ink)] outline-none focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]"
                 />
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{t("이메일", "Email", "邮箱", "Email", "メール", "Email")}</span>
+                <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("이메일", "Email", "邮箱", "Email", "メール", "Email")}</span>
                 <input
                   value={user?.email || ""}
                   readOnly
                   aria-readonly
                   placeholder="-"
-                  className="w-full cursor-not-allowed rounded-xl border border-[#EEF1F5] bg-[#F9FAFB] px-4 py-3 text-[14.5px] text-[#8B95A1] outline-none"
+                  className="w-full cursor-not-allowed rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--v2-fill)] px-4 py-3 text-[14.5px] text-[color:var(--v2-faint)] outline-none"
                 />
-                <span className="mt-1 block text-[11.5px] text-[#B0B8C1]">{t("이메일은 계정에서만 변경할 수 있어요.", "Email can only be changed in your account.", "邮箱只能在账户中更改。", "Email chỉ có thể đổi trong tài khoản.", "メールはアカウントでのみ変更できます。", "Email hanya bisa diubah di akun.")}</span>
+                <span className="mt-1 block text-[11.5px] text-[color:var(--v2-disabled)]">{t("이메일은 계정에서만 변경할 수 있어요.", "Email can only be changed in your account.", "邮箱只能在账户中更改。", "Email chỉ có thể đổi trong tài khoản.", "メールはアカウントでのみ変更できます。", "Email hanya bisa diubah di akun.")}</span>
               </label>
               <label className="block">
-                <span className="mb-1.5 block text-[12.5px] font-semibold text-[#4E5968]">{t("연락처", "Contact", "联系方式", "Liên hệ", "連絡先", "Kontak")}</span>
+                <span className="mb-1.5 block text-[13.5px] font-semibold text-[color:var(--v2-ink-3)]">{t("연락처", "Contact", "联系方式", "Liên hệ", "連絡先", "Kontak")}</span>
                 <input
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder={t("예) 010-1234-5678", "e.g. 010-1234-5678", "例）010-1234-5678", "VD: 010-1234-5678", "例）010-1234-5678", "Mis: 010-1234-5678")}
                   type="tel"
                   inputMode="tel"
-                  className="w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-3 text-[14.5px] text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]"
+                  className="w-full rounded-xl border border-[color:var(--v2-line)] bg-white px-4 py-3 text-[14.5px] text-[color:var(--v2-ink)] outline-none focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]"
                 />
               </label>
             </div>
@@ -205,19 +205,19 @@ export function PartnerProfileScreen() {
         {/* 회사 */}
         <section>
           <SectionTitle>{t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")}</SectionTitle>
-          <Link href={partnerRoutes.company} className="flex items-center gap-3.5 rounded-2xl border border-[#EEF1F5] bg-white p-5 transition hover:border-[#D7DCE3] hover:bg-[#F6F8FB]">
+          <Link href={partnerRoutes.company} className="flex items-center gap-3.5 rounded-2xl bg-[color:var(--v2-band)] p-5 transition hover:bg-[color:var(--v2-line)]">
             {org?.companyLogoImageData ? (
-              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[#EEF1F5] bg-[#F2F4F6]">
+              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]">
                 <Image src={org.companyLogoImageData} alt="" fill sizes="44px" className="object-cover" unoptimized />
               </span>
             ) : (
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[#0B46E8]"><Buildings className="h-5 w-5" weight="fill" /></span>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"><Buildings className="h-5 w-5" weight="fill" /></span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14.5px] font-bold text-[#191F28]">{org?.name || t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</p>
-              <p className="mt-0.5 text-[12.5px] text-[#8B95A1]">{t("지원자에게 보이는 우리 회사 정보를 관리해요.", "Manage the company info applicants see.", "管理申请者可见的公司信息。", "Quản lý thông tin công ty mà ứng viên thấy.", "応募者に表示される会社情報を管理します。", "Kelola info perusahaan yang dilihat pelamar.")}</p>
+              <p className="truncate text-[14.5px] font-bold text-[color:var(--v2-ink)]">{org?.name || t("회사 프로필", "Company profile", "公司资料", "Hồ sơ công ty", "会社プロフィール", "Profil perusahaan")}</p>
+              <p className="mt-0.5 text-[13.5px] text-[color:var(--v2-faint)]">{t("지원자에게 보이는 우리 회사 정보를 관리해요.", "Manage the company info applicants see.", "管理申请者可见的公司信息。", "Quản lý thông tin công ty mà ứng viên thấy.", "応募者に表示される会社情報を管理します。", "Kelola info perusahaan yang dilihat pelamar.")}</p>
             </div>
-            <CaretRight className="h-4 w-4 shrink-0 text-[#C4CAD2]" />
+            <CaretRight className="h-4 w-4 shrink-0 text-[color:var(--v2-disabled)]" />
           </Link>
         </section>
       </div>

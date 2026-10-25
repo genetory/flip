@@ -2,6 +2,8 @@
 
 // 파트너 인재 상세 — 인재풀 후보의 이력 요약 + 자기소개서 + 연결 요청.
 // 연락처(이메일·전화)는 후보가 연결을 수락해야 공개된다.
+// 맨 위 'AI 인재 인사이트' — 어울리는 직무·강점·핵심 경험·준비 상태·확인할 점(연락할지 판단용, 서류 근거만).
+// 이력은 예전 이력서 모양과 에디터 문서(renewalResume) 모양을 모두 보여 준다.
 import { useEffect, useState } from "react";
 import { Globe, EnvelopeSimple, Phone, GraduationCap, Briefcase, Translate, Sparkle } from "@phosphor-icons/react";
 import { PartnerAppShell } from "../PartnerAppShell";
@@ -9,7 +11,7 @@ import { TalentBackButton } from "../../talent/TalentBackButton";
 import { TLoading, TError } from "../../talent/ui/primitives";
 import { useTalentPopup } from "../../talent/feedback/TalentPopupProvider";
 import { useLockBodyScroll } from "../../../lib/talent/useLockBodyScroll";
-import { getPartnerCandidate, connectPartnerCandidate, advanceConnectionStatus, getPartnerCandidateDocumentSummary, type PartnerCandidateDetail } from "../../../lib/member-profile-client";
+import { getPartnerCandidate, connectPartnerCandidate, advanceConnectionStatus, getPartnerCandidateDocumentSummary, getPartnerCandidateInsight, type PartnerCandidateDetail, type PartnerCandidateInsight } from "../../../lib/member-profile-client";
 import { usePlatformT } from "../../../lib/i18n";
 
 function asArray(v: unknown): Record<string, unknown>[] {
@@ -27,6 +29,8 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
   const [connectOpen, setConnectOpen] = useState(false);
   const [summary, setSummary] = useState<{ resumeBullets: string[]; coverBullets: string[] } | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [insight, setInsight] = useState<PartnerCandidateInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [feedback, setFeedback] = useState("");
 
@@ -60,6 +64,11 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
       .then(setSummary)
       .catch(() => setSummary({ resumeBullets: [], coverBullets: [] }))
       .finally(() => setSummaryLoading(false));
+    setInsightLoading(true);
+    getPartnerCandidateInsight(candidateUserId)
+      .then(setInsight)
+      .catch(() => setInsight(null))
+      .finally(() => setInsightLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateUserId]);
 
@@ -69,6 +78,10 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
   const languages = asArray(c.languages).map((l) => [str(l.language), str(l.level)].filter(Boolean).join(" ")).filter(Boolean);
   const educations = asArray(c.educations);
   const careers = asArray(c.careers);
+  // 에디터 문서(renewalResume) — v2 에디터로 쓴 이력서·일괄 등록 학생
+  const renewal = (c.renewalResume && typeof c.renewalResume === "object" ? c.renewalResume : null) as { items?: unknown; targetRole?: unknown } | null;
+  const renewalItems = asArray(renewal?.items);
+  const renewalCover = asArray((c.renewalCover as { items?: unknown } | undefined)?.items).filter((x) => str(x.text).trim());
 
   return (
     <PartnerAppShell>
@@ -79,29 +92,29 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
       {status === "ready" && d ? (
         <div className="flex flex-col gap-6">
           {/* 헤더 */}
-          <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
+          <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
             <div className="flex items-start gap-3.5">
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#EDF1FD] text-[20px] font-black text-[#0B46E8]">{(d.name ?? "?").slice(0, 1)}</span>
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[20px] font-bold text-[color:var(--v2-accent)]">{(d.name ?? "?").slice(0, 1)}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{d.name ?? t("이름 비공개", "Name hidden", "姓名不公开", "Ẩn tên", "名前非公開", "Nama disembunyikan")}</p>
+                  <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{d.name ?? t("이름 비공개", "Name hidden", "姓名不公开", "Ẩn tên", "名前非公開", "Nama disembunyikan")}</p>
                   {d.connectionStatus === "ACCEPTED" ? (
-                    <span className="rounded-md bg-[#E7F8EF] px-2.5 py-0.5 text-[11px] font-bold text-[#0A9B59]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "つながり済み", "Terhubung")}</span>
+                    <span className="rounded-md bg-[color:var(--v2-good-weak)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-good)]">{t("연결됨", "Connected", "已连接", "Đã kết nối", "つながり済み", "Terhubung")}</span>
                   ) : d.connectionStatus === "PENDING" ? (
-                    <span className="rounded-md bg-[#F2F4F6] px-2.5 py-0.5 text-[11px] font-bold text-[#8B95A1]">{t("요청 보냄", "Request sent", "已发送请求", "Đã gửi yêu cầu", "リクエスト送信", "Terkirim")}</span>
+                    <span className="rounded-md bg-[color:var(--v2-band)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-faint)]">{t("요청 보냄", "Request sent", "已发送请求", "Đã gửi yêu cầu", "リクエスト送信", "Terkirim")}</span>
                   ) : d.connectionStatus === "DECLINED" ? (
-                    <span className="rounded-md bg-[#FDECEE] px-2.5 py-0.5 text-[11px] font-bold text-[#F04452]">{t("거절됨", "Declined", "已拒绝", "Đã từ chối", "拒否済み", "Ditolak")}</span>
+                    <span className="rounded-md bg-[color:var(--v2-attention-weak)] px-2.5 py-0.5 text-[11px] font-bold text-[color:var(--v2-attention)]">{t("거절됨", "Declined", "已拒绝", "Đã từ chối", "拒否済み", "Ditolak")}</span>
                   ) : null}
                 </div>
-                {d.nationality ? <p className="mt-1.5 flex items-center gap-1 text-[12.5px] text-[#8B95A1]"><Globe className="h-3.5 w-3.5 text-[#B0B8C1]" /> {d.nationality}</p> : null}
+                {d.nationality ? <p className="mt-1.5 flex items-center gap-1 text-[13.5px] text-[color:var(--v2-faint)]"><Globe className="h-3.5 w-3.5 text-[color:var(--v2-disabled)]" /> {d.nationality}</p> : null}
               </div>
             </div>
 
             {/* 연락처 — 연결 수락 시에만 */}
             {d.contactUnlocked && d.contact ? (
-              <div className="mt-4 flex flex-col gap-2 rounded-xl bg-[#F5F8FF] p-3.5">
-                {d.contact.email ? <p className="flex items-center gap-2 text-[13px] font-semibold text-[#191F28]"><EnvelopeSimple className="h-4 w-4 text-[#0B46E8]" /> {d.contact.email}</p> : null}
-                {d.contact.phone ? <p className="flex items-center gap-2 text-[13px] font-semibold text-[#191F28]"><Phone className="h-4 w-4 text-[#0B46E8]" /> {d.contact.phone}</p> : null}
+              <div className="mt-4 flex flex-col gap-2 rounded-xl bg-[color:var(--v2-accent-weak)] p-3.5">
+                {d.contact.email ? <p className="flex items-center gap-2 text-[14px] font-semibold text-[color:var(--v2-ink)]"><EnvelopeSimple className="h-4 w-4 text-[color:var(--v2-accent)]" /> {d.contact.email}</p> : null}
+                {d.contact.phone ? <p className="flex items-center gap-2 text-[14px] font-semibold text-[color:var(--v2-ink)]"><Phone className="h-4 w-4 text-[color:var(--v2-accent)]" /> {d.contact.phone}</p> : null}
               </div>
             ) : null}
 
@@ -109,15 +122,15 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
             <div className="mt-4">
               {d.connectionStatus === null ? (
                 <>
-                  <button type="button" onClick={() => setConnectOpen(true)} className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                  <button type="button" onClick={() => setConnectOpen(true)} className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14.5px] font-bold text-white transition hover:opacity-90">
                     {t("연결 요청하기", "Request connection", "发送连接请求", "Gửi yêu cầu kết nối", "つながりを申請", "Minta koneksi")}
                   </button>
-                  <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("후보가 수락하면 이메일·전화번호가 공개돼요.", "Once the candidate accepts, their email and phone are revealed.", "候选人接受后将公开邮箱和电话。", "Khi ứng viên chấp nhận, email và số điện thoại sẽ hiện.", "候補者が承認するとメール・電話番号が公開されます。", "Setelah kandidat menerima, email dan telepon terbuka.")}</p>
+                  <p className="mt-2 text-center text-[11.5px] text-[color:var(--v2-disabled)]">{t("후보가 수락하면 이메일·전화번호가 공개돼요.", "Once the candidate accepts, their email and phone are revealed.", "候选人接受后将公开邮箱和电话。", "Khi ứng viên chấp nhận, email và số điện thoại sẽ hiện.", "候補者が承認するとメール・電話番号が公開されます。", "Setelah kandidat menerima, email dan telepon terbuka.")}</p>
                 </>
               ) : d.connectionStatus === "PENDING" ? (
-                <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#F2F4F6] px-4 text-[13.5px] font-bold text-[#8B95A1]">{t("연결 요청을 보냈어요 · 수락 대기 중", "Request sent · awaiting acceptance", "已发送请求 · 等待接受", "Đã gửi yêu cầu · chờ chấp nhận", "リクエスト送信 · 承認待ち", "Terkirim · menunggu diterima")}</span>
+                <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-band)] px-4 text-[14.5px] font-bold text-[color:var(--v2-faint)]">{t("연결 요청을 보냈어요 · 수락 대기 중", "Request sent · awaiting acceptance", "已发送请求 · 等待接受", "Đã gửi yêu cầu · chờ chấp nhận", "リクエスト送信 · 承認待ち", "Terkirim · menunggu diterima")}</span>
               ) : d.connectionStatus === "DECLINED" ? (
-                <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13.5px] font-bold text-[#F04452]">{t("후보가 연결 요청을 거절했어요", "The candidate declined your request", "候选人拒绝了连接请求", "Ứng viên đã từ chối yêu cầu", "候補者がリクエストを拒否しました", "Kandidat menolak permintaan")}</span>
+                <span className="inline-flex h-[44px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-attention-weak)] px-4 text-[14.5px] font-bold text-[color:var(--v2-attention)]">{t("후보가 연결 요청을 거절했어요", "The candidate declined your request", "候选人拒绝了连接请求", "Ứng viên đã từ chối yêu cầu", "候補者がリクエストを拒否しました", "Kandidat menolak permintaan")}</span>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {/* 인터뷰 단계 표시 */}
@@ -134,19 +147,19 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
                             : t("완료", "Completed", "完成", "Hoàn tất", "完了", "Selesai");
                       return (
                         <div key={stp} className="flex-1">
-                          <div className={`h-1.5 rounded-full ${active ? "bg-[#0B46E8]" : "bg-[#EEF1F5]"}`} />
-                          <p className={`mt-1 text-[10.5px] font-bold ${active ? "text-[#0B46E8]" : "text-[#B0B8C1]"}`}>{label}</p>
+                          <div className={`h-1.5 rounded-full ${active ? "bg-[color:var(--v2-accent)]" : "bg-[color:var(--v2-line)]"}`} />
+                          <p className={`mt-1 text-[10.5px] font-bold ${active ? "text-[color:var(--v2-accent)]" : "text-[color:var(--v2-disabled)]"}`}>{label}</p>
                         </div>
                       );
                     })}
                   </div>
                   {/* 진행 액션 */}
                   {d.connectionStatus === "ACCEPTED" ? (
-                    <button type="button" disabled={advancing} onClick={() => void advance("SCHEDULED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                    <button type="button" disabled={advancing} onClick={() => void advance("SCHEDULED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
                       {t("인터뷰 일정 잡기", "Schedule interview", "安排面试", "Lên lịch phỏng vấn", "面接を予定する", "Jadwalkan wawancara")}
                     </button>
                   ) : d.connectionStatus === "SCHEDULED" ? (
-                    <button type="button" disabled={advancing} onClick={() => void advance("COMPLETED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#0B46E8] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-60">
+                    <button type="button" disabled={advancing} onClick={() => void advance("COMPLETED")} className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-accent)] px-4 text-[14.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
                       {t("인터뷰 완료 표시", "Mark interview done", "标记面试完成", "Đánh dấu hoàn tất", "面接完了にする", "Tandai selesai")}
                     </button>
                   ) : d.connectionStatus === "COMPLETED" ? (
@@ -157,31 +170,34 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
                         rows={2}
                         maxLength={1000}
                         placeholder={t("면접 피드백을 남겨주세요(선택) — 후보의 성장에 도움이 돼요.", "Leave interview feedback (optional) — it helps the candidate grow.", "留下面试反馈（可选）——有助于候选人成长。", "Để lại phản hồi phỏng vấn (tùy chọn) — giúp ứng viên phát triển.", "面接フィードバックを残してください(任意) — 候補者の成長に役立ちます。", "Beri masukan wawancara (opsional) — membantu kandidat berkembang.")}
-                        className="w-full rounded-xl border border-[#EEF1F5] p-3 text-[13px] leading-relaxed text-[#191F28] focus:border-[#0B46E8]/40 focus:outline-none"
+                        className="w-full rounded-xl border border-[color:var(--v2-line)] p-3 text-[14px] leading-relaxed text-[color:var(--v2-ink)] focus:border-[#0B46E8]/40 focus:outline-none"
                       />
                       <div className="flex gap-2">
-                        <button type="button" disabled={advancing} onClick={() => void advance("PASSED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl bg-[#0A9B59] px-4 text-[13.5px] font-bold text-white transition hover:bg-[#08834B] disabled:opacity-60">
+                        <button type="button" disabled={advancing} onClick={() => void advance("PASSED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl bg-[color:var(--v2-good)] px-4 text-[14.5px] font-bold text-white transition hover:bg-[#08834B] disabled:opacity-60">
                           {t("합격", "Passed", "通过", "Đạt", "合格", "Lulus")}
                         </button>
-                        <button type="button" disabled={advancing} onClick={() => void advance("REJECTED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl border border-[#F04452] px-4 text-[13.5px] font-bold text-[#F04452] transition hover:bg-[#FDECEE] disabled:opacity-60">
+                        <button type="button" disabled={advancing} onClick={() => void advance("REJECTED")} className="inline-flex h-[42px] flex-1 items-center justify-center rounded-xl border border-[color:var(--v2-attention)] px-4 text-[14.5px] font-bold text-[color:var(--v2-attention)] transition hover:bg-[color:var(--v2-attention-weak)] disabled:opacity-60">
                           {t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}
                         </button>
                       </div>
                     </div>
                   ) : d.connectionStatus === "PASSED" ? (
-                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#E7F8EF] px-4 text-[13.5px] font-bold text-[#0A9B59]">{t("합격 · 채용 진행", "Passed · proceeding to hire", "通过 · 进入录用", "Đạt · tiến hành tuyển", "合格 · 採用へ", "Lulus · lanjut rekrut")}</span>
+                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-good-weak)] px-4 text-[14.5px] font-bold text-[color:var(--v2-good)]">{t("합격 · 채용 진행", "Passed · proceeding to hire", "通过 · 进入录用", "Đạt · tiến hành tuyển", "合格 · 採用へ", "Lulus · lanjut rekrut")}</span>
                   ) : (
-                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[#FDECEE] px-4 text-[13.5px] font-bold text-[#F04452]">{t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}</span>
+                    <span className="inline-flex h-[42px] w-full items-center justify-center rounded-xl bg-[color:var(--v2-attention-weak)] px-4 text-[14.5px] font-bold text-[color:var(--v2-attention)]">{t("불합격", "Rejected", "未通过", "Trượt", "不合格", "Ditolak")}</span>
                   )}
                 </div>
               )}
             </div>
           </div>
 
+          {/* AI 인재 인사이트 — 연락할지 판단용 */}
+          <InsightCard insight={insight} loading={insightLoading} />
+
           {/* 서류 요약 — 이력서·자기소개서 AI 불렛(지원자 상세와 동일) */}
           <section>
-            <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("서류 요약", "Document summary", "材料摘要", "Tóm tắt hồ sơ", "書類要約", "Ringkasan dokumen")}</h2>
-            <div className="flex flex-col gap-4 rounded-2xl border border-[#EEF1F5] bg-white p-5">
+            <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("서류 요약", "Document summary", "材料摘要", "Tóm tắt hồ sơ", "書類要約", "Ringkasan dokumen")}</h2>
+            <div className="flex flex-col gap-4 rounded-2xl bg-[color:var(--v2-band)] p-5">
               <SummaryBlock emoji="📄" title={t("이력서", "Resume", "简历", "Sơ yếu lý lịch", "履歴書", "Resume")} bullets={summary?.resumeBullets ?? []} loading={summaryLoading} />
               <SummaryBlock emoji="✍️" title={t("자기소개서", "Cover letter", "求职信", "Thư xin việc", "志望動機書", "Surat lamaran")} bullets={summary?.coverBullets ?? []} loading={summaryLoading} />
             </div>
@@ -190,25 +206,28 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
           {/* 소개 */}
           {summaryText ? (
             <section>
-              <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("소개", "Introduction", "简介", "Giới thiệu", "紹介", "Perkenalan")}</h2>
-              <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                <p className="whitespace-pre-wrap break-keep text-[13.5px] leading-relaxed text-[#4E5968]">{summaryText}</p>
+              <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("소개", "Introduction", "简介", "Giới thiệu", "紹介", "Perkenalan")}</h2>
+              <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                <p className="whitespace-pre-wrap break-keep text-[14.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{summaryText}</p>
               </div>
             </section>
           ) : null}
 
+          {/* 에디터 문서 이력 — 섹션별 */}
+          {renewalItems.length && !(educations.length || careers.length) ? <RenewalHistory items={renewalItems} /> : null}
+
           {/* 기본 이력 */}
           {educations.length || careers.length || languages.length || skills.length ? (
             <section>
-              <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("이력", "Background", "履历", "Hồ sơ", "経歴", "Riwayat")}</h2>
+              <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("이력", "Background", "履历", "Hồ sơ", "経歴", "Riwayat")}</h2>
               <div className="flex flex-col gap-3">
                 {educations.length ? (
-                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]"><GraduationCap className="h-4 w-4 text-[#8B95A1]" /> {t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</p>
+                  <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--v2-ink)]"><GraduationCap className="h-4 w-4 text-[color:var(--v2-faint)]" /> {t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")}</p>
                     <div className="flex flex-col gap-2">
                       {educations.map((e, i) => (
-                        <div key={i} className="text-[13px] text-[#4E5968]">
-                          <span className="font-semibold text-[#191F28]">{str(e.schoolName) || t("학교", "School", "学校", "Trường", "学校", "Sekolah")}</span>
+                        <div key={i} className="text-[14px] text-[color:var(--v2-ink-3)]">
+                          <span className="font-semibold text-[color:var(--v2-ink)]">{str(e.schoolName) || t("학교", "School", "学校", "Trường", "学校", "Sekolah")}</span>
                           {str(e.major) ? ` · ${str(e.major)}` : ""}
                           {str(e.degree) ? ` · ${str(e.degree)}` : ""}
                         </div>
@@ -217,31 +236,31 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
                   </div>
                 ) : null}
                 {careers.length ? (
-                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]"><Briefcase className="h-4 w-4 text-[#8B95A1]" /> {t("경력", "Experience", "工作经历", "Kinh nghiệm", "職歴", "Pengalaman")}</p>
+                  <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--v2-ink)]"><Briefcase className="h-4 w-4 text-[color:var(--v2-faint)]" /> {t("경력", "Experience", "工作经历", "Kinh nghiệm", "職歴", "Pengalaman")}</p>
                     <div className="flex flex-col gap-2.5">
                       {careers.map((w, i) => (
-                        <div key={i} className="text-[13px] text-[#4E5968]">
-                          <p><span className="font-semibold text-[#191F28]">{str(w.company) || t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")}</span>{str(w.role) || str(w.position) ? ` · ${str(w.role) || str(w.position)}` : ""}</p>
-                          {str(w.description) ? <p className="mt-0.5 break-keep text-[12.5px] text-[#8B95A1]">{str(w.description)}</p> : null}
+                        <div key={i} className="text-[14px] text-[color:var(--v2-ink-3)]">
+                          <p><span className="font-semibold text-[color:var(--v2-ink)]">{str(w.company) || t("회사", "Company", "公司", "Công ty", "会社", "Perusahaan")}</span>{str(w.role) || str(w.position) ? ` · ${str(w.role) || str(w.position)}` : ""}</p>
+                          {str(w.description) ? <p className="mt-0.5 break-keep text-[13.5px] text-[color:var(--v2-faint)]">{str(w.description)}</p> : null}
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : null}
                 {languages.length ? (
-                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    <p className="mb-2.5 flex items-center gap-1.5 text-[13px] font-bold text-[#191F28]"><Translate className="h-4 w-4 text-[#8B95A1]" /> {t("언어", "Languages", "语言", "Ngôn ngữ", "言語", "Bahasa")}</p>
+                  <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--v2-ink)]"><Translate className="h-4 w-4 text-[color:var(--v2-faint)]" /> {t("언어", "Languages", "语言", "Ngôn ngữ", "言語", "Bahasa")}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {languages.map((l) => <span key={l} className="rounded-md bg-[#F5F7FA] px-2 py-1 text-[12px] font-medium text-[#4E5968]">{l}</span>)}
+                      {languages.map((l) => <span key={l} className="rounded-md bg-[color:var(--v2-band)] px-2 py-1 text-[12px] font-medium text-[color:var(--v2-ink-3)]">{l}</span>)}
                     </div>
                   </div>
                 ) : null}
                 {skills.length ? (
-                  <div className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    <p className="mb-2.5 text-[13px] font-bold text-[#191F28]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</p>
+                  <div className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    <p className="mb-2.5 text-[14px] font-bold text-[color:var(--v2-ink)]">{t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {skills.map((s) => <span key={s} className="rounded-md bg-[#F5F7FA] px-2 py-1 text-[12px] font-medium text-[#4E5968]">{s}</span>)}
+                      {skills.map((s) => <span key={s} className="rounded-md bg-[color:var(--v2-band)] px-2 py-1 text-[12px] font-medium text-[color:var(--v2-ink-3)]">{s}</span>)}
                     </div>
                   </div>
                 ) : null}
@@ -249,15 +268,30 @@ export function PartnerCandidateDetailScreen({ candidateUserId }: { candidateUse
             </section>
           ) : null}
 
+          {/* 자기소개서 — 에디터 문서(renewalCover) */}
+          {!(d.coverLetter && d.coverLetter.items.length) && renewalCover.length ? (
+            <section>
+              <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("자기소개서", "Cover letter", "求职信", "Thư xin việc", "志望動機書", "Surat lamaran")}</h2>
+              <div className="flex flex-col gap-3">
+                {renewalCover.map((it, i) => (
+                  <div key={i} className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    {str(it.question) ? <p className="mb-1.5 break-keep text-[14px] font-bold text-[color:var(--v2-ink)]">{str(it.question)}</p> : null}
+                    <p className="whitespace-pre-wrap break-keep text-[14px] leading-relaxed text-[color:var(--v2-ink-3)]">{str(it.text)}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {/* 자기소개서 */}
           {d.coverLetter && d.coverLetter.items.length ? (
             <section>
-              <h2 className="mb-3 text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t("자기소개서", "Cover letter", "求职信", "Thư xin việc", "志望動機書", "Surat lamaran")}</h2>
+              <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("자기소개서", "Cover letter", "求职信", "Thư xin việc", "志望動機書", "Surat lamaran")}</h2>
               <div className="flex flex-col gap-3">
                 {d.coverLetter.items.map((it, i) => (
-                  <div key={i} className="rounded-2xl border border-[#EEF1F5] bg-white p-5">
-                    {it.prompt ? <p className="mb-1.5 break-keep text-[13px] font-bold text-[#191F28]">{it.prompt}</p> : null}
-                    <p className="whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#4E5968]">{it.answer}</p>
+                  <div key={i} className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+                    {it.prompt ? <p className="mb-1.5 break-keep text-[14px] font-bold text-[color:var(--v2-ink)]">{it.prompt}</p> : null}
+                    <p className="whitespace-pre-wrap break-keep text-[14px] leading-relaxed text-[color:var(--v2-ink-3)]">{it.answer}</p>
                   </div>
                 ))}
               </div>
@@ -286,22 +320,22 @@ function SummaryBlock({ emoji, title, bullets, loading }: { emoji: string; title
   const t = usePlatformT();
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-[13.5px] font-bold text-[#191F28]"><span aria-hidden>{emoji}</span> {title}</p>
-      <div className="mt-2 rounded-xl bg-[#F8FAFB] px-3.5 py-2.5">
-        <p className="flex items-center gap-1 text-[11px] font-bold text-[#8B95A1]"><Sparkle className="h-3 w-3 text-[#0B46E8]" weight="fill" /> {t("AI 요약", "AI summary", "AI摘要", "Tóm tắt AI", "AI要約", "Ringkasan AI")}</p>
+      <p className="flex items-center gap-1.5 text-[14.5px] font-bold text-[color:var(--v2-ink)]"><span aria-hidden>{emoji}</span> {title}</p>
+      <div className="mt-2 rounded-xl bg-[color:var(--v2-fill)] px-3.5 py-2.5">
+        <p className="flex items-center gap-1 text-[11px] font-bold text-[color:var(--v2-faint)]"><Sparkle className="h-3 w-3 text-[color:var(--v2-accent)]" weight="fill" /> {t("AI 요약", "AI summary", "AI摘要", "Tóm tắt AI", "AI要約", "Ringkasan AI")}</p>
         {loading ? (
-          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">{t("요약 생성 중…", "Generating summary…", "生成摘要中…", "Đang tạo tóm tắt…", "要約生成中…", "Membuat ringkasan…")}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-disabled)]">{t("요약 생성 중…", "Generating summary…", "生成摘要中…", "Đang tạo tóm tắt…", "要約生成中…", "Membuat ringkasan…")}</p>
         ) : bullets.length ? (
           <ul className="mt-1.5 flex flex-col gap-1">
             {bullets.map((b, i) => (
-              <li key={i} className="flex gap-1.5 text-[12.5px] leading-relaxed text-[#4E5968]">
-                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[#0B46E8]" aria-hidden />
+              <li key={i} className="flex gap-1.5 text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">
+                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-[color:var(--v2-accent)]" aria-hidden />
                 <span className="min-w-0 flex-1 break-keep">{b}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-1 text-[12.5px] text-[#B0B8C1]">{t("요약할 내용이 없어요.", "Nothing to summarize yet.", "暂无可摘要的内容。", "Chưa có nội dung để tóm tắt.", "要約する内容がありません。", "Belum ada yang bisa diringkas.")}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-disabled)]">{t("요약할 내용이 없어요.", "Nothing to summarize yet.", "暂无可摘要的内容。", "Chưa có nội dung để tóm tắt.", "要約する内容がありません。", "Belum ada yang bisa diringkas.")}</p>
         )}
       </div>
     </div>
@@ -328,17 +362,162 @@ function ConnectModal({ candidateUserId, name, onClose, onDone }: { candidateUse
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#0B1227]/40 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-[440px] overflow-hidden rounded-3xl bg-white sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 pt-6">
-          <p className="text-[18px] font-black tracking-[-0.02em] text-[#0B1227]">{t(`${name}에게 연결 요청`, `Connect with ${name}`, `向 ${name} 发送连接请求`, `Kết nối với ${name}`, `${name}さんへつながり申請`, `Terhubung dengan ${name}`)}</p>
-          <p className="mt-1 text-[12.5px] text-[#8B95A1]">{t("수락하면 연락처가 공유돼요. 간단한 인사를 남겨보세요.", "Once accepted, contact info is shared. Leave a short greeting.", "接受后将共享联系方式。留下简短问候吧。", "Khi được chấp nhận, thông tin liên hệ sẽ được chia sẻ. Hãy để lại lời chào ngắn.", "承認されると連絡先が共有されます。簡単な挨拶を残してください。", "Setelah diterima, kontak akan dibagikan. Tinggalkan sapaan singkat.")}</p>
+          <p className="text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t(`${name}에게 연결 요청`, `Connect with ${name}`, `向 ${name} 发送连接请求`, `Kết nối với ${name}`, `${name}さんへつながり申請`, `Terhubung dengan ${name}`)}</p>
+          <p className="mt-1 text-[13.5px] text-[color:var(--v2-faint)]">{t("수락하면 연락처가 공유돼요. 간단한 인사를 남겨보세요.", "Once accepted, contact info is shared. Leave a short greeting.", "接受后将共享联系方式。留下简短问候吧。", "Khi được chấp nhận, thông tin liên hệ sẽ được chia sẻ. Hãy để lại lời chào ngắn.", "承認されると連絡先が共有されます。簡単な挨拶を残してください。", "Setelah diterima, kontak akan dibagikan. Tinggalkan sapaan singkat.")}</p>
         </div>
         <div className="px-6 py-4">
-          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="w-full resize-none rounded-xl border border-[#E5E8EB] bg-white px-3.5 py-2.5 text-[13.5px] leading-relaxed text-[#191F28] outline-none focus:border-[#0B46E8] focus:ring-2 focus:ring-[#EDF1FD]" />
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} className="w-full resize-none rounded-xl border border-[color:var(--v2-line)] bg-white px-3.5 py-2.5 text-[14.5px] leading-relaxed text-[color:var(--v2-ink)] outline-none focus:border-[color:var(--v2-accent)] focus:ring-2 focus:ring-[color:var(--v2-accent-weak)]" />
         </div>
         <div className="flex gap-2 px-6 pb-6">
-          <button type="button" onClick={onClose} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#F2F4F6] text-[14.5px] font-bold text-[#4E5968] transition hover:bg-[#E5E8EB] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
-          <button type="button" onClick={submit} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[#0B46E8] text-[14.5px] font-bold text-white transition hover:bg-[#0A3ECB] disabled:opacity-50">{saving ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…") : t("요청 보내기", "Send request", "发送请求", "Gửi yêu cầu", "リクエスト送信", "Kirim")}</button>
+          <button type="button" onClick={onClose} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[color:var(--v2-band)] text-[14.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-50">{t("취소", "Cancel", "取消", "Hủy", "キャンセル", "Batal")}</button>
+          <button type="button" onClick={submit} disabled={saving} className="h-[50px] flex-1 rounded-2xl bg-[color:var(--v2-accent)] text-[14.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">{saving ? t("보내는 중…", "Sending…", "发送中…", "Đang gửi…", "送信中…", "Mengirim…") : t("요청 보내기", "Send request", "发送请求", "Gửi yêu cầu", "リクエスト送信", "Kirim")}</button>
         </div>
       </div>
     </div>
+  );
+}
+
+/** AI 인재 인사이트 — 한 줄 소개 · 어울리는 직무(근거) · 강점 · 핵심 경험 · 준비 상태 · 확인할 점. */
+function InsightCard({ insight, loading }: { insight: PartnerCandidateInsight | null; loading: boolean }) {
+  const t = usePlatformT();
+  if (!loading && !insight) return null;
+  const levelLabel = (l: "strong" | "good" | "possible") =>
+    l === "strong" ? t("잘 맞아요", "Strong fit", "非常匹配", "Rất phù hợp", "よく合う", "Sangat cocok") : l === "good" ? t("맞아요", "Good fit", "匹配", "Phù hợp", "合う", "Cocok") : t("가능성 있어요", "Possible", "有可能", "Có thể", "可能性あり", "Mungkin");
+  const levelTone = (l: "strong" | "good" | "possible") => (l === "strong" ? "bg-[color:var(--v2-accent)] text-white" : l === "good" ? "bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]" : "bg-[color:var(--v2-band)] text-[color:var(--v2-ink-3)]");
+  return (
+    <section>
+      <h2 className="mb-3 flex items-center gap-1.5 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">
+        <Sparkle className="h-4 w-4 text-[color:var(--v2-accent)]" weight="fill" /> {t("AI 인재 인사이트", "AI talent insight", "AI 人才洞察", "Phân tích AI", "AI人材インサイト", "Wawasan AI")}
+      </h2>
+      <div className="flex flex-col gap-4 rounded-2xl border border-[#E3E9FB] bg-gradient-to-b from-[color:var(--v2-accent-weak)] to-white p-5">
+        {loading ? (
+          <p className="text-[14px] text-[color:var(--v2-faint)]">{t("이력서·자기소개서를 읽고 정리하는 중…", "Reading the resume and cover letter…", "正在阅读简历与求职信…", "Đang đọc hồ sơ…", "履歴書・志望動機書を読んでいます…", "Membaca dokumen…")}</p>
+        ) : insight ? (
+          <>
+            {insight.headline ? <p className="break-keep text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{insight.headline}</p> : null}
+            {insight.fitRoles.length ? (
+              <div>
+                <p className="mb-2 text-[13.5px] font-bold text-[color:var(--v2-faint)]">{t("어울리는 직무", "Roles that fit", "适合的岗位", "Vị trí phù hợp", "合う職種", "Peran yang cocok")}</p>
+                <ul className="flex flex-col gap-2">
+                  {insight.fitRoles.map((r, i) => (
+                    <li key={i} className="rounded-xl bg-white p-3 ring-1 ring-[color:var(--v2-line)]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[14px] font-bold text-[color:var(--v2-ink)]">{r.role}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${levelTone(r.level)}`}>{levelLabel(r.level)}</span>
+                      </div>
+                      {r.why ? <p className="mt-1 break-keep text-[13.5px] leading-relaxed text-[color:var(--v2-ink-3)]">{r.why}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2">
+              {insight.strengths.length ? (
+                <InsightList title={t("강점", "Strengths", "优势", "Điểm mạnh", "強み", "Kekuatan")} items={insight.strengths.map((x) => ({ head: x.title, body: x.evidence }))} />
+              ) : null}
+              {insight.keyExperiences.length ? (
+                <InsightList title={t("핵심 경험", "Key experience", "核心经历", "Kinh nghiệm chính", "主な経験", "Pengalaman utama")} items={insight.keyExperiences.map((x) => ({ head: x.title, body: x.detail }))} />
+              ) : null}
+            </div>
+            {insight.skills.length || insight.languages.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {insight.languages.map((l) => (
+                  <span key={`l-${l}`} className="rounded-md bg-[color:var(--v2-accent-weak)] px-2 py-1 text-[12px] font-semibold text-[color:var(--v2-accent)]">{l}</span>
+                ))}
+                {insight.skills.map((s2) => (
+                  <span key={`s-${s2}`} className="rounded-md bg-[color:var(--v2-band)] px-2 py-1 text-[12px] font-medium text-[color:var(--v2-ink-3)]">{s2}</span>
+                ))}
+              </div>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2">
+              {insight.readiness.length ? <InsightList title={t("근무 준비", "Availability", "可工作情况", "Sẵn sàng làm việc", "就業準備", "Kesiapan")} items={insight.readiness.map((x) => ({ head: x }))} /> : null}
+              {insight.checkPoints.length ? <InsightList title={t("연락 전 확인할 점", "Check before contacting", "联系前确认", "Kiểm tra trước khi liên hệ", "連絡前の確認点", "Cek sebelum menghubungi")} items={insight.checkPoints.map((x) => ({ head: x }))} warn /> : null}
+            </div>
+            <p className="text-[11px] text-[color:var(--v2-disabled)]">{t("이력서·자기소개서에 적힌 내용만으로 AI 가 정리했어요. 연결 전에는 이름·국적·연락처가 가려져요.", "Summarized by AI from the resume and cover letter only. Name, nationality and contact are hidden until connected.", "仅根据简历与求职信由 AI 整理。连接前隐藏姓名、国籍与联系方式。", "AI tóm tắt chỉ từ hồ sơ. Tên, quốc tịch, liên hệ ẩn đến khi kết nối.", "履歴書・志望動機書の内容だけからAIが整理。つながる前は氏名・国籍・連絡先を非表示。", "Diringkas AI dari dokumen saja. Nama, kewarganegaraan, kontak disembunyikan sebelum terhubung.")}</p>
+          </>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function InsightList({ title, items, warn = false }: { title: string; items: { head: string; body?: string }[]; warn?: boolean }) {
+  return (
+    <div>
+      <p className="mb-1.5 text-[13.5px] font-bold text-[color:var(--v2-faint)]">{title}</p>
+      <ul className="flex flex-col gap-1.5">
+        {items.map((it, i) => (
+          <li key={i} className="flex gap-1.5 text-[14px] leading-relaxed">
+            <span className={`mt-[8px] h-1 w-1 shrink-0 rounded-full ${warn ? "bg-[color:var(--v2-warn)]" : "bg-[color:var(--v2-accent)]"}`} aria-hidden />
+            <span className="min-w-0 flex-1 break-keep">
+              <span className="font-semibold text-[color:var(--v2-ink)]">{it.head}</span>
+              {it.body ? <span className="text-[color:var(--v2-ink-3)]"> — {it.body}</span> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 에디터 문서(renewalResume) 이력 — 섹션별로 소속·기간·내용. */
+function RenewalHistory({ items }: { items: Record<string, unknown>[] }) {
+  const t = usePlatformT();
+  const ORDER: [string, string][] = [
+    ["experience", t("경력", "Experience", "工作经历", "Kinh nghiệm", "職歴", "Pengalaman")],
+    ["project", t("프로젝트", "Projects", "项目", "Dự án", "プロジェクト", "Proyek")],
+    ["activity", t("활동", "Activities", "活动", "Hoạt động", "活動", "Aktivitas")],
+    ["education", t("학력", "Education", "学历", "Học vấn", "学歴", "Pendidikan")],
+    ["award", t("수상", "Awards", "获奖", "Giải thưởng", "受賞", "Penghargaan")],
+    ["certificate", t("자격증", "Certificates", "证书", "Chứng chỉ", "資格", "Sertifikat")],
+    ["language", t("언어", "Languages", "语言", "Ngôn ngữ", "言語", "Bahasa")],
+    ["skill", t("스킬", "Skills", "技能", "Kỹ năng", "スキル", "Keahlian")]
+  ];
+  const fmt = (v: unknown) => {
+    const x = str(v);
+    return x === "현재" ? t("현재", "Present", "至今", "Hiện tại", "現在", "Sekarang") : x.replace(/^(\d{4})-(\d{2})$/, "$1.$2");
+  };
+  const period = (it: Record<string, unknown>) => [fmt(it.startDate), fmt(it.endDate)].filter(Boolean).join(" ~ ");
+  const groups = ORDER.map(([key, label]) => ({ key, label, list: items.filter((i) => str(i.section) === key) })).filter((g) => g.list.length);
+  if (!groups.length) return null;
+  return (
+    <section>
+      <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("이력", "Background", "履历", "Hồ sơ", "経歴", "Riwayat")}</h2>
+      <div className="flex flex-col gap-3">
+        {groups.map((g) => (
+          <div key={g.key} className="rounded-2xl bg-[color:var(--v2-band)] p-5">
+            <p className="mb-2.5 flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--v2-ink)]">
+              {g.key === "education" ? <GraduationCap className="h-4 w-4 text-[color:var(--v2-faint)]" /> : g.key === "language" ? <Translate className="h-4 w-4 text-[color:var(--v2-faint)]" /> : <Briefcase className="h-4 w-4 text-[color:var(--v2-faint)]" />} {g.label}
+            </p>
+            {g.key === "skill" || g.key === "language" ? (
+              <div className="flex flex-wrap gap-1.5">
+                {g.list.flatMap((i) => str(i.text).split(/[,\n/·]/)).map((x) => x.trim()).filter(Boolean).map((x, k) => (
+                  <span key={k} className="rounded-md bg-[color:var(--v2-band)] px-2 py-1 text-[12px] font-medium text-[color:var(--v2-ink-3)]">{x}</span>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {g.list.map((it, k) => {
+                  const lines = str(it.text).split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+                  return (
+                    <div key={k} className="text-[14px] text-[color:var(--v2-ink-3)]">
+                      <p className="flex flex-wrap items-baseline justify-between gap-x-2">
+                        <span>
+                          {str(it.company) ? <span className="font-semibold text-[color:var(--v2-ink)]">{str(it.company)}</span> : null}
+                          {str(it.company) && lines[0] ? " · " : ""}
+                          <span className={str(it.company) ? "" : "font-semibold text-[color:var(--v2-ink)]"}>{lines[0] ?? ""}</span>
+                        </span>
+                        {period(it) ? <span className="text-[12px] tabular-nums text-[color:var(--v2-faint)]">{period(it)}</span> : null}
+                      </p>
+                      {lines.length > 1 ? <p className="mt-0.5 whitespace-pre-wrap break-keep text-[13.5px] text-[color:var(--v2-faint)]">{lines.slice(1).join("\n")}</p> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

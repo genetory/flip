@@ -112,12 +112,12 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
   };
 
   return (
-    <div className={embedded ? "flex h-[100dvh] flex-col bg-[#F1F1F4]" : "flex min-h-screen flex-col bg-[#F1F1F4]"}>
+    <div className={embedded ? "flex h-[100dvh] flex-col bg-white" : "flex min-h-screen flex-col bg-white"}>
       {embedded ? (
-        <div className="border-b border-[#EEF1F5]">
+        <div className="border-b border-[color:var(--v2-line)]">
           <div className="mx-auto w-full max-w-5xl px-5 py-3">
-            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[#4E5968] transition hover:bg-[#F6F8FB]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
-            <p className="mt-1 text-[17px] font-black tracking-[-0.02em] text-[#191F28]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</p>
+            <button type="button" onClick={onClose} className="-ml-1.5 inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-fill)]"><CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("뒤로", "Back", "返回", "Quay lại", "戻る", "Kembali")}</button>
+            <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-[color:var(--v2-ink)]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</p>
           </div>
         </div>
       ) : (
@@ -127,44 +127,44 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
         <div className="mx-auto w-full max-w-5xl px-5 pb-28 pt-6 md:pb-40 md:pt-10">
           {embedded ? null : (
           <div className="flex items-center justify-between gap-3">
-            <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8B95A1] transition hover:text-[#191F28]">
+            <Link href="/career-launch/week/1" className="inline-flex items-center gap-1 text-[13px] font-semibold text-[color:var(--v2-faint)] transition hover:text-[color:var(--v2-ink)]">
               <CaretLeft className="h-4 w-4" weight="bold" aria-hidden /> {t("Step 1", "Step 1", "Step 1", "Step 1", "Step 1", "Step 1")}
             </Link>
-            <Link href="/career-launch/week/1" className="rounded-lg border border-[#E5E8EB] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
+            <Link href="/career-launch/week/1" className="rounded-xl bg-[color:var(--v2-band)] px-3 py-1.5 text-[12px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("종료하고 나가기", "Save & exit", "保存并退出", "Lưu & thoát", "保存して終了", "Simpan & keluar")}</Link>
           </div>
           )}
 
           <div className="mt-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[#0B46E8]">{t("Step 1 · 경험 채굴", "Step 1 · Experience Mining", "Step 1 · 经验挖掘", "Step 1 · Khai thác kinh nghiệm", "Step 1 · 経験の発掘", "Step 1 · Penggalian Pengalaman")}</p>
-            <h1 className="mt-1.5 break-keep text-[20px] font-black leading-[1.2] tracking-[-0.02em] text-[#191F28] md:text-[24px]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</h1>
-            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("사소해 보여도 경험 하나하나에서 강점을 찾아 Experience Bank에 쌓아요. 이 경험은 이력서·자소서·면접에서 계속 쓰여요.", "Even small experiences hold strengths — we mine them into your Experience Bank, reused across your resume, cover letter, and interviews.", "即使看似微不足道，每段经验都藏着优势——我们把它整理进经验库，贯穿简历、自我介绍与面试。", "Dù nhỏ, mỗi kinh nghiệm đều có điểm mạnh — chúng tôi đưa vào Experience Bank, tái sử dụng cho CV, thư và phỏng vấn.", "小さな経験にも強みがあります。Experience Bankに蓄積し、履歴書・自己紹介書・面接で活用します。", "Sekecil apa pun, tiap pengalaman punya kelebihan — kami kumpulkan ke Experience Bank, dipakai di resume, surat, dan wawancara.")}</p>
+            <p className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{t("Step 1 · 경험 채굴", "Step 1 · Experience Mining", "Step 1 · 经验挖掘", "Step 1 · Khai thác kinh nghiệm", "Step 1 · 経験の発掘", "Step 1 · Penggalian Pengalaman")}</p>
+            <h1 className="mt-1.5 break-keep text-[20px] font-bold leading-[1.2] tracking-[-0.02em] text-[color:var(--v2-ink)] md:text-[24px]">{t("내 경험 찾아보기", "Find my experiences", "发掘我的经验", "Tìm kinh nghiệm của tôi", "自分の経験を見つける", "Temukan pengalamanku")}</h1>
+            <p className="mt-1.5 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("사소해 보여도 경험 하나하나에서 강점을 찾아 Experience Bank에 쌓아요. 이 경험은 이력서·자소서·면접에서 계속 쓰여요.", "Even small experiences hold strengths — we mine them into your Experience Bank, reused across your resume, cover letter, and interviews.", "即使看似微不足道，每段经验都藏着优势——我们把它整理进经验库，贯穿简历、自我介绍与面试。", "Dù nhỏ, mỗi kinh nghiệm đều có điểm mạnh — chúng tôi đưa vào Experience Bank, tái sử dụng cho CV, thư và phỏng vấn.", "小さな経験にも強みがあります。Experience Bankに蓄積し、履歴書・自己紹介書・面接で活用します。", "Sekecil apa pun, tiap pengalaman punya kelebihan — kami kumpulkan ke Experience Bank, dipakai di resume, surat, dan wawancara.")}</p>
           </div>
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
             {/* ── 좌: 채굴 대화 ── */}
             <div className="flex min-w-0 flex-col">
-              <div className="min-h-[42vh] space-y-4 rounded-3xl border border-[#EEF1F5] bg-gradient-to-b from-[#F7F9FF] to-white p-4 md:p-5">
+              <div className="min-h-[42vh] space-y-4 rounded-3xl bg-white py-4 md:py-5">
                 {messages.map((m, i) =>
                   m.role === "bot" ? (
                     <div key={i} className="flex items-end gap-2">
-                      <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                      <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-bl-md bg-white px-4 py-3 text-[14px] leading-relaxed text-[#191F28] shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
+                      <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                      <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-4 py-3 text-[15px] leading-relaxed text-[color:var(--v2-ink)]">
                         <RichText text={m.text} />
                       </div>
                     </div>
                   ) : (
                     <div key={i} className="flex justify-end">
-                      <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-2xl rounded-br-md bg-[#0B46E8] px-4 py-3 text-[14px] leading-relaxed text-white shadow-[0_2px_8px_-2px_rgba(11,70,232,0.4)]"><RichText text={m.text} /></div>
+                      <div className="max-w-[84%] whitespace-pre-wrap break-keep rounded-[22px] rounded-br-md bg-[color:var(--v2-accent)] px-4 py-3 text-[15px] leading-relaxed text-white"><RichText text={m.text} /></div>
                     </div>
                   )
                 )}
                 {loading ? (
                   <div className="flex items-end gap-2">
-                    <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_1px_3px_rgba(17,24,39,0.08)] ring-1 ring-[#E5E8EB]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
-                    <div className="inline-flex items-center gap-1 rounded-2xl rounded-bl-md bg-white px-4 py-3.5 shadow-[0_1px_3px_rgba(17,24,39,0.06)]">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0B8C1] [animation-delay:-0.2s]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0B8C1] [animation-delay:-0.1s]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0B8C1]" />
+                    <span className="flex h-8 w-8 flex-none items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-[color:var(--v2-line)]"><img src="/img_logo.webp" alt="Aply" className="h-full w-full object-contain p-1" /></span>
+                    <div className="inline-flex items-center gap-1 rounded-[22px] rounded-bl-md bg-[color:var(--v2-band)] px-4 py-3.5">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.2s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)] [animation-delay:-0.1s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[color:var(--v2-faint)]" />
                     </div>
                   </div>
                 ) : null}
@@ -176,7 +176,7 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
                         key={c}
                         type="button"
                         onClick={() => send(c)}
-                        className="rounded-full border border-[#0B46E8]/30 bg-[#EDF1FD] px-3.5 py-2 text-[13px] font-bold text-[#0B46E8] transition hover:bg-[#DDE7FC]"
+                        className="rounded-full bg-[color:var(--v2-accent-weak)] px-3.5 py-2 text-[13px] font-bold text-[color:var(--v2-accent)] transition hover:opacity-80"
                       >
                         {c}
                       </button>
@@ -185,22 +185,22 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
                 ) : null}
                 <div ref={endRef} />
               </div>
-              <p className="mt-2 text-center text-[11.5px] text-[#B0B8C1]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
+              <p className="mt-2 text-center text-[11.5px] text-[color:var(--v2-faint)]">{t("💬 편하게 모국어로 답해도 돼요 · 💾 자동 저장", "💬 Feel free to answer in your own language · 💾 auto-saved", "💬 可以用你的母语回答 · 💾 自动保存", "💬 Bạn có thể trả lời bằng tiếng mẹ đẻ · 💾 tự động lưu", "💬 母国語で答えてOK · 💾 自動保存", "💬 Boleh menjawab dalam bahasa ibumu · 💾 tersimpan otomatis")}</p>
 
               {savedFlash ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#D8F3E3] bg-[#F1FBF5] px-4 py-3">
-                  <span className="text-[13.5px] font-bold text-[#0A9B59]">✅ {t("경험을 저장했어요!", "Saved to your Experience Bank!", "已存入经验库！", "Đã lưu vào Experience Bank!", "Experience Bankに保存しました！", "Tersimpan di Experience Bank!")}</span>
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-[#F1FBF5] px-4 py-3">
+                  <span className="text-[13.5px] font-bold text-[color:var(--v2-good)]">✅ {t("경험을 저장했어요!", "Saved to your Experience Bank!", "已存入经验库！", "Đã lưu vào Experience Bank!", "Experience Bankに保存しました！", "Tersimpan di Experience Bank!")}</span>
                   <div className="ml-auto flex items-center gap-2">
                     {embedded ? (
-                      <button type="button" onClick={() => onClose?.()} className="rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                      <button type="button" onClick={() => onClose?.()} className="rounded-lg bg-[color:var(--v2-accent)] px-3.5 py-2 text-[13px] font-bold text-white transition hover:opacity-90">
                         {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                       </button>
                     ) : (
-                      <Link href="/career-launch/week/1" className="rounded-lg bg-[#0B46E8] px-3.5 py-2 text-[13px] font-bold text-white transition hover:bg-[#0A3ECB]">
+                      <Link href="/career-launch/week/1" className="rounded-lg bg-[color:var(--v2-accent)] px-3.5 py-2 text-[13px] font-bold text-white transition hover:opacity-90">
                         {t("나가기", "Done", "退出", "Thoát", "終了", "Keluar")}
                       </Link>
                     )}
-                    <button type="button" onClick={() => startChat()} className="rounded-lg border border-[#0A9B59]/30 bg-white px-3.5 py-2 text-[13px] font-bold text-[#0A9B59] transition hover:bg-[#F1FBF5]">
+                    <button type="button" onClick={() => startChat()} className="rounded-xl bg-white px-3.5 py-2 text-[13px] font-bold text-[color:var(--v2-good)] transition hover:bg-[#F1FBF5]">
                       {t("다른 경험 더 찾기", "Find another experience", "再找一段经验", "Tìm kinh nghiệm khác", "別の経験を探す", "Cari pengalaman lain")}
                     </button>
                   </div>
@@ -218,7 +218,7 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
                           key={q.send}
                           type="button"
                           onClick={() => send(q.label)}
-                          className="rounded-full bg-[#F2F4F6] px-4 py-2.5 text-[12.5px] font-semibold text-[#4E5968] transition hover:bg-[#E5E8EB]"
+                          className="rounded-full bg-[color:var(--v2-band)] px-4 py-2.5 text-[12.5px] font-semibold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]"
                         >
                           {q.label}
                         </button>
@@ -227,7 +227,7 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
                   ) : null}
                   {/* 통합 입력 바 — 텍스트필드와 전송 버튼을 한 컨테이너에 넣어 높이를 정확히 맞춘다(둘 다 44px). */}
                   <form
-                    className="flex items-end gap-1.5 rounded-2xl border border-[#E5E8EB] bg-white p-1.5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] transition focus-within:border-[#0B46E8] focus-within:shadow-[0_0_0_3px_rgba(11,70,232,0.08)]"
+                    className="flex items-end gap-1.5 rounded-2xl bg-[color:var(--v2-band)] p-1.5 ring-[color:var(--v2-accent)] transition focus-within:bg-white focus-within:ring-2"
                     onSubmit={(e) => {
                       e.preventDefault();
                       send(input);
@@ -246,19 +246,19 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
                       rows={1}
                       placeholder={t("편하게 답해주세요", "Feel free to answer", "请随意回答", "Cứ thoải mái trả lời", "気軽に答えてください", "Jawab dengan santai")}
                       disabled={loading}
-                      className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[#191F28] placeholder:text-[#B0B8C1] focus:outline-none focus:ring-0 disabled:opacity-60"
+                      className="max-h-32 min-h-[44px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-[16px] leading-[1.35] text-[color:var(--v2-ink)] placeholder:text-[color:var(--v2-faint)] focus:outline-none focus:ring-0 disabled:opacity-60"
                     />
                     <button
                       type="submit"
                       disabled={!input.trim() || loading}
                       aria-label={t("보내기", "Send", "发送", "Gửi", "送信", "Kirim")}
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading ? "bg-[#0B46E8] text-white hover:bg-[#0A3ECB]" : "cursor-not-allowed bg-[#EEF1F5] text-[#B0B8C1]"}`}
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${input.trim() && !loading ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90" : "cursor-not-allowed bg-[color:var(--v2-band)] text-[color:var(--v2-faint)]"}`}
                     >
                       <PaperPlaneRight className="h-5 w-5" weight="fill" aria-hidden />
                     </button>
                   </form>
                   {messages.length > 1 && !loading ? (
-                    <button type="button" onClick={finishNow} className="mt-2 w-full rounded-xl border border-[#E5E8EB] bg-white px-4 py-2.5 text-[12.5px] font-bold text-[#4E5968] transition hover:border-[#0B46E8]/40 hover:text-[#0B46E8]">
+                    <button type="button" onClick={finishNow} className="mt-2 w-full rounded-xl bg-[color:var(--v2-band)] px-4 py-2.5 text-[12.5px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">
                       {t("이 정도면 충분해요 · 정리하고 마치기", "That's enough · wrap up now", "够了 · 整理并结束", "Đủ rồi · chốt lại", "十分です · まとめて終了", "Cukup · rangkum & selesai")}
                     </button>
                   ) : null}
@@ -269,39 +269,39 @@ export function ExperienceChat({ embedded = false, onClose }: { embedded?: boole
             {/* ── 우: Experience Bank ── */}
             <div>
               <div className="lg:sticky lg:top-20">
-                <p className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[#8B95A1]">
-                  Experience Bank <span className="rounded-full bg-[#EDF1FD] px-1.5 py-0.5 text-[10.5px] font-black text-[#0B46E8]">{bank.length}</span>
+                <p className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--v2-faint)]">
+                  Experience Bank <span className="rounded-full bg-[color:var(--v2-accent-weak)] px-1.5 py-0.5 text-[10.5px] font-bold text-[color:var(--v2-accent)]">{bank.length}</span>
                 </p>
                 {bank.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#DCE3F0] bg-[#FAFBFC] p-6 text-center">
-                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F2F4F6] text-[22px]" aria-hidden>💎</span>
-                    <p className="mt-3 text-[13.5px] font-bold text-[#191F28]">{t("정리한 경험이 여기 쌓여요", "Your mined experiences appear here", "整理好的经验会在这里", "Kinh nghiệm đã sắp xếp hiện ở đây", "整理した経験がここに", "Pengalaman tersusun muncul di sini")}</p>
-                    <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[#8B95A1]">{t("대화를 마치면 경험이 역할·성과·역량으로 구조화돼 저장돼요.", "When the chat ends, each experience is structured into role, results, and competencies.", "对话结束后，经验会按角色·成果·能力结构化保存。", "Khi trò chuyện xong, kinh nghiệm được cấu trúc theo vai trò, thành quả, năng lực.", "会話が終わると経験が役割・成果・力に構造化されて保存されます。", "Setelah obrolan selesai, pengalaman terstruktur jadi peran, hasil, kompetensi.")}</p>
+                  <div className="rounded-3xl bg-[color:var(--v2-band)] p-6 text-center">
+                    <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--v2-band)] text-[22px]" aria-hidden>💎</span>
+                    <p className="mt-3 text-[13.5px] font-bold text-[color:var(--v2-ink)]">{t("정리한 경험이 여기 쌓여요", "Your mined experiences appear here", "整理好的经验会在这里", "Kinh nghiệm đã sắp xếp hiện ở đây", "整理した経験がここに", "Pengalaman tersusun muncul di sini")}</p>
+                    <p className="mt-1 break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-faint)]">{t("대화를 마치면 경험이 역할·성과·역량으로 구조화돼 저장돼요.", "When the chat ends, each experience is structured into role, results, and competencies.", "对话结束后，经验会按角色·成果·能力结构化保存。", "Khi trò chuyện xong, kinh nghiệm được cấu trúc theo vai trò, thành quả, năng lực.", "会話が終わると経験が役割・成果・力に構造化されて保存されます。", "Setelah obrolan selesai, pengalaman terstruktur jadi peran, hasil, kompetensi.")}</p>
                   </div>
                 ) : (
                   <div className="flex max-h-[62vh] flex-col gap-3 overflow-y-auto">
                     {bank.map((e) => (
-                      <div key={e.id} className="rounded-2xl border border-[#EEF1F5] bg-white p-4">
+                      <div key={e.id} className="rounded-3xl bg-[color:var(--v2-band)] p-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate text-[14px] font-bold text-[#191F28]">{e.experience}</p>
-                            <p className="mt-0.5 truncate text-[12px] text-[#8B95A1]">{[e.role, e.period].filter(Boolean).join(" · ")}</p>
+                            <p className="truncate text-[14px] font-bold text-[color:var(--v2-ink)]">{e.experience}</p>
+                            <p className="mt-0.5 truncate text-[12px] text-[color:var(--v2-faint)]">{[e.role, e.period].filter(Boolean).join(" · ")}</p>
                           </div>
-                          <button type="button" onClick={() => removeEntry(e.id)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1 text-[#C4CAD2] transition hover:bg-[#F6F8FB] hover:text-[#F04452]">
+                          <button type="button" onClick={() => removeEntry(e.id)} aria-label={t("삭제", "Delete", "删除", "Xóa", "削除", "Hapus")} className="shrink-0 rounded-lg p-1 text-[color:var(--v2-faint)] transition hover:bg-[color:var(--v2-fill)] hover:text-[color:var(--v2-attention)]">
                             <X className="h-4 w-4" weight="bold" />
                           </button>
                         </div>
                         {e.results.length > 0 ? (
                           <ul className="mt-2 space-y-0.5">
                             {e.results.slice(0, 3).map((r, i) => (
-                              <li key={i} className="break-keep text-[12.5px] leading-relaxed text-[#333D4B]">· {r}</li>
+                              <li key={i} className="break-keep text-[12.5px] leading-relaxed text-[color:var(--v2-ink-2)]">· {r}</li>
                             ))}
                           </ul>
                         ) : null}
                         {e.competencies.length > 0 ? (
                           <div className="mt-2.5 flex flex-wrap gap-1">
                             {e.competencies.slice(0, 5).map((c, i) => (
-                              <span key={i} className="rounded-full bg-[#EDF1FD] px-2 py-0.5 text-[11px] font-semibold text-[#0B46E8]">{c}</span>
+                              <span key={i} className="rounded-full bg-[color:var(--v2-accent-weak)] px-2 py-0.5 text-[11px] font-semibold text-[color:var(--v2-accent)]">{c}</span>
                             ))}
                           </div>
                         ) : null}
