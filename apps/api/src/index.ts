@@ -684,6 +684,8 @@ const discordPositionApplyWebhookUrl = process.env.DISCORD_POSITION_APPLY_WEBHOO
 const discordPositionCreateWebhookUrl = process.env.DISCORD_POSITION_CREATE_WEBHOOK_URL?.trim() ?? "";
 // 인재 검색에서 기업이 '연결 요청'을 보낼 때 운영팀 알림. 전용 채널이 없으면 포지션 지원 채널로 보낸다.
 const discordCandidateConnectWebhookUrl = process.env.DISCORD_CANDIDATE_CONNECT_WEBHOOK_URL?.trim() || discordPositionApplyWebhookUrl;
+// AI 포인트 충전(결제 완료)·사용 알림 채널. 주소는 앱 설정에만(공개 레포).
+const discordPointsWebhookUrl = process.env.DISCORD_POINTS_WEBHOOK_URL?.trim() ?? "";
 // SGC × Aply 6주 일경험 프로그램 지원 접수 알림. 운영팀 디스코드 채널 한정.
 const discordSgcApplicationWebhookUrl = process.env.DISCORD_SGC_APPLICATION_WEBHOOK_URL?.trim() ?? "";
 // 자소서 경험 발굴 캠페인(/experience) 신규 신청 알림 — 주소는 앱 설정에만(공개 레포라 코드에 넣지 않는다).
@@ -17214,7 +17216,9 @@ async function aiPointsCommit(userId: string, feature: string, cost: number): Pr
     })
     .catch(() => {});
   const w = await prisma.aiWallet.findUnique({ where: { userId }, select: { balance: true } }).catch(() => null);
-  return w?.balance ?? null;
+  const balance = w?.balance ?? null;
+  queuePointUsage({ userId, feature, cost, balance });
+  return balance;
 }
 
 // 라우트 미들웨어 — 호출 전 잔량 확인(부족하면 402), 성공 응답(ok:true) 시 비용 차감.
@@ -28230,11 +28234,93 @@ async function createPaymentOrderRow(userId: string, productKey: string, provide
 }
 
 /** 결제 확정 — READY → DONE 으로 바뀐 경우에만 충전(동시 호출·통보 재전송·새로고침에도 한 번). 충전했으면 true. */
+// ── 포인트 결제·사용 디스코드 알림 ───────────────────────────────
+// 결제는 바로, 사용은 1분씩 모아 한 메시지로(AI 를 자주 쓰면 채널이 넘치고 디스코드 속도 제한에 걸린다).
+// 실패해도 결제·차감은 이미 끝난 상태라 로그만 남긴다.
+const AI_FEATURE_LABELS: Record<string, string> = {
+  import_resume: "이력서 불러오기", import_cover_letter: "자소서 불러오기", interview_questions: "모의 면접 질문",
+  interview_prep: "면접 준비", tailor_analyze: "공고 맞춤 분석", draft_intro: "자기소개 초안", generate_english_intro: "영문 자기소개",
+  cover_letter: "자소서 생성", review_resume: "이력서 점검", review_cover: "자소서 점검", polish_resume_items: "이력서 다듬기",
+  interview_feedback: "면접 답변 피드백", draft_resume_text: "이력서 문장", experience_interview: "경험 인터뷰",
+  experience_bullets: "경험 문장", experience_title: "경험 제목", experience_tasks: "경험 업무", polish_intro: "자기소개 다듬기",
+  polish_experience: "경험 다듬기", summarize_intro: "자기소개 요약", suggest_skills: "스킬 추천", translate_texts: "번역",
+  role_checklist: "내 서류와 비교", import_job: "공고 불러오기", career_strengths: "강점 찾기"
+};
+
+async function pointsUserLabel(userId: string): Promise<string> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, realName: true, email: true } }).catch(() => null);
+  return [u?.realName?.trim() || u?.name?.trim() || "", u?.email ?? ""].filter(Boolean).join(" · ") || userId.slice(0, 8);
+}
+
+async function postPointsDiscord(embed: Record<string, unknown>) {
+  if (!discordPointsWebhookUrl) return;
+  try {
+    const response = await fetch(discordPointsWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "", embeds: [{ ...embed, timestamp: new Date().toISOString() }] })
+    });
+    if (!response.ok) console.error("points_discord_webhook_failed", { status: response.status });
+  } catch (error) {
+    console.error("points_discord_webhook_error", { error: getErrorMessage(error) });
+  }
+}
+
+async function notifyPointsPurchase(orderId: string) {
+  if (!discordPointsWebhookUrl) return;
+  const order = await prisma.paymentOrder.findUnique({ where: { id: orderId } }).catch(() => null);
+  if (!order) return;
+  const who = await pointsUserLabel(order.userId);
+  await postPointsDiscord({
+    color: 0x00a661,
+    title: "💳 포인트 결제",
+    fields: [
+      { name: "회원", value: who.slice(0, 256), inline: false },
+      { name: "상품", value: (order.orderName || order.productKey).slice(0, 256), inline: true },
+      { name: "금액", value: `${order.amount.toLocaleString("ko-KR")}원`, inline: true },
+      { name: "충전", value: `${order.credits.toLocaleString("ko-KR")}${isPointsOrder(order) ? "P" : "회"}`, inline: true },
+      { name: "결제", value: [order.provider, order.method].filter(Boolean).join(" · ") || "-", inline: true },
+      { name: "Env", value: resolveRuntimeEnvironment(), inline: true }
+    ],
+    footer: { text: `Aply • Points · ${order.id.slice(0, 8)}` }
+  });
+}
+
+const pointUsageBuffer: Array<{ userId: string; feature: string; cost: number; balance: number | null }> = [];
+function queuePointUsage(item: { userId: string; feature: string; cost: number; balance: number | null }) {
+  if (!discordPointsWebhookUrl) return;
+  pointUsageBuffer.push(item);
+}
+async function flushPointUsage() {
+  if (!pointUsageBuffer.length) return;
+  const items = pointUsageBuffer.splice(0, pointUsageBuffer.length);
+  const names = new Map<string, string>();
+  for (const id of new Set(items.map((x) => x.userId))) names.set(id, await pointsUserLabel(id));
+  const total = items.reduce((sum, x) => sum + x.cost, 0);
+  const lines = items.map((x) => `• ${names.get(x.userId)} — ${AI_FEATURE_LABELS[x.feature] ?? x.feature} -${x.cost}P${x.balance !== null ? ` (남은 ${x.balance}P)` : ""}`);
+  // 디스코드 설명 한도(4096자) 안에서 자르고, 넘친 건 개수만.
+  let description = "";
+  let shown = 0;
+  for (const line of lines) {
+    if (description.length + line.length + 1 > 3800) break;
+    description += (description ? "\n" : "") + line;
+    shown += 1;
+  }
+  if (shown < lines.length) description += `\n…외 ${lines.length - shown}건`;
+  await postPointsDiscord({
+    color: 0x0b46e8,
+    title: `🪙 포인트 사용 ${items.length}건 · 합계 -${total.toLocaleString("ko-KR")}P`,
+    description,
+    footer: { text: `Aply • Points usage · ${resolveRuntimeEnvironment()}` }
+  });
+}
+setInterval(() => void flushPointUsage().catch(() => {}), 60_000).unref?.();
+
 async function fulfillPaidOrder(order: { id: string; userId: string; productKey: string; credits: number }, paid: { paymentKey: string; method: string | null; approvedAt: Date }): Promise<boolean> {
   const points = isPointsOrder(order);
   if (points) await aiWalletReconcile(order.userId);
   else await interviewWalletEnsure(order.userId);
-  return prisma.$transaction(async (tx) => {
+  const credited = await prisma.$transaction(async (tx) => {
     const moved = await tx.paymentOrder.updateMany({ where: { id: order.id, status: "READY" }, data: { status: "DONE", paymentKey: paid.paymentKey, method: paid.method, approvedAt: paid.approvedAt } });
     if (moved.count !== 1) return false;
     if (points) {
@@ -28246,6 +28332,9 @@ async function fulfillPaidOrder(order: { id: string; userId: string; productKey:
     }
     return true;
   });
+  // 처음 확정될 때만(같은 통보가 다시 와도 한 번).
+  if (credited) void notifyPointsPurchase(order.id).catch((e) => console.error("[points] purchase notify failed", e));
+  return credited;
 }
 
 // 학생: 결제 주문 만들기(토스) — 토스 결제창에 넘길 orderId 를 돌려준다.
