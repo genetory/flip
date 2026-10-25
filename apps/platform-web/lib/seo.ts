@@ -59,9 +59,10 @@ export function pageSeo(input: PageSeoInput): Metadata {
       canonical: url,
       ...(languages ? { languages } : {})
     },
-    ...(input.noindex
-      ? { robots: { index: false, follow: true, googleBot: { index: false, follow: true } } }
-      : {}),
+    // 색인 여부를 늘 명시한다 — v2 레이아웃은 기본 noindex 라서, 비워 두면 공개 페이지도 그 값을 물려받는다.
+    robots: input.noindex
+      ? { index: false, follow: true, googleBot: { index: false, follow: true } }
+      : { index: true, follow: true, googleBot: { index: true, follow: true } },
     openGraph: {
       type: input.ogType ?? "website",
       siteName: "Aply",
