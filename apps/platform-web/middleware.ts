@@ -38,13 +38,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(`${proto}://${baseHost}${port}/career-launch`, 308);
   }
 
-  // 리뉴얼 v2(/v2/*) — 기존 화면을 건드리지 않고 따로 만드는 새 화면 묶음. 스테이징·로컬에서만 연다.
-  // 프로덕션(aply.global 등 'staging' 이 없는 호스트)에선 404 — 새 화면 코드가 아예 돌지 않게 여기서 막는다.
+  // 리뉴얼 v2(/v2/*) — 2026-10-25 부터 프로덕션에서도 연다(그전엔 스테이징·로컬만).
+  // 주소창에 v2 가 보이지 않게 — v2 주소로 직접 오면 공개 주소(/talent/...)로 보낸다.
   const previewHost = host.includes("staging") || host === "localhost" || host === "127.0.0.1";
   const pathname = req.nextUrl.pathname;
   if (pathname === "/v2" || pathname.startsWith("/v2/")) {
-    if (!previewHost) return new NextResponse("Not Found", { status: 404, headers: { "X-Robots-Tag": "noindex" } });
-    // 주소창에 v2 가 보이지 않게 — v2 주소로 직접 오면 공개 주소(/talent/...)로 보낸다.
     const pub = v2ToTalent(pathname);
     if (pub) {
       const url = req.nextUrl.clone();
@@ -53,10 +51,13 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // 스테이징·로컬: v2 로 다시 만든 talent 화면은 같은 주소에서 v2 화면을 보여 준다(rewrite — 주소 그대로).
-  // 없어진 옛 주소는 공개 주소로 redirect. 프로덕션은 그대로 기존 화면. ?legacy=1 이면 비교용으로 기존 화면.
-  if (previewHost && pathname.startsWith("/talent") && req.nextUrl.searchParams.get("legacy") !== "1") {
-    const alias = talentAlias(pathname);
+  // v2 로 다시 만든 talent 화면은 같은 주소에서 v2 화면을 보여 준다(rewrite — 주소 그대로).
+  // 없어진 옛 주소는 공개 주소로 redirect. ?legacy=1 이면 비교용으로 기존 화면.
+  if (pathname.startsWith("/talent") && req.nextUrl.searchParams.get("legacy") !== "1") {
+    // 검색에 올라가 있는 공개 주소는 프로덕션에선 옮기지 않는다 — 공개 랜딩(/talent)과 예전 가이드 글
+    // (/talent/insights/분류/글, 서버 렌더 본문·JSON-LD 가 그쪽에 있다). 스테이징·로컬에서만 v2 쪽으로 보낸다.
+    const seoPinned = pathname === "/talent" || pathname === "/talent/" || /^\/talent\/insights\/[^/]+\/[^/]+\/?$/.test(pathname);
+    const alias = previewHost || !seoPinned ? talentAlias(pathname) : null;
     if (alias) {
       const url = req.nextUrl.clone();
       const [path, hash] = alias.split("#");
