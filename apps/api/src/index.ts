@@ -17713,15 +17713,43 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
       where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
       orderBy: { createdAt: "desc" },
       take: 1000,
-      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, nationality: true, signupReferer: true, passwordHash: true, talentPoolOptedOutAt: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
     });
     const items = users.map((u) => {
-      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[] } };
-      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, files: u.studentSourceFiles, createdAt: u.createdAt };
+      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[]; targetRole?: unknown } };
+      return {
+        userId: u.id,
+        name: u.realName || u.name,
+        email: isPendingEmail(u.email) ? null : u.email,
+        affiliation: u.affiliation,
+        nationality: u.nationality,
+        batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""),
+        resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0,
+        targetRole: typeof c.renewalResume?.targetRole === "string" ? c.renewalResume.targetRole : null,
+        // 학생이 비밀번호를 정해 직접 들어왔는지(일괄 등록 계정은 비밀번호 없이 만든다)
+        claimed: Boolean(u.passwordHash),
+        // 기업 인재 검색에 나오는지(대표 이력서가 있고 노출을 끄지 않았을 때)
+        inPool: Boolean(u.resumes[0]) && !u.talentPoolOptedOutAt,
+        files: u.studentSourceFiles,
+        createdAt: u.createdAt
+      };
     });
-    const counts = new Map<string, number>();
-    for (const it of items) counts.set(it.batch, (counts.get(it.batch) ?? 0) + 1);
-    return res.json({ ok: true, items, batches: [...counts].map(([b2, count]) => ({ batch: b2, count })) });
+    // 묶음별 요약 — 사람 수·이력서 채워진 수·원본 있는 수·직접 들어온 수·인재 검색 노출 수
+    const groups = new Map<string, { batch: string; count: number; withResume: number; withFiles: number; claimed: number; inPool: number; affiliations: Set<string>; firstAt: Date; lastAt: Date }>();
+    for (const it of items) {
+      const g = groups.get(it.batch) ?? { batch: it.batch, count: 0, withResume: 0, withFiles: 0, claimed: 0, inPool: 0, affiliations: new Set<string>(), firstAt: it.createdAt, lastAt: it.createdAt };
+      g.count += 1;
+      if (it.resumeItems) g.withResume += 1;
+      if (it.files.length) g.withFiles += 1;
+      if (it.claimed) g.claimed += 1;
+      if (it.inPool) g.inPool += 1;
+      if (it.affiliation) g.affiliations.add(it.affiliation);
+      if (it.createdAt < g.firstAt) g.firstAt = it.createdAt;
+      if (it.createdAt > g.lastAt) g.lastAt = it.createdAt;
+      groups.set(it.batch, g);
+    }
+    const batches = [...groups.values()].sort((x, y) => y.lastAt.getTime() - x.lastAt.getTime()).map(({ affiliations, ...g }) => ({ ...g, affiliations: [...affiliations] }));
+    return res.json({ ok: true, items, batches });
   } catch (err) {
     console.error("[ops/bulk-students] list failed", err);
     return res.status(500).json({ ok: false, message: "불러오지 못했어요." });

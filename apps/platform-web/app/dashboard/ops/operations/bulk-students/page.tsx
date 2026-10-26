@@ -58,7 +58,8 @@ const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
 type Row = { key: string; name: string; email: string; major: string; file: File | null; fileLabel: string };
 type Result = { status: "created" | "exists" | "error"; message?: string; items?: number; userId?: string };
-type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; batch: string; resumeItems: number; files: { id: string; fileName: string; size: number }[]; createdAt: string };
+type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; nationality?: string | null; batch: string; resumeItems: number; targetRole?: string | null; claimed?: boolean; inPool?: boolean; files: { id: string; fileName: string; size: number }[]; createdAt: string };
+type Batch = { batch: string; count: number; withResume?: number; withFiles?: number; claimed?: number; inPool?: number; affiliations?: string[]; firstAt?: string; lastAt?: string };
 
 const box: React.CSSProperties = { border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 16 };
 const input: React.CSSProperties = { height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", width: "100%" };
@@ -78,7 +79,8 @@ export default function OpsBulkStudentsPage() {
   const [results, setResults] = useState<Record<string, Result>>({});
   const [running, setRunning] = useState(false);
   const [listed, setListed] = useState<Listed[]>([]);
-  const [batches, setBatches] = useState<{ batch: string; count: number }[]>([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [tab, setTab] = useState<"groups" | "register">("groups");
 
   // 폴더(또는 여러 파일)를 고르면 — CSV 는 표로, PDF 는 이력서 후보로
   const pick = async (list: FileList | null) => {
@@ -156,8 +158,8 @@ export default function OpsBulkStudentsPage() {
 
   const loadList = async () => {
     try {
-      const res = await fetch(`${api}/ops/bulk-students${batch.trim() ? `?batch=${encodeURIComponent(batch.trim())}` : ""}`, { headers: auth() });
-      const d = (await res.json().catch(() => null)) as { ok?: boolean; items?: Listed[]; batches?: { batch: string; count: number }[] } | null;
+      const res = await fetch(`${api}/ops/bulk-students`, { headers: auth() });
+      const d = (await res.json().catch(() => null)) as { ok?: boolean; items?: Listed[]; batches?: Batch[] } | null;
       if (d?.ok) {
         setListed(d.items ?? []);
         setBatches(d.batches ?? []);
@@ -213,6 +215,20 @@ export default function OpsBulkStudentsPage() {
         <h1 className="ops-page-title">학생 일괄 등록</h1>
         <p className="ops-page-desc">학교 제휴 학생 목록과 이력서를 올리면 학생별 계정을 만들고 이력서를 AI 로 읽어 넣어요. 등록한 학생은 기업 인재 검색에 나와요(학생 로그인은 하지 않아요).</p>
       </header>
+
+      <div className="ops-filter-chip-row" style={{ marginTop: 12 }}>
+        <button type="button" className={`ops-filter-chip ${tab === "groups" ? "is-active" : ""}`} onClick={() => setTab("groups")}>
+          묶음별로 보기 <span className="ops-filter-chip-count">{batches.length}</span>
+        </button>
+        <button type="button" className={`ops-filter-chip ${tab === "register" ? "is-active" : ""}`} onClick={() => setTab("register")}>
+          새로 등록
+        </button>
+      </div>
+
+      {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} /> : null}
+
+      {tab === "register" ? (
+      <>
 
       <section style={{ ...box, marginTop: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
@@ -294,55 +310,204 @@ export default function OpsBulkStudentsPage() {
         </section>
       ) : null}
 
-      <section style={{ marginTop: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <b style={{ fontSize: 14, color: "var(--ink)" }}>등록된 학생 {listed.length}명</b>
-          {batches.map((b) => (
-            <span key={b.batch} style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-              {b.batch} {b.count}
-            </span>
-          ))}
-          <button type="button" style={ghost} onClick={() => void loadList()}>
-            새로고침
-          </button>
-        </div>
-        {listed.length ? (
-          <div style={{ overflowX: "auto", ...box, padding: 0, marginTop: 8 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <p style={{ marginTop: 16, fontSize: 12, color: "var(--ink-faint)" }}>노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요. 원본 파일은 운영팀만 볼 수 있어요(기업 화면에는 정리된 이력서만 나가요 — 원본엔 연락처가 있어서).</p>
+      </>
+      ) : null}
+    </div>
+  );
+}
+
+// ── 묶음별로 보기 ─────────────────────────────────────────
+// 한 번에 넣은 학생(같은 '묶음 이름')을 카드로 묶어 보고, 카드를 누르면 그 묶음의 학생 명단·상태·원본을 본다.
+type MemberFilter = "all" | "no_resume" | "no_file" | "claimed";
+
+function csvCell(v: string) {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { listed: Listed[]; batches: Batch[]; onReload: () => void; onOpenFile: (f: { id: string; fileName: string }) => void; onRemove: (u: Listed) => void }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<MemberFilter>("all");
+  const current = picked ?? batches[0]?.batch ?? null;
+  const members = listed.filter((u) => u.batch === current);
+  const needle = q.trim().toLowerCase();
+  const shown = members.filter((u) => {
+    if (filter === "no_resume" && u.resumeItems) return false;
+    if (filter === "no_file" && u.files.length) return false;
+    if (filter === "claimed" && !u.claimed) return false;
+    if (!needle) return true;
+    return [u.name, u.email ?? "", u.targetRole ?? "", u.nationality ?? ""].some((x) => x.toLowerCase().includes(needle));
+  });
+
+  const exportCsv = () => {
+    if (!current) return;
+    const rows = [["이름", "이메일", "소속", "국적", "희망 직무", "이력서 항목", "원본 파일", "인재 검색 노출", "직접 로그인", "등록일"]];
+    for (const u of members) rows.push([u.name, u.email ?? "", u.affiliation ?? "", u.nationality ?? "", u.targetRole ?? "", String(u.resumeItems), String(u.files.length), u.inPool ? "예" : "아니오", u.claimed ? "예" : "아니오", u.createdAt.slice(0, 10)]);
+    const blob = new Blob([`﻿${rows.map((r) => r.map(csvCell).join(",")).join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${current.replace(/[\\/:*?"<>|]/g, "_")}.csv`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
+
+  if (!batches.length) {
+    return <p className="ops-empty-card">아직 일괄 등록한 학생이 없어요. &apos;새로 등록&apos;에서 학교 제휴 학생을 올려 보세요.</p>;
+  }
+  const info = batches.find((b) => b.batch === current);
+  const count = (f: MemberFilter) => members.filter((u) => (f === "no_resume" ? !u.resumeItems : f === "no_file" ? !u.files.length : f === "claimed" ? u.claimed : true)).length;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+        {batches.map((b) => {
+          const on = b.batch === current;
+          return (
+            <button
+              key={b.batch}
+              type="button"
+              onClick={() => {
+                setPicked(b.batch);
+                setFilter("all");
+                setQ("");
+              }}
+              style={{ textAlign: "left", cursor: "pointer", borderRadius: 14, padding: 16, background: on ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${on ? "var(--accent)" : "var(--line)"}` }}
+            >
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: on ? "var(--accent-ink)" : "var(--ink)" }}>{b.batch || "(묶음 이름 없음)"}</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
+                {(b.affiliations ?? []).join(", ") || "소속 없음"}
+                {b.lastAt ? ` · ${b.lastAt.slice(0, 10)}` : ""}
+              </p>
+              <p style={{ margin: "10px 0 0", fontSize: 22, fontWeight: 800, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+                {b.count}
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-faint)" }}>명</span>
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                <span className="ops-pill ops-pill-blue">이력서 {b.withResume ?? 0}</span>
+                <span className="ops-pill ops-pill-gray">원본 {b.withFiles ?? 0}</span>
+                <span className="ops-pill ops-pill-green">인재 검색 {b.inPool ?? 0}</span>
+                {b.claimed ? <span className="ops-pill ops-pill-violet">직접 로그인 {b.claimed}</span> : null}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {current ? (
+        <section style={{ marginTop: 22 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 className="ops-section-title" style={{ margin: 0, fontSize: 15 }}>{current || "(묶음 이름 없음)"}</h2>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
+                {members.length}명{info?.firstAt && info.lastAt ? ` · ${info.firstAt.slice(0, 10)}${info.firstAt.slice(0, 10) !== info.lastAt.slice(0, 10) ? ` ~ ${info.lastAt.slice(0, 10)}` : ""} 등록` : ""}
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className="ops-btn" style={{ height: 36, padding: "0 14px" }} onClick={onReload}>
+                새로고침
+              </button>
+              <button type="button" className="ops-btn ops-btn-primary" style={{ height: 36, padding: "0 14px" }} onClick={exportCsv}>
+                명단 CSV 받기
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", margin: "12px 0" }}>
+            <div className="ops-filter-chip-row">
+              {(
+                [
+                  ["all", "전체"],
+                  ["no_resume", "이력서 비어 있음"],
+                  ["no_file", "원본 없음"],
+                  ["claimed", "직접 로그인"]
+                ] as [MemberFilter, string][]
+              ).map(([k, l]) => (
+                <button key={k} type="button" className={`ops-filter-chip ${filter === k ? "is-active" : ""}`} onClick={() => setFilter(k)}>
+                  {l} <span className="ops-filter-chip-count">{count(k)}</span>
+                </button>
+              ))}
+            </div>
+            <input className="ops-select" style={{ maxWidth: 280 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름·이메일·희망 직무·국적" />
+          </div>
+
+          <div className="ops-table-card">
+            <table>
+              <colgroup>
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "22%" }} />
+                <col />
+                <col style={{ width: 150 }} />
+                <col style={{ width: 150 }} />
+                <col style={{ width: 150 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>이메일</th>
+                  <th>희망 직무</th>
+                  <th>상태</th>
+                  <th>원본</th>
+                  <th style={{ textAlign: "right" }}></th>
+                </tr>
+              </thead>
               <tbody>
-                {listed.map((u) => (
-                  <tr key={u.userId}>
-                    <td style={cell}>{u.name}</td>
-                    <td style={cell}>{u.email ?? "-"}</td>
-                    <td style={cell}>{u.affiliation ?? "-"}</td>
-                    <td style={cell}>{u.batch}</td>
-                    <td style={{ ...cell, color: u.resumeItems ? "var(--ink)" : "var(--danger)" }}>이력서 항목 {u.resumeItems}개</td>
-                    <td style={cell}>
-                      {u.files?.length ? (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                          {u.files.map((f, i) => (
-                            <button key={f.id} type="button" style={{ ...ghost, height: 28, fontSize: 12 }} title={f.fileName} onClick={() => void openFile(f)}>
-                              원본 {i + 1}
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ color: "var(--ink-faint)" }}>원본 없음</span>
-                      )}
-                    </td>
-                    <td style={{ ...cell, textAlign: "right" }}>
-                      <button type="button" style={{ ...ghost, color: "var(--danger)" }} onClick={() => void remove(u)}>
-                        지우기
-                      </button>
-                    </td>
+                {!shown.length ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: "center", padding: 28 }}>조건에 맞는 학생이 없어요.</td>
                   </tr>
-                ))}
+                ) : (
+                  shown.map((u) => (
+                    <tr key={u.userId}>
+                      <td>
+                        <div className="ops-row-strong">{u.name}</div>
+                        <div className="ops-row-sub">{[u.nationality, u.affiliation].filter(Boolean).join(" · ")}</div>
+                      </td>
+                      <td>
+                        <span className="ops-row-sub" style={{ fontSize: 12.5 }}>{u.email ?? "이메일 없음"}</span>
+                      </td>
+                      <td>
+                        <span>{u.targetRole || "-"}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          <span className={u.resumeItems ? "ops-pill ops-pill-blue" : "ops-pill ops-pill-red"}>이력서 {u.resumeItems}항목</span>
+                          {u.inPool ? <span className="ops-pill ops-pill-green">인재 검색</span> : null}
+                          {u.claimed ? <span className="ops-pill ops-pill-violet">직접 로그인</span> : null}
+                        </div>
+                      </td>
+                      <td>
+                        {u.files?.length ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {u.files.map((f, i) => (
+                              <button key={f.id} type="button" className="ops-btn" title={f.fileName} onClick={() => onOpenFile(f)}>
+                                원본 {i + 1}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="ops-row-sub">원본 없음</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: 4 }}>
+                          <a className="ops-btn" href={`/partner/talent/${encodeURIComponent(u.userId)}`} target="_blank" rel="noreferrer">
+                            인재 화면
+                          </a>
+                          <button type="button" className="ops-btn ops-btn-danger" onClick={() => onRemove(u)}>
+                            지우기
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        ) : null}
-        <p style={{ marginTop: 10, fontSize: 12, color: "var(--ink-faint)" }}>노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요. 원본 파일은 운영팀만 볼 수 있어요(기업 화면에는 정리된 이력서만 나가요 — 원본엔 연락처가 있어서).</p>
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }
