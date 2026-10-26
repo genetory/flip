@@ -67,12 +67,22 @@ const MATCH: Record<MatchStatus, { label: string; cls: string }> = {
 };
 type Batch = { batch: string; count: number; withResume?: number; withFiles?: number; claimed?: number; inPool?: number; matched?: number; matching?: number; affiliations?: string[]; firstAt?: string; lastAt?: string };
 
-const box: React.CSSProperties = { border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 16 };
-const input: React.CSSProperties = { height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", width: "100%" };
-const label: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--ink-faint)" };
-const btn: React.CSSProperties = { height: 40, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "0 16px", border: "none", cursor: "pointer" };
-const ghost: React.CSSProperties = { height: 32, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", fontWeight: 700, padding: "0 10px", cursor: "pointer" };
-const cell: React.CSSProperties = { padding: "9px 12px", borderBottom: "1px solid var(--line)", fontSize: 13, color: "var(--ink)" };
+const label: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" };
+const stepCard: React.CSSProperties = { background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 16, padding: 20 };
+const dropZone: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start", padding: "16px 18px", borderRadius: 14, border: "1.5px dashed var(--line-strong)", background: "var(--surface-2)", cursor: "pointer" };
+
+/** 단계 머리 — 번호 동그라미 + 제목 + 설명 */
+function StepHead({ n, title, desc }: { n: number; title: string; desc: string }) {
+  return (
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 14 }}>
+      <span style={{ flex: "none", width: 26, height: 26, borderRadius: 999, background: "var(--accent-soft)", color: "var(--accent-ink)", fontSize: 13, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
+      <div style={{ minWidth: 0 }}>
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>{title}</p>
+        <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--ink-faint)", lineHeight: 1.55 }}>{desc}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function OpsBulkStudentsPage() {
   const api = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
@@ -212,7 +222,7 @@ export default function OpsBulkStudentsPage() {
   const colSelect = (k: keyof typeof map, title: string) => (
     <label style={label}>
       {title}
-      <select style={input} value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: Number(e.target.value) }))}>
+      <select className="ops-select" value={map[k]} onChange={(e) => setMap((m) => ({ ...m, [k]: Number(e.target.value) }))}>
         <option value={-1}>(없음)</option>
         {head.map((h, i) => (
           <option key={i} value={i}>
@@ -225,10 +235,10 @@ export default function OpsBulkStudentsPage() {
   const done = Object.values(results);
 
   return (
-    <div className="ops-page">
-      <header className="ops-page-head">
-        <h1 className="ops-page-title">학생 일괄 등록</h1>
-        <p className="ops-page-desc">학교 제휴 학생 목록과 이력서를 올리면 학생별 계정을 만들고 이력서를 AI 로 읽어 넣어요. 등록한 학생은 기업 인재 검색에 나와요(학생 로그인은 하지 않아요).</p>
+    <section className="ops-content-section">
+      <header>
+        <h1>학생 일괄 등록</h1>
+        <p>학교 제휴 학생 목록과 이력서를 올리면 학생별 계정을 만들고 이력서를 AI 로 읽어 넣어요. 등록한 학생은 기업 인재 검색에 나와요(학생 로그인은 하지 않아요).</p>
       </header>
 
       <div className="ops-filter-chip-row" style={{ marginTop: 12 }}>
@@ -243,92 +253,131 @@ export default function OpsBulkStudentsPage() {
       {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} onMatch={(u, st, note) => void patchMatch(u, st, note)} /> : null}
 
       {tab === "register" ? (
-      <>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* 1. 묶음 정보 */}
+          <section style={stepCard}>
+            <StepHead n={1} title="묶음 정보" desc="같은 묶음 이름으로 넣은 학생은 '묶음별로 보기'에서 한 카드로 모여요." />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+              <label style={label}>
+                묶음 이름
+                <input className="ops-input" value={batch} onChange={(e) => setBatch(e.target.value)} placeholder="예: 한양대 ERICA 2026 인턴십" />
+              </label>
+              <label style={label}>
+                소속(학교)
+                <input className="ops-input" value={affiliation} onChange={(e) => setAffiliation(e.target.value)} />
+              </label>
+            </div>
+          </section>
 
-      <section style={{ ...box, marginTop: 16 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-          <label style={label}>
-            묶음 이름
-            <input style={input} value={batch} onChange={(e) => setBatch(e.target.value)} placeholder="예: 한양대 ERICA 2026 인턴십" />
-          </label>
-          <label style={label}>
-            소속(학교)
-            <input style={input} value={affiliation} onChange={(e) => setAffiliation(e.target.value)} />
-          </label>
+          {/* 2. 파일 고르기 */}
+          <section style={stepCard}>
+            <StepHead n={2} title="학생 목록·이력서 고르기" desc="노션 표를 내보낸 폴더를 통째로 고르면 표(CSV)와 이력서(PDF)를 알아서 찾아요. 표가 없으면 PDF 한 개가 학생 한 명이에요." />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+              <label style={dropZone}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>폴더 고르기</span>
+                <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>노션 내보내기 압축을 푼 폴더</span>
+                {/* @ts-expect-error webkitdirectory 는 표준 타입에 없다 */}
+                <input type="file" webkitdirectory="" multiple hidden onChange={(e) => void pick(e.target.files)} />
+              </label>
+              <label style={dropZone}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>파일 고르기</span>
+                <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>CSV 하나 + PDF 여러 개</span>
+                <input type="file" multiple accept=".csv,.pdf" hidden onChange={(e) => void pick(e.target.files)} />
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+              <span className={csvRows ? "ops-pill ops-pill-blue" : "ops-pill ops-pill-gray"}>{csvRows ? `표 ${Math.max(0, csvRows.length - 1)}줄` : "표 없음"}</span>
+              <span className={files.length ? "ops-pill ops-pill-blue" : "ops-pill ops-pill-gray"}>PDF {files.length}개</span>
+            </div>
+            {csvRows ? (
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: "0 0 8px", fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>표의 어느 칸이 무엇인지 — 자동으로 맞췄어요. 틀리면 바꿔 주세요.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+                  {colSelect("name", "이름 칸")}
+                  {colSelect("email", "이메일 칸(선택)")}
+                  {colSelect("major", "전공 칸(선택)")}
+                  {colSelect("file", "이력서 파일 칸")}
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          {/* 3. 확인하고 등록 */}
+          <section style={stepCard}>
+            <StepHead n={3} title="확인하고 등록하기" desc="이력서를 AI 로 읽어 대표 이력서로 넣어요. 한 명씩 차례로 처리돼요." />
+            {rows.length ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <span className="ops-pill ops-pill-gray">학생 {rows.length}명</span>
+                    <span className={rows.every((r) => r.file) ? "ops-pill ops-pill-green" : "ops-pill ops-pill-amber"}>이력서 맞춤 {rows.filter((r) => r.file).length}개</span>
+                    {done.length ? (
+                      <>
+                        <span className="ops-pill ops-pill-green">등록 {done.filter((x) => x.status === "created").length}</span>
+                        <span className="ops-pill ops-pill-gray">이미 있음 {done.filter((x) => x.status === "exists").length}</span>
+                        {done.some((x) => x.status === "error") ? <span className="ops-pill ops-pill-red">실패 {done.filter((x) => x.status === "error").length}</span> : null}
+                      </>
+                    ) : null}
+                  </div>
+                  <button type="button" className="ops-btn ops-btn-primary" style={{ height: 38, padding: "0 20px" }} disabled={running} onClick={() => void run()}>
+                    {running ? `등록 중… ${done.length}/${rows.length}` : `${rows.length}명 등록하기`}
+                  </button>
+                </div>
+                <div className="ops-table-card">
+                  <table>
+                    <colgroup>
+                      <col style={{ width: "18%" }} />
+                      <col style={{ width: "22%" }} />
+                      <col style={{ width: "16%" }} />
+                      <col />
+                      <col style={{ width: 200 }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th>이름</th>
+                        <th>이메일</th>
+                        <th>전공</th>
+                        <th>이력서 파일</th>
+                        <th>결과</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r) => {
+                        const res = results[r.key];
+                        return (
+                          <tr key={r.key}>
+                            <td>
+                              <span className="ops-row-strong">{r.name || <span className="ops-row-sub">(이력서에서)</span>}</span>
+                            </td>
+                            <td>{r.email || "-"}</td>
+                            <td>{r.major || "-"}</td>
+                            <td>
+                              <span style={{ color: r.file ? "var(--ink-soft)" : "var(--danger)" }}>{r.file ? r.file.name : r.fileLabel ? `못 찾음: ${r.fileLabel}` : "없음"}</span>
+                            </td>
+                            <td>
+                              <span className={!res ? "ops-pill ops-pill-gray" : res.status === "created" ? "ops-pill ops-pill-green" : res.status === "exists" ? "ops-pill ops-pill-gray" : "ops-pill ops-pill-red"}>
+                                {!res ? "대기" : res.status === "created" ? `등록됨${typeof res.items === "number" ? ` · ${res.items}항목` : ""}` : res.status === "exists" ? "이미 있음" : "실패"}
+                              </span>
+                              {res?.message ? <div className="ops-row-sub">{res.message}</div> : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="ops-empty-card" style={{ padding: "20px 0" }}>2단계에서 폴더나 파일을 고르면 여기에 등록할 학생이 나와요.</p>
+            )}
+          </section>
+
+          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>
+            노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요. 원본 파일은 운영팀만 볼 수 있어요(기업 화면에는 정리된 이력서만 나가요 — 원본엔 연락처가 있어서).
+          </p>
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14, alignItems: "center" }}>
-          <label style={{ ...ghost, height: 40, display: "inline-flex", alignItems: "center" }}>
-            폴더 고르기(노션 내보내기 압축 푼 폴더)
-            {/* @ts-expect-error webkitdirectory 는 표준 타입에 없다 */}
-            <input type="file" webkitdirectory="" multiple hidden onChange={(e) => void pick(e.target.files)} />
-          </label>
-          <label style={{ ...ghost, height: 40, display: "inline-flex", alignItems: "center" }}>
-            파일 고르기(CSV·PDF 여러 개)
-            <input type="file" multiple accept=".csv,.pdf" hidden onChange={(e) => void pick(e.target.files)} />
-          </label>
-          <span style={{ fontSize: 12.5, color: "var(--ink-faint)" }}>
-            {csvRows ? `표 ${Math.max(0, csvRows.length - 1)}줄 · ` : "표 없음(PDF 한 개 = 학생 한 명) · "}
-            PDF {files.length}개
-          </span>
-        </div>
-        {csvRows ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginTop: 14 }}>
-            {colSelect("name", "이름 칸")}
-            {colSelect("email", "이메일 칸(선택)")}
-            {colSelect("major", "전공 칸(선택)")}
-            {colSelect("file", "이력서 파일 칸")}
-          </div>
-        ) : null}
-      </section>
-
-      {rows.length ? (
-        <section style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
-            <b style={{ fontSize: 14, color: "var(--ink)" }}>
-              등록할 학생 {rows.length}명 · 이력서 맞춤 {rows.filter((r) => r.file).length}개
-              {done.length ? ` · 완료 ${done.filter((x) => x.status === "created").length} · 이미 있음 ${done.filter((x) => x.status === "exists").length} · 실패 ${done.filter((x) => x.status === "error").length}` : ""}
-            </b>
-            <button type="button" style={btn} disabled={running} onClick={() => void run()}>
-              {running ? "등록 중…" : "등록하기"}
-            </button>
-          </div>
-          <div style={{ overflowX: "auto", ...box, padding: 0 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", color: "var(--ink-faint)" }}>
-                  {["이름", "이메일", "전공", "이력서 파일", "결과"].map((h) => (
-                    <th key={h} style={{ ...cell, fontWeight: 700 }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => {
-                  const res = results[r.key];
-                  return (
-                    <tr key={r.key}>
-                      <td style={cell}>{r.name || <span style={{ color: "var(--ink-faint)" }}>(이력서에서)</span>}</td>
-                      <td style={cell}>{r.email || "-"}</td>
-                      <td style={cell}>{r.major || "-"}</td>
-                      <td style={{ ...cell, color: r.file ? "var(--ink)" : "var(--danger)" }}>{r.file ? r.file.name : r.fileLabel ? `못 찾음: ${r.fileLabel}` : "없음"}</td>
-                      <td style={{ ...cell, fontWeight: 700, color: !res ? "var(--ink-faint)" : res.status === "created" ? "var(--accent-ink)" : res.status === "exists" ? "var(--ink-faint)" : "var(--danger)" }}>
-                        {!res ? "대기" : res.status === "created" ? `등록됨${typeof res.items === "number" ? ` · 이력서 항목 ${res.items}개` : ""}` : res.status === "exists" ? "이미 있음" : "실패"}
-                        {res?.message ? <div style={{ fontSize: 11.5, fontWeight: 500, color: "var(--ink-faint)" }}>{res.message}</div> : null}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
       ) : null}
-
-      <p style={{ marginTop: 16, fontSize: 12, color: "var(--ink-faint)" }}>노션: 표 오른쪽 위 ••• → 내보내기 → Markdown &amp; CSV, &apos;파일과 이미지 포함&apos; → 받은 zip 압축을 풀고 그 폴더를 [폴더 고르기]로 고르세요. PDF 만 읽을 수 있어요. 원본 파일은 운영팀만 볼 수 있어요(기업 화면에는 정리된 이력서만 나가요 — 원본엔 연락처가 있어서).</p>
-      </>
-      ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -467,19 +516,19 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch 
                 </button>
               ))}
             </div>
-            <input className="ops-select" style={{ maxWidth: 280 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름·이메일·희망 직무·국적" />
+            <input className="ops-input" style={{ maxWidth: 280 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름·이메일·희망 직무·국적" />
           </div>
 
           <div className="ops-table-card">
             <table>
               <colgroup>
-                <col style={{ width: "16%" }} />
-                <col style={{ width: "18%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "17%" }} />
                 <col />
                 <col style={{ width: 170 }} />
-                <col style={{ width: 140 }} />
                 <col style={{ width: 130 }} />
-                <col style={{ width: 150 }} />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 168 }} />
               </colgroup>
               <thead>
                 <tr>
@@ -580,7 +629,7 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch 
               </div>
             </div>
             <div className="ops-modal-panel-body">
-              <textarea className="ops-select" rows={4} maxLength={300} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="예: OO기업 마케팅 인턴 면접 예정(11/3)" style={{ resize: "vertical" }} autoFocus />
+              <textarea className="ops-input" rows={4} maxLength={300} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="예: OO기업 마케팅 인턴 면접 예정(11/3)" style={{ resize: "vertical" }} autoFocus />
             </div>
             <div className="ops-modal-panel-footer" style={{ gap: 8 }}>
               <button type="button" className="ops-btn" style={{ height: 38, padding: "0 16px" }} onClick={() => setNoteFor(null)}>

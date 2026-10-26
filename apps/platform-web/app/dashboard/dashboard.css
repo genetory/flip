@@ -5054,3 +5054,22 @@ a.partner-kpi-value:hover {
   }
 }
 
+
+/* 글자 입력칸 — ops-select 와 같은 모양에서 드롭다운 화살표만 뺀 것(input·textarea 용). */
+.ops-input {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.ops-input::placeholder { color: var(--ink-faint); }
+.ops-input:focus { box-shadow: 0 0 0 2px var(--accent); }
+textarea.ops-input { resize: vertical; line-height: 1.55; }
+/* 표 밖(모달·카드)에서 쓰는 보조 글자 — 표 안 규칙(.ops-table-card .ops-row-sub)과 같은 모양 */
+.ops-modal-panel .ops-row-sub,
+.ops-content-section .ops-row-sub { font-size: 11.5px; color: var(--ink-faint); }

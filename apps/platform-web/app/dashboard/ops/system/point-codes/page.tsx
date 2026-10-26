@@ -73,7 +73,7 @@ export default function OpsPointCodesPage() {
   };
 
   return (
-    <div className="ops-page">
+    <section className="ops-content-section">
       <PageHead
         title="포인트 코드"
         desc="쿠폰·이벤트 코드를 만들면, 사용자가 결제 화면에서 코드를 넣는 즉시 AI 포인트가 충전돼요. 계정당 같은 코드는 한 번만 쓸 수 있어요."
@@ -169,7 +169,7 @@ export default function OpsPointCodesPage() {
           </tbody>
         </table>
       </div>
-      <p className="ops-row-sub" style={{ marginTop: 10 }}>최근 200개 · 코드를 누르면 쓴 사람·링크 복사·사용 중지를 할 수 있어요.</p>
+      <p style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>최근 200개 · 코드를 누르면 쓴 사람·링크 복사·사용 중지를 할 수 있어요.</p>
 
       {creating ? (
         <CreateModal
@@ -180,7 +180,7 @@ export default function OpsPointCodesPage() {
         />
       ) : null}
       {open ? <CodeModal row={open} onClose={() => setOpen(null)} onPatch={(body) => patch(open, body)} /> : null}
-    </div>
+    </section>
   );
 }
 
@@ -282,30 +282,30 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
           {mode === "custom" ? (
             <Field label="코드" hint="영문·숫자·-·_ 3~40자">
-              <input className="ops-select" style={{ textTransform: "uppercase" }} value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: FALL2026" autoFocus />
+              <input className="ops-input" style={{ textTransform: "uppercase" }} value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: FALL2026" autoFocus />
             </Field>
           ) : (
             <>
               <Field label="개수" hint="최대 500개">
-                <input className="ops-select" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value.replace(/[^\d]/g, ""))} />
+                <input className="ops-input" inputMode="numeric" value={count} onChange={(e) => setCount(e.target.value.replace(/[^\d]/g, ""))} />
               </Field>
               <Field label="앞글자" hint="예: APLY-XXXXXX">
-                <input className="ops-select" style={{ textTransform: "uppercase" }} value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+                <input className="ops-input" style={{ textTransform: "uppercase" }} value={prefix} onChange={(e) => setPrefix(e.target.value)} />
               </Field>
             </>
           )}
           <Field label="충전 포인트(P)" hint={`${ptsWon(Math.floor(Number(points)) || 0)} 어치`}>
-            <input className="ops-select" inputMode="numeric" value={points} onChange={(e) => setPoints(e.target.value.replace(/[^\d]/g, ""))} />
+            <input className="ops-input" inputMode="numeric" value={points} onChange={(e) => setPoints(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
           <Field label={mode === "custom" ? "전체 사용 횟수" : "코드당 사용 횟수"} hint={mode === "custom" ? "선착순으로 이만큼 쓸 수 있어요" : "보통 1"}>
-            <input className="ops-select" inputMode="numeric" value={maxUses} onChange={(e) => setMaxUses(e.target.value.replace(/[^\d]/g, ""))} />
+            <input className="ops-input" inputMode="numeric" value={maxUses} onChange={(e) => setMaxUses(e.target.value.replace(/[^\d]/g, ""))} />
           </Field>
           <Field label="만료일" hint="비우면 무기한 · 그날 23:59(KST)까지">
-            <input className="ops-select" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
+            <input className="ops-input" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
           </Field>
         </div>
         <Field label="메모" hint="운영용 — 사용자에게는 안 보여요">
-          <input className="ops-select" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 2026 가을 박람회 부스" maxLength={200} />
+          <input className="ops-input" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="예: 2026 가을 박람회 부스" maxLength={200} />
         </Field>
         {err ? <p className="ops-form-error" style={{ margin: 0 }}>{err}</p> : null}
       </div>
@@ -371,7 +371,7 @@ function CodeModal({ row: r, onClose, onPatch }: { row: CodeRow; onClose: () => 
         </div>
         <Field label="메모" hint="운영용 — 사용자에게는 안 보여요">
           <div style={{ display: "flex", gap: 6 }}>
-            <input className="ops-select" value={memo} onChange={(e) => setMemo(e.target.value)} maxLength={200} placeholder="어떤 이벤트·용도의 코드인지" />
+            <input className="ops-input" value={memo} onChange={(e) => setMemo(e.target.value)} maxLength={200} placeholder="어떤 이벤트·용도의 코드인지" />
             <button type="button" className="ops-btn" style={{ height: 38, flex: "none" }} disabled={busy || memo === (r.memo ?? "")} onClick={() => void run({ memo: memo.trim() || null })}>
               저장
             </button>

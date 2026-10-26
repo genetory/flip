@@ -91,7 +91,7 @@ export default function PaymentManagementPage() {
   const pgReady = data?.provider ?? null;
 
   return (
-    <div className="ops-page">
+    <section className="ops-content-section">
       <PageHead
         title="결제"
         desc="포인트 충전·모의 면접 이용권 결제를 보고, 주문을 눌러 상세와 환불을 처리해요."
@@ -120,7 +120,7 @@ export default function PaymentManagementPage() {
           }}
           options={STATUS_TABS}
         />
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flex: "1 1 460px", justifyContent: "flex-end", maxWidth: 560 }}>
           <select
             className="ops-select"
             style={{ width: 120 }}
@@ -145,7 +145,7 @@ export default function PaymentManagementPage() {
       <div className="ops-table-card">
         <table>
           <colgroup>
-            <col style={{ width: 132 }} />
+            <col style={{ width: 150 }} />
             <col />
             <col style={{ width: "24%" }} />
             <col style={{ width: 120 }} />
@@ -202,7 +202,7 @@ export default function PaymentManagementPage() {
           </tbody>
         </table>
       </div>
-      <p className="ops-row-sub" style={{ marginTop: 10 }}>
+      <p style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>
         최근 200건 · 결제 대기는 결제창만 열고 내지 않은 주문이에요. 회원별 포인트 지급·회수는 <Link href="/dashboard/ops/system/ai-points" style={{ color: "var(--accent-ink)", fontWeight: 700 }}>AI 포인트</Link>에서 해요.
       </p>
 
@@ -216,7 +216,7 @@ export default function PaymentManagementPage() {
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -307,7 +307,7 @@ function OrderModal({ order: o, onClose, onRefunded }: { order: Order; onClose: 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Field label="환불 금액(원)" hint={`최대 ${won(o.amount)} · 일부 금액도 돼요`}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input className="ops-select" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
+              <input className="ops-input" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} />
               <button type="button" className="ops-btn" style={{ height: 38, flex: "none" }} onClick={() => setAmount(String(o.amount))}>
                 전액
               </button>
@@ -315,7 +315,7 @@ function OrderModal({ order: o, onClose, onRefunded }: { order: Order; onClose: 
           </Field>
           <Field label={isPts ? "회수할 포인트(P)" : "회수할 이용권(개)"} hint={`이 결제로 받은 양: ${creditsText(o)} · 잔액이 모자라면 남은 만큼만 회수돼요`}>
             <div style={{ display: "flex", gap: 6 }}>
-              <input className="ops-select" inputMode="numeric" value={deduct} onChange={(e) => setDeduct(e.target.value.replace(/[^\d]/g, ""))} />
+              <input className="ops-input" inputMode="numeric" value={deduct} onChange={(e) => setDeduct(e.target.value.replace(/[^\d]/g, ""))} />
               <button type="button" className="ops-btn" style={{ height: 38, flex: "none" }} onClick={() => setDeduct(String(o.credits))}>
                 전부
               </button>
@@ -332,7 +332,7 @@ function OrderModal({ order: o, onClose, onRefunded }: { order: Order; onClose: 
                 </button>
               ))}
             </div>
-            <input className="ops-select" value={reasonText} onChange={(e) => setReasonText(e.target.value)} placeholder="자세한 내용(선택)" maxLength={120} />
+            <input className="ops-input" value={reasonText} onChange={(e) => setReasonText(e.target.value)} placeholder="자세한 내용(선택)" maxLength={120} />
           </Field>
           {err ? <p className="ops-form-error" style={{ margin: 0 }}>{err}</p> : null}
         </div>

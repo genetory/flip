@@ -87,10 +87,11 @@ export const reasonLabel = (r: string) => POINT_REASON[r] ?? r;
 
 export function PageHead({ title, desc, right }: { title: string; desc: string; right?: ReactNode }) {
   return (
-    <header className="ops-page-head" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+    // 운영 콘솔 공통 머리(ops-content-section > header 의 h1·p 스타일을 그대로 받는다)
+    <header style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <div style={{ minWidth: 0 }}>
-        <h1 className="ops-page-title">{title}</h1>
-        <p className="ops-page-desc">{desc}</p>
+        <h1>{title}</h1>
+        <p>{desc}</p>
       </div>
       {right ? <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{right}</div> : null}
     </header>
@@ -134,7 +135,7 @@ export function SearchBox({ value, onChange, onSubmit, placeholder }: { value: s
       }}
       style={{ display: "flex", gap: 8, flex: "1 1 260px", maxWidth: 380 }}
     >
-      <input className="ops-select" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <input className="ops-input" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       <button type="submit" className="ops-btn ops-btn-primary" style={{ height: 38, padding: "0 16px", flex: "none" }}>
         검색
       </button>

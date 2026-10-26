@@ -52,10 +52,10 @@ export default function OpsTalentFunnelPage() {
   const maxT = stages.reduce((m, s) => Math.max(m, s.talents), 0) || 1;
 
   return (
-    <div className="ops-page">
-      <header className="ops-page-head">
-        <h1 className="ops-page-title">Talent 퍼널</h1>
-        <p className="ops-page-desc">행동 원장(TalentEvent) 기반 전환 측정 — 진단부터 채용까지 각 단계의 고유 인원과 전환율이에요.</p>
+    <section className="ops-content-section">
+      <header>
+        <h1>Talent 퍼널</h1>
+        <p>행동 원장(TalentEvent) 기반 전환 측정 — 진단부터 채용까지 각 단계의 고유 인원과 전환율이에요.</p>
       </header>
 
       <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
@@ -131,6 +131,6 @@ export default function OpsTalentFunnelPage() {
           </p>
         </div>
       )}
-    </div>
+    </section>
   );
 }

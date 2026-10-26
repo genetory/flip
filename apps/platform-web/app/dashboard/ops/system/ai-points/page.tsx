@@ -70,7 +70,7 @@ export default function OpsAiPointsPage() {
 
   const s = summary;
   return (
-    <div className="ops-page">
+    <section className="ops-content-section">
       <PageHead
         title="AI 포인트"
         desc="포인트가 얼마나 충전되고 쓰이는지 보고, 회원별 잔액을 확인하거나 지급·회수해요. 1P = 10원."
@@ -184,7 +184,7 @@ export default function OpsAiPointsPage() {
           </tbody>
         </table>
       </div>
-      <p className="ops-row-sub" style={{ marginTop: 10 }}>학생 100명까지 · 처음 쓰는 회원은 지급할 때 지갑이 만들어지며 가입 보너스도 함께 들어가요. 남은 모의 면접 이용권은 다음 이용 때 포인트로 자동 전환돼요.</p>
+      <p style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>학생 100명까지 · 처음 쓰는 회원은 지급할 때 지갑이 만들어지며 가입 보너스도 함께 들어가요. 남은 모의 면접 이용권은 다음 이용 때 포인트로 자동 전환돼요.</p>
 
       {logsFor ? <LogsModal wallet={logsFor} onClose={() => setLogsFor(null)} /> : null}
       {adjustFor ? (
@@ -198,7 +198,7 @@ export default function OpsAiPointsPage() {
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -312,7 +312,7 @@ function AdjustModal({ wallet: w, onClose, onDone }: { wallet: Wallet; onClose: 
           ]}
         />
         <Field label="포인트(P)" hint={`${ptsWon(n)} 어치${sign === "revoke" ? " · 잔액까지만 회수돼요" : ""}`}>
-          <input className="ops-select" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} autoFocus />
+          <input className="ops-input" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} autoFocus />
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {[100, 500, 1000, 5000].map((v) => (
               <button key={v} type="button" className="ops-filter-chip" onClick={() => setAmount(String(v))}>
