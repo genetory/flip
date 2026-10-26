@@ -3,7 +3,7 @@
 // v2 한 문항 연습 시트 — 오늘의 질문·다시 볼 답·면접 후기 질문이 함께 쓴다.
 // 답하기(글 또는 말로) → AI 피드백(단계·잘한 점·고칠 점·꼬리 질문) → 내 연습 기록(self-mock)에 저장.
 // 실전 모드: 60초 안에 답하기. '잘해요'를 받으면 익명 예시로 공개할지 묻고, 내 답을 낸 뒤에만 다른 사람의 잘 쓴 답을 보여 준다.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Sheet } from "./sheets";
 import { CostBadge } from "./ai-points";
 import { Button, Spinner, Switch } from "./ui";
@@ -19,6 +19,8 @@ import { formatRelativeTime } from "../../lib/talent/career-feed";
 import { resumeToText } from "../talent/jobs/MockInterviewModal";
 
 export type PracticeQuestion = { ko: string; shown: string; category: string };
+/** 한 답변 동안 말로 답한 기록(useDictation 누적) — 말하기 분석에 넘긴다. */
+export type SpeechTotals = { ms: number; chars: number; fillers: number; pauses: number; transcript: string };
 
 /** 점수 → 단계. 80 이상 잘 쓴 답, 70 미만은 더 볼 곳(mock-weakness 기준). */
 export function LevelChip({ t, score }: { t: PlatformT; score: number | null | undefined }) {
@@ -169,7 +171,10 @@ export function PracticeSheet({
   onSave,
   onNext,
   nextBusy,
-  daily = false
+  daily = false,
+  grade,
+  resultExtra,
+  header
 }: {
   question: PracticeQuestion;
   initialAnswer?: string;
@@ -179,13 +184,19 @@ export function PracticeSheet({
   heading?: string;
   progress?: string;
   intent?: string;
-  /** 답을 어디에 남길지(기본: 내 연습 기록 self-mock). 공고 연습은 공고 기록에. */
-  onSave?: (q: PracticeQuestion, answer: string, fb: InterviewFeedback) => void;
+  /** 답을 어디에 남길지(기본: 내 연습 기록 self-mock). 공고 연습은 공고 기록에. speech 는 말로 답했을 때의 기록(말하기 분석용). */
+  onSave?: (q: PracticeQuestion, answer: string, fb: InterviewFeedback, speech?: SpeechTotals | null) => void;
   /** 피드백 뒤 [다음 질문] — 있으면 [완료] 대신 */
   onNext?: () => void;
   nextBusy?: boolean;
   /** 오늘의 질문 — 하루 1번 이용권 없이 */
   daily?: boolean;
+  /** 채점을 다른 곳에서(커리어런치 — 프로그램 안 면접은 포인트·이용권 없이). 주면 잠금·비용 표시·예시 공유를 쓰지 않는다. */
+  grade?: (question: string, answer: string) => Promise<InterviewFeedback>;
+  /** 결과 아래에 붙일 것(커리어런치 — 말하기 리포트·꼬리 질문·결과 보기) */
+  resultExtra?: ReactNode;
+  /** 질문 위에 붙일 것(커리어런치 꼬리 질문 표시) */
+  header?: ReactNode;
 }) {
   const t = usePlatformT();
   const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
@@ -209,7 +220,7 @@ export function PracticeSheet({
   const timeUp = timed && running && left <= 0;
   // 유료화가 켜져 있고 이용권이 없으면 답하기 전에 잠근다(오늘의 질문은 하루 1번 이용권 없이).
   const credits = useInterviewCredits();
-  const locked = Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1 && !(daily && !credits?.dailyFreeUsed) && !feedback;
+  const locked = !grade && Boolean(credits?.paywall) && (credits?.credits ?? 0) < 1 && !(daily && !credits?.dailyFreeUsed) && !feedback;
 
   // 실전 모드 타이머 — 첫 글자를 쓰거나 말하기를 누르면 시작.
   // [AI 피드백 받기]를 누르면 멈추고(AI가 읽는 동안), 결과가 나오면 숨긴다. 실패하면 이어서 잰다.
@@ -224,6 +235,11 @@ export function PracticeSheet({
     if (timed && !running) setRunning(true);
   };
   const dict = useDictation({ onStart: begin, onFinal: (add) => setAnswer((a) => (a.trim() ? `${a.trim()} ${add}` : add)) });
+  // 말로 답한 기록 — 제출 직전 마지막 말까지 받아 적힌 값을 읽으려고 ref 로 따라간다.
+  const totalsRef = useRef<SpeechTotals | null>(null);
+  useEffect(() => {
+    totalsRef.current = dict.totals;
+  }, [dict.totals]);
 
   /** 다시 답하기 — 결과를 닫고 글을 고칠 수 있게(같은 질문, 또는 꼬리 질문으로). */
   const retry = (text: string, next?: PracticeQuestion) => {
@@ -233,6 +249,7 @@ export function PracticeSheet({
     setExamples(null);
     setShared("idle");
     dict.reset();
+    dict.resetTotals();
     setRunning(false);
     setLeft(60);
   };
@@ -243,19 +260,24 @@ export function PracticeSheet({
       setError(t("조금 더 길게 답해 주세요.", "Please write a bit more.", "请再多写一点。", "Hãy viết thêm một chút.", "もう少し書いてください。", "Tulis sedikit lebih panjang."));
       return;
     }
-    dict.stop();
     setBusy(true);
     setError(null);
+    if (dict.listening) {
+      dict.stop();
+      await new Promise((r) => window.setTimeout(r, 900)); // 마지막 말이 받아 적힐 때까지
+    }
+    const speech = totalsRef.current;
     try {
-      const fb = await aiInterviewFeedback({ question: question.ko, answer: a, resumeText: resumeToText(resume, info) || undefined, desiredJobRole: resume?.targetRole || undefined, locale, daily: daily || undefined });
-      setInterviewCreditBalance(fb.credits);
+      const fb = grade
+        ? await grade(question.ko, a)
+        : await aiInterviewFeedback({ question: question.ko, answer: a, resumeText: resumeToText(resume, info) || undefined, desiredJobRole: resume?.targetRole || undefined, locale, daily: daily || undefined });
+      if (!grade) setInterviewCreditBalance(fb.credits);
       setFeedback(fb);
-      if (onSave) onSave(question, a, fb);
+      if (onSave) onSave(question, a, fb, speech);
       else saveSelfMockAnswer({ question: question.ko, category: question.category, answer: a, score: fb.score, feedback: { score: fb.score, strengths: fb.strengths, improvements: fb.improvements, sampleAnswer: fb.sampleAnswer } });
       onSaved?.();
-      getAnswerExamples(question.ko)
-        .then(setExamples)
-        .catch(() => setExamples([]));
+      // 다른 사람의 잘 쓴 답 — 탤런트 연습에서만(커리어런치 채점은 따로 기록한다)
+      if (!grade) getAnswerExamples(question.ko).then(setExamples).catch(() => setExamples([]));
     } catch (e) {
       // 이용권이 없으면 결제 창을 연다(답은 그대로 남아 있어 충전 후 다시 누르면 된다).
       if (isInterviewPaywallError(e)) {
@@ -315,11 +337,12 @@ export function PracticeSheet({
             {busy ? <Spinner /> : null}
             {busy ? t("AI가 읽고 있어요", "AI is reading…", "AI 正在阅读", "AI đang đọc…", "AIが読んでいます", "AI membaca…") : t("AI 피드백 받기", "Get AI feedback", "获取 AI 反馈", "Nhận phản hồi AI", "AIフィードバック", "Dapatkan umpan balik AI")}
             {/* 비용 — 포인트 모드에서만. 오늘의 질문(하루 1번)은 차감이 없어 표시하지 않는다 */}
-            {!busy && credits?.points && !(daily && !credits.dailyFreeUsed) ? <CostBadge cost={credits.points.feedbackCost} /> : null}
+            {!busy && !grade && credits?.points && !(daily && !credits.dailyFreeUsed) ? <CostBadge cost={credits.points.feedbackCost} /> : null}
           </Button>
         )
       }
     >
+      {header}
       <div className="flex items-start justify-between gap-3">
         <p className="text-[19px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{question.shown}</p>
         <SpeakButton t={t} tts={tts} text={question.ko} />
@@ -451,7 +474,9 @@ export function PracticeSheet({
             </div>
           ) : null}
 
-          {feedback.score >= 80 ? (
+          {resultExtra}
+
+          {feedback.score >= 80 && !grade ? (
             <div className="rounded-2xl bg-[color:var(--v2-band)] p-4">
               {shared === "done" ? (
                 <p className="text-[14px] font-semibold text-[color:var(--v2-good)]">{t("고마워요! 익명 예시로 공개했어요.", "Thanks! Shared anonymously.", "谢谢！已匿名分享。", "Cảm ơn! Đã chia sẻ ẩn danh.", "ありがとう！匿名で公開しました。", "Terima kasih! Dibagikan anonim.")}</p>

@@ -1,11 +1,11 @@
 "use client";
 
 // Week 3 기본 모의면접(카드형) — 내 이력서·자소서 기반, 유형별(self/job/fit/pressure).
-// 질문 카드 → 답변 → 점수·모범답안 → 결과 리스트(오답노트 재도전). 공고별과 동일 구조.
-// 말로 답하기 — 질문을 소리로 듣고 마이크로 답하면(받아쓴 글은 고칠 수 있다) 내용 점수와 함께 '말하기 리포트'를 준다(문항에 speakingData 로 저장).
+// 문항은 탤런트 모의 면접과 같은 연습 시트(실전 모드 60초·말로 답하기·피드백) → 결과 리스트(오답노트 재도전). 공고별과 동일 구조.
+// 말로 답하면 내용 점수와 함께 '말하기 리포트'를 준다(문항에 speakingData 로 저장). 채점은 커리어런치 엔드포인트(포인트 없음).
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CaretLeft, CircleNotch, PaperPlaneRight, ArrowRight } from "@phosphor-icons/react";
+import { CaretLeft, CircleNotch } from "@phosphor-icons/react";
 import { CareerLaunchHeader } from "./CareerLaunchHeader";
 import { AplyFooter } from "../AplyFooter";
 import { PostingResultList } from "./PostingResultList";
@@ -13,16 +13,7 @@ import { requestBasicQuestions, scoreBasicAnswer, type BasicFocus } from "../../
 import { fetchProgress, patchProgress, type PostingInterviewItem } from "../../lib/launch/progress-client";
 import { trackCareerFunnel } from "../../lib/analytics";
 import { useLaunchT } from "../../lib/launch/i18n";
-import { SpeakButton } from "../v2/practice";
-import { SpeakingReportCard } from "./SpeakingReportCard";
-import { FollowUpBadge, FollowUpButton, VoiceAnswerControls, useVoiceAnswer } from "./voice-answer";
-
-function scoreTone(s: number): { text: string; bg: string } {
-  if (s >= 80) return { text: "text-[color:var(--v2-good)]", bg: "bg-[#E7F7EF]" };
-  if (s >= 60) return { text: "text-[color:var(--v2-accent)]", bg: "bg-[color:var(--v2-accent-weak)]" };
-  if (s >= 40) return { text: "text-[#c2410c]", bg: "bg-[#fff4e8]" };
-  return { text: "text-[color:var(--v2-attention)]", bg: "bg-[#fdeced]" };
-}
+import { CareerPracticeSheet } from "./career-practice";
 
 export function BasicInterviewSession({ focus, embedded = false, onClose }: { focus: BasicFocus; embedded?: boolean; onClose?: () => void }) {
   const t = useLaunchT();
@@ -31,20 +22,25 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
   const [phase, setPhase] = useState<"loading" | "answering" | "results" | "error">("loading");
   const [questions, setQuestions] = useState<string[]>([]);
   const [idx, setIdx] = useState(0);
-  const [input, setInput] = useState("");
-  const [scoring, setScoring] = useState(false);
   const [loadingNext, setLoadingNext] = useState(false); // 다음 질문 생성 중
   const [nextError, setNextError] = useState(false);
   const [items, setItems] = useState<PostingInterviewItem[]>([]);
-  const [lastScore, setLastScore] = useState<PostingInterviewItem | null>(null);
   const itemsRef = useRef<PostingInterviewItem[]>([]);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
-  // 말로 답하기 — 받아쓴 글은 답변 칸에 이어 붙고(고칠 수 있음), 제출하면 말하기 리포트도 받는다.
-  const voice = useVoiceAnswer((add) => setInput((a) => (a.trim() ? `${a.trim()} ${add}` : add)));
-  const pt = voice.pt;
-  const qTts = voice.tts;
+  // 질문 자리(idx) → 결과 목록(items)의 몇 번째인지 — '고쳐서 다시 답하기'·말하기 리포트는 같은 칸을 바꿔 쓴다.
+  const posAt = useRef<Record<number, number>>({});
+  const record = (at: number, item: PostingInterviewItem) => {
+    const pos = posAt.current[at];
+    if (pos === undefined) {
+      posAt.current[at] = itemsRef.current.length;
+      itemsRef.current = [...itemsRef.current, item];
+    } else {
+      itemsRef.current = itemsRef.current.map((x, i) => (i === pos ? item : x));
+    }
+    setItems(itemsRef.current);
+  };
   // 꼬리 질문 — 질문 자리(idx)별 깊이·면접관 의도
   const [follow, setFollow] = useState<Record<number, { depth: number; intent: string }>>({});
   const depthAt = (i: number) => follow[i]?.depth ?? 0;
@@ -53,9 +49,6 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     setQuestions((prev) => [...prev.slice(0, at), q, ...prev.slice(at)]);
     setFollow((prev) => ({ ...prev, [at]: { depth: depthAt(idx) + 1, intent } }));
     setIdx(at);
-    setLastScore(null);
-    setInput("");
-    voice.reset();
   };
 
   const focusLabel: Record<BasicFocus, string> = {
@@ -88,23 +81,6 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const submit = async () => {
-    const a = input.trim();
-    if (!a || scoring) return;
-    setScoring(true);
-    const v = await voice.capture();
-    try {
-      const q = questions[idx];
-      const [s, speakingData] = await Promise.all([scoreBasicAnswer(focus, q, a), voice.analyze(q, v)]);
-      const item: PostingInterviewItem = { question: q, answer: a, score: s.score, modelAnswer: s.modelAnswer, feedback: s.feedback, strengths: s.strengths, improvements: s.improvements, ...(speakingData ? { speakingData } : {}), ...(depthAt(idx) > 0 ? { followUp: true } : {}) };
-      setItems((prev) => [...prev, item]);
-      setLastScore(item);
-    } catch {
-      // 실패 — 재시도하도록 둠.
-    } finally {
-      setScoring(false);
-    }
-  };
   // 다음 질문 — 그때그때 생성(이전 질문과 겹치지 않게 asked 로 전달).
   const next = async () => {
     if (loadingNext) return;
@@ -115,9 +91,6 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
       if (q) {
         setQuestions((prev) => [...prev, q]);
         setIdx((i) => i + 1);
-        setLastScore(null);
-        setInput("");
-        voice.reset();
       } else {
         setNextError(true);
       }
@@ -127,7 +100,12 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
       setLoadingNext(false);
     }
   };
-  const finish = () => setPhase("results");
+  // 시트를 닫으면 결과로(답한 게 없으면 진행 화면에 그대로 — 다시 열 수 있다).
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const finish = () => {
+    if (itemsRef.current.length) setPhase("results");
+    else setSheetOpen(false);
+  };
 
   const saveLog = async () => {
     if (savedRef.current) return;
@@ -195,83 +173,37 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
             </div>
           ) : phase === "answering" ? (
             <div className="mt-5">
-              {/* 진행 표시 — 갯수 고정 없음, 현재까지 진행한 질문 수만 */}
-              <div className="mb-4 flex items-center justify-between gap-2">
+              {/* 문항은 탤런트 모의 면접과 같은 연습 시트로 — 실전 모드(60초)·말로 답하기·피드백 */}
+              <div className="rounded-3xl bg-[color:var(--v2-band)] p-6">
                 <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[color:var(--v2-ink-3)]">
                   <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[color:var(--v2-accent)]" aria-hidden />
-                  {t("면접 진행 중", "Interview in progress", "面试进行中", "Đang phỏng vấn", "面接進行中", "Wawancara berlangsung")}
+                  {t("면접 진행 중", "Interview in progress", "面试进行中", "Đang phỏng vấn", "面接進行中", "Wawancara berlangsung")} · {t(`질문 ${idx + 1}`, `Q ${idx + 1}`, `问题 ${idx + 1}`, `Câu ${idx + 1}`, `質問 ${idx + 1}`, `Soal ${idx + 1}`)}
                 </span>
-                <span className="shrink-0 text-[12px] font-bold tabular-nums text-[color:var(--v2-faint)]">{t(`질문 ${idx + 1}`, `Q ${idx + 1}`, `问题 ${idx + 1}`, `Câu ${idx + 1}`, `質問 ${idx + 1}`, `Soal ${idx + 1}`)}</span>
+                <p className="mt-2 break-keep text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questions[idx]}</p>
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={() => setSheetOpen(true)} className="rounded-2xl bg-[color:var(--v2-accent)] px-5 py-2.5 text-[14px] font-bold text-white transition hover:opacity-90">{t("이어서 답하기", "Continue", "继续作答", "Tiếp tục", "続けて答える", "Lanjutkan")}</button>
+                  <button type="button" onClick={finish} className="rounded-2xl bg-white px-5 py-2.5 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("결과 보기", "See results", "查看结果", "Xem kết quả", "結果を見る", "Lihat hasil")}</button>
+                </div>
               </div>
-
-              {/* 질문 카드 */}
-              <div className="rounded-3xl bg-[color:var(--v2-band)] p-6">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[13px]" aria-hidden>🎤</span>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[color:var(--v2-accent)]">{t(`면접관 질문 ${idx + 1}`, `Interviewer · Q${idx + 1}`, `面试官提问 ${idx + 1}`, `Người PV · Câu ${idx + 1}`, `面接官の質問 ${idx + 1}`, `Pewawancara · Q${idx + 1}`)}</p>
-                </div>
-                <div className="mt-3">
-                  <FollowUpBadge depth={depthAt(idx)} intent={follow[idx]?.intent} />
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                  <p className="break-keep text-[18px] font-bold leading-[1.5] tracking-[-0.01em] text-[color:var(--v2-ink)]">{questions[idx]}</p>
-                  {/* 면접관처럼 질문을 소리로 */}
-                  <SpeakButton t={pt} tts={qTts} text={questions[idx] ?? ""} />
-                </div>
-
-                {lastScore ? (
-                  <div className="mt-5 space-y-3">
-                    {/* 점수 히어로 */}
-                    <div className="flex items-center gap-3.5 rounded-2xl bg-[color:var(--v2-fill)] p-4">
-                      <div className={`flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl ${scoreTone(lastScore.score).bg}`}>
-                        <span className={`text-[24px] font-bold leading-none ${scoreTone(lastScore.score).text}`}>{lastScore.score}</span>
-                        <span className={`text-[10px] font-bold ${scoreTone(lastScore.score).text}`}>/ 100</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-[color:var(--v2-ink)]">{lastScore.score >= 75 ? t("아주 좋아요!", "Great answer!", "非常好！", "Rất tốt!", "とても良い！", "Bagus sekali!") : lastScore.score >= 50 ? t("좋아요, 조금만 더!", "Good — a bit more!", "不错，再加把劲！", "Tốt, cố thêm chút!", "良い、あと少し！", "Bagus, sedikit lagi!") : t("보완하면 더 좋아져요", "Room to improve", "还有提升空间", "Còn có thể cải thiện", "改善の余地あり", "Bisa lebih baik")}</p>
-                        <p className="mt-0.5 break-keep text-[12px] leading-relaxed text-[color:var(--v2-faint)]">{t("이 답변에 대한 평가예요", "Evaluation of this answer", "对本次回答的评估", "Đánh giá câu trả lời này", "この回答の評価です", "Evaluasi jawaban ini")}</p>
-                      </div>
-                    </div>
-                    {/* 내 답변 */}
-                    {lastScore.answer ? <div className="rounded-2xl bg-white p-3.5"><p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[color:var(--v2-faint)]">{t("내 답변", "Your answer", "我的回答", "Câu trả lời của tôi", "私の回答", "Jawabanku")}</p><p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[color:var(--v2-ink-3)]">{lastScore.answer}</p></div> : null}
-                    {lastScore.feedback ? <div className="rounded-2xl bg-[#fff4e8] p-3.5"><p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[#c2410c]"><span className="h-1.5 w-1.5 rounded-full bg-[#e8590c]" aria-hidden />{t("피드백", "Feedback", "反馈", "Nhận xét", "フィードバック", "Umpan balik")}</p><p className="mt-1.5 break-keep text-[13px] leading-relaxed text-[#7A5A17]">{lastScore.feedback}</p></div> : null}
-                    {lastScore.modelAnswer ? (
-                      <div className="rounded-2xl bg-[color:var(--v2-accent-weak)] p-3.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="flex items-center gap-1.5 text-[11.5px] font-bold text-[color:var(--v2-accent)]"><span className="h-1.5 w-1.5 rounded-full bg-[color:var(--v2-accent)]" aria-hidden />{t("이렇게 답하면 좋아요", "A stronger way to answer", "这样回答更好", "Cách trả lời tốt hơn", "こう答えると良い", "Cara jawab lebih baik")}</p>
-                          {/* 모범 답안을 자연스러운 한국어로 들어 보기 */}
-                          <SpeakButton t={pt} tts={qTts} text={lastScore.modelAnswer} />
-                        </div>
-                        <p className="mt-1.5 whitespace-pre-wrap break-keep text-[13px] leading-relaxed text-[#28407A]">{lastScore.modelAnswer}</p>
-                      </div>
-                    ) : null}
-                    {lastScore.speakingData ? <SpeakingReportCard data={lastScore.speakingData} /> : null}
-                    <div className="mt-1 flex flex-col gap-2">
-                      {/* 실전처럼 — 면접관이 방금 답을 파고든다(질문당 최대 2번) */}
-                      <FollowUpButton question={questions[idx]} answer={lastScore.answer} context={label} depth={depthAt(idx)} onReady={askFollowUp} />
-                      <button type="button" onClick={() => void next()} disabled={loadingNext} className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[color:var(--v2-accent)] px-5 py-3 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-60">
-                        {loadingNext ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : null}
-                        {loadingNext ? t("다음 질문 준비 중…", "Preparing next…", "准备下一题…", "Đang chuẩn bị…", "次の質問を準備中…", "Menyiapkan…") : t("다음 질문", "Next question", "下一题", "Câu tiếp", "次の質問", "Soal berikutnya")}
-                        {loadingNext ? null : <ArrowRight className="h-4 w-4" weight="bold" />}
-                      </button>
-                      <button type="button" onClick={finish} disabled={loadingNext} className="w-full rounded-2xl bg-[color:var(--v2-band)] px-5 py-2.5 text-[13px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)] disabled:opacity-60">
-                        {t("여기까지 · 결과 보기", "Finish · see results", "到此为止 · 查看结果", "Dừng · xem kết quả", "ここまで · 結果を見る", "Selesai · lihat hasil")}
-                      </button>
-                      {nextError ? <p className="text-center text-[12px] font-semibold text-[color:var(--v2-attention)]">{t("다음 질문을 만들지 못했어요. 다시 시도해 주세요.", "Couldn't create the next question. Please try again.", "无法生成下一题，请重试。", "Không tạo được câu hỏi tiếp. Thử lại nhé.", "次の質問を作れませんでした。もう一度お試しください。", "Gagal membuat soal berikutnya. Coba lagi.")}</p> : null}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={6} placeholder={t("말로 답하거나 직접 써 보세요. 받아 적은 글은 고칠 수 있어요.", "Speak or type your answer. You can edit the transcript.", "把它当作真实面试来作答。", "Trả lời như phỏng vấn thật.", "本番の面接だと思って答えてください。", "Jawab seakan wawancara nyata.")} className="w-full resize-none rounded-2xl bg-white p-4 text-[16px] leading-relaxed text-[color:var(--v2-ink)] outline-none ring-[color:var(--v2-accent)] transition placeholder:text-[color:var(--v2-faint)] focus:ring-2" />
-                    {/* 말로 답하기 — 실제 면접처럼. 말한 시간·군말·멈춤을 재서 제출하면 말하기 리포트도 받는다 */}
-                    <VoiceAnswerControls voice={voice} disabled={scoring} />
-                    <div className="mt-2.5 flex items-center justify-between gap-3">
-                      <span className="hidden text-[11.5px] text-[color:var(--v2-faint)] sm:block">{t("💡 결론 먼저, 그다음 경험·근거 순으로", "💡 Conclusion first, then evidence", "💡 先结论，再举证据", "💡 Kết luận trước, rồi dẫn chứng", "💡 結論→根拠の順で", "💡 Kesimpulan dulu, lalu bukti")}</span>
-                      <button type="button" onClick={() => void submit()} disabled={scoring || !input.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-[color:var(--v2-accent)] px-5 py-3 text-[14px] font-bold text-white transition hover:opacity-90 disabled:opacity-50">{scoring ? <CircleNotch className="h-4 w-4 animate-spin" weight="bold" /> : <PaperPlaneRight className="h-4 w-4" weight="fill" />}{scoring ? t("채점 중…", "Scoring…", "评分中…", "Đang chấm…", "採点中…", "Menilai…") : t("답변 제출", "Submit answer", "提交回答", "Gửi câu trả lời", "回答を提出", "Kirim jawaban")}</button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {sheetOpen ? (
+                <CareerPracticeSheet
+                  key={`${idx}-${questions[idx]}`}
+                  heading={label}
+                  progress={t(`질문 ${idx + 1}`, `Q${idx + 1}`, `问题 ${idx + 1}`, `Câu ${idx + 1}`, `質問 ${idx + 1}`, `Soal ${idx + 1}`)}
+                  question={questions[idx] ?? ""}
+                  category={focus}
+                  depth={depthAt(idx)}
+                  intent={follow[idx]?.intent}
+                  context={label}
+                  score={(q, a) => scoreBasicAnswer(focus, q, a)}
+                  onRecord={(item) => record(idx, item)}
+                  onFollowUp={askFollowUp}
+                  onNext={() => void next()}
+                  nextBusy={loadingNext}
+                  nextError={nextError}
+                  onFinish={finish}
+                />
+              ) : null}
             </div>
           ) : (
             <div className="mt-5">
