@@ -174,7 +174,8 @@ export function PracticeSheet({
   daily = false,
   grade,
   resultExtra,
-  header
+  header,
+  defaultTimed = false
 }: {
   question: PracticeQuestion;
   initialAnswer?: string;
@@ -197,6 +198,8 @@ export function PracticeSheet({
   resultExtra?: ReactNode;
   /** 질문 위에 붙일 것(커리어런치 꼬리 질문 표시) */
   header?: ReactNode;
+  /** 실전 모드(60초)를 켠 채로 시작(커리어런치) — 끄는 스위치는 그대로 */
+  defaultTimed?: boolean;
 }) {
   const t = usePlatformT();
   const [question, setQuestion] = useState(initial); // 꼬리 질문으로 이어서 답하면 바뀐다
@@ -209,7 +212,7 @@ export function PracticeSheet({
   // 예전에 이 질문에 답한 적 있으면(내 서류·오늘의 질문 연습) — 지난 답과 평가를 보여 주고 거기서 고쳐 쓸 수 있게.
   const prev = !onSave ? (selfMock?.answers ?? []).find((a) => a.question === question.ko && a.answer.trim()) : undefined;
   const [showPrev, setShowPrev] = useState(false);
-  const [timed, setTimed] = useState(false);
+  const [timed, setTimed] = useState(defaultTimed);
   const [left, setLeft] = useState(60);
   const [running, setRunning] = useState(false);
   const [busy, setBusy] = useState(false);

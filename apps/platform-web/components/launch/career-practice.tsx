@@ -108,6 +108,8 @@ export function CareerPracticeSheet({
       onClose={onFinish}
       resultExtra={extra}
       header={depth > 0 ? <FollowUpBadge depth={depth} intent={intent} /> : undefined}
+      // 커리어런치는 실전처럼 60초 제한을 켠 채로 시작한다(스위치로 끌 수 있다)
+      defaultTimed
     />
   );
 }
