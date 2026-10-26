@@ -32,6 +32,10 @@ model User {
   jobTitle                             String?
   profileImageUrl                      String?
   adminMemo                            String?
+  // 운영팀이 직접 정하는 매칭 상태(학교 제휴 일괄 등록 학생 등) — NONE(매칭 안 됨) | IN_PROGRESS(매칭 중) | MATCHED(매칭 완료)
+  opsMatchStatus                       String    @default("NONE")
+  opsMatchNote                         String?
+  opsMatchUpdatedAt                    DateTime?
   passwordHash                         String?
   authProvider                         AuthProvider                  @default(EMAIL)
   providerId                           String?

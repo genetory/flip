@@ -58,8 +58,14 @@ const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
 
 type Row = { key: string; name: string; email: string; major: string; file: File | null; fileLabel: string };
 type Result = { status: "created" | "exists" | "error"; message?: string; items?: number; userId?: string };
-type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; nationality?: string | null; batch: string; resumeItems: number; targetRole?: string | null; claimed?: boolean; inPool?: boolean; files: { id: string; fileName: string; size: number }[]; createdAt: string };
-type Batch = { batch: string; count: number; withResume?: number; withFiles?: number; claimed?: number; inPool?: number; affiliations?: string[]; firstAt?: string; lastAt?: string };
+type Listed = { userId: string; name: string; email: string | null; affiliation: string | null; nationality?: string | null; batch: string; resumeItems: number; targetRole?: string | null; claimed?: boolean; inPool?: boolean; matchStatus?: MatchStatus; matchNote?: string | null; matchUpdatedAt?: string | null; connections?: number; files: { id: string; fileName: string; size: number }[]; createdAt: string };
+type MatchStatus = "NONE" | "IN_PROGRESS" | "MATCHED";
+const MATCH: Record<MatchStatus, { label: string; cls: string }> = {
+  NONE: { label: "매칭 안 됨", cls: "ops-pill ops-pill-gray" },
+  IN_PROGRESS: { label: "매칭 중", cls: "ops-pill ops-pill-amber" },
+  MATCHED: { label: "매칭 완료", cls: "ops-pill ops-pill-green" }
+};
+type Batch = { batch: string; count: number; withResume?: number; withFiles?: number; claimed?: number; inPool?: number; matched?: number; matching?: number; affiliations?: string[]; firstAt?: string; lastAt?: string };
 
 const box: React.CSSProperties = { border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 16 };
 const input: React.CSSProperties = { height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px", width: "100%" };
@@ -193,6 +199,15 @@ export default function OpsBulkStudentsPage() {
     else window.alert("지우지 못했어요.");
   };
 
+  // 매칭 상태·메모 — 운영팀이 정한다(오프라인 연결 포함)
+  const patchMatch = async (u: Listed, status: MatchStatus, note?: string | null) => {
+    const res = await fetch(`${api}/ops/bulk-students/${encodeURIComponent(u.userId)}/match`, { method: "PATCH", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify({ status, ...(note !== undefined ? { note } : {}) }) });
+    const d = (await res.json().catch(() => null)) as { ok?: boolean; matchStatus?: MatchStatus; matchNote?: string | null; matchUpdatedAt?: string; message?: string } | null;
+    if (!res.ok || !d?.ok) return window.alert(d?.message ?? "바꾸지 못했어요.");
+    setListed((p) => p.map((x) => (x.userId === u.userId ? { ...x, matchStatus: d.matchStatus, matchNote: d.matchNote, matchUpdatedAt: d.matchUpdatedAt } : x)));
+    void loadList();
+  };
+
   const head = csvRows?.[0] ?? [];
   const colSelect = (k: keyof typeof map, title: string) => (
     <label style={label}>
@@ -225,7 +240,7 @@ export default function OpsBulkStudentsPage() {
         </button>
       </div>
 
-      {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} /> : null}
+      {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} onMatch={(u, st, note) => void patchMatch(u, st, note)} /> : null}
 
       {tab === "register" ? (
       <>
@@ -320,15 +335,20 @@ export default function OpsBulkStudentsPage() {
 // ── 묶음별로 보기 ─────────────────────────────────────────
 // 한 번에 넣은 학생(같은 '묶음 이름')을 카드로 묶어 보고, 카드를 누르면 그 묶음의 학생 명단·상태·원본을 본다.
 type MemberFilter = "all" | "no_resume" | "no_file" | "claimed";
+type MatchFilter = "any" | MatchStatus;
 
 function csvCell(v: string) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { listed: Listed[]; batches: Batch[]; onReload: () => void; onOpenFile: (f: { id: string; fileName: string }) => void; onRemove: (u: Listed) => void }) {
+function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch }: { listed: Listed[]; batches: Batch[]; onReload: () => void; onOpenFile: (f: { id: string; fileName: string }) => void; onRemove: (u: Listed) => void; onMatch: (u: Listed, status: MatchStatus, note?: string | null) => void }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<MemberFilter>("all");
+  const [match, setMatch] = useState<MatchFilter>("any");
+  const [noteFor, setNoteFor] = useState<Listed | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const statusOf = (u: Listed): MatchStatus => u.matchStatus ?? "NONE";
   const current = picked ?? batches[0]?.batch ?? null;
   const members = listed.filter((u) => u.batch === current);
   const needle = q.trim().toLowerCase();
@@ -336,14 +356,15 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
     if (filter === "no_resume" && u.resumeItems) return false;
     if (filter === "no_file" && u.files.length) return false;
     if (filter === "claimed" && !u.claimed) return false;
+    if (match !== "any" && statusOf(u) !== match) return false;
     if (!needle) return true;
     return [u.name, u.email ?? "", u.targetRole ?? "", u.nationality ?? ""].some((x) => x.toLowerCase().includes(needle));
   });
 
   const exportCsv = () => {
     if (!current) return;
-    const rows = [["이름", "이메일", "소속", "국적", "희망 직무", "이력서 항목", "원본 파일", "인재 검색 노출", "직접 로그인", "등록일"]];
-    for (const u of members) rows.push([u.name, u.email ?? "", u.affiliation ?? "", u.nationality ?? "", u.targetRole ?? "", String(u.resumeItems), String(u.files.length), u.inPool ? "예" : "아니오", u.claimed ? "예" : "아니오", u.createdAt.slice(0, 10)]);
+    const rows = [["이름", "이메일", "소속", "국적", "희망 직무", "매칭 상태", "매칭 메모", "기업 연결 요청", "이력서 항목", "원본 파일", "인재 검색 노출", "직접 로그인", "등록일"]];
+    for (const u of members) rows.push([u.name, u.email ?? "", u.affiliation ?? "", u.nationality ?? "", u.targetRole ?? "", MATCH[statusOf(u)].label, u.matchNote ?? "", String(u.connections ?? 0), String(u.resumeItems), String(u.files.length), u.inPool ? "예" : "아니오", u.claimed ? "예" : "아니오", u.createdAt.slice(0, 10)]);
     const blob = new Blob([`﻿${rows.map((r) => r.map(csvCell).join(",")).join("\n")}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -371,6 +392,7 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
               onClick={() => {
                 setPicked(b.batch);
                 setFilter("all");
+                setMatch("any");
                 setQ("");
               }}
               style={{ textAlign: "left", cursor: "pointer", borderRadius: 14, padding: 16, background: on ? "var(--accent-soft)" : "var(--surface)", border: `1px solid ${on ? "var(--accent)" : "var(--line)"}` }}
@@ -387,7 +409,9 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                 <span className="ops-pill ops-pill-blue">이력서 {b.withResume ?? 0}</span>
                 <span className="ops-pill ops-pill-gray">원본 {b.withFiles ?? 0}</span>
-                <span className="ops-pill ops-pill-green">인재 검색 {b.inPool ?? 0}</span>
+                <span className="ops-pill ops-pill-green">매칭 완료 {b.matched ?? 0}</span>
+                {b.matching ? <span className="ops-pill ops-pill-amber">매칭 중 {b.matching}</span> : null}
+                <span className="ops-pill ops-pill-gray">인재 검색 {b.inPool ?? 0}</span>
                 {b.claimed ? <span className="ops-pill ops-pill-violet">직접 로그인 {b.claimed}</span> : null}
               </div>
             </button>
@@ -414,7 +438,21 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", margin: "12px 0" }}>
+          <div className="ops-filter-chip-row" style={{ marginTop: 12 }}>
+            {(
+              [
+                ["any", "매칭 전체"],
+                ["NONE", "매칭 안 됨"],
+                ["IN_PROGRESS", "매칭 중"],
+                ["MATCHED", "매칭 완료"]
+              ] as [MatchFilter, string][]
+            ).map(([k, l]) => (
+              <button key={k} type="button" className={`ops-filter-chip ${match === k ? "is-active" : ""}`} onClick={() => setMatch(k)}>
+                {l} <span className="ops-filter-chip-count">{k === "any" ? members.length : members.filter((u) => statusOf(u) === k).length}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", margin: "10px 0 12px" }}>
             <div className="ops-filter-chip-row">
               {(
                 [
@@ -435,11 +473,12 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
           <div className="ops-table-card">
             <table>
               <colgroup>
+                <col style={{ width: "16%" }} />
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "22%" }} />
                 <col />
-                <col style={{ width: 150 }} />
-                <col style={{ width: 150 }} />
+                <col style={{ width: 170 }} />
+                <col style={{ width: 140 }} />
+                <col style={{ width: 130 }} />
                 <col style={{ width: 150 }} />
               </colgroup>
               <thead>
@@ -447,6 +486,7 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
                   <th>이름</th>
                   <th>이메일</th>
                   <th>희망 직무</th>
+                  <th>매칭</th>
                   <th>상태</th>
                   <th>원본</th>
                   <th style={{ textAlign: "right" }}></th>
@@ -455,7 +495,7 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
               <tbody>
                 {!shown.length ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: "center", padding: 28 }}>조건에 맞는 학생이 없어요.</td>
+                    <td colSpan={7} style={{ textAlign: "center", padding: 28 }}>조건에 맞는 학생이 없어요.</td>
                   </tr>
                 ) : (
                   shown.map((u) => (
@@ -469,6 +509,27 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
                       </td>
                       <td>
                         <span>{u.targetRole || "-"}</span>
+                      </td>
+                      <td>
+                        <select className="ops-select" style={{ padding: "6px 10px", fontSize: 12.5 }} value={statusOf(u)} onChange={(e) => onMatch(u, e.target.value as MatchStatus)} aria-label={`${u.name} 매칭 상태`}>
+                          {(Object.keys(MATCH) as MatchStatus[]).map((k) => (
+                            <option key={k} value={k}>
+                              {MATCH[k].label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNoteFor(u);
+                            setNoteText(u.matchNote ?? "");
+                          }}
+                          style={{ marginTop: 4, display: "block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: 0, background: "none", padding: 0, cursor: "pointer", fontSize: 11.5, color: u.matchNote ? "var(--ink-soft)" : "var(--ink-faint)", textAlign: "left" }}
+                          title={u.matchNote ?? "메모 남기기"}
+                        >
+                          {u.matchNote || "+ 메모"}
+                        </button>
+                        {u.connections ? <div className="ops-row-sub">기업 연결 요청 {u.connections}건</div> : null}
                       </td>
                       <td>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -507,6 +568,38 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove }: { list
             </table>
           </div>
         </section>
+      ) : null}
+
+      {noteFor ? (
+        <div className="ops-modal-backdrop" onClick={() => setNoteFor(null)}>
+          <div className="ops-modal-panel ops-modal-panel--sm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="매칭 메모">
+            <div className="ops-modal-panel-header">
+              <div>
+                <h2>매칭 메모</h2>
+                <p style={{ margin: "2px 0 0", fontSize: 12.5, color: "var(--ink-faint)" }}>{noteFor.name} · {MATCH[statusOf(noteFor)].label}</p>
+              </div>
+            </div>
+            <div className="ops-modal-panel-body">
+              <textarea className="ops-select" rows={4} maxLength={300} value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="예: OO기업 마케팅 인턴 면접 예정(11/3)" style={{ resize: "vertical" }} autoFocus />
+            </div>
+            <div className="ops-modal-panel-footer" style={{ gap: 8 }}>
+              <button type="button" className="ops-btn" style={{ height: 38, padding: "0 16px" }} onClick={() => setNoteFor(null)}>
+                취소
+              </button>
+              <button
+                type="button"
+                className="ops-btn ops-btn-primary"
+                style={{ height: 38, padding: "0 18px" }}
+                onClick={() => {
+                  onMatch(noteFor, statusOf(noteFor), noteText.trim() || null);
+                  setNoteFor(null);
+                }}
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

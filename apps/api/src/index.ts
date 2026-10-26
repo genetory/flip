@@ -17713,7 +17713,7 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
       where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
       orderBy: { createdAt: "desc" },
       take: 1000,
-      select: { id: true, name: true, realName: true, email: true, affiliation: true, nationality: true, signupReferer: true, passwordHash: true, talentPoolOptedOutAt: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, nationality: true, signupReferer: true, passwordHash: true, talentPoolOptedOutAt: true, opsMatchStatus: true, opsMatchNote: true, opsMatchUpdatedAt: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, _count: { select: { candidateConnectionsAsCandidate: true } }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
     });
     const items = users.map((u) => {
       const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[]; targetRole?: unknown } };
@@ -17730,14 +17730,21 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
         claimed: Boolean(u.passwordHash),
         // 기업 인재 검색에 나오는지(대표 이력서가 있고 노출을 끄지 않았을 때)
         inPool: Boolean(u.resumes[0]) && !u.talentPoolOptedOutAt,
+        // 매칭 상태는 운영팀이 정한다(오프라인 연결 포함). 기업 연결 요청 수는 참고용.
+        matchStatus: u.opsMatchStatus,
+        matchNote: u.opsMatchNote,
+        matchUpdatedAt: u.opsMatchUpdatedAt,
+        connections: u._count.candidateConnectionsAsCandidate,
         files: u.studentSourceFiles,
         createdAt: u.createdAt
       };
     });
     // 묶음별 요약 — 사람 수·이력서 채워진 수·원본 있는 수·직접 들어온 수·인재 검색 노출 수
-    const groups = new Map<string, { batch: string; count: number; withResume: number; withFiles: number; claimed: number; inPool: number; affiliations: Set<string>; firstAt: Date; lastAt: Date }>();
+    const groups = new Map<string, { batch: string; count: number; withResume: number; withFiles: number; claimed: number; inPool: number; matched: number; matching: number; affiliations: Set<string>; firstAt: Date; lastAt: Date }>();
     for (const it of items) {
-      const g = groups.get(it.batch) ?? { batch: it.batch, count: 0, withResume: 0, withFiles: 0, claimed: 0, inPool: 0, affiliations: new Set<string>(), firstAt: it.createdAt, lastAt: it.createdAt };
+      const g = groups.get(it.batch) ?? { batch: it.batch, count: 0, withResume: 0, withFiles: 0, claimed: 0, inPool: 0, matched: 0, matching: 0, affiliations: new Set<string>(), firstAt: it.createdAt, lastAt: it.createdAt };
+      if (it.matchStatus === "MATCHED") g.matched += 1;
+      else if (it.matchStatus === "IN_PROGRESS") g.matching += 1;
       g.count += 1;
       if (it.resumeItems) g.withResume += 1;
       if (it.files.length) g.withFiles += 1;
@@ -17753,6 +17760,25 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
   } catch (err) {
     console.error("[ops/bulk-students] list failed", err);
     return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// PATCH /ops/bulk-students/:userId/match { status, note } — 운영팀이 정하는 매칭 상태(매칭 안 됨·매칭 중·매칭 완료)와 메모.
+const opsMatchSchema = z.object({ status: z.enum(["NONE", "IN_PROGRESS", "MATCHED"]), note: z.string().trim().max(300).nullable().optional() });
+app.patch("/ops/bulk-students/:userId/match", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsMatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const u = await prisma.user.update({
+      where: { id: String(req.params.userId) },
+      data: { opsMatchStatus: parsed.data.status, ...(parsed.data.note !== undefined ? { opsMatchNote: parsed.data.note || null } : {}), opsMatchUpdatedAt: new Date() },
+      select: { opsMatchStatus: true, opsMatchNote: true, opsMatchUpdatedAt: true }
+    });
+    console.info(`[ops/bulk-students] match user=${req.params.userId} status=${u.opsMatchStatus} by=${req.auth!.userId}`);
+    return res.json({ ok: true, matchStatus: u.opsMatchStatus, matchNote: u.opsMatchNote, matchUpdatedAt: u.opsMatchUpdatedAt });
+  } catch (err) {
+    console.error("[ops/bulk-students] match failed", err);
+    return res.status(404).json({ ok: false, message: "학생을 찾지 못했어요." });
   }
 });
 
