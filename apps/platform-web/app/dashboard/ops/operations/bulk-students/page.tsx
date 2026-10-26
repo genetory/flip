@@ -209,6 +209,42 @@ export default function OpsBulkStudentsPage() {
     else window.alert("지우지 못했어요.");
   };
 
+  // 묶음 옮기기 — 이 환경에서 파일로 내보내고, 다른 환경(예: 프로덕션) 콘솔에서 가져온다. 원본 파일은 같은 저장소라 기록만 옮긴다.
+  const exportBatch = async (name: string) => {
+    const res = await fetch(`${api}/ops/bulk-students/export?batch=${encodeURIComponent(name)}`, { headers: auth() });
+    if (!res.ok) return window.alert("내보내지 못했어요.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `학생묶음-${name.replace(/[\\/:*?"<>|]/g, "_")}.json`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  };
+  const [importing, setImporting] = useState(false);
+  const importBatch = async (file: File | undefined) => {
+    if (!file) return;
+    let body: unknown;
+    try {
+      body = JSON.parse(await file.text());
+    } catch {
+      return window.alert("JSON 파일이 아니에요. '묶음 내보내기'로 받은 파일을 골라 주세요.");
+    }
+    const b = body as { batch?: string; users?: unknown[] };
+    if (!window.confirm(`'${b.batch ?? "?"}' 묶음 ${b.users?.length ?? 0}명을 이 환경으로 가져올까요? 이미 있는 계정은 건너뛰어요.`)) return;
+    setImporting(true);
+    try {
+      const res = await fetch(`${api}/ops/bulk-students/import`, { method: "POST", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = (await res.json().catch(() => null)) as { ok?: boolean; imported?: number; skipped?: number; files?: number; message?: string } | null;
+      if (!res.ok || !d?.ok) throw new Error(d?.message ?? "가져오지 못했어요.");
+      window.alert(`${d.imported ?? 0}명 가져왔어요${d.skipped ? ` · 이미 있어 건너뜀 ${d.skipped}명` : ""} · 원본 파일 ${d.files ?? 0}개.\n받은 파일에는 개인정보가 있으니 지워 주세요.`);
+      void loadList();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "가져오지 못했어요.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // 매칭 상태·메모 — 운영팀이 정한다(오프라인 연결 포함)
   const patchMatch = async (u: Listed, status: MatchStatus, note?: string | null) => {
     const res = await fetch(`${api}/ops/bulk-students/${encodeURIComponent(u.userId)}/match`, { method: "PATCH", headers: { ...auth(), "Content-Type": "application/json" }, body: JSON.stringify({ status, ...(note !== undefined ? { note } : {}) }) });
@@ -248,9 +284,13 @@ export default function OpsBulkStudentsPage() {
         <button type="button" className={`ops-filter-chip ${tab === "register" ? "is-active" : ""}`} onClick={() => setTab("register")}>
           새로 등록
         </button>
+        <label className="ops-btn" style={{ marginLeft: "auto", height: 34, padding: "0 14px", cursor: importing ? "wait" : "pointer" }} title="다른 환경에서 '묶음 내보내기'로 받은 파일을 이 환경으로 가져와요">
+          {importing ? "가져오는 중…" : "묶음 가져오기"}
+          <input type="file" accept="application/json,.json" hidden disabled={importing} onChange={(e) => { void importBatch(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
       </div>
 
-      {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} onMatch={(u, st, note) => void patchMatch(u, st, note)} /> : null}
+      {tab === "groups" ? <BatchGroups listed={listed} batches={batches} onReload={() => void loadList()} onOpenFile={(f) => void openFile(f)} onRemove={(u) => void remove(u)} onMatch={(u, st, note) => void patchMatch(u, st, note)} onExport={(name) => void exportBatch(name)} /> : null}
 
       {tab === "register" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -390,7 +430,7 @@ function csvCell(v: string) {
   return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
-function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch }: { listed: Listed[]; batches: Batch[]; onReload: () => void; onOpenFile: (f: { id: string; fileName: string }) => void; onRemove: (u: Listed) => void; onMatch: (u: Listed, status: MatchStatus, note?: string | null) => void }) {
+function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch, onExport }: { listed: Listed[]; batches: Batch[]; onReload: () => void; onOpenFile: (f: { id: string; fileName: string }) => void; onRemove: (u: Listed) => void; onMatch: (u: Listed, status: MatchStatus, note?: string | null) => void; onExport: (batch: string) => void }) {
   const [picked, setPicked] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<MemberFilter>("all");
@@ -480,6 +520,9 @@ function BatchGroups({ listed, batches, onReload, onOpenFile, onRemove, onMatch 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="button" className="ops-btn" style={{ height: 36, padding: "0 14px" }} onClick={onReload}>
                 새로고침
+              </button>
+              <button type="button" className="ops-btn" style={{ height: 36, padding: "0 14px" }} onClick={() => onExport(current)} title="다른 환경(예: 프로덕션) 콘솔의 '묶음 가져오기'로 옮길 때">
+                묶음 내보내기
               </button>
               <button type="button" className="ops-btn ops-btn-primary" style={{ height: 36, padding: "0 14px" }} onClick={exportCsv}>
                 명단 CSV 받기
