@@ -1,201 +1,180 @@
 "use client";
 
-// AI 포인트 운영 — 사용자별 지갑 잔액 조회 + 운영자 수동 지급.
-import { useEffect, useMemo, useState } from "react";
+// AI 포인트 — 포인트 흐름 요약(남은 포인트·충전·무료 적립·사용, 7일/30일) · 기능별 사용 · 날짜별 추이 ·
+// 학생 지갑(검색·잔액순) · 내역 · 지급/회수. 1P = 10원.
+// 지급·회수는 원장에 '운영자 조정'(ops_grant)으로 남고, 회수는 잔액까지만 된다.
+import { useCallback, useEffect, useState } from "react";
+import { BarList, Chips, Field, KpiGrid, Modal, PageHead, SearchBox, card, day, dt, pts, ptsWon, reasonLabel, useOpsApi } from "../_billing/shared";
 
-function readCookie(key: string) {
-  if (typeof document === "undefined") return "";
-  const entry = document.cookie.split("; ").find((item) => item.startsWith(`${key}=`));
-  if (entry) return decodeURIComponent(entry.split("=")[1] ?? "");
-  try {
-    return window.localStorage.getItem("platform_access_token") || "";
-  } catch {
-    return "";
-  }
-}
-
-type WalletRow = {
-  userId: string;
-  email: string;
-  name: string | null;
-  role: "STUDENT" | "PARTNER" | "OPERATOR";
-  balance: number;
-  updatedAt: string | null;
+type Wallet = { userId: string; email: string; name: string | null; balance: number | null; interviewCredits: number | null; updatedAt: string | null; joinedAt?: string };
+type Log = { id: string; amount: number; reason: string; createdAt: string };
+type Summary = {
+  enabled: boolean;
+  days: number;
+  outstanding: number;
+  walletsWithBalance: number;
+  used: number;
+  purchased: number;
+  free: number;
+  activeUsers: number;
+  features: { feature: string; points: number; count: number }[];
+  daily: { day: string; used: number; purchased: number }[];
 };
-
-type PointLog = { id: string; amount: number; reason: string; createdAt: string };
-
-function roleLabel(role: WalletRow["role"]) {
-  if (role === "OPERATOR") return "운영자";
-  if (role === "PARTNER") return "파트너";
-  return "일반회원";
-}
-
-// 소모 내역의 reason 은 기능 키(feature) 또는 적립 사유. 사람이 읽을 라벨로 매핑.
-const REASON_LABEL: Record<string, string> = {
-  ops_grant: "운영자 지급",
-  welcome: "가입 보너스",
-  daily: "일일 적립",
-  coupon: "쿠폰 적립",
-  career_report: "커리어 스코어",
-  resume_score: "이력서 점수",
-  cover_score: "자소서 점수",
-  interview_score: "면접 점수",
-  experience_mining: "경험 채굴",
-  jd_match: "JD 매칭",
-  story_bank: "스토리 은행",
-  answer_bank: "답변 은행",
-  chat: "AI 채팅",
-  resume_maker: "이력서 생성",
-  cover_maker: "자소서 생성",
-  interview: "모의면접"
-};
-function reasonText(reason: string) {
-  return REASON_LABEL[reason] ?? reason;
-}
 
 export default function OpsAiPointsPage() {
-  const apiBaseUrl = useMemo(() => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000", []);
-  const [items, setItems] = useState<WalletRow[]>([]);
+  const api = useOpsApi();
+  const [days, setDays] = useState<"7" | "30">("7");
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [wallets, setWallets] = useState<Wallet[] | null>(null);
+  const [sort, setSort] = useState<"recent" | "balance">("recent");
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [grantingId, setGrantingId] = useState<string | null>(null);
-  const [logRow, setLogRow] = useState<WalletRow | null>(null);
-  const [logs, setLogs] = useState<PointLog[] | null>(null);
-  const [logLoading, setLogLoading] = useState(false);
+  const [logsFor, setLogsFor] = useState<Wallet | null>(null);
+  const [adjustFor, setAdjustFor] = useState<Wallet | null>(null);
 
-  const authHeader = () => ({ Authorization: `Bearer ${readCookie("ops_admin_token")}` });
-
-  const openLogs = async (row: WalletRow) => {
-    setLogRow(row);
-    setLogs(null);
-    setLogLoading(true);
-    try {
-      const res = await fetch(`${apiBaseUrl}/ops/ai-wallets/${encodeURIComponent(row.userId)}/logs`, { headers: authHeader() });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; items?: PointLog[] } | null;
-      if (!res.ok || data?.ok !== true) throw new Error("불러오지 못했어요.");
-      setLogs(data.items ?? []);
-    } catch {
-      setLogs([]);
-    } finally {
-      setLogLoading(false);
-    }
-  };
-
-  const load = async (query = "") => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`${apiBaseUrl}/ops/ai-wallets${query ? `?q=${encodeURIComponent(query)}` : ""}`, { headers: authHeader() });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; items?: WalletRow[]; message?: string } | null;
-      if (!res.ok || data?.ok !== true) throw new Error(data?.message ?? "불러오지 못했어요.");
-      setItems(data.items ?? []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "불러오지 못했어요.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loadSummary = useCallback(
+    async (d = days) => {
+      try {
+        setSummary(await api.call<Summary>(`/ops/ai-points/summary?days=${d}`));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "요약을 불러오지 못했어요.");
+      }
+    },
+    [api, days]
+  );
+  const loadWallets = useCallback(
+    async (next?: { sort?: "recent" | "balance"; q?: string }) => {
+      const params = new URLSearchParams();
+      const so = next?.sort ?? sort;
+      const query = (next?.q ?? q).trim();
+      if (so === "balance") params.set("sort", "balance");
+      if (query) params.set("q", query);
+      try {
+        const r = await api.call<{ items: Wallet[] }>(`/ops/ai-wallets${params.size ? `?${params}` : ""}`);
+        setWallets(r.items);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "지갑을 불러오지 못했어요.");
+        setWallets((w) => w ?? []);
+      }
+    },
+    [api, sort, q]
+  );
 
   useEffect(() => {
-    void load();
+    // 처음 한 번 서버에서 읽어 온다(응답이 오면 상태를 채운다).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSummary();
+    void loadWallets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const grant = async (row: WalletRow) => {
-    const input = window.prompt(`${row.email} 님에게 지급할 AI 포인트 수를 입력하세요.`, "100");
-    if (input == null) return;
-    const amount = Math.floor(Number(input));
-    if (!Number.isFinite(amount) || amount < 1) {
-      window.alert("1 이상의 숫자를 입력하세요.");
-      return;
-    }
-    setGrantingId(row.userId);
-    try {
-      const res = await fetch(`${apiBaseUrl}/ops/ai-wallets/${encodeURIComponent(row.userId)}/grant`, {
-        method: "POST",
-        headers: { ...authHeader(), "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, reason: "ops_grant" })
-      });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; balance?: number; message?: string } | null;
-      if (!res.ok || data?.ok !== true) throw new Error(data?.message ?? "지급에 실패했어요.");
-      setItems((prev) => prev.map((r) => (r.userId === row.userId ? { ...r, balance: data.balance ?? r.balance } : r)));
-    } catch (e) {
-      window.alert(e instanceof Error ? e.message : "지급에 실패했어요.");
-    } finally {
-      setGrantingId(null);
-    }
-  };
-
+  const s = summary;
   return (
-    <div className="ops-page">
-      <header className="ops-page-head">
-        <h1 className="ops-page-title">AI 포인트</h1>
-        <p className="ops-page-desc">사용자별 AI 포인트 지갑 잔액을 확인하고, 필요하면 수동으로 지급할 수 있어요.</p>
-      </header>
+    <section className="ops-content-section">
+      <PageHead
+        title="AI 포인트"
+        desc="포인트가 얼마나 충전되고 쓰이는지 보고, 회원별 잔액을 확인하거나 지급·회수해요. 1P = 10원."
+        right={
+          <>
+            <span className={s?.enabled ? "ops-pill ops-pill-blue" : "ops-pill ops-pill-gray"}>{s ? (s.enabled ? "포인트 차감 켜짐" : "포인트 차감 꺼짐") : "…"}</span>
+            <Chips
+              value={days}
+              onChange={(v) => {
+                setDays(v);
+                void loadSummary(v);
+              }}
+              options={[
+                { key: "7", label: "최근 7일" },
+                { key: "30", label: "최근 30일" }
+              ]}
+            />
+          </>
+        }
+      />
 
-      <form
-        className="ops-toolbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load(q.trim());
-        }}
-        style={{ display: "flex", gap: 8, margin: "16px 0" }}
-      >
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="이메일 또는 이름으로 검색"
-          className="ops-input"
-          style={{ flex: 1, maxWidth: 320, height: 40, borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", padding: "0 12px" }}
+      {error ? <p className="ops-form-error" style={{ marginBottom: 12 }}>{error}</p> : null}
+
+      <KpiGrid
+        items={[
+          { label: "회원이 가진 포인트", value: s ? pts(s.outstanding) : "–", sub: s ? `${s.walletsWithBalance.toLocaleString()}명 · ${ptsWon(s.outstanding)} 어치` : undefined, tone: "blue" },
+          { label: `사용 (${days}일)`, value: s ? pts(s.used) : "–", sub: s ? `${s.activeUsers.toLocaleString()}명이 사용` : undefined, tone: "green" },
+          { label: `충전 (${days}일)`, value: s ? pts(s.purchased) : "–", sub: s ? `결제로 들어온 포인트` : undefined, tone: "green" },
+          { label: `무료 적립 (${days}일)`, value: s ? pts(s.free) : "–", sub: "가입·매일·코드·운영자 지급", tone: "amber" }
+        ]}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14, marginBottom: 28 }}>
+        <section style={card}>
+          <h2 className="ops-section-title">기능별 사용</h2>
+          <BarList rows={(s?.features ?? []).map((f) => ({ label: reasonLabel(f.feature), value: f.points, sub: `${f.count.toLocaleString()}회` }))} format={pts} />
+        </section>
+        <section style={card}>
+          <h2 className="ops-section-title">날짜별 사용 · 충전</h2>
+          <DailyBars rows={s?.daily ?? []} />
+        </section>
+      </div>
+
+      <h2 className="ops-section-title">회원 지갑</h2>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+        <Chips
+          value={sort}
+          onChange={(v) => {
+            setSort(v);
+            void loadWallets({ sort: v });
+          }}
+          options={[
+            { key: "recent", label: "최근 가입순" },
+            { key: "balance", label: "잔액 많은 순" }
+          ]}
         />
-        <button type="submit" className="ops-btn ops-btn--primary" style={{ height: 40, borderRadius: 10, background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "0 16px", border: "none" }}>
-          검색
-        </button>
-      </form>
-
-      {error ? <p style={{ color: "var(--danger)", fontWeight: 600 }}>{error}</p> : null}
-
-      <div style={{ overflowX: "auto", border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <SearchBox value={q} onChange={setQ} onSubmit={() => void loadWallets()} placeholder="이메일 또는 이름" />
+      </div>
+      <div className="ops-table-card">
+        <table>
+          <colgroup>
+            <col />
+            <col style={{ width: 140 }} />
+            <col style={{ width: 130 }} />
+            <col style={{ width: 200 }} />
+          </colgroup>
           <thead>
-            <tr style={{ textAlign: "left", color: "var(--ink-faint)", borderBottom: "1px solid var(--line)" }}>
-              <th style={{ padding: "12px 14px", fontWeight: 700 }}>이메일</th>
-              <th style={{ padding: "12px 14px", fontWeight: 700 }}>이름</th>
-              <th style={{ padding: "12px 14px", fontWeight: 700 }}>역할</th>
-              <th style={{ padding: "12px 14px", fontWeight: 700, textAlign: "right" }}>잔액</th>
-              <th style={{ padding: "12px 14px", fontWeight: 700, textAlign: "right" }}>내역 / 지급</th>
+            <tr>
+              <th>회원</th>
+              <th style={{ textAlign: "right" }}>잔액</th>
+              <th>가입</th>
+              <th style={{ textAlign: "right" }}></th>
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr><td colSpan={5} style={{ padding: 24, textAlign: "center", color: "var(--ink-faint)" }}>불러오는 중…</td></tr>
-            ) : items.length === 0 ? (
-              <tr><td colSpan={5} style={{ padding: 24, textAlign: "center", color: "var(--ink-faint)" }}>결과가 없어요.</td></tr>
+            {wallets === null ? (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", padding: 28 }}>불러오는 중…</td>
+              </tr>
+            ) : !wallets.length ? (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", padding: 28 }}>결과가 없어요.</td>
+              </tr>
             ) : (
-              items.map((r) => (
-                <tr key={r.userId} style={{ borderBottom: "1px solid var(--line)", color: "var(--ink)" }}>
-                  <td style={{ padding: "12px 14px" }}>{r.email}</td>
-                  <td style={{ padding: "12px 14px" }}>{r.name || "-"}</td>
-                  <td style={{ padding: "12px 14px" }}>{roleLabel(r.role)}</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>{r.balance.toLocaleString()} P</td>
-                  <td style={{ padding: "12px 14px", textAlign: "right" }}>
+              wallets.map((w) => (
+                <tr key={w.userId}>
+                  <td>
+                    <div className="ops-row-strong">{w.name || w.email}</div>
+                    <div className="ops-row-sub">{w.name ? w.email : ""}</div>
+                  </td>
+                  <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                    {w.balance == null ? <span className="ops-row-sub">아직 안 씀</span> : <span className="ops-row-strong" style={{ fontWeight: 700 }}>{pts(w.balance)}</span>}
+                    {w.interviewCredits ? <div className="ops-row-sub">전환 대기 이용권 {w.interviewCredits}개</div> : null}
+                  </td>
+                  <td>
+                    <span className="ops-row-sub">{day(w.joinedAt)}</span>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 6 }}>
-                      <button
-                        type="button"
-                        onClick={() => void openLogs(r)}
-                        style={{ height: 32, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", fontWeight: 700, padding: "0 12px", cursor: "pointer" }}
-                      >
+                      <button type="button" className="ops-btn" onClick={() => setLogsFor(w)}>
                         내역
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => void grant(r)}
-                        disabled={grantingId === r.userId}
-                        style={{ height: 32, borderRadius: 8, border: "1px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent-ink)", fontWeight: 700, padding: "0 12px", cursor: "pointer" }}
-                      >
-                        {grantingId === r.userId ? "지급 중…" : "포인트 지급"}
+                      <button type="button" className="ops-btn ops-btn-primary" onClick={() => setAdjustFor(w)}>
+                        지급·회수
                       </button>
                     </div>
                   </td>
@@ -205,60 +184,149 @@ export default function OpsAiPointsPage() {
           </tbody>
         </table>
       </div>
-      <p style={{ marginTop: 12, fontSize: 12, color: "var(--ink-faint)" }}>최근 가입 50명(검색 시 조건 일치) · 지급 내역은 포인트 원장(ops_grant)에 기록됩니다.</p>
+      <p style={{ marginTop: 10, fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>학생 100명까지 · 처음 쓰는 회원은 지급할 때 지갑이 만들어지며 가입 보너스도 함께 들어가요. 남은 모의 면접 이용권은 다음 이용 때 포인트로 자동 전환돼요.</p>
 
-      {/* 포인트 내역 모달 — 적립(양수)·소모(음수) 최근 100건 */}
-      {logRow ? (
-        <div
-          onClick={() => setLogRow(null)}
-          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: 460, maxHeight: "80vh", overflowY: "auto", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 16, padding: 20 }}
-          >
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>포인트 내역</h2>
-                <p style={{ marginTop: 2, fontSize: 12.5, color: "var(--ink-faint)" }}>{logRow.email} · 잔액 {logRow.balance.toLocaleString()}P</p>
-              </div>
-              <button type="button" onClick={() => setLogRow(null)} style={{ height: 30, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", color: "var(--ink)", fontWeight: 700, padding: "0 12px", cursor: "pointer" }}>
-                닫기
-              </button>
-            </div>
-
-            <div style={{ marginTop: 14 }}>
-              {logLoading ? (
-                <p style={{ padding: "20px 0", textAlign: "center", color: "var(--ink-faint)" }}>불러오는 중…</p>
-              ) : !logs || logs.length === 0 ? (
-                <p style={{ padding: "20px 0", textAlign: "center", color: "var(--ink-faint)" }}>내역이 없어요.</p>
-              ) : (
-                <ul style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {logs.map((l) => (
-                    <li key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "9px 4px", borderBottom: "1px solid var(--line)" }}>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{reasonText(l.reason)}</p>
-                        <p style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>{l.createdAt.slice(0, 16).replace("T", " ")}</p>
-                      </div>
-                      <span
-                        style={{
-                          flex: "none",
-                          fontVariantNumeric: "tabular-nums",
-                          fontWeight: 800,
-                          fontSize: 13.5,
-                          color: l.amount >= 0 ? "var(--accent-ink)" : "var(--danger)"
-                        }}
-                      >
-                        {l.amount >= 0 ? `+${l.amount}` : l.amount}P
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+      {logsFor ? <LogsModal wallet={logsFor} onClose={() => setLogsFor(null)} /> : null}
+      {adjustFor ? (
+        <AdjustModal
+          wallet={adjustFor}
+          onClose={() => setAdjustFor(null)}
+          onDone={(balance) => {
+            setWallets((prev) => (prev ?? []).map((r) => (r.userId === adjustFor.userId ? { ...r, balance } : r)));
+            setAdjustFor(null);
+            void loadSummary();
+          }}
+        />
       ) : null}
+    </section>
+  );
+}
+
+function DailyBars({ rows }: { rows: { day: string; used: number; purchased: number }[] }) {
+  if (!rows.length) return <p className="ops-empty-card" style={{ padding: "24px 0" }}>아직 기록이 없어요.</p>;
+  const max = Math.max(1, ...rows.map((r) => Math.max(r.used, r.purchased)));
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
+        {rows.map((r) => (
+          <div key={r.day} title={`${r.day} · 사용 ${pts(r.used)} · 충전 ${pts(r.purchased)}`} style={{ flex: 1, display: "flex", alignItems: "flex-end", gap: 1, height: "100%" }}>
+            <div style={{ flex: 1, height: `${(r.used / max) * 100}%`, minHeight: r.used ? 2 : 0, borderRadius: 3, background: "var(--accent)" }} />
+            <div style={{ flex: 1, height: `${(r.purchased / max) * 100}%`, minHeight: r.purchased ? 2 : 0, borderRadius: 3, background: "var(--line-strong)" }} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--ink-faint)" }}>
+        <span>{rows[0].day.slice(5)}</span>
+        <span style={{ display: "inline-flex", gap: 10 }}>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--accent)", marginRight: 4 }} />사용</span>
+          <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--line-strong)", marginRight: 4 }} />충전</span>
+        </span>
+        <span>{rows[rows.length - 1].day.slice(5)}</span>
+      </div>
     </div>
+  );
+}
+
+function LogsModal({ wallet: w, onClose }: { wallet: Wallet; onClose: () => void }) {
+  const api = useOpsApi();
+  const [logs, setLogs] = useState<Log[] | null>(null);
+  useEffect(() => {
+    api
+      .call<{ items: Log[] }>(`/ops/ai-points/${encodeURIComponent(w.userId)}/logs`)
+      .then((r) => setLogs(r.items))
+      .catch(() => setLogs([]));
+  }, [api, w.userId]);
+  return (
+    <Modal title="포인트 내역" sub={`${w.name ? `${w.name} · ` : ""}${w.email} · 잔액 ${pts(w.balance ?? 0)}`} onClose={onClose} size="sm">
+      {logs === null ? (
+        <p className="ops-empty-card" style={{ padding: "24px 0" }}>불러오는 중…</p>
+      ) : !logs.length ? (
+        <p className="ops-empty-card" style={{ padding: "24px 0" }}>내역이 없어요.</p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+          {logs.map((l) => (
+            <li key={l.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "10px 2px", borderBottom: "1px solid var(--line)" }}>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{reasonLabel(l.reason)}</p>
+                <p style={{ margin: 0, fontSize: 11.5, color: "var(--ink-faint)" }}>{dt(l.createdAt)}</p>
+              </div>
+              <span style={{ flex: "none", fontVariantNumeric: "tabular-nums", fontWeight: 800, fontSize: 13.5, color: l.amount >= 0 ? "var(--accent-ink)" : "var(--danger)" }}>
+                {l.amount >= 0 ? `+${pts(l.amount)}` : `-${pts(-l.amount)}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Modal>
+  );
+}
+
+function AdjustModal({ wallet: w, onClose, onDone }: { wallet: Wallet; onClose: () => void; onDone: (balance: number) => void }) {
+  const api = useOpsApi();
+  const [sign, setSign] = useState<"grant" | "revoke">("grant");
+  const [amount, setAmount] = useState("100");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const n = Math.floor(Number(amount)) || 0;
+  const balance = w.balance ?? 0;
+  const after = sign === "grant" ? balance + n : Math.max(0, balance - n);
+
+  const submit = async () => {
+    if (n < 1 || n > 100000) return setErr("1 ~ 100,000P 사이로 입력하세요.");
+    setBusy(true);
+    setErr("");
+    try {
+      const r = await api.call<{ balance: number; applied: number }>(`/ops/ai-points/${encodeURIComponent(w.userId)}/grant`, { method: "POST", body: { points: sign === "grant" ? n : -n } });
+      onDone(r.balance);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "처리하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="포인트 지급·회수"
+      sub={`${w.name ? `${w.name} · ` : ""}${w.email}`}
+      onClose={onClose}
+      size="sm"
+      footer={
+        <>
+          <button type="button" className="ops-btn" style={{ height: 38, padding: "0 16px" }} onClick={onClose} disabled={busy}>
+            취소
+          </button>
+          <button type="button" className={`ops-btn ${sign === "grant" ? "ops-btn-primary" : "ops-btn-danger"}`} style={{ height: 38, padding: "0 18px" }} onClick={() => void submit()} disabled={busy || n < 1}>
+            {busy ? "처리 중…" : sign === "grant" ? `${pts(n)} 지급` : `${pts(n)} 회수`}
+          </button>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <Chips
+          value={sign}
+          onChange={setSign}
+          options={[
+            { key: "grant", label: "지급" },
+            { key: "revoke", label: "회수" }
+          ]}
+        />
+        <Field label="포인트(P)" hint={`${ptsWon(n)} 어치${sign === "revoke" ? " · 잔액까지만 회수돼요" : ""}`}>
+          <input className="ops-input" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))} autoFocus />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[100, 500, 1000, 5000].map((v) => (
+              <button key={v} type="button" className="ops-filter-chip" onClick={() => setAmount(String(v))}>
+                {pts(v)}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <div style={{ display: "flex", justifyContent: "space-between", borderRadius: 12, background: "var(--surface-2)", padding: "12px 14px", fontSize: 13 }}>
+          <span style={{ color: "var(--ink-soft)" }}>지금 {pts(balance)}</span>
+          <span style={{ fontWeight: 800, color: "var(--ink)" }}>→ {pts(after)}</span>
+        </div>
+        {err ? <p className="ops-form-error" style={{ margin: 0 }}>{err}</p> : null}
+      </div>
+    </Modal>
   );
 }

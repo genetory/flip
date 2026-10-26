@@ -7228,68 +7228,6 @@ const communityGenerateSchema = z.object({
 });
 
 // ── AI 포인트 운영 — 사용자별 지갑 잔액 조회 + 수동 지급(운영자) ──
-app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  try {
-    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    const users = await prisma.user.findMany({
-      where: q
-        ? { OR: [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }] }
-        : {},
-      select: { id: true, email: true, name: true, role: true, createdAt: true, aiWallet: { select: { balance: true, updatedAt: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 50
-    });
-    const items = users.map((u) => ({
-      userId: u.id,
-      email: u.email,
-      name: u.name,
-      role: u.role,
-      balance: u.aiWallet?.balance ?? 0,
-      updatedAt: u.aiWallet?.updatedAt ?? null
-    }));
-    return res.json({ ok: true, items });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-const opsGrantSchema = z.object({ amount: z.number().int().min(1).max(100000), reason: z.string().trim().max(40).optional() });
-app.post("/ops/ai-wallets/:userId/grant", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  const parsed = opsGrantSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid request", errors: parsed.error.flatten() });
-  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
-  try {
-    const target = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-    if (!target) return res.status(404).json({ ok: false, message: "user not found" });
-    const wallet = await prisma.aiWallet.upsert({
-      where: { userId },
-      create: { userId, balance: parsed.data.amount },
-      update: { balance: { increment: parsed.data.amount } }
-    });
-    // 원장 기록(reason=ops_grant) — 포인트 내역에 '지급'으로 남는다.
-    await prisma.aiPointLog.create({ data: { userId, amount: parsed.data.amount, reason: parsed.data.reason || "ops_grant" } }).catch(() => {});
-    return res.json({ ok: true, balance: wallet.balance });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
-// GET /ops/ai-wallets/:userId/logs — 사용자별 포인트 내역(적립 양수 · 소모 음수).
-app.get("/ops/ai-wallets/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
-  const userId = typeof req.params.userId === "string" ? req.params.userId : "";
-  try {
-    const rows = await prisma.aiPointLog.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: { id: true, amount: true, reason: true, createdAt: true }
-    });
-    return res.json({ ok: true, items: rows.map((r) => ({ id: r.id, amount: r.amount, reason: r.reason, createdAt: r.createdAt.toISOString() })) });
-  } catch (error) {
-    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
-  }
-});
-
 // GET /ops/job-alerts/summary — 직무 알림(B2) 운영 현황: 스케줄러 설정 + 발송 집계 + 최근 발송.
 app.get("/ops/job-alerts/summary", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   try {
@@ -17461,6 +17399,22 @@ app.post("/ops/point-codes", authenticate, requireRoles([MemberRole.OPERATOR]), 
   }
 });
 
+// GET /ops/point-codes/:id/redemptions — 이 코드를 쓴 사람(최근 200명).
+app.get("/ops/point-codes/:id/redemptions", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const rows = await prisma.couponRedemption.findMany({
+      where: { couponId: String(req.params.id) },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { id: true, tickets: true, createdAt: true, user: { select: { id: true, email: true, name: true, realName: true } } }
+    });
+    return res.json({ ok: true, items: rows.map((r) => ({ id: r.id, points: r.tickets, createdAt: r.createdAt, userId: r.user.id, email: r.user.email, name: r.user.realName || r.user.name })) });
+  } catch (err) {
+    console.error("[ops/point-codes] redemptions failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
 // PATCH /ops/point-codes/:id — 사용 중지/재개(active), 메모 수정.
 app.patch("/ops/point-codes/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const body = z.object({ active: z.boolean().optional(), memo: z.string().trim().max(200).nullable().optional() }).safeParse(req.body);
@@ -17759,18 +17713,72 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
       where: batch ? { signupReferer: BULK_REF(batch) } : { signupReferer: { startsWith: "ops-bulk:" } },
       orderBy: { createdAt: "desc" },
       take: 1000,
-      select: { id: true, name: true, realName: true, email: true, affiliation: true, signupReferer: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
+      select: { id: true, name: true, realName: true, email: true, affiliation: true, nationality: true, signupReferer: true, passwordHash: true, talentPoolOptedOutAt: true, opsMatchStatus: true, opsMatchNote: true, opsMatchUpdatedAt: true, createdAt: true, resumes: { where: { isPrimary: true }, select: { id: true, content: true }, take: 1 }, _count: { select: { candidateConnectionsAsCandidate: true } }, studentSourceFiles: { select: { id: true, fileName: true, size: true }, orderBy: { createdAt: "asc" } } }
     });
     const items = users.map((u) => {
-      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[] } };
-      return { userId: u.id, name: u.realName || u.name, email: isPendingEmail(u.email) ? null : u.email, affiliation: u.affiliation, batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""), resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0, files: u.studentSourceFiles, createdAt: u.createdAt };
+      const c = (u.resumes[0]?.content ?? {}) as { renewalResume?: { items?: unknown[]; targetRole?: unknown } };
+      return {
+        userId: u.id,
+        name: u.realName || u.name,
+        email: isPendingEmail(u.email) ? null : u.email,
+        affiliation: u.affiliation,
+        nationality: u.nationality,
+        batch: (u.signupReferer ?? "").replace(/^ops-bulk:/, ""),
+        resumeItems: Array.isArray(c.renewalResume?.items) ? c.renewalResume!.items!.length : 0,
+        targetRole: typeof c.renewalResume?.targetRole === "string" ? c.renewalResume.targetRole : null,
+        // 학생이 비밀번호를 정해 직접 들어왔는지(일괄 등록 계정은 비밀번호 없이 만든다)
+        claimed: Boolean(u.passwordHash),
+        // 기업 인재 검색에 나오는지(대표 이력서가 있고 노출을 끄지 않았을 때)
+        inPool: Boolean(u.resumes[0]) && !u.talentPoolOptedOutAt,
+        // 매칭 상태는 운영팀이 정한다(오프라인 연결 포함). 기업 연결 요청 수는 참고용.
+        matchStatus: u.opsMatchStatus,
+        matchNote: u.opsMatchNote,
+        matchUpdatedAt: u.opsMatchUpdatedAt,
+        connections: u._count.candidateConnectionsAsCandidate,
+        files: u.studentSourceFiles,
+        createdAt: u.createdAt
+      };
     });
-    const counts = new Map<string, number>();
-    for (const it of items) counts.set(it.batch, (counts.get(it.batch) ?? 0) + 1);
-    return res.json({ ok: true, items, batches: [...counts].map(([b2, count]) => ({ batch: b2, count })) });
+    // 묶음별 요약 — 사람 수·이력서 채워진 수·원본 있는 수·직접 들어온 수·인재 검색 노출 수
+    const groups = new Map<string, { batch: string; count: number; withResume: number; withFiles: number; claimed: number; inPool: number; matched: number; matching: number; affiliations: Set<string>; firstAt: Date; lastAt: Date }>();
+    for (const it of items) {
+      const g = groups.get(it.batch) ?? { batch: it.batch, count: 0, withResume: 0, withFiles: 0, claimed: 0, inPool: 0, matched: 0, matching: 0, affiliations: new Set<string>(), firstAt: it.createdAt, lastAt: it.createdAt };
+      if (it.matchStatus === "MATCHED") g.matched += 1;
+      else if (it.matchStatus === "IN_PROGRESS") g.matching += 1;
+      g.count += 1;
+      if (it.resumeItems) g.withResume += 1;
+      if (it.files.length) g.withFiles += 1;
+      if (it.claimed) g.claimed += 1;
+      if (it.inPool) g.inPool += 1;
+      if (it.affiliation) g.affiliations.add(it.affiliation);
+      if (it.createdAt < g.firstAt) g.firstAt = it.createdAt;
+      if (it.createdAt > g.lastAt) g.lastAt = it.createdAt;
+      groups.set(it.batch, g);
+    }
+    const batches = [...groups.values()].sort((x, y) => y.lastAt.getTime() - x.lastAt.getTime()).map(({ affiliations, ...g }) => ({ ...g, affiliations: [...affiliations] }));
+    return res.json({ ok: true, items, batches });
   } catch (err) {
     console.error("[ops/bulk-students] list failed", err);
     return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// PATCH /ops/bulk-students/:userId/match { status, note } — 운영팀이 정하는 매칭 상태(매칭 안 됨·매칭 중·매칭 완료)와 메모.
+const opsMatchSchema = z.object({ status: z.enum(["NONE", "IN_PROGRESS", "MATCHED"]), note: z.string().trim().max(300).nullable().optional() });
+app.patch("/ops/bulk-students/:userId/match", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsMatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  try {
+    const u = await prisma.user.update({
+      where: { id: String(req.params.userId) },
+      data: { opsMatchStatus: parsed.data.status, ...(parsed.data.note !== undefined ? { opsMatchNote: parsed.data.note || null } : {}), opsMatchUpdatedAt: new Date() },
+      select: { opsMatchStatus: true, opsMatchNote: true, opsMatchUpdatedAt: true }
+    });
+    console.info(`[ops/bulk-students] match user=${req.params.userId} status=${u.opsMatchStatus} by=${req.auth!.userId}`);
+    return res.json({ ok: true, matchStatus: u.opsMatchStatus, matchNote: u.opsMatchNote, matchUpdatedAt: u.opsMatchUpdatedAt });
+  } catch (err) {
+    console.error("[ops/bulk-students] match failed", err);
+    return res.status(404).json({ ok: false, message: "학생을 찾지 못했어요." });
   }
 });
 
@@ -28555,20 +28563,51 @@ app.post("/ops/interview-credits/:userId/grant", authenticate, requireRoles([Mem
     return res.status(500).json({ ok: false, message: "failed to grant" });
   }
 });
+// GET /ops/payment-orders?status=&provider=&q=&all=1 — 결제 주문(최근 200건) + 매출 요약(KST 오늘·이번 달, 환불 뺀 금액).
 app.get("/ops/payment-orders", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   try {
     // 결제 대기(READY)는 결제창만 열고 안 낸 것 — 기본은 빼고, ?all=1 이면 모두.
     const all = req.query.all === "1";
-    const orders = await prisma.paymentOrder.findMany({
-      where: all ? {} : { status: { not: "READY" } },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-      select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, paymentKey: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
-    });
-    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true } });
+    const status = typeof req.query.status === "string" && ["DONE", "CANCELED", "PARTIAL_CANCELED", "FAILED", "READY"].includes(req.query.status) ? req.query.status : "";
+    const provider = req.query.provider === "payapp" || req.query.provider === "toss" ? req.query.provider : "";
+    const q = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 80) : "";
+    const matchedUsers = q ? await prisma.user.findMany({ where: { OR: [{ email: { contains: q, mode: "insensitive" } }, { name: { contains: q, mode: "insensitive" } }, { realName: { contains: q, mode: "insensitive" } }] }, select: { id: true }, take: 200 }) : [];
+    const where: Prisma.PaymentOrderWhereInput = {
+      ...(status ? { status } : all ? {} : { status: { not: "READY" } }),
+      ...(provider ? { provider } : {}),
+      ...(q ? { OR: [{ id: { contains: q } }, { paymentKey: { contains: q } }, { userId: { in: matchedUsers.map((u) => u.id) } }] } : {})
+    };
+    // KST 자정 기준 오늘·이번 달 시작
+    const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const dayStart = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate()) - 9 * 60 * 60 * 1000);
+    const monthStart = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), 1) - 9 * 60 * 60 * 1000);
+    const paid = { status: { in: ["DONE", "PARTIAL_CANCELED", "CANCELED"] } };
+    const [orders, today, month, refundsMonth] = await Promise.all([
+      prisma.paymentOrder.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: { id: true, userId: true, productKey: true, orderName: true, amount: true, credits: true, status: true, provider: true, paymentKey: true, method: true, approvedAt: true, failReason: true, canceledAt: true, canceledAmount: true, cancelReason: true, createdAt: true }
+      }),
+      prisma.paymentOrder.aggregate({ where: { ...paid, approvedAt: { gte: dayStart } }, _sum: { amount: true, canceledAmount: true }, _count: { _all: true } }),
+      prisma.paymentOrder.aggregate({ where: { ...paid, approvedAt: { gte: monthStart } }, _sum: { amount: true, canceledAmount: true }, _count: { _all: true } }),
+      prisma.paymentOrder.aggregate({ where: { canceledAt: { gte: monthStart } }, _sum: { canceledAmount: true }, _count: { _all: true } })
+    ]);
+    const users = await prisma.user.findMany({ where: { id: { in: [...new Set(orders.map((o) => o.userId))] } }, select: { id: true, email: true, name: true, realName: true } });
     const byId = new Map(users.map((u) => [u.id, u]));
-    const items = orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.name ?? null }));
-    return res.json({ ok: true, pointsEnabled: aiPointsOn(), items });
+    const items = orders.map(({ productKey, ...o }) => ({ ...o, kind: isPointsOrder({ productKey }) ? "points" : "interview", email: byId.get(o.userId)?.email ?? null, name: byId.get(o.userId)?.realName || byId.get(o.userId)?.name || null }));
+    const net = (a: { _sum: { amount: number | null; canceledAmount: number | null } }) => (a._sum.amount ?? 0) - (a._sum.canceledAmount ?? 0);
+    return res.json({
+      ok: true,
+      pointsEnabled: aiPointsOn(),
+      provider: paymentProvider(),
+      summary: {
+        today: { net: net(today), count: today._count._all },
+        month: { net: net(month), count: month._count._all },
+        refundsMonth: { amount: refundsMonth._sum.canceledAmount ?? 0, count: refundsMonth._count._all }
+      },
+      items
+    });
   } catch (err) {
     console.error("[ops/payment-orders] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load orders" });
@@ -28767,23 +28806,75 @@ app.get("/ops/interview-credits/:userId/logs", authenticate, requireRoles([Membe
 });
 
 // 운영자: AI 포인트 지갑 목록(검색) · 내역 · 지급/회수(보상·테스트). 지급도 원장(AiPointLog, reason=ops_grant)에 남긴다.
+// GET /ops/ai-wallets?q=&sort=recent|balance — 학생 포인트 지갑(최근 가입순 또는 잔액 많은 순, 100명).
 app.get("/ops/ai-wallets", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   try {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    const users = await prisma.user.findMany({
-      where: { role: MemberRole.STUDENT, ...(q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }] } : {}) },
-      select: { id: true, email: true, name: true, aiWallet: { select: { balance: true, updatedAt: true } }, interviewWallet: { select: { credits: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 50
-    });
+    const byBalance = req.query.sort === "balance";
+    const search = q ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { name: { contains: q, mode: "insensitive" as const } }, { realName: { contains: q, mode: "insensitive" as const } }] } : {};
+    const select = { id: true, email: true, name: true, realName: true, createdAt: true, aiWallet: { select: { balance: true, updatedAt: true } }, interviewWallet: { select: { credits: true } } } as const;
+    const users = byBalance
+      ? (await prisma.aiWallet.findMany({ where: { user: { role: MemberRole.STUDENT, ...search } }, orderBy: { balance: "desc" }, take: 100, select: { user: { select } } })).map((w) => w.user)
+      : await prisma.user.findMany({ where: { role: MemberRole.STUDENT, ...search }, select, orderBy: { createdAt: "desc" }, take: 100 });
     return res.json({
       ok: true,
       enabled: aiPointsOn(),
-      items: users.map((u) => ({ userId: u.id, email: u.email, name: u.name, balance: u.aiWallet?.balance ?? null, interviewCredits: u.interviewWallet?.credits ?? null, updatedAt: u.aiWallet?.updatedAt ?? null }))
+      items: users.map((u) => ({ userId: u.id, email: u.email, name: u.realName || u.name, balance: u.aiWallet?.balance ?? null, interviewCredits: u.interviewWallet?.credits ?? null, updatedAt: u.aiWallet?.updatedAt ?? null, joinedAt: u.createdAt }))
     });
   } catch (err) {
     console.error("[ops ai-wallets] failed", err);
     return res.status(500).json({ ok: false, message: "failed to load wallets" });
+  }
+});
+
+// GET /ops/ai-points/summary?days=7|30 — 포인트 흐름 한눈에: 남은 포인트 총합, 기간 안 충전·무료 적립·사용, 기능별 사용, 날짜별 추이(KST).
+const FREE_POINT_REASONS = ["welcome", "daily", "coupon", "ops_grant", "interview_credit_convert"];
+app.get("/ops/ai-points/summary", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const days = req.query.days === "30" ? 30 : 7;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const [outstanding, wallets, byReason, users, daily] = await Promise.all([
+      prisma.aiWallet.aggregate({ _sum: { balance: true } }),
+      prisma.aiWallet.count({ where: { balance: { gt: 0 } } }),
+      prisma.aiPointLog.groupBy({ by: ["reason"], where: { createdAt: { gte: since } }, _sum: { amount: true }, _count: { _all: true } }),
+      prisma.aiPointLog.findMany({ where: { createdAt: { gte: since }, amount: { lt: 0 }, reason: { notIn: ["ops_grant", "refund"] } }, distinct: ["userId"], select: { userId: true } }),
+      prisma.$queryRaw<Array<{ day: string; used: bigint; purchased: bigint }>>`
+        SELECT to_char(("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD') AS day,
+               COALESCE(SUM(CASE WHEN amount < 0 AND reason NOT IN ('ops_grant', 'refund') THEN -amount ELSE 0 END), 0) AS used,
+               COALESCE(SUM(CASE WHEN reason = 'purchase' THEN amount ELSE 0 END), 0) AS purchased
+        FROM "AiPointLog" WHERE "createdAt" >= ${since}
+        GROUP BY 1 ORDER BY 1`
+    ]);
+    let used = 0;
+    let purchased = 0;
+    let free = 0;
+    const features: { feature: string; points: number; count: number }[] = [];
+    for (const r of byReason) {
+      const sum = r._sum.amount ?? 0;
+      if (r.reason === "purchase") purchased += sum;
+      else if (sum > 0 && FREE_POINT_REASONS.includes(r.reason)) free += sum;
+      else if (sum < 0 && r.reason !== "ops_grant" && r.reason !== "refund") {
+        used += -sum;
+        features.push({ feature: r.reason, points: -sum, count: r._count._all });
+      }
+    }
+    features.sort((x, y) => y.points - x.points);
+    return res.json({
+      ok: true,
+      enabled: aiPointsOn(),
+      days,
+      outstanding: outstanding._sum.balance ?? 0,
+      walletsWithBalance: wallets,
+      used,
+      purchased,
+      free,
+      activeUsers: users.length,
+      features: features.slice(0, 12),
+      daily: daily.map((d) => ({ day: d.day, used: Number(d.used), purchased: Number(d.purchased) }))
+    });
+  } catch (err) {
+    console.error("[ops ai-points summary] failed", err);
+    return res.status(500).json({ ok: false, message: "failed to load summary" });
   }
 });
 app.get("/ops/ai-points/:userId/logs", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {

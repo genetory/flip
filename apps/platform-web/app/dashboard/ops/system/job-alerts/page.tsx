@@ -52,10 +52,10 @@ export default function OpsJobAlertsPage() {
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <div className="ops-page">
-      <header className="ops-page-head">
-        <h1 className="ops-page-title">직무 알림</h1>
-        <p className="ops-page-desc">공고 오픈 시 지원자에게 발송되는 직무 알림(B2)의 스케줄러 상태와 발송 현황이에요.</p>
+    <section className="ops-content-section">
+      <header>
+        <h1>직무 알림</h1>
+        <p>공고 오픈 시 지원자에게 발송되는 직무 알림(B2)의 스케줄러 상태와 발송 현황이에요.</p>
       </header>
 
       {error ? <p style={{ color: "var(--danger)", fontWeight: 600, marginTop: 16 }}>{error}</p> : null}
@@ -119,6 +119,6 @@ export default function OpsJobAlertsPage() {
           </p>
         </div>
       )}
-    </div>
+    </section>
   );
 }
