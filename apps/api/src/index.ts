@@ -17763,6 +17763,69 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
   }
 });
 
+// ── 묶음 옮기기(스테이징 → 프로덕션 등) ─────────────────────
+// GET /ops/bulk-students/export?batch= — 그 묶음의 계정·이력서·원본 파일 기록·AI 요약 캐시를 파일 하나로.
+// 원본 파일(블롭)은 두 환경이 같은 저장소를 써서 기록만 옮기면 된다. 개인정보가 들어 있어 운영자만, 받은 파일은 옮긴 뒤 지운다.
+app.get("/ops/bulk-students/export", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  try {
+    const batch = String(req.query.batch ?? "").trim();
+    if (!batch) return res.status(400).json({ ok: false, message: "묶음 이름이 필요해요." });
+    const users = await prisma.user.findMany({ where: { signupReferer: BULK_REF(batch) } });
+    const ids = users.map((u) => u.id);
+    const [resumes, files, summaries] = await Promise.all([
+      prisma.resume.findMany({ where: { userId: { in: ids } } }),
+      prisma.studentSourceFile.findMany({ where: { userId: { in: ids } } }),
+      prisma.applicantDocSummary.findMany({ where: { candidateUserId: { in: ids } } })
+    ]);
+    console.info(`[ops/bulk-students] export batch=${batch} users=${users.length} by=${req.auth!.userId}`);
+    return res.json({ ok: true, kind: "aply-bulk-students", version: 1, batch, exportedAt: new Date().toISOString(), users, resumes, files, summaries });
+  } catch (err) {
+    console.error("[ops/bulk-students] export failed", err);
+    return res.status(500).json({ ok: false, message: "내보내지 못했어요." });
+  }
+});
+
+// POST /ops/bulk-students/import — 내보낸 파일을 그대로. 같은 계정(id·이메일)이 이미 있으면 그 학생은 건너뛴다(덮어쓰지 않음).
+app.post("/ops/bulk-students/import", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const b = (req.body ?? {}) as { kind?: string; users?: Record<string, unknown>[]; resumes?: Record<string, unknown>[]; files?: Record<string, unknown>[]; summaries?: Record<string, unknown>[] };
+  if (b.kind !== "aply-bulk-students" || !Array.isArray(b.users)) return res.status(400).json({ ok: false, message: "학생 묶음 내보내기 파일이 아니에요." });
+  try {
+    // 일괄 등록 계정만 받는다(다른 계정을 끼워 넣지 못하게) — 운영자·파트너 권한도 학생으로 고정.
+    const users = b.users.filter((u) => typeof u.id === "string" && typeof u.email === "string" && String(u.signupReferer ?? "").startsWith("ops-bulk:"));
+    const ids = users.map((u) => String(u.id));
+    const clash = await prisma.user.findMany({ where: { OR: [{ id: { in: ids } }, { email: { in: users.map((u) => String(u.email)) } }] }, select: { id: true, email: true } });
+    const taken = new Set([...clash.map((c) => c.id), ...users.filter((u) => clash.some((c) => c.email === u.email)).map((u) => String(u.id))]);
+    const fresh = users.filter((u) => !taken.has(String(u.id)));
+    const freshIds = new Set(fresh.map((u) => String(u.id)));
+    const pick = <T extends Record<string, unknown>>(rows: T[] | undefined, key: string) => (rows ?? []).filter((r) => freshIds.has(String(r[key])));
+    // 공유 주소(shareSlug)가 이 환경에서 이미 쓰이면 새로 만든다(기본값 cuid).
+    const pickedResumes = pick(b.resumes, "userId");
+    const usedSlugs = new Set((await prisma.resume.findMany({ where: { shareSlug: { in: pickedResumes.map((r) => String(r.shareSlug ?? "")) } }, select: { shareSlug: true } })).map((r) => r.shareSlug));
+    const resumes = pickedResumes.map((r) => {
+      if (!usedSlugs.has(String(r.shareSlug ?? ""))) return r;
+      const { shareSlug: _drop, ...rest } = r;
+      void _drop;
+      return rest;
+    });
+    const files = pick(b.files, "userId");
+    const summaries = pick(b.summaries, "candidateUserId");
+    await prisma.$transaction(
+      async (tx) => {
+        if (fresh.length) await tx.user.createMany({ data: fresh.map((u) => ({ ...u, role: MemberRole.STUDENT })) as never });
+        if (resumes.length) await tx.resume.createMany({ data: resumes as never });
+        if (files.length) await tx.studentSourceFile.createMany({ data: files.map((f) => ({ ...f, createdByUserId: req.auth!.userId })) as never });
+        if (summaries.length) await tx.applicantDocSummary.createMany({ data: summaries as never, skipDuplicates: true });
+      },
+      { timeout: 60_000 }
+    );
+    console.info(`[ops/bulk-students] import users=${fresh.length} skipped=${users.length - fresh.length} resumes=${resumes.length} files=${files.length} by=${req.auth!.userId}`);
+    return res.json({ ok: true, imported: fresh.length, skipped: users.length - fresh.length, resumes: resumes.length, files: files.length, summaries: summaries.length });
+  } catch (err) {
+    console.error("[ops/bulk-students] import failed", err);
+    return res.status(500).json({ ok: false, message: "가져오지 못했어요. 파일이 이 환경의 형식과 맞지 않을 수 있어요." });
+  }
+});
+
 // PATCH /ops/bulk-students/:userId/match { status, note } — 운영팀이 정하는 매칭 상태(매칭 안 됨·매칭 중·매칭 완료)와 메모.
 const opsMatchSchema = z.object({ status: z.enum(["NONE", "IN_PROGRESS", "MATCHED"]), note: z.string().trim().max(300).nullable().optional() });
 app.patch("/ops/bulk-students/:userId/match", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
