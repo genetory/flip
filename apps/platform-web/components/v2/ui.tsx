@@ -106,7 +106,9 @@ export function Button({
   size?: "md" | "sm";
   full?: boolean;
 }) {
-  const sizeCls = size === "md" ? "h-12 rounded-xl px-5 text-[16px]" : "h-9 rounded-lg px-3.5 text-[14px]";
+  // 좌우 여백을 위아래보다 넉넉히 — 정사각형에 가깝게 뭉치지 않고 버튼 모양(가로로 긴 모양)으로 보이게.
+  // 칸을 꽉 채우는 버튼(full)은 폭이 정해져 있어 예전 여백 그대로 — 320px 화면 두 칸 버튼에서 글자가 넘치지 않게.
+  const sizeCls = size === "md" ? `h-12 rounded-xl text-[16px] ${full ? "px-5" : "px-7"}` : `h-9 rounded-lg text-[14px] ${full ? "px-3.5" : "px-5"}`;
   const variantCls =
     variant === "primary"
       ? "bg-[color:var(--v2-accent)] text-white hover:opacity-90"

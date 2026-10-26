@@ -181,8 +181,8 @@ export function BasicInterviewSession({ focus, embedded = false, onClose }: { fo
                 </span>
                 <p className="mt-2 break-keep text-[16px] font-bold leading-[1.5] text-[color:var(--v2-ink)]">{questions[idx]}</p>
                 <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={() => setSheetOpen(true)} className="rounded-2xl bg-[color:var(--v2-accent)] px-5 py-2.5 text-[14px] font-bold text-white transition hover:opacity-90">{t("이어서 답하기", "Continue", "继续作答", "Tiếp tục", "続けて答える", "Lanjutkan")}</button>
-                  <button type="button" onClick={finish} className="rounded-2xl bg-white px-5 py-2.5 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("결과 보기", "See results", "查看结果", "Xem kết quả", "結果を見る", "Lihat hasil")}</button>
+                  <button type="button" onClick={() => setSheetOpen(true)} className="rounded-2xl bg-[color:var(--v2-accent)] px-7 py-2.5 text-[14px] font-bold text-white transition hover:opacity-90">{t("이어서 답하기", "Continue", "继续作答", "Tiếp tục", "続けて答える", "Lanjutkan")}</button>
+                  <button type="button" onClick={finish} className="rounded-2xl bg-white px-7 py-2.5 text-[14px] font-bold text-[color:var(--v2-ink-3)] transition hover:bg-[color:var(--v2-line)]">{t("결과 보기", "See results", "查看结果", "Xem kết quả", "結果を見る", "Lihat hasil")}</button>
                 </div>
               </div>
               {sheetOpen ? (
