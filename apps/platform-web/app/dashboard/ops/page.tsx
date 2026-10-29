@@ -415,7 +415,7 @@ export default function OpsDashboardHome() {
             </article>
           ) : null}
 
-          {/* 청소 — 이메일 미인증 7일+ */}
+          {/* 청소 — 이메일 미인증 30일+ */}
           {staleUnverified ? (
             <article className="ops-partner-list-card">
               <div className="ops-partner-list-top">
