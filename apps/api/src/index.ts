@@ -17835,6 +17835,93 @@ app.get("/ops/growth/overview", authenticate, requireRoles([MemberRole.OPERATOR]
   }
 });
 
+// GET /ops/growth/retention — 리텐션. 방문 기록은 로그인 토큰 발급(RefreshToken.createdAt)으로 본다 —
+// 로그인한 채 사이트를 열 때마다 토큰이 새로 발급되고, 지난 기록은 지우지 않는다(계정 정지 때만 지움). 날짜는 KST.
+app.get("/ops/growth/retention", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const reach = Prisma.sql`u."role" = 'STUDENT' AND u."isActive" AND u."suspendedAt" IS NULL AND u."email" NOT LIKE '%@bulk.aply.global'
+      AND (u."signupReferer" IS NULL OR u."signupReferer" NOT LIKE 'ops-bulk:%' OR u."passwordHash" IS NOT NULL)`;
+    const kst = (col: Prisma.Sql) => Prisma.sql`((${col} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul')::date`;
+    const today = Prisma.sql`(now() AT TIME ZONE 'Asia/Seoul')::date`;
+    const [daily, active, rolling, cohorts, freq] = await Promise.all([
+      // 최근 30일 날짜별 접속 학생 수
+      prisma.$queryRaw<Array<{ d: string; n: number }>>`
+        SELECT to_char(${kst(Prisma.sql`t."createdAt"`)}, 'YYYY-MM-DD') AS d, count(DISTINCT t."userId")::int AS n
+        FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+        WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30
+        GROUP BY 1 ORDER BY 1`,
+      // 오늘·7일·30일 안에 접속한 학생 수
+      prisma.$queryRaw<Array<{ dau: number; wau: number; mau: number }>>`
+        SELECT count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} = ${today})::int AS dau,
+               count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 7)::int AS wau,
+               count(DISTINCT t."userId")::int AS mau
+        FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+        WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30`,
+      // N일이 지나서 한 번이라도 다시 들어온 비율(가입 후 N일 이상 지난 최근 180일 가입자 기준)
+      prisma.$queryRaw<Array<{ n: number; eligible: number; returned: number }>>`
+        WITH s AS (SELECT u."id", ${kst(Prisma.sql`u."createdAt"`)} AS sd FROM "User" u WHERE ${reach} AND u."createdAt" > now() - interval '180 days'),
+        k AS (SELECT unnest(ARRAY[1, 7, 30]) AS n)
+        SELECT k.n,
+               count(*) FILTER (WHERE s.sd <= ${today} - k.n)::int AS eligible,
+               count(*) FILTER (WHERE s.sd <= ${today} - k.n AND EXISTS (
+                 SELECT 1 FROM "RefreshToken" t WHERE t."userId" = s."id" AND ${kst(Prisma.sql`t."createdAt"`)} >= s.sd + k.n))::int AS returned
+        FROM k CROSS JOIN s GROUP BY k.n ORDER BY k.n`,
+      // 가입 주(월요일 시작) 코호트 × 그 뒤 몇 주째에 들어왔는지 — 최근 8주
+      prisma.$queryRaw<Array<{ week: string; size: number; w: number; n: number }>>`
+        WITH s AS (
+          SELECT u."id", date_trunc('week', ${kst(Prisma.sql`u."createdAt"`)})::date AS cw
+          FROM "User" u WHERE ${reach} AND ${kst(Prisma.sql`u."createdAt"`)} >= date_trunc('week', ${today})::date - 49
+        ),
+        sz AS (SELECT cw, count(*)::int AS size FROM s GROUP BY cw),
+        act AS (
+          SELECT DISTINCT s."id", s.cw, ((date_trunc('week', ${kst(Prisma.sql`t."createdAt"`)})::date - s.cw) / 7)::int AS w
+          FROM s JOIN "RefreshToken" t ON t."userId" = s."id"
+        )
+        SELECT to_char(sz.cw, 'YYYY-MM-DD') AS week, sz.size, a.w, count(DISTINCT a."id")::int AS n
+        FROM sz LEFT JOIN act a ON a.cw = sz.cw AND a.w BETWEEN 0 AND 7
+        GROUP BY sz.cw, sz.size, a.w ORDER BY sz.cw, a.w`,
+      // 최근 30일 동안 며칠 들어왔는지(들어온 학생 기준)
+      prisma.$queryRaw<Array<{ bucket: string; n: number }>>`
+        WITH d AS (
+          SELECT t."userId", count(DISTINCT ${kst(Prisma.sql`t."createdAt"`)}) AS days
+          FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+          WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30 GROUP BY t."userId"
+        )
+        SELECT CASE WHEN days = 1 THEN '1' WHEN days <= 3 THEN '2-3' WHEN days <= 7 THEN '4-7' WHEN days <= 14 THEN '8-14' ELSE '15+' END AS bucket, count(*)::int AS n
+        FROM d GROUP BY 1`
+    ]);
+    // 코호트 표 — 주마다 [0주차..7주차] 비율, 아직 오지 않은 주는 null
+    const thisWeek = new Date();
+    const byWeek = new Map<string, { week: string; size: number; weeks: (number | null)[] }>();
+    for (const r of cohorts) {
+      const row = byWeek.get(r.week) ?? { week: r.week, size: r.size, weeks: Array.from({ length: 8 }, () => 0 as number | null) };
+      if (r.w !== null && r.w >= 0 && r.w <= 7) row.weeks[r.w] = r.n;
+      byWeek.set(r.week, row);
+    }
+    const cohortRows = [...byWeek.values()].map((row) => {
+      const start = new Date(`${row.week}T00:00:00+09:00`);
+      const elapsed = Math.floor((thisWeek.getTime() - start.getTime()) / (7 * 86_400_000));
+      return { ...row, weeks: row.weeks.map((n, i) => (i > elapsed ? null : n)) };
+    });
+    const order = ["1", "2-3", "4-7", "8-14", "15+"];
+    return res.json({
+      ok: true,
+      active: active[0] ?? { dau: 0, wau: 0, mau: 0 },
+      // 비는 날도 0 으로 채운 최근 30일(KST) — 화면 막대 간격을 맞춘다
+      daily: Array.from({ length: 30 }, (_, i) => {
+        const d = new Date(Date.now() + 9 * 3600e3 - (29 - i) * 864e5).toISOString().slice(0, 10);
+        return { d, n: daily.find((x) => x.d === d)?.n ?? 0 };
+      }),
+      rolling: rolling.map((r) => ({ day: r.n, eligible: r.eligible, returned: r.returned })),
+      cohorts: cohortRows,
+      frequency: order.map((b) => ({ bucket: b, n: freq.find((f) => f.bucket === b)?.n ?? 0 }))
+    });
+  } catch (err) {
+    console.error("[ops/growth] retention failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
 // GET /ops/growth/segments/:key — 그 묶음 학생 미리보기(최근 가입순 50명).
 app.get("/ops/growth/segments/:key", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
   const key = String(req.params.key) as GrowthSegment;
