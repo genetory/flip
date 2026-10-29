@@ -21,6 +21,16 @@ type Retention = {
   cohorts: { week: string; size: number; weeks: (number | null)[] }[];
   frequency: { bucket: string; n: number }[];
 };
+type Review = {
+  headline: string;
+  score: number;
+  grade: "좋음" | "보통" | "주의" | "위험";
+  strengths: string[];
+  problems: { title: string; evidence: string }[];
+  actions: { priority: number; title: string; why: string; how: string; segment: SegmentKey | "none"; metric: string; effort: "작음" | "보통" | "큼" }[];
+  watch: string[];
+  caveats: string[];
+};
 type Member = { userId: string; email: string; name: string | null; nationality: string | null; joinedAt: string; emailOn: boolean; balance: number | null; lastSeenDaysAgo: number | null; resumes: number };
 
 // 묶음마다 — 무엇을 하려는지, 보낼 말의 기본값. 링크는 학생 화면 주소.
@@ -41,6 +51,21 @@ export default function OpsGrowthPage() {
   const [error, setError] = useState("");
   const [members, setMembers] = useState<{ key: SegmentKey; items: Member[] | null } | null>(null);
   const [sending, setSending] = useState<SegmentKey | null>(null);
+  // AI 진단 — 버튼을 눌렀을 때만 부른다(자동으로 가져오지 않음)
+  const [review, setReview] = useState<{ review: Review; generatedAt: string; model: string } | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewErr, setReviewErr] = useState("");
+  const askReview = async () => {
+    setReviewing(true);
+    setReviewErr("");
+    try {
+      setReview(await api.call<{ review: Review; generatedAt: string; model: string }>("/ops/growth/ai-review", { method: "POST", body: {} }));
+    } catch (e) {
+      setReviewErr(e instanceof Error ? e.message : "AI 진단을 받지 못했어요.");
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -78,12 +103,24 @@ export default function OpsGrowthPage() {
         title="그로스"
         desc="학생이 가입 → 이력서 → AI 사용 → 다시 방문으로 이어지게 키워요. 막힌 단계의 학생 묶음을 골라 알림을 보내고, 몇 명이 다시 들어왔는지 확인해요."
         right={
-          <button type="button" className="ops-btn" style={{ height: 36, padding: "0 14px" }} onClick={() => void load()}>
-            새로고침
-          </button>
+          <>
+            <button type="button" className="ops-btn" style={{ height: 36, padding: "0 14px" }} onClick={() => void load()}>
+              새로고침
+            </button>
+            <button type="button" className="ops-btn ops-btn-primary" style={{ height: 36, padding: "0 16px" }} onClick={() => void askReview()} disabled={reviewing}>
+              {reviewing ? "AI가 분석하는 중…" : review ? "AI 진단 다시 받기" : "AI 진단 받기"}
+            </button>
+          </>
         }
       />
       {error ? <p className="ops-form-error">{error}</p> : null}
+      {reviewErr ? <p className="ops-form-error">{reviewErr}</p> : null}
+      {reviewing && !review ? (
+        <section style={{ ...card, marginBottom: 24 }}>
+          <p style={{ margin: 0, fontSize: 13, color: "var(--ink-soft)" }}>지금 지표(가입·접속·리텐션·묶음·캠페인·결제·AI 사용)를 모아 AI가 진단하고 있어요. 20초쯤 걸려요.</p>
+        </section>
+      ) : null}
+      {review ? <ReviewCard data={review} onSend={(k) => setSending(k)} /> : null}
 
       <KpiGrid
         items={[
@@ -466,5 +503,98 @@ function RetentionSection({ ret }: { ret: Retention | null }) {
         )}
       </section>
     </>
+  );
+}
+
+// ── AI 진단 결과 ─────────────────────────────────────────
+const GRADE_TONE: Record<Review["grade"], string> = { 좋음: "ops-pill ops-pill-green", 보통: "ops-pill ops-pill-blue", 주의: "ops-pill ops-pill-amber", 위험: "ops-pill ops-pill-red" };
+
+function ReviewCard({ data, onSend }: { data: { review: Review; generatedAt: string; model: string }; onSend: (k: SegmentKey) => void }) {
+  const r = data.review;
+  const actions = [...r.actions].sort((a, b) => a.priority - b.priority);
+  const list = (items: string[]) => (
+    <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6, fontSize: 13, lineHeight: 1.6, color: "var(--ink-soft)" }}>
+      {items.map((x, i) => (
+        <li key={i}>{x}</li>
+      ))}
+    </ul>
+  );
+  return (
+    <section style={{ ...card, marginBottom: 28, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: "none", width: 84, height: 84, borderRadius: 18, background: "var(--accent-soft)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 28, fontWeight: 800, color: "var(--accent-ink)", fontVariantNumeric: "tabular-nums" }}>{r.score}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-ink)" }}>/ 100</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span className={GRADE_TONE[r.grade] ?? "ops-pill ops-pill-gray"}>{r.grade}</span>
+            <span style={{ fontSize: 11.5, color: "var(--ink-faint)" }}>AI 진단 · {dt(data.generatedAt)}</span>
+          </div>
+          <p style={{ margin: "8px 0 0", fontSize: 17, fontWeight: 800, lineHeight: 1.45, color: "var(--ink)" }}>{r.headline}</p>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+        <div>
+          <h3 className="ops-section-title">잘 되고 있는 점</h3>
+          {r.strengths.length ? list(r.strengths) : <p className="ops-row-sub">-</p>}
+        </div>
+        <div>
+          <h3 className="ops-section-title">가장 큰 문제</h3>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+            {r.problems.map((p, i) => (
+              <li key={i} style={{ borderRadius: 12, background: "var(--danger-soft)", padding: "10px 12px" }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{p.title}</p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, lineHeight: 1.55, color: "var(--ink-soft)" }}>{p.evidence}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="ops-section-title">이번 주 할 일</h3>
+        <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
+          {actions.map((a) => (
+            <li key={a.priority + a.title} style={{ border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", display: "flex", gap: 12 }}>
+              <span style={{ flex: "none", width: 26, height: 26, borderRadius: 999, background: "var(--accent)", color: "#fff", fontSize: 13, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{a.priority}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>{a.title}</p>
+                  <span className="ops-pill ops-pill-gray">노력 {a.effort}</span>
+                </div>
+                <p style={{ margin: "6px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--ink-soft)" }}>
+                  <b style={{ color: "var(--ink)" }}>왜</b> · {a.why}
+                </p>
+                <p style={{ margin: "4px 0 0", fontSize: 12.5, lineHeight: 1.6, color: "var(--ink-soft)" }}>
+                  <b style={{ color: "var(--ink)" }}>어떻게</b> · {a.how}
+                </p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, lineHeight: 1.6, color: "var(--ink-faint)" }}>확인할 지표 · {a.metric}</p>
+              </div>
+              {a.segment !== "none" && SEGMENT[a.segment] ? (
+                <button type="button" className="ops-btn ops-btn-primary" style={{ flex: "none", alignSelf: "center", height: 34, padding: "0 14px" }} onClick={() => onSend(a.segment as SegmentKey)} title={`'${SEGMENT[a.segment].title}' 묶음에 알림 보내기`}>
+                  {SEGMENT[a.segment].title}에 보내기
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+        <div>
+          <h3 className="ops-section-title">다음 주에 볼 지표</h3>
+          {list(r.watch)}
+        </div>
+        {r.caveats.length ? (
+          <div>
+            <h3 className="ops-section-title">해석할 때 주의</h3>
+            {list(r.caveats)}
+          </div>
+        ) : null}
+      </div>
+      <p style={{ margin: 0, fontSize: 11.5, color: "var(--ink-faint)" }}>AI가 위 지표만 보고 쓴 제안이에요. 실행 전에 숫자를 한 번 확인해 주세요. 진단 결과는 저장되지 않아요(새로 고치면 사라져요).</p>
+    </section>
   );
 }

@@ -17799,36 +17799,39 @@ function growthSegmentWhere(key: GrowthSegment): Prisma.UserWhereInput {
 }
 
 // GET /ops/growth/overview — 성장 지표 · 묶음별 인원 · 최근 보낸 캠페인과 다시 들어온 수.
+async function growthOverviewData() {
+  const today = aiKstDayIndex();
+  const base = growthReachable();
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
+  const [students, new7, newPrev7, active1, active7, withResume, usedAi, segmentCounts, campaigns] = await Promise.all([
+    prisma.user.count({ where: base }),
+    prisma.user.count({ where: { AND: [base, { createdAt: { gte: weekAgo } }] } }),
+    prisma.user.count({ where: { AND: [base, { createdAt: { gte: twoWeeksAgo, lt: weekAgo } }] } }),
+    prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today } } }] } }),
+    prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today - 6 } } }] } }),
+    prisma.user.count({ where: { AND: [base, { resumes: { some: {} } }] } }),
+    prisma.user.count({ where: { AND: [base, { aiUsages: { some: {} } }] } }),
+    Promise.all(GROWTH_SEGMENTS.map((k) => prisma.user.count({ where: growthSegmentWhere(k) }))),
+    prisma.growthCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
+  ]);
+  const withReturn = await Promise.all(
+    campaigns.map(async (c) => ({
+      ...c,
+      returned: await prisma.growthCampaignRecipient.count({ where: { campaignId: c.id, user: { aiWallet: { lastGrantDay: { gt: kstDayOf(c.createdAt) } } } } })
+    }))
+  );
+  return {
+    pointsEnabled: aiPointsOn(),
+    kpi: { students, new7, newPrev7, active1, active7, withResume, usedAi },
+    segments: GROWTH_SEGMENTS.map((key, i) => ({ key, count: segmentCounts[i] })),
+    campaigns: withReturn
+  };
+}
+
 app.get("/ops/growth/overview", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   try {
-    const today = aiKstDayIndex();
-    const base = growthReachable();
-    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
-    const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
-    const [students, new7, newPrev7, active1, active7, withResume, usedAi, segmentCounts, campaigns] = await Promise.all([
-      prisma.user.count({ where: base }),
-      prisma.user.count({ where: { AND: [base, { createdAt: { gte: weekAgo } }] } }),
-      prisma.user.count({ where: { AND: [base, { createdAt: { gte: twoWeeksAgo, lt: weekAgo } }] } }),
-      prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today } } }] } }),
-      prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today - 6 } } }] } }),
-      prisma.user.count({ where: { AND: [base, { resumes: { some: {} } }] } }),
-      prisma.user.count({ where: { AND: [base, { aiUsages: { some: {} } }] } }),
-      Promise.all(GROWTH_SEGMENTS.map((k) => prisma.user.count({ where: growthSegmentWhere(k) }))),
-      prisma.growthCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
-    ]);
-    const withReturn = await Promise.all(
-      campaigns.map(async (c) => ({
-        ...c,
-        returned: await prisma.growthCampaignRecipient.count({ where: { campaignId: c.id, user: { aiWallet: { lastGrantDay: { gt: kstDayOf(c.createdAt) } } } } })
-      }))
-    );
-    return res.json({
-      ok: true,
-      pointsEnabled: aiPointsOn(),
-      kpi: { students, new7, newPrev7, active1, active7, withResume, usedAi },
-      segments: GROWTH_SEGMENTS.map((key, i) => ({ key, count: segmentCounts[i] })),
-      campaigns: withReturn
-    });
+    return res.json({ ok: true, ...(await growthOverviewData()) });
   } catch (err) {
     console.error("[ops/growth] overview failed", err);
     return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
@@ -17837,88 +17840,173 @@ app.get("/ops/growth/overview", authenticate, requireRoles([MemberRole.OPERATOR]
 
 // GET /ops/growth/retention — 리텐션. 방문 기록은 로그인 토큰 발급(RefreshToken.createdAt)으로 본다 —
 // 로그인한 채 사이트를 열 때마다 토큰이 새로 발급되고, 지난 기록은 지우지 않는다(계정 정지 때만 지움). 날짜는 KST.
+async function growthRetentionData() {
+  const reach = Prisma.sql`u."role" = 'STUDENT' AND u."isActive" AND u."suspendedAt" IS NULL AND u."email" NOT LIKE '%@bulk.aply.global'
+    AND (u."signupReferer" IS NULL OR u."signupReferer" NOT LIKE 'ops-bulk:%' OR u."passwordHash" IS NOT NULL)`;
+  const kst = (col: Prisma.Sql) => Prisma.sql`((${col} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul')::date`;
+  const today = Prisma.sql`(now() AT TIME ZONE 'Asia/Seoul')::date`;
+  const [daily, active, rolling, cohorts, freq] = await Promise.all([
+    // 최근 30일 날짜별 접속 학생 수
+    prisma.$queryRaw<Array<{ d: string; n: number }>>`
+      SELECT to_char(${kst(Prisma.sql`t."createdAt"`)}, 'YYYY-MM-DD') AS d, count(DISTINCT t."userId")::int AS n
+      FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+      WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30
+      GROUP BY 1 ORDER BY 1`,
+    // 오늘·7일·30일 안에 접속한 학생 수
+    prisma.$queryRaw<Array<{ dau: number; wau: number; mau: number }>>`
+      SELECT count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} = ${today})::int AS dau,
+             count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 7)::int AS wau,
+             count(DISTINCT t."userId")::int AS mau
+      FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+      WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30`,
+    // N일이 지나서 한 번이라도 다시 들어온 비율(가입 후 N일 이상 지난 최근 180일 가입자 기준)
+    prisma.$queryRaw<Array<{ n: number; eligible: number; returned: number }>>`
+      WITH s AS (SELECT u."id", ${kst(Prisma.sql`u."createdAt"`)} AS sd FROM "User" u WHERE ${reach} AND u."createdAt" > now() - interval '180 days'),
+      k AS (SELECT unnest(ARRAY[1, 7, 30]) AS n)
+      SELECT k.n,
+             count(*) FILTER (WHERE s.sd <= ${today} - k.n)::int AS eligible,
+             count(*) FILTER (WHERE s.sd <= ${today} - k.n AND EXISTS (
+               SELECT 1 FROM "RefreshToken" t WHERE t."userId" = s."id" AND ${kst(Prisma.sql`t."createdAt"`)} >= s.sd + k.n))::int AS returned
+      FROM k CROSS JOIN s GROUP BY k.n ORDER BY k.n`,
+    // 가입 주(월요일 시작) 코호트 × 그 뒤 몇 주째에 들어왔는지 — 최근 8주
+    prisma.$queryRaw<Array<{ week: string; size: number; w: number; n: number }>>`
+      WITH s AS (
+        SELECT u."id", date_trunc('week', ${kst(Prisma.sql`u."createdAt"`)})::date AS cw
+        FROM "User" u WHERE ${reach} AND ${kst(Prisma.sql`u."createdAt"`)} >= date_trunc('week', ${today})::date - 49
+      ),
+      sz AS (SELECT cw, count(*)::int AS size FROM s GROUP BY cw),
+      act AS (
+        SELECT DISTINCT s."id", s.cw, ((date_trunc('week', ${kst(Prisma.sql`t."createdAt"`)})::date - s.cw) / 7)::int AS w
+        FROM s JOIN "RefreshToken" t ON t."userId" = s."id"
+      )
+      SELECT to_char(sz.cw, 'YYYY-MM-DD') AS week, sz.size, a.w, count(DISTINCT a."id")::int AS n
+      FROM sz LEFT JOIN act a ON a.cw = sz.cw AND a.w BETWEEN 0 AND 7
+      GROUP BY sz.cw, sz.size, a.w ORDER BY sz.cw, a.w`,
+    // 최근 30일 동안 며칠 들어왔는지(들어온 학생 기준)
+    prisma.$queryRaw<Array<{ bucket: string; n: number }>>`
+      WITH d AS (
+        SELECT t."userId", count(DISTINCT ${kst(Prisma.sql`t."createdAt"`)}) AS days
+        FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
+        WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30 GROUP BY t."userId"
+      )
+      SELECT CASE WHEN days = 1 THEN '1' WHEN days <= 3 THEN '2-3' WHEN days <= 7 THEN '4-7' WHEN days <= 14 THEN '8-14' ELSE '15+' END AS bucket, count(*)::int AS n
+      FROM d GROUP BY 1`
+  ]);
+  // 코호트 표 — 주마다 [0주차..7주차] 비율, 아직 오지 않은 주는 null
+  const thisWeek = new Date();
+  const byWeek = new Map<string, { week: string; size: number; weeks: (number | null)[] }>();
+  for (const r of cohorts) {
+    const row = byWeek.get(r.week) ?? { week: r.week, size: r.size, weeks: Array.from({ length: 8 }, () => 0 as number | null) };
+    if (r.w !== null && r.w >= 0 && r.w <= 7) row.weeks[r.w] = r.n;
+    byWeek.set(r.week, row);
+  }
+  const cohortRows = [...byWeek.values()].map((row) => {
+    const start = new Date(`${row.week}T00:00:00+09:00`);
+    const elapsed = Math.floor((thisWeek.getTime() - start.getTime()) / (7 * 86_400_000));
+    return { ...row, weeks: row.weeks.map((n, i) => (i > elapsed ? null : n)) };
+  });
+  const order = ["1", "2-3", "4-7", "8-14", "15+"];
+  return {
+    active: active[0] ?? { dau: 0, wau: 0, mau: 0 },
+    // 비는 날도 0 으로 채운 최근 30일(KST) — 화면 막대 간격을 맞춘다
+    daily: Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(Date.now() + 9 * 3600e3 - (29 - i) * 864e5).toISOString().slice(0, 10);
+      return { d, n: daily.find((x) => x.d === d)?.n ?? 0 };
+    }),
+    rolling: rolling.map((r) => ({ day: r.n, eligible: r.eligible, returned: r.returned })),
+    cohorts: cohortRows,
+    frequency: order.map((b) => ({ bucket: b, n: freq.find((f) => f.bucket === b)?.n ?? 0 }))
+  };
+}
+
 app.get("/ops/growth/retention", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
   try {
-    const reach = Prisma.sql`u."role" = 'STUDENT' AND u."isActive" AND u."suspendedAt" IS NULL AND u."email" NOT LIKE '%@bulk.aply.global'
-      AND (u."signupReferer" IS NULL OR u."signupReferer" NOT LIKE 'ops-bulk:%' OR u."passwordHash" IS NOT NULL)`;
-    const kst = (col: Prisma.Sql) => Prisma.sql`((${col} AT TIME ZONE 'UTC') AT TIME ZONE 'Asia/Seoul')::date`;
-    const today = Prisma.sql`(now() AT TIME ZONE 'Asia/Seoul')::date`;
-    const [daily, active, rolling, cohorts, freq] = await Promise.all([
-      // 최근 30일 날짜별 접속 학생 수
-      prisma.$queryRaw<Array<{ d: string; n: number }>>`
-        SELECT to_char(${kst(Prisma.sql`t."createdAt"`)}, 'YYYY-MM-DD') AS d, count(DISTINCT t."userId")::int AS n
-        FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
-        WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30
-        GROUP BY 1 ORDER BY 1`,
-      // 오늘·7일·30일 안에 접속한 학생 수
-      prisma.$queryRaw<Array<{ dau: number; wau: number; mau: number }>>`
-        SELECT count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} = ${today})::int AS dau,
-               count(DISTINCT t."userId") FILTER (WHERE ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 7)::int AS wau,
-               count(DISTINCT t."userId")::int AS mau
-        FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
-        WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30`,
-      // N일이 지나서 한 번이라도 다시 들어온 비율(가입 후 N일 이상 지난 최근 180일 가입자 기준)
-      prisma.$queryRaw<Array<{ n: number; eligible: number; returned: number }>>`
-        WITH s AS (SELECT u."id", ${kst(Prisma.sql`u."createdAt"`)} AS sd FROM "User" u WHERE ${reach} AND u."createdAt" > now() - interval '180 days'),
-        k AS (SELECT unnest(ARRAY[1, 7, 30]) AS n)
-        SELECT k.n,
-               count(*) FILTER (WHERE s.sd <= ${today} - k.n)::int AS eligible,
-               count(*) FILTER (WHERE s.sd <= ${today} - k.n AND EXISTS (
-                 SELECT 1 FROM "RefreshToken" t WHERE t."userId" = s."id" AND ${kst(Prisma.sql`t."createdAt"`)} >= s.sd + k.n))::int AS returned
-        FROM k CROSS JOIN s GROUP BY k.n ORDER BY k.n`,
-      // 가입 주(월요일 시작) 코호트 × 그 뒤 몇 주째에 들어왔는지 — 최근 8주
-      prisma.$queryRaw<Array<{ week: string; size: number; w: number; n: number }>>`
-        WITH s AS (
-          SELECT u."id", date_trunc('week', ${kst(Prisma.sql`u."createdAt"`)})::date AS cw
-          FROM "User" u WHERE ${reach} AND ${kst(Prisma.sql`u."createdAt"`)} >= date_trunc('week', ${today})::date - 49
-        ),
-        sz AS (SELECT cw, count(*)::int AS size FROM s GROUP BY cw),
-        act AS (
-          SELECT DISTINCT s."id", s.cw, ((date_trunc('week', ${kst(Prisma.sql`t."createdAt"`)})::date - s.cw) / 7)::int AS w
-          FROM s JOIN "RefreshToken" t ON t."userId" = s."id"
-        )
-        SELECT to_char(sz.cw, 'YYYY-MM-DD') AS week, sz.size, a.w, count(DISTINCT a."id")::int AS n
-        FROM sz LEFT JOIN act a ON a.cw = sz.cw AND a.w BETWEEN 0 AND 7
-        GROUP BY sz.cw, sz.size, a.w ORDER BY sz.cw, a.w`,
-      // 최근 30일 동안 며칠 들어왔는지(들어온 학생 기준)
-      prisma.$queryRaw<Array<{ bucket: string; n: number }>>`
-        WITH d AS (
-          SELECT t."userId", count(DISTINCT ${kst(Prisma.sql`t."createdAt"`)}) AS days
-          FROM "RefreshToken" t JOIN "User" u ON u."id" = t."userId"
-          WHERE ${reach} AND ${kst(Prisma.sql`t."createdAt"`)} > ${today} - 30 GROUP BY t."userId"
-        )
-        SELECT CASE WHEN days = 1 THEN '1' WHEN days <= 3 THEN '2-3' WHEN days <= 7 THEN '4-7' WHEN days <= 14 THEN '8-14' ELSE '15+' END AS bucket, count(*)::int AS n
-        FROM d GROUP BY 1`
-    ]);
-    // 코호트 표 — 주마다 [0주차..7주차] 비율, 아직 오지 않은 주는 null
-    const thisWeek = new Date();
-    const byWeek = new Map<string, { week: string; size: number; weeks: (number | null)[] }>();
-    for (const r of cohorts) {
-      const row = byWeek.get(r.week) ?? { week: r.week, size: r.size, weeks: Array.from({ length: 8 }, () => 0 as number | null) };
-      if (r.w !== null && r.w >= 0 && r.w <= 7) row.weeks[r.w] = r.n;
-      byWeek.set(r.week, row);
-    }
-    const cohortRows = [...byWeek.values()].map((row) => {
-      const start = new Date(`${row.week}T00:00:00+09:00`);
-      const elapsed = Math.floor((thisWeek.getTime() - start.getTime()) / (7 * 86_400_000));
-      return { ...row, weeks: row.weeks.map((n, i) => (i > elapsed ? null : n)) };
-    });
-    const order = ["1", "2-3", "4-7", "8-14", "15+"];
-    return res.json({
-      ok: true,
-      active: active[0] ?? { dau: 0, wau: 0, mau: 0 },
-      // 비는 날도 0 으로 채운 최근 30일(KST) — 화면 막대 간격을 맞춘다
-      daily: Array.from({ length: 30 }, (_, i) => {
-        const d = new Date(Date.now() + 9 * 3600e3 - (29 - i) * 864e5).toISOString().slice(0, 10);
-        return { d, n: daily.find((x) => x.d === d)?.n ?? 0 };
-      }),
-      rolling: rolling.map((r) => ({ day: r.n, eligible: r.eligible, returned: r.returned })),
-      cohorts: cohortRows,
-      frequency: order.map((b) => ({ bucket: b, n: freq.find((f) => f.bucket === b)?.n ?? 0 }))
-    });
+    return res.json({ ok: true, ...(await growthRetentionData()) });
   } catch (err) {
     console.error("[ops/growth] retention failed", err);
     return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// POST /ops/growth/ai-review — 운영자가 버튼을 눌렀을 때만. 그로스 지표를 모아 AI(상위 모델)에게 서비스 진단과 액션 아이템을 받는다.
+// 숫자는 화면과 같은 함수(growthOverviewData·growthRetentionData)에서 — AI 가 보는 숫자와 운영자가 보는 숫자가 같다.
+const GROWTH_REVIEW_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    headline: { type: "string", description: "지금 서비스 상태 한 줄 평가" },
+    score: { type: "integer", description: "그로스 건강 점수 0~100" },
+    grade: { type: "string", enum: ["좋음", "보통", "주의", "위험"] },
+    strengths: { type: "array", items: { type: "string" }, description: "잘 되고 있는 점(수치 근거 포함) 1~3개" },
+    problems: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, evidence: { type: "string", description: "근거 수치" } }, required: ["title", "evidence"] },
+      description: "가장 큰 문제 2~4개"
+    },
+    actions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          priority: { type: "integer", description: "1이 가장 먼저" },
+          title: { type: "string" },
+          why: { type: "string", description: "왜 — 근거 수치" },
+          how: { type: "string", description: "어떻게 — 이번 주에 할 구체적 실행" },
+          segment: { type: "string", enum: ["new_7d", "no_resume", "no_ai", "no_interview", "dormant_7d", "low_points", "none"], description: "그로스 화면에서 바로 알림을 보낼 묶음(해당 없으면 none)" },
+          metric: { type: "string", description: "효과를 확인할 지표" },
+          effort: { type: "string", enum: ["작음", "보통", "큼"] }
+        },
+        required: ["priority", "title", "why", "how", "segment", "metric", "effort"]
+      },
+      description: "액션 아이템 3~6개"
+    },
+    watch: { type: "array", items: { type: "string" }, description: "다음 주에 지켜볼 지표 2~4개" },
+    caveats: { type: "array", items: { type: "string" }, description: "데이터가 적거나 해석에 주의할 점(없으면 빈 배열)" }
+  },
+  required: ["headline", "score", "grade", "strengths", "problems", "actions", "watch", "caveats"]
+} as const;
+
+app.post("/ops/growth/ai-review", authenticate, requireRoles([MemberRole.OPERATOR]), rateLimit({ windowMs: 60_000, max: 3, keyPrefix: "growth-ai-review" }), async (req, res) => {
+  if (!llmReady) return res.status(503).json({ ok: false, message: "AI 를 쓸 수 없어요." });
+  try {
+    const monthAgo = new Date(Date.now() - 30 * 86_400_000);
+    const [overview, retention, payments, featureUse] = await Promise.all([
+      growthOverviewData(),
+      growthRetentionData(),
+      prisma.paymentOrder.aggregate({ where: { status: { in: ["DONE", "PARTIAL_CANCELED"] }, approvedAt: { gte: monthAgo } }, _count: { _all: true }, _sum: { amount: true } }),
+      prisma.aiPointLog.groupBy({ by: ["reason"], where: { createdAt: { gte: monthAgo }, amount: { lt: 0 }, reason: { notIn: ["ops_grant", "refund"] } }, _count: { _all: true } })
+    ]);
+    const facts = {
+      기준: "최근 데이터(KST). 학생 = 활성 학생 계정, 운영팀이 대신 만든 일괄 등록 계정 제외. 접속 = 로그인한 채 사이트를 연 날.",
+      학생: overview.kpi,
+      묶음별_인원: overview.segments,
+      보낸_캠페인: overview.campaigns.map((c) => ({ 날: c.createdAt, 묶음: c.segment, 제목: c.title, 보낸수: c.sentCount, 이메일: c.email, 포인트: c.points, 다음날이후_재방문: c.returned })),
+      접속: retention.active,
+      재방문율: retention.rolling.map((r) => ({ 가입후_일: r.day, 대상: r.eligible, 다시옴: r.returned })),
+      최근30일_날짜별_접속: retention.daily,
+      최근30일_방문일수_분포: retention.frequency,
+      가입주_코호트: retention.cohorts.map((c) => ({ 주: c.week, 가입: c.size, 주차별_재방문수: c.weeks })),
+      최근30일_결제: { 건수: payments._count._all, 금액: payments._sum.amount ?? 0 },
+      최근30일_AI기능_사용횟수: featureUse.map((f) => ({ 기능: f.reason, 횟수: f._count._all })).sort((a, b) => b.횟수 - a.횟수).slice(0, 10),
+      AI포인트_유료화: overview.pointsEnabled
+    };
+    const system = [
+      "너는 B2C 커리어 서비스의 그로스 리드다. 서비스는 'Aply(어플라이)' — 한국에서 첫 취업을 준비하는 외국인 유학생·구직자가 이력서·자소서를 AI 로 만들고, 모의 면접으로 연습하고, 공고에 지원하고, 기업이 인재 검색으로 먼저 연락하는 곳이다.",
+      "핵심 흐름: 가입 → 이력서 작성 → AI 기능 사용(점검·자소서·모의 면접) → 다시 방문 → 지원·기업 연결. AI 는 포인트로 쓰고(가입 200P, 매일 접속 +20P, 충전 결제).",
+      "운영자는 '그로스' 화면에서 학생 묶음(new_7d 가입 7일 이내 · no_resume 이력서 없음 · no_ai AI 안 써 봄 · no_interview 모의 면접 안 해 봄 · dormant_7d 7일 넘게 안 들어옴 · low_points 포인트 20P 미만)에 앱 알림·이메일·포인트를 보낼 수 있다.",
+      "규칙: 주어진 숫자만 근거로 말하고 지어내지 마라. 근거에는 실제 수치를 넣어라. 표본이 작으면(수십 명 이하) caveats 에 분명히 적고 단정하지 마라.",
+      "액션 아이템은 이번 주에 실행할 수 있게 구체적으로 — 누구에게(묶음), 무엇을(메시지·기능·화면 개선), 어떤 지표로 확인할지. 그로스 화면에서 보낼 수 있는 건 segment 를 지정해라. 우선순위는 효과 대비 노력이 큰 순.",
+      "학생에게 보낼 문구를 제안할 때 '무료'라는 말은 쓰지 마라(AI 는 유료화 중이다 — '포인트 없이', '선물' 등으로).",
+      "한국어, 운영팀이 바로 읽게 짧고 분명하게. 마케팅 상투어 금지."
+    ].join("\n");
+    const r = await claudeJson<Record<string, unknown>>({ model: qualityModel, effort: "medium", maxTokens: 12000, system, user: JSON.stringify(facts), schema: GROWTH_REVIEW_SCHEMA as unknown as Record<string, unknown> });
+    if (!r.data) return res.status(502).json({ ok: false, message: "AI 진단을 받지 못했어요. 잠시 후 다시 해 주세요." });
+    console.info(`[ops/growth] ai-review by=${req.auth!.userId} in=${r.usage?.inputTokens ?? 0} out=${r.usage?.outputTokens ?? 0}`);
+    return res.json({ ok: true, review: r.data, generatedAt: new Date().toISOString(), model: qualityModel });
+  } catch (err) {
+    console.error("[ops/growth] ai-review failed", err);
+    return res.status(500).json({ ok: false, message: "AI 진단을 받지 못했어요." });
   }
 });
 
