@@ -1,6 +1,7 @@
 // 아이콘은 Phosphor 로 통일. 기존 lucide 이름으로 alias 해 사용처는 그대로 둔다.
 import {
   Ticket,
+  TrendUp,
   Warning as AlertTriangle,
   ChartBar as BarChart3,
   Robot as Bot,
@@ -136,6 +137,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
   {
     title: "분석 & 소통",
     links: [
+      { label: "그로스", href: "/dashboard/ops/support/growth", icon: TrendUp },
       { label: "Talent 퍼널", href: "/dashboard/ops/support/talent-funnel", icon: Target },
       { label: "커넥션 트래킹", href: "/dashboard/ops/support/connections", icon: Handshake },
       { label: "유입 경로", href: "/dashboard/ops/support/inflow", icon: BarChart3 },

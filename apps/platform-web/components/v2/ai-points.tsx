@@ -27,6 +27,7 @@ export function pointReasonLabel(t: PlatformT, r: string): string {
     purchase: ["충전", "Top-up", "充值", "Nạp điểm", "チャージ", "Isi ulang"],
     refund: ["환불", "Refund", "退款", "Hoàn tiền", "返金", "Refund"],
     ops_grant: ["운영자 지급", "Granted", "运营发放", "Được tặng", "運営付与", "Diberikan"],
+    growth_bonus: ["이벤트 선물", "Gift", "活动赠送", "Quà tặng", "プレゼント", "Hadiah"],
     interview_credit_convert: ["면접 이용권 전환", "Passes converted", "使用券转换", "Đổi vé phỏng vấn", "チケット変換", "Konversi tiket"],
     import_resume: ["이력서 가져오기", "Resume import", "导入简历", "Nhập CV", "履歴書取り込み", "Impor CV"],
     import_cover_letter: ["자기소개서 가져오기", "Cover letter import", "导入自我介绍", "Nhập thư", "自己紹介書取り込み", "Impor surat"],
@@ -463,7 +464,7 @@ function PointsPaywallSheet({ onClose }: { onClose: () => void }) {
       </Link>
       <p className="mt-4 text-[12px] leading-[1.6] text-[color:var(--v2-faint)]">
         {pts?.daily.grant
-          ? t(`매일 +${formatPoints(pts.daily.grant)}씩 쌓여요(${formatPoints(pts.daily.cap)}까지). 오늘의 질문은 하루 1번 포인트 없이 답할 수 있어요.`, `You get +${formatPoints(pts.daily.grant)} daily (up to ${formatPoints(pts.daily.cap)}). Today's question can be answered once a day without points.`, `每天 +${formatPoints(pts.daily.grant)}（最多 ${formatPoints(pts.daily.cap)}）。今日问题每天可不扣积分回答 1 次。`, `Mỗi ngày +${formatPoints(pts.daily.grant)} (tối đa ${formatPoints(pts.daily.cap)}). Câu hỏi hôm nay trả lời 1 lần/ngày không tốn điểm.`, `毎日 +${formatPoints(pts.daily.grant)}（${formatPoints(pts.daily.cap)}まで）。今日の質問は1日1回ポイントなしで答えられます。`, `Setiap hari +${formatPoints(pts.daily.grant)} (maks ${formatPoints(pts.daily.cap)}). Pertanyaan hari ini sekali sehari tanpa poin.`)
+          ? t(`매일 접속하면 +${formatPoints(pts.daily.grant)}(${formatPoints(pts.daily.cap)}까지). 오늘의 질문은 하루 1번 포인트 없이 답할 수 있어요.`, `Visit each day for +${formatPoints(pts.daily.grant)} (up to ${formatPoints(pts.daily.cap)}). Today's question can be answered once a day without points.`, `每天登录 +${formatPoints(pts.daily.grant)}（最多 ${formatPoints(pts.daily.cap)}）。今日问题每天可不扣积分回答 1 次。`, `Vào mỗi ngày +${formatPoints(pts.daily.grant)} (tối đa ${formatPoints(pts.daily.cap)}). Câu hỏi hôm nay trả lời 1 lần/ngày không tốn điểm.`, `毎日アクセスで +${formatPoints(pts.daily.grant)}（${formatPoints(pts.daily.cap)}まで）。今日の質問は1日1回ポイントなしで答えられます。`, `Masuk tiap hari +${formatPoints(pts.daily.grant)} (maks ${formatPoints(pts.daily.cap)}). Pertanyaan hari ini sekali sehari tanpa poin.`)
           : null}
       </p>
     </Sheet>
