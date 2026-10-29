@@ -37307,6 +37307,7 @@ app.get(
 // >30 days ago and never verified their email. These are the spam/bot signups
 // the team's been seeing in the Discord webhook; they can never log in (the
 // /auth/login path enforces emailVerified) so deleting them is safe.
+// Operator accounts are always excluded.
 
 const STALE_UNVERIFIED_DAYS = 30;
 const STALE_UNVERIFIED_AGE_MS = STALE_UNVERIFIED_DAYS * 24 * 60 * 60 * 1000;
@@ -37319,7 +37320,8 @@ app.get(
     const threshold = new Date(Date.now() - STALE_UNVERIFIED_AGE_MS);
     const where: Prisma.UserWhereInput = {
       emailVerified: false,
-      createdAt: { lt: threshold }
+      createdAt: { lt: threshold },
+      role: { not: MemberRole.OPERATOR }
     };
     try {
       const [count, sample] = await Promise.all([
@@ -37370,7 +37372,8 @@ app.post(
       const result = await prisma.user.deleteMany({
         where: {
           emailVerified: false,
-          createdAt: { lt: threshold }
+          createdAt: { lt: threshold },
+          role: { not: MemberRole.OPERATOR }
         }
       });
       void writeAuditLog(req, {
