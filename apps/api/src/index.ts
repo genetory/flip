@@ -17089,9 +17089,9 @@ async function aiWalletReconcile(userId: string): Promise<number> {
       if (!wallet) throw new Error("ai wallet create failed");
     }
   } else if (wallet.lastGrantDay < today) {
-    // 날이 바뀌었으면 경과 일수만큼 적립(상한까지). 잔액이 이미 상한 이상이면 유지.
-    const days = today - wallet.lastGrantDay;
-    const next = Math.min(aiDailyCap(), wallet.balance + aiDailyGrant() * days);
+    // 날이 바뀌었으면 그날 하루치만 적립(상한까지) — 접속하지 않은 날은 쌓아 주지 않는다(매일 들어올 때만).
+    // 잔액이 이미 상한 이상이면 유지.
+    const next = Math.min(aiDailyCap(), wallet.balance + aiDailyGrant());
     const add = Math.max(0, next - wallet.balance); // 적립은 줄이지 않는다
     // lastGrantDay 조건부 갱신 — 동시 요청에도 하루치가 두 번 들어가지 않게.
     const moved = await prisma.aiWallet.updateMany({ where: { userId, lastGrantDay: wallet.lastGrantDay }, data: { lastGrantDay: today, ...(add > 0 ? { balance: { increment: add } } : {}) } });
