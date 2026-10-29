@@ -3161,7 +3161,7 @@ const apiDocEndpoints: ApiDocEndpoint[] = [
   { method: "get", path: "/ops/users", summary: "List all users", tag: "Ops Users", secure: true },
   { method: "patch", path: "/ops/users/:id/admin-memo", summary: "Update user admin memo", tag: "Ops Users", secure: true, requestBody: true },
   { method: "delete", path: "/ops/users/:id", summary: "Hard-delete user (super-admin only)", tag: "Ops Users", secure: true },
-  { method: "get", path: "/ops/stale-unverified", summary: "Count + sample of email-unverified users older than 7 days", tag: "Ops Users", secure: true },
+  { method: "get", path: "/ops/stale-unverified", summary: "Count + sample of email-unverified users older than 30 days", tag: "Ops Users", secure: true },
   { method: "post", path: "/ops/stale-unverified/wipe", summary: "Bulk-delete stale unverified users (require confirm=DELETE)", tag: "Ops Users", secure: true, requestBody: true },
 
   { method: "post", path: "/ops/matching/run", summary: "Run matching", tag: "Ops Matching", secure: true, requestBody: true },
@@ -37304,11 +37304,12 @@ app.get(
 );
 
 // Stale-unverified housekeeping — list + wipe for accounts that signed up
-// >7 days ago and never verified their email. These are the spam/bot signups
+// >30 days ago and never verified their email. These are the spam/bot signups
 // the team's been seeing in the Discord webhook; they can never log in (the
 // /auth/login path enforces emailVerified) so deleting them is safe.
 
-const STALE_UNVERIFIED_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const STALE_UNVERIFIED_DAYS = 30;
+const STALE_UNVERIFIED_AGE_MS = STALE_UNVERIFIED_DAYS * 24 * 60 * 60 * 1000;
 
 app.get(
   "/ops/stale-unverified",
@@ -37342,7 +37343,7 @@ app.get(
       return res.json({
         ok: true,
         count,
-        thresholdDays: 7,
+        thresholdDays: STALE_UNVERIFIED_DAYS,
         sample
       });
     } catch (error) {
@@ -37378,7 +37379,7 @@ app.post(
         resourceId: null,
         metadata: {
           deletedCount: result.count,
-          thresholdDays: 7,
+          thresholdDays: STALE_UNVERIFIED_DAYS,
           callerId: req.auth!.userId
         }
       });
