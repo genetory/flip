@@ -14,6 +14,13 @@ type Overview = {
   segments: { key: SegmentKey; count: number }[];
   campaigns: Campaign[];
 };
+type Retention = {
+  active: { dau: number; wau: number; mau: number };
+  daily: { d: string; n: number }[];
+  rolling: { day: number; eligible: number; returned: number }[];
+  cohorts: { week: string; size: number; weeks: (number | null)[] }[];
+  frequency: { bucket: string; n: number }[];
+};
 type Member = { userId: string; email: string; name: string | null; nationality: string | null; joinedAt: string; emailOn: boolean; balance: number | null; lastSeenDaysAgo: number | null; resumes: number };
 
 // 묶음마다 — 무엇을 하려는지, 보낼 말의 기본값. 링크는 학생 화면 주소.
@@ -30,6 +37,7 @@ const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "�
 export default function OpsGrowthPage() {
   const api = useOpsApi();
   const [data, setData] = useState<Overview | null>(null);
+  const [ret, setRet] = useState<Retention | null>(null);
   const [error, setError] = useState("");
   const [members, setMembers] = useState<{ key: SegmentKey; items: Member[] | null } | null>(null);
   const [sending, setSending] = useState<SegmentKey | null>(null);
@@ -37,7 +45,9 @@ export default function OpsGrowthPage() {
   const load = useCallback(async () => {
     try {
       setError("");
-      setData(await api.call<Overview>("/ops/growth/overview"));
+      const [o, r] = await Promise.all([api.call<Overview>("/ops/growth/overview"), api.call<Retention>("/ops/growth/retention").catch(() => null)]);
+      setData(o);
+      setRet(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : "불러오지 못했어요.");
     }
@@ -101,6 +111,8 @@ export default function OpsGrowthPage() {
           format={(n) => `${n.toLocaleString()}명`}
         />
       </section>
+
+      <RetentionSection ret={ret} />
 
       <h2 className="ops-section-title">키울 학생 묶음</h2>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12, marginBottom: 28 }}>
@@ -344,5 +356,115 @@ function SendModal({ segment, count, pointsEnabled, onClose, onSent }: { segment
         {err ? <p className="ops-form-error" style={{ margin: 0 }}>{err}</p> : null}
       </div>
     </Modal>
+  );
+}
+
+// ── 리텐션 ──────────────────────────────────────────────
+// 방문 = 로그인한 채 사이트를 연 날(로그인 기록 기준, KST). 가입한 날도 방문으로 친다.
+const FREQ_LABEL: Record<string, string> = { "1": "하루만", "2-3": "2~3일", "4-7": "4~7일", "8-14": "8~14일", "15+": "15일 이상" };
+
+function heat(p: number | null): string {
+  if (p === null) return "transparent";
+  // 진할수록 많이 돌아옴 — 파랑 투명도
+  const a = Math.max(0.06, Math.min(1, p / 100));
+  return `rgba(11, 70, 232, ${a.toFixed(2)})`;
+}
+
+function RetentionSection({ ret }: { ret: Retention | null }) {
+  const a = ret?.active;
+  const roll = (n: number) => ret?.rolling.find((r) => r.day === n);
+  const rate = (n: number) => {
+    const r = roll(n);
+    return r && r.eligible ? Math.round((r.returned / r.eligible) * 100) : null;
+  };
+  // 최근 30일 — 서버가 비는 날도 0 으로 채워 준다
+  const days = ret?.daily ?? [];
+  const max = Math.max(1, ...days.map((x) => x.n));
+  const totalFreq = (ret?.frequency ?? []).reduce((n, f) => n + f.n, 0);
+
+  return (
+    <>
+      <h2 className="ops-section-title">리텐션 · 다시 들어오나요</h2>
+      <KpiGrid
+        items={[
+          { label: "오늘 접속", value: a ? a.dau.toLocaleString() : "–", sub: "DAU", tone: "blue" },
+          { label: "7일 안에 접속", value: a ? a.wau.toLocaleString() : "–", sub: "WAU", tone: "blue" },
+          { label: "30일 안에 접속", value: a ? a.mau.toLocaleString() : "–", sub: "MAU", tone: "blue" },
+          { label: "고착도", value: a && a.mau ? `${Math.round((a.dau / a.mau) * 100)}%` : "–", sub: "오늘 접속 ÷ 30일 접속 (DAU/MAU)", tone: "amber" },
+          ...[1, 7, 30].map((n) => ({
+            label: `${n}일 뒤에도 다시 옴`,
+            value: rate(n) === null ? "–" : `${rate(n)}%`,
+            sub: roll(n) ? `${roll(n)!.returned.toLocaleString()} / ${roll(n)!.eligible.toLocaleString()}명 · 가입 ${n}일 지난 학생 중` : undefined,
+            tone: "green" as const
+          }))
+        ]}
+      />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 14 }}>
+        <section style={card}>
+          <h3 className="ops-section-title">최근 30일 날짜별 접속</h3>
+          {!ret ? (
+            <p className="ops-empty-card" style={{ padding: "24px 0" }}>불러오는 중…</p>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 120 }}>
+                {days.map((x) => (
+                  <div key={x.d} title={`${x.d} · ${x.n.toLocaleString()}명`} style={{ flex: 1, height: `${(x.n / max) * 100}%`, minHeight: x.n ? 2 : 0, borderRadius: 3, background: "var(--accent)" }} />
+                ))}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 11, color: "var(--ink-faint)" }}>
+                <span>{days[0].d.slice(5)}</span>
+                <span>가장 많은 날 {max.toLocaleString()}명</span>
+                <span>오늘</span>
+              </div>
+            </>
+          )}
+        </section>
+        <section style={card}>
+          <h3 className="ops-section-title">최근 30일 동안 며칠 들어왔나요</h3>
+          <BarList rows={(ret?.frequency ?? []).map((f) => ({ label: FREQ_LABEL[f.bucket] ?? f.bucket, value: f.n, sub: totalFreq ? `${Math.round((f.n / totalFreq) * 100)}%` : undefined }))} format={(n) => `${n.toLocaleString()}명`} />
+        </section>
+      </div>
+
+      <section style={{ ...card, marginBottom: 28 }}>
+        <h3 className="ops-section-title">가입 주별 리텐션(코호트)</h3>
+        <p style={{ margin: "-6px 0 12px", fontSize: 12, color: "var(--ink-faint)" }}>그 주에 가입한 학생 중 몇 %가 N주째에 다시 들어왔는지예요. 0주차는 가입한 주. 진할수록 많이 돌아왔어요.</p>
+        {!ret ? (
+          <p className="ops-empty-card" style={{ padding: "24px 0" }}>불러오는 중…</p>
+        ) : !ret.cohorts.length ? (
+          <p className="ops-empty-card" style={{ padding: "24px 0" }}>최근 8주 동안 가입한 학생이 없어요.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 3, fontSize: 12, minWidth: 640 }}>
+              <thead>
+                <tr style={{ color: "var(--ink-faint)" }}>
+                  <th style={{ textAlign: "left", fontWeight: 600, padding: "4px 6px" }}>가입 주</th>
+                  <th style={{ textAlign: "right", fontWeight: 600, padding: "4px 6px" }}>가입</th>
+                  {Array.from({ length: 8 }, (_, i) => (
+                    <th key={i} style={{ fontWeight: 600, padding: "4px 6px" }}>{i}주차</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ret.cohorts.map((c) => (
+                  <tr key={c.week}>
+                    <td style={{ padding: "6px", color: "var(--ink)", whiteSpace: "nowrap" }}>{c.week.slice(5).replace("-", "/")} 주</td>
+                    <td style={{ padding: "6px", textAlign: "right", color: "var(--ink-soft)", fontVariantNumeric: "tabular-nums" }}>{c.size.toLocaleString()}</td>
+                    {c.weeks.map((n, i) => {
+                      const p = n === null || !c.size ? null : Math.round((n / c.size) * 100);
+                      return (
+                        <td key={i} title={n === null ? "아직 안 옴" : `${n}명`} style={{ padding: "6px 4px", textAlign: "center", borderRadius: 6, background: heat(p), color: p !== null && p >= 55 ? "#fff" : "var(--ink)", fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>
+                          {p === null ? "" : `${p}%`}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
