@@ -17763,6 +17763,157 @@ app.get("/ops/bulk-students", authenticate, requireRoles([MemberRole.OPERATOR]),
   }
 });
 
+// ── 그로스 — 키울 학생 묶음(세그먼트) 찾기 · 알림 보내기 · 다시 들어왔는지 보기 ─────────────
+// '접속'은 포인트 지갑의 마지막 적립일(lastGrantDay, KST)로 본다 — 로그인해 화면을 열면 갱신된다.
+// 보낼 수 있는 학생만: 활성·정지 아님, 운영팀이 대신 만든 일괄 등록 계정(로그인 전)은 뺀다. 알림 수신을 끈 학생에게는 이메일이 가지 않는다.
+const GROWTH_SEGMENTS = ["new_7d", "no_resume", "no_ai", "no_interview", "dormant_7d", "low_points"] as const;
+type GrowthSegment = (typeof GROWTH_SEGMENTS)[number];
+const kstDayOf = (d: Date) => Math.floor((d.getTime() + 9 * 60 * 60 * 1000) / 86_400_000);
+function growthReachable(): Prisma.UserWhereInput {
+  return {
+    role: MemberRole.STUDENT,
+    isActive: true,
+    suspendedAt: null,
+    NOT: { email: { endsWith: "@bulk.aply.global" } },
+    OR: [{ signupReferer: null }, { NOT: { signupReferer: { startsWith: "ops-bulk:" } } }, { passwordHash: { not: null } }]
+  };
+}
+function growthSegmentWhere(key: GrowthSegment): Prisma.UserWhereInput {
+  const today = aiKstDayIndex();
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const base = growthReachable();
+  switch (key) {
+    case "new_7d":
+      return { AND: [base, { createdAt: { gte: weekAgo } }] };
+    case "no_resume":
+      return { AND: [base, { resumes: { none: {} } }] };
+    case "no_ai":
+      return { AND: [base, { resumes: { some: {} } }, { aiUsages: { none: {} } }] };
+    case "no_interview":
+      return { AND: [base, { resumes: { some: {} } }, { aiUsages: { none: { feature: "interview_feedback" } } }] };
+    case "dormant_7d":
+      return { AND: [base, { createdAt: { lt: weekAgo } }, { OR: [{ aiWallet: { is: null } }, { aiWallet: { lastGrantDay: { lt: today - 7 } } }] }] };
+    case "low_points":
+      return { AND: [base, { aiWallet: { balance: { lt: 20 } } }] };
+  }
+}
+
+// GET /ops/growth/overview — 성장 지표 · 묶음별 인원 · 최근 보낸 캠페인과 다시 들어온 수.
+app.get("/ops/growth/overview", authenticate, requireRoles([MemberRole.OPERATOR]), async (_req, res) => {
+  try {
+    const today = aiKstDayIndex();
+    const base = growthReachable();
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+    const twoWeeksAgo = new Date(Date.now() - 14 * 86_400_000);
+    const [students, new7, newPrev7, active1, active7, withResume, usedAi, segmentCounts, campaigns] = await Promise.all([
+      prisma.user.count({ where: base }),
+      prisma.user.count({ where: { AND: [base, { createdAt: { gte: weekAgo } }] } }),
+      prisma.user.count({ where: { AND: [base, { createdAt: { gte: twoWeeksAgo, lt: weekAgo } }] } }),
+      prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today } } }] } }),
+      prisma.user.count({ where: { AND: [base, { aiWallet: { lastGrantDay: { gte: today - 6 } } }] } }),
+      prisma.user.count({ where: { AND: [base, { resumes: { some: {} } }] } }),
+      prisma.user.count({ where: { AND: [base, { aiUsages: { some: {} } }] } }),
+      Promise.all(GROWTH_SEGMENTS.map((k) => prisma.user.count({ where: growthSegmentWhere(k) }))),
+      prisma.growthCampaign.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
+    ]);
+    const withReturn = await Promise.all(
+      campaigns.map(async (c) => ({
+        ...c,
+        returned: await prisma.growthCampaignRecipient.count({ where: { campaignId: c.id, user: { aiWallet: { lastGrantDay: { gt: kstDayOf(c.createdAt) } } } } })
+      }))
+    );
+    return res.json({
+      ok: true,
+      pointsEnabled: aiPointsOn(),
+      kpi: { students, new7, newPrev7, active1, active7, withResume, usedAi },
+      segments: GROWTH_SEGMENTS.map((key, i) => ({ key, count: segmentCounts[i] })),
+      campaigns: withReturn
+    });
+  } catch (err) {
+    console.error("[ops/growth] overview failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// GET /ops/growth/segments/:key — 그 묶음 학생 미리보기(최근 가입순 50명).
+app.get("/ops/growth/segments/:key", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const key = String(req.params.key) as GrowthSegment;
+  if (!GROWTH_SEGMENTS.includes(key)) return res.status(404).json({ ok: false, message: "없는 묶음이에요." });
+  try {
+    const rows = await prisma.user.findMany({
+      where: growthSegmentWhere(key),
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      select: { id: true, email: true, name: true, realName: true, nationality: true, createdAt: true, emailNotifications: true, aiWallet: { select: { balance: true, lastGrantDay: true } }, _count: { select: { resumes: true } } }
+    });
+    return res.json({
+      ok: true,
+      items: rows.map((u) => ({
+        userId: u.id,
+        email: u.email,
+        name: u.realName || u.name,
+        nationality: u.nationality,
+        joinedAt: u.createdAt,
+        emailOn: u.emailNotifications,
+        balance: u.aiWallet?.balance ?? null,
+        lastSeenDaysAgo: u.aiWallet ? aiKstDayIndex() - u.aiWallet.lastGrantDay : null,
+        resumes: u._count.resumes
+      }))
+    });
+  } catch (err) {
+    console.error("[ops/growth] segment failed", err);
+    return res.status(500).json({ ok: false, message: "불러오지 못했어요." });
+  }
+});
+
+// POST /ops/growth/campaigns — 묶음에 인앱 알림(+이메일, +포인트) 보내기. 한 번에 2,000명까지(이메일은 500명까지).
+const growthCampaignSchema = z.object({
+  segment: z.enum(GROWTH_SEGMENTS),
+  title: z.string().trim().min(2).max(60),
+  message: z.string().trim().min(2).max(300),
+  linkPath: z.string().trim().max(200).regex(/^\/[^\s]*$/).optional(),
+  email: z.boolean().optional(),
+  points: z.number().int().min(0).max(1000).optional()
+});
+app.post("/ops/growth/campaigns", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = growthCampaignSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "입력값을 확인해 주세요." });
+  const d = parsed.data;
+  try {
+    const limit = d.email ? 500 : 2000;
+    const targets = await prisma.user.findMany({ where: growthSegmentWhere(d.segment), orderBy: { createdAt: "desc" }, take: limit, select: { id: true } });
+    if (!targets.length) return res.status(400).json({ ok: false, message: "보낼 학생이 없어요." });
+    const points = d.points ?? 0;
+    const campaign = await prisma.growthCampaign.create({
+      data: { segment: d.segment, title: d.title, message: d.message, linkPath: d.linkPath ?? null, email: Boolean(d.email), points, sentCount: targets.length, createdByUserId: req.auth!.userId }
+    });
+    await prisma.growthCampaignRecipient.createMany({ data: targets.map((t) => ({ campaignId: campaign.id, userId: t.id })), skipDuplicates: true });
+    console.info(`[ops/growth] campaign=${campaign.id} segment=${d.segment} to=${targets.length} email=${Boolean(d.email)} points=${points} by=${req.auth!.userId}`);
+    // 보내기는 응답 뒤에 차례로 — 사람이 많아도 화면이 기다리지 않게.
+    void (async () => {
+      for (const t of targets) {
+        try {
+          if (points > 0) {
+            await aiWalletReconcile(t.id);
+            await prisma.$transaction([
+              prisma.aiWallet.update({ where: { userId: t.id }, data: { balance: { increment: points } } }),
+              prisma.aiPointLog.create({ data: { userId: t.id, amount: points, reason: "growth_bonus" } })
+            ]);
+          }
+          await createNotification({ userId: t.id, type: "GROWTH_CAMPAIGN", title: d.title, message: d.message, linkPath: d.linkPath ?? null, email: Boolean(d.email) });
+        } catch (e) {
+          console.error("[ops/growth] send one failed", t.id, e instanceof Error ? e.message : e);
+        }
+      }
+      console.info(`[ops/growth] campaign=${campaign.id} done`);
+    })();
+    return res.json({ ok: true, campaignId: campaign.id, sentCount: targets.length, capped: targets.length >= limit });
+  } catch (err) {
+    console.error("[ops/growth] campaign failed", err);
+    return res.status(500).json({ ok: false, message: "보내지 못했어요." });
+  }
+});
+
 // ── 묶음 옮기기(스테이징 → 프로덕션 등) ─────────────────────
 // GET /ops/bulk-students/export?batch= — 그 묶음의 계정·이력서·원본 파일 기록·AI 요약 캐시를 파일 하나로.
 // 원본 파일(블롭)은 두 환경이 같은 저장소를 써서 기록만 옮기면 된다. 개인정보가 들어 있어 운영자만, 받은 파일은 옮긴 뒤 지운다.

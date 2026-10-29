@@ -27,6 +27,7 @@ export function pointReasonLabel(t: PlatformT, r: string): string {
     purchase: ["충전", "Top-up", "充值", "Nạp điểm", "チャージ", "Isi ulang"],
     refund: ["환불", "Refund", "退款", "Hoàn tiền", "返金", "Refund"],
     ops_grant: ["운영자 지급", "Granted", "运营发放", "Được tặng", "運営付与", "Diberikan"],
+    growth_bonus: ["이벤트 선물", "Gift", "活动赠送", "Quà tặng", "プレゼント", "Hadiah"],
     interview_credit_convert: ["면접 이용권 전환", "Passes converted", "使用券转换", "Đổi vé phỏng vấn", "チケット変換", "Konversi tiket"],
     import_resume: ["이력서 가져오기", "Resume import", "导入简历", "Nhập CV", "履歴書取り込み", "Impor CV"],
     import_cover_letter: ["자기소개서 가져오기", "Cover letter import", "导入自我介绍", "Nhập thư", "自己紹介書取り込み", "Impor surat"],

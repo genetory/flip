@@ -50,6 +50,7 @@ const POINT_REASON: Record<string, string> = {
   purchase: "충전(결제)",
   refund: "환불 회수",
   ops_grant: "운영자 조정",
+  growth_bonus: "그로스 보너스",
   interview_credit_convert: "면접 이용권 전환",
   // 예전 모의 면접 이용권 원장
   free_trial: "가입 첫 1회",

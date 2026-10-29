@@ -134,6 +134,7 @@ model User {
   interviewQuestionReports             InterviewQuestionReport[]
   interviewAnswerExamples              InterviewAnswerExample[]
   applicantDocSummary                  ApplicantDocSummary?
+  growthCampaignRecipients             GrowthCampaignRecipient[]
 
   @@unique([email, authProvider])
   @@unique([authProvider, providerId])
@@ -2947,4 +2948,35 @@ model TalentEvent {
 
   @@index([talentUserId, createdAt])
   @@index([eventType, createdAt])
+}
+
+// 그로스 캠페인 — 운영자가 학생 묶음(세그먼트)에 보낸 인앱 알림·이메일(+선택: 포인트). 받은 사람별로 다시 들어왔는지 잰다.
+model GrowthCampaign {
+  id              String   @id @default(uuid())
+  segment         String // 보낸 묶음 키(no_resume, dormant_7d …)
+  title           String
+  message         String
+  linkPath        String?
+  email           Boolean  @default(false)
+  points          Int      @default(0) // 받은 사람마다 넣어 준 포인트(0 = 없음)
+  sentCount       Int      @default(0)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  recipients GrowthCampaignRecipient[]
+
+  @@index([createdAt])
+}
+
+model GrowthCampaignRecipient {
+  id         String   @id @default(uuid())
+  campaignId String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  campaign GrowthCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId])
 }
