@@ -65,7 +65,7 @@
 .premium-dark .pm-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .premium-dark .pm-aurora span { position: absolute; border-radius: 9999px; filter: blur(80px); will-change: transform; }
 .premium-dark .pm-aurora .a { width: 52vw; height: 52vw; max-width: 720px; max-height: 720px; right: -10%; top: -30%; background: rgba(100, 139, 255, 0.32); animation: pm-drift-a 16s ease-in-out infinite; }
-.premium-dark .pm-aurora .b { width: 36vw; height: 36vw; max-width: 520px; max-height: 520px; left: -12%; bottom: -25%; background: rgba(197, 168, 120, 0.16); animation: pm-drift-b 19s ease-in-out infinite; }
+.premium-dark .pm-aurora .b { width: 36vw; height: 36vw; max-width: 520px; max-height: 520px; right: 18%; top: -18%; background: rgba(197, 168, 120, 0.16); animation: pm-drift-b 19s ease-in-out infinite; }
 .premium-dark .pm-aurora .c { width: 28vw; height: 28vw; max-width: 420px; max-height: 420px; left: 35%; top: 20%; background: rgba(140, 100, 255, 0.14); animation: pm-drift-a 23s ease-in-out infinite reverse; }
 .premium-dark .pm-grid {
   position: absolute; inset: 0; pointer-events: none;
@@ -193,4 +193,10 @@
   .premium-dark .pm-shooting, .premium-dark .pm-confetti { display: none; }
   .premium-dark .pm-char { opacity: 1; animation: none; }
   .premium-dark .pm-rise, .premium-dark .pm-rise.is-on { transform: none; animation: none; }
+}
+
+/* 첫 화면 배경은 아래로 갈수록 사라지게 — 잘린 경계가 다음 구획에 보이지 않게 */
+.premium-dark .pm-fade-bottom {
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
 }

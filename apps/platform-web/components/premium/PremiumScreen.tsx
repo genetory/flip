@@ -305,7 +305,7 @@ export function PremiumScreen() {
   return (
     <div className="v2 premium-dark relative overflow-x-clip">
       {/* 첫 화면 뒤 오로라·격자 — 로고 줄까지 덮도록 맨 위에서 */}
-      <div aria-hidden className="pm-aurora bottom-auto h-[920px]">
+      <div aria-hidden className="pm-aurora pm-fade-bottom bottom-auto h-[920px]">
         <span className="a" />
         <span className="b" />
         <span className="c" />
@@ -700,7 +700,7 @@ function PlanCard({ plan, onApply, delay }: { plan: Plan; onApply: () => void; d
           <span aria-hidden className={`select-none text-[32px] font-bold tracking-[-0.02em] blur-[10px] ${gold ? "text-white/70" : "text-[color:var(--v2-ink)]/70"}`}>0,000,000</span>
           <span className={`pm-lock absolute inset-y-0 left-0 inline-flex items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold backdrop-blur-sm ${gold ? "border-[#C5A878]/40 bg-black/30 text-[#E8D3A8]" : "border-white/15 bg-black/30 text-white/85"}`}>
             <LockSimple size={14} weight="fill" />
-            {t("런칭 때 공개", "Revealed at launch")}
+            {t("신청자에게 먼저 안내", "Applicants hear first")}
           </span>
         </div>
         <ul className={`mt-6 flex-1 space-y-2.5 border-t pt-6 ${gold ? "border-white/10" : "border-[color:var(--v2-line)]"}`}>
