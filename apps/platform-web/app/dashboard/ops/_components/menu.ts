@@ -102,6 +102,7 @@ export const opsDashboardMenuGroups: MenuGroup[] = [
       { label: "비자 이벤트", href: "/dashboard/ops/operations/visa-leads", icon: Globe },
       { label: "SGC × Aply 일경험 이벤트", href: "/dashboard/ops/operations/sgc-applications", icon: Handshake },
       { label: "자소서 경험 발굴 캠페인", href: "/dashboard/ops/operations/experience-applications", icon: FileText },
+      { label: "APLY PREMIUM 얼리 액세스", href: "/dashboard/ops/operations/premium-early-access", icon: Star },
       { label: "한패스 × Aply 설문 이벤트", href: "/dashboard/ops/operations/hanpass-survey", icon: ClipboardList }
     ]
   },

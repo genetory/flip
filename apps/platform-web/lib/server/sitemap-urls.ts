@@ -21,6 +21,7 @@ export const STATIC_ENTRIES: SitemapEntry[] = [
   { path: "/talent/jobs", changefreq: "daily", priority: 0.9 },
   // /career-launch 는 공개 소개. /career-launch/start(로그인)는 noindex 라 넣지 않는다.
   { path: "/career-launch", changefreq: "weekly", priority: 0.8 },
+  { path: "/premium", changefreq: "weekly", priority: 0.7 },
   { path: "/tools/visa-job-fit", changefreq: "monthly", priority: 0.8 },
   // 자소서 경험 발굴 캠페인(무료 1:1 상담 신청) — 캠페인 기간 동안 공개.
   { path: "/events/experience", changefreq: "weekly", priority: 0.7 },

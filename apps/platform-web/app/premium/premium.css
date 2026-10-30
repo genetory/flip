@@ -1,0 +1,202 @@
+/* APLY PREMIUM(/premium) — v2 조각을 그대로 쓰되 색 변수만 어두운 쪽으로 바꾼다. 이 페이지에서만. */
+.v2.premium-dark {
+  --v2-bg: #090b12;
+  --v2-band: #121622;
+  --v2-fill: #0d1019;
+  --v2-ink: #f7f8fc;
+  --v2-ink-2: #e2e5ee;
+  --v2-ink-3: #b3b9c9;
+  --v2-muted: #949bae;
+  --v2-faint: #7a8195;
+  --v2-line: rgba(255, 255, 255, 0.1);
+  --v2-accent: #648bff;
+  --v2-accent-weak: rgba(100, 139, 255, 0.14);
+  --v2-attention: #ff7a85;
+  --v2-attention-weak: rgba(255, 122, 133, 0.12);
+  --v2-disabled: #596075;
+  --premium-elevated: #1a2030;
+  --premium-gold: #c5a878;
+  color-scheme: dark;
+}
+
+/* ── 움직임 — transform·opacity·background-position 만 움직여 가볍게. 움직임 줄이기 설정이면 전부 멈춘다. ── */
+@property --pm-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes pm-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-8%, 10%, 0) scale(1.15); }
+}
+@keyframes pm-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50% { transform: translate3d(10%, -6%, 0) scale(0.92); }
+}
+@keyframes pm-enter {
+  from { opacity: 0; transform: translateY(18px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes pm-sheen {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+@keyframes pm-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes pm-spin {
+  to { --pm-angle: 360deg; }
+}
+@keyframes pm-sweep {
+  0%, 60% { transform: translateX(-120%) skewX(-20deg); }
+  100% { transform: translateX(220%) skewX(-20deg); }
+}
+@keyframes pm-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(100, 139, 255, 0), 0 20px 60px -20px rgba(100, 139, 255, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(100, 139, 255, 0.08), 0 24px 70px -18px rgba(100, 139, 255, 0.55); }
+}
+@keyframes pm-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* 첫 화면 오로라 + 격자 */
+.premium-dark .pm-aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.premium-dark .pm-aurora span { position: absolute; border-radius: 9999px; filter: blur(80px); will-change: transform; }
+.premium-dark .pm-aurora .a { width: 52vw; height: 52vw; max-width: 720px; max-height: 720px; right: -10%; top: -30%; background: rgba(100, 139, 255, 0.32); animation: pm-drift-a 16s ease-in-out infinite; }
+.premium-dark .pm-aurora .b { width: 36vw; height: 36vw; max-width: 520px; max-height: 520px; right: 18%; top: -18%; background: rgba(197, 168, 120, 0.16); animation: pm-drift-b 19s ease-in-out infinite; }
+.premium-dark .pm-aurora .c { width: 28vw; height: 28vw; max-width: 420px; max-height: 420px; left: 35%; top: 20%; background: rgba(140, 100, 255, 0.14); animation: pm-drift-a 23s ease-in-out infinite reverse; }
+.premium-dark .pm-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(70% 60% at 60% 30%, #000 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(70% 60% at 60% 30%, #000 0%, transparent 75%);
+}
+
+/* 처음 보일 때 차례로 떠오르기(지연은 style 로) */
+.premium-dark .pm-enter { opacity: 0; animation: pm-enter 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+
+/* 반짝이며 지나가는 글자(골드 → 흰색) */
+.premium-dark .pm-sheen {
+  background: linear-gradient(100deg, #f7f8fc 35%, #e8d3a8 48%, #c5a878 52%, #f7f8fc 65%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: pm-sheen 5.5s ease-in-out infinite;
+}
+
+/* 흐르는 키워드 띠 */
+.premium-dark .pm-marquee { display: flex; width: max-content; animation: pm-marquee 38s linear infinite; }
+.premium-dark .pm-marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+/* GUARANTEE — 테두리를 도는 골드 빛 */
+.premium-dark .pm-gold-ring {
+  position: relative; border-radius: 1.5rem; padding: 1px;
+  background: conic-gradient(from var(--pm-angle), rgba(197, 168, 120, 0.15), #c5a878 12%, rgba(197, 168, 120, 0.15) 28%, rgba(197, 168, 120, 0.15) 60%, #e8d3a8 72%, rgba(197, 168, 120, 0.15) 85%);
+  animation: pm-spin 6s linear infinite;
+}
+/* PRO — 은은하게 숨 쉬는 파란 빛 */
+.premium-dark .pm-glow { animation: pm-glow 3.6s ease-in-out infinite; }
+
+/* 카드 위 마우스를 따라오는 빛(--x, --y 는 JS 가 넣는다) */
+.premium-dark .pm-spot { position: relative; isolation: isolate; }
+.premium-dark .pm-spot::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 0; transition: opacity 0.3s;
+  background: radial-gradient(380px circle at var(--x, 50%) var(--y, 50%), rgba(100, 139, 255, 0.14), transparent 60%);
+}
+.premium-dark .pm-spot:hover::before { opacity: 1; }
+.premium-dark .pm-spot-gold::before { background: radial-gradient(380px circle at var(--x, 50%) var(--y, 50%), rgba(197, 168, 120, 0.16), transparent 60%); }
+
+/* 주 버튼 위로 지나가는 빛 */
+.premium-dark .pm-shine { position: relative; display: inline-flex; overflow: hidden; border-radius: 0.75rem; }
+.premium-dark .pm-shine::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: pm-sweep 3.8s ease-in-out infinite;
+}
+.premium-dark .pm-float { animation: pm-float 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-dark .pm-aurora span, .premium-dark .pm-sheen, .premium-dark .pm-marquee, .premium-dark .pm-gold-ring,
+  .premium-dark .pm-glow, .premium-dark .pm-shine::after, .premium-dark .pm-float { animation: none; }
+  .premium-dark .pm-enter { opacity: 1; animation: none; }
+}
+
+/* ── 2차: 별·유성·궤도·글자 등장·기울기·축하 조각 ── */
+@keyframes pm-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@keyframes pm-shoot {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-24deg) scaleX(0.2); }
+  6% { opacity: 1; }
+  18% { opacity: 0; transform: translate3d(-520px, 230px, 0) rotate(-24deg) scaleX(1); }
+  100% { opacity: 0; transform: translate3d(-520px, 230px, 0) rotate(-24deg) scaleX(1); }
+}
+@keyframes pm-orbit { to { transform: rotate(360deg); } }
+@keyframes pm-char {
+  from { opacity: 0; transform: translateY(0.6em) rotate(8deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes pm-rise { from { transform: translateY(110%); } to { transform: none; } }
+@keyframes pm-confetti {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot)); }
+}
+@keyframes pm-ring-pop {
+  0% { opacity: 0.7; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+@keyframes pm-lock-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.premium-dark .pm-star { position: absolute; border-radius: 9999px; background: #fff; animation: pm-twinkle var(--d, 4s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.premium-dark .pm-shooting {
+  position: absolute; height: 2px; width: 180px; border-radius: 9999px; transform-origin: right center;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.9));
+  box-shadow: 0 0 12px rgba(143, 170, 255, 0.8);
+  opacity: 0; animation: pm-shoot 9s ease-out infinite;
+}
+.premium-dark .pm-orbit { position: absolute; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.08); animation: pm-orbit var(--d, 30s) linear infinite; }
+.premium-dark .pm-orbit > i { position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 9999px; }
+
+.premium-dark .pm-char { display: inline-block; opacity: 0; animation: pm-char 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+.premium-dark .pm-rise-mask { display: block; overflow: hidden; padding-bottom: 0.08em; }
+.premium-dark .pm-rise { display: block; transform: translateY(110%); }
+.premium-dark .pm-rise.is-on { animation: pm-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+
+/* 위에 붙는 스크롤 진행 막대 */
+.premium-dark .pm-progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 60; transform-origin: left; background: linear-gradient(90deg, #648bff, #a98bff, #c5a878); }
+
+/* 신청 폼 — 테두리를 도는 파란 빛 */
+.premium-dark .pm-blue-ring {
+  border-radius: 1.5rem; padding: 1px;
+  background: conic-gradient(from var(--pm-angle), rgba(100, 139, 255, 0.08), #648bff 10%, rgba(100, 139, 255, 0.08) 25%, rgba(100, 139, 255, 0.08) 55%, #c5a878 66%, rgba(100, 139, 255, 0.08) 80%);
+  animation: pm-spin 8s linear infinite;
+}
+
+.premium-dark .pm-confetti { position: absolute; left: 50%; top: 40px; width: 8px; height: 12px; border-radius: 2px; animation: pm-confetti 1.6s cubic-bezier(0.15, 0.6, 0.3, 1) forwards; }
+.premium-dark .pm-ring-pop { position: absolute; inset: 0; border-radius: 9999px; border: 2px solid #648bff; animation: pm-ring-pop 1.4s ease-out infinite; }
+.premium-dark .pm-lock { animation: pm-lock-pulse 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-dark .pm-star, .premium-dark .pm-shooting, .premium-dark .pm-orbit, .premium-dark .pm-blue-ring,
+  .premium-dark .pm-ring-pop, .premium-dark .pm-lock, .premium-dark .pm-confetti { animation: none; }
+  .premium-dark .pm-shooting, .premium-dark .pm-confetti { display: none; }
+  .premium-dark .pm-char { opacity: 1; animation: none; }
+  .premium-dark .pm-rise, .premium-dark .pm-rise.is-on { transform: none; animation: none; }
+}
+
+/* 첫 화면 배경은 아래로 갈수록 사라지게 — 잘린 경계가 다음 구획에 보이지 않게 */
+.premium-dark .pm-fade-bottom {
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+}
