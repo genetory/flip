@@ -1,7 +1,8 @@
 "use client";
 
 // APLY PREMIUM 얼리 액세스(/premium) — 한 장으로 스크롤하는 소개 + 신청 폼.
-// 글꼴·버튼·색은 aply.global(v2 흰 바탕 토스 스타일)을 그대로 쓰고, 첫 화면과 GUARANTEE 카드만 어두운 바탕에 골드를 아주 조금.
+// 글꼴·버튼 모양은 aply.global(v2) 그대로, 색만 어두운 바탕(app/premium/premium.css 의 변수). 상단 메뉴·광고 없음.
+// 골드는 GUARANTEE 와 작은 머리글에만.
 // 결제는 없다 — 신청만 받고, 런칭 소식은 신청한 이메일로 보낸다. 가격·인턴십 범위는 '예정'으로만 말한다.
 // 저장에 실패하면 완료 화면을 보여 주지 않는다(서버가 201 을 줄 때만 완료).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -19,7 +20,9 @@ import {
   PencilSimpleLine,
   UsersThree
 } from "@phosphor-icons/react";
-import { V2Shell } from "../v2/V2Shell";
+import Image from "next/image";
+import { AplyFooter } from "../AplyFooter";
+import { LanguageSwitcher } from "../i18n/LanguageSwitcher";
 import { Button, Spinner } from "../v2/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useAuthSession } from "../auth/AuthSessionProvider";
@@ -37,7 +40,7 @@ import {
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const GOLD = "#C5A878";
-const NIGHT = "#0D1220";
+const NIGHT = "#121622";
 
 type Plan = {
   code: "START" | "PRO" | "GUARANTEE";
@@ -143,14 +146,13 @@ const FAQS: { q: L; a: L }[] = [
   { q: ["프로그램 가격은 확정인가요?", "Are the prices final?"], a: ["아니요. 지금 보이는 가격은 출시를 검토 중인 예정 가격이에요. 확정 가격은 런칭 때 이메일로 먼저 알려 드려요.", "No. The prices shown are planned prices under review. Final prices will be shared by email at launch."] }
 ];
 
-/** 화면에 들어올 때 살짝 떠오르게 — 움직임 줄이기 설정이면 그대로 보인다. */
-function Reveal({ children, className = "" }: { children: ReactNode; className?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
+/** 화면에 들어오는지 — 한 번 보이면 true 로 남는다. */
+function useInView<T extends Element>() {
+  const ref = useRef<T>(null);
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === "undefined") return;
+    if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -158,17 +160,45 @@ function Reveal({ children, className = "" }: { children: ReactNode; className?:
           io.disconnect();
         }
       },
-      { rootMargin: "0px 0px -10% 0px" }
+      { rootMargin: "0px 0px -12% 0px" }
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
+  return [ref, shown] as const;
+}
+
+/** 화면에 들어올 때 흐림이 걷히며 떠오르게 — delay(ms)로 차례대로. 움직임 줄이기 설정이면 그대로 보인다. */
+function Reveal({ children, className = "", delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+  const [ref, shown] = useInView<HTMLDivElement>();
   return (
-    <div ref={ref} className={`transition-all duration-700 ease-out ${shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"} motion-reduce:translate-y-0 motion-reduce:opacity-100 motion-reduce:transition-none ${className}`}>
+    <div
+      ref={ref}
+      style={{ transitionDelay: shown ? `${delay}ms` : "0ms" }}
+      className={`transition-[opacity,transform,filter] duration-[900ms] ease-[cubic-bezier(0.2,0.7,0.2,1)] ${shown ? "translate-y-0 scale-100 opacity-100 blur-0" : "translate-y-8 scale-[0.98] opacity-0 blur-[6px]"} motion-reduce:translate-y-0 motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:blur-0 motion-reduce:transition-none ${className}`}
+    >
       {children}
     </div>
   );
 }
+
+/** 마우스를 따라오는 카드 빛(.pm-spot) — 위치만 CSS 변수로 넘긴다. */
+function spotMove(e: React.MouseEvent<HTMLElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--x", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--y", `${e.clientY - r.top}px`);
+}
+
+const MARQUEE: L[] = [
+  ["1:1 커리어 진단", "1:1 Career diagnosis"],
+  ["이력서·자소서 첨삭", "Resume editing"],
+  ["실전 모의 면접", "Live mock interviews"],
+  ["현직자 멘토링", "Industry mentoring"],
+  ["포트폴리오 코칭", "Portfolio coaching"],
+  ["제휴 기업 매칭", "Company matching"],
+  ["인턴십 연계", "Internship programs"],
+  ["체류자격 검토", "Visa review"]
+];
 
 function Wrap({ children, id, className = "" }: { children: ReactNode; id?: string; className?: string }) {
   return (
@@ -192,9 +222,23 @@ function Heading({ children, dark = false }: { children: ReactNode; dark?: boole
 
 export function PremiumScreen() {
   return (
-    <V2Shell>
+    <div className="v2 premium-dark relative overflow-x-clip">
+      {/* 첫 화면 뒤 오로라·격자 — 로고 줄까지 덮도록 맨 위에서 */}
+      <div aria-hidden className="pm-aurora bottom-auto h-[920px]">
+        <span className="a" />
+        <span className="b" />
+        <span className="c" />
+      </div>
+      <div aria-hidden className="pm-grid bottom-auto h-[920px]" />
+      <div className="relative z-10 mx-auto flex w-full max-w-[1200px] items-center justify-between px-5 pt-5 md:px-8 md:pt-7">
+        <Link href="/" aria-label="Aply">
+          <Image src="/img_logo.webp" alt="Aply" width={96} height={30} className="h-6 w-auto brightness-0 invert md:h-7" priority />
+        </Link>
+        <LanguageSwitcher />
+      </div>
       <Premium />
-    </V2Shell>
+      <AplyFooter tone="dark" />
+    </div>
   );
 }
 
@@ -235,39 +279,87 @@ function Premium() {
   return (
     <div className="overflow-x-clip">
       {/* 01 — Hero */}
-      <div className="px-3 pt-3 md:px-5 md:pt-5">
-        <div
-          className="relative mx-auto w-full max-w-[1200px] overflow-hidden rounded-[28px] px-6 pb-14 pt-14 md:px-14 md:pb-20 md:pt-20"
-          style={{ background: `radial-gradient(120% 90% at 85% 0%, rgba(100,139,255,0.28) 0%, rgba(100,139,255,0) 55%), ${NIGHT}` }}
-        >
-          <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full opacity-30 blur-3xl" style={{ background: GOLD }} />
-          <div className="relative max-w-[640px]">
-            <p className="text-[12px] font-bold tracking-[0.18em]" style={{ color: GOLD }}>APLY PREMIUM · EARLY ACCESS</p>
-            <p className="mt-5 text-[17px] font-semibold text-white/70 md:text-[19px]">Your Career Deserves More.</p>
-            <h1 className="mt-2 whitespace-pre-line text-[32px] font-bold leading-[1.3] tracking-[-0.03em] text-white md:text-[48px]">
-              {t("취업 준비를 넘어,\n첫 커리어 경험까지.", "Beyond job prep,\nto your first career.")}
+      <div className="relative">
+        <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20 lg:grid-cols-[1fr_380px]">
+          <div className="max-w-[680px]">
+            <p className="pm-enter inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[12px] font-bold tracking-[0.16em] backdrop-blur" style={{ color: GOLD, animationDelay: "60ms" }}>
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" style={{ background: GOLD }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: GOLD }} />
+              </span>
+              APLY PREMIUM · EARLY ACCESS
+            </p>
+            <p className="pm-enter mt-6 text-[17px] font-semibold text-white/70 md:text-[19px]" style={{ animationDelay: "180ms" }}>
+              Your Career Deserves More.
+            </p>
+            <h1 className="mt-2 text-[34px] font-bold leading-[1.25] tracking-[-0.03em] text-white md:text-[54px]">
+              <span className="pm-enter block" style={{ animationDelay: "300ms" }}>{t("취업 준비를 넘어,", "Beyond job prep,")}</span>
+              <span className="pm-enter block" style={{ animationDelay: "440ms" }}>
+                <span className="pm-sheen">{t("첫 커리어 경험까지.", "to your first career.")}</span>
+              </span>
             </h1>
-            <p className="mt-5 text-[16px] leading-[1.7] text-white/70 md:text-[18px]">
+            <p className="pm-enter mt-5 text-[16px] leading-[1.7] text-white/70 md:text-[18px]" style={{ animationDelay: "580ms" }}>
               {t(
                 "이력서 첨삭부터 실전 면접, 기업 매칭과 인턴십 연계까지. 한국에서의 커리어를 위한 프리미엄 프로그램을 준비하고 있어요.",
                 "From resume editing and live interviews to company matching and internships — a premium program for your career in Korea is on the way."
               )}
             </p>
-            <div className="mt-8 flex flex-wrap gap-2.5">
-              <Button onClick={() => goApply()}>{t("얼리 액세스 신청하기", "Apply for early access")}</Button>
+            <div className="pm-enter mt-8 flex flex-wrap gap-2.5" style={{ animationDelay: "720ms" }}>
+              <span className="pm-shine">
+                <Button onClick={() => goApply()}>{t("얼리 액세스 신청하기", "Apply for early access")}</Button>
+              </span>
               <button
                 type="button"
                 onClick={() => document.getElementById("programs")?.scrollIntoView({ behavior: "smooth" })}
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-white/10 px-7 text-[16px] font-semibold text-white transition hover:bg-white/15 active:scale-[0.98]"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 px-7 text-[16px] font-semibold text-white backdrop-blur transition hover:bg-white/10 active:scale-[0.98]"
               >
                 {t("프로그램 살펴보기", "See programs")}
               </button>
             </div>
-            <p className="mt-4 flex items-center gap-1.5 text-[14px] text-white/55">
+            <p className="pm-enter mt-4 flex items-center gap-1.5 text-[14px] text-white/55" style={{ animationDelay: "860ms" }}>
               <CheckCircle size={16} weight="fill" style={{ color: GOLD }} />
               {t("신청만으로는 결제가 일어나지 않아요. 런칭 소식은 이메일로 보내 드려요.", "Applying doesn't charge you. We'll email you when we launch.")}
             </p>
           </div>
+          {/* PC 오른쪽 — 프로그램 흐름을 떠다니는 유리 카드로 */}
+          <div aria-hidden className="relative hidden h-[400px] lg:block">
+            {[
+              { icon: <Compass size={20} weight="duotone" />, title: t("1:1 커리어 진단", "1:1 Career diagnosis"), sub: t("지금 위치와 목표 확인", "Where you are, where to go"), cls: "left-0 top-2", delay: 900, float: "0s" },
+              { icon: <ChatsCircle size={20} weight="duotone" />, title: t("실전 모의 면접", "Live mock interviews"), sub: t("현직자 피드백", "Feedback from professionals"), cls: "right-0 top-[132px]", delay: 1050, float: "-2s" },
+              { icon: <Handshake size={20} weight="duotone" />, title: t("기업 매칭·인턴십 연계", "Matching & internships"), sub: t("제휴 기업과 연결", "Connected with partners"), cls: "left-6 top-[268px]", delay: 1200, float: "-4s", gold: true }
+            ].map((c) => (
+              <div key={c.title} className={`pm-enter absolute ${c.cls}`} style={{ animationDelay: `${c.delay}ms` }}>
+                <div className="pm-float w-[300px] rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md" style={{ animationDelay: c.float }}>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={c.gold ? { background: "rgba(197,168,120,0.16)", color: GOLD } : { background: "rgba(100,139,255,0.16)", color: "#8FAAFF" }}>
+                      {c.icon}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-bold text-white">{c.title}</p>
+                      <p className="text-[13px] text-white/55">{c.sub}</p>
+                    </div>
+                    <CheckCircle size={20} weight="fill" className="ml-auto shrink-0" style={{ color: c.gold ? GOLD : "#648BFF" }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 흐르는 키워드 띠 */}
+      <div aria-hidden className="pm-marquee-mask overflow-hidden border-y border-white/[0.06] py-5">
+        <div className="pm-marquee">
+          {[0, 1].map((k) => (
+            <div key={k} className="flex shrink-0 items-center">
+              {MARQUEE.map((m, i) => (
+                <span key={i} className="flex items-center whitespace-nowrap px-6 text-[15px] font-semibold text-white/45 md:text-[17px]">
+                  <span className="mr-6 h-1.5 w-1.5 rounded-full" style={{ background: i % 3 === 2 ? GOLD : "#648BFF" }} />
+                  {tl(locale, m)}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -279,9 +371,9 @@ function Premium() {
         </Reveal>
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {PROBLEMS.map((p, i) => (
-            <Reveal key={i}>
-              <div className="h-full rounded-2xl bg-[color:var(--v2-band)] p-6">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-[color:var(--v2-ink-3)]">{p.icon}</span>
+            <Reveal key={i} delay={i * 90} className="h-full">
+              <div onMouseMove={spotMove} className="pm-spot h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/15">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--premium-elevated)] text-[color:var(--v2-ink-3)]">{p.icon}</span>
                 <p className="mt-4 text-[18px] font-bold text-[color:var(--v2-ink)]">{tl(locale, p.title)}</p>
                 <p className="mt-1.5 text-[15px] leading-[1.65] text-[color:var(--v2-ink-3)]">{tl(locale, p.body)}</p>
               </div>
@@ -299,9 +391,9 @@ function Premium() {
           </Reveal>
           <div className="mt-8 grid gap-x-6 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
             {OFFERS.map((o, i) => (
-              <Reveal key={i}>
-                <div className="flex gap-4">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">{o.icon}</span>
+              <Reveal key={i} delay={(i % 3) * 110}>
+                <div className="group flex gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)] transition duration-300 group-hover:scale-110 group-hover:rotate-[-6deg]">{o.icon}</span>
                   <div className="min-w-0">
                     <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{tl(locale, o.title)}</p>
                     <p className="mt-1 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{tl(locale, o.body)}</p>
@@ -323,8 +415,8 @@ function Premium() {
           </p>
         </Reveal>
         <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-3">
-          {PLANS.map((p) => (
-            <PlanCard key={p.code} plan={p} onApply={() => goApply(p.code)} />
+          {PLANS.map((p, i) => (
+            <PlanCard key={p.code} plan={p} delay={i * 140} onApply={() => goApply(p.code)} />
           ))}
         </div>
         <p className="mt-5 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
@@ -342,18 +434,7 @@ function Premium() {
             <Eyebrow>HOW IT WORKS</Eyebrow>
             <Heading>Your Journey Starts Here.</Heading>
           </Reveal>
-          <ol className="relative mt-10 grid gap-8 md:grid-cols-4 md:gap-5">
-            <span aria-hidden className="absolute bottom-3 left-[19px] top-3 w-px bg-[color:var(--v2-line)] md:bottom-auto md:left-5 md:right-5 md:top-5 md:h-px md:w-auto" />
-            {STEPS.map((s, i) => (
-              <li key={i} className="relative flex gap-4 md:block">
-                <span className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-[15px] font-bold text-white ring-4 ring-[color:var(--v2-fill)]">{i + 1}</span>
-                <div className="min-w-0 md:mt-4">
-                  <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{tl(locale, s.title)}</p>
-                  <p className="mt-1 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{tl(locale, s.body)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          <Timeline locale={locale} />
         </Wrap>
       </div>
 
@@ -364,13 +445,15 @@ function Premium() {
           <Heading>{t("당신의 상황에 맞는\n커리어 경로를 찾습니다.", "We find the career path\nthat fits your situation.")}</Heading>
         </Reveal>
         <div className="mt-8 divide-y divide-[color:var(--v2-line)] rounded-2xl border border-[color:var(--v2-line)]">
-          {VISAS.map((v) => (
-            <div key={v.code} className="flex items-start gap-4 px-5 py-4 md:items-center md:px-6">
+          {VISAS.map((v, i) => (
+            <Reveal key={v.code} delay={i * 90}>
+            <div className="flex items-start gap-4 px-5 py-4 transition hover:bg-white/[0.03] md:items-center md:px-6">
               <span className="inline-flex h-8 min-w-[72px] shrink-0 items-center justify-center rounded-lg bg-[color:var(--v2-band)] px-2.5 text-[14px] font-bold text-[color:var(--v2-ink-2)]">
                 {v.code === "F 계열" ? t("F 계열", "F series") : v.code === "E-7 등" ? t("E-7 등", "E-7 etc.") : v.code}
               </span>
               <p className="text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{tl(locale, v.body)}</p>
             </div>
+            </Reveal>
           ))}
         </div>
         <p className="mt-4 text-[13px] leading-[1.6] text-[color:var(--v2-faint)]">
@@ -418,19 +501,30 @@ function Premium() {
 
       {/* 09 — Final CTA */}
       <div className="px-3 pb-10 md:px-5">
-        <div className="mx-auto w-full max-w-[1200px] rounded-[28px] px-6 py-14 text-center md:py-20" style={{ background: NIGHT }}>
+        <Reveal>
+        <div className="relative mx-auto w-full max-w-[1200px] overflow-hidden rounded-[28px] border border-[color:var(--v2-line)] px-6 py-14 text-center md:py-20" style={{ background: NIGHT }}>
+          <div aria-hidden className="pm-aurora">
+            <span className="a" />
+            <span className="b" />
+          </div>
+          <div aria-hidden className="pm-grid" />
+          <div className="relative">
           <p className="text-[12px] font-bold tracking-[0.18em]" style={{ color: GOLD }}>APLY PREMIUM</p>
-          <p className="mt-4 text-[28px] font-bold leading-[1.3] tracking-[-0.02em] text-white md:text-[40px]">Your Next Chapter Starts Here.</p>
+          <p className="mt-4 text-[28px] font-bold leading-[1.3] tracking-[-0.02em] text-white md:text-[44px]">Your Next Chapter <span className="pm-sheen">Starts Here.</span></p>
           <p className="mt-3 text-[16px] text-white/65 md:text-[18px]">{t("한국에서의 다음 커리어, 어플라이와 함께 준비하세요.", "Prepare your next career in Korea with Aply.")}</p>
           <div className="mt-8">
-            <Button onClick={() => goApply()}>{t("얼리 액세스 신청하기", "Apply for early access")}</Button>
+            <span className="pm-shine">
+              <Button onClick={() => goApply()}>{t("얼리 액세스 신청하기", "Apply for early access")}</Button>
+            </span>
+          </div>
           </div>
         </div>
+        </Reveal>
       </div>
 
       {/* 모바일 하단 고정 신청 */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--v2-line)] bg-white px-4 pt-3 transition-transform duration-300 md:hidden ${sticky ? "translate-y-0" : "translate-y-full"}`}
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-[color:var(--v2-line)] bg-[#090b12]/95 px-4 pt-3 backdrop-blur transition-transform duration-300 md:hidden ${sticky ? "translate-y-0" : "translate-y-full"}`}
         style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
         aria-hidden={!sticky}
       >
@@ -442,7 +536,7 @@ function Premium() {
           type="button"
           tabIndex={sticky ? 0 : -1}
           onClick={() => goApply()}
-          className="inline-flex h-12 items-center rounded-full px-6 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(13,18,32,0.25)] transition hover:opacity-90"
+          className="inline-flex h-12 items-center rounded-full px-6 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] ring-1 ring-white/10 transition hover:opacity-90"
           style={{ background: NIGHT }}
         >
           <span className="mr-2 h-2 w-2 rounded-full" style={{ background: GOLD }} />
@@ -453,18 +547,48 @@ function Premium() {
   );
 }
 
-function PlanCard({ plan, onApply }: { plan: Plan; onApply: () => void }) {
+function Timeline({ locale }: { locale: Parameters<typeof tl>[0] }) {
+  const [ref, shown] = useInView<HTMLOListElement>();
+  return (
+    <ol ref={ref} className="relative mt-10 grid gap-8 md:grid-cols-4 md:gap-5">
+      <span aria-hidden className="absolute bottom-3 left-[19px] top-3 w-px bg-[color:var(--v2-line)] md:bottom-auto md:left-5 md:right-5 md:top-5 md:h-px md:w-auto" />
+      {/* 보이면 파란 선이 위에서 아래로(PC 는 왼쪽에서 오른쪽으로) 그려진다 */}
+      <span
+        aria-hidden
+        className={`absolute bottom-3 left-[19px] top-3 w-px origin-top bg-gradient-to-b from-[#648BFF] to-[#C5A878] transition-transform duration-[1600ms] ease-out md:bottom-auto md:left-5 md:right-5 md:top-5 md:h-px md:w-auto md:origin-left md:bg-gradient-to-r ${shown ? "scale-100" : "scale-y-0 md:scale-x-0 md:scale-y-100"} motion-reduce:scale-100 motion-reduce:transition-none`}
+      />
+      {STEPS.map((st, i) => (
+        <li key={i} className="relative flex gap-4 md:block">
+          <span
+            style={{ transitionDelay: shown ? `${250 + i * 320}ms` : "0ms" }}
+            className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-[15px] font-bold text-white ring-4 ring-[color:var(--v2-fill)] transition duration-500 ${shown ? "scale-100 opacity-100" : "scale-50 opacity-0"} motion-reduce:scale-100 motion-reduce:opacity-100`}
+          >
+            {i + 1}
+          </span>
+          <div style={{ transitionDelay: shown ? `${350 + i * 320}ms` : "0ms" }} className={`min-w-0 transition duration-700 md:mt-4 ${shown ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"} motion-reduce:translate-y-0 motion-reduce:opacity-100`}>
+            <p className="text-[17px] font-bold text-[color:var(--v2-ink)]">{tl(locale, st.title)}</p>
+            <p className="mt-1 text-[15px] leading-[1.6] text-[color:var(--v2-ink-3)]">{tl(locale, st.body)}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function PlanCard({ plan, onApply, delay }: { plan: Plan; onApply: () => void; delay: number }) {
   const t = usePlatformT();
   const { locale } = useLanguage();
   const gold = plan.code === "GUARANTEE";
   const popular = plan.code === "PRO";
   return (
-    <Reveal className="h-full">
+    <Reveal className="h-full" delay={delay}>
+      <div className={`h-full transition duration-300 hover:-translate-y-1.5 ${gold ? "pm-gold-ring" : ""}`}>
       <div
-        className={`relative flex h-full flex-col rounded-3xl p-7 ${
-          gold ? "text-white" : popular ? "border-2 border-[color:var(--v2-accent)] bg-white" : "border border-[color:var(--v2-line)] bg-white"
+        onMouseMove={spotMove}
+        className={`pm-spot relative flex h-full flex-col rounded-3xl p-7 ${gold ? "pm-spot-gold" : ""} ${popular ? "pm-glow" : ""} ${
+          gold ? "text-white" : popular ? "border-2 border-[color:var(--v2-accent)] bg-[color:var(--v2-band)]" : "border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]"
         }`}
-        style={gold ? { background: `linear-gradient(160deg, #1A2030 0%, ${NIGHT} 70%)`, boxShadow: `inset 0 0 0 1px ${GOLD}55` } : undefined}
+        style={gold ? { background: "linear-gradient(160deg, #23262E 0%, #12141B 70%)" } : undefined}
       >
         <div className="flex items-center justify-between gap-2">
           <p className="text-[15px] font-bold tracking-[0.12em]" style={gold ? { color: GOLD } : undefined}>
@@ -495,6 +619,7 @@ function PlanCard({ plan, onApply }: { plan: Plan; onApply: () => void }) {
         ) : null}
         <div className="mt-6">
           {gold ? (
+            <span className="pm-shine w-full">
             <button
               type="button"
               onClick={onApply}
@@ -503,12 +628,14 @@ function PlanCard({ plan, onApply }: { plan: Plan; onApply: () => void }) {
             >
               {t("얼리 신청하기", "Apply early")}
             </button>
+            </span>
           ) : (
             <Button full variant={popular ? "primary" : "secondary"} onClick={onApply}>
               {t("얼리 신청하기", "Apply early")}
             </Button>
           )}
         </div>
+      </div>
       </div>
     </Reveal>
   );
@@ -517,7 +644,7 @@ function PlanCard({ plan, onApply }: { plan: Plan; onApply: () => void }) {
 function Done() {
   const t = usePlatformT();
   return (
-    <div className="rounded-3xl bg-white p-8 text-center" role="status">
+    <div className="rounded-3xl bg-[color:var(--v2-band)] p-8 text-center" role="status">
       <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">
         <CheckCircle size={30} weight="fill" />
       </span>
@@ -561,7 +688,7 @@ const EMPTY: FormState = {
 };
 
 const fieldCls =
-  "h-12 w-full rounded-xl border border-[color:var(--v2-line)] bg-white px-4 text-[16px] text-[color:var(--v2-ink)] outline-none transition placeholder:text-[color:var(--v2-disabled)] focus:border-[color:var(--v2-accent)] aria-[invalid=true]:border-[color:var(--v2-attention)]";
+  "h-12 w-full rounded-xl border border-[color:var(--v2-line)] bg-[color:var(--premium-elevated)] px-4 text-[16px] text-[color:var(--v2-ink)] outline-none transition placeholder:text-[color:var(--v2-disabled)] focus:border-[color:var(--v2-accent)] aria-[invalid=true]:border-[color:var(--v2-attention)]";
 
 function Field({ id, label, required, error, children }: { id: string; label: string; required?: boolean; error?: string; children: ReactNode }) {
   const t = usePlatformT();
@@ -596,7 +723,7 @@ function ChoiceGroup({ id, value, onChange, options, invalid }: { id: string; va
             className={`h-11 rounded-xl border px-4 text-[15px] font-semibold transition ${
               on
                 ? "border-[color:var(--v2-accent)] bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]"
-                : `bg-white text-[color:var(--v2-ink-3)] hover:bg-[color:var(--v2-fill)] ${invalid ? "border-[color:var(--v2-attention)]" : "border-[color:var(--v2-line)]"}`
+                : `bg-[color:var(--premium-elevated)] text-[color:var(--v2-ink-3)] hover:bg-white/10 ${invalid ? "border-[color:var(--v2-attention)]" : "border-[color:var(--v2-line)]"}`
             }`}
           >
             {o.label}
@@ -715,7 +842,7 @@ function ApplyForm({ plan, setPlan, onDone }: { plan: PremiumPlan | ""; setPlan:
   const inv = (k: keyof typeof errors) => (errors[k] ? { "aria-invalid": true as const, "aria-describedby": `pf-${k}-error` } : {});
 
   return (
-    <form onSubmit={submit} noValidate className="rounded-3xl bg-white p-5 sm:p-8">
+    <form onSubmit={submit} noValidate className="rounded-3xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)] p-5 sm:p-8">
       <div className="grid gap-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field id="pf-name" label={t("이름", "Name")} required error={errors.name}>
@@ -786,7 +913,7 @@ function ApplyForm({ plan, setPlan, onDone }: { plan: PremiumPlan | ""; setPlan:
           <input id="pf-website" tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => set("website", e.target.value)} />
         </div>
 
-        <div className="rounded-2xl bg-[color:var(--v2-fill)] p-4 text-[13px] leading-[1.7] text-[color:var(--v2-ink-3)]">
+        <div className="rounded-2xl bg-[color:var(--premium-elevated)] p-4 text-[13px] leading-[1.7] text-[color:var(--v2-ink-3)]">
           <p className="font-semibold text-[color:var(--v2-ink-2)]">{t("개인정보 수집·이용 안내", "Personal data notice")}</p>
           <ul className="mt-1.5 list-disc space-y-0.5 pl-4">
             <li>{t("목적: 얼리 액세스 신청 접수, 런칭 소식 이메일 안내, 프로그램 적합성 검토와 상담 연락", "Purpose: processing your application, emailing launch news, reviewing program fit and contacting you for consultation")}</li>
