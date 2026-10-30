@@ -127,3 +127,70 @@
   .premium-dark .pm-glow, .premium-dark .pm-shine::after, .premium-dark .pm-float { animation: none; }
   .premium-dark .pm-enter { opacity: 1; animation: none; }
 }
+
+/* ── 2차: 별·유성·궤도·글자 등장·기울기·축하 조각 ── */
+@keyframes pm-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+@keyframes pm-shoot {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-24deg) scaleX(0.2); }
+  6% { opacity: 1; }
+  18% { opacity: 0; transform: translate3d(-520px, 230px, 0) rotate(-24deg) scaleX(1); }
+  100% { opacity: 0; transform: translate3d(-520px, 230px, 0) rotate(-24deg) scaleX(1); }
+}
+@keyframes pm-orbit { to { transform: rotate(360deg); } }
+@keyframes pm-char {
+  from { opacity: 0; transform: translateY(0.6em) rotate(8deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes pm-rise { from { transform: translateY(110%); } to { transform: none; } }
+@keyframes pm-confetti {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot)); }
+}
+@keyframes pm-ring-pop {
+  0% { opacity: 0.7; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(2.4); }
+}
+@keyframes pm-lock-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.premium-dark .pm-star { position: absolute; border-radius: 9999px; background: #fff; animation: pm-twinkle var(--d, 4s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.premium-dark .pm-shooting {
+  position: absolute; height: 2px; width: 180px; border-radius: 9999px; transform-origin: right center;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.9));
+  box-shadow: 0 0 12px rgba(143, 170, 255, 0.8);
+  opacity: 0; animation: pm-shoot 9s ease-out infinite;
+}
+.premium-dark .pm-orbit { position: absolute; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.08); animation: pm-orbit var(--d, 30s) linear infinite; }
+.premium-dark .pm-orbit > i { position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; margin-left: -4px; border-radius: 9999px; }
+
+.premium-dark .pm-char { display: inline-block; opacity: 0; animation: pm-char 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+.premium-dark .pm-rise-mask { display: block; overflow: hidden; padding-bottom: 0.08em; }
+.premium-dark .pm-rise { display: block; transform: translateY(110%); }
+.premium-dark .pm-rise.is-on { animation: pm-rise 1s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
+
+/* 위에 붙는 스크롤 진행 막대 */
+.premium-dark .pm-progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 60; transform-origin: left; background: linear-gradient(90deg, #648bff, #a98bff, #c5a878); }
+
+/* 신청 폼 — 테두리를 도는 파란 빛 */
+.premium-dark .pm-blue-ring {
+  border-radius: 1.5rem; padding: 1px;
+  background: conic-gradient(from var(--pm-angle), rgba(100, 139, 255, 0.08), #648bff 10%, rgba(100, 139, 255, 0.08) 25%, rgba(100, 139, 255, 0.08) 55%, #c5a878 66%, rgba(100, 139, 255, 0.08) 80%);
+  animation: pm-spin 8s linear infinite;
+}
+
+.premium-dark .pm-confetti { position: absolute; left: 50%; top: 40px; width: 8px; height: 12px; border-radius: 2px; animation: pm-confetti 1.6s cubic-bezier(0.15, 0.6, 0.3, 1) forwards; }
+.premium-dark .pm-ring-pop { position: absolute; inset: 0; border-radius: 9999px; border: 2px solid #648bff; animation: pm-ring-pop 1.4s ease-out infinite; }
+.premium-dark .pm-lock { animation: pm-lock-pulse 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-dark .pm-star, .premium-dark .pm-shooting, .premium-dark .pm-orbit, .premium-dark .pm-blue-ring,
+  .premium-dark .pm-ring-pop, .premium-dark .pm-lock, .premium-dark .pm-confetti { animation: none; }
+  .premium-dark .pm-shooting, .premium-dark .pm-confetti { display: none; }
+  .premium-dark .pm-char { opacity: 1; animation: none; }
+  .premium-dark .pm-rise, .premium-dark .pm-rise.is-on { transform: none; animation: none; }
+}

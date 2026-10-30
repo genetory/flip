@@ -3,7 +3,7 @@
 // APLY PREMIUM 얼리 액세스(/premium) — 한 장으로 스크롤하는 소개 + 신청 폼.
 // 글꼴·버튼 모양은 aply.global(v2) 그대로, 색만 어두운 바탕(app/premium/premium.css 의 변수). 상단 메뉴·광고 없음.
 // 골드는 GUARANTEE 와 작은 머리글에만.
-// 결제는 없다 — 신청만 받고, 런칭 소식은 신청한 이메일로 보낸다. 가격·인턴십 범위는 '예정'으로만 말한다.
+// 결제는 없다 — 신청만 받고, 런칭 소식은 신청한 이메일로 보낸다. 가격은 런칭 때 공개(지금은 가려 둔다). 인턴십 범위는 '예정'으로만 말한다.
 // 저장에 실패하면 완료 화면을 보여 주지 않는다(서버가 201 을 줄 때만 완료).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import {
   Buildings,
   ChatsCircle,
   CheckCircle,
+  LockSimple,
   Compass,
   FileText,
   Handshake,
@@ -44,7 +45,6 @@ const NIGHT = "#121622";
 
 type Plan = {
   code: "START" | "PRO" | "GUARANTEE";
-  price: string;
   period: L;
   items: L[];
 };
@@ -52,7 +52,6 @@ type Plan = {
 const PLANS: Plan[] = [
   {
     code: "START",
-    price: "490,000",
     period: ["4주 취업 준비 기초 완성", "4 weeks · job-search foundations"],
     items: [
       ["1:1 커리어 상담", "1:1 career consultation"],
@@ -63,7 +62,6 @@ const PLANS: Plan[] = [
   },
   {
     code: "PRO",
-    price: "1,490,000",
     period: ["8주 취업 집중 준비", "8 weeks · intensive preparation"],
     items: [
       ["START 주요 서비스 포함", "Everything key in START"],
@@ -78,7 +76,6 @@ const PLANS: Plan[] = [
   },
   {
     code: "GUARANTEE",
-    price: "2,990,000",
     period: ["인턴십 연계 집중 프로그램", "Internship-linked intensive program"],
     items: [
       ["PRO 주요 서비스 포함", "Everything key in PRO"],
@@ -143,7 +140,7 @@ const FAQS: { q: L; a: L }[] = [
   { q: ["인턴십이 모두에게 보장되나요?", "Is an internship guaranteed for everyone?"], a: ["아니요. GUARANTEE 프로그램의 인턴십 연계 범위와 조건은 기업 제휴와 법률 검토를 마친 뒤 확정해 안내할 예정이에요. 체류자격과 적합성 심사 결과에 따라 참여가 어려울 수 있어요.", "No. The scope and conditions of internship placement in GUARANTEE will be confirmed after partner agreements and legal review. Participation may not be possible depending on your visa and screening results."] },
   { q: ["졸업 전에도 신청할 수 있나요?", "Can I apply before graduating?"], a: ["네. 재학 중이라면 졸업 시기에 맞춰 준비 일정을 함께 잡아요.", "Yes. If you're still studying, we'll plan around your graduation date."] },
   { q: ["취업 가능한 체류자격이 없어도 신청할 수 있나요?", "Can I apply without a work-eligible visa?"], a: ["네, 신청은 할 수 있어요. 다만 실제 취업·인턴십 가능 여부는 체류자격과 개별 상황에 따라 달라서 상담 때 함께 확인해요.", "Yes, you can apply. Whether you can actually work or intern depends on your visa and situation — we'll check that together."] },
-  { q: ["프로그램 가격은 확정인가요?", "Are the prices final?"], a: ["아니요. 지금 보이는 가격은 출시를 검토 중인 예정 가격이에요. 확정 가격은 런칭 때 이메일로 먼저 알려 드려요.", "No. The prices shown are planned prices under review. Final prices will be shared by email at launch."] }
+  { q: ["프로그램 가격은 얼마인가요?", "How much do the programs cost?"], a: ["가격은 지금 검토 중이라 런칭 때 공개해요. 얼리 액세스를 신청하시면 확정 가격과 혜택을 이메일로 가장 먼저 알려 드려요.", "Pricing is still under review and will be announced at launch. Early-access applicants will be the first to get final prices and offers by email."] }
 ];
 
 /** 화면에 들어오는지 — 한 번 보이면 true 로 남는다. */
@@ -189,6 +186,82 @@ function spotMove(e: React.MouseEvent<HTMLElement>) {
   e.currentTarget.style.setProperty("--y", `${e.clientY - r.top}px`);
 }
 
+/** 첫 화면 별 — 시드로 정해 서버·브라우저 렌더가 같게. */
+const STARS = (() => {
+  let x = 7;
+  const rnd = () => ((x = (x * 9301 + 49297) % 233280) / 233280);
+  return Array.from({ length: 56 }, () => ({ l: rnd() * 100, t: rnd() * 100, s: 1 + rnd() * 2, d: 2.5 + rnd() * 4, delay: -rnd() * 6 }));
+})();
+
+function Stars({ count = STARS.length }: { count?: number }) {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {STARS.slice(0, count).map((st, i) => (
+        <span key={i} className="pm-star" style={{ left: `${st.l}%`, top: `${st.t}%`, width: st.s, height: st.s, ["--d" as string]: `${st.d}s`, ["--delay" as string]: `${st.delay}s` }} />
+      ))}
+      <span className="pm-shooting" style={{ right: "8%", top: "12%" }} />
+      <span className="pm-shooting" style={{ right: "30%", top: "4%", animationDelay: "4.5s" }} />
+    </div>
+  );
+}
+
+/** 글자 하나씩 떠오르기 — 읽기 프로그램엔 한 줄로 들리게 aria-label. */
+function SplitText({ text, start = 0, step = 40 }: { text: string; start?: number; step?: number }) {
+  return (
+    <span aria-label={text} className="block">
+      {Array.from(text).map((ch, i) => (
+        <span key={i} aria-hidden className="pm-char" style={{ animationDelay: `${start + i * step}ms` }}>
+          {ch === " " ? "\u00a0" : ch}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** 맨 위 스크롤 진행 막대 */
+function ScrollProgress() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const on = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        if (ref.current) ref.current.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+      });
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", on);
+    };
+  }, []);
+  return <div ref={ref} aria-hidden className="pm-progress" style={{ transform: "scaleX(0)" }} />;
+}
+
+/** 카드 3D 기울기 + 따라오는 빛 */
+function tiltMove(e: React.MouseEvent<HTMLElement>) {
+  spotMove(e);
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const r = e.currentTarget.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width - 0.5;
+  const py = (e.clientY - r.top) / r.height - 0.5;
+  e.currentTarget.style.transform = `perspective(900px) rotateX(${(-py * 8).toFixed(2)}deg) rotateY(${(px * 10).toFixed(2)}deg) translateY(-6px)`;
+}
+function tiltLeave(e: React.MouseEvent<HTMLElement>) {
+  e.currentTarget.style.transform = "";
+}
+
+/** 첫 화면 마우스 시차 — --mx, --my(-1~1)를 넘기고 층마다 다르게 움직인다. */
+function parallaxMove(e: React.MouseEvent<HTMLElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--mx", (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3));
+  e.currentTarget.style.setProperty("--my", (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3));
+  e.currentTarget.style.setProperty("--cx", `${e.clientX - r.left}px`);
+  e.currentTarget.style.setProperty("--cy", `${e.clientY - r.top}px`);
+}
+
 const MARQUEE: L[] = [
   ["1:1 커리어 진단", "1:1 Career diagnosis"],
   ["이력서·자소서 첨삭", "Resume editing"],
@@ -212,10 +285,18 @@ function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boole
   return <p className={`text-[13px] font-bold tracking-[0.14em] ${dark ? "text-white/60" : "text-[color:var(--v2-accent)]"}`}>{children}</p>;
 }
 
-function Heading({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+/** 구획 제목 — 보이면 줄마다 아래에서 밀려 올라온다. */
+function Heading({ children, dark = false }: { children: string; dark?: boolean }) {
+  const [ref, shown] = useInView<HTMLHeadingElement>();
   return (
-    <h2 className={`mt-2 whitespace-pre-line text-[26px] font-bold leading-[1.35] tracking-[-0.02em] md:text-[34px] ${dark ? "text-white" : "text-[color:var(--v2-ink)]"}`}>
-      {children}
+    <h2 ref={ref} className={`mt-2 text-[26px] font-bold leading-[1.35] tracking-[-0.02em] md:text-[38px] ${dark ? "text-white" : "text-[color:var(--v2-ink)]"}`}>
+      {children.split("\n").map((line, i) => (
+        <span key={i} className="pm-rise-mask">
+          <span className={`pm-rise ${shown ? "is-on" : ""}`} style={{ animationDelay: `${i * 140}ms` }}>
+            {line}
+          </span>
+        </span>
+      ))}
     </h2>
   );
 }
@@ -230,6 +311,10 @@ export function PremiumScreen() {
         <span className="c" />
       </div>
       <div aria-hidden className="pm-grid bottom-auto h-[920px]" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[860px]">
+        <Stars />
+      </div>
+      <ScrollProgress />
       <div className="relative z-10 mx-auto flex w-full max-w-[1200px] items-center justify-between px-5 pt-5 md:px-8 md:pt-7">
         <Link href="/" aria-label="Aply">
           <Image src="/img_logo.webp" alt="Aply" width={96} height={30} className="h-6 w-auto brightness-0 invert md:h-7" priority />
@@ -279,7 +364,8 @@ function Premium() {
   return (
     <div className="overflow-x-clip">
       {/* 01 — Hero */}
-      <div className="relative">
+      <div className="group/hero relative" onMouseMove={parallaxMove}>
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/hero:opacity-100" style={{ background: "radial-gradient(520px circle at var(--cx, 50%) var(--cy, 50%), rgba(100,139,255,0.12), transparent 60%)" }} />
         <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20 lg:grid-cols-[1fr_380px]">
           <div className="max-w-[680px]">
             <p className="pm-enter inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[12px] font-bold tracking-[0.16em] backdrop-blur" style={{ color: GOLD, animationDelay: "60ms" }}>
@@ -293,18 +379,20 @@ function Premium() {
               Your Career Deserves More.
             </p>
             <h1 className="mt-2 text-[34px] font-bold leading-[1.25] tracking-[-0.03em] text-white md:text-[54px]">
-              <span className="pm-enter block" style={{ animationDelay: "300ms" }}>{t("취업 준비를 넘어,", "Beyond job prep,")}</span>
-              <span className="pm-enter block" style={{ animationDelay: "440ms" }}>
-                <span className="pm-sheen">{t("첫 커리어 경험까지.", "to your first career.")}</span>
+              <SplitText text={t("취업 준비를 넘어,", "Beyond job prep,")} start={280} step={45} />
+              <span className="pm-rise-mask">
+                <span className="pm-rise is-on" style={{ animationDelay: "820ms" }}>
+                  <span className="pm-sheen">{t("첫 커리어 경험까지.", "to your first career.")}</span>
+                </span>
               </span>
             </h1>
-            <p className="pm-enter mt-5 text-[16px] leading-[1.7] text-white/70 md:text-[18px]" style={{ animationDelay: "580ms" }}>
+            <p className="pm-enter mt-5 text-[16px] leading-[1.7] text-white/70 md:text-[18px]" style={{ animationDelay: "1000ms" }}>
               {t(
                 "이력서 첨삭부터 실전 면접, 기업 매칭과 인턴십 연계까지. 한국에서의 커리어를 위한 프리미엄 프로그램을 준비하고 있어요.",
                 "From resume editing and live interviews to company matching and internships — a premium program for your career in Korea is on the way."
               )}
             </p>
-            <div className="pm-enter mt-8 flex flex-wrap gap-2.5" style={{ animationDelay: "720ms" }}>
+            <div className="pm-enter mt-8 flex flex-wrap gap-2.5" style={{ animationDelay: "1120ms" }}>
               <span className="pm-shine">
                 <Button onClick={() => goApply()}>{t("얼리 액세스 신청하기", "Apply for early access")}</Button>
               </span>
@@ -316,17 +404,23 @@ function Premium() {
                 {t("프로그램 살펴보기", "See programs")}
               </button>
             </div>
-            <p className="pm-enter mt-4 flex items-center gap-1.5 text-[14px] text-white/55" style={{ animationDelay: "860ms" }}>
+            <p className="pm-enter mt-4 flex items-center gap-1.5 text-[14px] text-white/55" style={{ animationDelay: "1240ms" }}>
               <CheckCircle size={16} weight="fill" style={{ color: GOLD }} />
               {t("신청만으로는 결제가 일어나지 않아요. 런칭 소식은 이메일로 보내 드려요.", "Applying doesn't charge you. We'll email you when we launch.")}
             </p>
           </div>
           {/* PC 오른쪽 — 프로그램 흐름을 떠다니는 유리 카드로 */}
-          <div aria-hidden className="relative hidden h-[400px] lg:block">
+          <div aria-hidden className="relative hidden h-[400px] lg:block" style={{ transform: "translate3d(calc(var(--mx, 0) * -22px), calc(var(--my, 0) * -16px), 0)", transition: "transform 0.4s ease-out" }}>
+            <div className="pm-orbit left-1/2 top-1/2 -ml-[210px] -mt-[210px] h-[420px] w-[420px]" style={{ ["--d" as string]: "28s" }}>
+              <i style={{ background: "#648BFF", boxShadow: "0 0 14px #648BFF" }} />
+            </div>
+            <div className="pm-orbit left-1/2 top-1/2 -ml-[150px] -mt-[150px] h-[300px] w-[300px]" style={{ ["--d" as string]: "18s", animationDirection: "reverse" }}>
+              <i style={{ background: GOLD, boxShadow: `0 0 14px ${GOLD}` }} />
+            </div>
             {[
-              { icon: <Compass size={20} weight="duotone" />, title: t("1:1 커리어 진단", "1:1 Career diagnosis"), sub: t("지금 위치와 목표 확인", "Where you are, where to go"), cls: "left-0 top-2", delay: 900, float: "0s" },
-              { icon: <ChatsCircle size={20} weight="duotone" />, title: t("실전 모의 면접", "Live mock interviews"), sub: t("현직자 피드백", "Feedback from professionals"), cls: "right-0 top-[132px]", delay: 1050, float: "-2s" },
-              { icon: <Handshake size={20} weight="duotone" />, title: t("기업 매칭·인턴십 연계", "Matching & internships"), sub: t("제휴 기업과 연결", "Connected with partners"), cls: "left-6 top-[268px]", delay: 1200, float: "-4s", gold: true }
+              { icon: <Compass size={20} weight="duotone" />, title: t("1:1 커리어 진단", "1:1 Career diagnosis"), sub: t("지금 위치와 목표 확인", "Where you are, where to go"), cls: "left-0 top-2", delay: 1300, float: "0s" },
+              { icon: <ChatsCircle size={20} weight="duotone" />, title: t("실전 모의 면접", "Live mock interviews"), sub: t("현직자 피드백", "Feedback from professionals"), cls: "right-0 top-[132px]", delay: 1450, float: "-2s" },
+              { icon: <Handshake size={20} weight="duotone" />, title: t("기업 매칭·인턴십 연계", "Matching & internships"), sub: t("제휴 기업과 연결", "Connected with partners"), cls: "left-6 top-[268px]", delay: 1600, float: "-4s", gold: true }
             ].map((c) => (
               <div key={c.title} className={`pm-enter absolute ${c.cls}`} style={{ animationDelay: `${c.delay}ms` }}>
                 <div className="pm-float w-[300px] rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md" style={{ animationDelay: c.float }}>
@@ -348,19 +442,21 @@ function Premium() {
       </div>
 
       {/* 흐르는 키워드 띠 */}
-      <div aria-hidden className="pm-marquee-mask overflow-hidden border-y border-white/[0.06] py-5">
-        <div className="pm-marquee">
-          {[0, 1].map((k) => (
-            <div key={k} className="flex shrink-0 items-center">
-              {MARQUEE.map((m, i) => (
-                <span key={i} className="flex items-center whitespace-nowrap px-6 text-[15px] font-semibold text-white/45 md:text-[17px]">
-                  <span className="mr-6 h-1.5 w-1.5 rounded-full" style={{ background: i % 3 === 2 ? GOLD : "#648BFF" }} />
-                  {tl(locale, m)}
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
+      <div aria-hidden className="pm-marquee-mask space-y-3 overflow-hidden border-y border-white/[0.06] py-5">
+        {[false, true].map((rev) => (
+          <div key={String(rev)} className="pm-marquee" style={rev ? { animationDirection: "reverse", animationDuration: "46s" } : undefined}>
+            {[0, 1].map((k) => (
+              <div key={k} className="flex shrink-0 items-center">
+                {(rev ? [...MARQUEE].reverse() : MARQUEE).map((m, i) => (
+                  <span key={i} className={`flex items-center whitespace-nowrap px-6 font-semibold ${rev ? "text-[14px] text-white/25 md:text-[15px]" : "text-[15px] text-white/50 md:text-[18px]"}`}>
+                    <span className="mr-6 h-1.5 w-1.5 rounded-full" style={{ background: i % 3 === 2 ? GOLD : "#648BFF" }} />
+                    {tl(locale, m)}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       {/* 02 — Why */}
@@ -372,7 +468,7 @@ function Premium() {
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {PROBLEMS.map((p, i) => (
             <Reveal key={i} delay={i * 90} className="h-full">
-              <div onMouseMove={spotMove} className="pm-spot h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6 transition duration-300 hover:-translate-y-1 hover:border-white/15">
+              <div onMouseMove={tiltMove} onMouseLeave={tiltLeave} className="pm-spot h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6 transition-[transform,border-color] duration-300 ease-out hover:border-white/15">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--premium-elevated)] text-[color:var(--v2-ink-3)]">{p.icon}</span>
                 <p className="mt-4 text-[18px] font-bold text-[color:var(--v2-ink)]">{tl(locale, p.title)}</p>
                 <p className="mt-1.5 text-[15px] leading-[1.65] text-[color:var(--v2-ink-3)]">{tl(locale, p.body)}</p>
@@ -411,7 +507,7 @@ function Premium() {
           <Eyebrow>PROGRAMS</Eyebrow>
           <Heading>Choose Your Next Step.</Heading>
           <p className="mt-3 text-[15px] text-[color:var(--v2-muted)]">
-            {t("아래 가격은 출시를 검토 중인 예정 가격이에요. 확정 가격은 런칭 때 알려 드려요.", "Prices below are planned and still under review. Final prices will be announced at launch.")}
+            {t("가격은 런칭 때 공개해요. 얼리 액세스를 신청하면 가장 먼저 알려 드려요.", "Prices will be revealed at launch. Early-access applicants hear first.")}
           </p>
         </Reveal>
         <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-3">
@@ -508,6 +604,7 @@ function Premium() {
             <span className="b" />
           </div>
           <div aria-hidden className="pm-grid" />
+          <Stars count={28} />
           <div className="relative">
           <p className="text-[12px] font-bold tracking-[0.18em]" style={{ color: GOLD }}>APLY PREMIUM</p>
           <p className="mt-4 text-[28px] font-bold leading-[1.3] tracking-[-0.02em] text-white md:text-[44px]">Your Next Chapter <span className="pm-sheen">Starts Here.</span></p>
@@ -582,9 +679,8 @@ function PlanCard({ plan, onApply, delay }: { plan: Plan; onApply: () => void; d
   const popular = plan.code === "PRO";
   return (
     <Reveal className="h-full" delay={delay}>
-      <div className={`h-full transition duration-300 hover:-translate-y-1.5 ${gold ? "pm-gold-ring" : ""}`}>
+      <div onMouseMove={tiltMove} onMouseLeave={tiltLeave} className={`h-full transition-transform duration-300 ease-out will-change-transform ${gold ? "pm-gold-ring" : ""}`}>
       <div
-        onMouseMove={spotMove}
         className={`pm-spot relative flex h-full flex-col rounded-3xl p-7 ${gold ? "pm-spot-gold" : ""} ${popular ? "pm-glow" : ""} ${
           gold ? "text-white" : popular ? "border-2 border-[color:var(--v2-accent)] bg-[color:var(--v2-band)]" : "border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]"
         }`}
@@ -599,11 +695,14 @@ function PlanCard({ plan, onApply, delay }: { plan: Plan; onApply: () => void; d
           ) : null}
         </div>
         <p className={`mt-2 text-[15px] ${gold ? "text-white/70" : "text-[color:var(--v2-ink-3)]"}`}>{tl(locale, plan.period)}</p>
-        <div className="mt-5 flex items-baseline gap-1">
-          <span className={`text-[32px] font-bold tracking-[-0.02em] ${gold ? "text-white" : "text-[color:var(--v2-ink)]"}`}>{plan.price}</span>
-          <span className={`text-[16px] font-semibold ${gold ? "text-white/70" : "text-[color:var(--v2-ink-3)]"}`}>{t("원", "KRW")}</span>
+        {/* 가격은 런칭 때 공개 — 실제 숫자는 화면·소스 어디에도 두지 않는다(흐린 자리표시만). */}
+        <div className="relative mt-5 h-[44px]">
+          <span aria-hidden className={`select-none text-[32px] font-bold tracking-[-0.02em] blur-[10px] ${gold ? "text-white/70" : "text-[color:var(--v2-ink)]/70"}`}>0,000,000</span>
+          <span className={`pm-lock absolute inset-y-0 left-0 inline-flex items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold backdrop-blur-sm ${gold ? "border-[#C5A878]/40 bg-black/30 text-[#E8D3A8]" : "border-white/15 bg-black/30 text-white/85"}`}>
+            <LockSimple size={14} weight="fill" />
+            {t("런칭 때 공개", "Revealed at launch")}
+          </span>
         </div>
-        <p className={`mt-1 text-[12px] ${gold ? "text-white/50" : "text-[color:var(--v2-faint)]"}`}>{t("예정 가격 · 출시 검토 중", "Planned price · under review")}</p>
         <ul className={`mt-6 flex-1 space-y-2.5 border-t pt-6 ${gold ? "border-white/10" : "border-[color:var(--v2-line)]"}`}>
           {plan.items.map((it, i) => (
             <li key={i} className={`flex items-start gap-2 text-[15px] leading-[1.5] ${gold ? "text-white/85" : "text-[color:var(--v2-ink-2)]"}`}>
@@ -644,8 +743,28 @@ function PlanCard({ plan, onApply, delay }: { plan: Plan; onApply: () => void; d
 function Done() {
   const t = usePlatformT();
   return (
-    <div className="rounded-3xl bg-[color:var(--v2-band)] p-8 text-center" role="status">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">
+    <div className="relative overflow-hidden rounded-3xl bg-[color:var(--v2-band)] p-8 text-center" role="status">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {Array.from({ length: 36 }, (_, i) => {
+          const a = (i / 36) * Math.PI * 2;
+          const r = 140 + ((i * 53) % 120);
+          return (
+            <span
+              key={i}
+              className="pm-confetti"
+              style={{
+                background: ["#648BFF", "#C5A878", "#A98BFF", "#F7F8FC"][i % 4],
+                animationDelay: `${(i % 6) * 40}ms`,
+                ["--dx" as string]: `${Math.round(Math.cos(a) * r)}px`,
+                ["--dy" as string]: `${Math.round(Math.sin(a) * r * 0.8 + 120)}px`,
+                ["--rot" as string]: `${(i * 97) % 720 - 360}deg`
+              }}
+            />
+          );
+        })}
+      </div>
+      <span className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">
+        <span aria-hidden className="pm-ring-pop" />
         <CheckCircle size={30} weight="fill" />
       </span>
       <p className="mt-5 text-[22px] font-bold text-[color:var(--v2-ink)]">{t("신청이 접수됐어요", "You're on the list")}</p>
@@ -842,7 +961,8 @@ function ApplyForm({ plan, setPlan, onDone }: { plan: PremiumPlan | ""; setPlan:
   const inv = (k: keyof typeof errors) => (errors[k] ? { "aria-invalid": true as const, "aria-describedby": `pf-${k}-error` } : {});
 
   return (
-    <form onSubmit={submit} noValidate className="rounded-3xl border border-[color:var(--v2-line)] bg-[color:var(--v2-band)] p-5 sm:p-8">
+    <div className="pm-blue-ring">
+    <form onSubmit={submit} noValidate className="rounded-[calc(1.5rem-1px)] bg-[color:var(--v2-band)] p-5 sm:p-8">
       <div className="grid gap-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <Field id="pf-name" label={t("이름", "Name")} required error={errors.name}>
@@ -967,5 +1087,6 @@ function ApplyForm({ plan, setPlan, onDone }: { plan: PremiumPlan | ""; setPlan:
         </p>
       </div>
     </form>
+    </div>
   );
 }
