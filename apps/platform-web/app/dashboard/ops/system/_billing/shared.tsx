@@ -5,6 +5,9 @@
 import { useMemo, type ReactNode } from "react";
 import { X } from "@phosphor-icons/react";
 
+/** 운영자 토큰 — 파일 내려받기처럼 useOpsApi 로 못 하는 요청에 쓴다. */
+export const opsToken = () => readCookie("ops_admin_token");
+
 function readCookie(key: string) {
   if (typeof document === "undefined") return "";
   const entry = document.cookie.split("; ").find((item) => item.startsWith(`${key}=`));

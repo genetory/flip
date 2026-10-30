@@ -10268,6 +10268,325 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
+// APLY PREMIUM 얼리 액세스(/premium) — 비회원 신청, 이메일 한 개당 한 건.
+// 결제는 없다. 런칭 소식은 신청 이메일로 보내고, 상담 연락은 운영팀이 직접 한다.
+// 선택지는 언어와 상관없이 같은 코드로 저장한다(웹 lib/premium.ts 와 같은 값).
+// ---------------------------------------------------------------------------
+
+// 동의문 버전 — 웹(/premium) 동의 문구를 고치면 함께 올린다.
+const PREMIUM_CONSENT_VERSION = "premium-2026-10-v1";
+const PREMIUM_PLANS = ["START", "PRO", "GUARANTEE", "UNDECIDED"] as const;
+const PREMIUM_DEGREES = ["BACHELOR", "MASTER", "DOCTORATE", "GRADUATED", "OTHER"] as const;
+const PREMIUM_VISAS = ["D2", "D10", "F", "E7", "OTHER", "UNKNOWN"] as const;
+const PREMIUM_STATUSES = ["NEW", "CONTACTED", "CONSULT_SCHEDULED", "CONSULTED", "CONVERTED", "EXCLUDED"] as const;
+const PREMIUM_PLAN_LABEL: Record<string, string> = { START: "START", PRO: "PRO", GUARANTEE: "GUARANTEE", UNDECIDED: "미정" };
+const PREMIUM_VISA_LABEL: Record<string, string> = { D2: "D-2", D10: "D-10", F: "F 계열", E7: "E-7", OTHER: "기타", UNKNOWN: "모름" };
+const PREMIUM_DEGREE_LABEL: Record<string, string> = { BACHELOR: "학사", MASTER: "석사", DOCTORATE: "박사", GRADUATED: "졸업", OTHER: "기타" };
+const PREMIUM_STATUS_LABEL: Record<string, string> = {
+  NEW: "신규",
+  CONTACTED: "연락 완료",
+  CONSULT_SCHEDULED: "상담 예정",
+  CONSULTED: "상담 완료",
+  CONVERTED: "전환",
+  EXCLUDED: "제외"
+};
+const discordPremiumWebhookUrl = process.env.DISCORD_PREMIUM_WEBHOOK_URL?.trim() ?? "";
+
+const premiumApplySchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  email: z.string().trim().toLowerCase().email().max(254),
+  nationality: z.string().trim().min(1).max(80),
+  degreeLevel: z.enum(PREMIUM_DEGREES),
+  visaStatus: z.enum(PREMIUM_VISAS),
+  // "GRADUATED" 또는 "2027-H1" 같은 반기 코드
+  graduationPeriod: z.string().trim().regex(/^(GRADUATED|\d{4}-H[12]|LATER)$/),
+  desiredRole: z.string().trim().min(1).max(120),
+  interestedPlan: z.enum(PREMIUM_PLANS),
+  phoneOrMessenger: z.string().trim().max(120).optional(),
+  careerChallenge: z.string().trim().max(2000).optional(),
+  additionalRequests: z.string().trim().max(2000).optional(),
+  privacyConsent: z.literal(true),
+  marketingConsent: z.boolean().optional(),
+  // 스팸 방지 — 사람에겐 안 보이는 칸(채워져 오면 봇)과 폼을 연 뒤 걸린 시간(ms).
+  website: z.string().max(200).optional(),
+  elapsedMs: z.number().int().min(0).optional(),
+  utmSource: z.string().trim().max(200).optional(),
+  utmMedium: z.string().trim().max(200).optional(),
+  utmCampaign: z.string().trim().max(200).optional(),
+  referrer: z.string().trim().max(500).optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+async function sendPremiumDiscordNotification(input: {
+  id: string;
+  name: string;
+  nationality: string;
+  visaStatus: string;
+  degreeLevel: string;
+  graduationPeriod: string;
+  desiredRole: string;
+  interestedPlan: string;
+  utmSource: string | null;
+  createdAt: Date;
+}) {
+  if (!discordPremiumWebhookUrl) return;
+  const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text);
+  const opsUrl = `${opsAdminUrl || platformWebUrl}/dashboard/ops/operations/premium-early-access`;
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0xc5a878,
+        title: "✨ APLY PREMIUM — 얼리 액세스 신청",
+        // 연락처(이메일·전화)는 웹훅에 싣지 않는다 — 운영 콘솔에서 본다.
+        fields: [
+          { name: "이름", value: cut(input.name, 256), inline: true },
+          { name: "관심 상품", value: PREMIUM_PLAN_LABEL[input.interestedPlan] ?? input.interestedPlan, inline: true },
+          { name: "희망 직무", value: cut(input.desiredRole, 256), inline: true },
+          { name: "국적", value: cut(input.nationality, 256), inline: true },
+          { name: "체류자격", value: PREMIUM_VISA_LABEL[input.visaStatus] ?? input.visaStatus, inline: true },
+          { name: "학위·졸업", value: `${PREMIUM_DEGREE_LABEL[input.degreeLevel] ?? input.degreeLevel} · ${input.graduationPeriod}`, inline: true },
+          { name: "유입", value: cut(input.utmSource || "-", 256), inline: true },
+          { name: "바로가기", value: `[운영 콘솔에서 보기](${opsUrl})`, inline: false }
+        ],
+        footer: { text: `Aply • Premium Early Access • ${input.id}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordPremiumWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("premium_discord_webhook_failed", { status: response.status, body: responseBody.slice(0, 500) });
+    }
+  } catch (error) {
+    console.error("premium_discord_webhook_error", { error: getErrorMessage(error) });
+  }
+}
+
+app.post(
+  "/public/premium-early-access",
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "premium-early-access", message: "잠시 후 다시 시도해 주세요." }),
+  authenticateOptional,
+  async (req, res) => {
+    const parsed = premiumApplySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, code: "INVALID", message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    // 봇으로 보이면 저장하지 않는다. 일부러 같은 오류로 답해 봇이 성공으로 착각해 반복하지 않게.
+    if ((input.website && input.website.trim()) || (input.elapsedMs !== undefined && input.elapsedMs < 2500)) {
+      return res.status(400).json({ ok: false, code: "INVALID", message: "입력값을 확인해 주세요." });
+    }
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw ? createHash("sha256").update(`${ipRaw}|premium-early-access`).digest("hex").slice(0, 32) : null;
+    const now = new Date();
+    try {
+      const created = await prisma.premiumEarlyAccessApplication.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          nationality: input.nationality,
+          degreeLevel: input.degreeLevel,
+          visaStatus: input.visaStatus,
+          graduationPeriod: input.graduationPeriod,
+          desiredRole: input.desiredRole,
+          interestedPlan: input.interestedPlan,
+          phoneOrMessenger: input.phoneOrMessenger || null,
+          careerChallenge: input.careerChallenge || null,
+          additionalRequests: input.additionalRequests || null,
+          privacyConsentAt: now,
+          consentVersion: PREMIUM_CONSENT_VERSION,
+          marketingConsentAt: input.marketingConsent ? now : null,
+          utmSource: input.utmSource || null,
+          utmMedium: input.utmMedium || null,
+          utmCampaign: input.utmCampaign || null,
+          referrer: input.referrer || null,
+          locale: input.locale ?? "ko",
+          userId: req.auth?.userId ?? null,
+          ipHash
+        },
+        select: { id: true, createdAt: true }
+      });
+      void sendPremiumDiscordNotification({ ...input, id: created.id, utmSource: input.utmSource ?? null, createdAt: created.createdAt });
+      return res.status(201).json({ ok: true, id: created.id });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return res.status(409).json({ ok: false, code: "DUPLICATE", message: "이미 이 이메일로 신청하셨어요." });
+      }
+      console.error("[public/premium-early-access][create][failed]", { message: getErrorMessage(error) });
+      return res.status(500).json({ ok: false, message: "신청을 저장하지 못했어요. 잠시 후 다시 시도해 주세요." });
+    }
+  }
+);
+
+const opsPremiumQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  plan: z.enum(PREMIUM_PLANS).optional(),
+  visa: z.enum(PREMIUM_VISAS).optional(),
+  graduation: z.string().trim().max(20).optional(),
+  status: z.enum(PREMIUM_STATUSES).optional(),
+  sort: z.enum(["newest", "oldest"]).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+function opsPremiumWhere(f: z.infer<typeof opsPremiumQuerySchema>): Prisma.PremiumEarlyAccessApplicationWhereInput {
+  return {
+    ...(f.plan ? { interestedPlan: f.plan } : {}),
+    ...(f.visa ? { visaStatus: f.visa } : {}),
+    ...(f.graduation ? { graduationPeriod: f.graduation } : {}),
+    ...(f.status ? { status: f.status } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { name: { contains: f.q, mode: "insensitive" } },
+            { email: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+}
+
+app.get("/ops/premium-early-access", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPremiumQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  const f = parsed.data;
+  const where = opsPremiumWhere(f);
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  try {
+    const [items, total, totalAll, byStatus, byPlan, byVisa, byGraduation, marketing, last7] = await Promise.all([
+      prisma.premiumEarlyAccessApplication.findMany({ where, orderBy: { createdAt: f.sort === "oldest" ? "asc" : "desc" }, take, skip }),
+      prisma.premiumEarlyAccessApplication.count({ where }),
+      prisma.premiumEarlyAccessApplication.count(),
+      prisma.premiumEarlyAccessApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.premiumEarlyAccessApplication.groupBy({ by: ["interestedPlan"], _count: { _all: true } }),
+      prisma.premiumEarlyAccessApplication.groupBy({ by: ["visaStatus"], _count: { _all: true } }),
+      prisma.premiumEarlyAccessApplication.groupBy({ by: ["graduationPeriod"], _count: { _all: true } }),
+      prisma.premiumEarlyAccessApplication.count({ where: { marketingConsentAt: { not: null } } }),
+      prisma.premiumEarlyAccessApplication.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } })
+    ]);
+    const tally = <T extends { _count: { _all: number } }>(rows: T[], key: keyof T) =>
+      Object.fromEntries(rows.map((r) => [String(r[key]), r._count._all]));
+    return res.json({
+      ok: true,
+      total,
+      take,
+      skip,
+      summary: {
+        totalAll,
+        last7,
+        marketing,
+        byStatus: tally(byStatus, "status"),
+        byPlan: tally(byPlan, "interestedPlan"),
+        byVisa: tally(byVisa, "visaStatus"),
+        byGraduation: tally(byGraduation, "graduationPeriod")
+      },
+      items: items.map((a) => ({
+        ...a,
+        privacyConsentAt: a.privacyConsentAt.toISOString(),
+        marketingConsentAt: a.marketingConsentAt?.toISOString() ?? null,
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        ipHash: undefined
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// CSV — 지금 걸린 필터 그대로(최대 5000명). 엑셀에서 한글이 깨지지 않게 BOM 을 붙인다.
+app.get("/ops/premium-early-access/export", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPremiumQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query" });
+  try {
+    const rows = await prisma.premiumEarlyAccessApplication.findMany({
+      where: opsPremiumWhere(parsed.data),
+      orderBy: { createdAt: parsed.data.sort === "oldest" ? "asc" : "desc" },
+      take: 5000
+    });
+    const esc = (v: unknown) => {
+      let s = v === null || v === undefined ? "" : String(v);
+      // 엑셀 수식 주입 막기
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["신청일", "상태", "이름", "이메일", "국적", "학위 과정", "체류자격", "졸업 시기", "희망 직무", "관심 상품", "연락처·메신저", "어려운 점", "추가 요청", "마케팅 동의", "언어", "유입", "운영 메모"];
+    const lines = rows.map((r) =>
+      [
+        r.createdAt.toISOString(),
+        PREMIUM_STATUS_LABEL[r.status] ?? r.status,
+        r.name,
+        r.email,
+        r.nationality,
+        PREMIUM_DEGREE_LABEL[r.degreeLevel] ?? r.degreeLevel,
+        PREMIUM_VISA_LABEL[r.visaStatus] ?? r.visaStatus,
+        r.graduationPeriod,
+        r.desiredRole,
+        PREMIUM_PLAN_LABEL[r.interestedPlan] ?? r.interestedPlan,
+        r.phoneOrMessenger,
+        r.careerChallenge,
+        r.additionalRequests,
+        r.marketingConsentAt ? "Y" : "N",
+        r.locale,
+        r.utmSource,
+        r.opsNote
+      ]
+        .map(esc)
+        .join(",")
+    );
+    void writeAuditLog(req, {
+      action: "OPS_PREMIUM_EARLY_ACCESS_EXPORT",
+      resource: "premium_early_access",
+      resourceId: null,
+      metadata: { count: rows.length, callerId: req.auth!.userId }
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="premium-early-access-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return res.send(`﻿${[header.join(","), ...lines].join("\r\n")}`);
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const opsPremiumUpdateSchema = z.object({
+  status: z.enum(PREMIUM_STATUSES).optional(),
+  opsNote: z.string().trim().max(4000).nullable().optional()
+});
+
+app.patch("/ops/premium-early-access/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  const parsed = opsPremiumUpdateSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const data: Prisma.PremiumEarlyAccessApplicationUpdateInput = {};
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.opsNote !== undefined) data.opsNote = parsed.data.opsNote || null;
+  try {
+    const updated = await prisma.premiumEarlyAccessApplication.update({
+      where: { id },
+      data,
+      select: { id: true, status: true, opsNote: true, updatedAt: true }
+    });
+    return res.json({ ok: true, item: { ...updated, updatedAt: updated.updatedAt.toISOString() } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ ok: false, message: "not found" });
+    }
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // 서울글로벌센터 × Aply 6주 일경험 프로그램 지원. 회원만 지원 가능 — 사용자
 // User + Resume 의 기존 정보를 그대로 활용하고 SGC-specific 6 필드만 받음.
 // 한 사용자당 1회 지원(@@unique([userId])).
