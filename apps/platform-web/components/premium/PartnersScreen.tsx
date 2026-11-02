@@ -56,9 +56,13 @@ import {
   parallaxMove,
   tiltLeave,
   tiltMove,
-  GOLD,
   NIGHT
 } from "./fx";
+
+// 웹3 네온 — 시안·바이올렛·마젠타(app/premium/premium.css .pm-web3 와 같은 값)
+const CYAN = "#3EE7FF";
+const VIOLET = "#8B5CFF";
+const VIOLET_SOFT = "#B49CFF";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -190,7 +194,7 @@ const FAQS: { q: L; a: L }[] = [
 
 export function PartnersScreen() {
   return (
-    <PremiumShell>
+    <PremiumShell variant="web3">
       <Partners />
     </PremiumShell>
   );
@@ -235,13 +239,14 @@ function Partners() {
     <div>
       {/* 01 — Hero */}
       <div className="group/hero relative" onMouseMove={parallaxMove}>
-        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/hero:opacity-100" style={{ background: "radial-gradient(520px circle at var(--cx, 50%) var(--cy, 50%), rgba(197,168,120,0.10), transparent 60%)" }} />
+        <div aria-hidden className="pm-floor" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover/hero:opacity-100" style={{ background: "radial-gradient(520px circle at var(--cx, 50%) var(--cy, 50%), rgba(62,231,255,0.10), transparent 60%)" }} />
         <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20 lg:grid-cols-[1fr_400px]">
           <div className="max-w-[700px]">
-            <p className="pm-enter inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[12px] font-bold tracking-[0.16em] backdrop-blur" style={{ color: GOLD, animationDelay: "60ms" }}>
+            <p className="pm-enter pm-mono inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-[12px] font-bold tracking-[0.12em] backdrop-blur" style={{ color: CYAN, animationDelay: "60ms" }}>
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" style={{ background: GOLD }} />
-                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: GOLD }} />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 motion-reduce:animate-none" style={{ background: CYAN }} />
+                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: CYAN }} />
               </span>
               APLY PARTNERS · PARTNERSHIP PROPOSAL
             </p>
@@ -265,7 +270,7 @@ function Partners() {
             <div className="pm-enter mt-6 flex flex-wrap gap-2" style={{ animationDelay: "1150ms" }}>
               {HERO_PILLS.map((p, i) => (
                 <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[14px] font-semibold text-white/80">
-                  <span style={{ color: i === 2 ? GOLD : "#8FAAFF" }}>{p.icon}</span>
+                  <span style={{ color: i === 2 ? CYAN : VIOLET_SOFT }}>{p.icon}</span>
                   {tl(locale, p.label)}
                 </span>
               ))}
@@ -285,11 +290,17 @@ function Partners() {
           </div>
           {/* PC 오른쪽 — 인재가 기업에 닿기까지를 떠다니는 유리 카드로 */}
           <div aria-hidden className="relative hidden h-[420px] lg:block" style={{ transform: "translate3d(calc(var(--mx, 0) * -22px), calc(var(--my, 0) * -16px), 0)", transition: "transform 0.4s ease-out" }}>
+            <div className="pm-orb">
+              <span className="halo" />
+              <span className="core" />
+              <span className="ring" />
+              <span className="ring r2" />
+            </div>
             <div className="pm-orbit left-1/2 top-1/2 -ml-[220px] -mt-[220px] h-[440px] w-[440px]" style={{ ["--d" as string]: "30s" }}>
-              <i style={{ background: GOLD, boxShadow: `0 0 14px ${GOLD}` }} />
+              <i style={{ background: CYAN, boxShadow: `0 0 14px ${CYAN}` }} />
             </div>
             <div className="pm-orbit left-1/2 top-1/2 -ml-[150px] -mt-[150px] h-[300px] w-[300px]" style={{ ["--d" as string]: "20s", animationDirection: "reverse" }}>
-              <i style={{ background: "#648BFF", boxShadow: "0 0 14px #648BFF" }} />
+              <i style={{ background: VIOLET, boxShadow: `0 0 14px ${VIOLET}` }} />
             </div>
             {[
               { icon: <GraduationCap size={20} weight="duotone" />, title: t("사전 교육 완료", "Pre-training done"), sub: t("직무 이해·지원 서류 준비", "Role basics & documents"), cls: "left-0 top-2", delay: 1400, float: "0s" },
@@ -297,16 +308,16 @@ function Partners() {
               { icon: <Buildings size={20} weight="duotone" />, title: t("기업에 후보자 추천", "Referred to your team"), sub: t("면접부터는 기업이 직접", "You interview and decide"), cls: "left-6 top-[282px]", delay: 1700, float: "-4s", gold: true }
             ].map((c) => (
               <div key={c.title} className={`pm-enter absolute ${c.cls}`} style={{ animationDelay: `${c.delay}ms` }}>
-                <div className="pm-float w-[310px] rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] backdrop-blur-md" style={{ animationDelay: c.float }}>
+                <div className="pm-float pm-glass w-[310px] rounded-2xl !bg-[#0e0b1d]/80 p-4 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]" style={{ animationDelay: c.float }}>
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={c.gold ? { background: "rgba(197,168,120,0.16)", color: GOLD } : { background: "rgba(100,139,255,0.16)", color: "#8FAAFF" }}>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={c.gold ? { background: "rgba(62,231,255,0.16)", color: CYAN } : { background: "rgba(139,92,255,0.16)", color: VIOLET_SOFT }}>
                       {c.icon}
                     </span>
                     <div className="min-w-0">
                       <p className="text-[15px] font-bold text-white">{c.title}</p>
                       <p className="text-[13px] text-white/55">{c.sub}</p>
                     </div>
-                    <CheckCircle size={20} weight="fill" className="ml-auto shrink-0" style={{ color: c.gold ? GOLD : "#648BFF" }} />
+                    <CheckCircle size={20} weight="fill" className="ml-auto shrink-0" style={{ color: c.gold ? CYAN : VIOLET }} />
                   </div>
                 </div>
               </div>
@@ -323,7 +334,7 @@ function Partners() {
               <div key={k} className="flex shrink-0 items-center">
                 {(rev ? [...MARQUEE].reverse() : MARQUEE).map((m, i) => (
                   <span key={i} className={`flex items-center whitespace-nowrap px-6 font-semibold ${rev ? "text-[14px] text-white/25 md:text-[15px]" : "text-[15px] text-white/50 md:text-[18px]"}`}>
-                    <span className="mr-6 h-1.5 w-1.5 rounded-full" style={{ background: i % 3 === 2 ? GOLD : "#648BFF" }} />
+                    <span className="mr-6 h-1.5 w-1.5 rounded-full" style={{ background: i % 3 === 2 ? CYAN : VIOLET }} />
                     {tl(locale, m)}
                   </span>
                 ))}
@@ -336,7 +347,7 @@ function Partners() {
       {/* 01 — About */}
       <Wrap>
         <Reveal>
-          <Eyebrow>01 · ABOUT APLY</Eyebrow>
+          <Eyebrow>[01] ABOUT_APLY</Eyebrow>
         </Reveal>
         <Heading>{t("한국 취업을 준비하는\n글로벌 인재의 커리어 플랫폼", "The career platform for\nglobal talent in Korea")}</Heading>
         <Reveal delay={120}>
@@ -350,7 +361,8 @@ function Partners() {
         <div className="mt-8 grid gap-3 md:grid-cols-3">
           {ABOUT.map((a, i) => (
             <Reveal key={i} delay={i * 110} className="h-full">
-              <div onMouseMove={tiltMove} onMouseLeave={tiltLeave} className="pm-spot h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6 transition-[transform,border-color] duration-300 ease-out hover:border-white/15">
+              <div onMouseMove={tiltMove} onMouseLeave={tiltLeave} className="pm-spot h-full rounded-2xl pm-glass p-6 transition-[transform,border-color] duration-300 ease-out hover:border-white/15">
+                <span aria-hidden className="pm-scan" />
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--v2-accent-weak)] text-[color:var(--v2-accent)]">{a.icon}</span>
                 <p className="mt-4 text-[18px] font-bold text-[color:var(--v2-ink)]">{tl(locale, a.title)}</p>
                 <p className="mt-1.5 text-[15px] leading-[1.65] text-[color:var(--v2-ink-3)]">{tl(locale, a.body)}</p>
@@ -364,18 +376,18 @@ function Partners() {
       <div className="bg-[color:var(--v2-fill)]">
         <Wrap>
           <Reveal>
-            <Eyebrow>02 · WHY PARTNER</Eyebrow>
+            <Eyebrow>[02] WHY_PARTNER</Eyebrow>
           </Reveal>
           <Heading>{t("어플라이와 협력하면\n우리 회사에 무엇이 좋을까요?", "What does partnering with\nAply do for your company?")}</Heading>
           <div className="mt-8 grid gap-3">
             {BENEFITS.map((b, i) => (
               <Reveal key={i} delay={i * 80}>
-                <div className="group grid items-center gap-3 rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-5 transition hover:border-white/15 md:grid-cols-[1fr_auto_1.2fr] md:gap-6 md:px-7">
+                <div className="group grid items-center gap-3 rounded-2xl pm-glass p-5 transition hover:border-white/15 md:grid-cols-[1fr_auto_1.2fr] md:gap-6 md:px-7">
                   <p className="flex items-center gap-3 text-[15px] text-[color:var(--v2-muted)] md:text-[16px]">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-[color:var(--v2-faint)]">{b.icon}</span>
                     {tl(locale, b.pain)}
                   </p>
-                  <span aria-hidden className="hidden h-px w-16 bg-gradient-to-r from-white/10 to-[#648BFF] transition-all duration-500 group-hover:w-24 md:block" />
+                  <span aria-hidden className="hidden h-px w-16 bg-gradient-to-r from-white/10 to-[#3EE7FF] transition-all duration-500 group-hover:w-24 md:block" />
                   <p className="flex items-center gap-2 text-[16px] font-bold text-[color:var(--v2-ink)] md:text-[17px]">
                     <CheckCircle size={20} weight="fill" className="shrink-0 text-[color:var(--v2-accent)]" />
                     {tl(locale, b.value)}
@@ -385,7 +397,7 @@ function Partners() {
             ))}
           </div>
           <Reveal delay={200}>
-            <figure className="relative mt-10 overflow-hidden rounded-3xl border border-[#C5A878]/25 px-6 py-10 text-center md:px-12 md:py-14" style={{ background: "linear-gradient(160deg, #1C1E25 0%, #111319 70%)" }}>
+            <figure className="relative mt-10 overflow-hidden rounded-3xl border border-[#3EE7FF]/25 px-6 py-10 text-center md:px-12 md:py-14" style={{ background: "linear-gradient(160deg, #15102B 0%, #0A0815 70%)" }}>
               <Stars count={18} />
               <blockquote className="relative text-[20px] font-bold leading-[1.5] text-white md:text-[26px]">
                 {t("“어플라이와 함께 글로벌 인재를 만나 보세요.", "“Meet global talent with Aply.")}
@@ -400,7 +412,7 @@ function Partners() {
       {/* 03 — Partnership models */}
       <Wrap id="models">
         <Reveal>
-          <Eyebrow>03 · PARTNERSHIP MODELS</Eyebrow>
+          <Eyebrow>[03] PARTNERSHIP_MODELS</Eyebrow>
         </Reveal>
         <Heading>{t("우리 회사에 맞는 방식으로\n시작하세요.", "Start in the way\nthat fits your company.")}</Heading>
         <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-3">
@@ -408,14 +420,14 @@ function Partners() {
             <Reveal key={m.code} delay={i * 140} className="h-full">
               <div onMouseMove={tiltMove} onMouseLeave={tiltLeave} className={`h-full transition-transform duration-300 ease-out will-change-transform ${m.gold ? "pm-gold-ring" : ""}`}>
                 <div
-                  className={`pm-spot relative flex h-full flex-col rounded-3xl p-7 ${m.gold ? "pm-spot-gold" : "border border-[color:var(--v2-line)] bg-[color:var(--v2-band)]"}`}
-                  style={m.gold ? { background: "linear-gradient(160deg, #23262E 0%, #12141B 70%)" } : undefined}
+                  className={`pm-spot relative flex h-full flex-col rounded-3xl p-7 ${m.gold ? "pm-spot-gold" : "pm-glass"}`}
+                  style={m.gold ? { background: "linear-gradient(160deg, #1B1533 0%, #0C0A18 70%)" } : undefined}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={m.gold ? { background: "rgba(197,168,120,0.16)", color: GOLD } : { background: "rgba(100,139,255,0.14)", color: "#8FAAFF" }}>
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl" style={m.gold ? { background: "rgba(62,231,255,0.16)", color: CYAN } : { background: "rgba(139,92,255,0.14)", color: VIOLET_SOFT }}>
                       {m.icon}
                     </span>
-                    <span className="rounded-full border px-2.5 py-1 text-[12px] font-semibold" style={m.gold ? { borderColor: `${GOLD}66`, color: "#E8D3A8" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>
+                    <span className="rounded-full border px-2.5 py-1 text-[12px] font-semibold" style={m.gold ? { borderColor: `${CYAN}66`, color: "#A5F3FF" } : { borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}>
                       {tl(locale, m.tag)}
                     </span>
                   </div>
@@ -433,11 +445,11 @@ function Partners() {
                       </ul>
                     </div>
                     <div>
-                      <p className="text-[12px] font-bold tracking-[0.12em]" style={{ color: m.gold ? GOLD : "#8FAAFF" }}>{t("어플라이 역할", "APLY")}</p>
+                      <p className="text-[12px] font-bold tracking-[0.12em]" style={{ color: m.gold ? CYAN : VIOLET_SOFT }}>{t("어플라이 역할", "APLY")}</p>
                       <ul className="mt-2 space-y-1.5">
                         {m.aply.map((c, k) => (
                           <li key={k} className="flex items-start gap-2 text-[15px] text-white/85">
-                            <CheckCircle size={16} weight="fill" className="mt-[3px] shrink-0" style={{ color: m.gold ? GOLD : "#648BFF" }} />
+                            <CheckCircle size={16} weight="fill" className="mt-[3px] shrink-0" style={{ color: m.gold ? CYAN : VIOLET }} />
                             {tl(locale, c)}
                           </li>
                         ))}
@@ -451,7 +463,7 @@ function Partners() {
                           type="button"
                           onClick={() => goApply(m.code)}
                           className="inline-flex h-12 w-full items-center justify-center rounded-xl text-[16px] font-semibold transition hover:opacity-90 active:scale-[0.98]"
-                          style={{ background: GOLD, color: "#121622" }}
+
                         >
                           {t("이 방식으로 문의하기", "Inquire about this")}
                         </button>
@@ -479,14 +491,14 @@ function Partners() {
       <div className="bg-[color:var(--v2-fill)]">
         <Wrap>
           <Reveal>
-            <Eyebrow>04 · INTERNSHIP PROGRAM</Eyebrow>
+            <Eyebrow>[04] INTERNSHIP_PROGRAM</Eyebrow>
           </Reveal>
           <Heading>{t("필요한 직무와 기간에 맞춰\n함께 설계해요.", "Designed around\nyour roles and timeline.")}</Heading>
           <div className="mt-8 grid gap-3 lg:grid-cols-3">
             <Reveal className="h-full">
-              <div className="h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6">
+              <div className="h-full rounded-2xl pm-glass p-6">
                 <p className="flex items-center gap-2 text-[15px] font-bold text-white">
-                  <Briefcase size={20} weight="duotone" className="text-[#8FAAFF]" />
+                  <Briefcase size={20} weight="duotone" className="text-[#B49CFF]" />
                   {t("대상 직무", "Roles")}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -500,9 +512,9 @@ function Partners() {
               </div>
             </Reveal>
             <Reveal delay={120} className="h-full">
-              <div className="h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6">
+              <div className="h-full rounded-2xl pm-glass p-6">
                 <p className="flex items-center gap-2 text-[15px] font-bold text-white">
-                  <Plant size={20} weight="duotone" className="text-[#8FAAFF]" />
+                  <Plant size={20} weight="duotone" className="text-[#B49CFF]" />
                   {t("인턴십 기간", "Duration")}
                 </p>
                 <div className="mt-4 flex items-end gap-3">
@@ -512,7 +524,7 @@ function Partners() {
                     { w: "12", h: "h-24" }
                   ].map((d) => (
                     <div key={d.w} className="flex flex-1 flex-col items-center gap-2">
-                      <div className={`w-full rounded-lg bg-gradient-to-t from-[#648BFF]/30 to-[#648BFF]/70 ${d.h}`} />
+                      <div className={`w-full rounded-lg bg-gradient-to-t from-[#8B5CFF]/30 via-[#8B5CFF]/60 to-[#3EE7FF]/80 ${d.h}`} />
                       <span className="text-[14px] font-bold text-white/85">{t(`${d.w}주`, `${d.w} wks`)}</span>
                     </div>
                   ))}
@@ -521,15 +533,15 @@ function Partners() {
               </div>
             </Reveal>
             <Reveal delay={240} className="h-full">
-              <div className="h-full rounded-2xl border border-white/[0.06] bg-[color:var(--v2-band)] p-6">
+              <div className="h-full rounded-2xl pm-glass p-6">
                 <p className="flex items-center gap-2 text-[15px] font-bold text-white">
-                  <Compass size={20} weight="duotone" className="text-[#8FAAFF]" />
+                  <Compass size={20} weight="duotone" className="text-[#B49CFF]" />
                   {t("선발·운영 방식", "Selection")}
                 </p>
                 <ol className="mt-4 space-y-2">
                   {SELECTION.map((st, i) => (
                     <li key={i} className="flex items-center gap-3 text-[15px] text-white/85">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={i >= 3 ? { background: "rgba(197,168,120,0.18)", color: GOLD } : { background: "rgba(100,139,255,0.18)", color: "#8FAAFF" }}>
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold" style={i >= 3 ? { background: "rgba(62,231,255,0.18)", color: CYAN } : { background: "rgba(139,92,255,0.18)", color: VIOLET_SOFT }}>
                         {i + 1}
                       </span>
                       {tl(locale, st)}
@@ -546,16 +558,16 @@ function Partners() {
       {/* 05 — Roles */}
       <Wrap>
         <Reveal>
-          <Eyebrow>05 · ROLES</Eyebrow>
+          <Eyebrow>[05] ROLES</Eyebrow>
         </Reveal>
         <Heading>{t("누가 무엇을 하는지\n처음부터 분명하게.", "Clear roles\nfrom day one.")}</Heading>
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {[
-            { title: "APLY", items: APLY_ROLE, color: "#648BFF", icon: <Sparkle size={22} weight="duotone" /> },
-            { title: t("기업", "YOUR COMPANY"), items: COMPANY_ROLE, color: GOLD, icon: <Buildings size={22} weight="duotone" /> }
+            { title: "APLY", items: APLY_ROLE, color: VIOLET, icon: <Sparkle size={22} weight="duotone" /> },
+            { title: t("기업", "YOUR COMPANY"), items: COMPANY_ROLE, color: CYAN, icon: <Buildings size={22} weight="duotone" /> }
           ].map((col, ci) => (
             <Reveal key={ci} delay={ci * 140} className="h-full">
-              <div className="h-full rounded-3xl border border-white/[0.08] bg-[color:var(--v2-band)] p-7">
+              <div className="h-full rounded-3xl pm-glass p-7">
                 <p className="flex items-center gap-2.5 text-[18px] font-bold tracking-[0.06em]" style={{ color: col.color }}>
                   {col.icon}
                   {col.title}
@@ -574,7 +586,7 @@ function Partners() {
         </div>
         <Reveal delay={200}>
           <p className="mt-5 flex items-start gap-2.5 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-[14px] leading-[1.65] text-[color:var(--v2-ink-3)]">
-            <IdentificationCard size={20} weight="duotone" className="mt-[1px] shrink-0" style={{ color: GOLD }} />
+            <IdentificationCard size={20} weight="duotone" className="mt-[1px] shrink-0" style={{ color: CYAN }} />
             {t(
               "기업이 인턴을 직접 고용하는 경우, D-2 유학생은 근무를 시작하기 전에 필요한 허가를 받아야 할 수 있어요. 후보자의 체류자격 요건은 어플라이가 함께 확인해요.",
               "If your company hires an intern directly, D-2 students may need permission before starting work. Aply checks each candidate's visa requirements with you."
@@ -587,7 +599,7 @@ function Partners() {
       <div className="bg-[color:var(--v2-fill)]">
         <Wrap>
           <Reveal>
-            <Eyebrow>06 · NEXT STEPS</Eyebrow>
+            <Eyebrow>[06] NEXT_STEPS</Eyebrow>
           </Reveal>
           <Heading>{t("제휴는 이렇게 진행돼요.", "How partnering works.")}</Heading>
           <Timeline steps={STEPS} />
@@ -597,7 +609,7 @@ function Partners() {
       {/* 07 — 문의 폼 */}
       <Wrap id="apply">
         <div className="mx-auto max-w-[720px]">
-          <Eyebrow>PARTNERSHIP INQUIRY</Eyebrow>
+          <Eyebrow>[07] PARTNERSHIP_INQUIRY</Eyebrow>
           <Heading>{"Let's Build Together."}</Heading>
           <p className="mt-3 text-[16px] leading-[1.65] text-[color:var(--v2-ink-3)]">
             {t(
@@ -612,7 +624,7 @@ function Partners() {
       {/* 08 — FAQ */}
       <div className="bg-[color:var(--v2-fill)]">
         <Wrap>
-          <Eyebrow>FAQ</Eyebrow>
+          <Eyebrow>[08] FAQ</Eyebrow>
           <Heading>{t("자주 묻는 질문", "Frequently asked questions")}</Heading>
           <div className="mt-6 divide-y divide-[color:var(--v2-line)] border-y border-[color:var(--v2-line)]">
             {FAQS.map((f, i) => (
@@ -641,7 +653,7 @@ function Partners() {
             <div aria-hidden className="pm-grid" />
             <Stars count={28} />
             <div className="relative">
-              <p className="text-[12px] font-bold tracking-[0.18em]" style={{ color: GOLD }}>APLY PARTNERS</p>
+              <p className="text-[12px] font-bold tracking-[0.18em]" style={{ color: CYAN }}>APLY PARTNERS</p>
               <p className="mt-4 text-[28px] font-bold leading-[1.3] tracking-[-0.02em] text-white md:text-[44px]">
                 Your Next Hire <span className="pm-sheen">Could Be Global.</span>
               </p>
@@ -673,7 +685,7 @@ function Partners() {
           className="inline-flex h-12 items-center rounded-full px-6 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.45)] ring-1 ring-white/10 transition hover:opacity-90"
           style={{ background: NIGHT }}
         >
-          <span className="mr-2 h-2 w-2 rounded-full" style={{ background: GOLD }} />
+          <span className="mr-2 h-2 w-2 rounded-full" style={{ background: CYAN }} />
           {cta}
         </button>
       </div>
@@ -858,7 +870,7 @@ function InquiryForm({ models, setModels, onDone }: { models: string[]; setModel
   const inv = (k: ErrKey) => (errors[k] ? { "aria-invalid": true as const, "aria-describedby": `pp-${k}-error` } : {});
   const section = (n: string, title: string) => (
     <div className="flex items-center gap-3 border-t border-[color:var(--v2-line)] pt-6 first:border-t-0 first:pt-0">
-      <span className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold" style={{ background: "rgba(100,139,255,0.16)", color: "#8FAAFF" }}>
+      <span className="flex h-7 w-7 items-center justify-center rounded-full text-[13px] font-bold" style={{ background: "rgba(139,92,255,0.16)", color: VIOLET_SOFT }}>
         {n}
       </span>
       <p className="text-[16px] font-bold text-[color:var(--v2-ink)]">{title}</p>
@@ -1001,7 +1013,7 @@ function InquiryForm({ models, setModels, onDone }: { models: string[]; setModel
           <button
             type="submit"
             disabled={sending}
-            className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--v2-accent)] text-[17px] font-semibold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
+            className="pm-cta inline-flex h-14 w-full items-center justify-center gap-2 rounded-xl bg-[color:var(--v2-accent)] text-[17px] font-semibold text-white transition hover:opacity-90 active:scale-[0.99] disabled:opacity-60"
           >
             {sending ? <Spinner /> : null}
             {sending ? t("보내는 중…", "Sending…") : t("제휴 문의 보내기", "Send inquiry")}
