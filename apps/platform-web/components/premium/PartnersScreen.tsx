@@ -1,7 +1,7 @@
 "use client";
 
 // APLY PARTNERS 기업 제휴(/premium-partners) — 기업·채용 담당자에게 보여 주는 한 장 제안서 + 제휴 문의(사전 수요조사) 폼.
-// /premium(학생용)과 같은 어두운 셸·움직임(fx.tsx)을 쓴다. 학생용 상품 가격은 기업에 보여 주지 않는다.
+// /premium-talent(학생용)과 같은 어두운 셸·움직임(fx.tsx)을 쓴다. 학생용 상품 가격은 기업에 보여 주지 않는다.
 // 직업소개 요건·비용 구조는 검토 중이라 '협의'로만 말하고, 프로젝트 협력형은 근로계약 인턴십과 나눠 적는다.
 // 저장에 실패하면 완료 화면을 보여 주지 않는다(서버가 201 을 줄 때만 완료).
 import { useEffect, useRef, useState, type ReactNode } from "react";

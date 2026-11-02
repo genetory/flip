@@ -26,7 +26,7 @@ const EXCLUDED_PREFIXES: RegExp[] = [
   // Career Launch(유료 프로그램 수강생 화면·공개 랜딩 모두) — 광고 없이.
   /^\/career-launch(\/|$)/,
   // APLY PREMIUM 얼리 액세스·기업 제휴 — 셸 없이 어두운 한 장 페이지.
-  /^\/premium(-partners)?(\/|$)/,
+  /^\/premium(-talent|-partners)?(\/|$)/,
   /^\/v2\/resume(\/|$)/,
   /^\/v2\/cover(\/|$)/,
   // 공개 공유된 남의 문서 위에도 광고를 얹지 않는다.

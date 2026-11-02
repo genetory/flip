@@ -10268,12 +10268,12 @@ app.post(
 );
 
 // ---------------------------------------------------------------------------
-// APLY PREMIUM 얼리 액세스(/premium) — 비회원 신청, 이메일 한 개당 한 건.
+// APLY PREMIUM 얼리 액세스(/premium-talent) — 비회원 신청, 이메일 한 개당 한 건.
 // 결제는 없다. 런칭 소식은 신청 이메일로 보내고, 상담 연락은 운영팀이 직접 한다.
 // 선택지는 언어와 상관없이 같은 코드로 저장한다(웹 lib/premium.ts 와 같은 값).
 // ---------------------------------------------------------------------------
 
-// 동의문 버전 — 웹(/premium) 동의 문구를 고치면 함께 올린다.
+// 동의문 버전 — 웹(/premium-talent) 동의 문구를 고치면 함께 올린다.
 const PREMIUM_CONSENT_VERSION = "premium-2026-10-v1";
 const PREMIUM_PLANS = ["START", "PRO", "GUARANTEE", "UNDECIDED"] as const;
 const PREMIUM_DEGREES = ["BACHELOR", "MASTER", "DOCTORATE", "GRADUATED", "OTHER"] as const;

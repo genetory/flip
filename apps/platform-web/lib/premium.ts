@@ -1,4 +1,4 @@
-// APLY PREMIUM 얼리 액세스(/premium) — 선택지 코드는 API(premiumApplySchema)와 같은 값이다.
+// APLY PREMIUM 얼리 액세스(/premium-talent) — 선택지 코드는 API(premiumApplySchema)와 같은 값이다.
 // 화면 문구는 언어마다 다르게 보여도 저장은 늘 이 코드로. 새 언어는 L 에 칸만 더하면 된다.
 import { pickLocale } from "./i18n";
 import type { PlatformLocale } from "./auth-messages";

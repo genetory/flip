@@ -1,7 +1,7 @@
 "use client";
 
-// APLY PREMIUM 얼리 액세스(/premium) — 한 장으로 스크롤하는 소개 + 신청 폼.
-// 글꼴·버튼 모양은 aply.global(v2) 그대로, 색만 어두운 바탕(app/premium/premium.css 의 변수). 상단 메뉴·광고 없음.
+// APLY PREMIUM 얼리 액세스(/premium-talent) — 한 장으로 스크롤하는 소개 + 신청 폼.
+// 글꼴·버튼 모양은 aply.global(v2) 그대로, 색만 어두운 바탕(app/premium-talent/premium.css 의 변수). 상단 메뉴·광고 없음.
 // 골드는 GUARANTEE 와 작은 머리글에만.
 // 결제는 없다 — 신청만 받고, 런칭 소식은 신청한 이메일로 보낸다. 가격은 런칭 때 공개(지금은 가려 둔다). 인턴십 범위는 '예정'으로만 말한다.
 // 저장에 실패하면 완료 화면을 보여 주지 않는다(서버가 201 을 줄 때만 완료).

@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-// /premium 공유 미리보기 — 영문만 써서 글꼴을 따로 받지 않는다.
+// /premium-talent 공유 미리보기 — 영문만 써서 글꼴을 따로 받지 않는다.
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -25,7 +25,7 @@ export default function Image() {
         <div style={{ marginTop: 28, fontSize: 84, fontWeight: 800, lineHeight: 1.1, letterSpacing: -2 }}>Your Career</div>
         <div style={{ fontSize: 84, fontWeight: 800, lineHeight: 1.1, letterSpacing: -2 }}>Deserves More.</div>
         <div style={{ marginTop: 32, fontSize: 32, color: "#949BAE" }}>Resume · Interviews · Company matching · Internships in Korea</div>
-        <div style={{ marginTop: 56, fontSize: 26, color: "#949BAE" }}>aply.global/premium</div>
+        <div style={{ marginTop: 56, fontSize: 26, color: "#949BAE" }}>aply.global/premium-talent</div>
       </div>
     ),
     size

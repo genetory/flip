@@ -147,10 +147,10 @@ export default function PremiumEarlyAccessPage() {
     <section className="ops-content-section">
       <PageHead
         title="APLY PREMIUM 얼리 액세스"
-        desc="/premium 에서 들어온 신청자예요. 눌러서 내용을 보고 상태와 메모를 남겨요. 연락은 운영팀이 직접 해요."
+        desc="/premium-talent 에서 들어온 신청자예요. 눌러서 내용을 보고 상태와 메모를 남겨요. 연락은 운영팀이 직접 해요."
         right={
           <>
-            <a className="ops-btn" href="/premium" target="_blank" rel="noreferrer" style={{ height: 38, display: "inline-flex", alignItems: "center", padding: "0 14px" }}>
+            <a className="ops-btn" href="/premium-talent" target="_blank" rel="noreferrer" style={{ height: 38, display: "inline-flex", alignItems: "center", padding: "0 14px" }}>
               페이지 열기
             </a>
             <button type="button" className="ops-btn ops-btn-primary" style={{ height: 38, padding: "0 16px" }} onClick={() => void exportCsv()} disabled={exporting || !data?.total}>

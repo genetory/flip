@@ -1,8 +1,8 @@
 "use client";
 
-// APLY PREMIUM 어두운 한 장 페이지들(/premium, /premium-partners)이 같이 쓰는 조각 —
+// APLY PREMIUM 어두운 한 장 페이지들(/premium-talent, /premium-partners)이 같이 쓰는 조각 —
 // 셸(로고·언어·오로라·별·진행 막대·바닥글), 등장·기울기·시차 효과, 제목·구획, 폼 칸.
-// 색은 app/premium/premium.css 의 .premium-dark 변수, 움직임 클래스(pm-*)도 거기에 있다.
+// 색은 app/premium-talent/premium.css 의 .premium-dark 변수, 움직임 클래스(pm-*)도 거기에 있다.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";

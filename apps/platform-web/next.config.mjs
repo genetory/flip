@@ -95,6 +95,9 @@ const nextConfig = {
       { source: "/resources/visa/:code", destination: "/talent/visa/:code", permanent: true },
       { source: "/resources/:path*", destination: "/", permanent: true },
 
+      // APLY PREMIUM 학생용 얼리 액세스는 /premium-talent 로 옮겼다(기업용은 /premium-partners).
+      { source: "/premium", destination: "/premium-talent", permanent: true },
+
       // 기존 www → apex 정규화(유지)
       {
         source: "/:path*",
