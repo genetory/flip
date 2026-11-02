@@ -22,7 +22,7 @@ export type UniversityLanding = {
   accentDeep: string; // 그라데이션/딥 톤
   motto?: string; // 건학정신·슬로건 등 공개 문구
   // 해당 대학의 진행 중인 Career Launch 기수 초대코드가 있으면 지정 — 있으면 주 CTA 가
-  // '무료 4주 프로그램 시작'(초대링크), 없으면 '무료로 시작하기'(가입)로 자동 전환(적응형).
+  // '4주 프로그램 시작'(초대링크), 없으면 '시작하기'(가입)로 자동 전환(적응형).
   careerLaunchInvite?: string;
   // 랜딩에 노출할 공개 공고 큐레이션 조건(공개 /positions API 로 조회).
   jobQuery?: { foreignerEligible?: boolean; jobRoles?: string[]; locations?: string[]; limit?: number };
@@ -47,7 +47,7 @@ const REGISTRY: Record<string, UniversityLanding> = {
     accent: "#0E4A84", // Hanyang Blue(딥 로열블루) — 공식 정확값은 대학 디자인경영센터 확인 필요
     accentDeep: "#0A335C",
     motto: "사랑의 실천 · The Engine of Korea",
-    // careerLaunchInvite 미지정 → 적응형 CTA 가 '무료로 시작하기'(가입)로 동작.
+    // careerLaunchInvite 미지정 → 적응형 CTA 가 '시작하기'(가입)로 동작.
     jobQuery: { limit: 4 },
     showVisaSection: true, // 한양대 유학생 비중 높음
     visaCodes: ["D-2", "D-10", "E-7"],
@@ -67,9 +67,36 @@ const REGISTRY: Record<string, UniversityLanding> = {
     accent: "#00703E", // 건국그린 — 공식 로고 배경색(0,112,62)에서 추출
     accentDeep: "#004A29",
     motto: "성(誠) · 신(信) · 의(義)", // 건학이념(Sincerity · Fidelity · Righteousness)
-    // careerLaunchInvite 미지정 → 적응형 CTA 가 '무료로 시작하기'(가입)로 동작.
+    // careerLaunchInvite 미지정 → 적응형 CTA 가 '시작하기'(가입)로 동작.
     jobQuery: { limit: 4 },
     showVisaSection: true, // 건국대 유학생 비중 높음
+    visaCodes: ["D-2", "D-10", "E-7"],
+    noindex: true
+  },
+  snu: {
+    slug: "snu",
+    displayName: "서울대학교",
+    shortName: "서울대",
+    wordmark: "SEOUL NATIONAL UNIVERSITY",
+    // 공식 로고는 대학 승인 전이라 워드마크로 렌더(승인 자산을 받으면 logoUrl·symbolUrl 지정).
+    accent: "#0F3D7A", // 서울대 블루 계열 — 공식 정확값은 대학 디자인 가이드 확인 필요
+    accentDeep: "#0A2A55",
+    motto: "VERITAS LUX MEA · 진리는 나의 빛",
+    jobQuery: { limit: 4 },
+    showVisaSection: true,
+    visaCodes: ["D-2", "D-10", "E-7"],
+    noindex: true
+  },
+  seoultech: {
+    slug: "seoultech",
+    displayName: "서울과학기술대학교",
+    shortName: "서울과기대",
+    wordmark: "SEOUL NATIONAL UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+    // 공식 로고는 대학 승인 전이라 워드마크로 렌더(승인 자산을 받으면 logoUrl·symbolUrl 지정).
+    accent: "#1B4F9C", // SeoulTech 블루 계열 — 공식 정확값은 대학 디자인 가이드 확인 필요
+    accentDeep: "#123670",
+    jobQuery: { limit: 4 },
+    showVisaSection: true,
     visaCodes: ["D-2", "D-10", "E-7"],
     noindex: true
   }
