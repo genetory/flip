@@ -16,12 +16,9 @@ export const GOLD = "#C5A878";
 export const NIGHT = "#121622";
 
 /** 셸 — 상단 메뉴 없이 로고·언어만, 첫 화면 뒤 오로라·격자·별, 맨 위 스크롤 진행 막대, 어두운 바닥글. */
-export function PremiumShell({ children, homeHref = "/", variant = "luxe" }: { children: ReactNode; homeHref?: string; variant?: "luxe" | "web3" }) {
-  const web3 = variant === "web3";
+export function PremiumShell({ children, homeHref = "/" }: { children: ReactNode; homeHref?: string }) {
   return (
-    <div className={`v2 premium-dark relative overflow-x-clip ${web3 ? "pm-web3" : ""}`}>
-      {/* 웹3 테마(app/premium/premium.css .pm-web3) — 화면 전체 잡티 */}
-      {web3 ? <div aria-hidden className="pm-noise" /> : null}
+    <div className="v2 premium-dark relative overflow-x-clip">
       {/* 첫 화면 뒤 오로라·격자 — 로고 줄까지 덮도록 맨 위에서 */}
       <div aria-hidden className="pm-aurora pm-fade-bottom bottom-auto h-[920px]">
         <span className="a" />
@@ -199,7 +196,7 @@ export function Wrap({ children, id, className = "" }: { children: ReactNode; id
 }
 
 export function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
-  return <p className={`pm-eyebrow text-[13px] font-bold tracking-[0.14em] ${dark ? "text-white/60" : "text-[color:var(--v2-accent)]"}`}>{children}</p>;
+  return <p className={`text-[13px] font-bold tracking-[0.14em] ${dark ? "text-white/60" : "text-[color:var(--v2-accent)]"}`}>{children}</p>;
 }
 
 /** 구획 제목 — 보이면 줄마다 아래에서 밀려 올라온다. */
@@ -306,13 +303,13 @@ export function Timeline({ steps }: { steps: { title: L; body: L }[] }) {
       {/* 보이면 파란 선이 위에서 아래로(PC 는 왼쪽에서 오른쪽으로) 그려진다 */}
       <span
         aria-hidden
-        className={`pm-timeline-line absolute bottom-3 left-[19px] top-3 w-px origin-top bg-gradient-to-b from-[#648BFF] to-[#C5A878] transition-transform duration-[1600ms] ease-out md:bottom-auto md:left-5 md:right-5 md:top-5 md:h-px md:w-auto md:origin-left md:bg-gradient-to-r ${shown ? "scale-100" : "scale-y-0 md:scale-x-0 md:scale-y-100"} motion-reduce:scale-100 motion-reduce:transition-none`}
+        className={`absolute bottom-3 left-[19px] top-3 w-px origin-top bg-gradient-to-b from-[#648BFF] to-[#C5A878] transition-transform duration-[1600ms] ease-out md:bottom-auto md:left-5 md:right-5 md:top-5 md:h-px md:w-auto md:origin-left md:bg-gradient-to-r ${shown ? "scale-100" : "scale-y-0 md:scale-x-0 md:scale-y-100"} motion-reduce:scale-100 motion-reduce:transition-none`}
       />
       {steps.map((st, i) => (
         <li key={i} className="relative flex gap-4 md:block">
           <span
             style={{ transitionDelay: shown ? `${250 + i * 320}ms` : "0ms" }}
-            className={`pm-timeline-dot relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-[15px] font-bold text-white ring-4 ring-[color:var(--v2-fill)] transition duration-500 ${shown ? "scale-100 opacity-100" : "scale-50 opacity-0"} motion-reduce:scale-100 motion-reduce:opacity-100`}
+            className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[color:var(--v2-accent)] text-[15px] font-bold text-white ring-4 ring-[color:var(--v2-fill)] transition duration-500 ${shown ? "scale-100 opacity-100" : "scale-50 opacity-0"} motion-reduce:scale-100 motion-reduce:opacity-100`}
           >
             {i + 1}
           </span>
