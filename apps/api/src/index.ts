@@ -10587,6 +10587,336 @@ app.patch("/ops/premium-early-access/:id", authenticate, requireRoles([MemberRol
 });
 
 // ---------------------------------------------------------------------------
+// APLY PARTNERS 기업 제휴 문의 + 사전 수요조사(/premium-partners) — 비회원도 보낸다.
+// 같은 이메일로 30일 안에 진행 중(제외·보류 아님) 문의가 있으면 409. 계약·비용 이야기는 미팅에서 — 여기선 수요만 모은다.
+// 선택지 코드는 웹 lib/premium-partners.ts 와 같은 값이다.
+// ---------------------------------------------------------------------------
+
+const PARTNER_CONSENT_VERSION = "partners-2026-11-v1";
+const PARTNER_MODELS = ["REFERRAL", "INTERNSHIP", "PROJECT"] as const;
+const PARTNER_SIZES = ["S1_9", "S10_49", "S50_299", "S300_PLUS"] as const;
+const PARTNER_HIRING = ["NOW", "WITHIN_6M", "CONSIDERING", "NO_PLAN"] as const;
+const PARTNER_HEADCOUNT = ["H1", "H2_3", "H4_5", "H6_PLUS", "UNDECIDED"] as const;
+const PARTNER_DURATION = ["W4", "W8", "W12", "M3_PLUS", "NEGOTIABLE"] as const;
+const PARTNER_FOREIGN = ["YES", "VISA_DEPENDENT", "NO", "UNSURE"] as const;
+const PARTNER_CONVERSION = ["YES", "POSSIBLE", "NO", "UNDECIDED"] as const;
+const PARTNER_STATUSES = ["NEW", "CONTACTED", "MEETING", "NEGOTIATING", "AGREED", "ON_HOLD", "EXCLUDED"] as const;
+const PARTNER_LABEL: Record<string, Record<string, string>> = {
+  model: { REFERRAL: "인재 추천형", INTERNSHIP: "인턴십 채용형", PROJECT: "프로젝트 협력형" },
+  size: { S1_9: "1–9명", S10_49: "10–49명", S50_299: "50–299명", S300_PLUS: "300명 이상" },
+  hiring: { NOW: "지금 계획 있음", WITHIN_6M: "6개월 안", CONSIDERING: "검토 중", NO_PLAN: "계획 없음" },
+  headcount: { H1: "1명", H2_3: "2–3명", H4_5: "4–5명", H6_PLUS: "6명 이상", UNDECIDED: "미정" },
+  duration: { W4: "4주", W8: "8주", W12: "12주", M3_PLUS: "3개월 이상", NEGOTIABLE: "협의" },
+  foreign: { YES: "가능", VISA_DEPENDENT: "체류자격에 따라", NO: "어려움", UNSURE: "잘 모름" },
+  conversion: { YES: "있음", POSSIBLE: "성과에 따라", NO: "없음", UNDECIDED: "미정" },
+  status: { NEW: "신규", CONTACTED: "연락 완료", MEETING: "미팅", NEGOTIATING: "조건 협의", AGREED: "협약 체결", ON_HOLD: "보류", EXCLUDED: "제외" }
+};
+const partnerLabel = (group: string, v: string) => PARTNER_LABEL[group]?.[v] ?? v;
+const discordPartnerWebhookUrl = process.env.DISCORD_PREMIUM_PARTNER_WEBHOOK_URL?.trim() || discordCompanyConsultationWebhookUrl;
+
+const partnerApplySchema = z.object({
+  companyName: z.string().trim().min(1).max(120),
+  contactName: z.string().trim().min(1).max(80),
+  contactTitle: z.string().trim().max(80).optional(),
+  email: z.string().trim().toLowerCase().email().max(254),
+  phone: z.string().trim().max(40).optional(),
+  website: z.string().trim().max(300).optional(),
+  companySize: z.enum(PARTNER_SIZES),
+  industry: z.string().trim().max(120).optional(),
+  partnershipModels: z.array(z.enum(PARTNER_MODELS)).min(1).max(3),
+  hiringPlan: z.enum(PARTNER_HIRING),
+  roles: z.string().trim().min(1).max(300),
+  headcount: z.enum(PARTNER_HEADCOUNT),
+  duration: z.enum(PARTNER_DURATION),
+  workConditions: z.string().trim().max(1000).optional(),
+  foreignHiring: z.enum(PARTNER_FOREIGN),
+  conversion: z.enum(PARTNER_CONVERSION),
+  message: z.string().trim().max(3000).optional(),
+  privacyConsent: z.literal(true),
+  marketingConsent: z.boolean().optional(),
+  // 스팸 방지 — 사람에겐 안 보이는 칸(채워져 오면 봇)과 폼을 연 뒤 걸린 시간(ms).
+  homepage: z.string().max(200).optional(),
+  elapsedMs: z.number().int().min(0).optional(),
+  utmSource: z.string().trim().max(200).optional(),
+  utmMedium: z.string().trim().max(200).optional(),
+  utmCampaign: z.string().trim().max(200).optional(),
+  referrer: z.string().trim().max(500).optional(),
+  locale: z.enum(["ko", "en", "zh-CN", "vi", "ja", "id"]).optional()
+});
+
+async function sendPartnerDiscordNotification(input: z.infer<typeof partnerApplySchema> & { id: string; createdAt: Date }) {
+  if (!discordPartnerWebhookUrl) return;
+  const cut = (text: string, max: number) => (text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text);
+  const opsUrl = `${opsAdminUrl || platformWebUrl}/dashboard/ops/operations/premium-partners`;
+  const payload = {
+    content: "",
+    embeds: [
+      {
+        color: 0xc5a878,
+        title: "🤝 APLY PARTNERS — 기업 제휴 문의",
+        // 담당자 연락처(이메일·전화)는 웹훅에 싣지 않는다 — 운영 콘솔에서 본다.
+        fields: [
+          { name: "회사", value: cut(input.companyName, 256), inline: true },
+          { name: "규모", value: partnerLabel("size", input.companySize), inline: true },
+          { name: "업종", value: cut(input.industry || "-", 256), inline: true },
+          { name: "제휴 방식", value: input.partnershipModels.map((m) => partnerLabel("model", m)).join(", "), inline: false },
+          { name: "채용 계획", value: partnerLabel("hiring", input.hiringPlan), inline: true },
+          { name: "인원·기간", value: `${partnerLabel("headcount", input.headcount)} · ${partnerLabel("duration", input.duration)}`, inline: true },
+          { name: "외국인 채용", value: partnerLabel("foreign", input.foreignHiring), inline: true },
+          { name: "필요 직무", value: cut(input.roles, 1024), inline: false },
+          { name: "바로가기", value: `[운영 콘솔에서 보기](${opsUrl})`, inline: false }
+        ],
+        footer: { text: `Aply • Premium Partners • ${input.id}` },
+        timestamp: input.createdAt.toISOString()
+      }
+    ]
+  };
+  try {
+    const response = await fetch(discordPartnerWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      console.error("premium_partner_discord_webhook_failed", { status: response.status, body: responseBody.slice(0, 500) });
+    }
+  } catch (error) {
+    console.error("premium_partner_discord_webhook_error", { error: getErrorMessage(error) });
+  }
+}
+
+app.post(
+  "/public/premium-partners",
+  rateLimit({ windowMs: 60_000, max: 5, keyPrefix: "premium-partners", message: "잠시 후 다시 시도해 주세요." }),
+  authenticateOptional,
+  async (req, res) => {
+    const parsed = partnerApplySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, code: "INVALID", message: "입력값을 확인해 주세요.", errors: parsed.error.flatten() });
+    }
+    const input = parsed.data;
+    if ((input.homepage && input.homepage.trim()) || (input.elapsedMs !== undefined && input.elapsedMs < 3000)) {
+      return res.status(400).json({ ok: false, code: "INVALID", message: "입력값을 확인해 주세요." });
+    }
+    const ipRaw =
+      (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
+      req.socket.remoteAddress ||
+      "";
+    const ipHash = ipRaw ? createHash("sha256").update(`${ipRaw}|premium-partners`).digest("hex").slice(0, 32) : null;
+    try {
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const dup = await prisma.premiumPartnerApplication.findFirst({
+        where: { email: input.email, status: { notIn: ["EXCLUDED", "ON_HOLD"] }, createdAt: { gte: since } },
+        select: { id: true }
+      });
+      if (dup) {
+        return res.status(409).json({ ok: false, code: "DUPLICATE", message: "이미 문의를 받았어요. 담당자가 곧 연락드릴게요." });
+      }
+      const now = new Date();
+      const created = await prisma.premiumPartnerApplication.create({
+        data: {
+          companyName: input.companyName,
+          contactName: input.contactName,
+          contactTitle: input.contactTitle || null,
+          email: input.email,
+          phone: input.phone || null,
+          website: input.website || null,
+          companySize: input.companySize,
+          industry: input.industry || null,
+          partnershipModels: Array.from(new Set(input.partnershipModels)),
+          hiringPlan: input.hiringPlan,
+          roles: input.roles,
+          headcount: input.headcount,
+          duration: input.duration,
+          workConditions: input.workConditions || null,
+          foreignHiring: input.foreignHiring,
+          conversion: input.conversion,
+          message: input.message || null,
+          privacyConsentAt: now,
+          consentVersion: PARTNER_CONSENT_VERSION,
+          marketingConsentAt: input.marketingConsent ? now : null,
+          utmSource: input.utmSource || null,
+          utmMedium: input.utmMedium || null,
+          utmCampaign: input.utmCampaign || null,
+          referrer: input.referrer || null,
+          locale: input.locale ?? "ko",
+          userId: req.auth?.userId ?? null,
+          ipHash
+        },
+        select: { id: true, createdAt: true }
+      });
+      void sendPartnerDiscordNotification({ ...input, id: created.id, createdAt: created.createdAt });
+      return res.status(201).json({ ok: true, id: created.id });
+    } catch (error) {
+      console.error("[public/premium-partners][create][failed]", { message: getErrorMessage(error) });
+      return res.status(500).json({ ok: false, message: "문의를 저장하지 못했어요. 잠시 후 다시 시도해 주세요." });
+    }
+  }
+);
+
+const opsPartnerQuerySchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  model: z.enum(PARTNER_MODELS).optional(),
+  hiring: z.enum(PARTNER_HIRING).optional(),
+  foreign: z.enum(PARTNER_FOREIGN).optional(),
+  status: z.enum(PARTNER_STATUSES).optional(),
+  sort: z.enum(["newest", "oldest"]).optional(),
+  take: z.coerce.number().int().min(1).max(200).optional(),
+  skip: z.coerce.number().int().min(0).optional()
+});
+
+function opsPartnerWhere(f: z.infer<typeof opsPartnerQuerySchema>): Prisma.PremiumPartnerApplicationWhereInput {
+  return {
+    ...(f.model ? { partnershipModels: { has: f.model } } : {}),
+    ...(f.hiring ? { hiringPlan: f.hiring } : {}),
+    ...(f.foreign ? { foreignHiring: f.foreign } : {}),
+    ...(f.status ? { status: f.status } : {}),
+    ...(f.q
+      ? {
+          OR: [
+            { companyName: { contains: f.q, mode: "insensitive" } },
+            { contactName: { contains: f.q, mode: "insensitive" } },
+            { email: { contains: f.q, mode: "insensitive" } },
+            { roles: { contains: f.q, mode: "insensitive" } }
+          ]
+        }
+      : {})
+  };
+}
+
+app.get("/ops/premium-partners", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPartnerQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query", errors: parsed.error.flatten() });
+  const f = parsed.data;
+  const where = opsPartnerWhere(f);
+  const take = f.take ?? 50;
+  const skip = f.skip ?? 0;
+  try {
+    const [items, total, totalAll, byStatus, byHiring, byForeign, models] = await Promise.all([
+      prisma.premiumPartnerApplication.findMany({ where, orderBy: { createdAt: f.sort === "oldest" ? "asc" : "desc" }, take, skip }),
+      prisma.premiumPartnerApplication.count({ where }),
+      prisma.premiumPartnerApplication.count(),
+      prisma.premiumPartnerApplication.groupBy({ by: ["status"], _count: { _all: true } }),
+      prisma.premiumPartnerApplication.groupBy({ by: ["hiringPlan"], _count: { _all: true } }),
+      prisma.premiumPartnerApplication.groupBy({ by: ["foreignHiring"], _count: { _all: true } }),
+      prisma.premiumPartnerApplication.findMany({ select: { partnershipModels: true } })
+    ]);
+    const tally = <T extends { _count: { _all: number } }>(rows: T[], key: keyof T) =>
+      Object.fromEntries(rows.map((r) => [String(r[key]), r._count._all]));
+    const byModel: Record<string, number> = {};
+    for (const r of models) for (const m of r.partnershipModels) byModel[m] = (byModel[m] ?? 0) + 1;
+    return res.json({
+      ok: true,
+      total,
+      take,
+      skip,
+      summary: {
+        totalAll,
+        byStatus: tally(byStatus, "status"),
+        byHiring: tally(byHiring, "hiringPlan"),
+        byForeign: tally(byForeign, "foreignHiring"),
+        byModel
+      },
+      items: items.map((a) => ({
+        ...a,
+        privacyConsentAt: a.privacyConsentAt.toISOString(),
+        marketingConsentAt: a.marketingConsentAt?.toISOString() ?? null,
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        ipHash: undefined
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+app.get("/ops/premium-partners/export", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const parsed = opsPartnerQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ ok: false, message: "invalid query" });
+  try {
+    const rows = await prisma.premiumPartnerApplication.findMany({
+      where: opsPartnerWhere(parsed.data),
+      orderBy: { createdAt: parsed.data.sort === "oldest" ? "asc" : "desc" },
+      take: 5000
+    });
+    const esc = (v: unknown) => {
+      let s = v === null || v === undefined ? "" : String(v);
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["문의일", "상태", "회사", "규모", "업종", "웹사이트", "담당자", "직책", "이메일", "전화", "제휴 방식", "채용 계획", "필요 직무", "수용 인원", "근무 기간", "급여·근무 조건", "외국인 채용", "정규직 전환", "추가 내용", "마케팅 동의", "유입", "운영 메모"];
+    const lines = rows.map((r) =>
+      [
+        r.createdAt.toISOString(),
+        partnerLabel("status", r.status),
+        r.companyName,
+        partnerLabel("size", r.companySize),
+        r.industry,
+        r.website,
+        r.contactName,
+        r.contactTitle,
+        r.email,
+        r.phone,
+        r.partnershipModels.map((m) => partnerLabel("model", m)).join(" / "),
+        partnerLabel("hiring", r.hiringPlan),
+        r.roles,
+        partnerLabel("headcount", r.headcount),
+        partnerLabel("duration", r.duration),
+        r.workConditions,
+        partnerLabel("foreign", r.foreignHiring),
+        partnerLabel("conversion", r.conversion),
+        r.message,
+        r.marketingConsentAt ? "Y" : "N",
+        r.utmSource,
+        r.opsNote
+      ]
+        .map(esc)
+        .join(",")
+    );
+    void writeAuditLog(req, {
+      action: "OPS_PREMIUM_PARTNERS_EXPORT",
+      resource: "premium_partners",
+      resourceId: null,
+      metadata: { count: rows.length, callerId: req.auth!.userId }
+    });
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="premium-partners-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return res.send(`﻿${[header.join(","), ...lines].join("\r\n")}`);
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+const opsPartnerUpdateSchema = z.object({
+  status: z.enum(PARTNER_STATUSES).optional(),
+  opsNote: z.string().trim().max(4000).nullable().optional()
+});
+
+app.patch("/ops/premium-partners/:id", authenticate, requireRoles([MemberRole.OPERATOR]), async (req, res) => {
+  const id = typeof req.params.id === "string" ? req.params.id : "";
+  const parsed = opsPartnerUpdateSchema.safeParse(req.body);
+  if (!id || !parsed.success) return res.status(400).json({ ok: false, message: "invalid request" });
+  const data: Prisma.PremiumPartnerApplicationUpdateInput = {};
+  if (parsed.data.status !== undefined) data.status = parsed.data.status;
+  if (parsed.data.opsNote !== undefined) data.opsNote = parsed.data.opsNote || null;
+  try {
+    const updated = await prisma.premiumPartnerApplication.update({
+      where: { id },
+      data,
+      select: { id: true, status: true, opsNote: true, updatedAt: true }
+    });
+    return res.json({ ok: true, item: { ...updated, updatedAt: updated.updatedAt.toISOString() } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return res.status(404).json({ ok: false, message: "not found" });
+    }
+    return res.status(500).json({ ok: false, message: getErrorMessage(error) });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // 서울글로벌센터 × Aply 6주 일경험 프로그램 지원. 회원만 지원 가능 — 사용자
 // User + Resume 의 기존 정보를 그대로 활용하고 SGC-specific 6 필드만 받음.
 // 한 사용자당 1회 지원(@@unique([userId])).

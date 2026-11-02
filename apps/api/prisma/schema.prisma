@@ -3017,3 +3017,46 @@ model PremiumEarlyAccessApplication {
   @@index([visaStatus])
   @@index([createdAt])
 }
+
+// APLY PARTNERS 기업 제휴 문의 + 사전 수요조사(/premium-partners). 비회원도 보낸다.
+// 선택지는 언어와 상관없이 같은 코드로 저장한다(웹 lib/premium-partners.ts 와 같은 값).
+// status: NEW → CONTACTED → MEETING → NEGOTIATING → AGREED | ON_HOLD | EXCLUDED (운영자가 바꾼다).
+model PremiumPartnerApplication {
+  id                 String    @id @default(uuid())
+  companyName        String
+  contactName        String
+  contactTitle       String?
+  email              String
+  phone              String?
+  website            String?
+  companySize        String
+  industry           String?
+  partnershipModels  String[]
+  hiringPlan         String
+  roles              String
+  headcount          String
+  duration           String
+  workConditions     String?
+  foreignHiring      String
+  conversion         String
+  message            String?
+  privacyConsentAt   DateTime
+  consentVersion     String
+  marketingConsentAt DateTime?
+  status             String    @default("NEW")
+  opsNote            String?
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  referrer           String?
+  locale             String    @default("ko")
+  userId             String?
+  ipHash             String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([hiringPlan])
+  @@index([createdAt])
+}
