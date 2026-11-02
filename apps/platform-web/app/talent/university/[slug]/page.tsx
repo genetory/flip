@@ -37,7 +37,7 @@ export default async function UniversityLandingPage({ params }: { params: Promis
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
         <Link href="/talent/signup" className="inline-flex h-11 items-center justify-center rounded-xl bg-[#0B46E8] px-5 text-[14px] font-bold text-white transition hover:bg-[#0A3ECB]">
-          무료로 시작하기
+          시작하기
         </Link>
         <Link href="/talent" className="inline-flex h-11 items-center justify-center rounded-xl border border-[#E5E8EB] bg-white px-5 text-[14px] font-bold text-[#4E5968] transition hover:text-[#191F28]">
           Aply 둘러보기

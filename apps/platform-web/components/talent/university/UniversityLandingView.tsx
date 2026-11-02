@@ -119,7 +119,7 @@ export function UniversityLandingView({ data }: { data: UniversityLanding }) {
             {t(`${koWho}의 첫 커리어, 여기서 시작하세요`, `${data.shortName} students, start your first career here`, `${data.shortName}学生的第一份职业，从这里开始`, `Sinh viên ${data.shortName}, bắt đầu sự nghiệp tại đây`, `${data.shortName}生の初めてのキャリア、ここから`, `Mahasiswa ${data.shortName}, mulai karier pertamamu di sini`)}
           </h1>
           <p className="mt-4 max-w-[46ch] break-keep text-[14.5px] leading-relaxed text-white/85 md:text-[16px]">
-            {t("AI로 이력서·자기소개서를 완성하고, 모의면접으로 준비한 뒤, 실제 공고에 바로 지원하세요. 전부 무료예요.", "Finish your resume and cover letter with AI, practice interviews, then apply to real jobs — all free.", "用AI完成简历与自我介绍，进行模拟面试，再直接投递真实公告。全部免费。", "Hoàn thành CV & thư bằng AI, luyện phỏng vấn, rồi ứng tuyển việc thật — tất cả miễn phí.", "AIで履歴書・自己紹介書を完成し、模擬面接で準備して、実際の求人に応募。すべて無料。", "Selesaikan resume & surat dengan AI, latih wawancara, lalu lamar kerja nyata — semua gratis.")}
+            {t("AI로 이력서·자기소개서를 완성하고, 모의면접으로 준비한 뒤, 실제 공고에 바로 지원하세요.", "Finish your resume and cover letter with AI, practice interviews, then apply to real jobs.", "用AI完成简历与自我介绍，进行模拟面试，再直接投递真实公告。", "Hoàn thành CV & thư bằng AI, luyện phỏng vấn, rồi ứng tuyển việc thật.", "AIで履歴書・自己紹介書を完成し、模擬面接で準備して、実際の求人に応募。", "Selesaikan resume & surat dengan AI, latih wawancara, lalu lamar kerja nyata.")}
           </p>
 
           {/* 커리어런치 코드 입력 + 접속 버튼 */}
